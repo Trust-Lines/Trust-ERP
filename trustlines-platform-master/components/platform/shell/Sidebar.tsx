@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
+  Home,
   ChevronDown,
   ChevronRight,
   LayoutDashboard,
@@ -40,6 +41,7 @@ import {
 } from 'lucide-react';
 import type { UserRole } from '@/types/database';
 import { permCan } from '@/lib/permissions/catalog';
+import { useTabs } from '@/components/platform/shell/TabContext';
 
 interface NavItem {
   label: string;
@@ -49,6 +51,7 @@ interface NavItem {
   exact?: boolean;
 }
 
+const HOME_ITEM: NavItem = { label: 'Home', href: '/home', icon: Home, perm: 'page.dashboard' };
 const DASHBOARD_ITEM: NavItem = { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, perm: 'page.dashboard' };
 const NOTIFICATIONS_ITEM: NavItem = { label: 'Notifications', href: '/notifications', icon: Bell, perm: 'page.notifications' };
 const CUSTOMERS_ITEM: NavItem = { label: 'Customers', href: '/customers', icon: Contact, perm: 'page.customers' };
@@ -104,11 +107,33 @@ interface SidebarProps {
 function NavLink({ item, perms, pathname, bypassPerm = false }: {
   item: NavItem; perms: Record<string, boolean> | undefined; pathname: string; bypassPerm?: boolean;
 }) {
+  const { openTab } = useTabs();
   if (!bypassPerm && !permCan(perms, item.perm)) return null;
   const Icon = item.icon;
   const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
+
+  function handleClick(e: React.MouseEvent) {
+    if (openTab) {
+      e.preventDefault();
+      openTab({
+        id: item.href,
+        key: item.href,
+        label: item.label,
+        href: item.href,
+        icon: item.icon,
+        color: '#38bdf8',
+        iconBg: '#082f49',
+      });
+    }
+  }
+
   return (
-    <Link href={item.href} className={`nav-item${active ? ' active' : ''}`} style={{ marginBottom: 2 }}>
+    <Link
+      href={item.href}
+      onClick={handleClick}
+      className={`nav-item${active ? ' active' : ''}`}
+      style={{ marginBottom: 2 }}
+    >
       <Icon size={15} strokeWidth={1.8} />
       {item.label}
     </Link>
@@ -127,6 +152,7 @@ function NavGroup({
   defaultOpen?: boolean;
   activeOverride?: string;
 }) {
+  const { openTab } = useTabs();
   const visible = bypassPerm ? items : items.filter(item => permCan(perms, item.perm));
 
   const matchedHref = visible
@@ -182,6 +208,20 @@ function NavGroup({
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={e => {
+                  if (openTab) {
+                    e.preventDefault();
+                    openTab({
+                      id: item.href,
+                      key: item.href,
+                      label: item.label,
+                      href: item.href,
+                      icon: item.icon,
+                      color: '#38bdf8',
+                      iconBg: '#082f49',
+                    });
+                  }
+                }}
                 className={`nav-item${active ? ' active' : ''}`}
                 style={{ fontSize: 12.5, padding: '6px 10px', marginBottom: 1 }}
               >
@@ -209,30 +249,30 @@ export function Sidebar({ userRole, userPerms, userName, userEmail, logoSrc }: S
     .toUpperCase();
 
   const ROLE_LABELS: Record<UserRole, string> = {
-    ops_manager:    'Ops Manager',
-    pm_millwork:    'PM · Millwork',
-    pm_ceiling:     'PM · Ceiling',
-    trustlines_pm:  'TL Project Manager',
-    tlines_pm:      'T-Lines PM',
+    ops_manager: 'Ops Manager',
+    pm_millwork: 'PM · Millwork',
+    pm_ceiling: 'PM · Ceiling',
+    trustlines_pm: 'TL Project Manager',
+    tlines_pm: 'T-Lines PM',
     qc_responsible: 'QC Responsible',
-    logistics:      'Logistics',
-    accounting:     'Accounting',
+    logistics: 'Logistics',
+    accounting: 'Accounting',
     production_manager: 'Production Manager',
-    project_manager:    'Project Manager',
-    general_manager:    'General Manager',
-    accountant:         'Accountant',
-    designer:           'Designer',
+    project_manager: 'Project Manager',
+    general_manager: 'General Manager',
+    accountant: 'Accountant',
+    designer: 'Designer',
     sales_marketing_manager: 'Sales & Marketing Manager',
-    sales_rep:               'Sales Rep',
-    design_lead:        'Design Lead',
-    shop_drawer:        'Shop Drawer',
-    supply_manager:     'Supply Manager',
-    supply_user:        'Supply User',
-    production_user:    'Production User',
-    warehouse_manager:  'Warehouse Manager',
-    warehouse_user:     'Warehouse User',
-    marketing_pr:       'Marketing & PR',
-    marketing_manager:  'Marketing Manager',
+    sales_rep: 'Sales Rep',
+    design_lead: 'Design Lead',
+    shop_drawer: 'Shop Drawer',
+    supply_manager: 'Supply Manager',
+    supply_user: 'Supply User',
+    production_user: 'Production User',
+    warehouse_manager: 'Warehouse Manager',
+    warehouse_user: 'Warehouse User',
+    marketing_pr: 'Marketing & PR',
+    marketing_manager: 'Marketing Manager',
   };
 
   const isInternal = userRole !== 'tlines_pm';
@@ -243,17 +283,17 @@ export function Sidebar({ userRole, userPerms, userName, userEmail, logoSrc }: S
 
   const isFullAuthority = userRole === 'ops_manager' || userRole === 'general_manager';
   const demoNav: NavItem[] = [
-    { label: 'Sales Dashboard',       href: '/live-dashboard-demo',       icon: MonitorPlay, perm: 'page.dashboard' },
-    { label: 'Production Dashboard',  href: '/production-dashboard-demo', icon: Factory,     perm: 'page.dashboard' },
-    { label: 'Full Pipeline',         href: '/pipeline-dashboard-demo',   icon: Gauge,       perm: 'page.dashboard' },
+    { label: 'Sales Dashboard', href: '/live-dashboard-demo', icon: MonitorPlay, perm: 'page.dashboard' },
+    { label: 'Production Dashboard', href: '/production-dashboard-demo', icon: Factory, perm: 'page.dashboard' },
+    { label: 'Full Pipeline', href: '/pipeline-dashboard-demo', icon: Gauge, perm: 'page.dashboard' },
   ];
   const crmNav: NavItem[] = [
     ...CRM_BOARD_NAV,
     ...(isSales ? [
       ...SALES_NAV,
       ...(isSalesAdmin
-        ? [{ label: 'Dashboard',  href: '/sales-dashboard', icon: BarChart3, perm: 'page.sales_dashboard' },
-           { label: 'Sales Team', href: '/sales-team',      icon: Users,     perm: 'page.sales_team' }]
+        ? [{ label: 'Dashboard', href: '/sales-dashboard', icon: BarChart3, perm: 'page.sales_dashboard' },
+        { label: 'Sales Team', href: '/sales-team', icon: Users, perm: 'page.sales_team' }]
         : []),
       { label: 'Trash', href: '/leads/trash', icon: Trash2, perm: 'page.leads' },
     ] : []),
@@ -283,6 +323,7 @@ export function Sidebar({ userRole, userPerms, userName, userEmail, logoSrc }: S
       </div>
 
       <div style={{ flex: 1, padding: '0 6px', overflowY: 'auto' }}>
+        <NavLink item={HOME_ITEM} perms={userPerms} pathname={pathname} />
         <NavLink item={DASHBOARD_ITEM} perms={userPerms} pathname={pathname} />
         <NavLink item={NOTIFICATIONS_ITEM} perms={userPerms} pathname={pathname} />
 

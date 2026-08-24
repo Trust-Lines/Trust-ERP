@@ -7,13 +7,13 @@ import type { MyDayData, MyDayItem, MyDaySection } from '@/lib/dashboard/myDay';
 
 const TONE: Record<NonNullable<MyDayItem['tone']>, string> = {
   default: 'var(--fg-subtle)',
-  warn:    'var(--status-warning-fg, #b45309)',
-  danger:  'var(--status-danger, #dc2626)',
-  good:    'var(--status-success-fg)',
+  warn: 'var(--status-warning-fg, #b45309)',
+  danger: 'var(--status-danger, #dc2626)',
+  good: 'var(--status-success-fg)',
 };
 
 export function MyDay() {
-  const [data, setData]   = useState<MyDayData | null>(null);
+  const [data, setData] = useState<MyDayData | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
 

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { redirect } from 'next/navigation';
+import { redirect as nextRedirect } from 'next/navigation';
 import DashboardClient, {
   type DashboardStats,
   type ApprovalItem,
@@ -9,6 +9,7 @@ import DashboardClient, {
   type OverdueProject,
 } from '@/components/platform/dashboard/DashboardClient';
 import { MyDay } from '@/components/platform/dashboard/MyDay';
+import { getRolePermissions } from '@/lib/permissions/server';
 
 const STAGE_LABELS: Record<string, string> = {
   closed_deal:    'Finalization',
@@ -29,7 +30,7 @@ const STAGE_COLORS: Record<string, string> = {
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  if (!user) nextRedirect('/login');
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
@@ -43,6 +44,8 @@ export default async function DashboardPage() {
   const profile   = profileData as { full_name: string | null; role: string | null } | null;
   const userRole  = profile?.role ?? 'ops_manager';
   const userName  = profile?.full_name ?? user.email ?? 'User';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userPerms = await getRolePermissions(admin as any, userRole);
 
   const { data: allProjects } = await admin
     .from('projects')
@@ -220,7 +223,7 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <div className="main-inner" style={{ paddingBottom: 0 }}>
+      <div className="main-inner" style={{ paddingTop: 16, paddingBottom: 0, maxWidth: 1280 }}>
         <MyDay />
       </div>
       <DashboardClient
