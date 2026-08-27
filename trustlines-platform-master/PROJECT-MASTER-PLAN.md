@@ -2128,6 +2128,36 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-08-27 (Sales Handoff Accept flow — LIVE-VERIFIED on the dev DB) — NO migration
+- Ran the real `initiateHandoff` → `acceptOpportunity` chain (lib/marketing/salesHandoff.ts) against real
+  rows on the DEVELOPMENT database (not production — confirmed with the user first), self-cleaning
+  (ZZTEST prospect/need/opportunity/project all deleted after). This is the live verification
+  078's original task explicitly deferred ("no live test... recommend a careful manual live test").
+- Result: PASSED. A qualifying Need → real Opportunity → handed off to Sales → Accepted → real project
+  created (code `STW 3`, `current_stage: closed_deal`, `is_draft: false`, correct Dropbox path computed)
+  → calling Accept a SECOND time on the same Opportunity correctly returned `alreadyAccepted: true` with
+  the SAME project id — no duplicate project, no duplicate global project number. The one safety property
+  this flow depends on (idempotency) holds on real data, not just in the mocked unit tests.
+  Dropbox folder creation itself failed gracefully (400 — `DROPBOX_APP_KEY` is empty in this environment)
+  and did not block project creation, matching the intended best-effort design.
+- 🔴 **Found while building the test, not previously documented anywhere:** the classification engine
+  (`lib/marketing/classification.ts`, wired via migration 085 `prospect_need_documents` /
+  `hasDocumentEvidence`) no longer matches what PROJECT-MASTER-PLAN.md's Phase 00.3c entry describes.
+  Today, **only a real attached document/link/photo/matterport (`prospect_need_documents`) can classify a
+  Need as an Opportunity Candidate.** `has_active_project`, `deadline`, `expected_start_date`, and
+  `project_types` alone — which 00.3c's write-up lists as independently sufficient — now only ever reach
+  "potential" at best (confirmed by reading the current `classifyLead()` body, then reproducing it live: a
+  Need with `has_active_project: true` and no document classified as "potential", reason "No document/link
+  attached yet"; attaching a `prospect_need_documents` row flipped it to "opportunity_candidate"). This
+  migration (085) is one more of the 087–104 batch this file never recorded — see the Migration Status
+  Audit entry above. Worth a deliberate product decision (is this the intended rule now, or a regression?)
+  rather than silently living with the drift.
+- No files changed (verification-only task, temporary script deleted after the run).
+- Next: with the Handoff mechanics now confirmed sound, the actual UI-facing gap remains — intermediate
+  Opportunity stages (discovery/sales_design/proposal/negotiation) still have no dedicated screen, and
+  `ensureProjectForOpportunity` (the "Working on it Trust" stage bridge, lib/marketing/salesHandoff.ts) is
+  written but not called from any API route yet — confirmed by grep, zero call sites in app/api.
+
 2026-08-27 (Sales Dashboard fix — was reading only lead_intake) — NO migration
 - BUG: /sales-dashboard read ONLY the legacy `lead_intake` table. Since Phase 00, the real pipeline
   also lives in `opportunities` + `prospect_potentials` (the same three sources the CRM board at
