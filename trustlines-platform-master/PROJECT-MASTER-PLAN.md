@@ -3506,6 +3506,29 @@ Remaining ops note: apply the 062 tail `ALTER TABLE customer_follow_ups ADD COLU
 EXISTS reminded_on DATE;` (PM follow-up reminders are silently dead until then) and, for
 fresh-DB fidelity, migration 064 (its enum value is already live).
 ════════════════════════════════════════════════════════════════════════════════════════════
+[2026-08-24] Platform UI Modernization & Alignment:
+1. Dashboard (/dashboard): Redesigned with 4-KPI Squircle metrics row, dynamic 5-step
+   pipeline chevron strip (Discovery, Planning, Execution, Testing, Finalization), Projects
+   in pipeline table, My Day, Approvals cards, and Recent Activity audit table. All green
+   colors eliminated in favor of Royal Blue/Slate/Indigo palettes.
+2. CRM Board (/leads): Redesigned with unified 4-KPI card (Opportunities, Pipeline value,
+   Proposal sent, Deals closed), View Mode switcher (List, Board, Calendar), Search &
+   Filter toolbar, Opportunities table with colored stage pills, and interactive Pipeline
+   Stages sidebar with miniature progress bars.
+3. New Lead / Intake Form (/leads/new): Implemented 7-step wizard (Project setup, Customer,
+   Lead details, Scope of work, Additional notes, Dimensions & media, Checklist) with
+   dynamic Lead Summary required-fields progress tracker.
+[2026-08-25] New Project Creation Dashboard UI Redesign:
+1. Re-architected project creation page (/projects/new) and form (NewProjectForm.tsx) to match the reference UI/UX design.
+2. Built a 3-column dashboard grid layout featuring:
+   - Header bar with title, status pill, user role badge, and action buttons.
+   - "Start faster" quick-action banner with Dropbox browser modal toggle and AI deal email parsing.
+   - 6-step vertical stepper sidebar (Project info, Categories & value, Timeline, Dropbox folder, Integrations, Initial team).
+   - Middle step content card with location search, state selection, category pill toggles, category estimated values, currency picker, and step navigation controls.
+   - Right project summary sidebar with live key-value previews, folder path previews, and required-fields completion progress bar.
+3. Updated primary action buttons styling to use the exact dark navy blue `#0c233c` palette requested.
+4. TypeScript check (`npx tsc --noEmit`) passing cleanly with 0 errors.
+════════════════════════════════════════════════════════════════════════════════════════════
 ```
 
 ---

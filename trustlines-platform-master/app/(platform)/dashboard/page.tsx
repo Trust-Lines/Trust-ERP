@@ -4,11 +4,9 @@ import { redirect as nextRedirect } from 'next/navigation';
 import DashboardClient, {
   type DashboardStats,
   type ApprovalItem,
-  type PipelineStage,
   type ActivityItem,
-  type OverdueProject,
+  type DashboardProjectItem,
 } from '@/components/platform/dashboard/DashboardClient';
-import { MyDay } from '@/components/platform/dashboard/MyDay';
 import { getRolePermissions } from '@/lib/permissions/server';
 
 const STAGE_LABELS: Record<string, string> = {
@@ -141,20 +139,7 @@ export default async function DashboardPage() {
     };
   });
 
-  const stageCounts = active.reduce<Record<string, number>>((acc, p) => {
-    acc[p.current_stage] = (acc[p.current_stage] ?? 0) + 1;
-    return acc;
-  }, {});
 
-  const STAGE_ORDER = ['closed_deal', 'finalization', 'client_approval', 'production'];
-  const pipeline: PipelineStage[] = STAGE_ORDER
-    .filter(s => (stageCounts[s] ?? 0) > 0)
-    .map(s => ({
-      stage: s,
-      label: STAGE_LABELS[s] ?? s,
-      count: stageCounts[s] ?? 0,
-      color: STAGE_COLORS[s] ?? '#6b7280',
-    }));
 
   const { data: auditRows } = await admin
     .from('audit_log')
@@ -195,47 +180,47 @@ export default async function DashboardPage() {
     projectCode: e.project_id ? (auditProjectMap.get(e.project_id) ?? null) : null,
   }));
 
-  const sortedOverdue = [...overdueProjs].sort((a, b) => {
-    const dA = new Date(a.est_delivery_date!).getTime();
-    const dB = new Date(b.est_delivery_date!).getTime();
-    return dA - dB;
-  });
-
-  const overdueProfileIds = [...new Set(sortedOverdue.map(p => p.trustlines_pm_id).filter(Boolean))] as string[];
-  const { data: overdueProfilesData } = overdueProfileIds.length > 0
-    ? await admin.from('profiles').select('id, full_name').in('id', overdueProfileIds)
+  const pmProfileIds = [...new Set(projects.map(p => p.trustlines_pm_id).filter(Boolean))] as string[];
+  const { data: pmProfilesData } = pmProfileIds.length > 0
+    ? await admin.from('profiles').select('id, full_name').in('id', pmProfileIds)
     : { data: [] };
-
-  const overdueProfileMap = new Map(
-    ((overdueProfilesData ?? []) as { id: string; full_name: string }[]).map(p => [p.id, p.full_name])
+  const pmProfileMap = new Map(
+    ((pmProfilesData ?? []) as { id: string; full_name: string }[]).map(p => [p.id, p.full_name])
   );
 
-  const todayMs = new Date(today).getTime();
-  const overdue: OverdueProject[] = sortedOverdue.slice(0, 5).map(p => ({
-    id:           p.id,
-    code:         p.code,
-    name:         p.name,
-    currentStage: p.current_stage,
-    stageLabel:   STAGE_LABELS[p.current_stage] ?? p.current_stage,
-    daysOverdue:  Math.floor((todayMs - new Date(p.est_delivery_date!).getTime()) / 86_400_000),
-    pmName:       overdueProfileMap.get(p.trustlines_pm_id ?? '') ?? null,
+  const stageWeights: Record<string, number> = {
+    closed_deal: 15,
+    discovery: 15,
+    planning: 35,
+    client_approval: 55,
+    production: 75,
+    execution: 75,
+    qc: 90,
+    testing: 90,
+    finalization: 85,
+    delivered: 100,
+  };
+
+  const projectsList = active.slice(0, 10).map(p => ({
+    id: p.id,
+    code: p.code,
+    name: p.name,
+    stage: p.current_stage,
+    stageLabel: STAGE_LABELS[p.current_stage] ?? p.current_stage,
+    ownerName: pmProfileMap.get(p.trustlines_pm_id ?? '') ?? userName ?? 'Frontend Demo',
+    progress: stageWeights[p.current_stage] ?? 85,
+    updatedAt: p.created_at ? p.created_at.split('T')[0] : today,
   }));
 
   return (
-    <>
-      <div className="main-inner" style={{ paddingTop: 16, paddingBottom: 0, maxWidth: 1280 }}>
-        <MyDay />
-      </div>
-      <DashboardClient
-        userName={userName}
-        userRole={userRole}
-        stats={stats}
-        approvals={approvals}
-        pipeline={pipeline}
-        activity={activity}
-        overdue={overdue}
-        today={today}
-      />
-    </>
+    <DashboardClient
+      userName={userName}
+      userRole={userRole}
+      stats={stats}
+      approvals={approvals}
+      activity={activity}
+      projectsList={projectsList}
+      today={today}
+    />
   );
 }

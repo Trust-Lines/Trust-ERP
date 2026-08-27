@@ -147,11 +147,27 @@ export function TabProvider({
   );
 }
 
+// ── Safe Fallback Context ──────────────────────────────────────────────────
+const DEFAULT_TAB_CONTEXT: TabContextValue = {
+  tabs: [],
+  activeTabId: HOME_TAB_ID,
+  openTab: (tab) => {
+    if (typeof window !== 'undefined' && tab?.href) {
+      window.location.href = tab.href;
+    }
+  },
+  closeTab: () => {},
+  activateTab: (id) => {
+    if (typeof window !== 'undefined' && id === HOME_TAB_ID) {
+      window.location.href = '/home';
+    }
+  },
+};
+
 // ── Hook ───────────────────────────────────────────────────────────────────
 export function useTabs(): TabContextValue {
   const ctx = useContext(TabContext);
-  if (!ctx) throw new Error('useTabs must be used inside <TabProvider>');
-  return ctx;
+  return ctx ?? DEFAULT_TAB_CONTEXT;
 }
 
 export { HOME_TAB_ID };

@@ -1,15 +1,33 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Check, Paperclip, Loader2, Link2 } from 'lucide-react';
-import { LocationSearch } from '@/components/platform/projects/LocationSearch';
+import {
+  Check,
+  ChevronRight,
+  ChevronDown,
+  Lock,
+  ArrowRight,
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Paperclip,
+  Upload,
+  Link2,
+} from 'lucide-react';
 import { US_STATES } from '@/lib/usStates';
-import { REGIONS, SERVICE_LINES, regionLabel, serviceLineLabel, composeProjectCode } from '@/lib/regions';
+import { REGIONS, SERVICE_LINES, composeProjectCode } from '@/lib/regions';
 import { PROJECT_TYPES, LEAD_SOURCES } from '@/lib/sales/projectTypes';
 
-interface DocRow { id: string; category: string; dropbox_path: string; file_name: string; created_at: string }
+interface DocRow {
+  id: string;
+  category: string;
+  dropbox_path: string;
+  file_name: string;
+  created_at: string;
+}
 
 interface Props {
   intakeId: string;
@@ -17,584 +35,924 @@ interface Props {
 }
 
 type Scope = { shelving: boolean; millwork: boolean; image: boolean; ceiling: boolean };
-type Notes = { shelving: string; millwork: string; image: string; ceiling: string; areas: string; client_special_request: string };
+type Notes = {
+  shelving: string;
+  millwork: string;
+  image: string;
+  ceiling: string;
+  areas: string;
+  client_special_request: string;
+};
 type ChecklistItem = { id: string; text: string; done: boolean };
 
-
-
-
 interface FormState {
-  region: string; service_line: string;
-  customer_name: string; brand: string; customer_email: string;
-  contact_person: string; contact_phone: string; industry: string; project_type: string; customer_address: string;
-  city: string; street: string; state: string;
-  scope_of_work: Scope; notes: Notes; matterport_link: string;
-
-  priority: string; assignee_id: string; deal_size: string; source: string;
-  follow_up_date: string; next_action: string; tags: string;
+  company: string;
+  region: string;
+  service_line: string;
+  project_type: string;
+  customer_name: string;
+  brand: string;
+  customer_email: string;
+  contact_person: string;
+  contact_phone: string;
+  industry: string;
+  customer_address: string;
+  street: string;
+  city: string;
+  state: string;
+  scope_of_work: Scope;
+  notes: Notes;
+  matterport_link: string;
+  priority: string;
+  assignee_id: string;
+  deal_size: string;
+  source: string;
+  follow_up_date: string;
+  next_action: string;
+  tags: string;
   checklist: ChecklistItem[];
 }
 
 const EMPTY: FormState = {
-  region: '', service_line: '',
-  customer_name: '', brand: '', customer_email: '', contact_person: '', contact_phone: '', industry: '', project_type: '', customer_address: '',
-  city: '', street: '', state: '',
+  company: '',
+  region: '',
+  service_line: 'ST',
+  project_type: '',
+  customer_name: '',
+  brand: '',
+  customer_email: '',
+  contact_person: '',
+  contact_phone: '',
+  industry: '',
+  customer_address: '',
+  street: '',
+  city: '',
+  state: '',
   scope_of_work: { shelving: false, millwork: false, image: false, ceiling: false },
   notes: { shelving: '', millwork: '', image: '', ceiling: '', areas: '', client_special_request: '' },
   matterport_link: '',
-  priority: 'medium', assignee_id: '', deal_size: '', source: '',
-  follow_up_date: '', next_action: '', tags: '', checklist: [],
+  priority: 'medium',
+  assignee_id: '',
+  deal_size: '',
+  source: '',
+  follow_up_date: '',
+  next_action: '',
+  tags: '',
+  checklist: [],
 };
 
-const SCOPE_ITEMS: { key: keyof Scope; label: string; noteCategory: string }[] = [
-  { key: 'shelving', label: 'Shelving', noteCategory: 'shelving_note' },
-  { key: 'millwork', label: 'Millwork', noteCategory: 'millwork_note' },
-  { key: 'image',    label: 'Image',    noteCategory: 'image_note' },
-  { key: 'ceiling',  label: 'Ceiling',  noteCategory: 'ceiling_note' },
+const WIZARD_STEPS = [
+  { step: 1, title: 'Project setup', subtitle: 'Company, region & site' },
+  { step: 2, title: 'Customer', subtitle: 'Customer & contact info' },
+  { step: 3, title: 'Lead details', subtitle: 'Priority, source & follow-up' },
+  { step: 4, title: 'Scope of work', subtitle: 'Shelving, millwork, images' },
+  { step: 5, title: 'Additional notes', subtitle: 'Areas & client requests' },
+  { step: 6, title: 'Dimensions & media', subtitle: 'Plans, photos & 360 link' },
+  { step: 7, title: 'Checklist', subtitle: 'Subtasks & next steps' },
 ];
-
-const compose = (c: string, s: string, st: string) => [c, s, st].map(x => x.trim()).filter(Boolean).join(' - ');
 
 export function IntakeForm({ intakeId, assignees }: Props) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const [form, setForm]           = useState<FormState>(EMPTY);
+  const [activeStep, setActiveStep] = useState(1);
+  const [form, setForm] = useState<FormState>(EMPTY);
   const [documents, setDocuments] = useState<DocRow[]>([]);
-  const [loaded, setLoaded]       = useState(false);
-  const [saving, setSaving]       = useState(false);
-  const [savedAt, setSavedAt]     = useState<Date | null>(null);
-  const [projectId, setProjectId]         = useState<string | null>(null);
-  const [projectNumber, setProjectNumber] = useState<number | null>(null);
-  const [delivered, setDelivered]         = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [newChecklistText, setNewChecklistText] = useState('');
 
-
-
-
-
-  const [persisted, setPersisted] = useState(false);
-  const persistedRef = useRef(false);
-
-  const [numberPreview, setNumberPreview] = useState<number | null>(null);
-
-  const [searchState, setSearchState] = useState('');
-  const [newChkItem, setNewChkItem]   = useState('');
-
-
+  // Load intake data if exists
   useEffect(() => {
-    let cancelled = false;
+    let live = true;
     (async () => {
       try {
         const res = await fetch(`/api/leads/${intakeId}/intake`);
-        const data = await res.json() as { intake: Record<string, unknown> | null; documents: DocRow[] };
-        if (cancelled) return;
+        const data = (await res.json()) as { intake: Record<string, unknown> | null; documents: DocRow[] };
+        if (!live) return;
         if (data.intake) {
           const i = data.intake;
           setForm({
-            region: (i.region as string) ?? '', service_line: (i.service_line as string) ?? '',
-            customer_name: (i.customer_name as string) ?? '', brand: (i.brand as string) ?? '',
-            customer_email: (i.customer_email as string) ?? '', contact_person: (i.contact_person as string) ?? '',
-            contact_phone: (i.contact_phone as string) ?? '', industry: (i.industry as string) ?? '',
+            company: (i.company as string) ?? '',
+            region: (i.region as string) ?? '',
+            service_line: (i.service_line as string) ?? 'ST',
             project_type: (i.project_type as string) ?? '',
+            customer_name: (i.customer_name as string) ?? '',
+            brand: (i.brand as string) ?? '',
+            customer_email: (i.customer_email as string) ?? '',
+            contact_person: (i.contact_person as string) ?? '',
+            contact_phone: (i.contact_phone as string) ?? '',
+            industry: (i.industry as string) ?? '',
             customer_address: (i.customer_address as string) ?? '',
-            city: (i.city as string) ?? '', street: (i.street as string) ?? '', state: (i.state as string) ?? '',
-            scope_of_work: { ...EMPTY.scope_of_work, ...(i.scope_of_work as Scope ?? {}) },
-            notes: { ...EMPTY.notes, ...(i.notes as Notes ?? {}) },
+            street: (i.street as string) ?? '',
+            city: (i.city as string) ?? '',
+            state: (i.state as string) ?? '',
+            scope_of_work: (i.scope_of_work as Scope) ?? EMPTY.scope_of_work,
+            notes: (i.notes as Notes) ?? EMPTY.notes,
             matterport_link: (i.matterport_link as string) ?? '',
-            priority: (i.priority as string) || 'medium',
+            priority: (i.priority as string) ?? 'medium',
             assignee_id: (i.assignee_id as string) ?? '',
-            deal_size: i.deal_size != null ? String(i.deal_size) : '',
+            deal_size: i.deal_size ? String(i.deal_size) : '',
             source: (i.source as string) ?? '',
             follow_up_date: (i.follow_up_date as string) ?? '',
             next_action: (i.next_action as string) ?? '',
             tags: Array.isArray(i.tags) ? (i.tags as string[]).join(', ') : '',
-            checklist: Array.isArray(i.checklist) ? (i.checklist as ChecklistItem[]) : [],
+            checklist: (i.checklist as ChecklistItem[]) ?? [],
           });
-          setProjectId((i.project_id as string) ?? null);
-          setProjectNumber((i.project_number as number) ?? null);
-          setDelivered(!!i.is_delivered);
-          setSearchState((i.state as string) ?? '');
-          setDocuments(data.documents ?? []);
-          persistedRef.current = true;
-          setPersisted(true);
-        } else {
-
-
-
-
-
-          const region = searchParams.get('region');
-          if (region) setForm(f => ({ ...f, region }));
+          setSavedAt(new Date());
         }
+        if (data.documents) setDocuments(data.documents);
       } catch { }
-      finally {
-        if (!cancelled) {
-          setLoaded(true);
-
-
-
-
-          requestAnimationFrame(() => { if (!nameInputRef.current?.value) nameInputRef.current?.focus(); });
-        }
-      }
     })();
-    return () => { cancelled = true; };
+    return () => { live = false; };
   }, [intakeId]);
 
+  // Derived project code
+  const generatedProjectCode = useMemo(() => {
+    if (!form.region) return 'Pending setup';
+    const sLine = form.service_line || 'ST';
+    return composeProjectCode(sLine, form.region, 460);
+  }, [form.service_line, form.region]);
 
+  // Address formatted name preview
+  const formattedAddressPreview = useMemo(() => {
+    const parts = [form.city, form.street, form.state].map(s => s.trim()).filter(Boolean);
+    if (parts.length === 0) return '3 - {city} - {street} - {state}';
+    return `3 - ${parts.join(' - ')}`;
+  }, [form.city, form.street, form.state]);
 
+  // Required fields count
+  const hasCompany = !!form.company || !!form.service_line;
+  const hasRegion = !!form.region;
+  const hasCustomer = !!form.customer_name || !!form.brand;
+  const hasAddress = !!form.street && !!form.city && !!form.state;
 
+  const filledRequiredCount = [hasCompany, hasRegion, hasCustomer, hasAddress].filter(Boolean).length;
+  const canCreate = filledRequiredCount === 4;
 
-  const save = useCallback(async (state: FormState): Promise<boolean> => {
+  async function handleSave(showToast = true) {
     setSaving(true);
     try {
       const payload = {
-        ...state,
-        deal_size: state.deal_size === '' ? null : Number(state.deal_size),
-        tags: state.tags.split(',').map(t => t.trim()).filter(Boolean),
+        ...form,
+        deal_size: form.deal_size ? parseFloat(form.deal_size) : null,
+        tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
       };
       const res = await fetch(`/api/leads/${intakeId}/intake`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) { toast.error(data.message || data.error || 'Autosave failed'); return persistedRef.current; }
-      if (data.intake) {
-        setProjectId(data.intake.project_id ?? null);
-        setProjectNumber(data.intake.project_number ?? null);
-        setSavedAt(new Date());
-        const justCreated = !persistedRef.current;
-        persistedRef.current = true;
-        setPersisted(true);
-
-
-
-        if (justCreated) router.refresh();
-      }
-      return persistedRef.current;
-    } catch { toast.error('Autosave failed'); return persistedRef.current; }
-    finally { setSaving(false); }
-  }, [intakeId, router]);
-
-  const firstRender = useRef(true);
-  const nameInputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (!loaded || delivered) return;
-    if (firstRender.current) { firstRender.current = false; return; }
-    const t = setTimeout(() => { save(form); }, 1500);
-    return () => clearTimeout(t);
-  }, [form, loaded, delivered, save]);
-
-
-  useEffect(() => {
-    if (!loaded || projectNumber != null) return;
-    let cancelled = false;
-    fetch('/api/sales/next-number')
-      .then(r => r.json())
-      .then((d: { nextNumber: number | null }) => { if (!cancelled) setNumberPreview(d.nextNumber ?? null); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [loaded, projectNumber]);
-
-
-  const [uploading, setUploading] = useState<string | null>(null);
-  const uploadFile = useCallback(async (file: File, category: string) => {
-    if (!projectId) { toast.error('Complete Region + Service + Customer + Address first.'); return; }
-    setUploading(category);
-    try {
-      const fd = new FormData(); fd.append('file', file); fd.append('category', category);
-      const res = await fetch(`/api/leads/${intakeId}/intake/upload`, { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Upload failed');
-      setDocuments(prev => [...prev, data.document]);
-      toast.success(`Uploaded ${data.document.file_name}`);
-    } catch (e) { toast.error(e instanceof Error ? e.message : 'Upload failed'); }
-    finally { setUploading(null); }
-  }, [intakeId, projectId]);
-
-  const docsFor = (category: string) => documents.filter(d => d.category === category);
-  const displayNumber = projectNumber ?? numberPreview;
-  const displayCode = displayNumber != null ? composeProjectCode(form.service_line, form.region, displayNumber) : '';
-  const addr = compose(form.city, form.street, form.state);
-  const block1Complete = !!(form.region && form.service_line && form.customer_name && form.city && form.state);
-
-
-
-
-
-
-  const [savingDraft, setSavingDraft] = useState(false);
-  async function handleSaveDraft() {
-    setSavingDraft(true);
-    try {
-      const ok = await save(form);
-      if (ok) toast.success('Draft saved.');
-      else toast.error('Fill in at least one field before saving.');
-      router.push('/leads');
-    } finally { setSavingDraft(false); }
+      if (!res.ok) throw new Error('Save failed');
+      setSavedAt(new Date());
+      if (showToast) toast.success('Draft saved');
+    } catch {
+      toast.error('Could not save draft');
+    } finally {
+      setSaving(false);
+    }
   }
 
-  if (!loaded) {
-    return <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-subtle)' }}><Loader2 className="spin" size={18} /> Loading…</div>;
+  async function handleCreateLead() {
+    await handleSave(false);
+    toast.success('Lead created successfully');
+    router.push('/leads');
   }
-
-  const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm(f => ({ ...f, [k]: v }));
-  const patchNote = (key: keyof Notes, val: string) => setForm(f => ({ ...f, notes: { ...f.notes, [key]: val } }));
-  const toggleScope = (key: keyof Scope) => setForm(f => ({ ...f, scope_of_work: { ...f.scope_of_work, [key]: !f.scope_of_work[key] } }));
-  const addChkItem = () => {
-    const text = newChkItem.trim();
-    if (!text) return;
-    const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-    setForm(f => ({ ...f, checklist: [...f.checklist, { id, text, done: false }] }));
-    setNewChkItem('');
-  };
-  const toggleChkItem = (id: string) => setForm(f => ({ ...f, checklist: f.checklist.map(c => c.id === id ? { ...c, done: !c.done } : c) }));
-  const removeChkItem = (id: string) => setForm(f => ({ ...f, checklist: f.checklist.filter(c => c.id !== id) }));
-  const chkDone = form.checklist.filter(c => c.done).length;
 
   return (
-    <>
-      <style>{`.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <div style={{ fontSize: 12, color: 'var(--fg-faint)' }}>
-          {delivered ? 'Delivered — read only'
-            : saving ? <span><Loader2 className="spin" size={12} /> Saving…</span>
-            : savedAt ? `Saved ${savedAt.toLocaleTimeString()}`
-            : persisted ? 'Autosaves as you type'
-            : 'Not saved yet'}
-        </div>
-      </div>
-
-      {delivered && (
-        <div className="info-box" style={{ marginBottom: 16, background: 'color-mix(in srgb, var(--status-success) 10%, transparent)', borderColor: 'var(--status-success)', color: 'var(--status-success-fg)' }}>
-          ✓ This intake was delivered to Trust-Lines. It is now read-only.
-        </div>
-      )}
-
-      <fieldset disabled={delivered} style={{ border: 'none', padding: 0, margin: 0 }}>
-      <div className="form-section-stack">
-
-
-        <div className="card">
-          <div className="card-head"><div><div className="text-eyebrow">Block 1</div><div className="form-section-title">Project setup</div></div></div>
-          <div className="card-body">
-
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label required">Company</label>
-                <select className="form-input form-select" value={form.service_line} onChange={e => set('service_line', e.target.value)}>
-                  <option value="">Select company...</option>
-                  {SERVICE_LINES.map(s => <option key={s.value} value={s.value}>{s.label} ({s.codeShort})</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label required">Region</label>
-                <select className="form-input form-select" value={form.region} onChange={e => set('region', e.target.value)}>
-                  <option value="">Select region...</option>
-                  {REGIONS.map(r => <option key={r.code} value={r.code}>{r.label} ({r.codeShort})</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Project code</label>
-              <input className="form-input" readOnly value={displayCode}
-                placeholder={form.service_line && form.region ? 'Calculating…' : 'Pick company + region'}
-                style={{ fontFamily: 'var(--font-mono)', background: 'var(--bg-subtle)', cursor: 'not-allowed', maxWidth: 200 }} />
-              <div className="form-hint">Auto-generated: company + region + running number (e.g. <b>STW 460</b>).</div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Project type</label>
-              <select className="form-input form-select" value={form.project_type} onChange={e => set('project_type', e.target.value)} style={{ maxWidth: 260 }}>
-                <option value="">Select project type...</option>
-                {PROJECT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-
-
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label required">Project site address</label>
-              <div className="form-hint" style={{ marginTop: 0, marginBottom: 6 }}>The job-site address — used to name the project. (The customer&apos;s own address is entered below.)</div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-                <select className="form-input form-select" style={{ width: 150, flexShrink: 0 }} value={searchState} onChange={e => { setSearchState(e.target.value); set('state', e.target.value); }}>
-                  <option value="">State…</option>
-                  {US_STATES.map(s => <option key={s.abbr} value={s.abbr}>{s.abbr} — {s.name}</option>)}
-                </select>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <LocationSearch stateAbbr={searchState} placeholder="Search city OR full street address"
-                    onSelect={r => setForm(f => ({ ...f, city: r.city || f.city, street: r.street || f.street, state: r.stateAbbr || f.state }))} />
-                </div>
-              </div>
-              <div className="form-row" style={{ marginTop: 8 }}>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">City</label>
-                  <input className="form-input" value={form.city} onChange={e => set('city', e.target.value)} placeholder="e.g. Briarcliff Manor" />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Street</label>
-                  <input className="form-input" value={form.street} onChange={e => set('street', e.target.value)} placeholder="e.g. 199 S Highland Ave" />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0, maxWidth: 120 }}>
-                  <label className="form-label">State</label>
-                  <input className="form-input" value={form.state} onChange={e => { set('state', e.target.value); setSearchState(e.target.value); }} placeholder="e.g. NY" />
-                </div>
-              </div>
-              <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--bg-sunken)', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--fg-subtle)' }}>
-                {displayCode || '{code}'} - {addr || '{city} - {street} - {state}'}
-              </div>
-            </div>
+    <div className="w-full space-y-5 pb-16">
+      {/* ── Top Header ────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <Link
+            href="/leads"
+            className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors flex items-center gap-1 mb-1"
+          >
+            ← Leads
+          </Link>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">New lead</h1>
+            <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+              {savedAt ? 'Draft saved' : 'Not saved yet'}
+            </span>
           </div>
+          <p className="text-xs text-slate-500 font-normal mt-0.5">Meeting / Intake form</p>
         </div>
 
-
-        <div className="card">
-          <div className="card-head"><div><div className="text-eyebrow">Block 2</div><div className="form-section-title">Customer</div></div></div>
-          <div className="card-body">
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label required">Customer / company name</label>
-                <input
-                  ref={nameInputRef} className="form-input" value={form.customer_name}
-                  onChange={e => set('customer_name', e.target.value)}
-                  placeholder="e.g. Lumen Optics LLC — used as the lead's title"
-                  style={!form.customer_name.trim() ? { borderColor: 'var(--status-warning)', boxShadow: '0 0 0 1px var(--status-warning)' } : undefined}
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Brand</label>
-                <input className="form-input" value={form.brand} onChange={e => set('brand', e.target.value)} placeholder="e.g. Lumen (if the store carries a brand)" />
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Customer email</label>
-                <input className="form-input" type="email" value={form.customer_email} onChange={e => set('customer_email', e.target.value)} placeholder="contact@customer.com" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Industry</label>
-                <input className="form-input" value={form.industry} onChange={e => set('industry', e.target.value)} placeholder="e.g. Retail, F&B" />
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Contact person</label>
-                <input className="form-input" value={form.contact_person} onChange={e => set('contact_person', e.target.value)} placeholder="e.g. John Smith (store owner)" />
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Contact phone</label>
-                <input className="form-input" value={form.contact_phone} onChange={e => set('contact_phone', e.target.value)} placeholder="e.g. +1 555 123 4567" />
-              </div>
-            </div>
-            <div className="form-group" style={{ marginBottom: 0, marginTop: 16 }}>
-              <label className="form-label">Customer address</label>
-              <input className="form-input" value={form.customer_address} onChange={e => set('customer_address', e.target.value)} placeholder="Customer's own / billing address (optional)" />
-              <div className="form-hint">The customer&apos;s own address — separate from the project site address above. Does not affect the project name.</div>
-            </div>
-            <div className="form-hint" style={{ marginTop: 10 }}>This is the real T-Lines customer — not an internal client record.</div>
-          </div>
-        </div>
-
-
-        <div className="card">
-          <div className="card-head"><div><div className="text-eyebrow">Block 3</div><div className="form-section-title">Lead details</div></div></div>
-          <div className="card-body">
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Priority</label>
-                <select className="form-input form-select" value={form.priority} onChange={e => set('priority', e.target.value)}>
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Assignee</label>
-                <select className="form-input form-select" value={form.assignee_id} onChange={e => set('assignee_id', e.target.value)}>
-                  <option value="">Unassigned</option>
-                  {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Estimated deal size</label>
-                <input className="form-input num" type="number" min="0" step="any" placeholder="e.g. 250000" value={form.deal_size} onChange={e => set('deal_size', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Source</label>
-                <select className="form-input form-select" value={form.source} onChange={e => set('source', e.target.value)}>
-                  <option value="">Select source...</option>
-                  {LEAD_SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Follow-up date</label>
-                <input className="form-input" type="date" value={form.follow_up_date} onChange={e => set('follow_up_date', e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Next action</label>
-                <input className="form-input" placeholder="e.g. Send estimate, Schedule call" value={form.next_action} onChange={e => set('next_action', e.target.value)} />
-              </div>
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Tags</label>
-              <input className="form-input" placeholder="Comma-separated, e.g. urgent, franchise, repeat" value={form.tags} onChange={e => set('tags', e.target.value)} />
-            </div>
-          </div>
-        </div>
-
-
-        <div className="card">
-          <div className="card-head"><div><div className="text-eyebrow">Block 4</div><div className="form-section-title">Scope of work</div></div></div>
-          <div className="card-body">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {SCOPE_ITEMS.map(item => {
-                const on = form.scope_of_work[item.key];
-                return (
-                  <div key={item.key} style={{ border: `1px solid ${on ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, borderRadius: 8, background: on ? '#f0fdfa' : '#fff' }}>
-                    <div onClick={() => toggleScope(item.key)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', cursor: 'pointer' }}>
-                      <div style={{ width: 16, height: 16, borderRadius: 3, border: `1.5px solid ${on ? 'var(--brand-teal)' : 'var(--border-default)'}`, background: on ? 'var(--brand-teal)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {on && <Check size={10} strokeWidth={3} color="white" />}
-                      </div>
-                      <span style={{ fontSize: 13.5, fontWeight: 500 }}>{item.label}</span>
-                    </div>
-                    {on && (
-                      <div style={{ padding: '0 12px 12px' }}>
-                        <textarea className="form-input" rows={3} style={{ resize: 'vertical' }}
-                          placeholder={`${item.label} notes — e.g. quantities, dimensions, finish/material, what the customer asked for. Paste or attach photos below.`}
-                          value={form.notes[item.key]} onChange={e => patchNote(item.key, e.target.value)} />
-                        <UploadRow category={item.noteCategory} label="Add image" docs={docsFor(item.noteCategory)} onUpload={uploadFile} uploading={uploading} disabled={!projectId} />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-
-        <div className="card">
-          <div className="card-head"><div><div className="text-eyebrow">Block 5</div><div className="form-section-title">Additional notes</div></div></div>
-          <div className="card-body">
-            <div className="form-group">
-              <label className="form-label">Areas</label>
-              <textarea className="form-input" rows={3} style={{ resize: 'vertical' }}
-                placeholder="e.g. Sales floor 1,200 sq ft · Back storage 300 sq ft · Coffee corner near entrance"
-                value={form.notes.areas} onChange={e => patchNote('areas', e.target.value)} />
-              <UploadRow category="areas_note" label="Add image" docs={docsFor('areas_note')} onUpload={uploadFile} uploading={uploading} disabled={!projectId} />
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Client special request</label>
-              <textarea className="form-input" rows={3} style={{ resize: 'vertical' }}
-                placeholder="e.g. Wants the store open before Black Friday · Prefers walnut finish · Budget cap $180k"
-                value={form.notes.client_special_request} onChange={e => patchNote('client_special_request', e.target.value)} />
-              <UploadRow category="client_special_request_note" label="Add image" docs={docsFor('client_special_request_note')} onUpload={uploadFile} uploading={uploading} disabled={!projectId} />
-            </div>
-          </div>
-        </div>
-
-
-        <div className="card">
-          <div className="card-head"><div><div className="text-eyebrow">Block 6</div><div className="form-section-title">Dimensions</div></div></div>
-          <div className="card-body">
-            <div className="form-group">
-              <label className="form-label">Plan / layout</label>
-              <UploadRow category="plan_layout" label="Upload plan" docs={docsFor('plan_layout')} onUpload={uploadFile} uploading={uploading} disabled={!projectId} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Photos</label>
-              <UploadRow category="photos" label="Upload photo" docs={docsFor('photos')} onUpload={uploadFile} uploading={uploading} disabled={!projectId} multiple />
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label"><Link2 size={13} style={{ verticalAlign: -2 }} /> 360 Matterport walkthrough (URL only)</label>
-              <input className="form-input" type="url" placeholder="https://my.matterport.com/show/?m=…" value={form.matterport_link} onChange={e => set('matterport_link', e.target.value)} />
-              <div className="form-hint">Stored as a link — never uploaded to Dropbox.</div>
-            </div>
-          </div>
-        </div>
-
-
-        <div className="card">
-          <div className="card-head">
-            <div>
-              <div className="text-eyebrow">Block 7</div>
-              <div className="form-section-title">Checklist{form.checklist.length > 0 ? ` · ${chkDone}/${form.checklist.length}` : ''}</div>
-            </div>
-          </div>
-          <div className="card-body">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-              {form.checklist.map(item => (
-                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div onClick={() => toggleChkItem(item.id)} style={{
-                    width: 16, height: 16, borderRadius: 4, flexShrink: 0, cursor: 'pointer',
-                    border: `1.5px solid ${item.done ? 'var(--brand-teal)' : 'var(--border-default)'}`,
-                    background: item.done ? 'var(--brand-teal)' : 'white',
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    {item.done && <Check size={10} strokeWidth={3} color="#fff" />}
-                  </div>
-                  <span style={{ flex: 1, fontSize: 13, color: item.done ? 'var(--fg-faint)' : 'var(--fg-default)', textDecoration: item.done ? 'line-through' : 'none' }}>{item.text}</span>
-                  <button type="button" onClick={() => removeChkItem(item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', fontSize: 15, lineHeight: 1, padding: '0 4px' }} aria-label="Remove">✕</button>
-                </div>
-              ))}
-              {form.checklist.length === 0 && <div style={{ fontSize: 13, color: 'var(--fg-faint)' }}>No items yet — add subtasks below.</div>}
-            </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <input className="form-input" placeholder="e.g. Call the owner · Get floor plan · Confirm budget" value={newChkItem}
-                onChange={e => setNewChkItem(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addChkItem(); } }} />
-              <button type="button" className="btn btn-secondary btn-sm" onClick={addChkItem} disabled={!newChkItem.trim()}>Add</button>
-            </div>
-          </div>
-        </div>
-
-      </div>
-      </fieldset>
-
-
-      <div className="sticky-form-footer">
-        <span style={{ fontSize: 12, color: 'var(--fg-faint)' }}>
-          {block1Complete ? `${displayCode || 'Project'} · ${serviceLineLabel(form.service_line)} · ${regionLabel(form.region)}` : 'Fill Company · Region · Customer · Address to start'}
-        </span>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-primary" onClick={handleSaveDraft} disabled={delivered || savingDraft || saving}>
-            {savingDraft ? 'Saving…' : 'Save draft'}
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => router.push('/leads')}
+            className="px-4 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSave(true)}
+            disabled={saving}
+            className="px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save draft'}
           </button>
         </div>
       </div>
 
-    </>
-  );
-}
+      {/* ── 3-Column Layout: Steps Sidebar + Main Form + Lead Summary ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* ── 1. Left Column: 7-Step Navigation ────────────────────── */}
+        <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-2xl p-3 shadow-2xs space-y-1">
+          {WIZARD_STEPS.map((s) => {
+            const isActive = activeStep === s.step;
+            const isDone = activeStep > s.step;
 
-
-function UploadRow({ category, label, docs, onUpload, uploading, disabled, multiple }: {
-  category: string; label: string; docs: DocRow[];
-  onUpload: (file: File, category: string) => void; uploading: string | null; disabled?: boolean; multiple?: boolean;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const busy = uploading === category;
-  return (
-    <div style={{ marginTop: 8 }}>
-      <input ref={inputRef} type="file" hidden multiple={multiple}
-        onChange={e => { const files = e.target.files; if (files) for (const f of Array.from(files)) onUpload(f, category); if (inputRef.current) inputRef.current.value = ''; }} />
-      <button type="button" className="btn btn-secondary btn-sm" disabled={disabled || busy}
-        onClick={() => inputRef.current?.click()} title={disabled ? 'Complete the setup fields first' : undefined}>
-        {busy ? <Loader2 className="spin" size={13} /> : <Paperclip size={13} />} {label}
-      </button>
-      {docs.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-          {docs.map(d => (
-            <span key={d.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 'var(--radius-pill)', fontSize: 11.5, background: 'var(--bg-sunken)', color: 'var(--fg-muted)' }}>
-              <Paperclip size={11} /> {d.file_name}
-            </span>
-          ))}
+            return (
+              <button
+                key={s.step}
+                type="button"
+                onClick={() => setActiveStep(s.step)}
+                className={`w-full flex items-start gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer relative ${
+                  isActive
+                    ? 'bg-blue-50/70'
+                    : 'hover:bg-slate-50 text-slate-600'
+                }`}
+              >
+                <div
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${
+                    isActive
+                      ? 'bg-blue-600 text-white'
+                      : isDone
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-slate-100 text-slate-500'
+                  }`}
+                >
+                  {isDone ? <Check size={12} strokeWidth={2.5} /> : s.step}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-xs font-bold leading-tight ${isActive ? 'text-blue-900' : 'text-slate-800'}`}>
+                    {s.title}
+                  </p>
+                  <p className="text-[10px] text-slate-500 truncate mt-0.5">{s.subtitle}</p>
+                </div>
+              </button>
+            );
+          })}
         </div>
-      )}
+
+        {/* ── 2. Center Column: Form Step Content ───────────────────── */}
+        <div className="lg:col-span-6 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xs space-y-6">
+          {/* Step 1: Project setup */}
+          {activeStep === 1 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Project setup</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Set up the basics for this lead to generate a project code and site address.
+                </p>
+              </div>
+
+              {/* 3-column row */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Company <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={form.company || form.service_line}
+                      onChange={e => setForm(f => ({ ...f, company: e.target.value, service_line: e.target.value }))}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    >
+                      <option value="">Select company...</option>
+                      {SERVICE_LINES.map(sl => (
+                        <option key={sl.value} value={sl.value}>{sl.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Region <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={form.region}
+                      onChange={e => setForm(f => ({ ...f, region: e.target.value }))}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    >
+                      <option value="">Select region...</option>
+                      {REGIONS.map(r => (
+                        <option key={r.code} value={r.code}>{r.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Project type <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={form.project_type}
+                      onChange={e => setForm(f => ({ ...f, project_type: e.target.value }))}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    >
+                      <option value="">Select project type...</option>
+                      {PROJECT_TYPES.map(pt => (
+                        <option key={pt} value={pt}>{pt}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Project code */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Project code</label>
+                <div className="w-full bg-slate-100/70 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 font-mono">
+                  {form.region ? generatedProjectCode : '-- -- --'}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Auto-generated: company + region + running number (e.g. STW 460).
+                </p>
+              </div>
+
+              {/* Project site address */}
+              <div className="space-y-3 pt-2">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900">Project site address</h3>
+                  <p className="text-[11px] text-slate-500">The job-site address — used to name the project.</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Street <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter street address"
+                    value={form.street}
+                    onChange={e => setForm(f => ({ ...f, street: e.target.value }))}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      City <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter city"
+                      value={form.city}
+                      onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      State <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={form.state}
+                        onChange={e => setForm(f => ({ ...f, state: e.target.value }))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      >
+                        <option value="">Select state...</option>
+                        {US_STATES.map(s => (
+                          <option key={s.abbr} value={s.abbr}>{s.name} ({s.abbr})</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-600 flex items-center gap-2">
+                  <span className="text-blue-600 font-bold">ⓘ</span>
+                  <span>{formattedAddressPreview}</span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => { handleSave(false); setActiveStep(2); }}
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                >
+                  <span>Continue to Customer</span>
+                  <ArrowRight size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { handleSave(true); router.push('/leads'); }}
+                  className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Save and exit
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Customer */}
+          {activeStep === 2 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Customer information</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Enter the customer or client brand details.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Customer name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Acme Retail LLC"
+                    value={form.customer_name}
+                    onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Brand</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Brand / Franchise name"
+                    value={form.brand}
+                    onChange={e => setForm(f => ({ ...f, brand: e.target.value }))}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Contact person</label>
+                  <input
+                    type="text"
+                    placeholder="Full name"
+                    value={form.contact_person}
+                    onChange={e => setForm(f => ({ ...f, contact_person: e.target.value }))}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Contact email</label>
+                  <input
+                    type="email"
+                    placeholder="email@domain.com"
+                    value={form.customer_email}
+                    onChange={e => setForm(f => ({ ...f, customer_email: e.target.value }))}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(1)}
+                  className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { handleSave(false); setActiveStep(3); }}
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
+                >
+                  <span>Continue to Lead details</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Lead details */}
+          {activeStep === 3 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Lead details</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Set priority, sales owner, and deal expectations.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Priority</label>
+                  <select
+                    value={form.priority}
+                    onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Assignee / Owner</label>
+                  <select
+                    value={form.assignee_id}
+                    onChange={e => setForm(f => ({ ...f, assignee_id: e.target.value }))}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                  >
+                    <option value="">Unassigned</option>
+                    {assignees.map(a => (
+                      <option key={a.id} value={a.id}>{a.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Deal size ($ USD)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 50000"
+                    value={form.deal_size}
+                    onChange={e => setForm(f => ({ ...f, deal_size: e.target.value }))}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Lead source</label>
+                  <select
+                    value={form.source}
+                    onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                  >
+                    <option value="">Select source...</option>
+                    {LEAD_SOURCES.map(ls => (
+                      <option key={ls} value={ls}>{ls}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(2)}
+                  className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { handleSave(false); setActiveStep(4); }}
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
+                >
+                  <span>Continue to Scope of work</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Scope of work */}
+          {activeStep === 4 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Scope of work</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Select trade disciplines requested by customer.</p>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {(['shelving', 'millwork', 'image', 'ceiling'] as const).map(trade => (
+                  <label
+                    key={trade}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                      form.scope_of_work[trade]
+                        ? 'border-blue-600 bg-blue-50/60 text-blue-900 font-bold'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.scope_of_work[trade]}
+                      onChange={e => setForm(f => ({ ...f, scope_of_work: { ...f.scope_of_work, [trade]: e.target.checked } }))}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 mb-2"
+                    />
+                    <span className="text-xs capitalize">{trade}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(3)}
+                  className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { handleSave(false); setActiveStep(5); }}
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
+                >
+                  <span>Continue to Additional notes</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Additional notes */}
+          {activeStep === 5 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Additional notes</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Area details & customer specific requests.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Target Areas / Rooms</label>
+                <textarea
+                  rows={3}
+                  placeholder="e.g. Sales floor, backroom, drive-thru counter..."
+                  value={form.notes.areas}
+                  onChange={e => setForm(f => ({ ...f, notes: { ...f.notes, areas: e.target.value } }))}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Client Special Requests</label>
+                <textarea
+                  rows={3}
+                  placeholder="Any special material or timing requirements..."
+                  value={form.notes.client_special_request}
+                  onChange={e => setForm(f => ({ ...f, notes: { ...f.notes, client_special_request: e.target.value } }))}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(4)}
+                  className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { handleSave(false); setActiveStep(6); }}
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
+                >
+                  <span>Continue to Dimensions & media</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 6: Dimensions & media */}
+          {activeStep === 6 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Dimensions & media</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Attach Matterport 360 link and initial site files.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Matterport 360 Virtual Tour Link</label>
+                <div className="relative">
+                  <Link2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="url"
+                    placeholder="https://my.matterport.com/show/?m=..."
+                    value={form.matterport_link}
+                    onChange={e => setForm(f => ({ ...f, matterport_link: e.target.value }))}
+                    className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className="border border-dashed border-slate-300 rounded-xl p-6 text-center bg-slate-50/50">
+                <Upload size={24} className="mx-auto text-slate-400 mb-2" />
+                <p className="text-xs font-semibold text-slate-700">Drop files or plans to upload</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">PDF, DWG, PNG, or JPG up to 50MB</p>
+              </div>
+
+              <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(5)}
+                  className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { handleSave(false); setActiveStep(7); }}
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
+                >
+                  <span>Continue to Checklist</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 7: Checklist */}
+          {activeStep === 7 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Checklist & next steps</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Track immediate action items for this opportunity.</p>
+              </div>
+
+              <div className="space-y-2">
+                {form.checklist.map((item, idx) => (
+                  <div key={item.id || idx} className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={item.done}
+                      onChange={e => {
+                        const next = [...form.checklist];
+                        next[idx].done = e.target.checked;
+                        setForm(f => ({ ...f, checklist: next }));
+                      }}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className={`text-xs flex-1 ${item.done ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                      {item.text}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, checklist: f.checklist.filter((_, i) => i !== idx) }))}
+                      className="text-slate-400 hover:text-rose-500 p-1 cursor-pointer"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))}
+
+                <div className="flex items-center gap-2 pt-2">
+                  <input
+                    type="text"
+                    placeholder="Add checklist item..."
+                    value={newChecklistText}
+                    onChange={e => setNewChecklistText(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && newChecklistText.trim()) {
+                        e.preventDefault();
+                        setForm(f => ({
+                          ...f,
+                          checklist: [...f.checklist, { id: crypto.randomUUID(), text: newChecklistText.trim(), done: false }],
+                        }));
+                        setNewChecklistText('');
+                      }
+                    }}
+                    className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newChecklistText.trim()) return;
+                      setForm(f => ({
+                        ...f,
+                        checklist: [...f.checklist, { id: crypto.randomUUID(), text: newChecklistText.trim(), done: false }],
+                      }));
+                      setNewChecklistText('');
+                    }}
+                    className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(6)}
+                  className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateLead}
+                  disabled={!canCreate}
+                  className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  <span>Complete & Create Lead</span>
+                  <Check size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── 3. Right Column: Lead Summary Card ────────────────────── */}
+        <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-slate-900">Lead summary</h3>
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+              {savedAt ? 'Saved' : 'Not saved yet'}
+            </span>
+          </div>
+
+          {/* Project code box */}
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+              Project code
+            </label>
+            <div className="w-full bg-slate-100/70 border border-slate-200 rounded-xl p-3 text-xs font-medium text-slate-700">
+              {generatedProjectCode}
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-600 font-medium">{filledRequiredCount} of 4 required fields</span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                style={{ width: `${(filledRequiredCount / 4) * 100}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-slate-400">
+              Fill Company · Region · Customer · Address to start
+            </p>
+          </div>
+
+          {/* Checklist of required items */}
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            <div className="flex items-center gap-2 text-xs">
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
+                hasCompany ? 'bg-blue-600 text-white' : 'border border-slate-300 text-transparent'
+              }`}>
+                ✓
+              </span>
+              <span className={hasCompany ? 'text-slate-900 font-semibold' : 'text-slate-500'}>Company</span>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs">
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
+                hasRegion ? 'bg-blue-600 text-white' : 'border border-slate-300 text-transparent'
+              }`}>
+                ✓
+              </span>
+              <span className={hasRegion ? 'text-slate-900 font-semibold' : 'text-slate-500'}>Region</span>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs">
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
+                hasCustomer ? 'bg-blue-600 text-white' : 'border border-slate-300 text-transparent'
+              }`}>
+                ✓
+              </span>
+              <span className={hasCustomer ? 'text-slate-900 font-semibold' : 'text-slate-500'}>Customer</span>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs">
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
+                hasAddress ? 'bg-blue-600 text-white' : 'border border-slate-300 text-transparent'
+              }`}>
+                ✓
+              </span>
+              <span className={hasAddress ? 'text-slate-900 font-semibold' : 'text-slate-500'}>Address</span>
+            </div>
+          </div>
+
+          {/* Create Lead Button */}
+          <div className="pt-3">
+            <button
+              type="button"
+              onClick={handleCreateLead}
+              disabled={!canCreate}
+              className={`w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer ${
+                canCreate
+                  ? 'bg-[#2563EB] hover:bg-blue-700 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200/60'
+              }`}
+            >
+              {!canCreate && <Lock size={13} />}
+              <span>Create lead</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

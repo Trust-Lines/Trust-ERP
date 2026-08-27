@@ -1,19 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { IntakeForm } from '@/components/platform/leads/IntakeForm';
 import { SALES_INTAKE_ROLES } from '@/lib/sales/roles';
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export default async function NewLeadFormPage() {
   const supabase = await createClient();
@@ -24,20 +13,21 @@ export default async function NewLeadFormPage() {
   const role = (profile as { role: string } | null)?.role ?? '';
   if (!SALES_INTAKE_ROLES.includes(role)) redirect('/dashboard');
 
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adm = admin as any;
 
+  const { data: assigneesRes } = await adm
+    .from('profiles')
+    .select('id, full_name')
+    .in('role', ['sales_rep', 'sales_marketing_manager'])
+    .eq('is_active', true)
+    .order('full_name');
 
-
-
-  const regionRes = await supabase.from('profiles').select('assigned_regions').eq('id', user.id).maybeSingle();
-  const assignedRegions = (regionRes.data as { assigned_regions?: string[] } | null)?.assigned_regions ?? [];
-  const defaultRegion = assignedRegions.length === 1 ? assignedRegions[0] : null;
-
+  const assignees = (assigneesRes ?? []) as { id: string; full_name: string }[];
   const leadId = crypto.randomUUID();
 
-
-
-
-  const qs = new URLSearchParams({ from: 'quick-deal' });
-  if (defaultRegion) qs.set('region', defaultRegion);
-  redirect(`/leads/${leadId}?${qs.toString()}`);
+  return (
+    <IntakeForm intakeId={leadId} assignees={assignees} />
+  );
 }

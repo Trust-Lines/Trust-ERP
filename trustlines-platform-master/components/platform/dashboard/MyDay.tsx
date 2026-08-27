@@ -9,7 +9,7 @@ const TONE: Record<NonNullable<MyDayItem['tone']>, string> = {
   default: 'var(--fg-subtle)',
   warn: 'var(--status-warning-fg, #b45309)',
   danger: 'var(--status-danger, #dc2626)',
-  good: 'var(--status-success-fg)',
+  good: '#2563eb',
 };
 
 export function MyDay() {

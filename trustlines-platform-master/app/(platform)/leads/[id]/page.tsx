@@ -46,18 +46,7 @@ export default async function LeadIntakePage({ params }: { params: Promise<{ id:
 
 
   if (!intake) {
-    return (
-      <div className="main-inner">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-          <Link href="/leads" className="btn btn-ghost btn-sm" style={{ color: 'var(--fg-subtle)' }}>← Leads</Link>
-          <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: 0 }}>New lead</h1>
-            <p className="page-head-sub" style={{ margin: '2px 0 0' }}>Meeting / Intake form</p>
-          </div>
-        </div>
-        <IntakeForm intakeId={id} assignees={assignees} />
-      </div>
-    );
+    return <IntakeForm intakeId={id} assignees={assignees} />;
   }
 
   const it = intake as { customer_name?: string; brand?: string };
