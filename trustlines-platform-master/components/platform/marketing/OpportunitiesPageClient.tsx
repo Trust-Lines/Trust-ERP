@@ -101,6 +101,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
   const [open, setOpen] = useState<{ id: string; kind: 'opportunity' | 'potential' } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [handingOffId, setHandingOffId] = useState<string | null>(null);
+  const [highlightPotential, setHighlightPotential] = useState(false);
 
   const potentialDeals = useMemo(() => deals.filter(d => d.kind === 'potential' || d.external_stage_label === 'Potential'), [deals]);
   const newQualifyingDeals = useMemo(() => deals.filter(d => d.kind === 'opportunity' && d.external_stage_label !== 'Potential'), [deals]);
@@ -240,7 +241,11 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
               honest about what it does: scroll down to the column. */}
           <button
             type="button"
-            onClick={() => document.getElementById('potential-column')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            onClick={() => {
+              document.getElementById('potential-column')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              setHighlightPotential(true);
+              window.setTimeout(() => setHighlightPotential(false), 1400);
+            }}
             className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors pb-1 cursor-pointer"
           >
             <span>Potentials</span>
@@ -325,7 +330,12 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
       {/* ── Kanban Board Layout (3 Columns) ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Column 1: Potential */}
-        <div id="potential-column" className="lg:col-span-4 bg-emerald-50/20 border border-slate-200/80 rounded-2xl p-4 shadow-2xs space-y-3.5">
+        <div
+          id="potential-column"
+          className={`lg:col-span-4 bg-emerald-50/20 border rounded-2xl p-4 shadow-2xs space-y-3.5 transition-all duration-300 ${
+            highlightPotential ? 'border-emerald-400 ring-4 ring-emerald-200' : 'border-slate-200/80'
+          }`}
+        >
           <div className="flex items-center justify-between pb-1">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
