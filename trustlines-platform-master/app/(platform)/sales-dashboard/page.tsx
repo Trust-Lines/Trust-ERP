@@ -62,7 +62,7 @@ export default async function SalesDashboardPage() {
   const byRegion = [...regMap.values()].sort((a, b) => b.value - a.value);
 
   return (
-    <div className="main-inner">
+    <div className="w-full">
       <SalesDashboard
         kpis={{ totalLeads, pipelineValue, delivered, conversionPct, overdue }}
         byStatus={byStatus}

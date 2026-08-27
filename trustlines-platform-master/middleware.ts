@@ -41,9 +41,9 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && pathname === '/login') {
-    const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = '/dashboard';
-    return NextResponse.redirect(dashboardUrl);
+    const homeUrl = request.nextUrl.clone();
+    homeUrl.pathname = '/home';
+    return NextResponse.redirect(homeUrl);
   }
 
   return supabaseResponse;

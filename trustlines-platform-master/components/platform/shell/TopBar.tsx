@@ -1,6 +1,9 @@
 'use client';
 
-import { Bell } from 'lucide-react';
+import * as React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Bell, ChevronRight } from 'lucide-react';
 import type { UserRole } from '@/types/database';
 
 interface BreadcrumbItem {
@@ -10,105 +13,99 @@ interface BreadcrumbItem {
 
 interface TopBarProps {
   breadcrumbs?: BreadcrumbItem[];
-  userRole: UserRole;
-  userName: string;
+  userRole?: UserRole;
+  userName?: string;
   notificationCount?: number;
+  logoSrc?: string;
 }
+
+const ROUTE_TITLES: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/leads': 'CRM Board',
+  '/leads/new': 'New Opportunity',
+  '/sales-dashboard': 'Sales Dashboard',
+  '/sales-tasks': 'Sales Tasks',
+  '/sales-projects': 'Sales Handoffs',
+  '/marketing/prospects': 'Lead Cloud',
+  '/marketing/potentials': 'Potentials',
+  '/marketing/campaigns': 'Campaigns & Surveys',
+  '/design': 'Design & Assets',
+  '/pm': 'PM · Millwork & Ceiling',
+  '/projects': 'Supply Projects',
+  '/approvals': 'Approvals',
+  '/customers': 'Customers Directory',
+  '/clients': 'Corporate Clients',
+  '/production': 'Production Board',
+  '/qc': 'Quality Control',
+  '/logistics': 'Logistics & Containers',
+  '/suppliers': 'Suppliers & Vendors',
+  '/expenses': 'Finance & Expenses',
+  '/management': 'Operations Management',
+  '/team': 'Team & Staff',
+  '/roles': 'Roles & Permissions',
+  '/audit': 'Audit & Security Log',
+  '/settings': 'Settings & Preferences',
+  '/notifications': 'Notifications',
+};
 
 export function TopBar({
   breadcrumbs = [],
-  userRole,
-  userName,
   notificationCount = 0,
 }: TopBarProps) {
-  const initials = userName
-    .split(' ')
-    .map(n => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+  const pathname = usePathname();
+
+  // Find matched page title if no custom breadcrumbs provided
+  const currentTitle =
+    ROUTE_TITLES[pathname] ||
+    Object.entries(ROUTE_TITLES).find(([route]) => pathname.startsWith(`${route}/`))?.[1] ||
+    'Workspace';
 
   return (
-    <header className="topbar">
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px' }}>
-        {breadcrumbs.map((crumb, i) => (
-          <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {i > 0 && (
-              <span style={{ color: 'var(--fg-faint)', fontSize: '13px' }}>/</span>
-            )}
-            {crumb.href ? (
-              <a
-                href={crumb.href}
-                style={{
-                  fontSize: '13px',
-                  color: i === breadcrumbs.length - 1 ? 'var(--fg-default)' : 'var(--fg-subtle)',
-                  fontWeight: i === breadcrumbs.length - 1 ? 600 : 400,
-                  textDecoration: 'none',
-                }}
-              >
-                {crumb.label}
-              </a>
-            ) : (
-              <span
-                style={{
-                  fontSize: '13px',
-                  color: i === breadcrumbs.length - 1 ? 'var(--fg-default)' : 'var(--fg-subtle)',
-                  fontWeight: i === breadcrumbs.length - 1 ? 600 : 400,
-                }}
-              >
-                {crumb.label}
-              </span>
-            )}
-          </span>
-        ))}
+    <header className="topbar h-12 px-5 flex items-center justify-between border-b border-neutral-200/80 bg-white/95 backdrop-blur-sm sticky top-0 z-30 gap-4 select-none">
+      {/* ── Left Side: Current Page Title & Breadcrumbs ───────── */}
+      <div className="flex items-center gap-3 shrink-0 min-w-0">
+        {breadcrumbs.length > 0 ? (
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-neutral-500">
+            {breadcrumbs.map((crumb, idx) => {
+              const isLast = idx === breadcrumbs.length - 1;
+              return (
+                <React.Fragment key={crumb.label}>
+                  {idx > 0 && <ChevronRight size={12} className="text-neutral-400" />}
+                  {crumb.href && !isLast ? (
+                    <Link href={crumb.href} className="hover:text-neutral-900 transition-colors">
+                      {crumb.label}
+                    </Link>
+                  ) : (
+                    <span className={isLast ? 'font-bold text-neutral-900 text-sm' : ''}>
+                      {crumb.label}
+                    </span>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </nav>
+        ) : (
+          <div className="flex items-center gap-2">
+            <h1 className="text-sm font-bold text-neutral-900 tracking-tight">
+              {currentTitle}
+            </h1>
+          </div>
+        )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <button
-          style={{
-            position: 'relative',
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '6px',
-            borderRadius: '6px',
-            color: 'var(--fg-muted)',
-            display: 'flex',
-            alignItems: 'center',
-          }}
+      {/* ── Right Side: Notifications Bell ─────────────────────── */}
+      <div className="flex items-center gap-2 shrink-0">
+        <Link
+          href="/notifications"
+          className="relative p-2 rounded-xl text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100/80 transition-colors"
+          title="Notifications"
+          aria-label="Notifications"
         >
           <Bell size={18} strokeWidth={1.8} />
           {notificationCount > 0 && (
-            <span
-              style={{
-                position: 'absolute',
-                top: '4px',
-                right: '4px',
-                width: '8px',
-                height: '8px',
-                background: 'var(--brand-orange)',
-                borderRadius: '50%',
-                border: '1.5px solid white',
-              }}
-            />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
           )}
-        </button>
-
-        <div
-          style={{
-            width: '1px',
-            height: '20px',
-            background: 'var(--border-subtle)',
-          }}
-        />
-
-        <div
-          className="avatar avatar-sm"
-          style={{ cursor: 'pointer' }}
-          title={userName}
-        >
-          {initials}
-        </div>
+        </Link>
       </div>
     </header>
   );

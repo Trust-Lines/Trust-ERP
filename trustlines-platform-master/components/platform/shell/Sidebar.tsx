@@ -1,10 +1,12 @@
 'use client';
 
+import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
+  Home,
   ChevronDown,
   ChevronRight,
   LayoutDashboard,
@@ -23,7 +25,6 @@ import {
   ScrollText,
   Settings,
   Bell,
-  LogOut,
   FolderSearch,
   Trash2,
   ShieldCheck,
@@ -37,6 +38,8 @@ import {
   Clock,
   Inbox,
   QrCode,
+  LogOut,
+  Shield,
 } from 'lucide-react';
 import type { UserRole } from '@/types/database';
 import { permCan } from '@/lib/permissions/catalog';
@@ -44,13 +47,39 @@ import { permCan } from '@/lib/permissions/catalog';
 interface NavItem {
   label: string;
   href: string;
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
   perm: string;
   exact?: boolean;
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  ops_manager: 'Ops Manager',
+  pm_millwork: 'PM · Millwork',
+  pm_ceiling: 'PM · Ceiling',
+  trustlines_pm: 'TL Project Manager',
+  tlines_pm: 'T-Lines PM',
+  qc_responsible: 'QC Responsible',
+  logistics: 'Logistics',
+  accounting: 'Accounting',
+  production_manager: 'Production Manager',
+  project_manager: 'Project Manager',
+  general_manager: 'General Manager',
+  accountant: 'Accountant',
+  designer: 'Designer',
+  sales_marketing_manager: 'Sales & Marketing Manager',
+  sales_rep: 'Sales Rep',
+  design_lead: 'Design Lead',
+  shop_drawer: 'Shop Drawer',
+  supply_manager: 'Supply Manager',
+  supply_user: 'Supply User',
+  production_user: 'Production User',
+  warehouse_manager: 'Warehouse Manager',
+  warehouse_user: 'Warehouse User',
+  marketing_pr: 'Marketing & PR',
+  marketing_manager: 'Marketing Manager',
+};
+
 const DASHBOARD_ITEM: NavItem = { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, perm: 'page.dashboard' };
-const NOTIFICATIONS_ITEM: NavItem = { label: 'Notifications', href: '/notifications', icon: Bell, perm: 'page.notifications' };
 const CUSTOMERS_ITEM: NavItem = { label: 'Customers', href: '/customers', icon: Contact, perm: 'page.customers' };
 const DESIGN_ITEM: NavItem = { label: 'Design', href: '/design', icon: Palette, perm: 'page.design' };
 
@@ -101,28 +130,83 @@ interface SidebarProps {
   logoSrc?: string;
 }
 
-function NavLink({ item, perms, pathname, bypassPerm = false }: {
-  item: NavItem; perms: Record<string, boolean> | undefined; pathname: string; bypassPerm?: boolean;
+const EASE = 'cubic-bezier(0.165, 0.85, 0.45, 1)';
+const DURATION = 240;
+const EXPANDED_WIDTH = 230;
+const COLLAPSED_WIDTH = 52;
+
+// ── Panel Icon (from claude-sidebar) ───────────────────────────────────────
+function PanelIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path d="M16.5 4A1.5 1.5 0 0 1 18 5.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 2 14.5v-9A1.5 1.5 0 0 1 3.5 4zM7 15h9.5a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5H7zM3.5 5a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5H6V5z" />
+    </svg>
+  );
+}
+
+function NavLink({
+  item,
+  perms,
+  pathname,
+  collapsed,
+  bypassPerm = false,
+}: {
+  item: NavItem;
+  perms: Record<string, boolean> | undefined;
+  pathname: string;
+  collapsed: boolean;
+  bypassPerm?: boolean;
 }) {
   if (!bypassPerm && !permCan(perms, item.perm)) return null;
   const Icon = item.icon;
-  const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
+  const active = pathname === item.href || (!item.exact && pathname?.startsWith(`${item.href}/`));
+
   return (
-    <Link href={item.href} className={`nav-item${active ? ' active' : ''}`} style={{ marginBottom: 2 }}>
-      <Icon size={15} strokeWidth={1.8} />
-      {item.label}
+    <Link
+      href={item.href}
+      title={collapsed ? item.label : undefined}
+      className={`group flex items-center h-8.5 w-full rounded-xl px-2.5 text-xs font-medium transition-all duration-150 mb-0.5 select-none ${
+        active
+          ? 'bg-white text-slate-900 shadow-xs font-bold'
+          : 'text-white/85 hover:text-white hover:bg-white/15'
+      }`}
+    >
+      <div className="flex items-center gap-2.5 w-full min-w-0">
+        <span className={`flex items-center justify-center shrink-0 w-5 h-5 ${active ? 'text-slate-900' : 'text-white/80 group-hover:text-white'}`}>
+          <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
+        </span>
+        <span
+          className="truncate flex-1 text-left"
+          style={{
+            opacity: collapsed ? 0 : 1,
+            transition: `opacity 150ms ${EASE}`,
+            display: collapsed ? 'none' : 'block',
+          }}
+        >
+          {item.label}
+        </span>
+      </div>
     </Link>
   );
 }
 
 function NavGroup({
-  title, icon: GroupIcon, items, perms, pathname, bypassPerm = false, defaultOpen = false, activeOverride,
+  title,
+  icon: GroupIcon,
+  items,
+  perms,
+  pathname,
+  collapsed,
+  bypassPerm = false,
+  defaultOpen = false,
+  activeOverride,
 }: {
   title: string;
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
   items: NavItem[];
   perms: Record<string, boolean> | undefined;
   pathname: string;
+  collapsed: boolean;
   bypassPerm?: boolean;
   defaultOpen?: boolean;
   activeOverride?: string;
@@ -144,7 +228,6 @@ function NavGroup({
       const stored = window.localStorage.getItem(storageKey);
       if (stored !== null) setOpen(stored === '1');
     } catch { }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActiveGroup]);
 
   function toggle() {
@@ -157,36 +240,50 @@ function NavGroup({
 
   if (visible.length === 0) return null;
 
+  if (collapsed) {
+    const firstItem = visible[0];
+    return (
+      <NavLink
+        item={{ ...firstItem, label: title, icon: GroupIcon }}
+        perms={perms}
+        pathname={pathname}
+        collapsed={true}
+        bypassPerm={bypassPerm}
+      />
+    );
+  }
+
   return (
-    <div style={{ marginBottom: 2 }}>
+    <div className="mb-0.5">
       <button
         onClick={toggle}
-        className="nav-item"
-        style={{
-          width: '100%', background: open ? 'rgba(255,255,255,0.06)' : 'transparent',
-          border: 'none', cursor: 'pointer', textAlign: 'left', fontWeight: 600,
-        }}
+        className="flex items-center h-8 w-full rounded-xl px-2.5 text-xs font-semibold text-white/85 hover:text-white hover:bg-white/10 transition-colors select-none text-left cursor-pointer"
         aria-expanded={open}
       >
-        <GroupIcon size={15} strokeWidth={1.8} />
-        <span style={{ flex: 1 }}>{title}</span>
-        <span style={{ fontSize: '10px', opacity: 0.55, marginRight: 2 }}>{visible.length}</span>
-        {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+        <GroupIcon size={15} strokeWidth={1.8} className="shrink-0 mr-2 text-white/80" />
+        <span className="flex-1 truncate">{title}</span>
+        <span className="text-[10px] text-white/60 font-mono mr-1.5">{visible.length}</span>
+        {open ? <ChevronDown size={13} className="text-white/60" /> : <ChevronRight size={13} className="text-white/60" />}
       </button>
+
       {open && (
-        <div style={{ marginLeft: 19, paddingLeft: 10, borderLeft: '1px solid rgba(255,255,255,0.1)', marginTop: 1 }}>
+        <div className="ml-4.5 pl-2.5 border-l border-white/20 mt-0.5 space-y-0.5">
           {visible.map(item => {
             const Icon = item.icon;
             const active = item.href === activeHref;
+
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`nav-item${active ? ' active' : ''}`}
-                style={{ fontSize: 12.5, padding: '6px 10px', marginBottom: 1 }}
+                className={`flex items-center gap-2 h-7.5 px-2 rounded-lg text-[12px] transition-colors ${
+                  active
+                    ? 'bg-white text-slate-900 font-bold shadow-xs'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
               >
-                <Icon size={13} strokeWidth={1.8} />
-                {item.label}
+                <Icon size={13} strokeWidth={1.8} className={`shrink-0 ${active ? 'text-slate-900' : 'text-white/70'}`} />
+                <span className="truncate">{item.label}</span>
               </Link>
             );
           })}
@@ -196,44 +293,54 @@ function NavGroup({
   );
 }
 
-export function Sidebar({ userRole, userPerms, userName, userEmail, logoSrc }: SidebarProps) {
+export function Sidebar({
+  userRole,
+  userPerms,
+  userName,
+  userEmail,
+  logoSrc,
+}: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const quickDealActive = pathname?.startsWith('/leads/') && searchParams.get('from') === 'quick-deal';
+  const quickDealActive = pathname === '/leads' && searchParams?.get('view') === 'quick_deal';
 
-  const initials = userName
+  const [collapsed, setCollapsed] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem('trustlines_sidebar_collapsed');
+      if (stored !== null) setCollapsed(stored === '1');
+    } catch { }
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  function toggleCollapse() {
+    setCollapsed(prev => {
+      const next = !prev;
+      try { window.localStorage.setItem('trustlines_sidebar_collapsed', next ? '1' : '0'); } catch { }
+      return next;
+    });
+  }
+
+  const initials = (userName || 'U')
     .split(' ')
     .map(n => n[0])
     .slice(0, 2)
     .join('')
     .toUpperCase();
 
-  const ROLE_LABELS: Record<UserRole, string> = {
-    ops_manager:    'Ops Manager',
-    pm_millwork:    'PM · Millwork',
-    pm_ceiling:     'PM · Ceiling',
-    trustlines_pm:  'TL Project Manager',
-    tlines_pm:      'T-Lines PM',
-    qc_responsible: 'QC Responsible',
-    logistics:      'Logistics',
-    accounting:     'Accounting',
-    production_manager: 'Production Manager',
-    project_manager:    'Project Manager',
-    general_manager:    'General Manager',
-    accountant:         'Accountant',
-    designer:           'Designer',
-    sales_marketing_manager: 'Sales & Marketing Manager',
-    sales_rep:               'Sales Rep',
-    design_lead:        'Design Lead',
-    shop_drawer:        'Shop Drawer',
-    supply_manager:     'Supply Manager',
-    supply_user:        'Supply User',
-    production_user:    'Production User',
-    warehouse_manager:  'Warehouse Manager',
-    warehouse_user:     'Warehouse User',
-    marketing_pr:       'Marketing & PR',
-    marketing_manager:  'Marketing Manager',
-  };
+  const roleDisplay = ROLE_LABELS[userRole] || userRole.replace(/_/g, ' ');
 
   const isInternal = userRole !== 'tlines_pm';
   const SALES_ADMIN_ROLES = ['sales_marketing_manager', 'ops_manager', 'general_manager'];
@@ -241,19 +348,13 @@ export function Sidebar({ userRole, userPerms, userName, userEmail, logoSrc }: S
   const isSales = isSalesAdmin || userRole === 'sales_rep';
   const isMarketing = permCan(userPerms, 'page.marketing');
 
-  const isFullAuthority = userRole === 'ops_manager' || userRole === 'general_manager';
-  const demoNav: NavItem[] = [
-    { label: 'Sales Dashboard',       href: '/live-dashboard-demo',       icon: MonitorPlay, perm: 'page.dashboard' },
-    { label: 'Production Dashboard',  href: '/production-dashboard-demo', icon: Factory,     perm: 'page.dashboard' },
-    { label: 'Full Pipeline',         href: '/pipeline-dashboard-demo',   icon: Gauge,       perm: 'page.dashboard' },
-  ];
   const crmNav: NavItem[] = [
     ...CRM_BOARD_NAV,
     ...(isSales ? [
       ...SALES_NAV,
       ...(isSalesAdmin
-        ? [{ label: 'Dashboard',  href: '/sales-dashboard', icon: BarChart3, perm: 'page.sales_dashboard' },
-           { label: 'Sales Team', href: '/sales-team',      icon: Users,     perm: 'page.sales_team' }]
+        ? [{ label: 'Dashboard', href: '/sales-dashboard', icon: BarChart3, perm: 'page.sales_dashboard' },
+           { label: 'Sales Team', href: '/sales-team', icon: Users, perm: 'page.sales_team' }]
         : []),
       { label: 'Trash', href: '/leads/trash', icon: Trash2, perm: 'page.leads' },
     ] : []),
@@ -261,113 +362,175 @@ export function Sidebar({ userRole, userPerms, userName, userEmail, logoSrc }: S
   ];
 
   return (
-    <nav className="sidebar">
+    <aside
+      className="h-screen flex flex-col text-white select-none overflow-hidden shrink-0 z-20"
+      style={{
+        backgroundColor: '#474747',
+        borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+        width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
+        transition: `width ${DURATION}ms ${EASE}`,
+      }}
+    >
+      {/* ── Header: Logo + Claude Panel Toggle Button ─────────── */}
       <div
-        style={{
-          padding: '16px 14px',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
-          marginBottom: '12px',
-          display: 'flex',
-          alignItems: 'center',
-        }}
+        className="relative h-12 flex items-center justify-between px-3 shrink-0"
+        style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}
       >
-        <Image
-          src={logoSrc || '/logo.png'}
-          alt="Trust-Lines"
-          width={150}
-          height={48}
-          style={{ objectFit: 'contain', objectPosition: 'left', maxHeight: 48, width: 'auto' }}
-          priority
-          unoptimized
-        />
+        <div
+          className="flex items-center gap-2 overflow-hidden min-w-0"
+          style={{
+            opacity: collapsed ? 0 : 1,
+            transition: `opacity 150ms ${EASE}`,
+            pointerEvents: collapsed ? 'none' : 'auto',
+          }}
+        >
+          {logoSrc ? (
+            <Image
+              src={logoSrc}
+              alt="Trust-Lines"
+              width={110}
+              height={28}
+              className="max-h-6 w-auto object-contain brightness-0 invert"
+              priority
+              unoptimized
+            />
+          ) : (
+            <span className="text-xs font-bold tracking-tight text-white flex items-center gap-1.5">
+              <span className="h-5 w-5 rounded bg-black/25 text-white flex items-center justify-center text-[10px] font-black">TL</span>
+              Trust-Lines
+            </span>
+          )}
+        </div>
+
+        {/* Panel Collapse Toggle Button (Claude-Style) */}
+        <button
+          type="button"
+          aria-label={collapsed ? 'Open sidebar' : 'Close sidebar'}
+          title={collapsed ? 'Open sidebar' : 'Close sidebar'}
+          onClick={toggleCollapse}
+          className="grid h-7 w-7 cursor-pointer place-items-center rounded-lg text-white/80 hover:text-white hover:bg-white/15 transition-colors shrink-0"
+        >
+          <PanelIcon />
+        </button>
       </div>
 
-      <div style={{ flex: 1, padding: '0 6px', overflowY: 'auto' }}>
-        <NavLink item={DASHBOARD_ITEM} perms={userPerms} pathname={pathname} />
-        <NavLink item={NOTIFICATIONS_ITEM} perms={userPerms} pathname={pathname} />
+      {/* ── Navigation List ───────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-0.5 scrollbar-none">
+        <NavLink item={DASHBOARD_ITEM} perms={userPerms} pathname={pathname} collapsed={collapsed} />
 
         {(isSales || isMarketing) && (
           <NavGroup
             title="CRM" icon={Target} items={crmNav} perms={userPerms} pathname={pathname} bypassPerm defaultOpen
+            collapsed={collapsed}
             activeOverride={quickDealActive ? '/leads/new' : undefined}
           />
         )}
 
-        <NavGroup title="Design" icon={Palette} items={[DESIGN_ITEM]} perms={userPerms} pathname={pathname} />
-        <NavGroup title="Projects" icon={ClipboardList} items={PROJECTS_NAV} perms={userPerms} pathname={pathname} />
+        <NavGroup title="Design" icon={Palette} items={[DESIGN_ITEM]} perms={userPerms} pathname={pathname} collapsed={collapsed} />
+        <NavGroup title="Projects" icon={ClipboardList} items={PROJECTS_NAV} perms={userPerms} pathname={pathname} collapsed={collapsed} />
 
-        <NavLink item={CUSTOMERS_ITEM} perms={userPerms} pathname={pathname} />
+        <NavLink item={CUSTOMERS_ITEM} perms={userPerms} pathname={pathname} collapsed={collapsed} />
 
         {isInternal && (
-          <NavGroup title="Operations" icon={Factory} items={OPERATIONS_NAV} perms={userPerms} pathname={pathname} />
-        )}
-        {isFullAuthority && (
-          <NavGroup title="Demo Dashboards" icon={MonitorPlay} items={demoNav} perms={userPerms} pathname={pathname} bypassPerm />
+          <NavGroup title="Operations" icon={Factory} items={OPERATIONS_NAV} perms={userPerms} pathname={pathname} collapsed={collapsed} />
         )}
         {isInternal && (
-          <NavGroup title="Admin" icon={ShieldCheck} items={ADMIN_NAV} perms={userPerms} pathname={pathname} />
+          <NavGroup title="Admin" icon={ShieldCheck} items={ADMIN_NAV} perms={userPerms} pathname={pathname} collapsed={collapsed} />
         )}
       </div>
 
+      {/* ── Footer: User Profile & Menu ──────────────────────── */}
       <div
-        style={{
-          borderTop: '1px solid rgba(255,255,255,0.08)',
-          padding: '12px 10px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-        }}
+        className="relative p-2 mt-auto shrink-0"
+        ref={menuRef}
+        style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}
       >
-        <div
-          className="avatar avatar-sm"
-          style={{ flexShrink: 0, fontSize: '10px' }}
-        >
-          {initials}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        {/* User popover menu */}
+        {menuOpen && (
           <div
+            className={`bg-[#2D2D2D] text-white border border-white/15 rounded-2xl p-1.5 shadow-2xl z-50 animate-in fade-in-50 zoom-in-95 ${
+              collapsed ? 'fixed left-[58px] bottom-3 w-56' : 'absolute bottom-full mb-2 left-2 right-2'
+            }`}
+          >
+            <div className="px-3 py-2 border-b border-white/10 mb-1">
+              <p className="text-xs font-bold text-white truncate">{userName || 'User'}</p>
+              <p className="text-[10px] text-white/60 truncate">{userEmail}</p>
+              <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/10 text-teal-300">
+                {roleDisplay}
+              </span>
+            </div>
+
+            <Link
+              href="/settings"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-white/85 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+            >
+              <Settings size={14} className="text-white/70" />
+              <span>Settings</span>
+            </Link>
+
+            <Link
+              href="/audit"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-white/85 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+            >
+              <Shield size={14} className="text-white/70" />
+              <span>Audit &amp; Security</span>
+            </Link>
+
+            <div className="h-px bg-white/10 my-1" />
+
+            <form action="/api/auth/signout" method="POST">
+              <button
+                type="submit"
+                onClick={() => {
+                  try {
+                    for (let i = localStorage.length - 1; i >= 0; i--) {
+                      const k = localStorage.key(i);
+                      if (k && k.startsWith('docgen_')) localStorage.removeItem(k);
+                    }
+                  } catch { }
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/15 rounded-xl transition-colors text-left cursor-pointer"
+              >
+                <LogOut size={14} className="text-rose-400" />
+                <span>Sign out</span>
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Trigger button row */}
+        <button
+          type="button"
+          onClick={() => setMenuOpen(prev => !prev)}
+          className="w-full flex items-center gap-2.5 p-1.5 rounded-xl bg-black/15 border border-white/10 hover:bg-black/25 transition-colors overflow-hidden text-left cursor-pointer group"
+          aria-expanded={menuOpen}
+          title={collapsed ? `${userName} (${roleDisplay})` : undefined}
+        >
+          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-slate-800 text-xs font-bold shadow-xs">
+            {initials}
+          </div>
+          <div
+            className="flex flex-1 flex-col min-w-0"
             style={{
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'white',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              opacity: collapsed ? 0 : 1,
+              transition: `opacity 150ms ${EASE}`,
+              display: collapsed ? 'none' : 'flex',
             }}
           >
-            {userName}
+            <span className="truncate text-xs font-bold text-white leading-tight">
+              {userName}
+            </span>
+            <span className="truncate text-[10px] text-white/70 leading-tight mt-0.5">
+              {roleDisplay}
+            </span>
           </div>
-          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)' }}>
-            {ROLE_LABELS[userRole]}
-          </div>
-        </div>
-        <form action="/api/auth/signout" method="POST">
-          <button
-            type="submit"
-            title="Sign out"
-            onClick={() => {
-              try {
-                for (let i = localStorage.length - 1; i >= 0; i--) {
-                  const k = localStorage.key(i);
-                  if (k && k.startsWith('docgen_')) localStorage.removeItem(k);
-                }
-              } catch { }
-            }}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'rgba(255,255,255,0.4)',
-              padding: '4px',
-              borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <LogOut size={14} />
-          </button>
-        </form>
+          {!collapsed && (
+            <ChevronDown size={13} className={`text-white/60 transition-transform duration-150 ${menuOpen ? 'rotate-180 text-white' : ''}`} />
+          )}
+        </button>
       </div>
-    </nav>
+    </aside>
   );
 }

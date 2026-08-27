@@ -50,6 +50,7 @@ export default async function NewProjectPage() {
 
       <NewProjectForm
         currentUserId={user.id}
+        userRole={userRole}
         clients={(clientsRes.data ?? []) as { id: string; name: string; code: string | null }[]}
         tlinesPmProfiles={(tlinesPmRes.data ?? []) as { id: string; full_name: string; pm_client_id?: string | null; is_pm_supervisor?: boolean }[]}
         trustlinesPmProfiles={(trustlinesPmRes.data ?? []) as { id: string; full_name: string }[]}

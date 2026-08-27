@@ -1,9 +1,4 @@
 
-
-
-
-
-
 import type { CompanySide, Office, Department, Skill } from '@/lib/profile/metadata';
 export type { CompanySide, Office, Department, Skill };
 

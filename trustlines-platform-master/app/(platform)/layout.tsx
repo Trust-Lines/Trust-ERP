@@ -30,9 +30,9 @@ export default async function PlatformLayout({
 
   const profile = profileData as { full_name: string; email: string; role: UserRole } | null;
 
-  const userName  = profile?.full_name ?? user.email ?? 'User';
-  const userEmail = profile?.email     ?? user.email ?? '';
-  const userRole  = profile?.role      ?? 'ops_manager';
+  const userName = profile?.full_name ?? user.email ?? 'User';
+  const userEmail = profile?.email ?? user.email ?? '';
+  const userRole = profile?.role ?? 'ops_manager';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const userPerms = await getRolePermissions(createAdminClient() as any, userRole);
 

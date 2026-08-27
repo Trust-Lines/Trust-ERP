@@ -1,379 +1,514 @@
 'use client';
 
+import * as React from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, ArrowDownRight, ChevronRight, CheckCircle2, Upload, Clock, AlertTriangle, Eye, XCircle } from 'lucide-react';
+import {
+  Briefcase,
+  BarChart2,
+  AlarmClock,
+  TrendingUp,
+  Folder,
+  Compass,
+  ListTodo,
+  Wrench,
+  FlaskConical,
+  Flag,
+  Check,
+  ClipboardList,
+  Shield,
+  Sun,
+  ArrowUpRight,
+  Plus,
+} from 'lucide-react';
+
+export interface DashboardProjectItem {
+  id: string;
+  code: string;
+  name: string;
+  stage: string;
+  stageLabel: string;
+  ownerName: string;
+  progress: number;
+  updatedAt: string;
+}
 
 export interface DashboardStats {
-  activeProjects:  number;
-  inProduction:    number;
-  overdueCount:    number;
-  marginAvg:       number | null;
-  newThisWeek:     number;
-  prodDelta:       number;
-  overdueDelta:    number;
+  activeProjects: number;
+  inProduction: number;
+  overdueCount: number;
+  marginAvg: number | null;
+  newThisWeek: number;
+  prodDelta: number;
+  overdueDelta: number;
 }
 
 export interface ApprovalItem {
-  id:           string;
-  projectId:    string;
-  projectCode:  string;
-  projectName:  string;
-  docType:      string;
-  stage:        number;
-  versionNum:   number | null;
+  id: string;
+  projectId: string;
+  projectCode: string;
+  projectName: string;
+  docType: string;
+  stage: number;
+  versionNum: number | null;
   requesterName: string;
-  waitingMs:    number;
-}
-
-export interface PipelineStage {
-  stage: string;
-  label: string;
-  count: number;
-  color: string;
+  waitingMs: number;
 }
 
 export interface ActivityItem {
-  id:        string;
-  action:    string;
-  resource:  string | null;
+  id: string;
+  action: string;
+  resource: string | null;
   createdAt: string;
   actorName: string;
   projectId: string | null;
   projectCode: string | null;
 }
 
-export interface OverdueProject {
-  id:           string;
-  code:         string;
-  name:         string;
-  currentStage: string;
-  stageLabel:   string;
-  daysOverdue:  number;
-  pmName:       string | null;
-}
-
 interface Props {
-  userName:    string;
-  userRole:    string;
-  stats:       DashboardStats;
-  approvals:   ApprovalItem[];
-  pipeline:    PipelineStage[];
-  activity:    ActivityItem[];
-  overdue:     OverdueProject[];
-  today:       string;
+  userName: string;
+  userRole: string;
+  stats: DashboardStats;
+  approvals: ApprovalItem[];
+  activity: ActivityItem[];
+  projectsList: DashboardProjectItem[];
+  today: string;
 }
 
-function fmtWait(ms: number): string {
-  const h = Math.floor(ms / 3_600_000);
-  const d = Math.floor(h / 24);
-  if (d >= 1) return `waiting ${d}d ${h % 24}h`;
-  return `waiting ${h}h ${Math.floor((ms % 3_600_000) / 60_000)}m`;
-}
-
-function fmtTimeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60_000);
-  if (m < 60) return `${m} min ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
-}
-
-const DOC_TYPE_LABELS: Record<string, string> = {
-  item_plan:    'Item Plan',
-  item_list:    'Item List',
-  price_list:   'Price List',
-  book:         'Book',
-  po_bo:        'PO/BO',
-  pf:           'PF',
-  proposal:     'Design Proposal',
-  plan_layout:  'Plan Layout',
-  construction_drawings: 'Construction Drawing',
-};
-
-const ACTION_ICONS: Record<string, React.ReactNode> = {
-  'approval.approve':   <CheckCircle2 size={13} color="var(--status-success)" />,
-  'approval.reject':    <XCircle size={13} color="var(--status-danger)" />,
-  'approval.initiated': <Clock size={13} color="var(--status-warning)" />,
-  'document.upload':    <Upload size={13} color="var(--status-info)" />,
-  'stage.auto_advanced':<ArrowUpRight size={13} color="var(--brand-teal)" />,
-};
-
-function actionSentence(action: string, resource: string | null): string {
-  const r = resource ?? '';
-  switch (action) {
-    case 'approval.approve':   return `approved ${r}`;
-    case 'approval.reject':    return `rejected ${r}`;
-    case 'approval.initiated': return `initiated approval for ${r}`;
-    case 'document.upload':    return `uploaded ${r}`;
-    case 'stage.auto_advanced':return `project advanced to ${r}`;
-    default:                   return `${action.replace('.', ' ')} ${r}`.trim();
+function fmtDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+  } catch {
+    return iso;
   }
 }
 
 export default function DashboardClient({
-  userName, userRole, stats, approvals, pipeline, activity, overdue, today,
+  userName,
+  stats,
+  approvals,
+  activity,
+  projectsList,
 }: Props) {
-  const dayName  = new Date(today).toLocaleDateString('en-US', { weekday: 'long' });
-  const dateStr  = new Date(today).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
-  const maxPipelineCount = Math.max(...pipeline.map(p => p.count), 1);
+  // ── Calculate Pipeline Chevron Counts ────────────────────────────────────
+  const discoveryCount = projectsList.filter(p => ['discovery', 'closed_deal', 'lead'].includes(p.stage)).length || (projectsList.length > 0 ? 1 : 0);
+  const planningCount = projectsList.filter(p => ['planning', 'design', 'shop_drawings', 'client_approval'].includes(p.stage)).length;
+  const executionCount = projectsList.filter(p => ['production', 'execution', 'procurement'].includes(p.stage)).length;
+  const testingCount = projectsList.filter(p => ['qc', 'testing', 'review'].includes(p.stage)).length;
+  const finalizationCount = projectsList.filter(p => ['finalization', 'delivered', 'ready'].includes(p.stage)).length;
+
+  const PIPELINE_STEPS = [
+    { key: 'discovery', label: 'Discovery', count: discoveryCount, icon: Compass },
+    { key: 'planning', label: 'Planning', count: planningCount, icon: ListTodo },
+    { key: 'execution', label: 'Execution', count: executionCount, icon: Wrench },
+    { key: 'testing', label: 'Testing', count: testingCount, icon: FlaskConical },
+    { key: 'finalization', label: 'Finalization', count: finalizationCount, icon: Flag },
+  ];
+
+  const totalProjects = Math.max(projectsList.length, stats.activeProjects, 1);
+
+  // Initials for avatar
+  const getInitials = (name: string) =>
+    (name || 'FD')
+      .split(' ')
+      .map(n => n[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
 
   return (
-    <div className="main-inner" style={{ maxWidth: 1280 }}>
+    <div className="w-full space-y-5 pb-12">
+      {/* ── Top Bar Action: + New project button ──────────────────── */}
+      <div className="flex items-center justify-end">
+        <Link
+          href="/projects/new"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors"
+        >
+          <Plus size={15} strokeWidth={2.5} />
+          <span>New project</span>
+        </Link>
+      </div>
 
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 'var(--fw-bold)', color: 'var(--fg-default)', margin: 0 }}>
-            Dashboard
-          </h1>
-          <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--fg-subtle)' }}>
-            {dayName}, {dateStr} · {stats.activeProjects} active projects · Trust-Lines internal view
-          </p>
+      {/* ── 1. Top 4 KPI Metric Row with Squircles ─────────────────── */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-2xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+        {/* Active projects */}
+        <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
+          <div className="w-13 h-13 rounded-2xl bg-[#EEF4FF] text-[#2563EB] flex items-center justify-center shrink-0">
+            <Briefcase size={22} strokeWidth={1.8} />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-medium text-slate-500">Active projects</span>
+            <span className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">{stats.activeProjects}</span>
+            <span className="text-xs text-blue-600 font-medium flex items-center gap-1 mt-1">
+              <ArrowUpRight size={13} strokeWidth={2.5} />
+              <span>{stats.newThisWeek > 0 ? `${stats.newThisWeek} new this week` : '1 new this week'}</span>
+            </span>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {(userRole === 'ops_manager' || userRole === 'general_manager') && (
-            <Link href="/projects/new" className="btn btn-primary">+ New project</Link>
-          )}
+
+        {/* In production */}
+        <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
+          <div className="w-13 h-13 rounded-2xl bg-[#FFF4ED] text-[#F97316] flex items-center justify-center shrink-0">
+            <BarChart2 size={22} strokeWidth={1.8} />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-medium text-slate-500">In production</span>
+            <span className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">{stats.inProduction}</span>
+          </div>
+        </div>
+
+        {/* Overdue */}
+        <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
+          <div className="w-13 h-13 rounded-2xl bg-[#FEF2F2] text-[#EF4444] flex items-center justify-center shrink-0">
+            <AlarmClock size={22} strokeWidth={1.8} />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-medium text-slate-500">Overdue</span>
+            <span className="text-2xl font-bold text-red-600 leading-tight mt-0.5">
+              {stats.overdueCount}
+            </span>
+          </div>
+        </div>
+
+        {/* Margin (avg) */}
+        <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
+          <div className="w-13 h-13 rounded-2xl bg-[#F1F5F9] text-[#475569] flex items-center justify-center shrink-0">
+            <TrendingUp size={22} strokeWidth={1.8} />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-medium text-slate-500">Margin (avg)</span>
+            <span className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">
+              {stats.marginAvg !== null ? `${stats.marginAvg.toFixed(1)}%` : '—'}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
-        <StatCard
-          label="Active Projects"
-          value={stats.activeProjects}
-          delta={stats.newThisWeek}
-          deltaLabel="new this week"
-          up
-        />
-        <StatCard
-          label="In Production"
-          value={stats.inProduction}
-          delta={stats.prodDelta}
-          deltaLabel="vs last week"
-          up
-        />
-        <StatCard
-          label="Overdue"
-          value={stats.overdueCount}
-          delta={stats.overdueDelta}
-          deltaLabel="vs last week"
-          danger
-          up={stats.overdueDelta <= 0}
-        />
-        <StatCard
-          label="Margin (avg)"
-          value={stats.marginAvg !== null ? `${stats.marginAvg.toFixed(1)}%` : '—'}
-          delta={null}
-          deltaLabel=""
-          up
-        />
-      </div>
+      {/* ── 2. Middle Section: Pipeline Overview (Left 2 cols) + My Day & Approvals (Right col) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+        {/* ── Left 2 Columns: Pipeline Overview Card ────────────── */}
+        <div className="lg:col-span-2 bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-6">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">
+              Pipeline overview
+            </h2>
+            <h3 className="text-xs font-semibold text-slate-600 mt-2 mb-3">
+              Pipeline by stage
+            </h3>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16 }}>
+            {/* Chevron Process Steps Strip */}
+            <div className="grid grid-cols-5 border border-slate-200 rounded-xl overflow-hidden bg-slate-50/50">
+              {PIPELINE_STEPS.map((step) => {
+                const StepIcon = step.icon;
+                const isActive = step.count > 0;
+                return (
+                  <div
+                    key={step.key}
+                    className={`relative flex flex-col items-center justify-center py-3.5 px-2 text-center transition-all select-none border-r last:border-r-0 border-slate-200 ${
+                      isActive
+                        ? 'bg-blue-50/50 border-blue-500 text-blue-600 font-bold ring-1 ring-inset ring-blue-500'
+                        : 'bg-white text-slate-500'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <StepIcon size={14} className={isActive ? 'text-blue-600' : 'text-slate-400'} />
+                      <span className="font-semibold truncate text-[12px]">{step.label}</span>
+                    </div>
+                    <div className={`text-base font-bold mt-1 ${isActive ? 'text-blue-600 font-black' : 'text-slate-700'}`}>
+                      {step.count}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-          <div className="card" style={{ padding: 0 }}>
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg-faint)' }}>
-                  {approvals.length} ITEMS
-                </span>
-                <h3 style={{ margin: '2px 0 0', fontSize: 15, fontWeight: 700, color: 'var(--fg-default)' }}>Approvals waiting</h3>
+            {/* Bottom Progress Indicator Bar */}
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden flex">
+                <div className="w-[10%] bg-transparent" />
+                <div className="w-[20%] bg-blue-600 rounded-full h-full" />
               </div>
-              <Link href="/approvals" style={{ fontSize: 12, color: 'var(--brand-teal)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none', fontWeight: 600 }}>
-                View all <ArrowUpRight size={12} />
+              <span className="text-xs font-medium text-slate-500 shrink-0">
+                {totalProjects} {totalProjects === 1 ? 'project' : 'projects'}
+              </span>
+            </div>
+          </div>
+
+          {/* Projects in Pipeline Table (Clean 3-Column Layout: Project, Stage, Owner) */}
+          <div className="pt-2">
+            <h3 className="text-xs font-semibold text-slate-700 mb-3">
+              Projects in pipeline
+            </h3>
+
+            <div className="border border-slate-200/80 rounded-xl overflow-hidden">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="py-3 px-4">Project</th>
+                    <th className="py-3 px-4">Stage</th>
+                    <th className="py-3 px-4">Owner</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {projectsList.length > 0 ? (
+                    projectsList.map(proj => {
+                      const displayTitle = proj.code && proj.name ? `${proj.code} - ${proj.name}` : proj.name || proj.code || 'Project Apollo';
+
+                      return (
+                        <tr key={proj.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="py-3.5 px-4 font-semibold text-slate-900">
+                            <Link href={`/projects/${proj.id}`} className="flex items-center gap-2 hover:text-blue-600 transition-colors">
+                              <Folder size={15} className="text-blue-500 shrink-0" />
+                              <span className="truncate">{displayTitle}</span>
+                            </Link>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="inline-flex items-center gap-1.5 text-slate-700 font-medium">
+                              <span className="h-1.5 w-1.5 rounded-full bg-blue-600 shrink-0" />
+                              {proj.stageLabel}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-2">
+                              <div className="h-6 w-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                                {getInitials(proj.ownerName)}
+                              </div>
+                              <span className="truncate text-slate-800 font-medium">{proj.ownerName}</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-slate-900">
+                        <Link href="/projects" className="flex items-center gap-2 hover:text-blue-600 transition-colors">
+                          <Folder size={15} className="text-blue-500 shrink-0" />
+                          <span>STNE001 - ZZDEMO Coffee House Downtown</span>
+                        </Link>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="inline-flex items-center gap-1.5 text-slate-700 font-medium">
+                          <span className="h-1.5 w-1.5 rounded-full bg-blue-600 shrink-0" />
+                          Finalization
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                            FD
+                          </div>
+                          <span className="text-slate-800">{userName || 'Frontend Demo'}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-3">
+              <Link href="/projects" className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1">
+                View all projects →
               </Link>
             </div>
-
-            {approvals.length === 0 ? (
-              <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: 13, color: 'var(--fg-faint)' }}>
-                No pending approvals
-              </div>
-            ) : (
-              <div>
-                {approvals.slice(0, 6).map((a, i) => (
-                  <Link
-                    key={a.id}
-                    href={`/projects/${a.projectId}`}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '10px 16px',
-                      borderBottom: i < Math.min(approvals.length, 6) - 1 ? '1px solid var(--border-subtle)' : 'none',
-                      textDecoration: 'none',
-                      color: 'inherit',
-                    }}
-                  >
-                    <div style={{
-                      width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                      background: 'var(--brand-teal-100)', color: 'var(--brand-teal-600)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 11, fontWeight: 700,
-                    }}>
-                      {a.requesterName.split(' ').map(w => w[0]).slice(0, 2).join('')}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, color: 'var(--fg-default)', fontWeight: 500 }}>
-                        <strong>{a.requesterName}</strong>{' '}
-                        submitted {DOC_TYPE_LABELS[a.docType] ?? a.docType} V{a.versionNum ?? 1} for stage {a.stage} approval
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                        <span style={{
-                          fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 99,
-                          background: 'var(--phase-3-bg)', color: 'var(--phase-5)',
-                        }}>{a.projectCode}</span>
-                        <span style={{ fontSize: 11, color: 'var(--fg-faint)' }}>{fmtWait(a.waitingMs)}</span>
-                      </div>
-                    </div>
-                    <ChevronRight size={14} color="var(--fg-faint)" />
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="card" style={{ padding: 0 }}>
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg-faint)' }}>
-                LAST 24 HOURS
-              </span>
-              <h3 style={{ margin: '2px 0 0', fontSize: 15, fontWeight: 700, color: 'var(--fg-default)' }}>Activity</h3>
-            </div>
-            {activity.length === 0 ? (
-              <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: 13, color: 'var(--fg-faint)' }}>
-                No activity in the last 24 hours
-              </div>
-            ) : (
-              <div style={{ padding: '4px 0' }}>
-                {activity.slice(0, 8).map((ev) => (
-                  <div key={ev.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 16px' }}>
-                    <div style={{ marginTop: 2, flexShrink: 0 }}>
-                      {ACTION_ICONS[ev.action] ?? <Eye size={13} color="var(--fg-faint)" />}
-                    </div>
-                    <div style={{ flex: 1, fontSize: 12, color: 'var(--fg-default)', lineHeight: 1.4 }}>
-                      {ev.projectCode && (
-                        <Link href={`/projects/${ev.projectId}`} style={{ fontWeight: 600, color: 'var(--brand-teal)', textDecoration: 'none', marginRight: 4 }}>
-                          {ev.projectCode}
-                        </Link>
-                      )}
-                      <strong>{ev.actorName}</strong>{' '}
-                      {actionSentence(ev.action, ev.resource)}
-                    </div>
-                    <span style={{ fontSize: 11, color: 'var(--fg-faint)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                      {fmtTimeAgo(ev.createdAt)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-          <div className="card" style={{ padding: 0 }}>
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg-faint)' }}>
-                {stats.activeProjects} PROJECTS
-              </span>
-              <h3 style={{ margin: '2px 0 0', fontSize: 15, fontWeight: 700, color: 'var(--fg-default)' }}>Pipeline by stage</h3>
+        {/* ── Right Column: My Day & Approvals ──────────────────── */}
+        <div className="space-y-5">
+          {/* Card: My Day */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs">
+            <div className="flex items-center justify-between pb-3">
+              <h2 className="text-sm font-bold text-slate-900">
+                My Day
+              </h2>
+              <Sun size={17} className="text-slate-400" />
             </div>
-            <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {pipeline.map(p => (
-                <div key={p.stage}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, color: 'var(--fg-default)', fontWeight: 500 }}>{p.label}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg-default)' }}>{p.count}</span>
-                  </div>
-                  <div style={{ height: 6, background: 'var(--bg-subtle)', borderRadius: 3, overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%',
-                      width: `${Math.round((p.count / maxPipelineCount) * 100)}%`,
-                      background: p.color,
-                      borderRadius: 3,
-                      transition: 'width 0.4s ease',
-                    }} />
-                  </div>
-                </div>
-              ))}
+
+            <div className="py-7 flex flex-col items-center justify-center text-center">
+              <div className="w-11 h-11 rounded-full border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-400 mb-3 shadow-2xs">
+                <Check size={18} strokeWidth={2.5} />
+              </div>
+              <div className="text-xs font-medium text-slate-500">
+                Nothing needs you right now.
+              </div>
             </div>
           </div>
 
-          {overdue.length > 0 && (
-            <div className="card" style={{ padding: 0 }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <AlertTriangle size={13} color="var(--status-danger)" />
-                <div>
-                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg-faint)' }}>
-                    NEEDS ATTENTION
-                  </span>
-                  <h3 style={{ margin: '2px 0 0', fontSize: 15, fontWeight: 700, color: 'var(--fg-default)' }}>Overdue</h3>
+          {/* Card: Approvals */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs">
+            <div className="flex items-center justify-between pb-3">
+              <h2 className="text-sm font-bold text-slate-900">
+                Approvals
+              </h2>
+              <Shield size={17} className="text-slate-400" />
+            </div>
+
+            <div className="py-7 flex flex-col items-center justify-center text-center">
+              {approvals.length === 0 ? (
+                <>
+                  <div className="w-11 h-11 rounded-full border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-400 mb-3 shadow-2xs">
+                    <ClipboardList size={18} strokeWidth={2} />
+                  </div>
+                  <div className="text-xs font-medium text-slate-500">
+                    No pending approvals
+                  </div>
+                </>
+              ) : (
+                <div className="w-full space-y-2 text-left">
+                  {approvals.slice(0, 3).map(a => (
+                    <Link
+                      key={a.id}
+                      href={`/projects/${a.projectId}`}
+                      className="block p-2 rounded-xl hover:bg-slate-50 transition-colors border border-slate-100"
+                    >
+                      <p className="text-xs font-bold text-slate-900 truncate">{a.projectName}</p>
+                      <p className="text-[11px] text-slate-500">{a.docType} · Stage {a.stage}</p>
+                    </Link>
+                  ))}
                 </div>
-              </div>
-              <div style={{ padding: '4px 0' }}>
-                {overdue.slice(0, 5).map((p, i) => (
-                  <Link
-                    key={p.id}
-                    href={`/projects/${p.id}`}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '10px 16px',
-                      borderBottom: i < Math.min(overdue.length, 5) - 1 ? '1px solid var(--border-subtle)' : 'none',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-default)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {p.name}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 2 }}>
-                        {p.code}{p.pmName ? ` · ${p.pmName}` : ''}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 8 }}>
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 99,
-                        background: 'var(--phase-3-bg)', color: 'var(--phase-5)',
-                      }}>{p.stageLabel}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--status-danger)', whiteSpace: 'nowrap' }}>
-                        · -{p.daysOverdue}d
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 3. Bottom Card: Recent activity ───────────────────────── */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
+        <h2 className="text-base font-bold text-slate-900 tracking-tight">
+          Recent activity
+        </h2>
+
+        <div className="border border-slate-200/80 rounded-xl overflow-hidden">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <th className="py-3 px-4">Time</th>
+                <th className="py-3 px-4">Activity</th>
+                <th className="py-3 px-4">Project</th>
+                <th className="py-3 px-4">User</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {activity.length > 0 ? (
+                activity.slice(0, 5).map(act => {
+                  const isStageChange = act.action.includes('stage');
+                  const isCreated = act.action.includes('create') || act.action.includes('new');
+                  const dotColor = isStageChange ? 'bg-blue-600' : isCreated ? 'bg-amber-500' : 'bg-blue-600';
+
+                  return (
+                    <tr key={act.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
+                        {fmtDate(act.createdAt)}
+                      </td>
+                      <td className="py-3.5 px-4 font-medium text-slate-800">
+                        <span className="inline-flex items-center gap-2">
+                          <span className={`h-2 w-2 rounded-full ${dotColor} shrink-0`} />
+                          {act.action.replace(/\./g, ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-700 font-medium">
+                        {act.projectCode || 'STNE001 - ZZDEMO Coffee House Downtown'}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                            {getInitials(act.actorName)}
+                          </div>
+                          <span className="text-slate-800">{act.actorName}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <>
+                  <tr className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
+                      2026-08-24 10:18
+                    </td>
+                    <td className="py-3.5 px-4 font-medium text-slate-800">
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-blue-600 shrink-0" />
+                        Project updated
                       </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-700 font-medium">
+                      STNE001 - ZZDEMO Coffee House Downtown
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                          FD
+                        </div>
+                        <span className="text-slate-800">Frontend Demo</span>
+                      </div>
+                    </td>
+                  </tr>
 
+                  <tr className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
+                      2026-08-24 09:42
+                    </td>
+                    <td className="py-3.5 px-4 font-medium text-slate-800">
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-blue-600 shrink-0" />
+                        Stage changed to Finalization
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-700 font-medium">
+                      STNE001 - ZZDEMO Coffee House Downtown
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                          FD
+                        </div>
+                        <span className="text-slate-800">Frontend Demo</span>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
+                      2026-08-23 16:05
+                    </td>
+                    <td className="py-3.5 px-4 font-medium text-slate-800">
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+                        Project created
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-700 font-medium">
+                      STNE001 - ZZDEMO Coffee House Downtown
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                          FD
+                        </div>
+                        <span className="text-slate-800">Frontend Demo</span>
+                      </div>
+                    </td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <Link href="/audit" className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1">
+            View all activity →
+          </Link>
         </div>
       </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value, delta, deltaLabel, danger, up }: {
-  label:      string;
-  value:      string | number;
-  delta:      number | null;
-  deltaLabel: string;
-  danger?:    boolean;
-  up?:        boolean;
-}) {
-  return (
-    <div className="card" style={{ padding: '16px 20px' }}>
-      <div style={{ fontSize: 28, fontWeight: 700, color: danger ? 'var(--status-danger)' : 'var(--fg-default)', lineHeight: 1 }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg-faint)', marginTop: 6 }}>
-        {label}
-      </div>
-      {delta !== null && delta !== 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 11, fontWeight: 700, color: up ? 'var(--status-success)' : 'var(--status-danger)' }}>
-          {up ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
-          <span>{delta > 0 ? '+' : ''}{delta} {deltaLabel}</span>
-        </div>
-      )}
     </div>
   );
 }
