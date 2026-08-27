@@ -24,6 +24,7 @@ interface Props {
   };
   byStatus: { key: string; label: string; color: string; count: number; value: number }[];
   byAssignee: { name: string; count: number; value: number }[];
+  byAssigneeDetail: { name: string; count: number; wonCount: number; winRatePct: number; tasksDone: number; tasksTotal: number; taskCompletionPct: number | null }[];
   byRegion: { label: string; count: number; value: number }[];
 }
 
@@ -41,7 +42,7 @@ function formatCompactMoney(amount: number): string {
   return `$${amount.toLocaleString()}`;
 }
 
-export function SalesDashboard({ kpis, byStatus, byAssignee, byRegion }: Props) {
+export function SalesDashboard({ kpis, byStatus, byAssignee, byAssigneeDetail, byRegion }: Props) {
   const [currentDate] = React.useState(() => {
     return new Date().toLocaleDateString('en-US', {
       month: 'short',
@@ -368,6 +369,61 @@ export function SalesDashboard({ kpis, byStatus, byAssignee, byRegion }: Props) 
           </div>
         </div>
       </div>
+
+      {/* ── 3b. Team performance: win rate % and task completion % per rep ── */}
+      {byAssigneeDetail.length > 0 && (
+        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden">
+          <div className="p-6 pb-4">
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center shrink-0">
+                <CheckCircle2 size={17} strokeWidth={2} />
+              </div>
+              <h2 className="text-base font-bold text-slate-900">
+                Team performance
+              </h2>
+            </div>
+            <p className="text-xs text-slate-500 ml-[46px] mb-5">
+              Won % of each rep&apos;s own pipeline, and how much of their task list is still open —
+              every rep can find their own row here.
+            </p>
+
+            <div className="space-y-5">
+              {byAssigneeDetail.map(a => (
+                <div key={a.name} className="grid grid-cols-1 sm:grid-cols-[10rem_1fr_1fr] gap-3 sm:gap-4 items-center text-xs">
+                  <span className="font-semibold text-slate-900 truncate">{a.name}</span>
+
+                  {/* Win rate */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span>Won</span>
+                      <span className="font-medium text-slate-800">{a.wonCount}/{a.count} · {a.winRatePct}%</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-emerald-600 transition-all duration-300" style={{ width: `${a.winRatePct}%` }} />
+                    </div>
+                  </div>
+
+                  {/* Task completion */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span>Tasks done</span>
+                      <span className="font-medium text-slate-800">
+                        {a.tasksTotal > 0 ? `${a.tasksDone}/${a.tasksTotal} · ${a.taskCompletionPct}%` : 'No tasks yet'}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-[#0B3B2C] transition-all duration-300"
+                        style={{ width: `${a.taskCompletionPct ?? 0}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 4. Bottom Card: Pipeline Value by Region ─────────────── */}
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden">

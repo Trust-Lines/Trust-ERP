@@ -35,10 +35,19 @@ export default async function SalesDashboardPage() {
   const leadIntakeDelivered = leadIntakeRows.filter(r => r.is_delivered).length;
 
   const assigneeIds = [...new Set(leadIntakeRows.map(l => l.assignee_id).filter(Boolean))] as string[];
-  const { data: people } = assigneeIds.length
-    ? await adm.from('profiles').select('id, full_name').in('id', assigneeIds)
-    : { data: [] };
-  const nameById = new Map(((people ?? []) as { id: string; full_name: string }[]).map(p => [p.id, p.full_name]));
+  const leadIntakeIds = leadIntakeRows.map(r => r.id as string);
+  const [peopleRes, leadTasksRes] = await Promise.all([
+    assigneeIds.length ? adm.from('profiles').select('id, full_name').in('id', assigneeIds) : Promise.resolve({ data: [] }),
+    leadIntakeIds.length ? adm.from('lead_tasks').select('lead_intake_id, status').in('lead_intake_id', leadIntakeIds) : Promise.resolve({ data: [] }),
+  ]);
+  const nameById = new Map(((peopleRes.data ?? []) as { id: string; full_name: string }[]).map(p => [p.id, p.full_name]));
+  const leadTaskAgg = new Map<string, { done: number; total: number }>();
+  for (const t of ((leadTasksRes.data ?? []) as { lead_intake_id: string; status: string }[])) {
+    const cur = leadTaskAgg.get(t.lead_intake_id) ?? { done: 0, total: 0 };
+    cur.total += 1;
+    if (t.status === 'done') cur.done += 1;
+    leadTaskAgg.set(t.lead_intake_id, cur);
+  }
 
   const [opportunityLeads, potentialLeads, deliveredOppsRes] = await Promise.all([
     loadOpportunityLeadRows(supabase as any),
@@ -62,6 +71,8 @@ export default async function SalesDashboardPage() {
     follow_up_date: (r.follow_up_date as string) ?? null,
     region: (r.region as string) ?? null,
     origin: 'lead_intake',
+    tasks_done: leadTaskAgg.get(r.id as string)?.done ?? 0,
+    tasks_total: leadTaskAgg.get(r.id as string)?.total ?? 0,
   }));
 
   const allLeads: Lead[] = [...leadIntakeAsLeads, ...opportunityLeads, ...potentialLeads];
@@ -90,6 +101,27 @@ export default async function SalesDashboardPage() {
   }
   const byAssignee = [...asgMap.values()].sort((a, b) => b.count - a.count).slice(0, 8);
 
+  // Per-person detail (§ "as a sales employee / sales lead I want more detail") — how much of a
+  // rep's own pipeline is actually won, and how much of their own task list is done vs still open.
+  // Excludes "Unassigned" — that bucket has no one to hold accountable for a completion rate.
+  const detailMap = new Map<string, { name: string; count: number; wonCount: number; tasksDone: number; tasksTotal: number }>();
+  for (const l of allLeads) {
+    if (!l.assignee_id) continue;
+    const cur = detailMap.get(l.assignee_id) ?? { name: l.assignee || 'Unknown', count: 0, wonCount: 0, tasksDone: 0, tasksTotal: 0 };
+    cur.count += 1;
+    if (l.opportunity_status === 'deal_closed') cur.wonCount += 1;
+    cur.tasksDone += l.tasks_done ?? 0;
+    cur.tasksTotal += l.tasks_total ?? 0;
+    detailMap.set(l.assignee_id, cur);
+  }
+  const byAssigneeDetail = [...detailMap.values()]
+    .map(d => ({
+      ...d,
+      winRatePct: d.count ? Math.round((d.wonCount / d.count) * 100) : 0,
+      taskCompletionPct: d.tasksTotal ? Math.round((d.tasksDone / d.tasksTotal) * 100) : null,
+    }))
+    .sort((a, b) => b.count - a.count);
+
   const regMap = new Map<string, { label: string; count: number; value: number }>();
   for (const l of allLeads) {
     const key = l.region || '__none__';
@@ -106,6 +138,7 @@ export default async function SalesDashboardPage() {
         kpis={{ totalLeads, pipelineValue, delivered, conversionPct, overdue }}
         byStatus={byStatus}
         byAssignee={byAssignee}
+        byAssigneeDetail={byAssigneeDetail}
         byRegion={byRegion}
       />
     </div>
