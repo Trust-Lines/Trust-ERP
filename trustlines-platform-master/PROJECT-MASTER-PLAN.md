@@ -2117,6 +2117,31 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-08-27 (Sales Dashboard fix — was reading only lead_intake) — NO migration
+- BUG: /sales-dashboard read ONLY the legacy `lead_intake` table. Since Phase 00, the real pipeline
+  also lives in `opportunities` + `prospect_potentials` (the same three sources the CRM board at
+  `/leads` already merges via `loadOpportunityLeadRows`/`loadPotentialLeadRows`). Every
+  Marketing-sourced deal was invisible on the dashboard — pipeline value, status breakdown,
+  by-assignee and by-region numbers were all undercounted, sometimes badly.
+- FIX: `app/(platform)/sales-dashboard/page.tsx` now merges all three sources into one `Lead[]`
+  array (same shape/merge pattern as `app/(platform)/leads/page.tsx`) before computing every KPI —
+  the CRM board and the dashboard can no longer disagree about pipeline size.
+- "Delivered" KPI: for `lead_intake` rows this stays the existing `is_delivered` flag; for
+  `opportunities` the equivalent signal is `project_id IS NOT NULL` (set only by Sales's Accept
+  action — an Opportunity only gets a real Trust project the same way a lead_intake row does).
+  `prospect_potentials` never counts as delivered (they are pre-Opportunity by definition).
+- Changed files: `app/(platform)/sales-dashboard/page.tsx`.
+- Verified: `npx tsc --noEmit` clean · `npx eslint` 0 errors on the changed file (pre-existing `any`
+  warnings only, matching the file's existing convention) · `npm test` 460 passed / 2 pre-existing
+  failures in `tests/opportunityRows.test.ts` (confirmed present before this change, unrelated file)
+  / 9 skipped · `npm run build` EXIT 0, `/sales-dashboard` compiles.
+- ⚠️ **Documentation debt found while doing this task, not fixed here (separate task):** this
+  CURRENT STATUS/CHANGE LOG section is stale — it still says "Highest migration in repo: 064" but
+  the repo actually goes through migration **104** (the whole ClickUp import + unified Deals board
+  chain, migrations 087–104, is undocumented here). Needs a dedicated catch-up pass.
+- Next task: confirm which of migrations 078/086–104 are actually applied to the live DB (direct
+  probe, not assumption), then continue down the September Sales/CRM + Marketing list.
+
 2026-08-20 (Bug fix — "ghost lead" rows from Quick Deal) — NO new migration
 - BUG: /leads/new inserted a blank `lead_intake` row on every page load, before the rep typed
   anything. Opening the form and leaving (or just clicking it by accident) left a permanent
