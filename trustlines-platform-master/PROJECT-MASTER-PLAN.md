@@ -1664,10 +1664,11 @@ Project architecture:
     sources — `loadTeam`/`assembleTeam` already fold them, "assigned to me" is indexed
     (idx_project_assignments_user), and lib/qc/queue.ts is the pattern to copy: derive, never store a status.
     ⚠️ A nav item must never point at a page that does not exist — that is how /qc 404'd for months.
-[ ] 11.1 follow-up: verify with a REAL tlines_pm session that PF is unreachable end-to-end. The permission
-    layer is now correct and live-verified, but RLS itself was never re-probed — the "RLS blocks PF anyway"
-    claim still rests on migration 002 + docs, not measurement. (A magic-link + cookie driver now exists —
-    scratchpad/shot.mjs — so this is cheap: log in AS a tlines_pm and look.)
+[x] 11.1 follow-up: verify with a REAL tlines_pm session that PF is unreachable end-to-end. DONE
+    2026-08-27 — see the CHANGE LOG entry above. A real password-authenticated tlines_pm session
+    (anon-key client, real JWT, no service role) could not read pf_usd/pf_tl/expenses_usd via
+    production_items (migration 080) nor a pf document (migration 002's tlines_no_pf) on a project
+    it owned, while still reading its own project row fine. Self-cleaning test, no files changed.
 [x] 11.5 My Day Completion → NO migration. Wired the 9 roles that had no My Day (11.1's new roles +
       qc_responsible + project_manager) and added two derived sections: `assigned_to_me` (11.3
       project_assignments) and `qc_queue` (reuses buildQcQueue). Both role-safe (not pricey). LIVE-VERIFIED:
@@ -2128,6 +2129,24 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-08-27 (tlines_pm data privacy — LIVE-VERIFIED with a real RLS-enforced session) — NO migration
+- Closes PROJECT-MASTER-PLAN.md's long-unchecked "11.1 follow-up: verify with a REAL tlines_pm
+  session that PF is unreachable end-to-end" item, and independently re-confirms migration 080
+  (already in the repo, dated 2026-08-06, "production_items_rls_hardening") is genuinely live.
+- Method: created a real Supabase Auth user + `tlines_pm` profile, created a ZZTEST project OWNED
+  by that user (`tlines_pm_id`), put a real `pf` document and a `production_items` row with
+  `pf_usd: 12345, pf_tl: 54321` on it, then signed in AS that user (password auth, real JWT, the
+  anon-key browser client — NOT the service-role admin client) and queried both tables directly,
+  with no application code in between.
+- Result: PASSED. `production_items` returned 0 rows (migration 080's policy holds — a tlines_pm
+  session cannot read `pf_usd`/`pf_tl`/`expenses_usd` at the database level, full stop, not just
+  because the app hides the column). The `pf` document returned 0 rows (migration 002's
+  `tlines_no_pf` policy holds). Control check: the SAME session COULD read its own project row —
+  so this isn't RLS over-blocking everything, it is specifically blocking PF/pricing.
+- Self-cleaning: test project/document/production_item/auth user all deleted after the run.
+- No files changed (verification-only). This was the one item in Phase 11.1 that had rested on
+  "RLS should block it" without a live measurement — it now rests on a measurement.
+
 2026-08-27 (Sales Handoff Accept flow — LIVE-VERIFIED on the dev DB) — NO migration
 - Ran the real `initiateHandoff` → `acceptOpportunity` chain (lib/marketing/salesHandoff.ts) against real
   rows on the DEVELOPMENT database (not production — confirmed with the user first), self-cleaning
