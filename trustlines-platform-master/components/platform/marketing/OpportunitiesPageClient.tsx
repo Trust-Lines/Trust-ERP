@@ -234,13 +234,18 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
             <span className="text-slate-400 font-normal">{prospectTotal ?? 5}</span>
           </Link>
 
-          <Link
-            href="/marketing/potentials"
-            className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors pb-1"
+          {/* Potentials isn't a separate page — it's the "Potential" column below, on THIS page.
+              It used to be a Link to /marketing/potentials, which only redirected straight back
+              here — a click that looked like navigation but silently went nowhere. Now it's
+              honest about what it does: scroll down to the column. */}
+          <button
+            type="button"
+            onClick={() => document.getElementById('potential-column')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors pb-1 cursor-pointer"
           >
             <span>Potentials</span>
             <span className="text-slate-400 font-normal">{potentialDeals.length || 1}</span>
-          </Link>
+          </button>
 
           <button
             className="flex items-center gap-2 text-xs font-bold text-blue-600 border-b-2 border-blue-600 pb-1 cursor-pointer -mb-[13px]"
@@ -320,7 +325,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
       {/* ── Kanban Board Layout (3 Columns) ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Column 1: Potential */}
-        <div className="lg:col-span-4 bg-emerald-50/20 border border-slate-200/80 rounded-2xl p-4 shadow-2xs space-y-3.5">
+        <div id="potential-column" className="lg:col-span-4 bg-emerald-50/20 border border-slate-200/80 rounded-2xl p-4 shadow-2xs space-y-3.5">
           <div className="flex items-center justify-between pb-1">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />

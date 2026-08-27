@@ -66,7 +66,10 @@ export function MarketingWorkspaceClient({ role, isManager, prospectCount, oppor
 
           <div style={{ display: 'flex', alignItems: 'center', color: 'var(--fg-subtle)' }}><ArrowRight size={16} /></div>
 
-          <Link href="/marketing/potentials" style={{ flex: '1 1 200px', display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit', padding: '10px 12px', borderRadius: 8 }}
+          {/* Points straight at Opportunities (where the Potential column actually lives) —
+              /marketing/potentials is only a redirect back to this same page, so linking to it
+              here was a click that pretended to go somewhere and didn't. */}
+          <Link href="/marketing/opportunities" style={{ flex: '1 1 200px', display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit', padding: '10px 12px', borderRadius: 8 }}
             onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
             <Clock size={18} style={{ color: 'var(--fg-muted)' }} />

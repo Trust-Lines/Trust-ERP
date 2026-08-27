@@ -35,7 +35,6 @@ import {
   Package,
   Receipt,
   Megaphone,
-  Clock,
   Inbox,
   QrCode,
   LogOut,
@@ -116,10 +115,17 @@ const SALES_NAV: NavItem[] = [
   { label: 'Tasks',              href: '/sales-tasks',    icon: ListChecks, perm: 'page.leads' },
   { label: 'Handoffs',           href: '/sales-projects', icon: Inbox,      perm: 'page.leads' },
 ];
-const MARKETING_TOOLS_NAV: NavItem[] = [
-  { label: 'Lead Cloud (Capture new)', href: '/marketing/prospects',  icon: Megaphone, perm: 'page.marketing' },
-  { label: 'Potentials',               href: '/marketing/potentials', icon: Clock,     perm: 'page.marketing' },
-  { label: 'Campaigns & Surveys', href: '/marketing/campaigns', icon: QrCode, perm: 'page.marketing_campaigns' },
+// Marketing Home (`/marketing`) comes first on purpose — it's the actual landing page for the
+// whole module (MarketingWorkspaceClient), and it was previously reachable from NOWHERE in the
+// sidebar. "Potentials" was removed as its own destination: it is not a separate page anymore
+// (it's the Potential column inside Opportunities), and the old link only 302'd back to
+// Opportunities — confusing, not a real place. "Opportunities" itself was also missing here even
+// though it is Marketing's primary working screen (see PROJECT-MASTER-PLAN.md Phase 00.5).
+const MARKETING_NAV: NavItem[] = [
+  { label: 'Marketing Home',      href: '/marketing',               icon: Megaphone,    perm: 'page.marketing' },
+  { label: 'Lead Cloud',          href: '/marketing/prospects',     icon: FolderSearch, perm: 'page.marketing' },
+  { label: 'Opportunities',       href: '/marketing/opportunities', icon: Target,       perm: 'page.marketing' },
+  { label: 'Campaigns & Surveys', href: '/marketing/campaigns',     icon: QrCode,       perm: 'page.marketing_campaigns' },
 ];
 
 interface SidebarProps {
@@ -348,17 +354,18 @@ export function Sidebar({
   const isSales = isSalesAdmin || userRole === 'sales_rep';
   const isMarketing = permCan(userPerms, 'page.marketing');
 
-  const crmNav: NavItem[] = [
+  // Sales and Marketing are two different teams working two different jobs (Sales works deals
+  // through to a Trust project; Marketing works leads through to a qualified Opportunity) — they
+  // used to share one "CRM" nav group, which is exactly what made the sidebar hard to read. Split
+  // into two groups so each team sees only its own destinations under its own name.
+  const salesNav: NavItem[] = [
     ...CRM_BOARD_NAV,
-    ...(isSales ? [
-      ...SALES_NAV,
-      ...(isSalesAdmin
-        ? [{ label: 'Dashboard', href: '/sales-dashboard', icon: BarChart3, perm: 'page.sales_dashboard' },
-           { label: 'Sales Team', href: '/sales-team', icon: Users, perm: 'page.sales_team' }]
-        : []),
-      { label: 'Trash', href: '/leads/trash', icon: Trash2, perm: 'page.leads' },
-    ] : []),
-    ...(isMarketing ? MARKETING_TOOLS_NAV : []),
+    ...SALES_NAV,
+    ...(isSalesAdmin
+      ? [{ label: 'Dashboard', href: '/sales-dashboard', icon: BarChart3, perm: 'page.sales_dashboard' },
+         { label: 'Sales Team', href: '/sales-team', icon: Users, perm: 'page.sales_team' }]
+      : []),
+    { label: 'Trash', href: '/leads/trash', icon: Trash2, perm: 'page.leads' },
   ];
 
   return (
@@ -418,11 +425,20 @@ export function Sidebar({
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-0.5 scrollbar-none">
         <NavLink item={DASHBOARD_ITEM} perms={userPerms} pathname={pathname} collapsed={collapsed} />
 
-        {(isSales || isMarketing) && (
+        {isSales && (
           <NavGroup
-            title="CRM" icon={Target} items={crmNav} perms={userPerms} pathname={pathname} bypassPerm defaultOpen
+            title="Sales" icon={Target} items={salesNav} perms={userPerms} pathname={pathname} bypassPerm defaultOpen
             collapsed={collapsed}
             activeOverride={quickDealActive ? '/leads/new' : undefined}
+          />
+        )}
+
+        {isMarketing && (
+          <NavGroup
+            title="Marketing" icon={Megaphone}
+            items={isSales ? MARKETING_NAV : [...CRM_BOARD_NAV, ...MARKETING_NAV]}
+            perms={userPerms} pathname={pathname} bypassPerm defaultOpen
+            collapsed={collapsed}
           />
         )}
 
