@@ -1552,14 +1552,25 @@ Project architecture:
           one a plain UNIQUE would have missed); invalid slot and invalid type both rejected 23514; anon
           SELECT returns nothing and anon INSERT is blocked with 42501 (RLS holds).
 
-- Highest migration in repo: **064** (`064_sales_design_doc_type.sql`, Phase 10.6) → next new migration: **065**.
-  (063_system_events and 064 are Phase 10's; 063 is applied and live-verified. 064's enum value is already live.)
-- ⚠️ THE LIVE DB IS BEHIND THE REPO (verified 2026-07-14 by read-only probe, not assumed):
-  - `delivery_plans` + `punch_list_items` are MISSING → **migration 059 is NOT applied**.
-  - `customer_follow_ups.reminded_on` is MISSING → **migration 062 is only PARTIALLY applied**.
-  - Everything else through 062 is live. `system_events` does not exist yet (as expected — it is Phase 10's to create).
-  - Impact: the Delivery & Build page (Phase 8) and any lifecycle/cockpit read of `delivery_plans` will fail at runtime
-    until 059 is applied. Blocks Phase 10 tasks 10.2b (A5) and 10.3 (cockpitData). 10.1a is unaffected (pure function).
+- ✅ **CORRECTED 2026-08-27 (direct read-only probe against the live DB, not assumed):** this section had
+  been stale since roughly migration 064 — it still said "Highest migration in repo: 064" and still called
+  078/086 "NOT applied" while the repo had quietly grown to migration **104** (the whole ClickUp import +
+  unified Deals board chain, migrations 087–104, was entirely undocumented here). Probed 20 marker
+  columns/tables spanning 078 through 104 (`opportunities.project_id`, `marketing_campaigns`,
+  `survey_submissions`, `campaign_interactions`, `prospect_contact_checklist_items`, `prospect_files`,
+  `prospects.tags`, `lead_tasks.potential_id`, `opportunities.external_project_code`, etc.) — **every single
+  one is present live.** The live DB is NOT behind the repo; it is current through migration 104. Nothing
+  above this line needs a migration applied. → **Highest migration in repo: 104 → next new migration: 105.**
+- ⚠️ Practical effect of the above: **Sales Handoff (078)** and **Marketing Campaigns (086)** are not
+  "pending deploys" — their tables/columns are live right now. What is still actually missing for them is
+  USE, not deployment: no one has run the Accept flow against a real deal yet (it reserves a real project
+  number and creates a real Dropbox folder — do NOT trigger it without asking first, see CLAUDE.md/AGENTS.md
+  §4 Dropbox immutability), and Campaigns has no real campaign created yet. Treat "is it live" and "has it
+  been used for real" as two separate questions from now on — this file conflated them and that's exactly
+  how the staleness happened.
+- Historical note (superseded by the probe above, kept for context): migration 059 (`delivery_plans` +
+  `punch_list_items`) and the 062 tail (`customer_follow_ups.reminded_on`) were reported missing on
+  2026-07-14. Both are confirmed present now (whether fixed then or since, the live DB shows them today).
 - Live data is still thin: 13 projects (10 drafts), 1 handover (in_progress), 0 site_readiness, 0 change requests,
   all 20 production items NOT_ORDERED / no vendor / PO+PF NOT_SIGNED, no pending approvals, no delivery plans.
   → Only the LEAD → PM_FINALIZATION phases can be validated against real rows today; the later phases are covered by
