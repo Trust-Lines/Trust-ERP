@@ -100,6 +100,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
   const [regionFilter, setRegionFilter] = useState<string>('TLINES_NE');
   const [open, setOpen] = useState<{ id: string; kind: 'opportunity' | 'potential' } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [handingOffId, setHandingOffId] = useState<string | null>(null);
 
   const potentialDeals = useMemo(() => deals.filter(d => d.kind === 'potential' || d.external_stage_label === 'Potential'), [deals]);
   const newQualifyingDeals = useMemo(() => deals.filter(d => d.kind === 'opportunity' && d.external_stage_label !== 'Potential'), [deals]);
@@ -134,6 +135,32 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
     const updated = resBody.opportunity ?? resBody.potential;
     setDeals(prev => prev.map(d => (d.id === row.id ? { ...d, ...updated } : d)));
     return true;
+  }
+
+  // "Hand off to Sales" — the real state-machine transition (lib/marketing/salesHandoff.ts
+  // initiateHandoff), NOT the raw admin-correction drag-and-drop below. Only valid while the
+  // Opportunity is still in Marketing's hands ('new' or 'marketing_qualification'); the API
+  // itself re-checks this and returns 409 otherwise, so this is a UX guard, not the real gate.
+  async function handleHandoff(row: DealRow) {
+    setHandingOffId(row.id);
+    try {
+      const res = await fetch(`/api/marketing/opportunities/${row.id}/handoff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(body.error ?? 'Could not hand off to Sales');
+        return;
+      }
+      setDeals(prev => prev.map(d => (d.id === row.id ? { ...d, stage: body.opportunity?.stage ?? 'sales_handoff' } : d)));
+      toast.success(`"${row.title || row.lead_display_name}" handed off — Sales can Accept it from their Handoffs board now.`);
+    } catch {
+      toast.error('Could not hand off to Sales');
+    } finally {
+      setHandingOffId(null);
+    }
   }
 
   function handleDropStage(targetStageKey: string, targetStage: OpportunityStage) {
@@ -482,6 +509,24 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
                       <span className="text-slate-400">Not set</span>
                     </div>
                   </div>
+
+                  {(d.stage === 'new' || d.stage === 'marketing_qualification' || !d.stage) ? (
+                    <button
+                      onClick={e => { e.stopPropagation(); handleHandoff(d); }}
+                      disabled={handingOffId === d.id}
+                      className="w-full mt-1 px-2.5 py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors cursor-pointer"
+                    >
+                      {handingOffId === d.id ? 'Sending…' : 'Hand off to Sales'}
+                    </button>
+                  ) : d.stage === 'sales_handoff' ? (
+                    <div className="w-full mt-1 px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-semibold text-center">
+                      Waiting on Sales to Accept
+                    </div>
+                  ) : (
+                    <div className="w-full mt-1 px-2.5 py-1.5 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 text-[11px] font-medium text-center">
+                      Stage: {d.stage}
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
