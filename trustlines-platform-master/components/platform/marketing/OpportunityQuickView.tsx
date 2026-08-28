@@ -198,19 +198,43 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: 'var(--bg-surface)', borderRadius: 'var(--radius-lg)', width: '96vw', maxWidth: 1680, height: '92vh',
-          boxShadow: '0 12px 48px rgba(0,0,0,.3)', display: 'flex', overflow: 'hidden',
+          background: 'var(--bg-surface)', borderRadius: 20, width: '96vw', maxWidth: 1680, height: '92vh',
+          boxShadow: '0 24px 64px rgba(15,42,68,.28), 0 4px 16px rgba(15,42,68,.12)', display: 'flex', overflow: 'hidden',
         }}
       >
         <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {project?.code && <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--fg-faint)' }}>{project.code}</div>}
-              <h2 style={{ fontSize: 19, fontWeight: 700, margin: '2px 0 0' }}>{title}</h2>
-              <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 2 }}>
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: 16, padding: '24px 28px',
+            background: 'linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-600) 55%, var(--brand-teal) 130%)',
+            position: 'relative', overflow: 'hidden',
+          }}>
+            <div style={{
+              position: 'absolute', inset: 0, opacity: 0.5,
+              background: 'radial-gradient(600px circle at 85% -20%, rgba(255,255,255,.12), transparent 60%)',
+            }} />
+            <div style={{
+              width: 46, height: 46, borderRadius: 14, flexShrink: 0, position: 'relative',
+              background: 'rgba(255,255,255,.14)', border: '1px solid rgba(255,255,255,.22)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 18, fontWeight: 800, color: '#fff', backdropFilter: 'blur(4px)',
+            }}>
+              {title.charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+              {project?.code && (
+                <div style={{
+                  display: 'inline-flex', fontSize: 10.5, fontFamily: 'var(--font-mono)', fontWeight: 600,
+                  color: 'rgba(255,255,255,.75)', letterSpacing: '0.03em', background: 'rgba(255,255,255,.1)',
+                  padding: '2px 8px', borderRadius: 999, marginBottom: 6,
+                }}>
+                  {project.code}
+                </div>
+              )}
+              <h2 style={{ fontSize: 21, fontWeight: 800, margin: 0, color: '#fff', letterSpacing: '-0.01em' }}>{title}</h2>
+              <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.7)', marginTop: 3, fontWeight: 500 }}>
                 {prospect?.industry || '—'} · {prospect?.brand_name || '—'}
               </div>
-              <div style={{ marginTop: 6 }}>
+              <div style={{ marginTop: 10 }}>
                 {canEdit ? (
                   <TagMultiSelect
                     values={tags.map(t => t.name)}
@@ -232,23 +256,37 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                 ) : null}
               </div>
             </div>
-            {saving && <Loader2 size={14} className="qv-spin" style={{ color: 'var(--fg-faint)', marginTop: 6 }} />}
-            <Link href={`/marketing/prospects/${opp?.prospect_id}`} title="Contacts, locations & other Needs for this Lead"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--fg-faint)', textDecoration: 'none', marginTop: 6 }}>
-              <ExternalLink size={12} /> Lead profile
-            </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative', flexShrink: 0 }}>
+              {saving && <Loader2 size={14} className="qv-spin" style={{ color: 'rgba(255,255,255,.7)' }} />}
+              <Link href={`/marketing/prospects/${opp?.prospect_id}`} title="Contacts, locations & other Needs for this Lead"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: '#fff', textDecoration: 'none',
+                  background: 'rgba(255,255,255,.14)', border: '1px solid rgba(255,255,255,.22)', padding: '6px 12px', borderRadius: 999,
+                  transition: 'background .15s',
+                }}>
+                <ExternalLink size={12} /> Lead profile
+              </Link>
+            </div>
           </div>
 
-          <style>{`.qv-spin{animation:qv-spin 1s linear infinite}@keyframes qv-spin{to{transform:rotate(360deg)}}`}</style>
+          <style>{`
+            .qv-spin{animation:qv-spin 1s linear infinite}
+            @keyframes qv-spin{to{transform:rotate(360deg)}}
+            .qv-field{transition:background .12s,box-shadow .12s}
+            .qv-field:hover{background:var(--bg-surface);box-shadow:var(--shadow-xs)}
+          `}</style>
 
           {!loaded ? (
             <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-subtle)' }}><Loader2 size={18} className="qv-spin" /> Loading…</div>
           ) : !opp ? (
             <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-subtle)' }}>Couldn&apos;t load this {kind === 'potential' ? 'Potential' : 'Opportunity'}.</div>
           ) : (
-            <div style={{ padding: '16px 20px 20px' }}>
-              <SectionLabel>Fields</SectionLabel>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2px 24px', marginBottom: 20 }}>
+            <div style={{ padding: '20px 28px 24px' }}>
+              <SectionLabel icon="◆">Overview</SectionLabel>
+              <div style={{
+                display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 4, marginBottom: 24,
+                background: 'var(--bg-subtle)', borderRadius: 14, padding: 8, border: '1px solid var(--border-subtle)',
+              }}>
                 {kind === 'opportunity' ? (
                   <Row label="Stage"><Sel value={String(v('stage'))} onChange={changeStage} opts={STAGE_OPTS} /></Row>
                 ) : (
@@ -312,8 +350,11 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                 </Row>
               </div>
 
-              <SectionLabel>ClickUp Fields</SectionLabel>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2px 24px', marginBottom: 20 }}>
+              <SectionLabel icon="◆">Details</SectionLabel>
+              <div style={{
+                display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 4, marginBottom: 24,
+                background: 'var(--bg-subtle)', borderRadius: 14, padding: 8, border: '1px solid var(--border-subtle)',
+              }}>
                 <Row label="Direct Contact"><span style={ro}>{String(v('direct_contact_raw')) || '—'}</span></Row>
                 <Row label="01-State"><span style={ro}>{String(v('state')) || '—'}</span></Row>
                 <Row label="11-Location"><span style={ro}>{String(v('formatted_address')) || '—'}</span></Row>
@@ -335,33 +376,39 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                 <Row label="To Do"><span style={ro}>{String(v('to_do_raw')) || '—'}</span></Row>
               </div>
               {!!v('source_description_raw') && (
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <div style={{ marginBottom: 24 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                     <FileText size={12} style={{ color: 'var(--fg-faint)' }} />
                     <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Description</span>
                   </div>
-                  <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, color: 'var(--fg-default)', background: 'var(--bg-subtle)', borderRadius: 8, padding: '10px 12px' }}>
+                  <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, lineHeight: 1.6, color: 'var(--fg-default)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '12px 14px' }}>
                     {String(v('source_description_raw'))}
                   </div>
                 </div>
               )}
 
               {kind === 'opportunity' && (
-                <div style={{ marginBottom: 16 }}>
-                  <TaskList apiBasePath={apiBase} assignees={assignees} />
+                <div style={{ marginBottom: 24 }}>
+                  <SectionLabel icon="◆">Tasks</SectionLabel>
+                  <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 14, padding: 10 }}>
+                    <TaskList apiBasePath={apiBase} assignees={assignees} />
+                  </div>
                 </div>
               )}
 
-              <SectionLabel>Files</SectionLabel>
-              <div style={{ marginBottom: 16 }}>
+              <SectionLabel icon="◆">Files</SectionLabel>
+              <div style={{ marginBottom: 16, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 14, padding: files.length || project?.dropbox_root_path ? 6 : 12 }}>
                 {project?.dropbox_root_path && (
                   <div style={{ marginBottom: 10 }}>
                     <DropboxFileList rootPath={project.dropbox_root_path} rootLabel={project.code} />
                   </div>
                 )}
                 {files.map(f => (
-                  <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-                    <button onClick={() => viewFile(f)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-fg, var(--fg-default))', fontSize: 12.5, textAlign: 'left', flex: 1, minWidth: 0, textDecoration: 'underline' }}>
+                  <div key={f.id} className="qv-field" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 9 }}>
+                    <div style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--brand-teal-100)', color: 'var(--brand-teal-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <FileText size={13} />
+                    </div>
+                    <button onClick={() => viewFile(f)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-default)', fontSize: 12.5, fontWeight: 600, textAlign: 'left', flex: 1, minWidth: 0 }}>
                       {f.file_name}
                     </button>
                     <span style={{ fontSize: 10.5, color: 'var(--fg-faint)' }}>{f.uploaded_by_name ?? ''}</span>
@@ -376,7 +423,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                   <div style={{ fontSize: 12.5, color: 'var(--fg-faint)', padding: '6px 0' }}>No files yet.</div>
                 )}
                 {canEdit && (
-                  <div style={{ marginTop: 8 }}>
+                  <div style={{ marginTop: 8, padding: files.length || project?.dropbox_root_path ? '0 4px 4px' : 0 }}>
                     <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); }} />
                     <button className="btn btn-ghost btn-sm" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile}>
                       {uploadingFile ? <Loader2 size={13} className="qv-spin" /> : <Upload size={13} />} Attach file
@@ -388,11 +435,17 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
           )}
         </div>
 
-        <div style={{ width: 360, flexShrink: 0, borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', background: 'var(--bg-subtle)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid var(--border-subtle)' }}>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>Activity</div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 4 }} aria-label="Close">
-              <X size={18} />
+        <div style={{ width: 368, flexShrink: 0, borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', background: 'var(--bg-subtle)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--brand-teal)' }} />
+              <div style={{ fontWeight: 800, fontSize: 14, letterSpacing: '-0.01em' }}>Activity</div>
+              {notes.length > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-faint)', background: 'var(--bg-subtle)', borderRadius: 999, padding: '1px 7px' }}>{notes.length}</span>
+              )}
+            </div>
+            <button onClick={onClose} style={{ background: 'var(--bg-subtle)', border: 'none', borderRadius: 8, cursor: 'pointer', color: 'var(--fg-subtle)', padding: 6, display: 'flex' }} aria-label="Close">
+              <X size={16} />
             </button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'grid', gap: 10, alignContent: 'start' }}>
@@ -400,11 +453,19 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
               <div style={{ fontSize: 12.5, color: 'var(--fg-subtle)', textAlign: 'center', marginTop: 24 }}>No activity yet.</div>
             )}
             {notes.map(n => (
-              <div key={n.id} style={{ background: 'var(--bg-surface)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border-subtle)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontWeight: 600, fontSize: 12.5 }}>{n.author_name || 'Unknown'}</span>
+              <div key={n.id} style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '11px 13px', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <div style={{
+                      width: 22, height: 22, borderRadius: 999, background: 'var(--brand-teal-100)', color: 'var(--brand-teal-600)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0,
+                    }}>
+                      {(n.author_name || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <span style={{ fontWeight: 700, fontSize: 12.5 }}>{n.author_name || 'Unknown'}</span>
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ color: 'var(--fg-subtle)', fontSize: 11 }}>
+                    <span style={{ color: 'var(--fg-faint)', fontSize: 10.5 }}>
                       {n.source_created_at ? new Date(n.source_created_at).toLocaleDateString('en-US') : ''}
                     </span>
                     {canEdit && (
@@ -414,7 +475,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                     )}
                   </div>
                 </div>
-                {n.body && n.body !== n.link_url && <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, color: 'var(--fg-default)' }}>{n.body}</div>}
+                {n.body && n.body !== n.link_url && <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-default)', paddingLeft: 29 }}>{n.body}</div>}
                 {n.link_url && (
                   <a href={n.link_url} target="_blank" rel="noopener noreferrer"
                     style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', border: '1px solid var(--border-subtle)', borderRadius: 8, padding: '8px 10px', background: 'var(--bg-subtle)' }}>
@@ -452,7 +513,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
           </div>
 
           {canEdit && (
-            <div style={{ borderTop: '1px solid var(--border-subtle)', padding: 12, background: 'var(--bg-surface)' }}>
+            <div style={{ borderTop: '1px solid var(--border-subtle)', padding: 14, background: 'var(--bg-surface)' }}>
               {draftImage && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--fg-subtle)', marginBottom: 6 }}>
                   <ImageIcon size={12} /> {draftImage.name}
@@ -468,7 +529,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                   value={draft}
                   onChange={e => setDraft(e.target.value)}
                   rows={2}
-                  style={{ flex: 1, resize: 'none', fontSize: 12.5 }}
+                  style={{ flex: 1, resize: 'none', fontSize: 12.5, borderRadius: 10 }}
                 />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <input ref={noteFileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
@@ -510,24 +571,30 @@ function readableOn(bg: string): string {
   return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#000' : '#fff';
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>{children}</div>;
+function SectionLabel({ children, icon }: { children: React.ReactNode; icon?: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+      {icon && <span style={{ fontSize: 7, color: 'var(--brand-teal)' }}>{icon}</span>}
+      <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{children}</div>
+      <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+    </div>
+  );
 }
 
-const ro: React.CSSProperties = { fontSize: 13, color: 'var(--fg-muted)' };
+const ro: React.CSSProperties = { fontSize: 13, color: 'var(--fg-default)', fontWeight: 500 };
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid var(--border-subtle)', minHeight: 34 }}>
-      <div style={{ width: 130, flexShrink: 0, fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)' }}>{label}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+    <div className="qv-field" style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '8px 10px', borderRadius: 9, minHeight: 52 }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--fg-faint)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</div>
+      <div style={{ minWidth: 0 }}>{children}</div>
     </div>
   );
 }
 
 const cellInput: React.CSSProperties = {
-  width: '100%', fontSize: 13, padding: '3px 6px', border: '1px solid transparent',
-  borderRadius: 5, background: 'transparent', color: 'var(--fg-default)',
+  width: '100%', fontSize: 13, fontWeight: 500, padding: '3px 4px', border: '1px solid transparent',
+  borderRadius: 6, background: 'transparent', color: 'var(--fg-default)',
 };
 
 function Inp({ value, onSave, type = 'text', ph }: { value: string | number; onSave: (v: string) => void; type?: string; ph?: string }) {
@@ -540,15 +607,22 @@ function Inp({ value, onSave, type = 'text', ph }: { value: string | number; onS
       onBlur={() => { if (val !== String(value ?? '')) onSave(val); }}
       onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
       style={cellInput}
-      onFocus={e => { e.target.style.border = '1px solid var(--border-default)'; e.target.style.background = 'var(--bg-surface)'; }}
-      onBlurCapture={e => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent'; }}
+      onFocus={e => { e.target.style.border = '1px solid var(--brand-teal)'; e.target.style.background = 'var(--bg-surface)'; e.target.style.boxShadow = 'var(--shadow-focus)'; }}
+      onBlurCapture={e => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent'; e.target.style.boxShadow = 'none'; }}
     />
   );
 }
 
 function Sel({ value, onChange, opts, emphasize }: { value: string; onChange: (v: string) => void; opts: [string, string][]; emphasize?: boolean }) {
   return (
-    <select value={value} onChange={e => onChange(e.target.value)} style={{ ...cellInput, border: `1px solid ${emphasize ? 'var(--status-warning)' : 'var(--border-subtle)'}`, background: 'var(--bg-surface)' }}>
+    <select
+      value={value} onChange={e => onChange(e.target.value)}
+      style={{
+        ...cellInput, padding: '4px 4px', cursor: 'pointer',
+        border: `1px solid ${emphasize ? 'var(--status-warning)' : 'transparent'}`,
+        background: emphasize ? 'var(--status-warning-bg)' : 'transparent',
+      }}
+    >
       {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
     </select>
   );
