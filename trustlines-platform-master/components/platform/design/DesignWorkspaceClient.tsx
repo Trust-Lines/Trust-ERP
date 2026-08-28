@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { Palette, Plus, ExternalLink, ChevronDown, CalendarClock, Paperclip, Box, Upload, FileText, FolderOpen, Send, UserPlus, Users } from 'lucide-react';
+import { Palette, Plus, ExternalLink, ChevronDown, CalendarClock, Paperclip, Box, Upload, FileText, FolderOpen, Send, UserPlus, Users, User, Plug, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { Pill } from '@/components/platform/shared/Pill';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
@@ -18,6 +18,8 @@ interface Props {
   isManager: boolean;
   schemaError: string | null;
   designers: { id: string; full_name: string }[];
+  projectTeam: Record<string, { trustlinesPm: string | null; tlinesPm: string | null }>;
+  creatorMap: Record<string, string>;
 }
 
 function anchorId(job: Pick<SalesDesignJob, 'lead_intake_id' | 'opportunity_id'>): string {
@@ -63,6 +65,7 @@ function StatusPill({ status }: { status: string }) {
 export function DesignWorkspaceClient({
   jobs: initialJobs, versions: initialVersions, leadMap, designerMap,
   intakeFiles, designFiles: initialDesignFiles, projectMeta, isManager, schemaError, designers,
+  projectTeam, creatorMap,
 }: Props) {
   const [jobs, setJobs] = useState<SalesDesignJob[]>(initialJobs);
   const [versions, setVersions] = useState<SalesDesignVersion[]>(initialVersions);
@@ -222,80 +225,106 @@ export function DesignWorkspaceClient({
 
         {open && (
           <div style={{ padding: '0 12px 12px', borderTop: '1px solid var(--border-subtle)' }}>
-            {job.brief && <div style={{ fontSize: 12, color: 'var(--fg-subtle)', margin: '10px 0' }}>{job.brief}</div>}
+            <div style={{ display: 'flex', gap: 16, marginTop: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              {/* ── Main column ─────────────────────────────────────────── */}
+              <div style={{ flex: '1 1 380px', minWidth: 0 }}>
+                {job.brief && <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 10 }}>{job.brief}</div>}
 
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', margin: '10px 0' }}>
-              <label style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Status
-                <select className="form-input" style={{ fontSize: 12, marginTop: 2 }} value={job.status} disabled={busy}
-                  onChange={e => patchJob(job.id, { status: e.target.value })}>
-                  {(statuses.includes(job.status) ? statuses : [job.status, ...statuses]).map(s => <option key={s} value={s}>{cap(s)}</option>)}
-                </select>
-              </label>
-              {!isManager && (
-                <span style={{ fontSize: 11, color: 'var(--fg-faint)', paddingBottom: 6 }}>
-                  Reassignment, priority and due date are managed by Sales.
-                </span>
-              )}
-            </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 10 }}>
+                  <label style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Status
+                    <select className="form-input" style={{ fontSize: 12, marginTop: 2 }} value={job.status} disabled={busy}
+                      onChange={e => patchJob(job.id, { status: e.target.value })}>
+                      {(statuses.includes(job.status) ? statuses : [job.status, ...statuses]).map(s => <option key={s} value={s}>{cap(s)}</option>)}
+                    </select>
+                  </label>
+                  {!isManager && (
+                    <span style={{ fontSize: 11, color: 'var(--fg-faint)', paddingBottom: 6 }}>
+                      Reassignment, priority and due date are managed by Sales.
+                    </span>
+                  )}
+                </div>
 
-            <CustomerBrief
-              brief={leadMap[anchor]}
-              files={intakeFiles[anchor] ?? []}
-              busy={busy}
-              onOpen={fileId => openFile(job.id, 'intake', fileId)}
-            />
+                <CustomerBrief
+                  brief={leadMap[anchor]}
+                  files={intakeFiles[anchor] ?? []}
+                  busy={busy}
+                  onOpen={fileId => openFile(job.id, 'intake', fileId)}
+                />
 
-            <DesignFolder jobId={job.id} meta={projectMeta[anchor]} />
+                <div style={{ fontSize: 12, color: 'var(--fg-subtle)', margin: '8px 0 6px' }}>Versions</div>
+                {jv.length === 0 && <div style={{ fontSize: 12, color: 'var(--fg-faint)', marginBottom: 8 }}>No versions yet — add your first draft below.</div>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {jv.map(v => {
+                    const files = designFiles[v.id] ?? [];
+                    return (
+                      <div key={v.id} style={{ border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '8px 10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, fontSize: 13 }}>V{v.version_no}</span>
+                          <StatusPill status={v.status} />
+                          {v.preview_link && <a href={v.preview_link} target="_blank" rel="noreferrer" style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 3 }}>Preview <ExternalLink size={11} /></a>}
+                          <div style={{ flex: 1 }} />
+                          {isManager && (
+                            <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border-subtle)', fontSize: 12 }}
+                              disabled={busy} onClick={() => sendReviewLink(job.id, v.id)}>
+                              <Send size={12} /> Customer review link
+                            </button>
+                          )}
+                          <UploadButton busy={busy} onPick={f => uploadDesignFile(job.id, v.id, f)} />
+                          <select className="form-input" style={{ fontSize: 12, width: 'auto', padding: '2px 6px' }} value={v.status} disabled={busy}
+                            onChange={e => patchVersion(job.id, v.id, { status: e.target.value })} aria-label={`V${v.version_no} status`}>
+                            {VER_STATUSES.map(s => <option key={s} value={s}>{cap(s)}</option>)}
+                          </select>
+                        </div>
 
-            <div style={{ fontSize: 12, color: 'var(--fg-subtle)', margin: '8px 0 6px' }}>Versions</div>
-            {jv.length === 0 && <div style={{ fontSize: 12, color: 'var(--fg-faint)', marginBottom: 8 }}>No versions yet — add your first draft below.</div>}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {jv.map(v => {
-                const files = designFiles[v.id] ?? [];
-                return (
-                  <div key={v.id} style={{ border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '8px 10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 700, fontSize: 13 }}>V{v.version_no}</span>
-                      <StatusPill status={v.status} />
-                      {v.preview_link && <a href={v.preview_link} target="_blank" rel="noreferrer" style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 3 }}>Preview <ExternalLink size={11} /></a>}
-                      <div style={{ flex: 1 }} />
-                      {isManager && (
-                        <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border-subtle)', fontSize: 12 }}
-                          disabled={busy} onClick={() => sendReviewLink(job.id, v.id)}>
-                          <Send size={12} /> Customer review link
-                        </button>
-                      )}
-                      <UploadButton busy={busy} onPick={f => uploadDesignFile(job.id, v.id, f)} />
-                      <select className="form-input" style={{ fontSize: 12, width: 'auto', padding: '2px 6px' }} value={v.status} disabled={busy}
-                        onChange={e => patchVersion(job.id, v.id, { status: e.target.value })} aria-label={`V${v.version_no} status`}>
-                        {VER_STATUSES.map(s => <option key={s} value={s}>{cap(s)}</option>)}
-                      </select>
-                    </div>
+                        {files.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                            {files.map(f => (
+                              <button key={f.id} className="btn btn-ghost btn-sm" disabled={busy}
+                                style={{ border: '1px solid var(--border-subtle)', fontSize: 12 }}
+                                onClick={() => openFile(job.id, 'design', f.id)}>
+                                <FileText size={12} /> {f.file_name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
 
-                    {files.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                        {files.map(f => (
-                          <button key={f.id} className="btn btn-ghost btn-sm" disabled={busy}
-                            style={{ border: '1px solid var(--border-subtle)', fontSize: 12 }}
-                            onClick={() => openFile(job.id, 'design', f.id)}>
-                            <FileText size={12} /> {f.file_name}
-                          </button>
-                        ))}
+                        {v.notes && <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 4 }}>{v.notes}</div>}
+                        {v.customer_feedback && (
+                          <div style={{ fontSize: 12, marginTop: 6, background: 'var(--status-warning-bg, #fef3c7)', color: 'var(--status-warning-fg, #92400e)', borderRadius: 4, padding: '6px 8px' }}>
+                            <strong>Feedback:</strong> {v.customer_feedback}
+                          </div>
+                        )}
                       </div>
-                    )}
+                    );
+                  })}
+                </div>
 
-                    {v.notes && <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 4 }}>{v.notes}</div>}
-                    {v.customer_feedback && (
-                      <div style={{ fontSize: 12, marginTop: 6, background: 'var(--status-warning-bg, #fef3c7)', color: 'var(--status-warning-fg, #92400e)', borderRadius: 4, padding: '6px 8px' }}>
-                        <strong>Feedback:</strong> {v.customer_feedback}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                <AddVersionRow busy={busy} onAdd={(link, notes) => addVersion(job.id, link, notes)} />
+              </div>
+
+              {/* ── Right sidebar: Team / Integrations / Details ───────────
+                  User request, 2026-08-28: mirror the project detail cockpit's side panels here
+                  ("dolu dolu" — Team, Integrations/Dropbox, Details), not just a flat form. */}
+              <div style={{ flex: '0 0 240px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <SidePanel icon={<Users size={13} />} title="Team">
+                  <TeamRow label="Designer" name={job.assigned_designer_id ? (designerMap[job.assigned_designer_id] ?? 'Designer') : null} empty="Unassigned" />
+                  <TeamRow label="Requested by" name={job.created_by ? (creatorMap[job.created_by] ?? null) : null} empty="—" />
+                  <TeamRow label="Trust PM" name={projectTeam[anchor]?.trustlinesPm ?? null} empty="Not assigned yet" />
+                  <TeamRow label="Client PM" name={projectTeam[anchor]?.tlinesPm ?? null} empty="Not assigned yet" />
+                </SidePanel>
+
+                <SidePanel icon={<Plug size={13} />} title="Integrations">
+                  <DesignFolder jobId={job.id} meta={projectMeta[anchor]} />
+                </SidePanel>
+
+                <SidePanel icon={<Info size={13} />} title="Details">
+                  <DetailRow label="Priority" value={<span style={{ textTransform: 'capitalize' }}>{job.priority}</span>} />
+                  <DetailRow label="Due date" value={job.due_date ?? '—'} />
+                  <DetailRow label="Created" value={new Date(job.created_at).toLocaleDateString()} />
+                  <DetailRow label="Versions" value={String(jv.length)} />
+                </SidePanel>
+              </div>
             </div>
-
-            <AddVersionRow busy={busy} onAdd={(link, notes) => addVersion(job.id, link, notes)} />
           </div>
         )}
       </div>
@@ -394,8 +423,12 @@ function DesignFolder({ jobId, meta }: { jobId: string; meta: ProjectMeta | unde
 
   if (!meta?.designRoot) {
     return (
-      <div style={{ fontSize: 11, color: 'var(--fg-faint)', margin: '10px 0' }}>
-        Dropbox design folder not ready yet — Sales must finish Block 1 (region / service / address) so the project folder is created.
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+        <FolderOpen size={13} style={{ color: 'var(--fg-faint)' }} />
+        <div>
+          <div style={{ color: 'var(--fg-subtle)' }}>Dropbox</div>
+          <div style={{ fontSize: 10.5, color: 'var(--fg-faint)' }}>Not set — needs region/service/address on Block 1</div>
+        </div>
       </div>
     );
   }
@@ -416,19 +449,18 @@ function DesignFolder({ jobId, meta }: { jobId: string; meta: ProjectMeta | unde
   }
 
   return (
-    <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '10px 12px', margin: '10px 0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-        <FolderOpen size={14} style={{ color: 'var(--fg-subtle)' }} />
-        <span style={{ fontSize: 12, fontWeight: 600 }}>Dropbox design folder</span>
-        <button className="btn btn-secondary btn-sm" style={{ fontSize: 12 }} onClick={openFolder} disabled={opening}>
-          {opening ? 'Opening…' : <>Open in Dropbox <ExternalLink size={11} /></>}
-        </button>
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+        <FolderOpen size={13} style={{ color: 'var(--fg-subtle)' }} />
+        <span style={{ fontSize: 12, fontWeight: 600 }}>Dropbox</span>
       </div>
-      <div style={{ fontSize: 11, color: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)', wordBreak: 'break-all' }}>{folder}</div>
-      <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 4 }}>
-        Under the Design share (Design → T LINES → {'{store}'} → … → 1-Plan Layout · 2-Estimate · 3-Design proposal · …).
-        Opening it creates the tree if needed, then you work in it on your PC (Dropbox-synced). When done, set the version
-        to “Ready for sales review” so Sales is notified.
+      <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, width: '100%', justifyContent: 'center' }} onClick={openFolder} disabled={opening}>
+        {opening ? 'Opening…' : <>Open design folder <ExternalLink size={11} /></>}
+      </button>
+      <div style={{ fontSize: 10, color: 'var(--fg-faint)', fontFamily: 'var(--font-mono)', wordBreak: 'break-all', marginTop: 5 }}>{folder}</div>
+      <div style={{ fontSize: 10.5, color: 'var(--fg-faint)', marginTop: 4 }}>
+        Under the Design share. Opens/creates the folder tree; work there (Dropbox-synced), then set the version to
+        “Ready for sales review.”
       </div>
     </div>
   );
@@ -549,6 +581,49 @@ function AddVersionRow({ busy, onAdd }: { busy: boolean; onAdd: (link: string, n
         <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => { onAdd(link.trim(), notes.trim()); setLink(''); setNotes(''); setOpen(false); }}>Add</button>
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>Cancel</button>
       </div>
+    </div>
+  );
+}
+
+function SidePanel({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 8, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
+        <span style={{ color: 'var(--fg-subtle)', display: 'flex' }}>{icon}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--fg-subtle)' }}>{title}</span>
+      </div>
+      <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 8 }}>{children}</div>
+    </div>
+  );
+}
+
+function TeamRow({ label, name, empty }: { label: string; name: string | null; empty: string }) {
+  const initials = (name || '').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || '—';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{
+        width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+        background: name ? 'var(--brand-teal, #0d9488)' : 'var(--bg-sunken)',
+        color: name ? '#fff' : 'var(--fg-faint)',
+        fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {name ? initials : <User size={11} />}
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 9.5, color: 'var(--fg-faint)', textTransform: 'uppercase', letterSpacing: 0.3 }}>{label}</div>
+        <div style={{ fontSize: 12, color: name ? 'var(--fg-default)' : 'var(--fg-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {name ?? empty}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+      <span style={{ color: 'var(--fg-subtle)' }}>{label}</span>
+      <span>{value}</span>
     </div>
   );
 }

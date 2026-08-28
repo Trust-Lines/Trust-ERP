@@ -111,6 +111,9 @@ export default async function DesignWorkspacePage() {
   }
 
   const projectMeta: Record<string, ProjectMeta> = {};
+  // Roadmap Month 2 — Team panel: the project's own Trust PM / Client PM, resolved per anchor,
+  // matching what the project detail cockpit already shows (same source of truth, not invented).
+  const projectTeam: Record<string, { trustlinesPm: string | null; tlinesPm: string | null }> = {};
   {
     const anchorToProjectId: Record<string, string> = {};
     if (leadIds.length) {
@@ -127,23 +130,47 @@ export default async function DesignWorkspacePage() {
     }
     const projIds = [...new Set(Object.values(anchorToProjectId))];
     if (projIds.length) {
-      const { data: pRows } = await admin.from('projects').select('id, code, dropbox_root_path, is_draft').in('id', projIds);
-      const byId: Record<string, { code: string | null; dropbox_root_path: string | null; is_draft: boolean }> = {};
-      for (const p of (pRows ?? []) as { id: string; code: string | null; dropbox_root_path: string | null; is_draft: boolean }[]) byId[p.id] = p;
+      const { data: pRows } = await admin.from('projects')
+        .select('id, code, dropbox_root_path, is_draft, trustlines_pm_id, tlines_pm_id').in('id', projIds);
+      type ProjRow = { id: string; code: string | null; dropbox_root_path: string | null; is_draft: boolean; trustlines_pm_id: string | null; tlines_pm_id: string | null };
+      const byId: Record<string, ProjRow> = {};
+      for (const p of (pRows ?? []) as ProjRow[]) byId[p.id] = p;
+
+      const pmIds = [...new Set(Object.values(byId).flatMap(p => [p.trustlines_pm_id, p.tlines_pm_id]).filter(Boolean))] as string[];
+      const pmNameById: Record<string, string> = {};
+      if (pmIds.length) {
+        const { data: pmRows } = await admin.from('profiles').select('id, full_name').in('id', pmIds);
+        for (const pm of (pmRows ?? []) as { id: string; full_name: string }[]) pmNameById[pm.id] = pm.full_name;
+      }
+
       for (const [anchor, pid] of Object.entries(anchorToProjectId)) {
         const p = byId[pid];
-        if (p) projectMeta[anchor] = {
+        if (!p) continue;
+        projectMeta[anchor] = {
           code: p.code, dropboxRoot: p.dropbox_root_path,
           designRoot: p.dropbox_root_path ? designRootFromProjectRoot(p.dropbox_root_path) : null,
           isDraft: p.is_draft,
+        };
+        projectTeam[anchor] = {
+          trustlinesPm: p.trustlines_pm_id ? (pmNameById[p.trustlines_pm_id] ?? null) : null,
+          tlinesPm: p.tlines_pm_id ? (pmNameById[p.tlines_pm_id] ?? null) : null,
         };
       }
     }
   }
 
+  const creatorIds = [...new Set(jobs.map(j => j.created_by).filter(Boolean))] as string[];
+  const creatorMap: Record<string, string> = {};
+  if (creatorIds.length) {
+    const { data } = await admin.from('profiles').select('id, full_name').in('id', creatorIds);
+    for (const c of (data ?? []) as { id: string; full_name: string }[]) creatorMap[c.id] = c.full_name;
+  }
+
+  // Not manager-gated — a designer should see their own name on their own job's Team panel too,
+  // just like the manager view; this was previously only fetched for isManager.
   const designerIds = [...new Set(jobs.map(j => j.assigned_designer_id).filter(Boolean))] as string[];
   const designerMap: Record<string, string> = {};
-  if (isManager && designerIds.length) {
+  if (designerIds.length) {
     const { data } = await admin.from('profiles').select('id, full_name, office').in('id', designerIds);
     for (const d of (data ?? []) as { id: string; full_name: string; office: string | null }[]) {
       designerMap[d.id] = d.office ? `${d.full_name} — ${d.office}` : d.full_name;
@@ -166,6 +193,7 @@ export default async function DesignWorkspacePage() {
         jobs={jobs} versions={versions} leadMap={leadMap} designerMap={designerMap}
         intakeFiles={intakeFiles} designFiles={designFiles} projectMeta={projectMeta}
         isManager={isManager} schemaError={schemaError} designers={designers}
+        projectTeam={projectTeam} creatorMap={creatorMap}
       />
     </div>
   );

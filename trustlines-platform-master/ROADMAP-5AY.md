@@ -363,3 +363,22 @@
   silinen: `app/(platform)/supply/page.tsx`.
 - Doğrulama: tsc temiz · lint 0 hata (3 önceden var olan uyarı) · build EXIT 0 (`/supply` artık
   build çıktısında YOK, `/projects` var) · 460/462 test.
+
+### 2026-08-28 — Design workspace, gösterilen ekran görüntüsü gibi zenginleştirildi
+- Kullanıcı, proje detay sayfasındaki (checklist + Team + Integrations + Details panelleri olan)
+  ekranın bir benzerini Design workspace için istedi — "UI olarak da backend olarak da yap
+  demiştim", "dropboxta design diye ayrı alanımız var."
+- Her iş kartı açıldığında artık **iki sütun**: solda mevcut içerik (durum, müşteri özeti,
+  versiyonlar), sağda üç yeni panel:
+  - **Team** — Designer, İsteği açan kişi, Trust PM, Client PM (gerçek proje kaydından, aynı
+    proje detay sayfasının kullandığı kaynaktan).
+  - **Integrations** — Dropbox Design klasörü (durum + "Aç" butonu), önceden sayfanın ortasında
+    dağınık duran bilgi artık gerçek bir panel.
+  - **Details** — Öncelik, teslim tarihi, oluşturulma tarihi, versiyon sayısı.
+- Designer'ın kendi adını artık kendi işinde görebilmesi için `designerMap`'in sadece yöneticiye
+  değil herkese dolduğu düzeltildi (önceden `isManager` şartına bağlıydı).
+- **CANLI DOĞRULAMA:** Gerçek bir zincir kuruldu (Lead → Fırsat → Proje → Tasarım işi), projeye
+  gerçek bir Trust PM atandı, işe gerçek bir designer atandı — Team panelinin göstereceği isim,
+  Dropbox Design klasör yolu, istek açan kişi, hepsi doğru veriden geldiği kanıtlandı.
+- Değişen dosyalar: `app/(platform)/design/page.tsx`, `components/platform/design/DesignWorkspaceClient.tsx`.
+- Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 460/462 test.
