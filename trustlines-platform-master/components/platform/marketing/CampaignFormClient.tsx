@@ -28,8 +28,18 @@ function TextAreaField({ label, hint, value, ...props }: { label: string; hint?:
   );
 }
 
+// The backend has always supported 'event' as a campaign_type alongside 'trade_fair'
+// (CAMPAIGN_TYPES in lib/marketing/campaigns.ts, DB CHECK constraint) — this form just never
+// exposed it, hardcoding campaignType/source to 'trade_fair' on every create. That's the actual
+// gap behind "no Events module": there never needed to be a second table, only this selector.
+export type CampaignKind = 'trade_fair' | 'event';
+export const CAMPAIGN_KIND_LABEL: Record<CampaignKind, string> = {
+  trade_fair: 'Trade Fair', event: 'Event',
+};
+
 export interface CampaignFormValues {
   name: string;
+  campaignType: CampaignKind;
   state: string;
   city: string;
   startDate: string;
@@ -39,7 +49,7 @@ export interface CampaignFormValues {
 }
 
 export const EMPTY_CAMPAIGN_FORM: CampaignFormValues = {
-  name: '', state: '', city: '', startDate: '', endDate: '', description: '', surveyTemplate: 'none',
+  name: '', campaignType: 'trade_fair', state: '', city: '', startDate: '', endDate: '', description: '', surveyTemplate: 'none',
 };
 
 interface Props {
@@ -68,7 +78,7 @@ export function CampaignFormClient({ mode, campaignId, initial }: Props) {
         method, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name.trim(),
-          campaignType: 'trade_fair', source: 'trade_fair', defaultLanguage: 'en',
+          campaignType: form.campaignType, source: form.campaignType, defaultLanguage: 'en',
           state: form.state || undefined,
           city: form.city.trim() || undefined,
           country: (form.state || form.city.trim()) ? 'US' : undefined,
@@ -119,6 +129,30 @@ export function CampaignFormClient({ mode, campaignId, initial }: Props) {
 
       <div className="card"><div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <TextField label="Campaign name" required value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Atlanta Build Expo 2026" />
+
+        <div>
+          <label className="form-label" style={{ fontSize: 12 }}>Type</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {(['trade_fair', 'event'] as const).map(kind => (
+              <button
+                key={kind} type="button"
+                onClick={() => set('campaignType', kind)}
+                className="btn btn-sm"
+                style={{
+                  flex: 1,
+                  background: form.campaignType === kind ? 'var(--brand-navy, #1e3a5f)' : 'var(--bg-subtle)',
+                  color: form.campaignType === kind ? '#fff' : 'inherit',
+                  border: 'none',
+                }}
+              >
+                {CAMPAIGN_KIND_LABEL[kind]}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 10.5, color: 'var(--fg-subtle)', marginTop: 2 }}>
+            Trade Fair — a booth at a show. Event — a standalone meeting/conference/other gathering.
+          </div>
+        </div>
 
         <div>
           <label className="form-label" style={{ fontSize: 12 }}>Location (US)</label>

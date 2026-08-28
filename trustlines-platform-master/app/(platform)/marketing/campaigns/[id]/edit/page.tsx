@@ -18,13 +18,15 @@ export default async function EditCampaignPage({ params }: { params: Promise<{ i
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;
   const { data: campaign, error } = await sb.from('marketing_campaigns')
-    .select('id, name, city, state, start_date, end_date, status, description, survey_template')
+    .select('id, name, campaign_type, city, state, start_date, end_date, status, description, survey_template')
     .eq('id', id).is('deleted_at', null).maybeSingle();
   if (error || !campaign) notFound();
   if (campaign.status === 'closed') redirect(`/marketing/campaigns/${id}`);
 
   const initial: CampaignFormValues = {
-    name: campaign.name ?? '', state: campaign.state ?? '', city: campaign.city ?? '',
+    name: campaign.name ?? '',
+    campaignType: (campaign.campaign_type === 'event' ? 'event' : 'trade_fair') as CampaignFormValues['campaignType'],
+    state: campaign.state ?? '', city: campaign.city ?? '',
     startDate: campaign.start_date ?? '', endDate: campaign.end_date ?? '', description: campaign.description ?? '',
     surveyTemplate: (campaign.survey_template ?? 'none') as CampaignFormValues['surveyTemplate'],
   };

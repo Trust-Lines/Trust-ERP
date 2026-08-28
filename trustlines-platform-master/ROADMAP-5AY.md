@@ -19,7 +19,7 @@
       (bkz. İlerleme Günlüğü — bu, benim tek başıma karar veremeyeceğim bir iş/ürün kararı)
 - [x] 7. "Working on it Trust" ara aşaması güvenlik ağının (ensureProjectForOpportunity) bağlanması — DONE 2026-08-28
 - [x] 8. Kampanya modülünün gerçek bir kampanyayla uçtan uca denenmesi — DONE 2026-08-28 (hata bulunmadı, tamamen sağlam)
-- [ ] 9. Etkinlik (Events) modülünün sıfırdan tasarlanıp kurulması
+- [x] 9. Etkinlik (Events) modülünün sıfırdan tasarlanıp kurulması — DONE 2026-08-28 (yeni tablo GEREKMEDİĞİ ortaya çıktı, küçük bir form eksiği düzeltildi)
 - [ ] 10. Migration 087-104 için detaylı belge kaydının tamamlanması
 
 ## AY 2 — Design, Supply, PM Çalışma Alanları
@@ -230,6 +230,26 @@
   otomatik türetiliyor — beklenen davranış, dokümante edilmiş bir tasarım kararı.
 - Test verileri (kampanya + prospect) temizlendi.
 - Değişen dosya yok (sadece doğrulama).
+
+### 2026-08-28 — Madde 9: Etkinlik modülü — planlanan "yeni tablo" GEREKMİYORMUŞ, gerçek eksik küçüktü
+- Bu göreve başlamadan önce yaptığım kontrol, planı değiştirdi: `marketing_campaigns` tablosu
+  (migration 086) baştan beri `campaign_type` alanında **hem `trade_fair` HEM `event`**
+  değerlerini destekliyordu — ayrı bir `marketing_events` tablosu asla gerekmemiş. Liste ve
+  detay ekranları da zaten "Event" filtresini/etiketini destekliyordu.
+- 🔴 **BULUNAN GERÇEK EKSİK:** Tek eksik, **oluşturma/düzenleme formunun** kendisiydi —
+  `CampaignFormClient.tsx` `campaignType`'ı sabit olarak `'trade_fair'` gönderiyordu, kullanıcıya
+  seçim hiç sunmuyordu. Yani bir Marketing çalışanı arayüzden asla bir "Event" kampanyası
+  oluşturamıyordu, sadece backend'de teorik olarak destekleniyordu.
+- **DÜZELTME:** Forma "Trade Fair / Event" seçici eklendi (hem yeni oluşturma hem düzenleme
+  ekranında); düzenleme sayfası artık `campaign_type` sütununu gerçekten okuyup forma dolduruyor.
+- **CANLI DOĞRULAMA:** Formun gönderdiği BİREBİR aynı veriyle gerçek `createCampaign()` çağrıldı
+  → `campaign_type = "event"` olarak oluştu → liste filtresinde (`type: "event"`) doğru çıktı →
+  `updateCampaign()` ile geri `trade_fair`'e çevrildi, hepsi sorunsuz çalıştı.
+- Bu, planlanandan çok daha küçük ve doğru bir düzeltmeydi — sıfırdan yeni tablo/API/ekran inşa
+  etseydim, zaten var olan bir sistemi gereksiz yere ikiye katlamış olurdum.
+- Değişen dosyalar: `components/platform/marketing/CampaignFormClient.tsx`,
+  `app/(platform)/marketing/campaigns/[id]/edit/page.tsx`.
+- Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 460/462 test.
 
 - **Ay 2/3'e eklenmesi gereken yeni, gerçek görev:** `clients` (Bölge) tablosunun doldurulması +
   bölgesel PM otomatik atama mantığının Accept/Closed Won adımlarına güvenle bağlanması. Bu,
