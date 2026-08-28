@@ -30,6 +30,11 @@ const SignaturePad = dynamic(() => import('../SignaturePad').then(m => ({ defaul
 
 const DOC_LABELS: Record<string, string> = {
   plan_layout: 'Item Plan', proposal: 'Design Proposal', construction_drawings: 'Construction Drawing',
+  // 🔴 FIX (Roadmap Month 2, task 12): 'shop_drawing' shares construction_drawings' exact
+  // approval chain (Trust PM → Client PM, lib/approvals/stageConfig.ts) so it already flows
+  // through this same inbox — it just fell through to the raw snake_case docType because this
+  // map never had an entry for it.
+  shop_drawing: 'Shop Drawing',
   item_plan: 'Item Plan', item_list: 'Item List', price_list: 'Item Price List',
   book: 'Book', po_bo: 'Purchase Order', pf: 'Production Form',
 };

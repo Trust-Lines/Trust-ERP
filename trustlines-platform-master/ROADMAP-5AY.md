@@ -412,3 +412,34 @@
   `tests/designVersionSync.test.ts` (yeni), `components/platform/design/DesignWorkspaceClient.tsx`.
 - Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 467/469 test (7 yeni, 2 önceden var olan
   ilgisiz hata).
+
+### 2026-08-28 — Madde 12+13 incelemesi: KRİTİK bir altyapı boşluğu bulundu (migration 105)
+- Madde 12 (Shop Drawings) ve 13 (Trust PM onay listesi) için önce mevcut sistemi inceledim —
+  meğer **ikisi de zaten büyük ölçüde kuruluymuş**: `shop_drawing` belge tipi Trust PM → Client
+  PM onay zincirini zaten paylaşıyor (`lib/approvals/stageConfig.ts`), ve genel `/approvals`
+  gelen kutusu (`ApprovalsPageClient.tsx`) sırası kimdeyse ona zaten doğru gösteriyor — bu,
+  Madde 13'ün istediği "Trust PM onayına hazır" listesinin ta kendisi. Küçük bir etiket eksiğini
+  (`shop_drawing` → "Shop Drawing" yerine ham metin görünüyordu) düzelttim.
+- 🔴 **BULUNAN KRİTİK HATA (asıl önemli bulgu):** Bunu canlı test etmeye çalışırken, TÜM onay
+  zincirlerini başlatan (`initiate`) akışın dayandığı `create_document_approval` veritabanı
+  fonksiyonunun **bu geliştirme veritabanında hiç var olmadığını** buldum. Kod (`doc-approvals`
+  ve `dropbox/link-file` rotaları) bu fonksiyonu çağırıyor, belgeler ("Sistemin Kalbi" diye
+  tanımlanan onay motorunun tam da bu şekilde çalıştığını) anlatıyor — ama **repodaki 104
+  migration dosyasının hiçbirinde bu fonksiyonu oluşturan bir `CREATE FUNCTION` yok.** Yani bir
+  yerde (muhtemelen üretim veritabanında) elle SQL Editor'den oluşturulmuş, hiçbir migration
+  dosyasına hiç yazılmamış. **Bu, sadece Shop Drawing'i değil — plan_layout, proposal, item
+  paketleri, PO, PF dahil HER belge tipinin onay zincirinin başlatılmasını** etkiliyor.
+- **Kanıt:** Gerçek bir proje + shop_drawing belgesi oluşturup RPC'yi çağırdığımda hata:
+  `Could not find the function public.create_document_approval(...) in the schema cache` —
+  kodun kullandığı BİREBİR aynı parametre isimleriyle.
+- **YAZDIM AMA UYGULAYAMADIM:** `supabase/migrations/105_create_document_approval_rpc.sql` —
+  eksik fonksiyonu, gerçek çağrı noktalarının kullandığı parametre imzasıyla birebir aynı şekilde
+  oluşturuyor. **Bu migration'ı ben veritabanına uygulayamam** (ham SQL/DDL çalıştırma yetkim
+  yok, sadece tablo okuma/yazma) — Supabase Dashboard/CLI'dan elle çalıştırılması gerekiyor.
+  Uygulandıktan sonra hemen canlı olarak yeniden test edip doğrulayacağım.
+- ⚠️ **BU MIGRATION ACİL — diğerlerinden farklı olarak "sırada" değil, öncelikli.** Uygulanmadığı
+  sürece bu veritabanında hiçbir belge onay zincirine giremiyor demektir.
+- Değişen dosyalar: `components/platform/approvals/ApprovalsPageClient.tsx` (küçük etiket
+  düzeltmesi), `supabase/migrations/105_create_document_approval_rpc.sql` (yeni, UYGULANMADI).
+- Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 467/469 test. Migration'ın kendisi canlıda
+  henüz doğrulanamadı (kullanıcı onayı/uygulaması bekleniyor).

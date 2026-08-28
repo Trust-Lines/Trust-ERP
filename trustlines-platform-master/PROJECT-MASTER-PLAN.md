@@ -1552,6 +1552,19 @@ Project architecture:
           one a plain UNIQUE would have missed); invalid slot and invalid type both rejected 23514; anon
           SELECT returns nothing and anon INSERT is blocked with 42501 (RLS holds).
 
+- 🔴🔴 **URGENT — 2026-08-28: the `create_document_approval` RPC is MISSING from this database,
+  and from every migration file in this repo.** Every document approval chain — plan_layout,
+  proposal, construction_drawings, shop_drawing, the production bundle, PO, PF, all of them —
+  is initiated through this one RPC (`app/api/projects/[id]/doc-approvals/route.ts`,
+  `app/api/dropbox/link-file/route.ts`). It was apparently created directly against some
+  environment's live database via the SQL editor at some point and never captured as a
+  migration. Confirmed missing here by a live call using the application's own exact parameter
+  names: `Could not find the function public.create_document_approval(...) in the schema cache`.
+  Migration **`105_create_document_approval_rpc.sql` is written** (matches the real call sites'
+  signature exactly) but **NOT YET APPLIED** — this one is not "next in line," it should be
+  applied before anything else, since no document's approval chain can start without it. See
+  ROADMAP-5AY.md's Month 2 task 12/13 entry for the full discovery.
+
 - ✅ **CORRECTED 2026-08-27 (direct read-only probe against the live DB, not assumed):** this section had
   been stale since roughly migration 064 — it still said "Highest migration in repo: 064" and still called
   078/086 "NOT applied" while the repo had quietly grown to migration **104** (the whole ClickUp import +
