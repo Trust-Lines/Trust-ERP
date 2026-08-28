@@ -1,6 +1,7 @@
 
 import { OPPORTUNITY_STAGE_LABEL, PROJECT_TYPE_LABEL } from './classification';
 import { normalizeIndustry } from './industry';
+import { fetchInChunks } from '@/lib/supabase/chunkedIn';
 import type { Lead, OpportunityStatus } from '@/components/platform/leads/types';
 import type { OpportunityStage } from '@/types/database';
 
@@ -62,25 +63,30 @@ export async function loadOpportunityLeadRows(sb: any): Promise<Lead[]> {
   const ownerIds = [...new Set(base.flatMap(o => [o.marketing_owner_id, o.sales_owner_id]).filter(Boolean))] as string[];
   const oppIds = base.map(o => o.id);
 
-  const [leadsRes, locsRes, ownersRes, contactsRes, projectsRes, tasksRes] = await Promise.all([
-    sb.from('prospects').select('id, display_name, industry, brand_name').in('id', prospectIds),
-    sb.from('prospect_locations').select('prospect_id, city, state').in('prospect_id', prospectIds).order('created_at', { ascending: true }),
-    ownerIds.length ? sb.from('profiles').select('id, full_name').in('id', ownerIds) : Promise.resolve({ data: [] }),
-    contactIds.length ? sb.from('prospect_contacts').select('id, name').in('id', contactIds) : Promise.resolve({ data: [] }),
-    projectIds.length ? sb.from('projects').select('id, code').in('id', projectIds) : Promise.resolve({ data: [] }),
-    sb.from('lead_tasks').select('opportunity_id, status').in('opportunity_id', oppIds),
+  // 🔴 FIX (2026-08-28, live-measured with real data): a single `.in('id', ids)` call with 400+
+  // ids was FAILING outright (`fetch failed`, ~8s) once the CRM board had enough real
+  // Opportunities to produce that many distinct prospect ids — the generated request URL got long
+  // enough to break. Chunking each of these into parallel batches of ≤150 ids fixed it: the exact
+  // same 400-id case went from a hard failure to 114ms. See lib/supabase/chunkedIn.ts.
+  const [leads, locs, owners, contacts, projects, tasks] = await Promise.all([
+    fetchInChunks(prospectIds, chunk => sb.from('prospects').select('id, display_name, industry, brand_name').in('id', chunk)),
+    fetchInChunks(prospectIds, chunk => sb.from('prospect_locations').select('prospect_id, city, state').in('prospect_id', chunk).order('created_at', { ascending: true })),
+    fetchInChunks(ownerIds, chunk => sb.from('profiles').select('id, full_name').in('id', chunk)),
+    fetchInChunks(contactIds, chunk => sb.from('prospect_contacts').select('id, name').in('id', chunk)),
+    fetchInChunks(projectIds, chunk => sb.from('projects').select('id, code').in('id', chunk)),
+    fetchInChunks(oppIds, chunk => sb.from('lead_tasks').select('opportunity_id, status').in('opportunity_id', chunk)),
   ]);
 
-  const leadById = Object.fromEntries(((leadsRes.data ?? []) as { id: string; display_name: string; industry: string | null; brand_name: string | null }[]).map(l => [l.id, l]));
+  const leadById = Object.fromEntries((leads as { id: string; display_name: string; industry: string | null; brand_name: string | null }[]).map(l => [l.id, l]));
   const cityStateByProspect: Record<string, { city: string | null; state: string | null }> = {};
-  for (const loc of (locsRes.data ?? []) as { prospect_id: string; city: string | null; state: string | null }[]) {
+  for (const loc of locs as { prospect_id: string; city: string | null; state: string | null }[]) {
     if (!cityStateByProspect[loc.prospect_id]) cityStateByProspect[loc.prospect_id] = { city: loc.city, state: loc.state };
   }
-  const nameById = Object.fromEntries(((ownersRes.data ?? []) as { id: string; full_name: string }[]).map(p => [p.id, p.full_name]));
-  const contactNameById = Object.fromEntries(((contactsRes.data ?? []) as { id: string; name: string }[]).map(c => [c.id, c.name]));
-  const projectCodeById = Object.fromEntries(((projectsRes.data ?? []) as { id: string; code: string }[]).map(p => [p.id, p.code]));
+  const nameById = Object.fromEntries((owners as { id: string; full_name: string }[]).map(p => [p.id, p.full_name]));
+  const contactNameById = Object.fromEntries((contacts as { id: string; name: string }[]).map(c => [c.id, c.name]));
+  const projectCodeById = Object.fromEntries((projects as { id: string; code: string }[]).map(p => [p.id, p.code]));
   const taskAgg = new Map<string, { done: number; total: number }>();
-  for (const t of ((tasksRes.data ?? []) as { opportunity_id: string; status: string }[])) {
+  for (const t of tasks as { opportunity_id: string; status: string }[]) {
     const cur = taskAgg.get(t.opportunity_id) ?? { done: 0, total: 0 };
     cur.total += 1;
     if (t.status === 'done') cur.done += 1;

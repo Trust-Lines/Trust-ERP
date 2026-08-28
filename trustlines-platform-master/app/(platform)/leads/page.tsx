@@ -9,6 +9,7 @@ import { loadOpportunityLeadRows } from '@/lib/marketing/opportunityRows';
 import { loadPotentialLeadRows } from '@/lib/marketing/potentialRows';
 import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { getAssignedRegions } from '@/lib/access/regionScope';
+import { fetchInChunks } from '@/lib/supabase/chunkedIn';
 import type { ProjectStage } from '@/types/database';
 
 const LEADS_ALLOWED_ROLES = ['sales_marketing_manager', 'sales_rep', 'ops_manager', 'general_manager'];
@@ -48,20 +49,22 @@ export default async function LeadsPage() {
 
     const list = ((rows ?? []) as Record<string, unknown>[]).filter(r => !r.deleted_at);
 
+    // 🔴 Same fix as lib/marketing/opportunityRows.ts (2026-08-28) — large `.in()` id lists fail
+    // outright once real data pushes them past a few hundred entries. `adm` bypasses RLS here so
+    // this file was never at risk of the RLS-recursion bug, but it shares the LEADS_LIMIT=1000
+    // ceiling, so it's chunked too rather than waiting for it to actually break in production.
     const personIds = [...new Set(list.flatMap(r => [r.created_by, r.assignee_id]).filter(Boolean))] as string[];
-    const [peopleRes, repsRes] = await Promise.all([
-      personIds.length ? adm.from('profiles').select('id, full_name').in('id', personIds) : Promise.resolve({ data: [] }),
-      adm.from('profiles').select('id, full_name').in('role', ['sales_rep', 'sales_marketing_manager']).eq('is_active', true).order('full_name'),
+    const [people, reps] = await Promise.all([
+      fetchInChunks(personIds, chunk => adm.from('profiles').select('id, full_name').in('id', chunk)),
+      adm.from('profiles').select('id, full_name').in('role', ['sales_rep', 'sales_marketing_manager']).eq('is_active', true).order('full_name').then((r: { data: unknown }) => r.data ?? []),
     ]);
-    const nameById = new Map(((peopleRes.data ?? []) as { id: string; full_name: string }[]).map(p => [p.id, p.full_name]));
-    assignees = (repsRes.data ?? []) as { id: string; full_name: string }[];
+    const nameById = new Map((people as { id: string; full_name: string }[]).map(p => [p.id, p.full_name]));
+    assignees = reps as { id: string; full_name: string }[];
 
     const leadIds = list.map(r => r.id as string);
-    const { data: taskRows } = leadIds.length
-      ? await adm.from('lead_tasks').select('lead_intake_id, status').in('lead_intake_id', leadIds)
-      : { data: [] };
+    const taskRows = await fetchInChunks(leadIds, chunk => adm.from('lead_tasks').select('lead_intake_id, status').in('lead_intake_id', chunk));
     const taskAgg = new Map<string, { done: number; total: number }>();
-    for (const t of ((taskRows ?? []) as { lead_intake_id: string; status: string }[])) {
+    for (const t of taskRows as { lead_intake_id: string; status: string }[]) {
       const cur = taskAgg.get(t.lead_intake_id) ?? { done: 0, total: 0 };
       cur.total += 1;
       if (t.status === 'done') cur.done += 1;
@@ -69,10 +72,8 @@ export default async function LeadsPage() {
     }
 
     const deliveredProjectIds = [...new Set(list.filter(r => r.is_delivered && r.project_id).map(r => r.project_id))] as string[];
-    const { data: projRows } = deliveredProjectIds.length
-      ? await adm.from('projects').select('id, current_stage').in('id', deliveredProjectIds)
-      : { data: [] };
-    const stageByProject = new Map(((projRows ?? []) as { id: string; current_stage: string }[]).map(p => [p.id, p.current_stage]));
+    const projRows = await fetchInChunks(deliveredProjectIds, chunk => adm.from('projects').select('id, current_stage').in('id', chunk));
+    const stageByProject = new Map((projRows as { id: string; current_stage: string }[]).map(p => [p.id, p.current_stage]));
 
     const PRIORITIES = new Set(['high', 'medium', 'low']);
 

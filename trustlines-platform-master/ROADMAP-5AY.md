@@ -506,3 +506,36 @@
   tamamen kapandı (sadece 18b — `clients` verisi doldurma — büyük, ayrı bir iş olarak bekliyor).
 - Değişen dosyalar: `tests/opportunityRows.test.ts`,
   `app/(platform)/sales-projects/page.tsx`, `components/platform/sales/SalesOpportunitiesClient.tsx`.
+
+### 2026-08-28 — CRM board yavaşlığı: algoritma ile çözüldü + canlı çalışırken çıkan RLS hatası
+- Kullanıcı kendi gerçek verisini CRM board'a (`/leads`) yükledi, "çok veri var, yavaş
+  yükleniyor, algoritma yazarak çöz" dedi.
+- **Kök neden bulundu (ölçülerek):** `opportunityRows.ts`/`potentialRows.ts`/`leads/page.tsx`
+  içindeki `.in('id', idListesi)` sorguları — id listesi gerçek veriyle ~400'ü geçince
+  (561 Opportunity → 408 farklı prospect id) Supabase isteği **tamamen başarısız oluyordu**
+  (`TypeError: fetch failed`, ~8sn) — sadece yavaş değil, gerçekten kırık. Sebep: PostgREST
+  `.in()`'i URL query-string'e gömüyor, uzun id listesinde URL uzunluk sınırını aşıyor.
+- **Çözüm — `lib/supabase/chunkedIn.ts` (yeni, "algoritma"):** büyük id listelerini ~150'lik
+  parçalara bölüp paralel çalıştırıp birleştiren genel bir yardımcı fonksiyon. Aynı 400 id
+  ile canlı ölçüm: bölünmemiş = kesin hata (~8sn) → bölünmüş (4×100 paralel) = **114ms, %100
+  başarı**.
+- Bu yardımcı `opportunityRows.ts`, `potentialRows.ts` ve `leads/page.tsx` içindeki tüm büyük
+  `.in()` çağrılarına uygulandı (prospects, prospect_locations, owners, contacts, projects,
+  lead_tasks, profiles).
+- 🔴 **Ayrı, daha acil bir hata ortaya çıktı:** kullanıcının canlı sunucusunda
+  `infinite recursion detected in policy for relation "lead_tasks"` (Postgres 42P17) hatası
+  çıktı. Bu, chunking düzeltmesinin YAN ETKİSİ değil — chunking hatayı artık yutmadığı için
+  (öncesinde sessizce başarısız oluyordu) ve bu, sezon boyunca admin client değil gerçek
+  RLS'li client ile bu satırın ilk çalıştırılışıydı, önceden var olan gerçek bir kusur ortaya
+  çıktı: `lead_intake` (migration 043) politikası `lead_tasks`'a bakıyor, `lead_tasks`
+  (migration 081/101) politikası da `lead_intake`'e bakıyor → döngü.
+- **Düzeltme yazıldı:** `supabase/migrations/106_fix_lead_tasks_rls_recursion.sql` —
+  `has_lead_task_assigned_to_me()` adında SECURITY DEFINER yardımcı fonksiyon ile döngüyü
+  kırıyor (migration 105'teki aynı desen). **Henüz uygulanmadı** — kullanıcının Supabase SQL
+  Editor'den migration 105 gibi çalıştırması gerekiyor, sonra canlı doğrulanacak.
+- Doğrulama: `tsc --noEmit` temiz, `eslint` temiz, test paketi 470/470 yeşil, `npm run build`
+  EXIT 0.
+- Değişen/yeni dosyalar: `lib/supabase/chunkedIn.ts` (yeni),
+  `lib/marketing/opportunityRows.ts`, `lib/marketing/potentialRows.ts`,
+  `app/(platform)/leads/page.tsx`, `supabase/migrations/106_fix_lead_tasks_rls_recursion.sql`
+  (yeni, uygulanmayı bekliyor).

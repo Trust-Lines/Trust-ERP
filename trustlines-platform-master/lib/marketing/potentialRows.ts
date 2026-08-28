@@ -3,6 +3,7 @@
 
 import { PROJECT_TYPE_LABEL } from './classification';
 import { normalizeIndustry } from './industry';
+import { fetchInChunks } from '@/lib/supabase/chunkedIn';
 import type { Lead, OpportunityStatus } from '@/components/platform/leads/types';
 
 interface PotBase {
@@ -38,17 +39,19 @@ export async function loadPotentialLeadRows(sb: any): Promise<Lead[]> {
   const contactIds = [...new Set(base.map(p => p.primary_contact_id).filter(Boolean))] as string[];
   const assigneeIds = [...new Set(base.map(p => p.assigned_to).filter(Boolean))] as string[];
 
-  const [needsRes, leadsRes, ownersRes, contactsRes] = await Promise.all([
-    sb.from('prospect_needs').select('id, state, region, source, project_types').in('id', needIds),
-    sb.from('prospects').select('id, display_name, industry, brand_name').in('id', prospectIds),
-    assigneeIds.length ? sb.from('profiles').select('id, full_name').in('id', assigneeIds) : Promise.resolve({ data: [] }),
-    contactIds.length ? sb.from('prospect_contacts').select('id, name').in('id', contactIds) : Promise.resolve({ data: [] }),
+  // See lib/marketing/opportunityRows.ts's identical fix (2026-08-28) — large `.in()` id lists
+  // fail outright once real data pushes them past a few hundred entries; chunking fixes it.
+  const [needs, leads, owners, contacts] = await Promise.all([
+    fetchInChunks(needIds, chunk => sb.from('prospect_needs').select('id, state, region, source, project_types').in('id', chunk)),
+    fetchInChunks(prospectIds, chunk => sb.from('prospects').select('id, display_name, industry, brand_name').in('id', chunk)),
+    fetchInChunks(assigneeIds, chunk => sb.from('profiles').select('id, full_name').in('id', chunk)),
+    fetchInChunks(contactIds, chunk => sb.from('prospect_contacts').select('id, name').in('id', chunk)),
   ]);
 
-  const needById = Object.fromEntries(((needsRes.data ?? []) as { id: string; state: string | null; region: string | null; source: string | null; project_types: string[] }[]).map(n => [n.id, n]));
-  const leadById = Object.fromEntries(((leadsRes.data ?? []) as { id: string; display_name: string; industry: string | null; brand_name: string | null }[]).map(l => [l.id, l]));
-  const nameById = Object.fromEntries(((ownersRes.data ?? []) as { id: string; full_name: string }[]).map(p => [p.id, p.full_name]));
-  const contactNameById = Object.fromEntries(((contactsRes.data ?? []) as { id: string; name: string }[]).map(c => [c.id, c.name]));
+  const needById = Object.fromEntries((needs as { id: string; state: string | null; region: string | null; source: string | null; project_types: string[] }[]).map(n => [n.id, n]));
+  const leadById = Object.fromEntries((leads as { id: string; display_name: string; industry: string | null; brand_name: string | null }[]).map(l => [l.id, l]));
+  const nameById = Object.fromEntries((owners as { id: string; full_name: string }[]).map(p => [p.id, p.full_name]));
+  const contactNameById = Object.fromEntries((contacts as { id: string; name: string }[]).map(c => [c.id, c.name]));
 
   return base.map(p => {
     const need = needById[p.need_id];
