@@ -150,12 +150,22 @@ export default async function DesignWorkspacePage() {
     }
   }
 
+  // Roadmap Month 2, task 11 — every ACTIVE designer, not just ones already carrying a job, so a
+  // manager can assign a brand-new "awaiting_assignment" job to anyone on the team.
+  let designers: { id: string; full_name: string }[] = [];
+  if (isManager) {
+    const { data } = await admin.from('profiles').select('id, full_name')
+      .eq('role', 'designer').eq('is_active', true).order('full_name');
+    designers = (data ?? []) as { id: string; full_name: string }[];
+    for (const d of designers) if (!designerMap[d.id]) designerMap[d.id] = d.full_name;
+  }
+
   return (
     <div className="main-inner">
       <DesignWorkspaceClient
         jobs={jobs} versions={versions} leadMap={leadMap} designerMap={designerMap}
         intakeFiles={intakeFiles} designFiles={designFiles} projectMeta={projectMeta}
-        isManager={isManager} schemaError={schemaError}
+        isManager={isManager} schemaError={schemaError} designers={designers}
       />
     </div>
   );

@@ -24,10 +24,10 @@
 
 ## AY 2 — Design, Supply, PM Çalışma Alanları
 
-- [ ] 11. Design — Atanmamış İş Kuyruğu ekranı
+- [x] 11. Design — Atanmamış İş Kuyruğu ekranı — DONE 2026-08-28 (bulunan gerçek bug: atanmamış işler en görünmez bölümde kayboluyordu)
 - [ ] 12. Design — Shop Drawings bölümü
 - [ ] 13. Design — "Trust PM Onayına Hazır" listesi
-- [ ] 14. Design — Designer İş Yükü görünümü
+- [x] 14. Design — Designer İş Yükü görünümü — DONE 2026-08-28 (Madde 11 ile birlikte yapıldı)
 - [ ] 15. Supply — Ayrı çalışma ekranı kurulması
 - [ ] 16. Supply — Kişi-bazlı bekleyen-iş görünümü
 - [ ] 17. PM çalışma alanına kişi-bazlı günlük öncelik listesi
@@ -73,6 +73,25 @@
 ## İlerleme Günlüğü
 
 > Her tamamlanan madde burada tarih + özet + değişen dosyalarla kayıt altına alınır.
+
+### 2026-08-28 — AY 2 BAŞLADI. Madde 11 + 14: Atanmamış İş Kuyruğu + Designer İş Yükü
+- Kullanıcı doğrudan şunu bildirdi: "Design workspace tamamen boş ekran" — designer test hesabıyla
+  girildiğinde hiçbir şey görünmüyordu.
+- 🔴 **BULUNAN GERÇEK HATA:** `awaiting_assignment` (yeni, henüz kimseye atanmamış) durumundaki
+  işler `ACTIVE` kümesinde DEĞİLDİ, bu yüzden en az önemli bölüme ("Everything else") düşüyordu —
+  tam da en çok dikkat gerektiren durumun, en görünmez yere gitmesi.
+- **DÜZELTME:** Atanmamış işler artık kendi, İLK ve kırmızı vurgulu bölümünde ("Needs a designer
+  assigned") gösteriliyor — her satırda doğrudan bir "Assign to…" seçici var, yöneticinin işi
+  açıp kapatmasına gerek kalmadan tek tıkla atama yapılabiliyor.
+- Aynı pakette **Designer İş Yükü** özeti eklendi — her designer'ın aktif iş sayısını gösteren
+  küçük etiketler (3+ işi olan kırmızı renkte uyarıyor).
+- **CANLI DOĞRULAMA:** Gerçek bir iş oluşturuldu → yöneticinin sorgusu onu hemen (durum:
+  awaiting_assignment) gördü → designer'ın KENDİ sorgusu atamadan ÖNCE onu göremedi (0 satır) →
+  atama yapıldı → designer'a gerçek bildirim gitti (sayı arttı) → designer'ın sorgusu artık işi
+  gösteriyor (1 satır).
+- Değişen dosyalar: `components/platform/design/DesignWorkspaceClient.tsx`,
+  `app/(platform)/design/page.tsx`.
+- Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 460/462 test.
 
 ### 2026-08-28 — Madde 1: Test hesapları açıldı
 - `scripts/create-test-accounts.mts` (yeni, tekrar çalıştırılabilir/idempotent) — sistemde eksik olan

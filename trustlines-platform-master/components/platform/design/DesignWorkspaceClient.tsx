@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { Palette, Plus, ExternalLink, ChevronDown, CalendarClock, Paperclip, Box, Upload, FileText, FolderOpen, Send } from 'lucide-react';
+import { Palette, Plus, ExternalLink, ChevronDown, CalendarClock, Paperclip, Box, Upload, FileText, FolderOpen, Send, UserPlus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Pill } from '@/components/platform/shared/Pill';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
@@ -17,6 +17,7 @@ interface Props {
   projectMeta: Record<string, ProjectMeta>;
   isManager: boolean;
   schemaError: string | null;
+  designers: { id: string; full_name: string }[];
 }
 
 function anchorId(job: Pick<SalesDesignJob, 'lead_intake_id' | 'opportunity_id'>): string {
@@ -61,7 +62,7 @@ function StatusPill({ status }: { status: string }) {
 
 export function DesignWorkspaceClient({
   jobs: initialJobs, versions: initialVersions, leadMap, designerMap,
-  intakeFiles, designFiles: initialDesignFiles, projectMeta, isManager, schemaError,
+  intakeFiles, designFiles: initialDesignFiles, projectMeta, isManager, schemaError, designers,
 }: Props) {
   const [jobs, setJobs] = useState<SalesDesignJob[]>(initialJobs);
   const [versions, setVersions] = useState<SalesDesignVersion[]>(initialVersions);
@@ -100,10 +101,41 @@ export function DesignWorkspaceClient({
     return m;
   }, [versions]);
 
-  const { active, done } = useMemo(() => ({
-    active: jobs.filter(j => ACTIVE.has(j.status)),
-    done: jobs.filter(j => !ACTIVE.has(j.status)),
+  // 🔴 FIX (Roadmap Month 2, task 11 — "Unassigned Queue"): 'awaiting_assignment' was not in
+  // ACTIVE, so a brand-new job with no designer fell into "Everything else" — the LEAST visible
+  // bucket, for the one status that most needs a manager's attention. Split it into its own,
+  // FIRST section instead of leaving it buried.
+  const { unassigned, active, done } = useMemo(() => ({
+    unassigned: jobs.filter(j => j.status === 'awaiting_assignment'),
+    active: jobs.filter(j => j.status !== 'awaiting_assignment' && ACTIVE.has(j.status)),
+    done: jobs.filter(j => j.status !== 'awaiting_assignment' && !ACTIVE.has(j.status)),
   }), [jobs]);
+
+  // Roadmap Month 2, task 14 — "Designer workload": how many open jobs each designer is
+  // currently carrying, so a manager can see at a glance who is overloaded before assigning more.
+  const workload = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const j of jobs) {
+      if (!j.assigned_designer_id || !ACTIVE.has(j.status)) continue;
+      m.set(j.assigned_designer_id, (m.get(j.assigned_designer_id) ?? 0) + 1);
+    }
+    return [...m.entries()].map(([id, count]) => ({ id, name: designerMap[id] ?? 'Designer', count })).sort((a, b) => b.count - a.count);
+  }, [jobs, designerMap]);
+
+  async function assignDesigner(jobId: string, designerId: string) {
+    if (!designerId) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/design-jobs/${jobId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assigned_designer_id: designerId }),
+      });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(b.error ?? 'Could not assign'); return; }
+      setJobs(p => p.map(j => (j.id === jobId ? b.job : j)));
+      toast.success('Assigned — the designer has been notified.');
+    } finally { setBusy(false); }
+  }
 
   function toggle(id: string) { setExpanded(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; }); }
 
@@ -285,7 +317,7 @@ export function DesignWorkspaceClient({
 
       {schemaError ? (
         <div className="card"><div className="card-body" style={{ fontSize: 13, color: 'var(--status-danger)', background: 'var(--status-danger-bg)', border: '1px solid var(--status-danger)', borderRadius: 6 }}>{schemaError}</div></div>
-      ) : jobs.length === 0 ? (
+      ) : jobs.length === 0 && unassigned.length === 0 ? (
         <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
           <Palette size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
           <div>{isManager
@@ -294,6 +326,51 @@ export function DesignWorkspaceClient({
         </div></div>
       ) : (
         <>
+          {isManager && workload.length > 0 && (
+            <div style={{ marginBottom: 22 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Users size={13} /> Designer workload
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {workload.map(w => (
+                  <div key={w.id} className="pill" style={{ fontSize: 12, background: 'var(--bg-subtle)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    <span>{w.name}</span>
+                    <span style={{ fontWeight: 700, color: w.count >= 3 ? 'var(--status-danger)' : 'inherit' }}>{w.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isManager && unassigned.length > 0 && (
+            <div style={{ marginBottom: 22 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--status-danger)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <UserPlus size={13} /> Needs a designer assigned ({unassigned.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {unassigned.map(job => {
+                  const anchor = anchorId(job);
+                  return (
+                    <div key={job.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: '1px solid var(--status-danger)', borderRadius: 8, background: 'var(--status-danger-bg, #fef2f2)' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{projectName(leadMap[anchor], projectMeta[anchor], job.title)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{leadMap[anchor]?.project_type || 'Design'} · unassigned</div>
+                      </div>
+                      <select
+                        className="form-input" style={{ fontSize: 12, width: 'auto' }} disabled={busy}
+                        defaultValue="" onChange={e => assignDesigner(job.id, e.target.value)}
+                        aria-label={`Assign a designer to ${job.title}`}
+                      >
+                        <option value="" disabled>Assign to…</option>
+                        {designers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {active.length > 0 && (
             <div style={{ marginBottom: 22 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>Needs attention</div>
