@@ -18,7 +18,7 @@
 - [~] 6. Sınıflandırma kuralı kararının netleştirilmesi — ÖNERİ YAZILDI, SİZİN ONAYINIZ BEKLENİYOR
       (bkz. İlerleme Günlüğü — bu, benim tek başıma karar veremeyeceğim bir iş/ürün kararı)
 - [x] 7. "Working on it Trust" ara aşaması güvenlik ağının (ensureProjectForOpportunity) bağlanması — DONE 2026-08-28
-- [ ] 8. Kampanya modülünün gerçek bir kampanyayla uçtan uca denenmesi
+- [x] 8. Kampanya modülünün gerçek bir kampanyayla uçtan uca denenmesi — DONE 2026-08-28 (hata bulunmadı, tamamen sağlam)
 - [ ] 9. Etkinlik (Events) modülünün sıfırdan tasarlanıp kurulması
 - [ ] 10. Migration 087-104 için detaylı belge kaydının tamamlanması
 
@@ -214,6 +214,22 @@
 - Değişen dosyalar: `app/api/marketing/opportunities/[id]/route.ts`,
   `components/platform/marketing/OpportunitiesPageClient.tsx`.
 - Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 460/462 test.
+
+### 2026-08-28 — Madde 8: Kampanya modülü uçtan uca test edildi — TAMAMEN SAĞLAM ÇIKTI
+- Gerçek route kodlarını (kopya değil, doğrudan import) kullanarak tam zincir denendi: gerçek
+  bir kampanya oluşturuldu → aktif edildi → herkese açık `GET /api/public/campaigns/[slug]`
+  rotası hiçbir iç bilgi sızdırmadan doğru veriyi döndürdü → gerçek bir form gönderimi
+  (`POST .../submissions`) 201 ile başarılı işlendi → **aynı `submissionToken` ile ikinci
+  gönderim aynı `submissionId`'yi döndürdü** (tekrar/çift tıklama güvenliği çalışıyor) →
+  **honeypot doldurulmuş sahte bir gönderim** sessizce `rejected_spam` olarak işaretlendi
+  (çağırana hiçbir ipucu verilmeden, dokümandaki söz verildiği gibi) ve **hiçbir Prospect
+  kaydı oluşturmadı** → istatistik paneli (`computeCampaignStats`) tüm bu sayıları doğru
+  yansıttı (2 gönderim, 1 gerçek Prospect, 1 spam, 1 Potansiyel).
+- Bu görevde **hiçbir hata bulunmadı** — modül gerçekten uçtan uca sağlam. Sadece bir gözlem
+  (hata değil): kampanya slug'ı girilen `code` parametresinden değil, kampanya adından
+  otomatik türetiliyor — beklenen davranış, dokümante edilmiş bir tasarım kararı.
+- Test verileri (kampanya + prospect) temizlendi.
+- Değişen dosya yok (sadece doğrulama).
 
 - **Ay 2/3'e eklenmesi gereken yeni, gerçek görev:** `clients` (Bölge) tablosunun doldurulması +
   bölgesel PM otomatik atama mantığının Accept/Closed Won adımlarına güvenle bağlanması. Bu,
