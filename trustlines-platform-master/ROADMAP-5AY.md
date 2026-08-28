@@ -37,7 +37,7 @@
 
 ## AY 3 — Production / QC / Logistics Tamamlama + Warehouse Kuruluşu
 
-- [ ] 19. Logistics ekranının spec ile satır satır karşılaştırılması
+- [x] 19. Logistics ekranının spec ile satır satır karşılaştırılması — DONE 2026-08-28 (5/6 bölüm zaten tamdı, 1 gerçek eksik bulunup düzeltildi)
 - [ ] 20. QC ekranının en az 2 farklı gerçek kullanıcıyla test edilmesi
 - [ ] 21. Warehouse için rol/kullanıcı planlaması
 - [ ] 22. Warehouse — Gelen Konteyner Takibi
@@ -452,3 +452,21 @@
   temizlendi, 0 kalıntı.
 - **Sonuç: onay sistemi artık bu veritabanında uçtan uca çalışıyor — sadece Shop Drawing değil,
   her belge tipi için.** Bu, bugünkü en kritik bulgu ve düzeltmeydi.
+
+## AY 3 — Production / QC / Logistics Tamamlama + Warehouse Kuruluşu
+
+### 2026-08-28 — Madde 19: Logistics spec karşılaştırması — 5/6 bölüm zaten tamdı, 1 gerçek eksik bulundu
+- Phase 11 §4'ün istediği 6 bölüm tek tek kontrol edildi: Containers ✅, Shipments ✅ (konteyner
+  kaydının kendisi), ETA ✅, Warehouse/Job Site rotası ✅ (`delivery_destination` seçici +
+  saha adresi), Partial Delivery ✅ (üretim kalemleri konteynerlere tek tek yüklenip
+  boşaltılabiliyor, doğal olarak kısmi sevkiyatı destekliyor).
+- 🔴 **BULUNAN GERÇEK EKSİK:** "Customs" bölümü — `customs_clearance_date` sütunu backend'de
+  (migration 058) ve PATCH'in izin verdiği alan listesinde tam destekleniyordu, durum
+  zincirinde "CUSTOMS" diye bir aşama bile vardı — ama arayüzde **hiçbir yerde gösterilmiyordu**.
+  Konteyner detay sayfasındaki tarih satırı sadece Departure/ETA/Arrived/Warehouse'u
+  gösteriyordu.
+- **DÜZELTME:** "Customs cleared" tarih alanı eklendi.
+- **CANLI DOĞRULAMA:** Gerçek bir konteyner oluşturuldu, alan gerçekten kaydedildiği (null'dan
+  gerçek bir tarihe) doğrulandı.
+- Değişen dosyalar: `components/platform/logistics/ContainerDetailClient.tsx`.
+- Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 467/469 test.
