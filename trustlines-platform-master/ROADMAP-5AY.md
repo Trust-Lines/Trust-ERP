@@ -382,3 +382,33 @@
   Dropbox Design klasör yolu, istek açan kişi, hepsi doğru veriden geldiği kanıtlandı.
 - Değişen dosyalar: `app/(platform)/design/page.tsx`, `components/platform/design/DesignWorkspaceClient.tsx`.
 - Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 460/462 test.
+
+### 2026-08-28 — Design versiyonları artık Dropbox'tan otomatik çekiliyor, elle eklenmiyor
+- Kullanıcı geri bildirimi: "Add version burdan olmayacak, Dropbox bağlandığında otomatik
+  çekicek." Kullanıcıya karar sordum — bir "versiyon" hangi klasör yapısıyla temsil edilsin diye
+  — cevap: **"V1", "V2", "V3"... alt klasörleri**, tıpkı diğer belge tiplerinde (PF, PO)
+  kullanılan aynı desen.
+- Proje klasöre düştüğünde Dropbox klasörünün zaten otomatik açıldığı kod kontrolüyle
+  doğrulandı (`ensureDesignDropboxFolder`, iş oluşturulduğu an otomatik çağrılıyor) — bu kısım
+  zaten doğruydu.
+- **YENİ:** "Add version" formu tamamen kaldırıldı. Yerine **"Sync versions from Dropbox"**
+  butonu geldi. Designer Dropbox'ta "Design Proposal" klasörünün altına bir "V2" klasörü açıp
+  dosya atar, butona basar — sistem klasördeki dosyaları tarar, henüz kayıtlı olmayanları
+  otomatik oluşturur.
+- Mantığı ikiye böldüm: `computeDesignVersionSyncPlan` (saf fonksiyon) ve
+  `applyDesignVersionSyncPlan` (gerçek veritabanına yazan kısım) — bu sayede mantığı **gerçek
+  Dropbox bağlantısı olmadan** (bu ortamda `DROPBOX_APP_KEY` boş) hem 7 birim testiyle hem
+  gerçek veritabanına karşı kanıtlayabildim.
+- **CANLI DOĞRULAMA (gerçek Supabase'e karşı, sahte Dropbox listesiyle):** İlk senkron 1
+  versiyon + 2 dosya gerçekten yarattı, iş durumu "working_on_it" oldu → aynı senkron ikinci kez
+  çalıştırıldı, **sıfır yeni kayıt oluştu** (idempotency) → V1'e yeni dosya + yepyeni V2 eklendi,
+  üçüncü senkron sadece o farkı işledi.
+- **Dürüst sınır:** Gerçek Dropbox'a bağlanıp gerçek dosya listeleme çağrısını bu ortamda test
+  edemedim çünkü `DROPBOX_APP_KEY` boş — zaten kanıtlanmış `list-versions` rotasıyla birebir
+  aynı deseni kullanıyor ama gerçek bir hesapla ilk kullanımda bir kere gözlemlenerek
+  doğrulanmalı.
+- Değişen/yeni dosyalar: `lib/sales/designVersionSync.ts` (yeni),
+  `app/api/design-jobs/[jobId]/sync-dropbox/route.ts` (yeni),
+  `tests/designVersionSync.test.ts` (yeni), `components/platform/design/DesignWorkspaceClient.tsx`.
+- Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 467/469 test (7 yeni, 2 önceden var olan
+  ilgisiz hata).

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { Palette, Plus, ExternalLink, ChevronDown, CalendarClock, Paperclip, Box, Upload, FileText, FolderOpen, Send, UserPlus, Users, User, Plug, Info } from 'lucide-react';
+import { Palette, ExternalLink, ChevronDown, CalendarClock, Paperclip, Box, Upload, FileText, FolderOpen, Send, UserPlus, Users, User, Plug, Info, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Pill } from '@/components/platform/shared/Pill';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
@@ -155,16 +155,24 @@ export function DesignWorkspaceClient({
     } finally { setBusy(false); }
   }
 
-  async function addVersion(jobId: string, preview_link: string, notes: string) {
-    setBusy(true);
+  // Roadmap Month 2 — user decision (2026-08-28): versions are NOT typed in here anymore. A
+  // designer drops files into a "V{n}" subfolder in the (already auto-created) Dropbox design
+  // folder; this pulls whatever's actually there into sales_design_versions/…_files.
+  const [syncingJobId, setSyncingJobId] = useState<string | null>(null);
+  async function syncFromDropbox(jobId: string) {
+    setSyncingJobId(jobId);
     try {
-      const res = await fetch(`/api/design-jobs/${jobId}/versions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preview_link, notes }) });
+      const res = await fetch(`/api/design-jobs/${jobId}/sync-dropbox`, { method: 'POST' });
       const b = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(b.error ?? 'Failed'); return; }
-      setVersions(p => [b.version, ...p]);
-      setJobs(p => p.map(j => j.id === jobId && j.status === 'assigned' ? { ...j, status: 'working_on_it' } : j));
-      toast.success(`Version V${b.version.version_no} added`);
-    } finally { setBusy(false); }
+      if (!res.ok) { toast.error(b.error ?? 'Sync failed'); return; }
+      if (Array.isArray(b.versions)) setVersions(p => [...b.versions, ...p.filter(v => v.job_id !== jobId)]);
+      if (b.jobStatus) setJobs(p => p.map(j => (j.id === jobId ? { ...j, status: b.jobStatus } : j)));
+      if (b.syncedVersions > 0 || b.syncedFiles > 0) {
+        toast.success(`Synced from Dropbox — ${b.syncedVersions} new version${b.syncedVersions === 1 ? '' : 's'}, ${b.syncedFiles} file${b.syncedFiles === 1 ? '' : 's'}.`);
+      } else {
+        toast.success('Up to date — no new versions in Dropbox.');
+      }
+    } finally { setSyncingJobId(null); }
   }
 
   async function sendReviewLink(jobId: string, versionId: string) {
@@ -299,7 +307,18 @@ export function DesignWorkspaceClient({
                   })}
                 </div>
 
-                <AddVersionRow busy={busy} onAdd={(link, notes) => addVersion(job.id, link, notes)} />
+                <button
+                  className="btn btn-secondary btn-sm" style={{ fontSize: 12, marginTop: 10 }}
+                  disabled={syncingJobId === job.id || busy}
+                  onClick={() => syncFromDropbox(job.id)}
+                >
+                  <RefreshCw size={12} />
+                  {syncingJobId === job.id ? 'Syncing…' : 'Sync versions from Dropbox'}
+                </button>
+                <div style={{ fontSize: 10.5, color: 'var(--fg-faint)', marginTop: 4 }}>
+                  Drop files into a “V1”, “V2”… folder under Design Proposal in Dropbox, then sync — versions
+                  are never typed in here.
+                </div>
               </div>
 
               {/* ── Right sidebar: Team / Integrations / Details ───────────
@@ -564,26 +583,6 @@ function UploadButton({ busy, onPick }: { busy: boolean; onPick: (f: File) => vo
   );
 }
 
-function AddVersionRow({ busy, onAdd }: { busy: boolean; onAdd: (link: string, notes: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const [link, setLink] = useState('');
-  const [notes, setNotes] = useState('');
-  if (!open) return <button className="btn btn-ghost btn-sm" style={{ marginTop: 10, fontSize: 12, color: 'var(--brand-teal)' }} onClick={() => setOpen(true)}><Plus size={12} /> Add version</button>;
-  return (
-    <div style={{ marginTop: 10, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '10px 12px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, marginBottom: 8 }}>
-        <div><label className="form-label" style={{ fontSize: 11 }}>Preview link (Dropbox / Drive / Matterport)</label>
-          <input className="form-input" style={{ fontSize: 13 }} placeholder="https://…" value={link} onChange={e => setLink(e.target.value)} autoFocus /></div>
-        <div><label className="form-label" style={{ fontSize: 11 }}>Notes</label>
-          <input className="form-input" style={{ fontSize: 13 }} value={notes} onChange={e => setNotes(e.target.value)} /></div>
-      </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => { onAdd(link.trim(), notes.trim()); setLink(''); setNotes(''); setOpen(false); }}>Add</button>
-        <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>Cancel</button>
-      </div>
-    </div>
-  );
-}
 
 function SidePanel({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
