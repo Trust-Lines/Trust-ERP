@@ -64,19 +64,26 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Design job not found' }, { status: 404 });
 
-  if (isAssigning && newDesignerId && newDesignerId !== job!.assigned_designer_id && job!.lead_intake_id) {
+  // A design job is dual-anchored since migration 079: exactly one of lead_intake_id /
+  // opportunity_id is set. notifyUser/notifyLeadWatchers already accept either id — they just
+  // weren't being called with opportunityId here, so an Opportunity-sourced job (the newer,
+  // Marketing-driven path) silently sent NO assignment notification at all. Fixed to branch on
+  // whichever anchor the job actually has.
+  if (isAssigning && newDesignerId && newDesignerId !== job!.assigned_designer_id && (job!.lead_intake_id || job!.opportunity_id)) {
     if (newDesignerId !== user.id) {
       await notifyUser(admin, {
-        userId: newDesignerId, leadId: job!.lead_intake_id,
+        userId: newDesignerId, leadId: job!.lead_intake_id ?? undefined, opportunityId: job!.opportunity_id ?? undefined,
         title: 'You were assigned a design job',
         body: `Design job "${data.title}" was assigned to you.`,
       });
     }
-    const { data: d } = await admin.from('profiles').select('full_name').eq('id', newDesignerId).maybeSingle();
-    await logLeadActivity(admin, {
-      leadIntakeId: job!.lead_intake_id, actorId: user.id, kind: 'change',
-      body: `design job assigned to ${(d as { full_name?: string } | null)?.full_name ?? 'a designer'}`,
-    });
+    if (job!.lead_intake_id) {
+      const { data: d } = await admin.from('profiles').select('full_name').eq('id', newDesignerId).maybeSingle();
+      await logLeadActivity(admin, {
+        leadIntakeId: job!.lead_intake_id, actorId: user.id, kind: 'change',
+        body: `design job assigned to ${(d as { full_name?: string } | null)?.full_name ?? 'a designer'}`,
+      });
+    }
   }
 
   let movedToSupply: { projectId?: string; code?: string; blocked?: boolean } | null = null;
@@ -96,6 +103,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         title: 'Design approved — finish Block 1', body: 'The design is approved but the lead needs Region / Service / Address before it can move to Supply.',
       });
     }
+  } else if (patch.status === 'approved_by_sales' && job!.status !== 'approved_by_sales' && job!.opportunity_id) {
+    // Opportunity-path jobs already have a real project (created at Accept, C1/C2) — there is no
+    // "move to Supply" delivery step to run here, only the notification.
+    await notifyLeadWatchers(admin, {
+      opportunityId: job!.opportunity_id, actorId: user.id,
+      title: 'Design approved', body: `Design "${data.title}" was approved by Sales.`,
+    });
   }
 
   if (patch.status === 'assigned' && job!.status !== 'assigned' && job!.opportunity_id) {

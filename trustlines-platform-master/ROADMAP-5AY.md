@@ -12,7 +12,7 @@
 
 - [x] 1. Test hesaplarının açılması (en az 8-10 hesap, her rolden birer tane) — DONE 2026-08-28
 - [x] 2. Sales Handoff (Accept) akışının gerçek kullanıcıyla, izlenerek denenmesi — DONE 2026-08-28
-- [ ] 3. Sales↔Design el değişiminin uçtan uca doğrulanması
+- [x] 3. Sales↔Design el değişiminin uçtan uca doğrulanması — DONE 2026-08-28 (1 gerçek hata bulundu + düzeltildi)
 - [ ] 4. Müşteri revizyonu → Designer'a geri dönüş akışının doğrulanması
 - [ ] 5. Closed Won → PM'e devir akışının doğrulanması
 - [ ] 6. Sınıflandırma kuralı kararının netleştirilmesi (belge şartı mı, çoklu sinyal mi)
@@ -105,3 +105,24 @@
   risk (izin/veri sızıntısı/çift proje) tamamen kapatıldı.
 - Test verileri (ZZTEST proje/opportunity/need/prospect) temizlendi; test hesapları kalıcı kaldı.
 - Değişen dosya yok (sadece doğrulama).
+
+### 2026-08-28 — Madde 3: Sales↔Design el değişimi doğrulandı + gerçek bir hata bulunup düzeltildi
+- 🔴 **BULUNAN HATA:** `app/api/design-jobs/[jobId]/route.ts` — bir tasarım işine designer atandığında
+  bildirim gönderen kod SADECE eski (lead_intake) kökenli işlerde çalışıyordu
+  (`job!.lead_intake_id` şartına bağlıydı). Marketing/Opportunity kökenli işlerde (migration 079'un
+  "dual-anchor" modeli) `lead_intake_id` hep `null`, bu yüzden designer'a **hiçbir bildirim
+  gitmiyordu** — designer işi ancak kendisi fark edip bakarsa görüyordu. `notifyUser`/
+  `notifyLeadWatchers` fonksiyonlarının ikisi de zaten `opportunityId` parametresini destekliyordu,
+  sadece bu rotadan hiç kullanılmamıştı.
+- **DÜZELTME:** Atama bildirimi artık `lead_intake_id` VEYA `opportunity_id`'ye göre çalışıyor.
+  "Design onaylandı" bildirimi de aynı şekilde iki yola ayrıldı — Opportunity kökenli işlerde
+  `deliverLeadToTrust` (proje zaten Accept adımında oluştuğu için) çağrılmıyor, sadece bildirim
+  gönderiliyor.
+- **CANLI DOĞRULAMA (gerçek hesaplarla):** `sales-rep` ile bir iş Sales_accepted'e getirildi →
+  "Start Design" çalıştırıldı → iş `awaiting_assignment` olarak oluştu → **designer henüz atanmamışken
+  kendi sorgusunda işi göremedi** (bu, Ay 2 Madde 11'in — Atanmamış İş Kuyruğu — neden gerekli
+  olduğunun kanıtı) → iş `designer` hesabına atandı → **bildirim sayısı 0'dan 1'e çıktı** (düzeltme
+  öncesi hep 0 kalırdı) → designer kendi sorgusunda artık işi görüyor → durum
+  "ready_for_sales_review" yapıldı → **sales_rep'e de bildirim gitti**.
+- Değişen dosyalar: `app/api/design-jobs/[jobId]/route.ts`.
+- Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 460/462 test (2 önceden var olan, ilgisiz hata).
