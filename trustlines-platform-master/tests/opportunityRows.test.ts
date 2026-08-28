@@ -43,10 +43,19 @@ describe('cross-check: /leads board bucket agrees with the ClickUp import mappin
 });
 
 describe('STATUS_TO_STAGE — reverse mapping used by manual drag-and-drop', () => {
-  it('working_on_it_trust/waiting_from_op/contract_stage have no real Opportunity-side stage anymore (Sales-only buckets — drop must be rejected, not silently mapped)', () => {
-    expect(STATUS_TO_STAGE.working_on_it_trust).toBeNull();
+  it('waiting_from_op/contract_stage have no real Opportunity-side stage (Sales-only buckets — drop must be rejected, not silently mapped)', () => {
     expect(STATUS_TO_STAGE.waiting_from_op).toBeNull();
     expect(STATUS_TO_STAGE.contract_stage).toBeNull();
+  });
+
+  // Stale since migration 103 (2026-08-28 finding, Roadmap Month 1 task 7): ClickUp's real
+  // "WORKING ON IT TRUST" Status OP value got its own real `working_on_it_trust` stage so the
+  // import stops silently dropping those rows into 'potential' — that made it a genuine,
+  // reachable reverse-drag target too (OpportunitiesPageClient's "Other stages" list), and
+  // Roadmap Month 1 task 7 wired a real project-creation safety net onto exactly this drop.
+  // This assertion used to expect null; the live-verified, intentional behavior is the opposite.
+  it('working_on_it_trust DOES map back to a real stage — dragging a card there is a real, supported transition', () => {
+    expect(STATUS_TO_STAGE.working_on_it_trust).toBe('working_on_it_trust');
   });
 
   it('every non-null reverse mapping round-trips back to the SAME bucket it came from', () => {
@@ -94,7 +103,11 @@ describe('loadOpportunityLeadRows', () => {
 
     expect(rows).toHaveLength(1);
     expect(rows[0].origin).toBe('opportunity');
-    expect(rows[0].name).toBe('ZZTEST Acme');
+    // The Opportunity's own title ("Test Deal") correctly wins over the parent Lead's display
+    // name (opportunityRows.ts: `o.title || lead?.display_name || 'Untitled opportunity'`) — a
+    // deal-specific title is more useful on the card than the company name when both exist. This
+    // assertion previously expected the Lead's name, which never matched real behavior.
+    expect(rows[0].name).toBe('Test Deal');
     expect(rows[0].opportunity_status).toBe('modification_request');
     expect(rows[0].archived).toBe(false);
     expect(rows[0].location).toBe('Austin, TX');
