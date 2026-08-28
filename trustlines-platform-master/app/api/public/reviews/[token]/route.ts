@@ -158,16 +158,34 @@ async function applyDesignDecision(admin: any, versionId: string, decision: stri
     ...(comment ? { customer_feedback: comment } : { customer_feedback: `${by} ${decision.replace(/_/g, ' ')}` }),
   }).eq('id', versionId);
 
-  const { data: ver } = await admin.from('sales_design_versions').select('job_id').eq('id', versionId).maybeSingle();
-  const jobId = (ver as { job_id?: string } | null)?.job_id;
+  const { data: ver } = await admin.from('sales_design_versions').select('job_id, version_no').eq('id', versionId).maybeSingle();
+  const jobId = (ver as { job_id?: string; version_no?: number } | null)?.job_id;
   if (!jobId) return;
 
   const jobStatus = decision === 'approved' ? 'approved_by_sales' : 'revision_requested';
+  const { data: job } = await admin.from('sales_design_jobs')
+    .select('lead_intake_id, opportunity_id, assigned_designer_id').eq('id', jobId).maybeSingle();
   await admin.from('sales_design_jobs').update({ status: jobStatus }).eq('id', jobId);
+  const leadId = (job as { lead_intake_id?: string } | null)?.lead_intake_id;
+  const opportunityId = (job as { opportunity_id?: string } | null)?.opportunity_id;
+  const designerId = (job as { assigned_designer_id?: string } | null)?.assigned_designer_id;
+
+  // 🔴 FIX: a customer's "request revision" decision updated the job's status but never told the
+  // designer who actually has to do the rework — they only found out if they happened to be one of
+  // the 6 hardcoded internal roles above, which `designer` is not. Notify them directly, with the
+  // customer's own comment, on EITHER anchor type.
+  if (decision === 'revision_requested' && designerId) {
+    try {
+      const { notifyUser } = await import('@/lib/sales/notify');
+      await notifyUser(admin, {
+        userId: designerId, leadId: leadId ?? undefined, opportunityId: opportunityId ?? undefined,
+        title: 'Customer requested a revision',
+        body: comment ? `${by} requested a revision: "${comment}"` : `${by} requested a revision on your design.`,
+      });
+    } catch (e) { console.error('[review] designer revision notify failed:', e instanceof Error ? e.message : e); }
+  }
 
   if (decision === 'approved') {
-    const { data: job } = await admin.from('sales_design_jobs').select('lead_intake_id').eq('id', jobId).maybeSingle();
-    const leadId = (job as { lead_intake_id?: string } | null)?.lead_intake_id;
     if (leadId) {
       try {
         const { deliverLeadToTrust } = await import('@/lib/sales/deliver');
@@ -178,6 +196,18 @@ async function applyDesignDecision(admin: any, versionId: string, decision: stri
           await linkDesignFilesToProject(admin, versionId, res.projectId, actorId);
         }
       } catch (e) { console.error('[review] auto-deliver failed:', e instanceof Error ? e.message : e); }
+    } else if (opportunityId) {
+      // 🔴 FIX: an Opportunity-sourced job already has a real project (created at Accept) — there
+      // is no "deliver" step to run, but the approved files were never being linked into the
+      // project's documents at all, silently, because this whole branch only checked leadId.
+      try {
+        const { data: opp } = await admin.from('opportunities').select('project_id').eq('id', opportunityId).maybeSingle();
+        const projectId = (opp as { project_id?: string } | null)?.project_id;
+        if (projectId) {
+          const { linkDesignFilesToProject } = await import('@/lib/sales/designDocs');
+          await linkDesignFilesToProject(admin, versionId, projectId, actorId);
+        }
+      } catch (e) { console.error('[review] opportunity-path file link failed:', e instanceof Error ? e.message : e); }
     }
   }
 }

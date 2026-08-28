@@ -13,7 +13,7 @@
 - [x] 1. Test hesaplarının açılması (en az 8-10 hesap, her rolden birer tane) — DONE 2026-08-28
 - [x] 2. Sales Handoff (Accept) akışının gerçek kullanıcıyla, izlenerek denenmesi — DONE 2026-08-28
 - [x] 3. Sales↔Design el değişiminin uçtan uca doğrulanması — DONE 2026-08-28 (1 gerçek hata bulundu + düzeltildi)
-- [ ] 4. Müşteri revizyonu → Designer'a geri dönüş akışının doğrulanması
+- [x] 4. Müşteri revizyonu → Designer'a geri dönüş akışının doğrulanması — DONE 2026-08-28 (2 gerçek hata bulundu + düzeltildi)
 - [ ] 5. Closed Won → PM'e devir akışının doğrulanması
 - [ ] 6. Sınıflandırma kuralı kararının netleştirilmesi (belge şartı mı, çoklu sinyal mi)
 - [ ] 7. "Working on it Trust" ara aşaması güvenlik ağının (ensureProjectForOpportunity) bağlanması
@@ -126,3 +126,28 @@
   "ready_for_sales_review" yapıldı → **sales_rep'e de bildirim gitti**.
 - Değişen dosyalar: `app/api/design-jobs/[jobId]/route.ts`.
 - Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 460/462 test (2 önceden var olan, ilgisiz hata).
+
+### 2026-08-28 — Madde 4: Müşteri revizyonu → Designer geri dönüşü doğrulandı + 2 gerçek hata düzeltildi
+- 🔴 **BULUNAN HATA 1:** `app/api/public/reviews/[token]/route.ts` — müşteri herkese açık review
+  linkinden "revizyon istiyorum" dediğinde, `sales_design_jobs.status` doğru güncelleniyordu ama
+  **designer'a hiçbir özel bildirim gitmiyordu.** Bildirim sadece sabit 6 iç role (ops_manager,
+  general_manager, trustlines_pm, tlines_pm, sales_rep, sales_marketing_manager) gidiyordu —
+  `designer` bu listede hiç yok. Designer, işi ancak kendisi bakıp fark ederse revizyon istendiğini
+  anlıyordu.
+- 🔴 **BULUNAN HATA 2:** Aynı dosyada, müşteri "onaylandı" dediğinde, Marketing/Opportunity kökenli
+  işlerde (proje zaten Accept adımında oluşmuş) onaylanan tasarım dosyaları **projeye hiç
+  bağlanmıyordu** — bu blok da (madde 3'teki gibi) sadece `lead_intake_id` şartına bakıyordu.
+- **DÜZELTME:** Revizyon isteğinde artık `assigned_designer_id`'ye, müşterinin yazdığı yorumla
+  birlikte doğrudan bildirim gidiyor (hem eski hem yeni yol için). Onay durumunda Opportunity kökenli
+  işler için de dosyalar artık `linkDesignFilesToProject` ile gerçek projeye bağlanıyor.
+- **CANLI DOĞRULAMA (gerçek route kodu, gerçek public link, gerçek hesaplar):** Gerçek bir onay
+  linki (`approval_links`, token gerçekten hash'lenip saklandı — üretimdeki gibi) oluşturuldu,
+  gerçek `POST /api/public/reviews/[token]` rota kodu (kopyası değil, doğrudan import edilen aynı
+  dosya) `action: "request_revision"` ve gerçek bir yorumla çağrıldı. Sonuç: designer'ın bildirim
+  sayısı 1'den 2'ye çıktı, son bildirimin gövdesinde müşterinin yazdığı yorum **birebir** göründü,
+  hem job hem version durumu `revision_requested` oldu.
+- Eski versiyonun korunduğu da doğrulandı: yeni versiyonlar her zaman `INSERT` ile eklenir
+  (`POST /api/design-jobs/[jobId]/versions`), var olan versiyon asla üzerine yazılmaz — bu zaten
+  doğru tasarlanmış, dokunmadım.
+- Değişen dosyalar: `app/api/public/reviews/[token]/route.ts`.
+- Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 460/462 test.
