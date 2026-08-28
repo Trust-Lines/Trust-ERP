@@ -20,7 +20,7 @@
 - [x] 7. "Working on it Trust" ara aşaması güvenlik ağının (ensureProjectForOpportunity) bağlanması — DONE 2026-08-28
 - [x] 8. Kampanya modülünün gerçek bir kampanyayla uçtan uca denenmesi — DONE 2026-08-28 (hata bulunmadı, tamamen sağlam)
 - [x] 9. Etkinlik (Events) modülünün sıfırdan tasarlanıp kurulması — DONE 2026-08-28 (yeni tablo GEREKMEDİĞİ ortaya çıktı, küçük bir form eksiği düzeltildi)
-- [ ] 10. Migration 087-104 için detaylı belge kaydının tamamlanması
+- [x] 10. Migration 087-104 için detaylı belge kaydının tamamlanması — DONE 2026-08-28
 
 ## AY 2 — Design, Supply, PM Çalışma Alanları
 
@@ -250,6 +250,21 @@
 - Değişen dosyalar: `components/platform/marketing/CampaignFormClient.tsx`,
   `app/(platform)/marketing/campaigns/[id]/edit/page.tsx`.
 - Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 460/462 test.
+
+### 2026-08-28 — Madde 10: 087-104 migration belgeleri tamamlandı + AY 1 TAMAMLANDI 🎉
+- `PROJECT-MASTER-PLAN.md`'ye 18 migration'ın (087-104, ClickUp entegrasyonu + Deals Unified
+  Board) her biri için ayrı, gerçek CHANGE LOG kaydı eklendi — artık "sonra bakarız" değil,
+  her migration'ın ne yaptığı tek satırda okunabiliyor.
+- Ayrıca `docs/CLICKUP_IMPORT.md`'nin "henüz hiç import yapılmadı" diyen bayat durumu
+  düzeltildi — gerçek durum: import tamamlandı, checklist güncellendi.
+- Eski "start here next" bölümündeki 2 bayat madde de düzeltildi (migration 78 zaten
+  uygulanmış ve doğrulanmış; Sales Opportunity ekranı zaten var olduğu ortaya çıktı).
+- **🎉 AY 1 — TÜM 10 MADDE TAMAMLANDI** (madde 6 hariç tam kapalı; o da ürün kararı
+  gerektirdiği için öneri yazılıp sizin onayınıza bırakıldı). Bu ay boyunca canlı testler
+  sırasında bulunup düzeltilen gerçek hatalar: 3 tanesi bildirim eksikliği (designer'a
+  atama/revizyon bildirimi gitmiyordu), 1 tanesi büyük yapısal boşluk (Closed Won'da hiç PM
+  atanmıyor), 1 tanesi bağlanmamış güvenlik ağı (Working on it Trust proje kontrolü).
+- Değişen dosyalar: `PROJECT-MASTER-PLAN.md`, `docs/CLICKUP_IMPORT.md`.
 
 - **Ay 2/3'e eklenmesi gereken yeni, gerçek görev:** `clients` (Bölge) tablosunun doldurulması +
   bölgesel PM otomatik atama mantığının Accept/Closed Won adımlarına güvenle bağlanması. Bu,

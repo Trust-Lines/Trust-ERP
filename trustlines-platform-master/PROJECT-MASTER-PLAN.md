@@ -2112,14 +2112,20 @@ Project architecture:
         multi-location `opportunity_locations` handling in the accept form (single site address only); the
         Sales Opportunity Workspace's later stages (`discovery`/`sales_design`/`proposal`/`negotiation`) have
         no dedicated UI yet — only Close Won/Lost are reachable from `sales_accepted`.
+[x] Apply migration 078 + live-verify the Accept flow — DONE 2026-08-27/28. Live probe confirmed 078 (and
+    everything through 104) is applied. Accept flow live-verified twice with real test-account identities
+    (see Roadmap Month 1 tasks 2 and 5) — idempotent, no duplicate project/number on repeat calls.
+[x] Sales Opportunity Workspace stages beyond sales_accepted — turned out to already be built
+    (`SalesOpportunitiesClient.tsx`: Start Design / Move to Negotiation / Close Won / Close Lost, all wired
+    to real API routes) — this line was stale, not an actual gap. No dedicated per-stage detail screen exists
+    (just an "Open Design Job →" link at discovery/sales_design/proposal), which is a smaller, real polish
+    item (see ROADMAP-5AY.md Month 2, task 18).
+[x] Phase 00.6 Sources/Campaigns/Events attribution — BUILT 2026-08-11 (migration 086), APPLIED (confirmed
+    live 2026-08-27). Events sub-scope closed 2026-08-28 WITHOUT a new table: `marketing_campaigns.campaign_type`
+    already supported 'event' end-to-end (schema/list/detail) — the only real gap was the create/edit form
+    hardcoding 'trade_fair' with no selector, fixed (see ROADMAP-5AY.md Month 1, task 9).
 --- start here next ---
-[ ] Apply migration 078, then carefully live-verify the Accept flow (real project number + Dropbox folder —
-    get explicit approval first, these side effects are irreversible) before relying on it with real users.
-[ ] Sales Opportunity Workspace stages beyond sales_accepted (discovery/sales_design/proposal/negotiation) —
-    currently only Close Won/Lost are reachable from sales_accepted, no intermediate stage UI.
-[x] Phase 00.6 Sources/Campaigns/Events attribution — BUILT 2026-08-11 (migration 086, unapplied — see CHANGE LOG).
-    `marketing_campaigns` + real Prospect attribution (Original vs Latest touch). Events sub-scope (marketing_events)
-    still not built — only Campaigns landed; a "campaign" now covers trade fairs/events, which was the actual ask.
+[ ] See ROADMAP-5AY.md for the current active task list (5-month plan, checkbox-tracked, Month 1 in progress).
 ```
 
 ---
@@ -2129,6 +2135,60 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-08-28 (Catch-up documentation — migrations 087–104, ClickUp import + Deals Unified Board) — NO new migration
+- This file's CHANGE LOG had a real gap: the entire 087–104 batch (18 migrations, built via direct terminal
+  work outside the normal "devam et" flow — see SALES_AUDIT.md's own flagging of this) was never recorded
+  here, even though CURRENT STATUS was corrected to "highest migration: 104" on 2026-08-27. All 18 confirmed
+  APPLIED live by direct probe (2026-08-27). Summary, grouped by what each actually did:
+- **087_marketing_campaigns_state** — Create Campaign form simplified to US State dropdown + city
+  autocomplete (mirrors NewProjectForm's LocationSearch), after the user's first live create attempt showed
+  free-text city/country was wrong for "our fairs are always in the USA." Adds `marketing_campaigns.state`.
+- **088_clickup_import_fields** — first ClickUp Contacts import fields on `prospects`: `external_source`,
+  `external_ref` (dedupe key), `business_types`, `region`, `source_detail`. Additive only, nothing renamed.
+- **089_campaign_interactions_import_type** — widens `campaign_interactions.interaction_type` CHECK beyond
+  the original `survey_submission` to also allow real historical trade-fair attendance records imported
+  from ClickUp.
+- **090_clickup_opportunities_import** — imports the real "Opportunities NE" ClickUp board (176 tasks) into
+  `opportunities` + `prospect_needs`, with `external_source`/`external_ref`/`external_stage_label` for
+  traceability back to the original ClickUp "Status OP" value.
+- **091_potentials_clickup_import** — same traceability columns on `prospect_potentials` for the 23
+  Potential/In Target List rows, so the unified `/leads` board can split Opportunity vs Potential correctly.
+- **092_prospect_contact_checklist_notes** — `prospect_contact_checklist_items` (the 10-item "Client
+  Information progress" checklist) + `prospect_contact_notes` (comment/activity thread), matching a live
+  ClickUp contact task screenshot the user compared directly against our own screen.
+- **093_checklist_order_index_numeric** — `order_index` widened INT→NUMERIC after a real backfill hit
+  ClickUp's fractional drag-reorder values (e.g. "1.5") and failed with 22P02.
+- **094_clickup_field_parity** — closes a field-by-field gap found by comparing Prospect 360 directly
+  against a live ClickUp Person task: adds `company2_phone`, `source_raw_label`, `external_project_code`,
+  `project_info`, `x_note` and others that the original 088 import never captured.
+- **095_prospect_files_and_writable_notes** — `prospect_files` (Dropbox-backed attachments) + makes the
+  Activity panel genuinely writable (was read-only, ClickUp-imported comments only).
+- **096_prospect_tags** — `prospects.tags` JSONB, mirroring ClickUp's native colored task tags on the Lead
+  Cloud list (e.g. "jewelry store", "architect").
+- **097_external_created_at** — `prospects.external_created_at`, so "Date created" shows ClickUp's real task
+  creation date instead of the moment we imported the row.
+- **098_prospect_contacts_external_ref** — fixes two real import bugs the user caught comparing screenshots
+  side by side (entity-type misclassification when a Person's "Company" field held their employer's name;
+  a subtask/parent-company dedupe collision) + adds `prospect_contacts.external_source`/`external_ref`.
+- **099_opportunity_field_parity_and_notes** — Opportunity detail field-completeness against ClickUp's real
+  Deal task: `state`/`formatted_address`/`brand`/`industry_raw`/`project_type_raw`/`request_raw`/
+  `to_do_raw`/`direct_contact_raw`/`tags` + a real comment thread including Matterport bookmark comments.
+- **100_deals_unified_board_parity** — the "Opportunities/Potentials → one Deals board" migration:
+  `deposit`, `payment_raw`, `targeted`, `due_date` on both `opportunities` and `prospect_potentials`, exact
+  column parity with the real ClickUp list side by side.
+- **101_lead_tasks_potential_anchor** — `lead_tasks.potential_id`, the third anchor (alongside
+  lead_intake/opportunity) so the ClickUp-style hover-subtask UI works on Potential rows too.
+- **102_campaign_survey_template** — `marketing_campaigns.survey_template`, lets Marketing pick which
+  public `/survey/{slug}` UI a campaign uses from the New Campaign form itself.
+- **103_opportunity_working_on_it_trust_stage** — adds the `working_on_it_trust` value to
+  `opportunities.stage`'s CHECK constraint; ClickUp's real "WORKING ON IT TRUST" Status OP had no matching
+  stage and was silently falling back to 'potential' on import, dropping real rows.
+- **104_opportunity_potential_external_project_code** — `external_project_code` on both `opportunities` and
+  `prospect_potentials`, so an imported ClickUp row's real "PROJECT #" (e.g. "417-NE") shows in the CRM
+  board's PROJECT # column instead of "—", without waiting for our own Sales handoff to assign one.
+- No files changed by this entry (documentation only). `docs/CLICKUP_IMPORT.md` still says "Scaffolding
+  only — no import has run yet"; that file is also stale and should be corrected in a follow-up pass.
+
 2026-08-27 (tlines_pm data privacy — LIVE-VERIFIED with a real RLS-enforced session) — NO migration
 - Closes PROJECT-MASTER-PLAN.md's long-unchecked "11.1 follow-up: verify with a REAL tlines_pm
   session that PF is unreachable end-to-end" item, and independently re-confirms migration 080
