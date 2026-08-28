@@ -326,3 +326,25 @@
   `components/platform/shell/Sidebar.tsx`, `tests/portfolio.test.ts`.
 - Doğrulama: tsc temiz · lint 0 hata (3 önceden var olan uyarı) · build EXIT 0 (`/supply`
   derleniyor) · 460/462 test · 18/18 portfolio testi.
+
+### 2026-08-28 — Rol modeli doğrulaması (kullanıcının tarif ettiği hiyerarşi)
+- Kullanıcı sistemin olması gereken rol hiyerarşisini tarif etti: **genel PM** tüm Supply
+  projelerini görür; **pm_millwork** Millwork+Shelving'i görür; **pm_ceiling** (image PM)
+  Ceiling+Image'i görür; **tlines_pm (genel süpervizör)** tüm ABD satış projelerini görür ama
+  **PF fiyatını görmez, PO'yu görür**; **bölgesel tlines_pm** sadece kendi bölgesinin projelerini
+  görür.
+- Bunu koda bakıp doğruladım — hepsi **zaten doğru kurulmuş** durumda, benim yeni `/supply`
+  sayfam da bunu bedavaya miras aldı çünkü aynı paylaşılan motoru (`loadPortfolio` →
+  `redactLifecycleForRole`) kullanıyor:
+  - `prod_pm_ms_id` = Millwork+Shelving PM'i, `prod_pm_ci_id` = Ceiling+Image PM'i (tek sütun,
+    iki kategoriyi birden kapsıyor) — Madde 15/16'da düzelttiğim eksiklik buydu zaten.
+  - `pm_supervisor_id` = genel süpervizör (tüm bölgeler) — zaten OR-filtresinde vardı.
+  - `tlines_pm_id` = bölgesel Client PM (proje bazında tek kişiye atanır) — bölge ayrımı bu
+    sütun üzerinden doğal olarak sağlanıyor.
+  - `redactLifecycleForRole()` → `tlines_pm` rolü için `pfSigned` alanını TAMAMEN kaldırıyor,
+    vendor'la ilgili tüm blocker'ları filtreliyor, ama `poSigned` alanını KORUYOR.
+- **CANLI DOĞRULANDI:** Gerçek bir proje, gerçek bir tedarikçisiz üretim kalemi (pf_usd=5000) ile
+  oluşturuldu, tlines_pm test hesabıyla sorgulandı: kendi projesini gördü, başka bölgenin
+  projesini görmedi, hiçbir vendor bilgisi sızmadı, `pfSigned` alanı yoktu, `poSigned` alanı
+  vardı — tarif edilen modelin birebir aynısı.
+- Değişen dosya yok (sadece doğrulama — sistem zaten doğru kurulmuştu).
