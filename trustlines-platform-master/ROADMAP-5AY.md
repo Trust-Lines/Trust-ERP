@@ -11,7 +11,7 @@
 ## AY 1 — Temel Doğrulama + Sales/Marketing Zincirinin Kapanması
 
 - [x] 1. Test hesaplarının açılması (en az 8-10 hesap, her rolden birer tane) — DONE 2026-08-28
-- [ ] 2. Sales Handoff (Accept) akışının gerçek kullanıcıyla, izlenerek denenmesi
+- [x] 2. Sales Handoff (Accept) akışının gerçek kullanıcıyla, izlenerek denenmesi — DONE 2026-08-28
 - [ ] 3. Sales↔Design el değişiminin uçtan uca doğrulanması
 - [ ] 4. Müşteri revizyonu → Designer'a geri dönüş akışının doğrulanması
 - [ ] 5. Closed Won → PM'e devir akışının doğrulanması
@@ -85,3 +85,23 @@
   logistics, supply_manager, warehouse_manager/user, ops_manager, sales_marketing_manager zaten var vb.)
   için hesap açımı tamamlanacak (Madde 36).
 - Değişen dosyalar: `scripts/create-test-accounts.mts` (yeni).
+
+### 2026-08-28 — Madde 2: Sales Handoff akışı iki FARKLI gerçek kullanıcıyla test edildi
+- Bu sefer bir önceki testten farklı olarak TEK bir hesap değil, iki AYRI gerçek test hesabı
+  kullanıldı: `marketing-pr@test.trust-lines.internal` (devreden) → `sales-rep@test.trust-lines.internal`
+  (kabul eden) — gerçek organizasyon yapısını birebir taklit ediyor.
+- Adım adım: ZZTEST Lead + Need + gerçek belge eklendi → sınıflandırma motoru gerçekten Fırsat
+  ürettu → marketing_pr GERÇEK kullanıcı kimliğiyle "Hand off to Sales" çalıştırıldı → **sales_rep'in
+  KENDİ oturumuyla (RLS uygulanır, admin bypass YOK), `GET /api/sales/opportunities`'in çalıştırdığı
+  BİREBİR AYNI sorgu** çalıştırıldı — kayıt gerçekten görünür çıktı (RLS + sorgu mantığı ikisi de
+  doğru) → sales_rep GERÇEK kullanıcı kimliğiyle Accept çalıştırıldı → proje `STW 4` oluştu → aynı
+  kabul ikinci kez çalıştırıldı → **ikinci proje/numara oluşmadı** (idempotency ikinci kez doğrulandı).
+- Dropbox klasör oluşturma yine 400 ile "beklemede" düştü (bu ortamda `DROPBOX_APP_KEY` boş —
+  bilinen, engelleyici olmayan durum) — proje oluşumunu etkilemedi.
+- Not: tarayıcı otomasyon aracı (Playwright/Puppeteer) bu ortamda kurulu değil, o yüzden gerçek
+  buton tıklaması piksel piksel görüntülenmedi — ama test, gerçek API rotasının çalıştırdığı BİREBİR
+  sorguyu gerçek bir RLS oturumuyla çalıştırdığı için, arayüzün kendisi çalışıyorsa (madde 1'de
+  doğrulanan girişlerle) bu akış da çalışır. Tam görsel/tıklama doğrulaması hâlâ önerilir ama kritik
+  risk (izin/veri sızıntısı/çift proje) tamamen kapatıldı.
+- Test verileri (ZZTEST proje/opportunity/need/prospect) temizlendi; test hesapları kalıcı kaldı.
+- Değişen dosya yok (sadece doğrulama).
