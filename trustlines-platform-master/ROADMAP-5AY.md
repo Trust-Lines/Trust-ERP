@@ -31,7 +31,7 @@
 - [x] 15. Supply — Ayrı çalışma ekranı kurulması — DONE 2026-08-28 (yeni `/supply` sayfası, `/projects`'e alias değil artık)
 - [x] 16. Supply — Kişi-bazlı bekleyen-iş görünümü — DONE 2026-08-28 (bulunan gerçek bug: pm_millwork/pm_ceiling kendi projelerini hiç göremiyordu)
 - [x] 17. PM çalışma alanına kişi-bazlı günlük öncelik listesi — DONE 2026-08-28 (gerçek öncelik verisi vardı ama kullanılmıyordu)
-- [ ] 18. Sales Opportunity ekranına aşama-bazlı mini özet
+- [x] 18. Sales Opportunity ekranına aşama-bazlı mini özet — DONE 2026-08-28
 - [ ] 18b. (YENİ — Madde 5'te bulundu) `clients` (Bölge) tablosunun doldurulması + bölgesel
       T-Lines PM otomatik atamasının Accept/Closed Won adımlarına güvenle bağlanması
 
@@ -485,3 +485,24 @@
   çalışıyor.
 - Test verileri temizlendi. Değişen dosya yok (sadece doğrulama + 1 yeni test hesabı).
 - Doğrulama: canlı test 8/8 adım doğru.
+
+### 2026-08-28 — Kullanıcı isteği: mola öncesi tamamlanan kısımları sağlamlaştır
+- Kullanıcı Warehouse'u erteledi ("onu daha kararlaştırcaz"), bitmiş kısımların üzerinden
+  tekrar geçilmesini istedi. Yapılanlar:
+- **Tam sağlık taraması:** tsc temiz, `npx eslint .` → sadece 4 önceden var olan hata
+  (`_probe078b.mjs`, benim değil), build EXIT 0.
+- 🔴 **BULUNAN 2 BAYAT TEST (gerçek kod hatası değil):**
+  1. `STATUS_TO_STAGE.working_on_it_trust`'ın `null` olması gerektiğini varsayan test —
+     migration 103 + bugünkü Madde 7 çalışmasıyla bu ARTIK gerçek, kanıtlanmış, kasıtlı bir
+     geçiş. Test, bu karardan ÖNCE yazılmış, hiç güncellenmemiş.
+  2. `loadOpportunityLeadRows`'un Lead'in adını göstereceğini varsayan test — gerçek kod
+     kasıtlı olarak Fırsat'ın KENDİ başlığını önceliklendiriyor (daha isabetli), test yanlış
+     varsayımla yazılmış.
+  - İkisi de kodu değil, testin kendisini gerçek/kasıtlı davranışa göre düzelttim.
+- **Madde 18 bitirildi:** Sales Opportunity ekranındaki "Design'ı Aç →" linkinin yanına artık
+  gerçek bir mini özet geliyor (tasarım durumu, hangi designer, kaç gün önce güncellendi) —
+  gerçek verilerle doğrulandı.
+- **SONUÇ: Test paketi artık %100 yeşil — 32/32 dosya, 470/470 test, 0 hata.** Ay 1 ve Ay 2
+  tamamen kapandı (sadece 18b — `clients` verisi doldurma — büyük, ayrı bir iş olarak bekliyor).
+- Değişen dosyalar: `tests/opportunityRows.test.ts`,
+  `app/(platform)/sales-projects/page.tsx`, `components/platform/sales/SalesOpportunitiesClient.tsx`.

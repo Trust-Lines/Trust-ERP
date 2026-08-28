@@ -27,6 +27,20 @@ export interface SalesOpportunityRow {
   updated_at: string;
   lead_display_name: string;
   owner_name: string | null;
+  design_job: { status: string; designerName: string | null; updatedAt: string } | null;
+}
+
+const DESIGN_STATUS_LABEL: Record<string, string> = {
+  awaiting_assignment: 'Awaiting a designer', assigned: 'Assigned, not started', working_on_it: 'In progress',
+  ready_for_sales_review: 'Ready for your review', revision_requested: 'Revision requested',
+  approved_by_sales: 'Approved', presented_to_customer: 'Presented to customer', completed: 'Completed', cancelled: 'Cancelled',
+};
+
+function daysAgo(iso: string): string {
+  const days = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
+  if (days === 0) return 'today';
+  if (days === 1) return '1 day ago';
+  return `${days} days ago`;
 }
 
 interface Props {
@@ -191,7 +205,20 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError }: Pr
                     <button className="btn btn-secondary btn-sm" disabled={busyId === o.id} onClick={() => doStartDesign(o.id)}>Start Design</button>
                   )}
                   {(o.stage === 'discovery' || o.stage === 'sales_design' || o.stage === 'proposal') && (
-                    <a href="/design" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>Open Design Job →</a>
+                    <>
+                      {o.design_job && (
+                        <span style={{
+                          fontSize: 11.5, padding: '5px 8px', borderRadius: 6, alignSelf: 'center',
+                          background: o.design_job.status === 'revision_requested' ? 'var(--status-warning-bg, #fef3c7)' : 'var(--bg-subtle)',
+                          color: o.design_job.status === 'revision_requested' ? 'var(--status-warning-fg, #92400e)' : 'var(--fg-subtle)',
+                        }}>
+                          {DESIGN_STATUS_LABEL[o.design_job.status] ?? o.design_job.status}
+                          {o.design_job.designerName && ` · ${o.design_job.designerName}`}
+                          {' · updated '}{daysAgo(o.design_job.updatedAt)}
+                        </span>
+                      )}
+                      <a href="/design" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>Open Design Job →</a>
+                    </>
                   )}
                   {o.stage === 'proposal' && (
                     <button className="btn btn-secondary btn-sm" disabled={busyId === o.id} onClick={() => doNegotiate(o.id)}>Move to Negotiation</button>
