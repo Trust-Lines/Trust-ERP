@@ -135,6 +135,15 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
     }
     const updated = resBody.opportunity ?? resBody.potential;
     setDeals(prev => prev.map(d => (d.id === row.id ? { ...d, ...updated } : d)));
+    // "Working on it Trust" without a project behind it would otherwise be a silent trap — tell
+    // the user either that a project was opened, or exactly what's missing so it can't happen.
+    if (resBody.projectOpened?.code) {
+      toast.success(resBody.projectOpened.alreadyExisted
+        ? `Already has a project (${resBody.projectOpened.code}).`
+        : `Project ${resBody.projectOpened.code} opened automatically.`);
+    } else if (resBody.projectWarning) {
+      toast.error(resBody.projectWarning);
+    }
     return true;
   }
 

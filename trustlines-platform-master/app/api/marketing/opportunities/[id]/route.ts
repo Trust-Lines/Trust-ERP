@@ -112,5 +112,28 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       body: `moved to "${OPPORTUNITY_STAGE_LABEL[body.stage as OpportunityStage]}" — ${stageReason}`,
     });
   }
-  return NextResponse.json({ opportunity: data });
+
+  // 🔴 FIX (Roadmap Month 1, task 7): `ensureProjectForOpportunity` (the safety net that opens a
+  // real project the moment an Opportunity reaches "Working on it Trust" without one — e.g. this
+  // manual admin-correction move, which bypasses Sales's normal Accept step) existed in
+  // lib/marketing/salesHandoff.ts but was never called from anywhere. An Opportunity could sit in
+  // "working_on_it_trust" with no project behind it. Wired here, on the one path that can reach
+  // this stage without going through Accept first.
+  let projectOpened: { code?: string; alreadyExisted?: boolean } | null = null;
+  let projectWarning: string | null = null;
+  if (stageChanged && body.stage === 'working_on_it_trust') {
+    const { ensureProjectForOpportunity, HandoffError } = await import('@/lib/marketing/salesHandoff');
+    try {
+      const result = await ensureProjectForOpportunity(admin, id, user.id);
+      projectOpened = { code: (result.project as { code?: string } | null)?.code, alreadyExisted: result.alreadyExisted };
+    } catch (e) {
+      // Missing region/service line/city on the Need is a real, expected case (not a server
+      // error) — surface it so the UI can tell the user what to fix, instead of silently leaving
+      // the Opportunity project-less with no explanation.
+      projectWarning = e instanceof HandoffError ? e.message : 'Could not open a project automatically.';
+      console.error('[opportunities] ensureProjectForOpportunity failed:', e instanceof Error ? e.message : e);
+    }
+  }
+
+  return NextResponse.json({ opportunity: data, projectOpened, projectWarning });
 }
