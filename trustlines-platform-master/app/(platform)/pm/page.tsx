@@ -23,8 +23,15 @@ export default async function PmWorkspacePage() {
   const entries = await loadPortfolio(admin, viewer, seesAll ? {} : { pmOf: user!.id });
 
   const rows = toRows(entries, PHASE_LABELS);
+  // Roadmap Month 2, task 17 — "kişi-bazlı günlük öncelik listesi": nextActions.ts already
+  // assigns each action a real urgency (a stalled handover outranks a missing designer), but that
+  // priority number was being dropped before it ever reached this sort — every project with ANY
+  // action tied for first place, ordered only by blocker count then alphabetically. A PM's
+  // genuinely most urgent project could sit anywhere in the "waiting on me" list. Now sorted by
+  // the highest-priority action on each project first.
+  const maxPriority = (r: (typeof rows)[number]) => Math.max(0, ...r.myActions.map(a => a.priority));
   rows.sort((a, b) =>
-    (b.myActions.length > 0 ? 1 : 0) - (a.myActions.length > 0 ? 1 : 0)
+    maxPriority(b) - maxPriority(a)
     || b.blockers.length - a.blockers.length
     || (a.code ?? '').localeCompare(b.code ?? ''));
 

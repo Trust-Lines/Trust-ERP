@@ -30,7 +30,7 @@
 - [x] 14. Design — Designer İş Yükü görünümü — DONE 2026-08-28 (Madde 11 ile birlikte yapıldı)
 - [ ] 15. Supply — Ayrı çalışma ekranı kurulması
 - [ ] 16. Supply — Kişi-bazlı bekleyen-iş görünümü
-- [ ] 17. PM çalışma alanına kişi-bazlı günlük öncelik listesi
+- [x] 17. PM çalışma alanına kişi-bazlı günlük öncelik listesi — DONE 2026-08-28 (gerçek öncelik verisi vardı ama kullanılmıyordu)
 - [ ] 18. Sales Opportunity ekranına aşama-bazlı mini özet
 - [ ] 18b. (YENİ — Madde 5'te bulundu) `clients` (Bölge) tablosunun doldurulması + bölgesel
       T-Lines PM otomatik atamasının Accept/Closed Won adımlarına güvenle bağlanması
@@ -281,3 +281,21 @@
   bölgesel PM otomatik atama mantığının Accept/Closed Won adımlarına güvenle bağlanması. Bu,
   bugünkü küçük düzeltmeden daha büyük, ayrı bir iş.
 - Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 460/462 test.
+
+### 2026-08-28 — Madde 17: PM önceliklendirme gerçek hale getirildi + test kalıntısı temizliği
+- 🔴 **BULUNAN AYRI SORUN (test hijyeni):** Daha önceki bazı test script'lerimde proje silme işlemi
+  `notifications.project_id` yabancı anahtar kısıtı yüzünden sessizce başarısız oluyordu (hata
+  kontrolü yapmıyordum) — bu yüzden 3 tane ZZTEST projesi (STW 7/10/11) temizlenmeden dev
+  veritabanında kalmıştı. Bulunup düzgünce (önce bildirimler, sonra proje) temizlendi. Bundan
+  sonraki her script önce `notifications` tablosunu temizleyecek.
+- 🔴 **ASIL BULUNAN HATA:** `lib/lifecycle/nextActions.ts` her aksiyona gerçek bir aciliyet puanı
+  (`priority`) veriyordu (ör. "devam eden handover" = 70, "designer atanmamış" = 40) ama bu puan
+  `lib/workspace/rows.ts`'te PM ekranına ulaşmadan önce siliniyordu. Sonuç: `/pm` sayfası "bende iş
+  var mı yok mu"ya göre sıralıyordu, gerçekten en acil olan hangisiyse ona göre değil.
+- **DÜZELTME:** `priority` alanı artık satırlara kadar taşınıyor, `/pm` sayfası artık her projenin
+  en yüksek öncelikli aksiyonuna göre sıralıyor.
+- **CANLI DOĞRULAMA:** Aynı PM'e ait iki test projesi oluşturuldu — biri "handover başlatılmamış"
+  (öncelik 70), diğeri "handover devam ediyor" (öncelik 65). Gerçek `loadPortfolio()` çağrıldı,
+  sıralama doğru şekilde yüksek öncelikli olanı önce gösterdi.
+- Değişen dosyalar: `lib/workspace/rows.ts`, `app/(platform)/pm/page.tsx`.
+- Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 460/462 test · 18/18 portfolio testi.
