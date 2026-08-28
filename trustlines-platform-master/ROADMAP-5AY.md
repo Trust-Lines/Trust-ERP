@@ -10,7 +10,7 @@
 
 ## AY 1 — Temel Doğrulama + Sales/Marketing Zincirinin Kapanması
 
-- [ ] 1. Test hesaplarının açılması (en az 8-10 hesap, her rolden birer tane)
+- [x] 1. Test hesaplarının açılması (en az 8-10 hesap, her rolden birer tane) — DONE 2026-08-28
 - [ ] 2. Sales Handoff (Accept) akışının gerçek kullanıcıyla, izlenerek denenmesi
 - [ ] 3. Sales↔Design el değişiminin uçtan uca doğrulanması
 - [ ] 4. Müşteri revizyonu → Designer'a geri dönüş akışının doğrulanması
@@ -70,3 +70,18 @@
 ## İlerleme Günlüğü
 
 > Her tamamlanan madde burada tarih + özet + değişen dosyalarla kayıt altına alınır.
+
+### 2026-08-28 — Madde 1: Test hesapları açıldı
+- `scripts/create-test-accounts.mts` (yeni, tekrar çalıştırılabilir/idempotent) — sistemde eksik olan
+  8 rol için gerçek Supabase Auth kullanıcısı + doğru `profiles` satırı (role/department/company_side)
+  oluşturuyor: `sales_rep`, `marketing_pr`, `marketing_manager`, `tlines_pm`, `trustlines_pm`,
+  `pm_millwork`, `designer`, `qc_responsible`.
+- E-posta deseni: `{rol}@test.trust-lines.internal` (örn. `sales-rep@test.trust-lines.internal`).
+  Şifre: `TrustLines2026!Test` (hepsi aynı, güvenli bir kanaldan paylaşılmalı, hiçbir yere commit
+  edilmedi).
+- Doğrulama: her 8 hesapla gerçek `signInWithPassword` denendi — 8/8 başarılı giriş, `profiles`
+  satırındaki role/department/company_side alanları migration 066'nın kuralına birebir uyuyor.
+- Sistemde artık toplam 10 aktif hesap var (önceki 2 + yeni 8). Ay 5'te kalan roller (accounting,
+  logistics, supply_manager, warehouse_manager/user, ops_manager, sales_marketing_manager zaten var vb.)
+  için hesap açımı tamamlanacak (Madde 36).
+- Değişen dosyalar: `scripts/create-test-accounts.mts` (yeni).
