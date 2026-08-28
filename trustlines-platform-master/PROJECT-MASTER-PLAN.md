@@ -1785,7 +1785,14 @@ Project architecture:
         Opportunity Candidate ⟵ any of active project / deadline / near-term start (named constant
         `NEAR_TERM_START_HORIZON_DAYS`, not a magic number) / project type known / layout available.
         Potential ⟵ (absent the above) location count > 0 / future expansion / "contact later" / 6-12+
-        month timing. Lead ⟵ neither. **Never auto-suggests Disqualified** — that classification is
+        month timing. Lead ⟵ neither.
+        ⚠️ **SUPERSEDED 2026-08 (migration 085) — kept here only as history, do not implement from this
+        paragraph.** The rule above was replaced: today `classifyLead()` requires `hasDocumentEvidence`
+        (a real attached layout/photo/matterport/link, `prospect_need_documents`) for Opportunity
+        Candidate — active project/deadline/etc. alone now only ever reach "potential." Found by
+        Roadmap Month 1 task 6 (2026-08-28), presented to the user as a 3-way decision, and the CURRENT
+        (document-based) rule was explicitly kept — see ROADMAP-5AY.md's Month 1 entry for that task.
+        **Never auto-suggests Disqualified** — that classification is
         human-override-only, pinned by test. The 4 classifications map 1:1 onto the EXISTING
         `ProspectStatus` enum from 072 (no enum change) via `CLASSIFICATION_TO_STATUS`/`STATUS_TO_CLASSIFICATION`.
       • `components/platform/marketing/LeadCaptureWizard.tsx` — 6-step stepper, chip multi-select for

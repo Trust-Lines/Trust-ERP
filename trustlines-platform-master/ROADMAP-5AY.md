@@ -15,8 +15,8 @@
 - [x] 3. Sales↔Design el değişiminin uçtan uca doğrulanması — DONE 2026-08-28 (1 gerçek hata bulundu + düzeltildi)
 - [x] 4. Müşteri revizyonu → Designer'a geri dönüş akışının doğrulanması — DONE 2026-08-28 (2 gerçek hata bulundu + düzeltildi)
 - [x] 5. Closed Won → PM'e devir akışının doğrulanması — DONE 2026-08-28 (büyük bir yapısal boşluk bulundu, kısmen düzeltildi)
-- [~] 6. Sınıflandırma kuralı kararının netleştirilmesi — ÖNERİ YAZILDI, SİZİN ONAYINIZ BEKLENİYOR
-      (bkz. İlerleme Günlüğü — bu, benim tek başıma karar veremeyeceğim bir iş/ürün kararı)
+- [x] 6. Sınıflandırma kuralı kararının netleştirilmesi — KARAR VERİLDİ 2026-08-28: mevcut kural
+      (sadece gerçek belge/link) KALIYOR — kod zaten doğru, sadece belge güncellendi
 - [x] 7. "Working on it Trust" ara aşaması güvenlik ağının (ensureProjectForOpportunity) bağlanması — DONE 2026-08-28
 - [x] 8. Kampanya modülünün gerçek bir kampanyayla uçtan uca denenmesi — DONE 2026-08-28 (hata bulunmadı, tamamen sağlam)
 - [x] 9. Etkinlik (Events) modülünün sıfırdan tasarlanıp kurulması — DONE 2026-08-28 (yeni tablo GEREKMEDİĞİ ortaya çıktı, küçük bir form eksiği düzeltildi)
@@ -179,22 +179,14 @@
   hesaplarının KENDİ RLS oturumlarıyla projeyi gerçekten görebildiği doğrulandı — yani "atandıktan
   sonrası" sorunsuz, sorun sadece "hiç atanmıyor olması".
 - Değişen dosyalar: `lib/marketing/salesHandoff.ts`.
-### 2026-08-28 — Madde 6: Sınıflandırma kuralı — ÖNERİ (karar sizde)
-- Bu maddeyi tek başıma kapatmadım çünkü hangi kuralın "doğru" olduğu bir ürün/iş kararı, benim
-  kod okuyarak tahmin edeceğim bir şey değil.
-- **Önerim:** Şu anki (gerçek kodda çalışan) kural — "sadece gerçek belge/link/fotoğraf eklenmiş
-  bir Need Fırsat sayılır" — kalsın. Gerekçe: bu kural somut ve nesnel (bir belge ya var ya yok),
-  "aktif proje var" gibi sinyaller Sales'in sözlü/tahmini beyanına dayanıyor ve suistimale
-  (her şeyi "Fırsat" göstermek için "evet aktif proje var" işaretlemeye) daha açık. Belge şartı,
-  Marketing'in gerçekten iş üzerinde çalıştığının kanıtı sayılabilir.
-- **Ama karşı görüş de var:** Belge şartı, çok erken aşamadaki gerçek fırsatları "Potansiyel"e
-  düşürüp yavaşlatabilir — Sales bir belge toplayana kadar Fırsat listesine hiç girmez.
-- **Yapılması gereken:** Bu iki seçenek arasında siz/Sales&Marketing yöneticisiyle karar
-  verilmeli. Karar netleşince: (a) eğer şu anki kural kalırsa, sadece
-  `PROJECT-MASTER-PLAN.md`'nin Phase 00.3c bölümü güncellenir (kod zaten doğru); (b) eğer eski
-  kurala dönülürse, `lib/marketing/classification.ts`'teki `classifyLead()` fonksiyonu yeniden
-  yazılmalı — bu, canlıda çalışan otomatik sınıflandırmayı değiştireceği için ayrı, dikkatli bir
-  görev olarak ele alınmalı (mevcut Fırsatlar/Potansiyeller yeniden sınıflandırılabilir).
+### 2026-08-28 — Madde 6: Sınıflandırma kuralı — KARAR VERİLDİ, kapatıldı
+- Kullanıcıya 3 seçenek sunuldu: (a) sadece belge/link (kodun bugün gerçekten yaptığı), (b) eski
+  çoklu-sinyal kuralı, (c) ikisinin karışımı. **Seçilen: (a) — mevcut kural kalıyor.**
+- Sonuç: **kod tarafında hiçbir değişiklik gerekmiyor** — `classifyLead()` zaten doğru kuralı
+  uyguluyor. Tek yapılan, `PROJECT-MASTER-PLAN.md`'nin Phase 00.3c bölümünün bu kararla
+  eşleştirilmesi (eski, artık geçersiz "çoklu sinyal" açıklamasının düzeltilmesi).
+- Gerekçe (kayıt için): belge şartı nesnel ve suistimale kapalı — bir belge ya var ya yok, Sales'in
+  "evet aktif proje var" gibi sözlü/tahmini beyanına dayanmıyor.
 
 ### 2026-08-28 — Madde 7: "Working on it Trust" güvenlik ağı bağlandı
 - `lib/marketing/salesHandoff.ts`'teki `ensureProjectForOpportunity` fonksiyonu yazılmıştı ama
