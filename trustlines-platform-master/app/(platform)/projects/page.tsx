@@ -1,7 +1,18 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { ProjectsTableClient } from '@/components/platform/projects/ProjectsTableClient';
+import { loadPortfolio } from '@/lib/workspace/portfolio';
+import { PHASE_LABELS } from '@/lib/lifecycle/projectLifecycle';
+import { PortfolioList } from '@/components/platform/workspace/PortfolioClient';
+import { toRows } from '@/lib/workspace/rows';
 import type { UserRole } from '@/types/database';
+
+// User feedback, 2026-08-28: a separate /supply page next to "All Projects" was one extra
+// destination too many — "fazladan sayfa lazım değil, yeterli sayfada lazım." Folded the same
+// "waiting on me / blocked / on track" summary (same loadPortfolio engine as /pm) directly INTO
+// this page instead of a second route. One Supply destination, richer than before, not two.
+const SEES_ALL_SUPPLY_ROLES = ['ops_manager', 'general_manager', 'supply_manager'];
 
 export default async function ProjectsPage() {
   const supabase = await createClient();
@@ -14,6 +25,18 @@ export default async function ProjectsPage() {
     .eq('id', user!.id)
     .single();
   const userRole = (profileData as { role: UserRole } | null)?.role ?? 'ops_manager';
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
+  const seesAllSupply = SEES_ALL_SUPPLY_ROLES.includes(userRole);
+  const portfolioEntries = await loadPortfolio(
+    admin, { userId: user!.id, role: userRole }, seesAllSupply ? {} : { pmOf: user!.id },
+  );
+  const portfolioRows = toRows(portfolioEntries, PHASE_LABELS);
+  const maxPriority = (r: (typeof portfolioRows)[number]) => Math.max(0, ...r.myActions.map(a => a.priority));
+  portfolioRows.sort((a, b) => maxPriority(b) - maxPriority(a) || b.blockers.length - a.blockers.length || (a.code ?? '').localeCompare(b.code ?? ''));
+  const waitingOnMe = portfolioRows.filter(r => r.myActions.length > 0);
+  const blockedRows = portfolioRows.filter(r => r.myActions.length === 0 && r.blockers.length > 0);
 
   const { data: rows, error: rowsError } = await supabase
     .from('projects')
@@ -88,6 +111,25 @@ export default async function ProjectsPage() {
           </Link>
         )}
       </div>
+
+      {waitingOnMe.length > 0 && (
+        <section style={{ marginBottom: 22 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+            <h2 style={{ fontSize: 13, fontWeight: 600, margin: 0, color: 'var(--brand-orange)' }}>Waiting on me</h2>
+            <span style={{ fontSize: 11.5, color: 'var(--fg-faint)' }}>Your next step — item plan / list / PO / PF, or a handover</span>
+          </div>
+          <PortfolioList rows={waitingOnMe} emptyLabel="" />
+        </section>
+      )}
+      {blockedRows.length > 0 && (
+        <section style={{ marginBottom: 22 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+            <h2 style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>Blocked</h2>
+            <span style={{ fontSize: 11.5, color: 'var(--fg-faint)' }}>Someone else's step, but not moving</span>
+          </div>
+          <PortfolioList rows={blockedRows} emptyLabel="" />
+        </section>
+      )}
 
       <ProjectsTableClient projects={projects} userRole={userRole} today={today} />
     </div>

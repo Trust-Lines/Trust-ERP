@@ -348,3 +348,18 @@
   projesini görmedi, hiçbir vendor bilgisi sızmadı, `pfSigned` alanı yoktu, `poSigned` alanı
   vardı — tarif edilen modelin birebir aynısı.
 - Değişen dosya yok (sadece doğrulama — sistem zaten doğru kurulmuştu).
+
+### 2026-08-28 — Geri bildirim üzerine düzeltme: Supply için ayrı sayfa YOK, tek sayfa
+- Kullanıcı geri bildirimi: "supply kısmı ayrı all projects kısmı ayrı değil, fazladan sayfa
+  lazım değil, yeterli sayfada lazım." Az önce kurduğum ayrı `/supply` sayfası + "All Projects"
+  ikili menü yapısı istenmiyor.
+- **DÜZELTME:** `/supply` sayfası tamamen kaldırıldı. Onun yerine "Waiting on me" / "Blocked"
+  özeti doğrudan **mevcut `/projects` sayfasının en üstüne** eklendi — tablo aynı yerde duruyor,
+  üstüne bir özet bölümü geldi. Menüde tek "Supply" maddesi kaldı, `/projects`'e gidiyor.
+  Kimsenin bekleyen işi yoksa bu bölüm hiç görünmüyor (boş kutu yok).
+- Canlı doğrulandı: pm_millwork test hesabına atanmış proje, birleşik `/projects` sayfasında
+  gerçekten görünüyor.
+- Değişen dosyalar: `app/(platform)/projects/page.tsx`, `components/platform/shell/Sidebar.tsx`;
+  silinen: `app/(platform)/supply/page.tsx`.
+- Doğrulama: tsc temiz · lint 0 hata (3 önceden var olan uyarı) · build EXIT 0 (`/supply` artık
+  build çıktısında YOK, `/projects` var) · 460/462 test.

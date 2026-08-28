@@ -82,16 +82,14 @@ const DASHBOARD_ITEM: NavItem = { label: 'Dashboard', href: '/dashboard', icon: 
 const CUSTOMERS_ITEM: NavItem = { label: 'Customers', href: '/customers', icon: Contact, perm: 'page.customers' };
 const DESIGN_ITEM: NavItem = { label: 'Design', href: '/design', icon: Palette, perm: 'page.design' };
 
-// "Supply" used to BE this alias for the full /projects table (its only real content was a
-// generic list) — Roadmap Month 2 tasks 15/16 built a real Supply Workspace at /supply
-// (item-plan/list/PO/PF status, "waiting on me" for pm_millwork/pm_ceiling). Renamed this entry
-// to "All Projects" rather than deleting it — it's still the only place to browse/search every
-// project, which the new focused workspace deliberately doesn't replace.
+// "Supply" → /projects. User feedback 2026-08-28: a separate /supply route next to the project
+// list was one extra page too many ("fazladan sayfa lazım değil, yeterli sayfada lazım"). The
+// "waiting on me / blocked" summary (item-plan/list/PO/PF status for pm_millwork/pm_ceiling) now
+// lives at the TOP of this same /projects page instead of a second destination.
 const PROJECTS_NAV: NavItem[] = [
-  { label: 'PM',            href: '/pm',        icon: ClipboardList, perm: 'page.projects' },
-  { label: 'Supply',        href: '/supply',    icon: FolderKanban,  perm: 'page.projects' },
-  { label: 'All Projects',  href: '/projects',  icon: FolderSearch,  perm: 'page.projects' },
-  { label: 'Approvals',     href: '/approvals', icon: CheckSquare,   perm: 'page.approvals' },
+  { label: 'PM',        href: '/pm',        icon: ClipboardList, perm: 'page.projects' },
+  { label: 'Supply',    href: '/projects',  icon: FolderKanban,  perm: 'page.projects' },
+  { label: 'Approvals', href: '/approvals', icon: CheckSquare,   perm: 'page.approvals' },
 ];
 
 const OPERATIONS_NAV: NavItem[] = [
