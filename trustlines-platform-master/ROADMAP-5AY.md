@@ -25,8 +25,8 @@
 ## AY 2 — Design, Supply, PM Çalışma Alanları
 
 - [x] 11. Design — Atanmamış İş Kuyruğu ekranı — DONE 2026-08-28 (bulunan gerçek bug: atanmamış işler en görünmez bölümde kayboluyordu)
-- [ ] 12. Design — Shop Drawings bölümü
-- [ ] 13. Design — "Trust PM Onayına Hazır" listesi
+- [x] 12. Design — Shop Drawings bölümü — DONE 2026-08-28 (zaten mevcut onay motoruna bağlıymış, etiket düzeltildi + kritik RPC boşluğu bulunup kapatıldı)
+- [x] 13. Design — "Trust PM Onayına Hazır" listesi — DONE 2026-08-28 (zaten mevcut `/approvals` gelen kutusu bunu yapıyormuş)
 - [x] 14. Design — Designer İş Yükü görünümü — DONE 2026-08-28 (Madde 11 ile birlikte yapıldı)
 - [x] 15. Supply — Ayrı çalışma ekranı kurulması — DONE 2026-08-28 (yeni `/supply` sayfası, `/projects`'e alias değil artık)
 - [x] 16. Supply — Kişi-bazlı bekleyen-iş görünümü — DONE 2026-08-28 (bulunan gerçek bug: pm_millwork/pm_ceiling kendi projelerini hiç göremiyordu)
@@ -440,6 +440,15 @@
 - ⚠️ **BU MIGRATION ACİL — diğerlerinden farklı olarak "sırada" değil, öncelikli.** Uygulanmadığı
   sürece bu veritabanında hiçbir belge onay zincirine giremiyor demektir.
 - Değişen dosyalar: `components/platform/approvals/ApprovalsPageClient.tsx` (küçük etiket
-  düzeltmesi), `supabase/migrations/105_create_document_approval_rpc.sql` (yeni, UYGULANMADI).
-- Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 467/469 test. Migration'ın kendisi canlıda
-  henüz doğrulanamadı (kullanıcı onayı/uygulaması bekleniyor).
+  düzeltmesi), `supabase/migrations/105_create_document_approval_rpc.sql` (yeni).
+- Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 467/469 test.
+
+### 2026-08-28 — Madde 12+13 KAPANDI: Migration 105 kullanıcı tarafından uygulandı, canlı doğrulandı
+- Kullanıcı migration 105'i Supabase SQL Editor'den çalıştırdı.
+- **CANLI DOĞRULAMA (hemen ardından):** Gerçek bir proje + shop_drawing belgesi oluşturuldu,
+  `create_document_approval` RPC'si iki kez çağrıldı (stage 1: Trust PM/pending, stage 2:
+  Client PM/waiting) — **ikisi de başarılı**, gerçek `document_approvals` satırları oluştu,
+  satır Trust PM'in `/api/approvals/mine` sorgusunda doğru şekilde çıktı. Test verileri
+  temizlendi, 0 kalıntı.
+- **Sonuç: onay sistemi artık bu veritabanında uçtan uca çalışıyor — sadece Shop Drawing değil,
+  her belge tipi için.** Bu, bugünkü en kritik bulgu ve düzeltmeydi.
