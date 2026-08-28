@@ -38,7 +38,7 @@
 ## AY 3 — Production / QC / Logistics Tamamlama + Warehouse Kuruluşu
 
 - [x] 19. Logistics ekranının spec ile satır satır karşılaştırılması — DONE 2026-08-28 (5/6 bölüm zaten tamdı, 1 gerçek eksik bulunup düzeltildi)
-- [ ] 20. QC ekranının en az 2 farklı gerçek kullanıcıyla test edilmesi
+- [x] 20. QC ekranının en az 2 farklı gerçek kullanıcıyla test edilmesi — DONE 2026-08-28 (hata bulunmadı, tamamen sağlam)
 - [ ] 21. Warehouse için rol/kullanıcı planlaması
 - [ ] 22. Warehouse — Gelen Konteyner Takibi
 - [ ] 23. Warehouse — Mal Kabul / Teslim Alma
@@ -470,3 +470,18 @@
   gerçek bir tarihe) doğrulandı.
 - Değişen dosyalar: `components/platform/logistics/ContainerDetailClient.tsx`.
 - Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 467/469 test.
+
+### 2026-08-28 — Madde 20: QC, iki FARKLI gerçek kullanıcıyla test edildi — TAMAMEN SAĞLAM
+- İkinci bir gerçek QC hesabı açıldı (`qc-responsible-2@test.trust-lines.internal`) — artık
+  sistemde 2 farklı, gerçek `qc_responsible` hesabı var.
+- Gerçek bir proje + "RECEIVED" durumunda bir üretim kalemi oluşturuldu, tam senaryo iki farklı
+  kullanıcı kimliğiyle yürütüldü: **Kullanıcı 1** denetimi açtı → **Kullanıcı 2** aynı kaleme
+  aynı anda ikinci bir denetim açmaya çalıştı → **doğru şekilde engellendi** (23505) →
+  Kullanıcı 1 "kaldı" (FAIL) dedi → **Kullanıcı 2** (farklı bir kişi) rework açtı → aynı anda
+  başka bir denetim daha açmaya çalışıldı → yine engellendi → Kullanıcı 2 rework'ü "geçti"
+  (PASS) yaptı → hem Kullanıcı 1'in hem Kullanıcı 2'nin kuyruğu son durumu (geçti) doğru
+  gösterdi.
+- Bu görevde **hiçbir hata bulunmadı** — modül gerçekten iki farklı gerçek kişiyle sağlam
+  çalışıyor.
+- Test verileri temizlendi. Değişen dosya yok (sadece doğrulama + 1 yeni test hesabı).
+- Doğrulama: canlı test 8/8 adım doğru.
