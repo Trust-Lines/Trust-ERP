@@ -165,7 +165,38 @@ export async function closeWon(admin: any, opportunityId: string, actorId: strin
     stage: 'closed_won', closed_at: new Date().toISOString(), customer_id: customerId,
   }).eq('id', opportunityId).select(OPP_COLS).maybeSingle();
   await logAudit({ actorId, action: 'opportunity.closed_won', projectId: opp.project_id, resource: `opportunity:${opportunityId}`, newValue: { customer_id: customerId } });
+
+  // 🔴 FIX: Closed Won never assigned a T-Lines PM / Trust-Lines PM to the project, and neither
+  // does Accept — no automated project-creation path ever sets projects.tlines_pm_id /
+  // trustlines_pm_id (only the manual "New Project" form's regional lookup does, and that in turn
+  // depends on `clients` rows this dev DB currently has zero of). A newly-won project could sit
+  // with no PM and nobody would notice. Rather than guess a regional PM from an unpopulated table
+  // (real risk: assigning the wrong T-Lines PM would leak that project's visibility to the wrong
+  // customer's PM), flag it to ops/management so a human assigns the right one deliberately.
+  try {
+    await notifyUnassignedPmOnProject(admin, opp.project_id as string, actorId);
+  } catch (e) {
+    console.error('[sales-handoff] closeWon PM-assignment notice failed:', e instanceof Error ? e.message : e);
+  }
+
   return data;
+}
+
+async function notifyUnassignedPmOnProject(admin: any, projectId: string, actorId: string): Promise<void> {
+  const { data: project } = await admin.from('projects').select('code, tlines_pm_id, trustlines_pm_id').eq('id', projectId).maybeSingle();
+  if (!project || (project.tlines_pm_id && project.trustlines_pm_id)) return; // already has both — nothing to flag
+
+  const { data: recipients } = await admin.from('profiles')
+    .select('id').in('role', ['ops_manager', 'general_manager']).eq('is_active', true);
+  const rows = ((recipients ?? []) as { id: string }[])
+    .filter(r => r.id !== actorId)
+    .map(r => ({
+      user_id: r.id, project_id: projectId, type: 'project',
+      title: 'New project needs a PM assigned',
+      body: `${project.code ?? 'A project'} was just Closed Won and has no T-Lines PM / Trust-Lines PM yet.`,
+      link: `/projects/${projectId}/edit`,
+    }));
+  if (rows.length) await admin.from('notifications').insert(rows);
 }
 
 export interface EnsureProjectResult {

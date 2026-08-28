@@ -14,7 +14,7 @@
 - [x] 2. Sales Handoff (Accept) akışının gerçek kullanıcıyla, izlenerek denenmesi — DONE 2026-08-28
 - [x] 3. Sales↔Design el değişiminin uçtan uca doğrulanması — DONE 2026-08-28 (1 gerçek hata bulundu + düzeltildi)
 - [x] 4. Müşteri revizyonu → Designer'a geri dönüş akışının doğrulanması — DONE 2026-08-28 (2 gerçek hata bulundu + düzeltildi)
-- [ ] 5. Closed Won → PM'e devir akışının doğrulanması
+- [x] 5. Closed Won → PM'e devir akışının doğrulanması — DONE 2026-08-28 (büyük bir yapısal boşluk bulundu, kısmen düzeltildi)
 - [ ] 6. Sınıflandırma kuralı kararının netleştirilmesi (belge şartı mı, çoklu sinyal mi)
 - [ ] 7. "Working on it Trust" ara aşaması güvenlik ağının (ensureProjectForOpportunity) bağlanması
 - [ ] 8. Kampanya modülünün gerçek bir kampanyayla uçtan uca denenmesi
@@ -31,6 +31,8 @@
 - [ ] 16. Supply — Kişi-bazlı bekleyen-iş görünümü
 - [ ] 17. PM çalışma alanına kişi-bazlı günlük öncelik listesi
 - [ ] 18. Sales Opportunity ekranına aşama-bazlı mini özet
+- [ ] 18b. (YENİ — Madde 5'te bulundu) `clients` (Bölge) tablosunun doldurulması + bölgesel
+      T-Lines PM otomatik atamasının Accept/Closed Won adımlarına güvenle bağlanması
 
 ## AY 3 — Production / QC / Logistics Tamamlama + Warehouse Kuruluşu
 
@@ -150,4 +152,33 @@
   (`POST /api/design-jobs/[jobId]/versions`), var olan versiyon asla üzerine yazılmaz — bu zaten
   doğru tasarlanmış, dokunmadım.
 - Değişen dosyalar: `app/api/public/reviews/[token]/route.ts`.
+- Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 460/462 test.
+
+### 2026-08-28 — Madde 5: Closed Won → PM devri incelendi — bulunan şey "bildirim eksik" değil, daha büyük bir boşluktu
+- 🔴 **BULUNAN GERÇEK DURUM (kod okunarak + canlı test edilerek doğrulandı):** Ne Sales'in "Accept"
+  adımı, ne de "Closed Won" adımı, projeye **hiçbir zaman** bir T-Lines PM ya da Trust-Lines PM
+  atamıyor. `projects.tlines_pm_id` / `trustlines_pm_id` bomboş kalıyor. Bunu yapan TEK yer, elle
+  kullanılan "Yeni Proje" formu — o da seçilen `client_id`'ye (Bölge) göre `profiles.pm_client_id`
+  eşleşen kişiyi buluyor. **Ama `clients` tablosu bu geliştirme veritabanında şu an tamamen boş
+  (0 satır)** — yani bu otomatik eşleştirme mekanizması bugün hiçbir yerde gerçekten çalışamıyor,
+  ne manuel formda ne otomatik yollarda.
+- Bunu kendi başıma "düzelttim" demeden, bilinçli olarak SINIRLI bıraktım: boş bir tablodan
+  regional PM tahmin etmeye çalışmak, **yanlış müşterinin PM'ine yanlış projenin görünmesi**
+  riskini taşır (RLS `tlines_pm_id`'ye göre çalışıyor — yanlış atama gerçek bir veri sızıntısı
+  olur). Bu, benim tek başıma karar verip kodlayacağım bir şey değil — `clients` verisinin
+  doldurulması ayrı, önce yapılması gereken bir iş (muhtemelen Ay 2 veya 3'e eklenmeli).
+- **YAPTIĞIM GÜVENLİ DÜZELTME:** `lib/marketing/salesHandoff.ts`'teki `closeWon()`'a, proje PM'siz
+  kalmışsa `ops_manager`/`general_manager` rollerine **"Bu projeye PM atanmadı"** bildirimi gönderen
+  bir güvenlik ağı ekledim. Kimseyi tahmin ederek atamıyorum — sadece kimsenin fark etmeden
+  sahipsiz bir proje bırakmasını engelliyorum.
+- **CANLI DOĞRULAMA:** Gerçek zincirle (Accept → Closed Won) bir proje oluşturuldu, PM sütunlarının
+  gerçekten boş kaldığı kanıtlandı, general_manager hesabının bildirim sayısı arttı ve son bildirim
+  gerçekten "New project needs a PM assigned" başlığını taşıyordu. Ayrıca: PM elle atandığında
+  (bir ops kişisinin bugün zaten yaptığı gibi) hem `tlines_pm` hem `trustlines_pm` test
+  hesaplarının KENDİ RLS oturumlarıyla projeyi gerçekten görebildiği doğrulandı — yani "atandıktan
+  sonrası" sorunsuz, sorun sadece "hiç atanmıyor olması".
+- Değişen dosyalar: `lib/marketing/salesHandoff.ts`.
+- **Ay 2/3'e eklenmesi gereken yeni, gerçek görev:** `clients` (Bölge) tablosunun doldurulması +
+  bölgesel PM otomatik atama mantığının Accept/Closed Won adımlarına güvenle bağlanması. Bu,
+  bugünkü küçük düzeltmeden daha büyük, ayrı bir iş.
 - Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 460/462 test.
