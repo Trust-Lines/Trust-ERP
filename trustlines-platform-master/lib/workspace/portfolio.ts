@@ -16,6 +16,8 @@ export interface PortfolioProject {
   tlines_pm_id: string | null;
   trustlines_pm_id: string | null;
   pm_supervisor_id: string | null;
+  prod_pm_ms_id: string | null;
+  prod_pm_ci_id: string | null;
 }
 
 export interface PortfolioSources {
@@ -140,7 +142,8 @@ export function workload(entries: PortfolioEntry[]): { userId: string; projects:
 }
 
 const PROJECT_COLS =
-  'id, code, name, is_draft, delivered_to_trust_at, current_stage, customer_id, tlines_pm_id, trustlines_pm_id, pm_supervisor_id';
+  'id, code, name, is_draft, delivered_to_trust_at, current_stage, customer_id, tlines_pm_id, trustlines_pm_id, '
+  + 'pm_supervisor_id, prod_pm_ms_id, prod_pm_ci_id';
 
 export interface LoadPortfolioOpts {
   pmOf?: string;
@@ -154,7 +157,15 @@ export async function loadPortfolio(admin: any, viewer: Viewer, opts: LoadPortfo
   let q = admin.from('projects').select(PROJECT_COLS)
     .is('deleted_at', null).eq('is_draft', false).limit(limit);
   if (opts.pmOf) {
-    q = q.or(`tlines_pm_id.eq.${opts.pmOf},trustlines_pm_id.eq.${opts.pmOf},pm_supervisor_id.eq.${opts.pmOf}`);
+    // 🔴 FIX (Roadmap Month 2, tasks 15/16 — Supply workspace): this OR-filter, the ONLY way
+    // "my projects" scoping works in this whole portfolio layer, never included prod_pm_ms_id /
+    // prod_pm_ci_id — the Millwork/Shelving and Ceiling/Image PRODUCTION PM columns
+    // (CURRENT_SYSTEM_STATE.md §9). A pm_millwork/pm_ceiling person calling loadPortfolio with
+    // their own id would see ZERO projects even when genuinely assigned as the production PM,
+    // because those two columns were never selected OR checked. tlines_pm/trustlines_pm/
+    // pm_supervisor worked; production PMs silently did not.
+    q = q.or(`tlines_pm_id.eq.${opts.pmOf},trustlines_pm_id.eq.${opts.pmOf},pm_supervisor_id.eq.${opts.pmOf},`
+      + `prod_pm_ms_id.eq.${opts.pmOf},prod_pm_ci_id.eq.${opts.pmOf}`);
   }
   const projectsRes = await q;
   const projects = (projectsRes.error ? [] : (projectsRes.data ?? [])) as PortfolioProject[];

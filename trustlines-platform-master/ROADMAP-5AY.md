@@ -28,8 +28,8 @@
 - [ ] 12. Design — Shop Drawings bölümü
 - [ ] 13. Design — "Trust PM Onayına Hazır" listesi
 - [x] 14. Design — Designer İş Yükü görünümü — DONE 2026-08-28 (Madde 11 ile birlikte yapıldı)
-- [ ] 15. Supply — Ayrı çalışma ekranı kurulması
-- [ ] 16. Supply — Kişi-bazlı bekleyen-iş görünümü
+- [x] 15. Supply — Ayrı çalışma ekranı kurulması — DONE 2026-08-28 (yeni `/supply` sayfası, `/projects`'e alias değil artık)
+- [x] 16. Supply — Kişi-bazlı bekleyen-iş görünümü — DONE 2026-08-28 (bulunan gerçek bug: pm_millwork/pm_ceiling kendi projelerini hiç göremiyordu)
 - [x] 17. PM çalışma alanına kişi-bazlı günlük öncelik listesi — DONE 2026-08-28 (gerçek öncelik verisi vardı ama kullanılmıyordu)
 - [ ] 18. Sales Opportunity ekranına aşama-bazlı mini özet
 - [ ] 18b. (YENİ — Madde 5'te bulundu) `clients` (Bölge) tablosunun doldurulması + bölgesel
@@ -299,3 +299,30 @@
   sıralama doğru şekilde yüksek öncelikli olanı önce gösterdi.
 - Değişen dosyalar: `lib/workspace/rows.ts`, `app/(platform)/pm/page.tsx`.
 - Doğrulama: tsc temiz · lint 0 hata · build EXIT 0 · 460/462 test · 18/18 portfolio testi.
+
+### 2026-08-28 — Madde 15+16: Gerçek Supply Workspace kuruldu + büyük bir görünürlük hatası bulundu
+- Kullanıcı: "Supply ekranı da Design gibi dolu dolu olsun." Önceki durum: menüdeki "Supply"
+  aslında `/projects`'e (genel proje listesi) alias'tı, kendine ait hiçbir sayfası yoktu — bu,
+  daha önceki 11.4 denetiminde de not edilmişti ama hiç düzeltilmemişti.
+- 🔴 **BULUNAN BÜYÜK GERÇEK HATA:** `/pm` ve yeni `/supply` sayfalarının ikisinin de dayandığı
+  `loadPortfolio()`'nun "bana ait projeler" filtresi SADECE `tlines_pm_id` / `trustlines_pm_id` /
+  `pm_supervisor_id` sütunlarına bakıyordu. `prod_pm_ms_id` (Millwork/Shelving üretim PM'i) ve
+  `prod_pm_ci_id` (Ceiling/Image üretim PM'i) — CURRENT_SYSTEM_STATE.md'de belgeli, gerçek
+  sütunlar — bu filtrede **hiç yoktu**. Yani bir `pm_millwork` ya da `pm_ceiling` kişisi, kendi
+  projesine gerçekten atanmış olsa bile, `/pm` ya da yeni Supply ekranında **sıfır proje**
+  görüyordu — sessizce, hatasız, sadece boş.
+- **DÜZELTME:** `lib/workspace/portfolio.ts`'teki `PortfolioProject` tipine ve sorgusuna bu iki
+  sütun eklendi, "bana ait" OR-filtresi genişletildi.
+- **YENİ SAYFA:** `/supply` — `/pm` ile aynı, kanıtlanmış motoru (Phase 10 lifecycle + Phase 11.4
+  N+1-güvenli toplu yükleme) kullanıyor, sadece kapsamı farklı (`pm_millwork`/`pm_ceiling`/
+  `supply_user` kendi projelerini, `supply_manager`/ops/gm hepsini görür).
+- Sol menü güncellendi: "Supply" artık gerçek `/supply` sayfasına gidiyor; eski davranışı
+  (genel proje listesi) kaybetmemek için o link **"All Projects"** adıyla ayrı bir madde olarak
+  korundu.
+- **CANLI DOĞRULAMA:** Gerçek bir proje, `prod_pm_ms_id` = pm_millwork test hesabı ile oluşturuldu.
+  Eski sorgu mantığı bu projeyi **0** sonuç döndürerek doğruladı (hata gerçekten oradaymış);
+  düzeltilmiş `loadPortfolio` aynı projeyi doğru buldu.
+- Değişen dosyalar: `lib/workspace/portfolio.ts`, `app/(platform)/supply/page.tsx` (yeni),
+  `components/platform/shell/Sidebar.tsx`, `tests/portfolio.test.ts`.
+- Doğrulama: tsc temiz · lint 0 hata (3 önceden var olan uyarı) · build EXIT 0 (`/supply`
+  derleniyor) · 460/462 test · 18/18 portfolio testi.

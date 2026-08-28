@@ -8,6 +8,7 @@ const project = (o: Partial<PortfolioProject> = {}): PortfolioProject => ({
   id: 'p1', code: 'STW 1', name: 'Test', is_draft: false,
   delivered_to_trust_at: '2026-01-01', current_stage: 'production',
   customer_id: null, tlines_pm_id: null, trustlines_pm_id: null, pm_supervisor_id: null,
+  prod_pm_ms_id: null, prod_pm_ci_id: null,
   ...o,
 });
 
