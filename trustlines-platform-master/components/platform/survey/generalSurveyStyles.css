@@ -1,4 +1,4 @@
-/* generalSurveyStyles.css — the default, always-on public survey ("Store Passport"),
+/* generalSurveyStyles.css — the default, always-on public survey ("T Lines" project brief form),
    ported from the standalone NACS-Tlines-main demo and wired into the real submission
    pipeline (see GeneralSurvey.tsx). This file loads alongside nacsSurveyStyles.css
    (the Soccer Challenge template) on the same /survey/[slug] route regardless of which

@@ -1,6 +1,6 @@
 "use client";
 
-// GeneralSurvey.tsx — the default, always-on public survey ("T Lines Store Passport").
+// GeneralSurvey.tsx — the default, always-on public survey ("T Lines" project brief form).
 // Ported from the standalone NACS-Tlines-main demo (which never actually sent its data
 // anywhere — see its own Success screen copy) and wired into the real, already-live
 // submission pipeline (lib/marketing/campaignSubmission.ts — the same one Soccer
@@ -246,7 +246,7 @@ export function GeneralSurvey({ campaignSlug, consentTextVersion }: { campaignSl
             <Image src="/nacs/t-lines-logo.svg" alt="T Lines" width={190} height={190} priority style={{ width: "min(190px, 62%)", height: "auto" }} />
           </div>
           <div className="gs-rail-copy">
-            <p className="gs-eyebrow gs-light">T Lines Store Passport</p>
+            <p className="gs-eyebrow gs-light">T Lines</p>
             <h2>Start your store transformation.</h2>
             <p>A short project brief that lands straight in our team&apos;s pipeline — no back-and-forth needed to get started.</p>
           </div>
@@ -259,7 +259,7 @@ export function GeneralSurvey({ campaignSlug, consentTextVersion }: { campaignSl
         <main className="gs-survey-main" ref={mainRef}>
           <div className="gs-mobile-brand">
             <Image src="/nacs/t-lines-logo.svg" alt="T Lines" width={52} height={52} />
-            <span>T Lines Store Passport</span>
+            <span>T Lines</span>
           </div>
 
           <div className="gs-progress-wrap">
@@ -301,7 +301,7 @@ export function GeneralSurvey({ campaignSlug, consentTextVersion }: { campaignSl
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
                   {submitError && <p className="gs-error-text" role="alert" style={{ margin: 0, textAlign: "right" }}>{submitError}</p>}
                   <button type="button" className="gs-button gs-button-primary" onClick={handleSend} disabled={submitting}>
-                    {submitting ? <Loader2 size={16} className="gs-spin" /> : "Send my Store Passport"}
+                    {submitting ? <Loader2 size={16} className="gs-spin" /> : "Send"}
                     {!submitting && <span aria-hidden="true">→</span>}
                   </button>
                 </div>
@@ -458,7 +458,7 @@ function VisionAndSendStep({
       <div className={`gs-timing-panel ${errors.timeline ? "gs-has-error" : ""}`} data-field="timeline">
         <p className="gs-eyebrow">04 — When should we reach you?</p>
         <h2>Pick your timing, then send</h2>
-        <p>This is the last step — pick when you&apos;d like us to follow up, then hit Send to submit your Store Passport to the T Lines team.</p>
+        <p>This is the last step — pick when you&apos;d like us to follow up, then hit Send to submit your project to the T Lines team.</p>
         <div className="gs-timing-grid">
           {timingOptions.map(t => (
             <label className="gs-timing-card" key={t.value}>
@@ -487,11 +487,11 @@ function Success({ data }: { data: SurveyData }) {
         <section className="gs-passport">
           <div className="gs-passport-top">
             <Image src="/nacs/t-lines-logo.svg" alt="T Lines" width={170} height={100} />
-            <span>Store Passport</span>
+            <span>Submitted</span>
           </div>
           <div className="gs-success-mark"><Check size={26} /></div>
-          <h1>Thanks — you&apos;re on our radar.</h1>
-          <p className="gs-success-copy">Your project brief has been sent to the T Lines team. Based on your timing, we&apos;ll follow up by {multiValues(data.contactPreference).map(p => CONTACT_PREFERENCE_LABEL[p] ?? p).join(" or ") || "email"}.</p>
+          <h1>Your store starts here.</h1>
+          <p className="gs-success-copy">Thanks for sharing your project with us. Our team will review the details and reach out shortly to learn more about your needs and explore the next steps together.</p>
           <div className="gs-passport-facts">
             <div><span>Store format</span><strong>{storeOptions.find(o => o.value === data.storeType)?.label ?? "—"}</strong></div>
             <div><span>Timing</span><strong>{timingLabel}</strong></div>
