@@ -448,12 +448,18 @@ function VisionAndSendStep({
         </div>
         {errors.storeStatus && <p className="gs-error-text" role="alert">{errors.storeStatus}</p>}
       </div>
-      <Field id="storeSize" label="Store size" error={errors.storeSize}>
-        <select id="storeSize" {...bind(data, update, "storeSize")}>
-          <option value="">Choose a size</option>
-          {storeSizeOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
-      </Field>
+      <div className={`gs-field ${errors.storeSize ? "gs-field-error" : ""}`} data-field="storeSize">
+        <div className="gs-field-label-row"><label>Store size</label><span>Required</span></div>
+        <div className="gs-pick-list">
+          {storeSizeOptions.map(([v, l]) => (
+            <label className="gs-pick-row" key={v}>
+              <input type="radio" name="storeSize" value={v} checked={data.storeSize === v} onChange={e => update("storeSize", e.target.value)} />
+              <span className="gs-pick-dot" />{l}
+            </label>
+          ))}
+        </div>
+        {errors.storeSize && <p className="gs-error-text" role="alert">{errors.storeSize}</p>}
+      </div>
 
       <div className={`gs-timing-panel ${errors.timeline ? "gs-has-error" : ""}`} data-field="timeline">
         <p className="gs-eyebrow">04 — When should we reach you?</p>
