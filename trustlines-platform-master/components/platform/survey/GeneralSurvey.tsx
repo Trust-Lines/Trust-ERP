@@ -17,11 +17,11 @@
 //    its two fields now live at the bottom of the renamed step "03" (was step 04,
 //    "Project vision").
 //  - The old step 05 ("Timing & resources") is gone as its own step too. Its first
-//    field — "when should we reach you" — is now a large, prominent picker at the very
-//    top of the final step; picking an option submits the survey immediately (no
-//    separate "Submit" click). Budget stays as a small optional field just below it.
-//  - A short, required consent tick sits directly under the timing picker (has to be
-//    checked before the timing buttons will submit).
+//    field — "when should we reach you" — is now a large, prominent picker at the top
+//    of the final step. Picking one just selects it (like the other choice steps); an
+//    explicit "Send" button beneath it is what actually submits. Budget was dropped.
+//  - A short, required consent tick sits under the timing picker (has to be checked
+//    before Send will work).
 //
 // Data mapping happens in buildSubmissionPayload() below, onto the exact same
 // PublicSurveyDTO shape lib/marketing/campaignSubmission.ts already expects.
@@ -37,7 +37,7 @@ type FieldName =
   | "storeType" | "fullName" | "phone" | "email" | "contactPreference"
   | "companyName" | "role" | "storeAddress" | "businessPhone"
   | "projectType" | "challenges" | "storeStatus" | "storeSize"
-  | "budget" | "honeypot";
+  | "timeline" | "honeypot";
 
 type SurveyData = Record<FieldName, string>;
 type SurveyErrors = Partial<Record<FieldName, string>>;
@@ -46,7 +46,7 @@ const initialData: SurveyData = {
   storeType: "", fullName: "", phone: "", email: "", contactPreference: "",
   companyName: "", role: "", storeAddress: "", businessPhone: "",
   projectType: "", challenges: "", storeStatus: "", storeSize: "",
-  budget: "", honeypot: "",
+  timeline: "", honeypot: "",
 };
 
 const stepMeta = [
@@ -60,7 +60,7 @@ const requiredByStep: Record<number, FieldName[]> = {
   0: ["storeType"],
   1: ["fullName", "phone", "email", "contactPreference"],
   2: ["companyName", "role", "storeAddress", "businessPhone"],
-  3: ["projectType", "challenges", "storeStatus", "storeSize"],
+  3: ["projectType", "challenges", "storeStatus", "storeSize", "timeline"],
 };
 
 const storeOptions = [
@@ -94,9 +94,6 @@ const storeStatusOptions = [
 const storeSizeOptions = [
   ["small", "Small — up to 2,000 sq. ft."], ["medium", "Medium — 2,000–5,000 sq. ft."], ["large", "Large — 5,000+ sq. ft."],
 ] as const;
-const budgetOptions = [
-  ["", "Not sure yet"], ["under-50", "Under $50K"], ["50-100", "$50K–$100K"], ["100-plus", "$100K+"],
-] as const;
 
 const timingOptions = [
   { value: "asap", label: "ASAP", detail: "0–3 months" },
@@ -110,7 +107,7 @@ const TIMING_MAP: Record<string, string> = {
 
 const labelOf = (opts: readonly (readonly [string, string])[], value: string) => opts.find(([v]) => v === value)?.[1] || value || "—";
 
-function buildSubmissionPayload(data: SurveyData, timeline: string, submissionToken: string, consentTextVersion: string) {
+function buildSubmissionPayload(data: SurveyData, submissionToken: string, consentTextVersion: string) {
   const [firstName, ...rest] = (data.fullName || "").trim().split(/\s+/);
   const notesLines = [
     data.challenges ? `Main challenges: ${data.challenges}` : null,
@@ -119,7 +116,6 @@ function buildSubmissionPayload(data: SurveyData, timeline: string, submissionTo
     data.businessPhone ? `Store phone: ${data.businessPhone}` : null,
     data.storeStatus ? `Store status: ${labelOf(storeStatusOptions, data.storeStatus)}` : null,
     data.storeSize ? `Store size: ${labelOf(storeSizeOptions, data.storeSize)}` : null,
-    data.budget ? `Budget range: ${labelOf(budgetOptions, data.budget)}` : null,
   ].filter(Boolean);
 
   return {
@@ -133,7 +129,7 @@ function buildSubmissionPayload(data: SurveyData, timeline: string, submissionTo
     storeAddress: data.storeAddress || undefined,
     team: STORE_TYPE_TEAM_LABEL[data.storeType] ?? undefined,
     projectTypes: PROJECT_TYPE_MAP[data.projectType] ?? [],
-    timing: TIMING_MAP[timeline] ?? undefined,
+    timing: TIMING_MAP[data.timeline] ?? undefined,
     notes: notesLines.join("\n") || undefined,
     consentAccepted: true,
     consentTextVersion,
@@ -142,11 +138,11 @@ function buildSubmissionPayload(data: SurveyData, timeline: string, submissionTo
   };
 }
 
-async function submitSurveyResponse(campaignSlug: string, data: SurveyData, timeline: string, submissionToken: string, consentTextVersion: string) {
+async function submitSurveyResponse(campaignSlug: string, data: SurveyData, submissionToken: string, consentTextVersion: string) {
   const res = await fetch(`/api/public/campaigns/${campaignSlug}/submissions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(buildSubmissionPayload(data, timeline, submissionToken, consentTextVersion)),
+    body: JSON.stringify(buildSubmissionPayload(data, submissionToken, consentTextVersion)),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(typeof body.error === "string" ? body.error : "Something went wrong — please try again.");
@@ -159,9 +155,9 @@ export function GeneralSurvey({ campaignSlug, consentTextVersion }: { campaignSl
   const [errors, setErrors] = useState<SurveyErrors>({});
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [consentError, setConsentError] = useState(false);
-  const [submitting, setSubmitting] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ timeline: string } | null>(null);
+  const [done, setDone] = useState(false);
   const [submissionToken] = useState(() => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`));
   const mainRef = useRef<HTMLElement>(null);
 
@@ -199,22 +195,23 @@ export function GeneralSurvey({ campaignSlug, consentTextVersion }: { campaignSl
   };
   const back = () => { setErrors({}); setStep(current => Math.max(0, current - 1)); };
 
-  async function chooseTimingAndSubmit(timeline: string) {
+  async function handleSend() {
+    if (!validateStep()) return;
     if (!consentAccepted) { setConsentError(true); return; }
     setConsentError(false);
     setSubmitError(null);
-    setSubmitting(timeline);
+    setSubmitting(true);
     try {
-      await submitSurveyResponse(campaignSlug, data, timeline, submissionToken, consentTextVersion);
-      setDone({ timeline });
+      await submitSurveyResponse(campaignSlug, data, submissionToken, consentTextVersion);
+      setDone(true);
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Something went wrong — please try again.");
     } finally {
-      setSubmitting(null);
+      setSubmitting(false);
     }
   }
 
-  if (done) return <Success timeline={done.timeline} data={data} />;
+  if (done) return <Success data={data} />;
 
   const displayStep = step + 1;
   const iconByStep = [Store, UserRound, Building2, Clock3];
@@ -266,7 +263,7 @@ export function GeneralSurvey({ campaignSlug, consentTextVersion }: { campaignSl
                 data={data} update={update} errors={errors}
                 consentAccepted={consentAccepted} onConsentChange={v => { setConsentAccepted(v); if (v) setConsentError(false); }}
                 consentError={consentError} submitting={submitting} submitError={submitError}
-                onChooseTiming={chooseTimingAndSubmit}
+                onSend={handleSend}
               />
             )}
 
@@ -388,10 +385,10 @@ function BusinessStep({ data, update, errors }: StepProps) {
 }
 
 function VisionAndSendStep({
-  data, update, errors, consentAccepted, onConsentChange, consentError, submitting, submitError, onChooseTiming,
+  data, update, errors, consentAccepted, onConsentChange, consentError, submitting, submitError, onSend,
 }: StepProps & {
   consentAccepted: boolean; onConsentChange: (v: boolean) => void; consentError: boolean;
-  submitting: string | null; submitError: string | null; onChooseTiming: (timeline: string) => void;
+  submitting: boolean; submitError: string | null; onSend: () => void;
 }) {
   return (
     <div className="gs-form-grid">
@@ -426,41 +423,40 @@ function VisionAndSendStep({
         </select>
       </Field>
 
-      <div className="gs-timing-panel">
+      <div className={`gs-timing-panel ${errors.timeline ? "gs-has-error" : ""}`} data-field="timeline">
         <p className="gs-eyebrow">04 — When should we reach you?</p>
-        <h2>Pick your timing to send your Store Passport</h2>
-        <p>This is the last step — choosing an option below sends everything you&apos;ve entered straight to the T Lines team.</p>
+        <h2>Pick your timing, then send</h2>
+        <p>This is the last step — pick when you&apos;d like us to follow up, then hit Send to submit your Store Passport to the T Lines team.</p>
         <div className="gs-timing-grid">
           {timingOptions.map(t => (
-            <button
-              key={t.value} type="button" className="gs-timing-card"
-              disabled={!!submitting}
-              onClick={() => onChooseTiming(t.value)}
-            >
-              {submitting === t.value ? <Loader2 size={16} className="gs-spin" /> : <strong>{t.label}</strong>}
+            <label className="gs-timing-card" key={t.value}>
+              <input type="radio" name="timeline" value={t.value} checked={data.timeline === t.value} onChange={e => update("timeline", e.target.value)} />
+              <strong>{t.label}</strong>
               <span>{t.detail}</span>
-            </button>
+            </label>
           ))}
         </div>
-        <Field id="budget" label="Budget range" optional>
-          <select id="budget" {...bind(data, update, "budget")}>
-            {budgetOptions.map(([v, l]) => <option key={l} value={v}>{l}</option>)}
-          </select>
-        </Field>
+        {errors.timeline && <p className="gs-error-text" role="alert" style={{ color: "#f3c7c2" }}>{errors.timeline}</p>}
         <label className="gs-consent-row">
           <input type="checkbox" checked={consentAccepted} onChange={e => onConsentChange(e.target.checked)} />
           I agree to be contacted by T Lines about this project, and for my answers to be stored for that purpose.
         </label>
-        {consentError && <p className="gs-error-text" role="alert" style={{ color: "#f3c7c2" }}>Please check the consent box, then pick a timing option above.</p>}
-        <p className="gs-submit-status" aria-live="polite">{submitError ?? ""}</p>
+        {consentError && <p className="gs-error-text" role="alert" style={{ color: "#f3c7c2" }}>Please check the consent box before sending.</p>}
+        <div className="gs-send-row">
+          <button type="button" className="gs-button gs-button-primary" onClick={onSend} disabled={submitting}>
+            {submitting ? <Loader2 size={16} className="gs-spin" /> : "Send my Store Passport"}
+            {!submitting && <span aria-hidden="true">→</span>}
+          </button>
+          <p className="gs-submit-status" aria-live="polite">{submitError ?? ""}</p>
+        </div>
       </div>
       <style>{`.gs-spin{animation:gs-spin 1s linear infinite}@keyframes gs-spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
 
-function Success({ timeline, data }: { timeline: string; data: SurveyData }) {
-  const timingLabel = timingOptions.find(t => t.value === timeline)?.label ?? timeline;
+function Success({ data }: { data: SurveyData }) {
+  const timingLabel = timingOptions.find(t => t.value === data.timeline)?.label ?? data.timeline;
   return (
     <div className="gs-app">
       <main className="gs-success-page">
