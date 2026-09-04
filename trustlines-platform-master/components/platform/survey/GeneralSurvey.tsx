@@ -23,6 +23,13 @@
 //  - A short, required consent tick sits under the timing picker (has to be checked
 //    before Send will work).
 //
+// 2026-09-04 follow-up:
+//  - Store format gets an "Other" card. Contact-preference and Project type are both
+//    multi-select now (pick more than one) instead of single-choice radios — stored as
+//    comma-joined strings internally, split back out for the CRM payload/notes.
+//  - Store status gets an "Other" option and is no longer a native <select> — it's the
+//    same card-list style as the rest of the survey.
+//
 // Data mapping happens in buildSubmissionPayload() below, onto the exact same
 // PublicSurveyDTO shape lib/marketing/campaignSubmission.ts already expects.
 
@@ -30,7 +37,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
   Building2, Check, Clock3, Expand, Fuel, Hammer, HardHat, Loader2,
-  MapPin, MessageCircle, Store, UserRound, Wrench, ShoppingBasket, Mail,
+  MapPin, MessageCircle, MoreHorizontal, Store, UserRound, Wrench, ShoppingBasket, Mail,
 } from "lucide-react";
 
 type FieldName =
@@ -41,6 +48,14 @@ type FieldName =
 
 type SurveyData = Record<FieldName, string>;
 type SurveyErrors = Partial<Record<FieldName, string>>;
+
+// contactPreference and projectType hold more than one choice — comma-joined ("whatsapp,email").
+const multiValues = (v: string): string[] => (v ? v.split(",") : []);
+function toggleMulti(current: string, value: string): string {
+  const set = new Set(multiValues(current));
+  if (set.has(value)) set.delete(value); else set.add(value);
+  return [...set].join(",");
+}
 
 const initialData: SurveyData = {
   storeType: "", fullName: "", phone: "", email: "", contactPreference: "",
@@ -67,9 +82,10 @@ const storeOptions = [
   { value: "convenience", label: "Convenience store", detail: "Neighborhood and quick-service retail", icon: Store },
   { value: "grocery", label: "Grocery store", detail: "Food market and supermarket formats", icon: ShoppingBasket },
   { value: "truck-stop", label: "Truck stop", detail: "Travel center and fuel-led retail", icon: Fuel },
+  { value: "other", label: "Other", detail: "None of the above", icon: MoreHorizontal },
 ] as const;
 const STORE_TYPE_TEAM_LABEL: Record<string, string> = {
-  convenience: "Convenience Stores", grocery: "Grocery Stores", "truck-stop": "Truck Stop",
+  convenience: "Convenience Stores", grocery: "Grocery Stores", "truck-stop": "Truck Stop", other: "Other",
 };
 
 const projectOptions = [
@@ -89,7 +105,8 @@ const PROJECT_TYPE_NOTE_LABEL: Record<string, string> = {
 };
 
 const storeStatusOptions = [
-  ["new", "New store — planning phase"], ["operating", "Existing store — operating"], ["expanding", "Planning an expansion"],
+  ["new", "New store — planning phase"], ["operating", "Existing store — operating"],
+  ["expanding", "Planning an expansion"], ["other", "Other"],
 ] as const;
 const storeSizeOptions = [
   ["small", "Small — up to 2,000 sq. ft."], ["medium", "Medium — 2,000–5,000 sq. ft."], ["large", "Large — 5,000+ sq. ft."],
@@ -106,13 +123,16 @@ const TIMING_MAP: Record<string, string> = {
 };
 
 const labelOf = (opts: readonly (readonly [string, string])[], value: string) => opts.find(([v]) => v === value)?.[1] || value || "—";
+const CONTACT_PREFERENCE_LABEL: Record<string, string> = { whatsapp: "WhatsApp", email: "Email" };
 
 function buildSubmissionPayload(data: SurveyData, submissionToken: string, consentTextVersion: string) {
   const [firstName, ...rest] = (data.fullName || "").trim().split(/\s+/);
+  const projectTypes = multiValues(data.projectType);
+  const contactPrefs = multiValues(data.contactPreference);
   const notesLines = [
     data.challenges ? `Main challenges: ${data.challenges}` : null,
-    data.projectType ? `Project type: ${PROJECT_TYPE_NOTE_LABEL[data.projectType] ?? data.projectType}` : null,
-    data.contactPreference ? `Preferred contact: ${data.contactPreference === "whatsapp" ? "WhatsApp" : "Email"}` : null,
+    projectTypes.length ? `Project type: ${projectTypes.map(t => PROJECT_TYPE_NOTE_LABEL[t] ?? t).join(", ")}` : null,
+    contactPrefs.length ? `Preferred contact: ${contactPrefs.map(p => CONTACT_PREFERENCE_LABEL[p] ?? p).join(", ")}` : null,
     data.businessPhone ? `Store phone: ${data.businessPhone}` : null,
     data.storeStatus ? `Store status: ${labelOf(storeStatusOptions, data.storeStatus)}` : null,
     data.storeSize ? `Store size: ${labelOf(storeSizeOptions, data.storeSize)}` : null,
@@ -128,7 +148,7 @@ function buildSubmissionPayload(data: SurveyData, submissionToken: string, conse
     jobTitle: data.role || undefined,
     storeAddress: data.storeAddress || undefined,
     team: STORE_TYPE_TEAM_LABEL[data.storeType] ?? undefined,
-    projectTypes: PROJECT_TYPE_MAP[data.projectType] ?? [],
+    projectTypes: [...new Set(projectTypes.flatMap(t => PROJECT_TYPE_MAP[t] ?? []))],
     timing: TIMING_MAP[data.timeline] ?? undefined,
     notes: notesLines.join("\n") || undefined,
     consentAccepted: true,
@@ -355,14 +375,14 @@ function LeaderStep({ data, update, errors }: StepProps) {
         <input id="email" type="email" autoComplete="email" placeholder="name@company.com" {...bind(data, update, "email")} />
       </Field>
       <div className={`gs-field ${errors.contactPreference ? "gs-field-error" : ""}`} data-field="contactPreference">
-        <div className="gs-field-label-row"><label>How should we reach you?</label><span>Required</span></div>
+        <div className="gs-field-label-row"><label>How should we reach you?</label><span>Required — pick one or more</span></div>
         <div className="gs-tick-grid">
           <label className="gs-tick-card">
-            <input type="radio" name="contactPreference" value="whatsapp" checked={data.contactPreference === "whatsapp"} onChange={e => update("contactPreference", e.target.value)} />
+            <input type="checkbox" name="contactPreference" value="whatsapp" checked={multiValues(data.contactPreference).includes("whatsapp")} onChange={() => update("contactPreference", toggleMulti(data.contactPreference, "whatsapp"))} />
             <span className="gs-tick-box"><MessageCircle size={11} /></span>WhatsApp
           </label>
           <label className="gs-tick-card">
-            <input type="radio" name="contactPreference" value="email" checked={data.contactPreference === "email"} onChange={e => update("contactPreference", e.target.value)} />
+            <input type="checkbox" name="contactPreference" value="email" checked={multiValues(data.contactPreference).includes("email")} onChange={() => update("contactPreference", toggleMulti(data.contactPreference, "email"))} />
             <span className="gs-tick-box"><Mail size={11} /></span>Email
           </label>
         </div>
@@ -399,11 +419,11 @@ function VisionAndSendStep({
   return (
     <div className="gs-form-grid">
       <fieldset className={`gs-choice-fieldset ${errors.projectType ? "gs-has-error" : ""}`} data-field="projectType">
-        <legend>Project type <span>Required</span></legend>
+        <legend>Project type <span>Required — pick one or more</span></legend>
         <div className="gs-project-grid">
           {projectOptions.map(({ value, label, icon: Icon }) => (
             <label className="gs-project-choice" key={value}>
-              <input type="radio" name="projectType" value={value} checked={data.projectType === value} onChange={e => update("projectType", e.target.value)} />
+              <input type="checkbox" name="projectType" value={value} checked={multiValues(data.projectType).includes(value)} onChange={() => update("projectType", toggleMulti(data.projectType, value))} />
               <span className="gs-project-icon"><Icon size={19} strokeWidth={1.7} aria-hidden="true" /></span>
               <strong>{label}</strong><Check size={15} />
             </label>
@@ -416,12 +436,18 @@ function VisionAndSendStep({
         <textarea id="challenges" rows={4} placeholder="Describe the operational, spatial, or customer experience challenge…" {...bind(data, update, "challenges")} />
       </Field>
 
-      <Field id="storeStatus" label="Store status" error={errors.storeStatus}>
-        <select id="storeStatus" {...bind(data, update, "storeStatus")}>
-          <option value="">Choose a status</option>
-          {storeStatusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
-      </Field>
+      <div className={`gs-field ${errors.storeStatus ? "gs-field-error" : ""}`} data-field="storeStatus">
+        <div className="gs-field-label-row"><label>Store status</label><span>Required</span></div>
+        <div className="gs-pick-list">
+          {storeStatusOptions.map(([v, l]) => (
+            <label className="gs-pick-row" key={v}>
+              <input type="radio" name="storeStatus" value={v} checked={data.storeStatus === v} onChange={e => update("storeStatus", e.target.value)} />
+              <span className="gs-pick-dot" />{l}
+            </label>
+          ))}
+        </div>
+        {errors.storeStatus && <p className="gs-error-text" role="alert">{errors.storeStatus}</p>}
+      </div>
       <Field id="storeSize" label="Store size" error={errors.storeSize}>
         <select id="storeSize" {...bind(data, update, "storeSize")}>
           <option value="">Choose a size</option>
@@ -465,7 +491,7 @@ function Success({ data }: { data: SurveyData }) {
           </div>
           <div className="gs-success-mark"><Check size={26} /></div>
           <h1>Thanks — you&apos;re on our radar.</h1>
-          <p className="gs-success-copy">Your project brief has been sent to the T Lines team. Based on your timing, we&apos;ll follow up by {data.contactPreference === "whatsapp" ? "WhatsApp" : "email"}.</p>
+          <p className="gs-success-copy">Your project brief has been sent to the T Lines team. Based on your timing, we&apos;ll follow up by {multiValues(data.contactPreference).map(p => CONTACT_PREFERENCE_LABEL[p] ?? p).join(" or ") || "email"}.</p>
           <div className="gs-passport-facts">
             <div><span>Store format</span><strong>{storeOptions.find(o => o.value === data.storeType)?.label ?? "—"}</strong></div>
             <div><span>Timing</span><strong>{timingLabel}</strong></div>

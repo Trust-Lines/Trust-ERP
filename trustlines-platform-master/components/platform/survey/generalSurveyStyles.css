@@ -83,7 +83,7 @@
 .gs-choice-fieldset > legend.gs-sr-only { width: 1px; }
 .gs-choice-fieldset > legend span { float: right; color: var(--gs-muted); font: 500 10px/1.6 var(--gs-font-mono); letter-spacing: .09em; text-transform: uppercase; }
 .gs-choice-grid { display: grid; gap: 12px; }
-.gs-store-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.gs-store-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
 .gs-choice-card { position: relative; min-height: 176px; padding: 24px; border: 1px solid var(--gs-line); border-radius: var(--gs-radius-sm); cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; transition: border-color .18s, background .18s, transform .18s; }
 .gs-choice-card:hover { border-color: var(--gs-graphite); transform: translateY(-2px); }
 .gs-choice-card:has(input:focus-visible) { outline: 3px solid rgba(26,26,26,.18); outline-offset: 2px; }
@@ -106,7 +106,7 @@
 .gs-field input::placeholder, .gs-field textarea::placeholder { color: #949494; }
 .gs-field input:hover, .gs-field select:hover, .gs-field textarea:hover { border-color: var(--gs-graphite); }
 .gs-field input:focus, .gs-field select:focus, .gs-field textarea:focus { border-color: var(--gs-ink); box-shadow: 0 0 0 3px rgba(26,26,26,.12); }
-.gs-field-error input, .gs-field-error select, .gs-field-error textarea, .gs-has-error .gs-choice-card, .gs-has-error .gs-project-choice, .gs-has-error .gs-tick-card, .gs-has-error .gs-timing-card { border-color: var(--gs-danger); }
+.gs-field-error input, .gs-field-error select, .gs-field-error textarea, .gs-field-error .gs-pick-row, .gs-has-error .gs-choice-card, .gs-has-error .gs-project-choice, .gs-has-error .gs-tick-card, .gs-has-error .gs-timing-card { border-color: var(--gs-danger); }
 .gs-error-text { margin: 7px 0 0; color: var(--gs-danger); font-size: 13px; }
 .gs-error-summary { margin: -16px 0 32px; padding: 14px 16px; border-left: 3px solid var(--gs-danger); background: #fbf2f1; outline: none; }
 .gs-error-summary p { margin: 3px 0 0; color: var(--gs-graphite); font-size: 13px; }
@@ -124,7 +124,7 @@
 
 /* Compact two-up "tick" choice — used for the WhatsApp/Email contact-method pick, which
    should read as "just a tick", not a full form field. */
-.gs-tick-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; max-width: 420px; }
+.gs-tick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 10px; max-width: 420px; }
 .gs-tick-card { position: relative; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 12px 16px; border: 1px solid var(--gs-line); border-radius: var(--gs-radius-sm); cursor: pointer; font-weight: 650; transition: border-color .18s, background .18s; }
 .gs-tick-card input { position: absolute; opacity: 0; pointer-events: none; }
 .gs-tick-card:hover { border-color: var(--gs-graphite); }
@@ -132,6 +132,19 @@
 .gs-tick-card:has(input:focus-visible) { outline: 3px solid rgba(26,26,26,.18); outline-offset: 2px; }
 .gs-tick-box { width: 18px; height: 18px; flex-shrink: 0; border: 1px solid var(--gs-line); border-radius: 50%; display: grid; place-items: center; color: white; }
 .gs-tick-card:has(input:checked) .gs-tick-box { background: var(--gs-ink); border-color: var(--gs-ink); }
+
+/* A single-select list of longer-label options (e.g. Store status) — replaces a native
+   <select> with the same card-interaction language as the rest of the survey. */
+.gs-pick-list { display: grid; gap: 8px; }
+.gs-pick-row { position: relative; display: flex; align-items: center; gap: 12px; padding: 13px 16px; border: 1px solid var(--gs-line); border-radius: var(--gs-radius-sm); cursor: pointer; font-size: 14px; transition: border-color .18s, background .18s; }
+.gs-pick-row input { position: absolute; opacity: 0; pointer-events: none; }
+.gs-pick-row:hover { border-color: var(--gs-graphite); }
+.gs-pick-row:has(input:checked) { border-color: var(--gs-ink); background: white; box-shadow: inset 0 0 0 1px var(--gs-ink); font-weight: 650; }
+.gs-pick-row:has(input:focus-visible) { outline: 3px solid rgba(26,26,26,.18); outline-offset: 2px; }
+.gs-pick-dot { width: 18px; height: 18px; flex-shrink: 0; border: 1px solid var(--gs-line); border-radius: 50%; display: grid; place-items: center; }
+.gs-pick-dot::after { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--gs-ink); opacity: 0; }
+.gs-pick-row:has(input:checked) .gs-pick-dot { border-color: var(--gs-ink); }
+.gs-pick-row:has(input:checked) .gs-pick-dot::after { opacity: 1; }
 
 .gs-navigation { display: flex; justify-content: space-between; gap: 12px; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--gs-soft); }
 .gs-button { min-height: 48px; padding: 12px 18px; border-radius: var(--gs-radius-sm); border: 1px solid var(--gs-ink); display: inline-flex; align-items: center; justify-content: center; gap: 12px; font-weight: 650; cursor: pointer; transition: background .18s, color .18s, transform .18s; }
