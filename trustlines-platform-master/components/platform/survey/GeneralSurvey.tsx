@@ -219,6 +219,7 @@ export function GeneralSurvey({ campaignSlug, consentTextVersion }: { campaignSl
 
   return (
     <div className="gs-app">
+      <style>{`.gs-spin{animation:gs-spin 1s linear infinite}@keyframes gs-spin{to{transform:rotate(360deg)}}`}</style>
       <div className="gs-survey-shell">
         <aside className="gs-brand-rail">
           <div className="gs-brand-lockup-centered">
@@ -262,8 +263,7 @@ export function GeneralSurvey({ campaignSlug, consentTextVersion }: { campaignSl
               <VisionAndSendStep
                 data={data} update={update} errors={errors}
                 consentAccepted={consentAccepted} onConsentChange={v => { setConsentAccepted(v); if (v) setConsentError(false); }}
-                consentError={consentError} submitting={submitting} submitError={submitError}
-                onSend={handleSend}
+                consentError={consentError}
               />
             )}
 
@@ -276,8 +276,15 @@ export function GeneralSurvey({ campaignSlug, consentTextVersion }: { campaignSl
               </div>
             )}
             {step === 3 && (
-              <div className="gs-navigation" style={{ justifyContent: "flex-start" }}>
-                <button type="button" className="gs-button gs-button-secondary" onClick={back} disabled={!!submitting}>Back</button>
+              <div className="gs-navigation">
+                <button type="button" className="gs-button gs-button-secondary" onClick={back} disabled={submitting}>Back</button>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                  {submitError && <p className="gs-error-text" role="alert" style={{ margin: 0, textAlign: "right" }}>{submitError}</p>}
+                  <button type="button" className="gs-button gs-button-primary" onClick={handleSend} disabled={submitting}>
+                    {submitting ? <Loader2 size={16} className="gs-spin" /> : "Send my Store Passport"}
+                    {!submitting && <span aria-hidden="true">→</span>}
+                  </button>
+                </div>
               </div>
             )}
           </section>
@@ -385,10 +392,9 @@ function BusinessStep({ data, update, errors }: StepProps) {
 }
 
 function VisionAndSendStep({
-  data, update, errors, consentAccepted, onConsentChange, consentError, submitting, submitError, onSend,
+  data, update, errors, consentAccepted, onConsentChange, consentError,
 }: StepProps & {
   consentAccepted: boolean; onConsentChange: (v: boolean) => void; consentError: boolean;
-  submitting: boolean; submitError: string | null; onSend: () => void;
 }) {
   return (
     <div className="gs-form-grid">
@@ -442,15 +448,7 @@ function VisionAndSendStep({
           I agree to be contacted by T Lines about this project, and for my answers to be stored for that purpose.
         </label>
         {consentError && <p className="gs-error-text" role="alert" style={{ color: "#f3c7c2" }}>Please check the consent box before sending.</p>}
-        <div className="gs-send-row">
-          <button type="button" className="gs-button gs-button-primary" onClick={onSend} disabled={submitting}>
-            {submitting ? <Loader2 size={16} className="gs-spin" /> : "Send my Store Passport"}
-            {!submitting && <span aria-hidden="true">→</span>}
-          </button>
-          <p className="gs-submit-status" aria-live="polite">{submitError ?? ""}</p>
-        </div>
       </div>
-      <style>{`.gs-spin{animation:gs-spin 1s linear infinite}@keyframes gs-spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }

@@ -41,7 +41,12 @@
 }
 .gs-app * { box-sizing: border-box; }
 .gs-app button, .gs-app input, .gs-app select, .gs-app textarea { font: inherit; }
-.gs-app button { color: inherit; }
+/* NOT ".gs-app button { color: inherit }" — that class+tag selector (0-1-1) outranks
+   .gs-button-primary's own color:white (0-1-0), which is exactly what made every
+   primary button's label render in the ambient dark ink color on its own black
+   background (invisible) instead of the white it was actually authored as. Buttons
+   that want a specific color set it themselves (.gs-button-primary/.gs-button-secondary
+   already do); nothing here needs a lower-specificity default fighting them. */
 .gs-app button, .gs-app label, .gs-app select { -webkit-tap-highlight-color: transparent; }
 .gs-app ::selection { background: var(--gs-ink); color: white; }
 
@@ -135,7 +140,7 @@
 .gs-button:disabled { cursor: not-allowed; opacity: .5; transform: none; }
 .gs-button-primary { background: var(--gs-ink); color: white; }
 .gs-button-primary:hover:not(:disabled) { background: var(--gs-graphite); }
-.gs-button-secondary { background: white; }
+.gs-button-secondary { background: white; color: var(--gs-ink); }
 .gs-button-secondary:hover { background: var(--gs-soft); }
 
 .gs-review-list { display: grid; gap: 12px; }
@@ -169,12 +174,8 @@
 .gs-timing-panel .gs-timing-card { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.18); color: white; }
 .gs-timing-panel .gs-timing-card span { color: #c2c2c2; }
 .gs-consent-row { display: flex; align-items: flex-start; gap: 10px; margin-top: 18px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.15); font-size: 12.5px; color: #d6d6d6; }
-.gs-send-row { display: flex; align-items: center; gap: 14px; margin-top: 20px; flex-wrap: wrap; }
-.gs-timing-panel .gs-button-primary { background: white; color: var(--gs-ink); border-color: white; }
-.gs-timing-panel .gs-button-primary:hover:not(:disabled) { background: #e6e6e6; }
 .gs-consent-row input { margin-top: 3px; flex-shrink: 0; width: 16px; height: 16px; accent-color: white; }
 .gs-consent-row a { color: white; }
-.gs-submit-status { margin-top: 12px; font-size: 12.5px; color: #f3c7c2; min-height: 16px; }
 
 .gs-success-page { min-height: 100dvh; padding: 40px 24px; display: grid; place-content: center; background: var(--gs-canvas); }
 .gs-passport { width: min(680px, calc(100vw - 48px)); padding: clamp(28px, 6vw, 64px); background: white; border: 1px solid var(--gs-line); border-radius: var(--gs-radius-md); box-shadow: var(--gs-shadow); }
