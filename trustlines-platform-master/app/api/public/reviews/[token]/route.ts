@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { emitEvent } from '@/lib/events';
 import { resolveLink, requestMeta } from '@/lib/approvals/publicReview';
+import { appBaseUrl } from '@/lib/env/appUrl';
 
 type Params = { params: Promise<{ token: string }> };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -119,7 +120,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     .select('id, full_name, email').in('role', ['ops_manager', 'general_manager', 'trustlines_pm', 'tlines_pm', 'sales_rep', 'sales_marketing_manager']).eq('is_active', true).limit(50);
   const notifTitle = `Customer ${cfg.label} a review`;
   const bodyText = `${name ?? 'A customer'} ${cfg.label} ${link.title ?? 'a document'}${body?.comment?.trim() ? `: “${body.comment.trim()}”` : ''}.`;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const appUrl = appBaseUrl();
   for (const rec of (recipients ?? []) as { id: string; full_name: string; email: string }[]) {
     await admin.from('notifications').insert({
       user_id: rec.id, project_id: link.project_id, type: 'approval_link',

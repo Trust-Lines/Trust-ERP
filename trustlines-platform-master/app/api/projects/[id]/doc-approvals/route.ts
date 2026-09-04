@@ -9,6 +9,7 @@ import { applySignaturesToDocument } from '@/lib/pdf/signPdf';
 import { approvalStagesFor, mandatoryStageCount, signPermForStage } from '@/lib/approvals/stageConfig';
 import { roleCan, userCan } from '@/lib/permissions/server';
 import { ensureVersionFolder } from '@/lib/dropbox/upload';
+import { appBaseUrl } from '@/lib/env/appUrl';
 import {
   versionScope, getOrCreateOpenVersionSet, markVersionSetSigned,
   markVersionSetCompleted, rejectVersionSetAndOpenNext, attachDocumentToVersionSet,
@@ -301,7 +302,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     .eq('id', projectId)
     .single();
 
-  const appUrl  = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const appUrl  = appBaseUrl();
   const tabSlug = approval.doc_type === 'proposal' ? 'design_proposal'
                 : approval.doc_type === 'construction_drawings' ? 'construction_drawing'
                 : 'plan_layout';

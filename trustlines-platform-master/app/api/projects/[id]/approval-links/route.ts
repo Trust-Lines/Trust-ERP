@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
 import { logAudit } from '@/lib/audit/log';
 import { APPROVAL_LINK_ROLES, generateReviewToken, hashReviewToken } from '@/lib/approvals/reviewToken';
+import { appBaseUrl } from '@/lib/env/appUrl';
 
 type Params = { params: Promise<{ id: string }> };
 const LIST_COLS = 'id, project_id, document_id, customer_contact_id, title, status, decision, expires_at, max_views, view_count, require_email_verification, first_opened_at, completed_at, revoked_at, created_at';
@@ -56,6 +57,6 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   await logAudit({ actorId: user.id, action: 'approval_link.created', projectId: id, resource: `approval_link:${data.id}`, newValue: { documentId: b?.documentId ?? null } });
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const appUrl = appBaseUrl();
   return NextResponse.json({ id: data.id, url: `${appUrl}/review/${token}`, token }, { status: 201 });
 }

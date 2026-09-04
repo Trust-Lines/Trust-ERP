@@ -1,6 +1,7 @@
 
 import { sendEmail } from '@/lib/email/send';
 import { userCan } from '@/lib/permissions/server';
+import { appBaseUrl } from '@/lib/env/appUrl';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -71,5 +72,5 @@ export async function usersWithRoles(admin: any, roles: string[]): Promise<strin
 }
 
 export function appUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  return appBaseUrl();
 }

@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveRequestUser } from '@/lib/permissions/requestUser';
 import { logAudit } from '@/lib/audit/log';
 import { isOffice, defaultCompanySideForRole, defaultDepartmentForRole } from '@/lib/profile/metadata';
+import { appBaseUrl } from '@/lib/env/appUrl';
 import type { UserRole } from '@/types/database';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
     if (error && !/column|schema cache/i.test(error.message ?? '')) console.error('[invite] pm scope:', error.message);
   }
 
-  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/auth/set-password`;
+  const redirectTo = `${appBaseUrl()}/auth/set-password`;
   console.log('[invite] sending invite | redirectTo:', redirectTo);
 
   const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(

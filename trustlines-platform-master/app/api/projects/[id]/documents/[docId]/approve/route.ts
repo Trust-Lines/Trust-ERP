@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit/log';
 import { sendEmail, approvalRejectedHtml } from '@/lib/email/send';
+import { appBaseUrl } from '@/lib/env/appUrl';
 
 type Params = { params: Promise<{ id: string; docId: string }> };
 
@@ -98,7 +99,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     if (stage === 2 && project?.trustlines_pm_id) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+      const appUrl = appBaseUrl();
       const docLabel = docRowR?.doc_type === 'plan_layout' ? 'Item Plan' : 'Design Proposal';
       const versionLabel = `V${(docRowR?.dropbox_version ?? docRowR?.version ?? 0)}`;
       const tabSlug = docRowR?.doc_type === 'plan_layout' ? 'plan_layout' : 'design_proposal';

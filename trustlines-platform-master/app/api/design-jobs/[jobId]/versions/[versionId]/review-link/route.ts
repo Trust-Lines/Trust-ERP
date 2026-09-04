@@ -3,6 +3,7 @@ import { logAudit } from '@/lib/audit/log';
 import { requireUserWithRole, loadDesignJobWithAccess, DESIGN_MANAGE_ROLES } from '@/lib/sales/design';
 import { generateReviewToken, hashReviewToken } from '@/lib/approvals/reviewToken';
 import { syncOpportunityStageFromDesignJob } from '@/lib/marketing/design';
+import { appBaseUrl } from '@/lib/env/appUrl';
 
 type Params = { params: Promise<{ jobId: string; versionId: string }> };
 
@@ -69,6 +70,6 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   await logAudit({ actorId: user.id, action: 'design_review_link.created', projectId, resource: `approval_link:${data.id}`, newValue: { versionId } });
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const appUrl = appBaseUrl();
   return NextResponse.json({ id: data.id, url: `${appUrl}/review/${token}`, token }, { status: 201 });
 }

@@ -3,6 +3,7 @@
 
 import { generateUniqueCampaignSlug } from './campaignSlug';
 import { SURVEY_TEMPLATES, type SurveyTemplate } from './surveyTemplates';
+import { appBaseUrl } from '@/lib/env/appUrl';
 import type { CampaignStatus, CampaignType, LeadSource, MarketingCampaign } from '@/types/database';
 
 export { SURVEY_TEMPLATES, SURVEY_TEMPLATE_LABELS, type SurveyTemplate } from './surveyTemplates';
@@ -24,8 +25,9 @@ const LIST_COLS = 'id, name, code, slug, campaign_type, source, city, state, cou
 const DETAIL_COLS = `${LIST_COLS}, description`;
 
 export function publicSurveyBaseUrl(): string {
-  const base = process.env.NEXT_PUBLIC_SURVEY_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  return base.replace(/\/+$/, '');
+  const custom = process.env.NEXT_PUBLIC_SURVEY_BASE_URL?.trim();
+  if (custom) return custom.replace(/\/+$/, '');
+  return appBaseUrl();
 }
 export function publicSurveyPath(slug: string): string {
   return `/survey/${slug}`;

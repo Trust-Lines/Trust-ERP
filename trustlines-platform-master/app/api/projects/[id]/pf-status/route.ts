@@ -5,6 +5,7 @@ import { datesForStatusChange, type DateField } from '@/lib/production/board';
 import { sendEmail } from '@/lib/email/send';
 import { roleCan, userCan } from '@/lib/permissions/server';
 import { logAudit } from '@/lib/audit/log';
+import { appBaseUrl } from '@/lib/env/appUrl';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       const { data: project } = await admin.from('projects').select('name, code, tlines_pm_id').eq('id', projectId).single() as {
         data: { name: string; code: string; tlines_pm_id: string | null } | null;
       };
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+      const appUrl = appBaseUrl();
       const pfLabel = item.pf_code ?? `${type} / ${vendor.name}`;
       const amount  = fmtUsd(item.pf_usd);
       const link    = `<p><a href="${appUrl}/projects/${projectId}" style="color:#1a6b6b;font-weight:bold">Open the project →</a></p>`;

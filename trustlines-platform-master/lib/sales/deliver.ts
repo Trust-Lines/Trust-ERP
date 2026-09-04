@@ -6,6 +6,7 @@ import { scopeToCategories } from '@/lib/sales/scope';
 import { PHASE1_STEPS } from '@/lib/workflow/steps';
 import { getNextStage, STAGE_PHASE } from '@/lib/workflow/machine';
 import { ensureDesignDropboxFolder } from '@/lib/sales/design';
+import { appBaseUrl } from '@/lib/env/appUrl';
 
 export interface DeliverResult {
   ok: boolean;
@@ -86,7 +87,7 @@ export async function deliverLeadToTrust(
   const { data: recipients } = await admin.from('profiles')
     .select('id, full_name, email').in('role', ['ops_manager', 'general_manager']).eq('is_active', true);
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const appUrl = appBaseUrl();
   const link = `/projects/${row.project_id}`;
   for (const r of (recipients ?? []) as { id: string; full_name: string; email: string }[]) {
     await admin.from('notifications').insert({

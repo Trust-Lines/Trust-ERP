@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email/send';
 import { userCan } from '@/lib/permissions/server';
 import { logAudit } from '@/lib/audit/log';
+import { appBaseUrl } from '@/lib/env/appUrl';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       for (const id of candidateIds) if (await userCan(admin, id, 'notify.hold_t')) uniqueIds.push(id);
       if (uniqueIds.length) {
         const { data: people } = await admin.from('profiles').select('email, full_name').in('id', uniqueIds) as { data: { email: string | null; full_name: string }[] | null };
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+        const appUrl = appBaseUrl();
         const orderedLine = wasOrdered
           ? `<p style="color:#b91c1c;font-weight:bold">⚠️ This ${type} order was already ORDERED when it was put on hold.</p>`
           : '';

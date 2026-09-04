@@ -6,6 +6,7 @@ import { sendEmail } from '@/lib/email/send';
 import { userCan } from '@/lib/permissions/server';
 import { logAudit } from '@/lib/audit/log';
 import { versionScope, markVersionSetDraft } from '@/lib/versions';
+import { appBaseUrl } from '@/lib/env/appUrl';
 
 export async function POST(request: NextRequest) {
   const { user, unauth } = await requireUser();
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
             data: { email: string | null; full_name: string } | null;
           };
         if (profile?.email) {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+          const appUrl = appBaseUrl();
           await sendEmail(
             profile.email,
             `[Trust-Lines] Revision Uploaded: ${doc.file_name} — ${project.name}`,

@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail, approvalRequestHtml } from '@/lib/email/send';
 import { logAudit } from '@/lib/audit/log';
 import { versionScope, attachDocumentToVersionSet } from '@/lib/versions';
+import { appBaseUrl } from '@/lib/env/appUrl';
 import type { DocType } from '@/types/database';
 
 const APPROVAL_DOC_TYPES = ['plan_layout', 'proposal', 'construction_drawings'] as const;
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
     const trustlinesPmId = (project as { trustlines_pm_id: string | null } | null)?.trustlines_pm_id;
     const tlinesPmId     = (project as { tlines_pm_id:     string | null } | null)?.tlines_pm_id;
     const verLabel       = `V${dropboxVersion ?? 0}`;
-    const appUrl         = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const appUrl         = appBaseUrl();
     const tabSlug        = docType === 'proposal' && !catGroup ? 'design_proposal'
                          : docType === 'construction_drawings' ? 'construction_drawing'
                          : docType === 'item_plan' ? `${catGroup ?? 'millwork'}`
