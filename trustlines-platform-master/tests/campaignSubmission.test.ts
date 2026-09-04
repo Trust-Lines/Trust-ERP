@@ -19,10 +19,10 @@ function makeFakeAdmin(seed: Record<string, any[]> = {}) {
     const rows = db[table] ?? (db[table] = []);
     let filtered = rows;
      
-    let pendingInsert: Record<string, unknown> | null = null;
+    let pendingInsert: Record<string, unknown>[] | null = null;
     let pendingUpdate: Record<string, unknown> | null = null;
 
-     
+
     const builder: any = {
       select: () => builder,
       eq: (f: string, v: unknown) => { filtered = filtered.filter(r => r[f] === v); return builder; },
@@ -31,19 +31,21 @@ function makeFakeAdmin(seed: Record<string, any[]> = {}) {
       not: (f: string, _op: string, v: string) => { const excl = v.replace(/[()]/g, '').split(','); filtered = filtered.filter(r => !excl.includes(r[f] as string)); return builder; },
       limit: (n: number) => { filtered = filtered.slice(0, n); return builder; },
       order: () => builder,
-      insert: (row: Record<string, unknown>) => {
-        pendingInsert = { id: `${table}-${idCounter++}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ...row };
+      // Mirrors real supabase-js: `.insert()` takes either one row or an array of rows.
+      insert: (rowOrRows: Record<string, unknown> | Record<string, unknown>[]) => {
+        const incoming = Array.isArray(rowOrRows) ? rowOrRows : [rowOrRows];
+        pendingInsert = incoming.map(row => ({ id: `${table}-${idCounter++}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ...row }));
         return builder;
       },
       update: (patch: Record<string, unknown>) => { pendingUpdate = patch; return builder; },
       maybeSingle: async () => {
-        if (pendingInsert) { rows.push(pendingInsert); return { data: pendingInsert, error: null }; }
+        if (pendingInsert) { rows.push(...pendingInsert); return { data: pendingInsert[0] ?? null, error: null }; }
         if (pendingUpdate) { filtered.forEach(r => Object.assign(r, pendingUpdate)); const t = filtered[0]; return { data: t ?? null, error: null }; }
         return { data: filtered[0] ?? null, error: null };
       },
       single: async () => builder.maybeSingle(),
       then: (resolve: (v: { data: unknown; error: null }) => void) => {
-        if (pendingInsert) { rows.push(pendingInsert); resolve({ data: [pendingInsert], error: null }); return; }
+        if (pendingInsert) { rows.push(...pendingInsert); resolve({ data: pendingInsert, error: null }); return; }
         if (pendingUpdate) { filtered.forEach(r => Object.assign(r, pendingUpdate)); resolve({ data: filtered, error: null }); return; }
         resolve({ data: filtered, error: null });
       },
@@ -210,5 +212,39 @@ describe('processSurveySubmission — honeypot', () => {
     expect(db.prospect_needs).toHaveLength(0);
     expect(db.survey_submissions).toHaveLength(1);
     expect(db.survey_submissions[0].status).toBe('rejected_spam');
+  });
+});
+
+describe('processSurveySubmission — incomplete-data notification', () => {
+  it('notifies Marketing roles + the campaign owner when the submission has no state/region', async () => {
+    const { admin, db } = makeFakeAdmin({
+      profiles: [
+        { id: 'mkt-mgr-1', role: 'sales_marketing_manager', is_active: true },
+        { id: 'mkt-mgr-2', role: 'marketing_manager', is_active: true },
+        { id: 'unrelated', role: 'sales_rep', is_active: true },
+      ],
+    });
+    const { state: _state, ...bodyWithoutState } = validBody;
+
+    const outcome = await processSurveySubmission(admin, baseCampaign, bodyWithoutState);
+
+    expect(outcome.status).toBe('processed');
+    expect(db.notifications.length).toBeGreaterThan(0);
+    const recipients = db.notifications.map((n: { user_id: string }) => n.user_id);
+    expect(recipients).toEqual(expect.arrayContaining(['mkt-mgr-1', 'mkt-mgr-2', 'owner-1']));
+    expect(recipients).not.toContain('unrelated');
+    expect(db.notifications[0].type).toBe('survey.incomplete_submission');
+    expect(db.notifications[0].title).toContain('region/state');
+    expect(db.notifications[0].link).toBe('/leads');
+  });
+
+  it('does not notify when state is present', async () => {
+    const { admin, db } = makeFakeAdmin({
+      profiles: [{ id: 'mkt-mgr-1', role: 'sales_marketing_manager', is_active: true }],
+    });
+
+    await processSurveySubmission(admin, baseCampaign, validBody);
+
+    expect(db.notifications ?? []).toHaveLength(0);
   });
 });

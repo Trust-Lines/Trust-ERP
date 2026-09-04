@@ -49,7 +49,7 @@ export interface CampaignFormValues {
 }
 
 export const EMPTY_CAMPAIGN_FORM: CampaignFormValues = {
-  name: '', campaignType: 'trade_fair', state: '', city: '', startDate: '', endDate: '', description: '', surveyTemplate: 'none',
+  name: '', campaignType: 'trade_fair', state: '', city: '', startDate: '', endDate: '', description: '', surveyTemplate: 'general',
 };
 
 interface Props {

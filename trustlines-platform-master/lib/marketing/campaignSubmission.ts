@@ -5,6 +5,7 @@ import { normalizeEmail, normalizePhone } from './duplicates';
 import { runClassificationForNeed, type NeedSyncResult } from './opportunityEngine';
 import { PROJECT_TYPES, TIMINGS } from './classification';
 import { logAudit } from '@/lib/audit/log';
+import { notifyUsers, usersWithRoles } from '@/lib/events/notify';
 import type { LeadEntityType, MarketingCampaign, SurveySubmissionStatus } from '@/types/database';
 
 export class SubmissionValidationError extends Error {
@@ -189,6 +190,40 @@ async function enrichCreatedRow(admin: any, sync: NeedSyncResult, dto: PublicSur
   }
 }
 
+// 🔴 2026-08-28: public survey forms (both templates) never collect a structured
+// state/region — the freeform "store address" field they DO collect never gets parsed
+// back onto the created Opportunity/Potential's own `state`/`region` columns, so those
+// rows land in the CRM board unassigned to a region until someone fills it in by hand.
+// Rather than let that go unnoticed, ping Marketing (and whoever the campaign is
+// attributed to) right away so it gets completed instead of sitting invisible.
+async function notifyIncompleteSubmission(
+  admin: any, campaign: MarketingCampaign, dto: PublicSurveyDTO, sync: NeedSyncResult,
+): Promise<void> {
+  try {
+    const missing: string[] = [];
+    if (!dto.state?.trim()) missing.push('region/state');
+    if (!dto.email?.trim() && !dto.phone?.trim()) missing.push('a way to contact them (no email or phone)');
+    if (!missing.length) return;
+
+    const name = dto.organizationName?.trim()
+      || [dto.firstName, dto.lastName].filter(Boolean).join(' ').trim()
+      || 'A new survey response';
+    const recordKind = sync.opportunity ? 'an Opportunity' : sync.potential ? 'a Potential' : 'a Lead';
+
+    const recipients = [...await usersWithRoles(admin, ['sales_marketing_manager', 'marketing_manager']), attributionUser(campaign)];
+    await notifyUsers(admin, {
+      userIds: recipients,
+      projectId: null,
+      type: 'survey.incomplete_submission',
+      title: `${name} needs ${missing.join(' and ')}`,
+      body: `"${campaign.name}" just created ${recordKind} for ${name}, but it's missing ${missing.join(' and ')}. Open the CRM board and fill it in.`,
+      link: '/leads',
+    });
+  } catch (e) {
+    console.error('[campaignSubmission] incomplete-data notification failed:', e instanceof Error ? e.message : e);
+  }
+}
+
 async function recordSubmission(
   admin: any, campaign: MarketingCampaign, dto: PublicSurveyDTO,
   fields: {
@@ -270,6 +305,7 @@ export async function processSurveySubmission(admin: any, campaign: MarketingCam
     const needId = await createNeedFromSubmission(admin, prospectId, locationId, dto, campaign);
     const sync = await runClassificationForNeed(admin, needId, attributionUser(campaign));
     await enrichCreatedRow(admin, sync, dto);
+    await notifyIncompleteSubmission(admin, campaign, dto, sync);
 
     await admin.from('campaign_interactions').insert({
       campaign_id: campaign.id, prospect_id: prospectId, interaction_type: 'survey_submission',

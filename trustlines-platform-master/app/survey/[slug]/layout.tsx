@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "@/components/platform/survey/nacsSurveyStyles.css";
+import "@/components/platform/survey/generalSurveyStyles.css";
 
 export const metadata: Metadata = {
   title: "T LINES — Survey",
