@@ -5,8 +5,13 @@ import { getAssignedRegions, regionAllows } from '@/lib/access/regionScope';
 
 const REGION_EXEMPT_ROLES = ['sales_marketing_manager', 'marketing_manager', 'ops_manager', 'general_manager'];
 
+// 🔴 2026-09-15: `mode: 'read'` only relaxes the "no region assigned" fallback for
+// marketing_pr specifically (see lib/marketing/prospectAccess.ts for the full rationale —
+// same fix, same table of GET-vs-write call sites). sales_rep goes through this same
+// function but keeps its original ownership-only fallback regardless of mode; only its
+// explicit request ("I should see everything when I have no region") applies here.
 export async function canAccessPotential(
-  admin: any, potentialId: string, userId: string, role: string,
+  admin: any, potentialId: string, userId: string, role: string, mode: 'read' | 'write' = 'write',
 ): Promise<boolean> {
   if (REGION_EXEMPT_ROLES.includes(role)) return true;
 
@@ -18,12 +23,14 @@ export async function canAccessPotential(
   const assignedRegions = await getAssignedRegions(admin, userId);
   if (assignedRegions.length > 0) return regionAllows(assignedRegions, row.region);
 
+  if (mode === 'read' && role === 'marketing_pr') return true;
+
   return row.assigned_to === userId;
 }
 
 export async function assertPotentialAccess(
-  admin: any, potentialId: string, userId: string, role: string,
+  admin: any, potentialId: string, userId: string, role: string, mode: 'read' | 'write' = 'write',
 ): Promise<NextResponse | null> {
-  const ok = await canAccessPotential(admin, potentialId, userId, role);
+  const ok = await canAccessPotential(admin, potentialId, userId, role, mode);
   return ok ? null : NextResponse.json({ error: 'Not found' }, { status: 404 });
 }

@@ -10,7 +10,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const { user, role, admin, deny } = await requireRole(ALLOWED_ROLES);
   if (deny) return deny;
-  const denied = await assertOpportunityAccess(admin, id, user.id, role);
+  const denied = await assertOpportunityAccess(admin, id, user.id, role, 'read');
   if (denied) return denied;
 
   const { data, error } = await admin.from('lead_watchers').select('user_id').eq('opportunity_id', id);

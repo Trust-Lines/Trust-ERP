@@ -37,7 +37,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   const { user, role, admin, deny } = await requireRole(ALLOWED_ROLES);
   if (deny) return deny;
-  const denied = await assertOpportunityAccess(admin, id, user.id, role);
+  const denied = await assertOpportunityAccess(admin, id, user.id, role, 'read');
   if (denied) return denied;
 
   const { data, error } = await admin.from('opportunities').select(DETAIL_COLS).eq('id', id).is('deleted_at', null).maybeSingle();

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const { user, role, admin, deny } = await requireRole(ALLOWED_ROLES);
   if (deny) return deny;
-  const denied = await assertPotentialAccess(admin, id, user.id, role);
+  const denied = await assertPotentialAccess(admin, id, user.id, role, 'read');
   if (denied) return denied;
 
   const { data: pot } = await admin.from('prospect_potentials').select('need_id').eq('id', id).maybeSingle();
