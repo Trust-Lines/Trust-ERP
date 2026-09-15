@@ -42,6 +42,16 @@ export default async function DashboardPage() {
   const profile   = profileData as { full_name: string | null; role: string | null } | null;
   const userRole  = profile?.role ?? 'ops_manager';
   const userName  = profile?.full_name ?? user.email ?? 'User';
+
+  // This dashboard queries every active project company-wide (name, stage, margin_target_pct) and
+  // the last-24h system-wide audit feed — fine for internal Trust-Lines staff, but marketing_pr /
+  // marketing_manager are T-Lines-side accounts (same customer-side boundary as tlines_pm, which is
+  // barred from margin/cost data — see AGENTS.md §2). Send them to their own scoped landing page
+  // instead of ever running the query below.
+  if (userRole === 'marketing_pr' || userRole === 'marketing_manager') {
+    nextRedirect('/marketing');
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const userPerms = await getRolePermissions(admin as any, userRole);
 

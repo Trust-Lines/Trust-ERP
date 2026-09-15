@@ -130,6 +130,7 @@ const MARKETING_NAV: NavItem[] = [
   { label: 'Lead Cloud',          href: '/marketing/prospects',     icon: FolderSearch, perm: 'page.marketing' },
   { label: 'Opportunities',       href: '/marketing/opportunities', icon: Target,       perm: 'page.marketing' },
   { label: 'Campaigns & Surveys', href: '/marketing/campaigns',     icon: QrCode,       perm: 'page.marketing_campaigns' },
+  { label: 'Trash',               href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing' },
 ];
 
 interface SidebarProps {
@@ -440,7 +441,7 @@ export function Sidebar({
         {isMarketing && (
           <NavGroup
             title="Marketing" icon={Megaphone}
-            items={isSales ? MARKETING_NAV : [...CRM_BOARD_NAV, ...MARKETING_NAV]}
+            items={MARKETING_NAV}
             perms={userPerms} pathname={pathname} bypassPerm defaultOpen
             collapsed={collapsed}
           />

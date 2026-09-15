@@ -7,13 +7,16 @@ import { serviceLineLabel, composeProjectCode } from '@/lib/regions';
 import { STAGE_LABELS } from '@/lib/workflow/machine';
 import { loadOpportunityLeadRows } from '@/lib/marketing/opportunityRows';
 import { loadPotentialLeadRows } from '@/lib/marketing/potentialRows';
-import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { getAssignedRegions } from '@/lib/access/regionScope';
 import { fetchInChunks } from '@/lib/supabase/chunkedIn';
 import type { ProjectStage } from '@/types/database';
 
+// CRM Board is the Sales team's own pipeline (lead_intake + the Opportunities/Potentials merged
+// in below). Marketing has its own separate board at /marketing/opportunities — they must not land
+// here at all, so this is a plain role gate rather than a permission key (nothing in Roles &
+// Permissions should be able to re-open it short of editing this list).
 const LEADS_ALLOWED_ROLES = ['sales_marketing_manager', 'sales_rep', 'ops_manager', 'general_manager'];
-const BOARD_ALLOWED_ROLES = [...LEADS_ALLOWED_ROLES, ...MARKETING_ROLES];
+const BOARD_ALLOWED_ROLES = LEADS_ALLOWED_ROLES;
 
 export default async function LeadsPage() {
   const supabase = await createClient();
