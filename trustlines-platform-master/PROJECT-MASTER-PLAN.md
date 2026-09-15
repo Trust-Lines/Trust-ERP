@@ -3691,6 +3691,66 @@ fresh-DB fidelity, migration 064 (its enum value is already live).
 3. Updated primary action buttons styling to use the exact dark navy blue `#0c233c` palette requested.
 4. TypeScript check (`npx tsc --noEmit`) passing cleanly with 0 errors.
 ════════════════════════════════════════════════════════════════════════════════════════════
+2026-09-15 (Lead Cloud trash recovery + Trash feature; dashboard margin-leak fix for Marketing;
+account cleanup; CRM Board access-control bug fixed) — NO new migration, all additive/app-code
+1. **Accidental deletion recovery (Lead Cloud / prospects)**: user soft-deleted 6 prospect
+   organizations same-day (Town mart, T. Lines, gfh, Trust lines, gfdg, test1) via the existing
+   `prospects.trash` route, then couldn't find them because Lead Cloud had NO trash UI (unlike
+   Leads and Projects, which already had one). Restored all 6 directly via REST (`deleted_at =
+   null`) plus their cascade-trashed `prospect_needs`/`prospect_potentials` rows (matched by exact
+   shared `deleted_at` timestamp so unrelated older trash wasn't touched).
+2. **Built the missing Lead Cloud Trash feature**, mirroring the existing Leads/Projects trash
+   pattern:
+   - `app/api/marketing/prospects/[id]/restore/route.ts` (new) — restores a prospect + any
+     needs/potentials/opportunities cascade-trashed in the same action.
+   - `app/api/marketing/prospects/[id]/permanent-delete/route.ts` (new) — hard delete, restricted
+     to `marketing_manager`/`general_manager`/`ops_manager`; relies on existing `ON DELETE CASCADE`
+     FKs for child rows.
+   - `app/(platform)/marketing/prospects/trash/page.tsx` (new) + `ProspectsTrashClient.tsx` (new) —
+     lists trashed prospects with days-left-until-purge; auto-hard-deletes anything past 30 days on
+     page load (same mechanism as `/projects/trash`); `marketing_pr` only sees their own.
+   - Sidebar: added "Trash" under the Marketing nav group → `/marketing/prospects/trash`.
+3. **Security fix — `/dashboard` margin/audit leak to Marketing**: every role landed on `/dashboard`
+   after login, which queried ALL company projects (incl. `margin_target_pct`) and the last-24h
+   system-wide `audit_log`, with no role filtering. `marketing_pr`/`marketing_manager` are T-Lines-
+   side accounts (same customer-side boundary as `tlines_pm`, which AGENTS.md explicitly bars from
+   margin/cost data) — fixed by redirecting them to the already-scoped `/marketing` (Marketing Home)
+   *before* the sensitive query runs (`app/(platform)/dashboard/page.tsx`).
+   ⚠️ **OPEN / NOT FIXED**: `tlines_pm` — a real, currently-active external role — has the exact
+   same leak (full company project list + margin average + full audit feed, not even scoped to
+   their own region). AGENTS.md/CLAUDE.md explicitly forbid this. Needs a decision + fix next.
+4. **Account cleanup** (user request, confirmed destructive action): restored
+   `hamzag@trust-lines.com` to `general_manager` (its role had been accidentally overwritten to
+   `tlines_pm` with full_name "Luna"); deleted the other 4 stale test profiles + their Supabase Auth
+   users (`supplyarchive@trust-lines.com`, `hghannom@gmail.com`, `trustai@trust-lines.com`,
+   `archive@trust-lines.com`), nulling their FK references in `projects`/`document_approvals`/
+   `documents` first (same pattern as `app/api/team/[id]/route.ts` DELETE). Only
+   `hamzag@trust-lines.com` remains. Sent a Supabase password-recovery email to
+   `hamzag@trust-lines.com` (redirect → `https://platform.trust-lines.com/auth/set-password`).
+5. **Security fix — CRM Board access bypassed Roles & Permissions entirely**: `marketing_pr`/
+   `marketing_manager` could open Sales' `/leads` CRM Board (real pipeline data, not just Lead
+   Cloud) because `app/(platform)/leads/page.tsx` gated it with a hardcoded
+   `BOARD_ALLOWED_ROLES = [...LEADS_ALLOWED_ROLES, ...MARKETING_ROLES]` array — `page.leads` isn't
+   even a real key in the permission catalog, so nothing in the `/roles` admin UI could ever have
+   turned this off. Removed `MARKETING_ROLES` from that gate and removed the "CRM Board" nav item
+   from the Marketing sidebar group. Marketing's own board stays at `/marketing/opportunities`.
+   ⚠️ **OPEN DECISION**: the whole Sales module (CRM Board, Quick Deal, Tasks, Handoffs, Sales Team,
+   Sales Dashboard) is still gated by hardcoded role arrays in code, not the generic `page.*`
+   permission system — so today, only Marketing/Production/Suppliers/Team/Audit/Trash/etc. are
+   actually controllable from `/roles` without a code change. User asked whether to convert Sales
+   too; not started.
+- Changed files: `app/api/marketing/prospects/[id]/restore/route.ts` (new),
+  `app/api/marketing/prospects/[id]/permanent-delete/route.ts` (new),
+  `app/(platform)/marketing/prospects/trash/page.tsx` (new),
+  `components/platform/marketing/ProspectsTrashClient.tsx` (new),
+  `components/platform/shell/Sidebar.tsx` (Marketing Trash link added; CRM Board link removed from
+  Marketing group), `app/(platform)/dashboard/page.tsx` (marketing role redirect before sensitive
+  query), `app/(platform)/leads/page.tsx` (removed MARKETING_ROLES from BOARD_ALLOWED_ROLES).
+- Direct production data changes (no migration involved): restored 6 prospects + cascaded
+  needs/potentials; deleted 4 profiles + their auth.users records; fixed hamzag@trust-lines.com's
+  role/name; sent 1 password-recovery email.
+- `npx eslint` (changed files) and `npx tsc --noEmit` (whole project): clean, no new errors.
+════════════════════════════════════════════════════════════════════════════════════════════
 ```
 
 ---

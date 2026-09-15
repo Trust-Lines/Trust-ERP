@@ -34,6 +34,15 @@
 - [x] 18. Sales Opportunity ekranına aşama-bazlı mini özet — DONE 2026-08-28
 - [ ] 18b. (YENİ — Madde 5'te bulundu) `clients` (Bölge) tablosunun doldurulması + bölgesel
       T-Lines PM otomatik atamasının Accept/Closed Won adımlarına güvenle bağlanması
+- [ ] 18c. (YENİ — 2026-09-15 oturumunda bulundu, T-Lines Marketing teslimi hazırlığı sırasında)
+      `/dashboard` sayfası `tlines_pm` rolüne de tüm şirketin proje listesini + ortalama kâr
+      marjını (`margin_target_pct`) + sistem geneli audit log'u gösteriyor — AGENTS.md'nin açık
+      kuralına aykırı. `marketing_pr`/`marketing_manager` için aynı sızıntı zaten kapatıldı
+      (`/marketing`'e yönlendirme), `tlines_pm` için henüz DÜZELTİLMEDİ.
+- [ ] 18d. (YENİ — 2026-09-15 oturumunda bulundu) Sales modülü (CRM Board, Quick Deal, Tasks,
+      Handoffs, Sales Team, Sales Dashboard) hâlâ kod içinde sabit rol listeleriyle korunuyor,
+      genel `/roles` (Roller & İzinler) izin sistemine hiç bağlı değil — admin bu modülü uygulama
+      içinden kontrol edemiyor. Kullanıcıya soruldu, dönüştürme kararı bekleniyor.
 
 ## AY 3 — Production / QC / Logistics Tamamlama + Warehouse Kuruluşu
 
@@ -539,3 +548,38 @@
   `lib/marketing/opportunityRows.ts`, `lib/marketing/potentialRows.ts`,
   `app/(platform)/leads/page.tsx`, `supabase/migrations/106_fix_lead_tasks_rls_recursion.sql`
   (yeni, uygulanmayı bekliyor).
+
+### 2026-09-15 — T-Lines Marketing teslimi hazırlığı: Lead Cloud çöp kutusu, dashboard sızıntısı,
+    hesap temizliği, CRM Board erişim hatası
+- **Kazara silinen kayıtlar geri getirildi:** Lead Cloud (`/marketing/prospects`) üzerinde aynı gün
+  içinde silinmiş 6 organizasyon (Town mart, T. Lines, gfh, Trust lines, gfdg, test1) + bunlara
+  cascade ile silinmiş Needs/Potentials kayıtları, `deleted_at` eşleşmesine göre geri yüklendi.
+  Sebep: Lead Cloud'un Leads/Projects modüllerinin aksine hiç çöp kutusu ekranı yoktu.
+- **Lead Cloud Trash özelliği eklendi** (Leads/Projects trash ile aynı desen): restore +
+  permanent-delete API route'ları, `/marketing/prospects/trash` sayfası + client bileşeni,
+  30 günde otomatik kalıcı silme (sayfa her açıldığında), Sidebar'a "Trash" linki.
+- **Güvenlik düzeltmesi — `/dashboard` sızıntısı:** her rol giriş sonrası `/dashboard`'a düşüyordu;
+  bu sayfa TÜM şirket projelerini (`margin_target_pct` dahil) ve son 24 saatlik sistem geneli
+  audit log'u rol farkı gözetmeden gösteriyordu. `marketing_pr`/`marketing_manager` (T-Lines
+  tarafı hesaplar) için, hassas sorgu hiç çalışmadan `/marketing`'e yönlendirme eklenerek
+  kapatıldı. `tlines_pm` için AYNI sızıntı hâlâ AÇIK — bkz. Madde 18c.
+- **Hesap temizliği** (kullanıcı onayıyla): `hamzag@trust-lines.com` yanlışlıkla `tlines_pm`
+  rolüne/"Luna" ismine dönmüştü → `general_manager`'a geri çevrildi. Diğer 4 test hesabı
+  (supplyarchive@, hghannom@gmail.com, trustai@, archive@trust-lines.com) FK referansları
+  temizlenerek hem `profiles` hem Supabase Auth'tan kalıcı silindi. `hamzag@trust-lines.com`'a
+  şifre sıfırlama maili gönderildi.
+- **Güvenlik hatası — CRM Board, izin sisteminin tamamen dışındaydı:** `marketing_pr`/
+  `marketing_manager`, Sales'in `/leads` CRM Board'unu görebiliyordu çünkü `leads/page.tsx`
+  içinde sabit kodlanmış bir rol listesi vardı (`page.leads` diye bir izin anahtarı bile yok,
+  yani `/roles` ekranından hiçbir şekilde kapatılamazdı). Marketing rolleri bu listeden
+  çıkarıldı, Sidebar'daki "CRM Board" linki Marketing grubundan kaldırıldı. Bkz. Madde 18d
+  (Sales modülünün tamamının izin sistemine bağlanması — açık karar, henüz yapılmadı).
+- Doğrulama: değişen dosyalarda `eslint` temiz, tüm proje `tsc --noEmit` temiz (0 hata).
+- Değişen/yeni dosyalar: `app/api/marketing/prospects/[id]/restore/route.ts` (yeni),
+  `app/api/marketing/prospects/[id]/permanent-delete/route.ts` (yeni),
+  `app/(platform)/marketing/prospects/trash/page.tsx` (yeni),
+  `components/platform/marketing/ProspectsTrashClient.tsx` (yeni),
+  `components/platform/shell/Sidebar.tsx`, `app/(platform)/dashboard/page.tsx`,
+  `app/(platform)/leads/page.tsx`. + doğrudan prod veri değişikliği (migration yok): 6 prospect +
+  cascaded needs/potentials restore edildi, 4 hesap silindi, 1 hesap rolü düzeltildi, 1 şifre
+  sıfırlama maili gönderildi. Detaylar: PROJECT-MASTER-PLAN.md § 17 CHANGE LOG, 2026-09-15 kaydı.
