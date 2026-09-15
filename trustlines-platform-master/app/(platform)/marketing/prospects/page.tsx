@@ -1,6 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { requirePage } from '@/lib/permissions/requirePage';
 import { MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
+
+// Per-user, RLS-scoped counts — never serve a cached render across users/sessions
+// (reported: Lead Cloud sometimes showing a stale 0 after the region-visibility fix).
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 import { enrichProspectRows } from '@/lib/marketing/prospectRows';
 import { ProspectsPageClient, type ProspectRow } from '@/components/platform/marketing/ProspectsPageClient';
 import type { UserRole } from '@/types/database';

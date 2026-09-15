@@ -7,7 +7,6 @@ import {
   ChevronRight,
   MoreVertical,
   GripVertical,
-  SlidersHorizontal,
   ChevronDown,
   User,
   CheckSquare,
@@ -97,14 +96,22 @@ function formatDate(iso: string | null): string {
 export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, prospectTotal, assignees }: Props) {
   const [deals, setDeals] = useState<DealRow[]>(initialDeals);
   const [query, setQuery] = useState('');
-  const [regionFilter, setRegionFilter] = useState<string>('TLINES_NE');
+  // 🔴 2026-09-15: this used to default to 'TLINES_NE' and was never actually applied to
+  // `deals` anywhere — the dropdown LOOKED like it was filtering to North East by default,
+  // but every region's records were always shown regardless of what was selected. Now it
+  // defaults to unfiltered ('all', matching real 0-based visibility) and is applied below.
+  const [regionFilter, setRegionFilter] = useState<string>('all');
   const [open, setOpen] = useState<{ id: string; kind: 'opportunity' | 'potential' } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [handingOffId, setHandingOffId] = useState<string | null>(null);
   const [highlightPotential, setHighlightPotential] = useState(false);
 
-  const potentialDeals = useMemo(() => deals.filter(d => d.kind === 'potential' || d.external_stage_label === 'Potential'), [deals]);
-  const newQualifyingDeals = useMemo(() => deals.filter(d => d.kind === 'opportunity' && d.external_stage_label !== 'Potential'), [deals]);
+  const regionFilteredDeals = useMemo(
+    () => (regionFilter === 'all' || !regionFilter ? deals : deals.filter(d => d.region === regionFilter)),
+    [deals, regionFilter],
+  );
+  const potentialDeals = useMemo(() => regionFilteredDeals.filter(d => d.kind === 'potential' || d.external_stage_label === 'Potential'), [regionFilteredDeals]);
+  const newQualifyingDeals = useMemo(() => regionFilteredDeals.filter(d => d.kind === 'opportunity' && d.external_stage_label !== 'Potential'), [regionFilteredDeals]);
 
   const activeGroupsCount = useMemo(() => {
     let count = 0;
@@ -116,10 +123,10 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
   const otherStageCounts = useMemo(() => {
     const map: Record<string, number> = {};
     for (const s of OTHER_STAGES) {
-      map[s.key] = deals.filter(d => d.external_stage_label === s.key).length;
+      map[s.key] = regionFilteredDeals.filter(d => d.external_stage_label === s.key).length;
     }
     return map;
-  }, [deals]);
+  }, [regionFilteredDeals]);
 
   async function patch(row: DealRow, body: Record<string, unknown>) {
     const base = row.kind === 'potential' ? '/api/marketing/potentials' : '/api/marketing/opportunities';
@@ -226,22 +233,25 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
     <div className="w-full space-y-5 pb-12">
       {/* ── Top Header ────────────────────────────────────────────── */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Opportunities NE</h1>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Opportunities</h1>
         <p className="text-xs text-slate-500 font-normal mt-0.5">
-          {deals.length} records — click a card to open it, drag between groups to move its stage
+          {regionFilteredDeals.length} records — click a card to open it, drag between groups to move its stage
         </p>
       </div>
 
       {/* ── Navigation Tabs Strip & Filters Bar ───────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-4 border-b border-slate-200/80 pb-3">
-        {/* Left Tabs */}
+        {/* Left Tabs — same three-stop pipeline as Lead Cloud's breadcrumb
+            (components/platform/marketing/MarketingPipelineNav.tsx); kept as its own markup
+            here (not the shared component) because Potentials needs to scroll to a column on
+            THIS page rather than navigate, which the shared nav doesn't support. */}
         <div className="flex items-center gap-6">
           <Link
             href="/marketing/prospects"
             className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors pb-1"
           >
             <span>Lead Cloud</span>
-            <span className="text-slate-400 font-normal">{prospectTotal ?? 5}</span>
+            <span className="text-slate-400 font-normal">{prospectTotal ?? 0}</span>
           </Link>
 
           {/* Potentials isn't a separate page — it's the "Potential" column below, on THIS page.
@@ -258,14 +268,14 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
             className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors pb-1 cursor-pointer"
           >
             <span>Potentials</span>
-            <span className="text-slate-400 font-normal">{potentialDeals.length || 1}</span>
+            <span className="text-slate-400 font-normal">{potentialDeals.length}</span>
           </button>
 
           <button
             className="flex items-center gap-2 text-xs font-bold text-blue-600 border-b-2 border-blue-600 pb-1 cursor-pointer -mb-[13px]"
           >
             <span>Opportunities</span>
-            <span className="text-blue-600 font-bold">{newQualifyingDeals.length || 4}</span>
+            <span className="text-blue-600 font-bold">{newQualifyingDeals.length}</span>
           </button>
         </div>
 
@@ -277,21 +287,14 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
               onChange={e => setRegionFilter(e.target.value)}
               className="appearance-none bg-white border border-slate-200/80 rounded-xl pl-3 pr-7 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs font-medium"
             >
+              <option value="all">All regions</option>
               <option value="TLINES_NE">T-Lines North East</option>
               <option value="TLINES_SE">T-Lines South East</option>
               <option value="TLINES_NW">T-Lines North West</option>
               <option value="CVW">West</option>
-              <option value="all">All regions</option>
             </select>
             <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           </div>
-
-          <button
-            onClick={() => setRegionFilter('all')}
-            className="text-xs text-slate-500 hover:text-slate-900 font-medium cursor-pointer"
-          >
-            All regions
-          </button>
 
           {/* Search */}
           <div className="relative">
@@ -304,12 +307,6 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
               className="pl-7 pr-3 py-1.5 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs"
             />
           </div>
-
-          {/* Filters trigger button */}
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-2xs cursor-pointer">
-            <SlidersHorizontal size={13} className="text-slate-500" />
-            <span>Filters</span>
-          </button>
         </div>
       </div>
 
@@ -317,7 +314,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
       <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-2xs grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 text-center">
         <div className="px-3 py-1">
           <span className="text-xs font-medium text-slate-500">Records</span>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{deals.length || 5}</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{regionFilteredDeals.length}</p>
         </div>
 
         <div className="px-3 py-1">
@@ -327,12 +324,12 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
 
         <div className="px-3 py-1">
           <span className="text-xs font-medium text-slate-500">Potential</span>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{potentialDeals.length || 1}</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{potentialDeals.length}</p>
         </div>
 
         <div className="px-3 py-1">
           <span className="text-xs font-medium text-slate-500">New / Qualifying</span>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{newQualifyingDeals.length || 4}</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{newQualifyingDeals.length}</p>
         </div>
       </div>
 
@@ -349,7 +346,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
               <h2 className="text-xs font-bold text-slate-900">Potential</h2>
-              <span className="text-xs font-semibold text-slate-500">{filteredPotential.length || 1}</span>
+              <span className="text-xs font-semibold text-slate-500">{filteredPotential.length}</span>
             </div>
             <button className="text-slate-400 hover:text-slate-600 p-1 rounded-md">
               <MoreVertical size={14} />
@@ -492,7 +489,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-indigo-600" />
               <h2 className="text-xs font-bold text-slate-900">New / Qualifying</h2>
-              <span className="text-xs font-semibold text-slate-500">{filteredNewQualifying.length || 4}</span>
+              <span className="text-xs font-semibold text-slate-500">{filteredNewQualifying.length}</span>
             </div>
             <button className="text-slate-400 hover:text-slate-600 p-1 rounded-md">
               <MoreVertical size={14} />

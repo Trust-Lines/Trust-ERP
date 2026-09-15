@@ -5,6 +5,10 @@ import { SALES_HANDOFF_ROLES } from '@/lib/sales/roles';
 import { OpportunitiesPageClient, type DealRow } from '@/components/platform/marketing/OpportunitiesPageClient';
 import type { UserRole, LeadEntityType } from '@/types/database';
 
+// Per-user, RLS-scoped counts — never serve a cached render across users/sessions.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const WRITE_ROLES = [...SALES_HANDOFF_ROLES, ...MARKETING_ROLES];
 
 const OPP_COLS = 'id, prospect_id, project_id, primary_contact_id, title, project_types, stage, priority, region, '

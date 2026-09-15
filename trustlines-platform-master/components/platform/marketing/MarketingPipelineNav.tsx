@@ -10,10 +10,14 @@ interface Props {
   opportunityCount: number | null;
 }
 
+// All three segments live in the SAME "Lead Cloud" pipeline UI/design system
+// (Prospects → Potentials+Opportunities on one combined board). /leads is a separate,
+// older, differently-styled CRM board — linking "Opportunities" there made the pipeline
+// feel like it jumped to a different app mid-flow, which is exactly what was reported.
 const SEGMENTS = [
   { key: 'prospects' as const, href: '/marketing/prospects', label: 'Lead Cloud', icon: Users },
-  { key: 'potentials' as const, href: '/marketing/potentials', label: 'Potentials', icon: Clock },
-  { key: 'opportunities' as const, href: '/leads', label: 'Opportunities', icon: Target },
+  { key: 'potentials' as const, href: '/marketing/opportunities', label: 'Potentials', icon: Clock },
+  { key: 'opportunities' as const, href: '/marketing/opportunities', label: 'Opportunities', icon: Target },
 ];
 
 function countFor(key: Props['current'], p: Props): string {
