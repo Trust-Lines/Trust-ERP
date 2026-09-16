@@ -71,11 +71,16 @@ const stepMeta = [
   { eyebrow: "03 — Project vision", title: "Define your project plan", description: "Tell us where the store stands today and what this project should solve." },
 ] as const;
 
+// 2026-09-17: narrowed to exactly the fields QuickSurvey.tsx also requires (store
+// type/name/phone/email/contact preference/timeline) — per explicit request, everything
+// else on the fuller General Survey (company name, role, store address, business phone,
+// project type, challenges, store status, store size) is now optional, so someone in a
+// hurry can skip straight through without the form blocking them.
 const requiredByStep: Record<number, FieldName[]> = {
   0: ["storeType"],
   1: ["fullName", "phone", "email", "contactPreference"],
-  2: ["companyName", "role", "storeAddress", "businessPhone"],
-  3: ["projectType", "challenges", "storeStatus", "storeSize", "timeline"],
+  2: [],
+  3: ["timeline"],
 };
 
 const storeOptions = [
@@ -138,9 +143,16 @@ function buildSubmissionPayload(data: SurveyData, submissionToken: string, conse
     data.storeSize ? `Store size: ${labelOf(storeSizeOptions, data.storeSize)}` : null,
   ].filter(Boolean);
 
+  // 2026-09-17: Company name is now optional (see requiredByStep) — the backend rejects
+  // an "organization" lead with no organizationName (SubmissionValidationError: "Company
+  // name is required"), so a submission with the company field skipped has to fall back to
+  // "person" instead (identified by the still-required full name) rather than always
+  // claiming "organization" and getting hard-rejected.
+  const hasCompanyName = !!data.companyName.trim();
+
   return {
-    leadType: "organization" as const,
-    organizationName: data.companyName || undefined,
+    leadType: hasCompanyName ? "organization" as const : "person" as const,
+    organizationName: hasCompanyName ? data.companyName : undefined,
     firstName: firstName || undefined,
     lastName: rest.join(" ") || undefined,
     email: data.email || undefined,
@@ -395,16 +407,16 @@ function LeaderStep({ data, update, errors }: StepProps) {
 function BusinessStep({ data, update, errors }: StepProps) {
   return (
     <div className="gs-form-grid">
-      <Field id="companyName" label="Company name" error={errors.companyName}>
+      <Field id="companyName" label="Company name" optional error={errors.companyName}>
         <input id="companyName" autoComplete="organization" placeholder="Company or trading name" {...bind(data, update, "companyName")} />
       </Field>
-      <Field id="role" label="Your role in company" error={errors.role}>
+      <Field id="role" label="Your role in company" optional error={errors.role}>
         <input id="role" autoComplete="organization-title" placeholder="Owner, operator, project lead…" {...bind(data, update, "role")} />
       </Field>
-      <Field id="storeAddress" label="Store address" error={errors.storeAddress}>
+      <Field id="storeAddress" label="Store address" optional error={errors.storeAddress}>
         <textarea id="storeAddress" autoComplete="street-address" rows={3} placeholder="Street, city, state, ZIP" {...bind(data, update, "storeAddress")} />
       </Field>
-      <Field id="businessPhone" label="Business phone" error={errors.businessPhone}>
+      <Field id="businessPhone" label="Business phone" optional error={errors.businessPhone}>
         <input id="businessPhone" type="tel" autoComplete="tel" placeholder="(555) 000-0000" {...bind(data, update, "businessPhone")} />
       </Field>
     </div>
@@ -419,7 +431,7 @@ function VisionAndSendStep({
   return (
     <div className="gs-form-grid">
       <fieldset className={`gs-choice-fieldset ${errors.projectType ? "gs-has-error" : ""}`} data-field="projectType">
-        <legend>Project type <span>Required — pick one or more</span></legend>
+        <legend>Project type <span>Optional — pick one or more</span></legend>
         <div className="gs-project-grid">
           {projectOptions.map(({ value, label, icon: Icon }) => (
             <label className="gs-project-choice" key={value}>
@@ -432,12 +444,12 @@ function VisionAndSendStep({
         {errors.projectType && <p className="gs-error-text" role="alert">{errors.projectType}</p>}
       </fieldset>
 
-      <Field id="challenges" label="Main project challenges" hint="What should this project solve or improve?" error={errors.challenges}>
+      <Field id="challenges" label="Main project challenges" optional hint="What should this project solve or improve?" error={errors.challenges}>
         <textarea id="challenges" rows={4} placeholder="Describe the operational, spatial, or customer experience challenge…" {...bind(data, update, "challenges")} />
       </Field>
 
       <div className={`gs-field ${errors.storeStatus ? "gs-field-error" : ""}`} data-field="storeStatus">
-        <div className="gs-field-label-row"><label>Store status</label><span>Required</span></div>
+        <div className="gs-field-label-row"><label>Store status</label><span>Optional</span></div>
         <div className="gs-pick-list">
           {storeStatusOptions.map(([v, l]) => (
             <label className="gs-pick-row" key={v}>
@@ -449,7 +461,7 @@ function VisionAndSendStep({
         {errors.storeStatus && <p className="gs-error-text" role="alert">{errors.storeStatus}</p>}
       </div>
       <div className={`gs-field ${errors.storeSize ? "gs-field-error" : ""}`} data-field="storeSize">
-        <div className="gs-field-label-row"><label>Store size</label><span>Required</span></div>
+        <div className="gs-field-label-row"><label>Store size</label><span>Optional</span></div>
         <div className="gs-pick-list">
           {storeSizeOptions.map(([v, l]) => (
             <label className="gs-pick-row" key={v}>
