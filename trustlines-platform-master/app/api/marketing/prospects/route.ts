@@ -7,6 +7,7 @@ import { PROJECT_TYPES, SCOPE_TYPES, TIMINGS, ENTITY_TYPES } from '@/lib/marketi
 import { runClassificationForNeed } from '@/lib/marketing/opportunityEngine';
 import { REGION_CODES, SERVICE_LINE_VALUES } from '@/lib/regions';
 import { enrichProspectRows } from '@/lib/marketing/prospectRows';
+import { getAssignedRegions } from '@/lib/access/regionScope';
 import type { LeadEntityType } from '@/types/database';
 
 const LIST_COLS = 'id, entity_type, display_name, organization_name, person_name, brand_name, industry, status, location_count, '
@@ -37,11 +38,26 @@ export async function GET(req: NextRequest) {
   const sortDir = url.searchParams.get('dir') === 'asc' ? 'asc' : 'desc';
   const sortColumn = SORT_COLUMNS[sortKey] ?? null;
 
+  // 🔴 2026-09-16: this route's own filter was a hardcoded ownership-only `.or()` for any
+  // role outside MARKETING_SEE_ALL_ROLES (i.e. marketing_pr, the only other role
+  // MARKETING_READ_ROLES allows here) — never updated when migrations 108/109 made
+  // marketing_pr's visibility region-aware (region match if assigned, otherwise
+  // everything). Since this route uses the admin/service-role client, RLS never applied
+  // here either, so the initial server-rendered list (RLS-scoped, correct) and this
+  // client-side refetch (this route, still ownership-only) disagreed — reported as "the
+  // whole list disappears after closing a Prospect's detail view, a refresh fixes it":
+  // closing the detail view calls load(page), which hits this route and got 0 rows back
+  // for a marketing_pr who owns nothing but (per 109) should see everything.
+  const assignedRegions = userRole === 'marketing_pr' ? await getAssignedRegions(admin, userId) : [];
+
   function applyFilters<T>(q0: T): T {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query = q0 as any;
     if (!MARKETING_SEE_ALL_ROLES.includes(userRole)) {
-      query = query.or(`created_by.eq.${userId},assigned_marketing_user_id.eq.${userId},owner_id.eq.${userId}`);
+      if (assignedRegions.length > 0) {
+        query = query.in('region', assignedRegions);
+      }
+      // else: no assigned region → unrestricted, matching prospects_read_own (108/109).
     }
     if (!includeArchived) query = query.eq('is_archived', false);
     if (status) query = query.eq('status', status);

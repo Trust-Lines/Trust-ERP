@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
 import { MARKETING_READ_ROLES, MARKETING_SEE_ALL_ROLES } from '@/lib/marketing/roles';
+import { getAssignedRegions } from '@/lib/access/regionScope';
 
 const LIST_COLS = 'id, prospect_id, title, opportunity_type, project_types, stage, source_label, '
   + 'marketing_owner_id, sales_owner_id, deadline, expected_close_date, next_action, next_action_date, '
@@ -15,13 +16,16 @@ export async function GET(req: NextRequest) {
   const q = (url.searchParams.get('q') ?? '').trim();
 
   let query = admin.from('opportunities').select(LIST_COLS).is('deleted_at', null);
+  // 🔴 2026-09-16: same fix as app/api/marketing/prospects/route.ts — this used to be a
+  // hardcoded ownership-only filter for marketing_pr (the only role MARKETING_READ_ROLES
+  // allows here besides the "see all" roles), never updated for the region-aware "no
+  // region assigned → see everything" rule migrations 108/109 already gave this role at
+  // the RLS layer. Left as ownership-only, this route silently returned far fewer rows
+  // than the RLS-scoped page load, the same class of bug reported as "the list empties
+  // out after closing a detail view, a refresh fixes it."
   if (!MARKETING_SEE_ALL_ROLES.includes(role)) {
-    const { data: ownProspects } = await admin.from('prospects').select('id')
-      .or(`created_by.eq.${user.id},assigned_marketing_user_id.eq.${user.id},owner_id.eq.${user.id}`)
-      .limit(1000);
-    const ids = (ownProspects ?? []).map((p: { id: string }) => p.id);
-    if (!ids.length) return NextResponse.json({ opportunities: [] });
-    query = query.in('prospect_id', ids);
+    const assignedRegions = await getAssignedRegions(admin, user.id);
+    if (assignedRegions.length > 0) query = query.in('region', assignedRegions);
   }
   if (stage) query = query.eq('stage', stage);
   if (q) query = query.ilike('title', `%${q.replace(/[%,()\\]/g, '\\$&')}%`);
