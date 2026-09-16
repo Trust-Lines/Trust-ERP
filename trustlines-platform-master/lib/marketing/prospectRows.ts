@@ -1,5 +1,6 @@
 
 import { computeProspectCompleteness } from './prospectCompleteness';
+import { fetchInChunks } from '@/lib/supabase/chunkedIn';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -54,33 +55,37 @@ export async function enrichProspectRows<T extends ProspectListBase>(sb: any, ba
   const showsAttendedByProspect: Record<string, boolean> = {};
   let nameById: Record<string, string> = {};
 
-  const [{ data: contacts }, { data: locations }, { data: potentials }, { data: opportunities }, { data: touches }] = await Promise.all([
-    sb.from('prospect_contacts').select('id, prospect_id, name, is_primary, title, linkedin_url, other_contact, company2_phone, whatsapp, email, phone').in('prospect_id', ids),
-    sb.from('prospect_locations').select('prospect_id, state, address_line_1, mailing_address').in('prospect_id', ids),
-    sb.from('prospect_potentials').select('prospect_id, status').in('prospect_id', ids).is('deleted_at', null),
-    sb.from('opportunities').select('prospect_id, stage').in('prospect_id', ids).is('deleted_at', null),
-    sb.from('campaign_interactions').select('prospect_id').in('prospect_id', ids),
+  // 🔴 2026-09-17: with the "Missing info" Lead Cloud filter now able to pass thousands of
+  // ids here in one call (not just one page's worth of 50), a raw `.in('prospect_id', ids)`
+  // hits the exact URL-length failure fixed elsewhere this session (lib/supabase/
+  // chunkedIn.ts) — chunked here too, so this function is safe regardless of caller.
+  const [contacts, locations, potentials, opportunities, touches] = await Promise.all([
+    fetchInChunks(ids, chunk => sb.from('prospect_contacts').select('id, prospect_id, name, is_primary, title, linkedin_url, other_contact, company2_phone, whatsapp, email, phone').in('prospect_id', chunk)),
+    fetchInChunks(ids, chunk => sb.from('prospect_locations').select('prospect_id, state, address_line_1, mailing_address').in('prospect_id', chunk)),
+    fetchInChunks(ids, chunk => sb.from('prospect_potentials').select('prospect_id, status').in('prospect_id', chunk).is('deleted_at', null)),
+    fetchInChunks(ids, chunk => sb.from('opportunities').select('prospect_id, stage').in('prospect_id', chunk).is('deleted_at', null)),
+    fetchInChunks(ids, chunk => sb.from('campaign_interactions').select('prospect_id').in('prospect_id', chunk)),
   ]);
-  for (const c of (contacts ?? []) as ContactRow[]) {
+  for (const c of contacts as ContactRow[]) {
     (contactsByProspect[c.prospect_id] ??= []).push(c);
   }
-  for (const l of (locations ?? []) as { prospect_id: string; state: string | null; address_line_1: string | null; mailing_address: string | null }[]) {
+  for (const l of locations as { prospect_id: string; state: string | null; address_line_1: string | null; mailing_address: string | null }[]) {
     locationCountByProspect[l.prospect_id] = (locationCountByProspect[l.prospect_id] ?? 0) + 1;
     if (!locationByProspect[l.prospect_id]) locationByProspect[l.prospect_id] = { state: l.state, address_line_1: l.address_line_1, mailing_address: l.mailing_address };
   }
-  for (const p of (potentials ?? []) as { prospect_id: string; status: string }[]) {
+  for (const p of potentials as { prospect_id: string; status: string }[]) {
     if (['converted', 'lost', 'cancelled'].includes(p.status)) continue;
     potentialCountByProspect[p.prospect_id] = (potentialCountByProspect[p.prospect_id] ?? 0) + 1;
   }
-  for (const o of (opportunities ?? []) as { prospect_id: string; stage: string }[]) {
+  for (const o of opportunities as { prospect_id: string; stage: string }[]) {
     if (o.stage === 'closed_lost') continue;
     opportunityCountByProspect[o.prospect_id] = (opportunityCountByProspect[o.prospect_id] ?? 0) + 1;
   }
-  for (const t of (touches ?? []) as { prospect_id: string }[]) showsAttendedByProspect[t.prospect_id] = true;
+  for (const t of touches as { prospect_id: string }[]) showsAttendedByProspect[t.prospect_id] = true;
   const peopleIds = [...new Set(base.flatMap(p => [p.owner_id, p.assigned_marketing_user_id]).filter(Boolean))] as string[];
   if (peopleIds.length) {
-    const { data: people } = await sb.from('profiles').select('id, full_name').in('id', peopleIds);
-    nameById = Object.fromEntries(((people ?? []) as { id: string; full_name: string }[]).map(p => [p.id, p.full_name]));
+    const people = await fetchInChunks(peopleIds, chunk => sb.from('profiles').select('id, full_name').in('id', chunk));
+    nameById = Object.fromEntries((people as { id: string; full_name: string }[]).map(p => [p.id, p.full_name]));
   }
 
   return base.map(p => {

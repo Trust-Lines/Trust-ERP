@@ -88,6 +88,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
   const [statusFilter, setStatusFilter] = useState('');
   const [regionFilter, setRegionFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
+  const [completenessFilter, setCompletenessFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const SERVER_SORT_KEYS = new Set(['created_at', 'source']);
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -178,6 +179,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
       if (statusFilter) params.set('status', statusFilter);
       if (regionFilter) params.set('region', regionFilter);
       if (sourceFilter) params.set('source', sourceFilter);
+      if (completenessFilter) params.set('completeness', completenessFilter);
       if (sortKey && SERVER_SORT_KEYS.has(sortKey)) { params.set('sort', sortKey); params.set('dir', sortDir); }
       const res = await fetch(`/api/marketing/prospects?${params.toString()}`);
       const body = await res.json().catch(() => null);
@@ -195,7 +197,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     const t = setTimeout(() => { load(1); }, 300);
     return () => clearTimeout(t);
 
-  }, [query, statusFilter, regionFilter, sourceFilter, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortKey : null, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortDir : null]);
+  }, [query, statusFilter, regionFilter, sourceFilter, completenessFilter, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortKey : null, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortDir : null]);
 
   function toggleSort(key: string) {
     if (sortKey === key) { setSortDir(d => (d === 'asc' ? 'desc' : 'asc')); return; }
@@ -258,7 +260,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const hasFilters = !!(query.trim() || statusFilter || regionFilter || sourceFilter);
+  const hasFilters = !!(query.trim() || statusFilter || regionFilter || sourceFilter || completenessFilter);
 
   return (
     <>
@@ -291,7 +293,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
         </div>
         <select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by status">
           <option value="">All classifications</option>
-          <option value="captured">Lead</option>
+          <option value="captured">No project yet</option>
           <option value="potential">Potential</option>
           <option value="opportunity_candidate">Opportunity Candidate</option>
           <option value="disqualified">Disqualified</option>
@@ -304,10 +306,18 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
           <option value="">All sources</option>
           {SOURCES.map(s => <option key={s} value={s}>{SOURCE_LABEL[s]}</option>)}
         </select>
+        {/* "Missing info" isn't a DB column — completeness_percent is computed per-row
+            (lib/marketing/prospectCompleteness.ts) from contact/location/source fields — the
+            API filters on it after enrichment rather than in SQL, see app/api/marketing/
+            prospects/route.ts's `completeness === 'missing'` branch. */}
+        <select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={completenessFilter} onChange={e => setCompletenessFilter(e.target.value)} aria-label="Filter by info completeness">
+          <option value="">All info levels</option>
+          <option value="missing">Missing info</option>
+        </select>
         {hasFilters && (
           <button
             className="btn btn-ghost btn-sm"
-            onClick={() => { setQuery(''); setStatusFilter(''); setRegionFilter(''); setSourceFilter(''); }}
+            onClick={() => { setQuery(''); setStatusFilter(''); setRegionFilter(''); setSourceFilter(''); setCompletenessFilter(''); }}
           >
             Clear filters
           </button>

@@ -6,7 +6,7 @@ import { findProspectDuplicates } from '@/lib/marketing/duplicates';
 import { PROJECT_TYPES, SCOPE_TYPES, TIMINGS, ENTITY_TYPES } from '@/lib/marketing/classification';
 import { runClassificationForNeed } from '@/lib/marketing/opportunityEngine';
 import { REGION_CODES, SERVICE_LINE_VALUES } from '@/lib/regions';
-import { enrichProspectRows } from '@/lib/marketing/prospectRows';
+import { enrichProspectRows, type ProspectListBase } from '@/lib/marketing/prospectRows';
 import { getAssignedRegions } from '@/lib/access/regionScope';
 import type { LeadEntityType } from '@/types/database';
 
@@ -29,6 +29,9 @@ export async function GET(req: NextRequest) {
   const status = (url.searchParams.get('status') ?? '').trim();
   const region = (url.searchParams.get('region') ?? '').trim();
   const source = (url.searchParams.get('source') ?? '').trim();
+  // 'missing' = completeness_percent < 100. Not a real DB column (enrichProspectRows
+  // computes it per-row, after the usual DB-level pagination) — see the branch below.
+  const completeness = (url.searchParams.get('completeness') ?? '').trim();
   const includeArchived = url.searchParams.get('includeArchived') === '1';
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(url.searchParams.get('pageSize') ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE));
@@ -70,6 +73,38 @@ export async function GET(req: NextRequest) {
     return query;
   }
 
+  if (completeness === 'missing') {
+    // completeness_percent isn't a DB column (enrichProspectRows computes it per-row from
+    // contacts/location/source data), so DB-level range() pagination can't filter on it —
+    // fetch every row matching the OTHER filters (capped well above current real volume),
+    // enrich all of them, filter, then paginate in memory.
+    //
+    // 🔴 2026-09-16: PostgREST silently caps any single request at 1000 rows regardless of
+    // .limit() (verified live — a plain .limit(5000) query still came back with exactly
+    // 1000 rows against a table with 2220), so a single query here would have quietly
+    // dropped 1000+ real prospects from consideration. Page through in chunks of 1000 with
+    // .range() until either the cap or a short page (end of table) is hit.
+    const MISSING_INFO_CAP = 5000;
+    const FETCH_PAGE = 1000;
+    const allData: unknown[] = [];
+    for (let offset = 0; offset < MISSING_INFO_CAP; offset += FETCH_PAGE) {
+      let pageQuery = applyFilters(admin.from('prospects').select(LIST_COLS).is('deleted_at', null));
+      pageQuery = sortColumn
+        ? pageQuery.order(sortColumn, { ascending: sortDir === 'asc', nullsFirst: false }).order('created_at', { ascending: false })
+        : pageQuery.order('created_at', { ascending: false });
+      pageQuery = pageQuery.range(offset, offset + FETCH_PAGE - 1);
+      const { data: pageData, error: pageError } = await pageQuery;
+      if (pageError) return NextResponse.json({ error: pageError.message }, { status: 500 });
+      allData.push(...(pageData ?? []));
+      if (!pageData || pageData.length < FETCH_PAGE) break;
+    }
+
+    const allEnriched = await enrichProspectRows(admin, allData as unknown as ProspectListBase[]);
+    const missing = allEnriched.filter(p => p.completeness_percent < 100);
+    const from = (page - 1) * pageSize;
+    return NextResponse.json({ prospects: missing.slice(from, from + pageSize), total: missing.length, page, pageSize });
+  }
+
   const countQuery = applyFilters(admin.from('prospects').select('id', { count: 'exact', head: true }).is('deleted_at', null));
   const { count, error: countError } = await countQuery;
   if (countError) return NextResponse.json({ error: countError.message }, { status: 500 });
@@ -84,7 +119,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await dataQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const enriched = await enrichProspectRows(admin, (data ?? []) as never[]);
+  const enriched = await enrichProspectRows(admin, (data ?? []) as unknown as ProspectListBase[]);
   return NextResponse.json({ prospects: enriched, total: count ?? 0, page, pageSize });
 }
 
