@@ -9,14 +9,17 @@ import { DropboxFileList } from '@/components/platform/shared/DropboxFileList';
 import { TagMultiSelect } from './TagMultiSelect';
 import { hashColor } from '@/lib/marketing/pillColor';
 import { normalizeIndustry, INDUSTRY_COLOR } from '@/lib/marketing/industry';
-import { OPPORTUNITY_STAGE_LABEL } from '@/lib/marketing/classification';
+import { OPPORTUNITY_STAGE_LABEL, TIMING_LABEL } from '@/lib/marketing/classification';
 import { REGIONS } from '@/lib/regions';
-import type { OpportunityStage, PotentialStatus } from '@/types/database';
+import type { OpportunityStage, PotentialStatus, LeadTiming } from '@/types/database';
 
 type Deal = Record<string, unknown>;
 interface ProspectInfo { display_name: string; industry: string | null; brand_name: string | null }
 interface ContactOption { id: string; name: string }
 interface ProjectInfo { code: string; dropbox_root_path: string | null }
+// Timing/has_active_project/etc. only ever live on the linked Need — never copied onto the
+// Opportunity/Potential row itself (no columns there) — fetched read-only for display.
+interface NeedInfo { timing: LeadTiming | null; has_active_project: boolean | null; expected_start_date: string | null; layout_available: boolean | null }
 interface NeedNote {
   id: string; author_name: string | null; author_id?: string | null; body: string;
   image_path: string | null; link_url: string | null; link_title: string | null; link_thumbnail_url: string | null;
@@ -45,6 +48,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
   const [prospect, setProspect] = useState<ProspectInfo | null>(null);
   const [contacts, setContacts] = useState<ContactOption[]>([]);
   const [project, setProject] = useState<ProjectInfo | null>(null);
+  const [need, setNeed] = useState<NeedInfo | null>(null);
   const [notes, setNotes] = useState<NeedNote[]>([]);
   const [files, setFiles] = useState<NeedFile[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -71,6 +75,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
       setProspect(body.prospect ?? null);
       setContacts(body.contacts ?? []);
       setProject(body.project ?? null);
+      setNeed(body.need ?? null);
       setNotes(body.notes ?? []);
       setFiles(body.files ?? []);
     } catch { }
@@ -298,6 +303,9 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                   <Row label="Why this stage">
                     <span style={{ ...ro, fontSize: 12 }}>{(opp!.classification_reasons as string[]).join(' · ')}</span>
                   </Row>
+                )}
+                {need?.timing && (
+                  <Row label="Timing"><span style={ro}>{TIMING_LABEL[need.timing]}</span></Row>
                 )}
                 <Row label="Region">
                   <Sel value={String(v('region'))} onChange={x => saveField('region', x || null)}

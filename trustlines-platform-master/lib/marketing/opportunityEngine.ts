@@ -13,6 +13,7 @@ interface NeedRowForEngine {
   prospect_id: string;
   location_id: string | null;
   title: string;
+  description: string | null;
   project_types: ProjectType[];
   scope_types: ScopeType[];
   has_active_project: boolean | null;
@@ -60,17 +61,23 @@ function projectTypeRawFor(types: ProjectType[]): string | null {
   return types.map(t => PROJECT_TYPE_LABEL[t] ?? t).join(', ');
 }
 
-// Timing has nowhere to live on `prospect_potentials` at all (no column) — folded into
-// `notes` at creation time only, so a later manual edit to notes is never clobbered by a
-// reclassification re-run.
-function timingNote(timing: LeadTiming | null): string | null {
-  if (!timing) return null;
-  return `Timing: ${TIMING_LABEL[timing]}`;
+// Timing has nowhere to live as its own column on `prospect_potentials` OR `opportunities`
+// (only `prospect_needs.timing` does) — folded into notes/description as a labeled first
+// line, ahead of the Need's own description (the composed challenges/contact-preference/
+// store-status text the public survey already writes — see
+// lib/marketing/campaignSubmission.ts). Set at creation time only, so a later manual edit
+// is never clobbered by a reclassification re-run.
+function composedNotes(need: NeedRowForEngine): string | null {
+  const lines = [
+    need.timing ? `Timing: ${TIMING_LABEL[need.timing]}` : null,
+    need.description?.trim() || null,
+  ].filter(Boolean);
+  return lines.length ? lines.join('\n') : null;
 }
 
 export async function runClassificationForNeed(admin: any, needId: string, actorId: string): Promise<NeedSyncResult> {
   const { data: need } = await admin.from('prospect_needs')
-    .select('id, prospect_id, location_id, title, project_types, scope_types, has_active_project, deadline, expected_start_date, layout_available, timing, target_contact_date, source')
+    .select('id, prospect_id, location_id, title, description, project_types, scope_types, has_active_project, deadline, expected_start_date, layout_available, timing, target_contact_date, source')
     .eq('id', needId).maybeSingle();
   if (!need) throw new Error('Need not found for classification sync');
   const n = need as NeedRowForEngine;
@@ -137,6 +144,7 @@ export async function runClassificationForNeed(admin: any, needId: string, actor
         project_types: n.project_types ?? [], scope_types: n.scope_types ?? [], stage: 'new', source_label: n.source,
         marketing_owner_id: ownerId, deadline: n.deadline, auto_managed: true, primary_contact_id: primaryContactId,
         classification_reasons: classification.reasons, classification_rule_version: CLASSIFICATION_RULE_VERSION,
+        description: composedNotes(n),
         created_by: actorId,
       }).select().maybeSingle();
       opportunity = data; opportunityAction = 'created';
@@ -161,7 +169,7 @@ export async function runClassificationForNeed(admin: any, needId: string, actor
         status: 'identified', target_contact_date: contactDate,
         assigned_to: ownerId, auto_managed: true, primary_contact_id: primaryContactId,
         classification_reasons: classification.reasons, classification_rule_version: CLASSIFICATION_RULE_VERSION,
-        project_type_raw: projectTypeRawFor(n.project_types ?? []), notes: timingNote(n.timing),
+        project_type_raw: projectTypeRawFor(n.project_types ?? []), notes: composedNotes(n),
         created_by: actorId,
       }).select().maybeSingle();
       potential = data; potentialAction = 'created';

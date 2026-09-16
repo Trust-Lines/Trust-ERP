@@ -44,7 +44,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const [prospectRes, contactsRes, projectRes, notesRes, filesRes] = await Promise.all([
+  const [prospectRes, contactsRes, projectRes, notesRes, filesRes, needRes] = await Promise.all([
     admin.from('prospects').select('display_name, industry, brand_name').eq('id', data.prospect_id).maybeSingle(),
     admin.from('prospect_contacts').select('id, name').eq('prospect_id', data.prospect_id).order('is_primary', { ascending: false }),
     data.project_id
@@ -57,6 +57,12 @@ export async function GET(_req: NextRequest, { params }: Params) {
     data.need_id
       ? admin.from('need_files').select('id, dropbox_path, file_name, uploaded_by, created_at').eq('need_id', data.need_id).order('created_at', { ascending: false })
       : Promise.resolve({ data: [] }),
+    // Timing/has_active_project/expected_start_date only ever live on the Need, never
+    // copied onto the Opportunity row itself (no columns for them there) — fetched
+    // read-only so the UI can show the real submitted answers.
+    data.need_id
+      ? admin.from('prospect_needs').select('timing, has_active_project, expected_start_date, layout_available').eq('id', data.need_id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   return NextResponse.json({
@@ -66,6 +72,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     project: projectRes.data ?? null,
     notes: notesRes.data ?? [],
     files: filesRes.data ?? [],
+    need: needRes.data ?? null,
   });
 }
 

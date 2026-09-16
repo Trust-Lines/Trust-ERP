@@ -36,12 +36,16 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const [prospectRes, contactsRes, notesRes, filesRes] = await Promise.all([
+  const [prospectRes, contactsRes, notesRes, filesRes, needRes] = await Promise.all([
     admin.from('prospects').select('display_name, industry, brand_name').eq('id', data.prospect_id).maybeSingle(),
     admin.from('prospect_contacts').select('id, name').eq('prospect_id', data.prospect_id).order('is_primary', { ascending: false }),
     admin.from('need_notes').select('id, author_name, author_id, body, image_path, link_url, link_title, link_thumbnail_url, source_created_at, created_at')
       .eq('need_id', data.need_id).order('source_created_at', { ascending: true, nullsFirst: false }).order('created_at', { ascending: true }),
     admin.from('need_files').select('id, dropbox_path, file_name, uploaded_by, created_at').eq('need_id', data.need_id).order('created_at', { ascending: false }),
+    // Timing/has_active_project/expected_start_date only ever live on the Need, never
+    // copied onto the Potential row itself (no columns for them there) — fetched read-only
+    // so the UI can show the real submitted answers instead of just the composed notes text.
+    admin.from('prospect_needs').select('timing, has_active_project, expected_start_date, layout_available').eq('id', data.need_id).maybeSingle(),
   ]);
 
   return NextResponse.json({
@@ -50,6 +54,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     contacts: contactsRes.data ?? [],
     notes: notesRes.data ?? [],
     files: filesRes.data ?? [],
+    need: needRes.data ?? null,
   });
 }
 
