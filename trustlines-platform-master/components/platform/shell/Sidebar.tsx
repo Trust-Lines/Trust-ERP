@@ -123,14 +123,22 @@ const SALES_NAV: NavItem[] = [
 // whole module (MarketingWorkspaceClient), and it was previously reachable from NOWHERE in the
 // sidebar. "Potentials" was removed as its own destination: it is not a separate page anymore
 // (it's the Potential column inside Opportunities), and the old link only 302'd back to
-// Opportunities — confusing, not a real place. "Opportunities" itself was also missing here even
-// though it is Marketing's primary working screen (see PROJECT-MASTER-PLAN.md Phase 00.5).
+// Opportunities — confusing, not a real place.
+//
+// 🔴 2026-09-17: "Opportunities" itself is now excluded for marketing_pr specifically (kept for
+// marketing_manager/ops_manager/general_manager, the MARKETING_SEE_ALL_ROLES tier) — role
+// scope was redefined: marketing_pr's whole job is Lead Cloud + Potentials (chase down missing
+// contact info, work a Potential toward having real proof/documents attached) and handing off
+// once it actually becomes an Opportunity — Opportunities themselves are Sales's board from
+// there. See MARKETING_MANAGER_ONLY_NAV below.
 const MARKETING_NAV: NavItem[] = [
   { label: 'Marketing Home',      href: '/marketing',               icon: Megaphone,    perm: 'page.marketing' },
   { label: 'Lead Cloud',          href: '/marketing/prospects',     icon: FolderSearch, perm: 'page.marketing' },
-  { label: 'Opportunities',       href: '/marketing/opportunities', icon: Target,       perm: 'page.marketing' },
   { label: 'Campaigns & Surveys', href: '/marketing/campaigns',     icon: QrCode,       perm: 'page.marketing_campaigns' },
   { label: 'Trash',               href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing' },
+];
+const MARKETING_MANAGER_ONLY_NAV: NavItem[] = [
+  { label: 'Opportunities', href: '/marketing/opportunities', icon: Target, perm: 'page.marketing' },
 ];
 
 interface SidebarProps {
@@ -358,6 +366,13 @@ export function Sidebar({
   const isSalesAdmin = SALES_ADMIN_ROLES.includes(userRole);
   const isSales = isSalesAdmin || userRole === 'sales_rep';
   const isMarketing = permCan(userPerms, 'page.marketing');
+  const MARKETING_MANAGER_ROLES = ['marketing_manager', 'ops_manager', 'general_manager'];
+  const isMarketingManager = MARKETING_MANAGER_ROLES.includes(userRole);
+  const marketingNav: NavItem[] = [
+    ...MARKETING_NAV.slice(0, 2), // Marketing Home, Lead Cloud
+    ...(isMarketingManager ? MARKETING_MANAGER_ONLY_NAV : []), // Opportunities — managers only
+    ...MARKETING_NAV.slice(2), // Campaigns & Surveys, Trash
+  ];
 
   // Sales and Marketing are two different teams working two different jobs (Sales works deals
   // through to a Trust project; Marketing works leads through to a qualified Opportunity) — they
@@ -449,7 +464,7 @@ export function Sidebar({
         {isMarketing && (
           <NavGroup
             title="Marketing" icon={Megaphone}
-            items={MARKETING_NAV}
+            items={marketingNav}
             perms={userPerms} pathname={pathname} bypassPerm defaultOpen
             collapsed={collapsed}
           />
