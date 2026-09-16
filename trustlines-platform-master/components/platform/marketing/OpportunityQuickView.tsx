@@ -294,6 +294,11 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                     <Sel value={String(v('status') || 'identified')} onChange={x => saveField('status', x)} opts={POTENTIAL_STATUS_OPTS} />
                   </Row>
                 )}
+                {Array.isArray(opp?.classification_reasons) && (opp!.classification_reasons as string[]).length > 0 && (
+                  <Row label="Why this stage">
+                    <span style={{ ...ro, fontSize: 12 }}>{(opp!.classification_reasons as string[]).join(' · ')}</span>
+                  </Row>
+                )}
                 <Row label="Region">
                   <Sel value={String(v('region'))} onChange={x => saveField('region', x || null)}
                     opts={[['', '—'], ...REGIONS.map(r => [r.code, r.label] as [string, string])]}

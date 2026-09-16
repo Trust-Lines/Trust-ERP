@@ -3,6 +3,7 @@
 
 import {
   classifyLead, CLASSIFICATION_TO_NEED, CLASSIFICATION_RULE_VERSION,
+  PROJECT_TYPE_LABEL, TIMING_LABEL,
   type ClassificationResult,
 } from './classification';
 import type { ProjectType, ScopeType, LeadTiming, NeedClassification } from '@/types/database';
@@ -45,6 +46,26 @@ async function rollupProspectStatus(admin: any, prospectId: string): Promise<voi
 
 function titleFor(prospectDisplayName: string, need: NeedRowForEngine): string {
   return `${prospectDisplayName} — ${need.title}`;
+}
+
+// 🔴 2026-09-17: the Opportunity branch below already copies `project_types` straight from
+// the Need onto the Opportunity row — the Potential branch never did the equivalent, so
+// every auto-created Potential (survey submissions especially, which have no other path to
+// set this) showed a blank "Project Type" field in the UI even though the real answer was
+// sitting right there on the Need. Potentials don't have their own typed project_types
+// column (only the free-text `project_type_raw` ClickUp-import column), so this renders the
+// same list Opportunities store structurally into that field's label text.
+function projectTypeRawFor(types: ProjectType[]): string | null {
+  if (!types.length) return null;
+  return types.map(t => PROJECT_TYPE_LABEL[t] ?? t).join(', ');
+}
+
+// Timing has nowhere to live on `prospect_potentials` at all (no column) — folded into
+// `notes` at creation time only, so a later manual edit to notes is never clobbered by a
+// reclassification re-run.
+function timingNote(timing: LeadTiming | null): string | null {
+  if (!timing) return null;
+  return `Timing: ${TIMING_LABEL[timing]}`;
 }
 
 export async function runClassificationForNeed(admin: any, needId: string, actorId: string): Promise<NeedSyncResult> {
@@ -131,7 +152,7 @@ export async function runClassificationForNeed(admin: any, needId: string, actor
       const { data } = await admin.from('prospect_potentials').update({
         title: titleFor(displayName, n), target_contact_date: contactDate,
         classification_reasons: classification.reasons, classification_rule_version: CLASSIFICATION_RULE_VERSION,
-        primary_contact_id: primaryContactId,
+        primary_contact_id: primaryContactId, project_type_raw: projectTypeRawFor(n.project_types ?? []),
       }).eq('id', existingPotential.id).select().maybeSingle();
       potential = data; potentialAction = 'updated';
     } else {
@@ -140,6 +161,7 @@ export async function runClassificationForNeed(admin: any, needId: string, actor
         status: 'identified', target_contact_date: contactDate,
         assigned_to: ownerId, auto_managed: true, primary_contact_id: primaryContactId,
         classification_reasons: classification.reasons, classification_rule_version: CLASSIFICATION_RULE_VERSION,
+        project_type_raw: projectTypeRawFor(n.project_types ?? []), notes: timingNote(n.timing),
         created_by: actorId,
       }).select().maybeSingle();
       potential = data; potentialAction = 'created';
