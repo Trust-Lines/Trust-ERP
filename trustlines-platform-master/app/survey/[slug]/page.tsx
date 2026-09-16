@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { SoccerChallenge } from "@/components/platform/survey/SoccerChallenge";
 import { GeneralSurvey } from "@/components/platform/survey/GeneralSurvey";
+import { QuickSurvey } from "@/components/platform/survey/QuickSurvey";
 
 interface CampaignInfo {
   slug: string;
@@ -56,6 +57,9 @@ export default function SurveyPage() {
   }
   if (campaign.surveyTemplate === 'general') {
     return <GeneralSurvey campaignSlug={campaign.slug} consentTextVersion={campaign.consentTextVersion} />;
+  }
+  if (campaign.surveyTemplate === 'quick') {
+    return <QuickSurvey campaignSlug={campaign.slug} consentTextVersion={campaign.consentTextVersion} />;
   }
 
   return (

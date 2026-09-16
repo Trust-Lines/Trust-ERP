@@ -186,6 +186,12 @@
 .gs-timing-panel > p { margin: 0 0 20px; color: #d6d6d6; font-size: 13.5px; max-width: 520px; }
 .gs-timing-panel .gs-timing-card { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.18); color: white; }
 .gs-timing-panel .gs-timing-card span { color: #c2c2c2; }
+/* An optional Field (e.g. the Note textarea in QuickSurvey.tsx) dropped inside this dark
+   panel — .gs-field-label-row's "Required"/"Optional" badge otherwise stays var(--gs-muted)
+   (#777), too dark against the near-black panel background to read comfortably. */
+.gs-timing-panel .gs-field-label-row span { color: #a8a8a8; }
+.gs-timing-panel .gs-field-hint { color: #c2c2c2; }
+.gs-timing-panel .gs-field { margin-top: 18px; }
 .gs-consent-row { display: flex; align-items: flex-start; gap: 10px; margin-top: 18px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.15); font-size: 12.5px; color: #d6d6d6; }
 .gs-consent-row input { margin-top: 3px; flex-shrink: 0; width: 16px; height: 16px; accent-color: white; }
 .gs-consent-row a { color: white; }
