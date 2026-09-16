@@ -370,6 +370,14 @@ export function Sidebar({
       ? [{ label: 'Dashboard', href: '/sales-dashboard', icon: BarChart3, perm: 'page.sales_dashboard' },
          { label: 'Sales Team', href: '/sales-team', icon: Users, perm: 'page.sales_team' }]
       : []),
+    // Customers = the real end-customer record, used AFTER a project is won/delivered
+    // (addresses, contacts, meetings, follow-ups, handover). That's a Sales/T-Lines
+    // relationship concern, not something Trust Lines' internal ops/production side needs —
+    // it used to be its own standalone sidebar item between Projects and Operations, visible
+    // to everyone including roles that never touch a customer relationship. Living inside
+    // this group means it only shows for Sales-side roles (isSales below), same as the rest
+    // of the Sales nav.
+    CUSTOMERS_ITEM,
     { label: 'Trash', href: '/leads/trash', icon: Trash2, perm: 'page.leads' },
   ];
 
@@ -449,8 +457,6 @@ export function Sidebar({
 
         <NavGroup title="Design" icon={Palette} items={[DESIGN_ITEM]} perms={userPerms} pathname={pathname} collapsed={collapsed} />
         <NavGroup title="Projects" icon={ClipboardList} items={PROJECTS_NAV} perms={userPerms} pathname={pathname} collapsed={collapsed} />
-
-        <NavLink item={CUSTOMERS_ITEM} perms={userPerms} pathname={pathname} collapsed={collapsed} />
 
         {isInternal && (
           <NavGroup title="Operations" icon={Factory} items={OPERATIONS_NAV} perms={userPerms} pathname={pathname} collapsed={collapsed} />
