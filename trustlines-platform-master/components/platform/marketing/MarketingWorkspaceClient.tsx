@@ -13,6 +13,11 @@ interface Props {
   opportunityCount: number | null;
   potentialCount: number | null;
   myDaySections: MyDaySection[];
+  // Manager-only: team-wide gaps (unfollowed Potentials, missing-region records) — a
+  // manager doesn't personally own Leads, so myDaySections ("assigned to me") is always
+  // empty for them even when the team has real work sitting untouched. See
+  // lib/marketing/teamGaps.ts.
+  teamGapSections: MyDaySection[];
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -39,13 +44,17 @@ function firstName(fullName: string | null): string | null {
   return fullName.trim().split(/\s+/)[0];
 }
 
-export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCount, opportunityCount, potentialCount, myDaySections }: Props) {
+export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCount, opportunityCount, potentialCount, myDaySections, teamGapSections }: Props) {
   const canReachSalesHandoff = SALES_HANDOFF_ROLES.includes(role);
   const name = firstName(fullName);
 
-  const sections = MARKETING_SECTION_ORDER
+  const mySections = MARKETING_SECTION_ORDER
     .map(key => myDaySections.find(s => s.key === key))
     .filter((s): s is MyDaySection => !!s && s.items.length > 0);
+  // Team-wide gaps first — for a manager these are the real work (their own "assigned to
+  // me" list is naturally empty), so they shouldn't have to scroll past an empty-looking
+  // section to find them.
+  const sections = [...teamGapSections, ...mySections];
   const totalActionCount = sections.reduce((sum, s) => sum + s.items.length, 0);
 
   return (
