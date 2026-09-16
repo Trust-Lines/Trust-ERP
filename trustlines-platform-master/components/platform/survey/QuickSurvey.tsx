@@ -1,18 +1,19 @@
 "use client";
 
-// QuickSurvey.tsx — 2026-09-17. A short, notes-first companion to GeneralSurvey.tsx, for
-// when a full company-details form is too much friction (e.g. a trade-show booth tap-in):
-// same visual system (generalSurveyStyles.css, "gs-" prefixed), same real submission
-// pipeline (lib/marketing/campaignSubmission.ts), but only 3 steps —
+// QuickSurvey.tsx — 2026-09-17 (revised same day per direct correction: the Project
+// Vision step — project type/challenges/store status/store size — does NOT exist on this
+// form at all, unlike an earlier draft that kept it). A minimal, notes-first companion to
+// GeneralSurvey.tsx for when even the short form is too much friction (e.g. a trade-show
+// booth tap-in): same visual system (generalSurveyStyles.css, "gs-" prefixed), same real
+// submission pipeline (lib/marketing/campaignSubmission.ts), but only 3 steps —
 //   1. Store format (identical to GeneralSurvey's step 0)
 //   2. "01 — Project lead" (identical to GeneralSurvey's step 1: name/phone/email/
 //      contact preference) — the ONLY identifying info this survey collects. There is no
-//      "02 — Business identity" step here at all (no company name, role, store address,
-//      business phone) — deliberately dropped per request.
-//   3. "03 — Project vision" (project type/challenges/store status/store size — identical
-//      to GeneralSurvey's step 3 minus its timing panel) followed immediately by "04 — When
-//      should we reach you?" (the same timing picker) with a free-text Note box added below
-//      it, then Send.
+//      "02 — Business identity" step here (no company name, role, store address, business
+//      phone), and no Project Vision step either.
+//   3. "03 — When should we reach you?" — the same timing picker as GeneralSurvey's final
+//      step, with a free-text Note box added below it (this is where anything else — project
+//      type, challenges, whatever — gets captured by hand), then Send.
 //
 // Because there's no company-name field here, submissions go through as `leadType: "person"`
 // (GeneralSurvey uses "organization") — the collected full name is what identifies the
@@ -23,19 +24,16 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
-  Building2, Check, Clock3, Expand, Fuel, Hammer, HardHat, Loader2,
-  MapPin, MessageCircle, MoreHorizontal, Store, Wrench, ShoppingBasket, Mail,
+  Building2, Check, Clock3, Loader2,
+  MessageCircle, MoreHorizontal, Store, Fuel, ShoppingBasket, Mail,
 } from "lucide-react";
 
-type FieldName =
-  | "storeType" | "fullName" | "phone" | "email" | "contactPreference"
-  | "projectType" | "challenges" | "storeStatus" | "storeSize"
-  | "timeline" | "note" | "honeypot";
+type FieldName = "storeType" | "fullName" | "phone" | "email" | "contactPreference" | "timeline" | "note" | "honeypot";
 
 type SurveyData = Record<FieldName, string>;
 type SurveyErrors = Partial<Record<FieldName, string>>;
 
-// contactPreference and projectType hold more than one choice — comma-joined ("whatsapp,email").
+// contactPreference holds more than one choice — comma-joined ("whatsapp,email").
 const multiValues = (v: string): string[] => (v ? v.split(",") : []);
 function toggleMulti(current: string, value: string): string {
   const set = new Set(multiValues(current));
@@ -45,20 +43,19 @@ function toggleMulti(current: string, value: string): string {
 
 const initialData: SurveyData = {
   storeType: "", fullName: "", phone: "", email: "", contactPreference: "",
-  projectType: "", challenges: "", storeStatus: "", storeSize: "",
   timeline: "", note: "", honeypot: "",
 };
 
 const stepMeta = [
   { eyebrow: "Project profile", title: "Choose your store format", description: "Select the format that best describes your business." },
   { eyebrow: "01 — Project lead", title: "Tell us about yourself", description: "Start with the person leading this project." },
-  { eyebrow: "03 — Project vision", title: "Define your project plan", description: "Tell us where the store stands today and what this project should solve." },
+  { eyebrow: "03 — When should we reach you?", title: "Pick your timing, then send", description: "This is the last step — pick when you'd like us to follow up, add a note if you like, then hit Send." },
 ] as const;
 
 const requiredByStep: Record<number, FieldName[]> = {
   0: ["storeType"],
   1: ["fullName", "phone", "email", "contactPreference"],
-  2: ["projectType", "challenges", "storeStatus", "storeSize", "timeline"],
+  2: ["timeline"],
 };
 
 const storeOptions = [
@@ -71,30 +68,6 @@ const STORE_TYPE_TEAM_LABEL: Record<string, string> = {
   convenience: "Convenience Stores", grocery: "Grocery Stores", "truck-stop": "Truck Stop", other: "Other",
 };
 
-const projectOptions = [
-  { value: "new-construction", label: "New construction", icon: HardHat },
-  { value: "full-remodel", label: "Full remodel", icon: Hammer },
-  { value: "small-remodel", label: "Small remodel", icon: Wrench },
-  { value: "expansion", label: "Expansion", icon: Expand },
-  { value: "new-branch", label: "New branch", icon: MapPin },
-] as const;
-const PROJECT_TYPE_MAP: Record<string, string[]> = {
-  "new-construction": ["new_construction"], "full-remodel": ["full_remodel"], "small-remodel": ["small_remodel"],
-  expansion: ["new_construction"], "new-branch": ["new_construction"],
-};
-const PROJECT_TYPE_NOTE_LABEL: Record<string, string> = {
-  "new-construction": "New construction", "full-remodel": "Full remodel", "small-remodel": "Small remodel",
-  expansion: "Expansion", "new-branch": "New branch",
-};
-
-const storeStatusOptions = [
-  ["new", "New store — planning phase"], ["operating", "Existing store — operating"],
-  ["expanding", "Planning an expansion"], ["other", "Other"],
-] as const;
-const storeSizeOptions = [
-  ["small", "Small — up to 2,000 sq. ft."], ["medium", "Medium — 2,000–5,000 sq. ft."], ["large", "Large — 5,000+ sq. ft."],
-] as const;
-
 const timingOptions = [
   { value: "asap", label: "ASAP", detail: "0–3 months" },
   { value: "soon", label: "Soon", detail: "3–6 months" },
@@ -105,20 +78,14 @@ const TIMING_MAP: Record<string, string> = {
   asap: "0_3_months", soon: "3_6_months", later: "6_12_months", planning: "12_plus_months",
 };
 
-const labelOf = (opts: readonly (readonly [string, string])[], value: string) => opts.find(([v]) => v === value)?.[1] || value || "—";
 const CONTACT_PREFERENCE_LABEL: Record<string, string> = { whatsapp: "WhatsApp", email: "Email" };
 
 function buildSubmissionPayload(data: SurveyData, submissionToken: string, consentTextVersion: string) {
   const [firstName, ...rest] = (data.fullName || "").trim().split(/\s+/);
-  const projectTypes = multiValues(data.projectType);
   const contactPrefs = multiValues(data.contactPreference);
   const notesLines = [
     data.note?.trim() ? `Note: ${data.note.trim()}` : null,
-    data.challenges ? `Main challenges: ${data.challenges}` : null,
-    projectTypes.length ? `Project type: ${projectTypes.map(t => PROJECT_TYPE_NOTE_LABEL[t] ?? t).join(", ")}` : null,
     contactPrefs.length ? `Preferred contact: ${contactPrefs.map(p => CONTACT_PREFERENCE_LABEL[p] ?? p).join(", ")}` : null,
-    data.storeStatus ? `Store status: ${labelOf(storeStatusOptions, data.storeStatus)}` : null,
-    data.storeSize ? `Store size: ${labelOf(storeSizeOptions, data.storeSize)}` : null,
   ].filter(Boolean);
 
   return {
@@ -131,7 +98,6 @@ function buildSubmissionPayload(data: SurveyData, submissionToken: string, conse
     email: data.email || undefined,
     phone: data.phone || undefined,
     team: STORE_TYPE_TEAM_LABEL[data.storeType] ?? undefined,
-    projectTypes: [...new Set(projectTypes.flatMap(t => PROJECT_TYPE_MAP[t] ?? []))],
     timing: TIMING_MAP[data.timeline] ?? undefined,
     notes: notesLines.join("\n") || undefined,
     consentAccepted: true,
@@ -262,7 +228,7 @@ export function QuickSurvey({ campaignSlug, consentTextVersion }: { campaignSlug
             {step === 0 && <StoreTypeStep data={data} update={update} error={errors.storeType} />}
             {step === 1 && <LeaderStep data={data} update={update} errors={errors} />}
             {step === 2 && (
-              <VisionAndSendStep
+              <TimingAndSendStep
                 data={data} update={update} errors={errors}
                 consentAccepted={consentAccepted} onConsentChange={v => { setConsentAccepted(v); if (v) setConsentError(false); }}
                 consentError={consentError}
@@ -374,60 +340,14 @@ function LeaderStep({ data, update, errors }: StepProps) {
   );
 }
 
-function VisionAndSendStep({
+function TimingAndSendStep({
   data, update, errors, consentAccepted, onConsentChange, consentError,
 }: StepProps & {
   consentAccepted: boolean; onConsentChange: (v: boolean) => void; consentError: boolean;
 }) {
   return (
     <div className="gs-form-grid">
-      <fieldset className={`gs-choice-fieldset ${errors.projectType ? "gs-has-error" : ""}`} data-field="projectType">
-        <legend>Project type <span>Required — pick one or more</span></legend>
-        <div className="gs-project-grid">
-          {projectOptions.map(({ value, label, icon: Icon }) => (
-            <label className="gs-project-choice" key={value}>
-              <input type="checkbox" name="projectType" value={value} checked={multiValues(data.projectType).includes(value)} onChange={() => update("projectType", toggleMulti(data.projectType, value))} />
-              <span className="gs-project-icon"><Icon size={19} strokeWidth={1.7} aria-hidden="true" /></span>
-              <strong>{label}</strong><Check size={15} />
-            </label>
-          ))}
-        </div>
-        {errors.projectType && <p className="gs-error-text" role="alert">{errors.projectType}</p>}
-      </fieldset>
-
-      <Field id="challenges" label="Main project challenges" hint="What should this project solve or improve?" error={errors.challenges}>
-        <textarea id="challenges" rows={4} placeholder="Describe the operational, spatial, or customer experience challenge…" {...bind(data, update, "challenges")} />
-      </Field>
-
-      <div className={`gs-field ${errors.storeStatus ? "gs-field-error" : ""}`} data-field="storeStatus">
-        <div className="gs-field-label-row"><label>Store status</label><span>Required</span></div>
-        <div className="gs-pick-list">
-          {storeStatusOptions.map(([v, l]) => (
-            <label className="gs-pick-row" key={v}>
-              <input type="radio" name="storeStatus" value={v} checked={data.storeStatus === v} onChange={e => update("storeStatus", e.target.value)} />
-              <span className="gs-pick-dot" />{l}
-            </label>
-          ))}
-        </div>
-        {errors.storeStatus && <p className="gs-error-text" role="alert">{errors.storeStatus}</p>}
-      </div>
-      <div className={`gs-field ${errors.storeSize ? "gs-field-error" : ""}`} data-field="storeSize">
-        <div className="gs-field-label-row"><label>Store size</label><span>Required</span></div>
-        <div className="gs-pick-list">
-          {storeSizeOptions.map(([v, l]) => (
-            <label className="gs-pick-row" key={v}>
-              <input type="radio" name="storeSize" value={v} checked={data.storeSize === v} onChange={e => update("storeSize", e.target.value)} />
-              <span className="gs-pick-dot" />{l}
-            </label>
-          ))}
-        </div>
-        {errors.storeSize && <p className="gs-error-text" role="alert">{errors.storeSize}</p>}
-      </div>
-
       <div className={`gs-timing-panel ${errors.timeline ? "gs-has-error" : ""}`} data-field="timeline">
-        <p className="gs-eyebrow">04 — When should we reach you?</p>
-        <h2>Pick your timing, then send</h2>
-        <p>This is the last step — pick when you&apos;d like us to follow up, add a note if you like, then hit Send.</p>
         <div className="gs-timing-grid">
           {timingOptions.map(t => (
             <label className="gs-timing-card" key={t.value}>
@@ -440,7 +360,7 @@ function VisionAndSendStep({
         {errors.timeline && <p className="gs-error-text" role="alert" style={{ color: "#f3c7c2" }}>{errors.timeline}</p>}
 
         <Field id="note" label="Note" optional hint="Anything else we should know?">
-          <textarea id="note" rows={3} placeholder="Write a note…" {...bind(data, update, "note")} />
+          <textarea id="note" rows={4} placeholder="Write a note…" {...bind(data, update, "note")} />
         </Field>
 
         <label className="gs-consent-row">
