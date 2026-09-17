@@ -217,37 +217,28 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
       >
         <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
           <div style={{
-            display: 'flex', alignItems: 'flex-start', gap: 16, padding: '24px 28px',
-            background: 'linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-600) 55%, var(--brand-teal) 130%)',
-            position: 'relative', overflow: 'hidden',
+            display: 'flex', alignItems: 'flex-start', gap: 16, padding: '26px 28px 22px',
+            borderBottom: '1px solid var(--border-subtle)',
           }}>
             <div style={{
-              position: 'absolute', inset: 0, opacity: 0.5,
-              background: 'radial-gradient(600px circle at 85% -20%, rgba(255,255,255,.12), transparent 60%)',
+              width: 4, alignSelf: 'stretch', borderRadius: 4, flexShrink: 0,
+              background: kind === 'potential' ? 'var(--brand-teal)' : 'var(--brand-navy)',
             }} />
-            <div style={{
-              width: 46, height: 46, borderRadius: 14, flexShrink: 0, position: 'relative',
-              background: 'rgba(255,255,255,.14)', border: '1px solid rgba(255,255,255,.22)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 18, fontWeight: 800, color: '#fff', backdropFilter: 'blur(4px)',
-            }}>
-              {title.charAt(0).toUpperCase()}
-            </div>
-            <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               {project?.code && (
                 <div style={{
-                  display: 'inline-flex', fontSize: 11.5, fontFamily: 'var(--font-mono)', fontWeight: 600,
-                  color: 'rgba(255,255,255,.75)', letterSpacing: '0.03em', background: 'rgba(255,255,255,.1)',
-                  padding: '2px 8px', borderRadius: 999, marginBottom: 6,
+                  display: 'inline-flex', fontSize: 11.5, fontFamily: 'var(--font-mono)', fontWeight: 700,
+                  color: 'var(--fg-subtle)', letterSpacing: '0.03em', background: 'var(--bg-subtle)',
+                  padding: '2px 8px', borderRadius: 6, marginBottom: 8,
                 }}>
                   {project.code}
                 </div>
               )}
-              <h2 style={{ fontSize: 21, fontWeight: 800, margin: 0, color: '#fff', letterSpacing: '-0.01em' }}>{title}</h2>
-              <div style={{ fontSize: 13.5, color: 'rgba(255,255,255,.7)', marginTop: 3, fontWeight: 500 }}>
+              <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: 'var(--fg-default)', letterSpacing: '-0.015em', lineHeight: 1.15 }}>{title}</h2>
+              <div style={{ fontSize: 13.5, color: 'var(--fg-subtle)', marginTop: 5, fontWeight: 500 }}>
                 {prospect?.industry || '—'} · {prospect?.brand_name || '—'}
               </div>
-              <div style={{ marginTop: 10 }}>
+              <div style={{ marginTop: 12 }}>
                 {canEdit ? (
                   <TagMultiSelect
                     values={tags.map(t => t.name)}
@@ -269,12 +260,13 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                 ) : null}
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative', flexShrink: 0 }}>
-              {saving && <Loader2 size={14} className="qv-spin" style={{ color: 'rgba(255,255,255,.7)' }} />}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+              {saving && <Loader2 size={14} className="qv-spin" style={{ color: 'var(--fg-faint)' }} />}
               <Link href={`/marketing/prospects/${opp?.prospect_id}`} title="Contacts, locations & other Needs for this Lead"
                 style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: '#fff', textDecoration: 'none',
-                  background: 'rgba(255,255,255,.14)', border: '1px solid rgba(255,255,255,.22)', padding: '6px 12px', borderRadius: 999,
+                  display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600,
+                  color: 'var(--fg-subtle)', textDecoration: 'none',
+                  background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: 8,
                   transition: 'background .15s',
                 }}>
                 <ExternalLink size={12} /> Lead profile
@@ -294,122 +286,124 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
           ) : !opp ? (
             <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-subtle)' }}>Couldn&apos;t load this {kind === 'potential' ? 'Potential' : 'Opportunity'}.</div>
           ) : (
-            <div style={{ padding: '20px 28px 24px' }}>
-              <SectionLabel icon="◆">Overview</SectionLabel>
-              <div style={{
-                display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 4, marginBottom: 24,
-                background: 'var(--bg-subtle)', borderRadius: 14, padding: 8, border: '1px solid var(--border-subtle)',
-              }}>
-                {kind === 'opportunity' ? (
-                  <Row label="Stage"><Sel value={String(v('stage'))} onChange={changeStage} opts={STAGE_OPTS} /></Row>
-                ) : (
-                  <Row label="Status">
-                    <Sel value={String(v('status') || 'identified')} onChange={x => saveField('status', x)} opts={POTENTIAL_STATUS_OPTS} />
+            <div style={{ padding: '22px 28px 24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 16, marginBottom: 16, alignItems: 'start' }}>
+                <Group title="Status & Ownership">
+                  {kind === 'opportunity' ? (
+                    <Row label="Stage"><Sel value={String(v('stage'))} onChange={changeStage} opts={STAGE_OPTS} /></Row>
+                  ) : (
+                    <Row label="Status">
+                      <Sel value={String(v('status') || 'identified')} onChange={x => saveField('status', x)} opts={POTENTIAL_STATUS_OPTS} />
+                    </Row>
+                  )}
+                  <Row label="Priority">
+                    <Sel value={String(v('priority') || 'medium')} onChange={x => saveField('priority', x)}
+                      opts={[['high', 'High'], ['medium', 'Medium'], ['low', 'Low']]} />
                   </Row>
-                )}
-                {Array.isArray(opp?.classification_reasons) && (opp!.classification_reasons as string[]).length > 0 && (
-                  <Row label="Why this stage">
-                    <span style={{ ...ro, fontSize: 12 }}>{(opp!.classification_reasons as string[]).join(' · ')}</span>
-                  </Row>
-                )}
-                {need?.timing && (
-                  <Row label="Timing"><span style={ro}>{TIMING_LABEL[need.timing]}</span></Row>
-                )}
-                <Row label="Region">
-                  <Sel value={String(v('region'))} onChange={x => saveField('region', x || null)}
-                    opts={[['', '—'], ...REGIONS.map(r => [r.code, r.label] as [string, string])]}
-                    emphasize={!v('region')} />
-                  {!v('region') && <div style={{ fontSize: 12, color: 'var(--status-warning-fg)', marginTop: 2 }}>Set a region so your team can see this</div>}
-                </Row>
-                <Row label="Priority">
-                  <Sel value={String(v('priority') || 'medium')} onChange={x => saveField('priority', x)}
-                    opts={[['high', 'High'], ['medium', 'Medium'], ['low', 'Low']]} />
-                </Row>
-                {kind === 'opportunity' ? (
-                  <>
-                    <Row label="Marketing Owner">
-                      <Sel value={String(v('marketing_owner_id'))} onChange={x => saveField('marketing_owner_id', x || null)}
+                  {kind === 'opportunity' ? (
+                    <>
+                      <Row label="Marketing Owner">
+                        <Sel value={String(v('marketing_owner_id'))} onChange={x => saveField('marketing_owner_id', x || null)}
+                          opts={[['', 'Unassigned'], ...assignees.map(a => [a.id, a.full_name] as [string, string])]} />
+                      </Row>
+                      <Row label="Sales Owner">
+                        <Sel value={String(v('sales_owner_id'))} onChange={x => saveField('sales_owner_id', x || null)}
+                          opts={[['', 'Unassigned'], ...assignees.map(a => [a.id, a.full_name] as [string, string])]} />
+                      </Row>
+                    </>
+                  ) : (
+                    <Row label="Assignee">
+                      <Sel value={String(v('assigned_to'))} onChange={x => saveField('assigned_to', x || null)}
                         opts={[['', 'Unassigned'], ...assignees.map(a => [a.id, a.full_name] as [string, string])]} />
                     </Row>
-                    <Row label="Sales Owner">
-                      <Sel value={String(v('sales_owner_id'))} onChange={x => saveField('sales_owner_id', x || null)}
-                        opts={[['', 'Unassigned'], ...assignees.map(a => [a.id, a.full_name] as [string, string])]} />
-                    </Row>
-                  </>
-                ) : (
-                  <Row label="Assignee">
-                    <Sel value={String(v('assigned_to'))} onChange={x => saveField('assigned_to', x || null)}
-                      opts={[['', 'Unassigned'], ...assignees.map(a => [a.id, a.full_name] as [string, string])]} />
+                  )}
+                  <Row label="Contact">
+                    <ContactSearchSelect
+                      value={String(v('primary_contact_id'))}
+                      valueLabel={contactLabel || contacts.find(c => c.id === v('primary_contact_id'))?.name || ''}
+                      disabled={!canEdit}
+                      onChange={(id, name) => {
+                        setContactLabel(name ?? '');
+                        saveField('primary_contact_id', id);
+                      }}
+                    />
                   </Row>
-                )}
-                <Row label="Contact">
-                  <ContactSearchSelect
-                    value={String(v('primary_contact_id'))}
-                    valueLabel={contactLabel || contacts.find(c => c.id === v('primary_contact_id'))?.name || ''}
-                    disabled={!canEdit}
-                    onChange={(id, name) => {
-                      setContactLabel(name ?? '');
-                      saveField('primary_contact_id', id);
-                    }}
-                  />
-                </Row>
-                <Row label="Deal Size"><Inp type="number" value={v('estimated_value')} ph="e.g. 250000" onSave={x => saveField('estimated_value', x === '' ? null : Number(x))} /></Row>
-                <Row label="Deposit"><span style={ro}>{v('deposit') !== '' ? `$${Number(v('deposit')).toLocaleString('en-US')}` : '—'}</span></Row>
-                <Row label="Payment"><span style={ro}>{String(v('payment_raw')) || '—'}</span></Row>
-                <Row label="Targeted"><span style={ro}>{opp?.targeted ? 'Yes' : 'No'}</span></Row>
-                {kind === 'opportunity' ? (
-                  <>
-                    <Row label="Due date (Deadline)"><Inp type="date" value={v('deadline')} onSave={x => saveField('deadline', x || null)} /></Row>
-                    <Row label="Expected Close"><Inp type="date" value={v('expected_close_date')} onSave={x => saveField('expected_close_date', x || null)} /></Row>
-                    <Row label="Next Action"><Inp value={v('next_action')} ph="e.g. Send estimate" onSave={x => saveField('next_action', x)} /></Row>
-                    <Row label="Next Action Date"><Inp type="date" value={v('next_action_date')} onSave={x => saveField('next_action_date', x || null)} /></Row>
-                    <Row label="Date done"><span style={ro}>{v('closed_at') ? new Date(String(v('closed_at'))).toLocaleDateString('en-US') : '—'}</span></Row>
-                  </>
-                ) : (
-                  <>
-                    <Row label="Due date"><span style={ro}>{v('due_date') ? new Date(String(v('due_date'))).toLocaleDateString('en-US') : '—'}</span></Row>
-                    <Row label="Target Contact Date"><Inp type="date" value={v('target_contact_date')} onSave={x => saveField('target_contact_date', x || null)} /></Row>
-                    <Row label="Date done"><span style={ro}>{v('date_done') ? new Date(String(v('date_done'))).toLocaleDateString('en-US') : '—'}</span></Row>
-                  </>
-                )}
-                <Row label="Source"><span style={ro}>{String(v('source_raw_label') || v('source_label')) || '—'}</span></Row>
-                <Row label="Notes">
-                  <Inp value={v(kind === 'opportunity' ? 'description' : 'notes')} ph="Notes…" onSave={x => saveField(kind === 'opportunity' ? 'description' : 'notes', x)} />
-                </Row>
+                  <Row label="Region">
+                    <Sel value={String(v('region'))} onChange={x => saveField('region', x || null)}
+                      opts={[['', '—'], ...REGIONS.map(r => [r.code, r.label] as [string, string])]}
+                      emphasize={!v('region')} />
+                    {!v('region') && <div style={{ fontSize: 12, color: 'var(--status-warning-fg)', marginTop: 2 }}>Set a region so your team can see this</div>}
+                  </Row>
+                  {need?.timing && (
+                    <Row label="Timing"><span style={ro}>{TIMING_LABEL[need.timing]}</span></Row>
+                  )}
+                  {Array.isArray(opp?.classification_reasons) && (opp!.classification_reasons as string[]).length > 0 && (
+                    <Row label="Why this stage">
+                      <span style={{ ...ro, fontSize: 12.5 }}>{(opp!.classification_reasons as string[]).join(' · ')}</span>
+                    </Row>
+                  )}
+                </Group>
+
+                <Group title="Value & Timeline">
+                  <Row label="Deal Size"><Inp type="number" value={v('estimated_value')} ph="e.g. 250000" onSave={x => saveField('estimated_value', x === '' ? null : Number(x))} /></Row>
+                  <Row label="Deposit"><span style={ro}>{v('deposit') !== '' ? `$${Number(v('deposit')).toLocaleString('en-US')}` : '—'}</span></Row>
+                  <Row label="Payment"><span style={ro}>{String(v('payment_raw')) || '—'}</span></Row>
+                  <Row label="Targeted"><span style={ro}>{opp?.targeted ? 'Yes' : 'No'}</span></Row>
+                  {kind === 'opportunity' ? (
+                    <>
+                      <Row label="Due date (Deadline)"><Inp type="date" value={v('deadline')} onSave={x => saveField('deadline', x || null)} /></Row>
+                      <Row label="Expected Close"><Inp type="date" value={v('expected_close_date')} onSave={x => saveField('expected_close_date', x || null)} /></Row>
+                      <Row label="Next Action"><Inp value={v('next_action')} ph="e.g. Send estimate" onSave={x => saveField('next_action', x)} /></Row>
+                      <Row label="Next Action Date"><Inp type="date" value={v('next_action_date')} onSave={x => saveField('next_action_date', x || null)} /></Row>
+                      <Row label="Date done"><span style={ro}>{v('closed_at') ? new Date(String(v('closed_at'))).toLocaleDateString('en-US') : '—'}</span></Row>
+                    </>
+                  ) : (
+                    <>
+                      <Row label="Due date"><span style={ro}>{v('due_date') ? new Date(String(v('due_date'))).toLocaleDateString('en-US') : '—'}</span></Row>
+                      <Row label="Target Contact Date"><Inp type="date" value={v('target_contact_date')} onSave={x => saveField('target_contact_date', x || null)} /></Row>
+                      <Row label="Date done"><span style={ro}>{v('date_done') ? new Date(String(v('date_done'))).toLocaleDateString('en-US') : '—'}</span></Row>
+                    </>
+                  )}
+                  <Row label="Source"><span style={ro}>{String(v('source_raw_label') || v('source_label')) || '—'}</span></Row>
+                  <Row label="Notes">
+                    <Inp value={v(kind === 'opportunity' ? 'description' : 'notes')} ph="Notes…" onSave={x => saveField(kind === 'opportunity' ? 'description' : 'notes', x)} />
+                  </Row>
+                </Group>
               </div>
 
-              <SectionLabel icon="◆">Details</SectionLabel>
-              <div style={{
-                display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 4, marginBottom: 24,
-                background: 'var(--bg-subtle)', borderRadius: 14, padding: 8, border: '1px solid var(--border-subtle)',
-              }}>
-                <Row label="Direct Contact"><Inp value={v('direct_contact_raw')} ph="Name, phone, email…" onSave={x => saveField('direct_contact_raw', x)} /></Row>
-                <Row label="01-State"><Inp value={v('state')} ph="e.g. TX" onSave={x => saveField('state', x)} /></Row>
-                <Row label="11-Location"><Inp value={v('formatted_address')} ph="Address…" onSave={x => saveField('formatted_address', x)} /></Row>
-                <Row label="Brand"><Inp value={v('brand')} ph="Brand…" onSave={x => saveField('brand', x)} /></Row>
-                <Row label="Industry">
-                  {(() => {
-                    const industry = normalizeIndustry(v('industry_raw') as string);
-                    const bg = industry ? INDUSTRY_COLOR[industry] : null;
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {bg && (
-                          <span style={{ fontWeight: 700, fontSize: 12, padding: '3px 10px', borderRadius: 999, background: bg, color: readableOn(bg), flexShrink: 0 }}>
-                            {industry}
-                          </span>
-                        )}
-                        <Inp value={v('industry_raw')} ph="Industry…" onSave={x => saveField('industry_raw', x)} />
-                      </div>
-                    );
-                  })()}
-                </Row>
-                <Row label="Project Type"><Inp value={v('project_type_raw')} ph="Project type…" onSave={x => saveField('project_type_raw', x)} /></Row>
-                <Row label="Business Type">
-                  <Inp value={businessTypes.join(', ')} ph="Comma-separated…" onSave={x => saveField('business_types', x.split(',').map(s => s.trim()).filter(Boolean))} />
-                </Row>
-                <Row label="Status OP"><Inp value={v('external_stage_label')} ph="Status OP…" onSave={x => saveField('external_stage_label', x)} /></Row>
-                <Row label="Request"><Inp value={v('request_raw')} ph="Request…" onSave={x => saveField('request_raw', x)} /></Row>
-                <Row label="To Do"><Inp value={v('to_do_raw')} ph="To do…" onSave={x => saveField('to_do_raw', x)} /></Row>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 16, marginBottom: 20, alignItems: 'start' }}>
+                <Group title="Location & Business">
+                  <Row label="01-State"><Inp value={v('state')} ph="e.g. TX" onSave={x => saveField('state', x)} /></Row>
+                  <Row label="11-Location"><Inp value={v('formatted_address')} ph="Address…" onSave={x => saveField('formatted_address', x)} /></Row>
+                  <Row label="Brand"><Inp value={v('brand')} ph="Brand…" onSave={x => saveField('brand', x)} /></Row>
+                  <Row label="Industry">
+                    {(() => {
+                      const industry = normalizeIndustry(v('industry_raw') as string);
+                      const bg = industry ? INDUSTRY_COLOR[industry] : null;
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {bg && (
+                            <span style={{ fontWeight: 700, fontSize: 12, padding: '3px 10px', borderRadius: 999, background: bg, color: readableOn(bg), flexShrink: 0 }}>
+                              {industry}
+                            </span>
+                          )}
+                          <Inp value={v('industry_raw')} ph="Industry…" onSave={x => saveField('industry_raw', x)} />
+                        </div>
+                      );
+                    })()}
+                  </Row>
+                  <Row label="Project Type"><Inp value={v('project_type_raw')} ph="Project type…" onSave={x => saveField('project_type_raw', x)} /></Row>
+                  <Row label="Business Type">
+                    <Inp value={businessTypes.join(', ')} ph="Comma-separated…" onSave={x => saveField('business_types', x.split(',').map(s => s.trim()).filter(Boolean))} />
+                  </Row>
+                </Group>
+
+                <Group title="ClickUp Reference" muted>
+                  <Row label="Direct Contact"><Inp value={v('direct_contact_raw')} ph="Name, phone, email…" onSave={x => saveField('direct_contact_raw', x)} /></Row>
+                  <Row label="Status OP"><Inp value={v('external_stage_label')} ph="Status OP…" onSave={x => saveField('external_stage_label', x)} /></Row>
+                  <Row label="Request"><Inp value={v('request_raw')} ph="Request…" onSave={x => saveField('request_raw', x)} /></Row>
+                  <Row label="To Do"><Inp value={v('to_do_raw')} ph="To do…" onSave={x => saveField('to_do_raw', x)} /></Row>
+                </Group>
               </div>
               {!!v('source_description_raw') && (
                 <div style={{ marginBottom: 24 }}>
@@ -613,6 +607,26 @@ function SectionLabel({ children, icon }: { children: React.ReactNode; icon?: st
       {icon && <span style={{ fontSize: 7, color: 'var(--brand-teal)' }}>{icon}</span>}
       <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{children}</div>
       <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+    </div>
+  );
+}
+
+function Group({ title, muted, children }: { title: string; muted?: boolean; children: React.ReactNode }) {
+  return (
+    <div style={{
+      background: muted ? 'var(--bg-subtle)' : 'var(--bg-surface)',
+      border: '1px solid var(--border-subtle)', borderRadius: 14, overflow: 'hidden',
+      boxShadow: muted ? 'none' : 'var(--shadow-xs)',
+    }}>
+      <div style={{
+        fontSize: 11.5, fontWeight: 800, color: muted ? 'var(--fg-faint)' : 'var(--fg-muted)',
+        textTransform: 'uppercase', letterSpacing: '0.05em', padding: '10px 14px 0',
+      }}>
+        {title}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 2, padding: 6 }}>
+        {children}
+      </div>
     </div>
   );
 }
