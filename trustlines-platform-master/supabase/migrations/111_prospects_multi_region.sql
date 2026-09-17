@@ -59,3 +59,9 @@ CREATE POLICY prospects_read_own ON prospects
       END
     )
   );
+
+-- The one confirmed dual-membership case found live before this migration existed (already
+-- manually corrected in the app: region flipped from SE to NW since the NW list is its
+-- "true home") — restore its SE membership onto `regions` now that both can coexist.
+UPDATE prospects SET regions = ARRAY['TLINES_NW', 'TLINES_SE']
+WHERE external_ref = '86c8hzjnx' AND external_source = 'clickup';
