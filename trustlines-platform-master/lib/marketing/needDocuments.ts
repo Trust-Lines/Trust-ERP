@@ -118,16 +118,26 @@ export async function addNeedDocument(admin: any, needId: string, actorId: strin
 
   const sync = await runClassificationForNeed(admin, needId, actorId);
 
+  // The document itself, and the Opportunity/Potential classification above, are already
+  // committed at this point. Reserving a real project number + Dropbox folder is a nice-to-
+  // have on top of that (e.g. the Need is missing Region/Service Line/State/a City'd
+  // Location) — it must never turn an otherwise-successful "add document" into an error
+  // response, or the document/Opportunity silently exist while the user is told it failed.
   let project: Record<string, unknown> | null = null;
+  let projectError: string | null = null;
   if (sync.needClassification === 'opportunity') {
-    project = need.project_id
-      ? (await admin.from('projects').select('*').eq('id', need.project_id).maybeSingle()).data
-      : await ensureProjectForNeed(admin, needId, actorId);
-    if (project && sync.opportunity && !sync.opportunity.project_id) {
-      await admin.from('opportunities').update({ project_id: project.id, region: need.region }).eq('id', sync.opportunity.id);
-      sync.opportunity = { ...sync.opportunity, project_id: project.id, region: need.region };
+    try {
+      project = need.project_id
+        ? (await admin.from('projects').select('*').eq('id', need.project_id).maybeSingle()).data
+        : await ensureProjectForNeed(admin, needId, actorId);
+      if (project && sync.opportunity && !sync.opportunity.project_id) {
+        await admin.from('opportunities').update({ project_id: project.id, region: need.region }).eq('id', sync.opportunity.id);
+        sync.opportunity = { ...sync.opportunity, project_id: project.id, region: need.region };
+      }
+    } catch (e) {
+      projectError = e instanceof NeedDocumentError ? e.message : (e instanceof Error ? e.message : 'Failed to create project folder');
     }
   }
 
-  return { document: doc, sync, project };
+  return { document: doc, sync, project, projectError };
 }

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Building2, Users, MapPin, Star, Trash2, Archive, ArchiveRestore, Target, Clock, ArrowRightCircle, Pencil, Activity, FileText, Image as ImageIcon, Link2, Video, Loader2, X, Paperclip, Globe, Tag } from 'lucide-react';
+import { ArrowLeft, Building2, Users, MapPin, Star, Trash2, Archive, ArchiveRestore, Target, Clock, ArrowRightCircle, Pencil, Activity, FileText, Image as ImageIcon, Link2, Video, Loader2, X, Paperclip, Globe, Tag, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { Pill } from '@/components/platform/shared/Pill';
 import { SourceSelect } from './SourceSelect';
@@ -112,7 +112,12 @@ const STATUS_LABEL: Record<string, string> = {
   converted: 'Converted', disqualified: 'Disqualified', archived: 'Archived',
 };
 
-type Tab = 'overview' | 'contacts' | 'locations' | 'needs' | 'potentials' | 'opportunities' | 'activities' | 'files';
+type Tab = 'overview' | 'contacts' | 'locations' | 'needs' | 'potentials' | 'opportunities' | 'history' | 'activities' | 'files';
+
+interface HistoricalProject {
+  id: string; code: string; name: string; region: string; service_line: string;
+  site_location: string | null; categories: string[]; actual_delivery_date: string | null; created_at: string;
+}
 
 export function ProspectDetailClient({
   initialProspect, initialContacts, initialLocations, initialNeeds, initialPotentials, initialOpportunities,
@@ -130,7 +135,7 @@ export function ProspectDetailClient({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [expandedOppId, setExpandedOppId] = useState<string | null>(null);
   const searchParams = useSearchParams();
-  const VALID_TABS: Tab[] = ['overview', 'contacts', 'locations', 'needs', 'potentials', 'opportunities', 'activities', 'files'];
+  const VALID_TABS: Tab[] = ['overview', 'contacts', 'locations', 'needs', 'potentials', 'opportunities', 'history', 'activities', 'files'];
   const [tab, setTab] = useState<Tab>(() => {
     const t = searchParams.get('tab');
     return (VALID_TABS as string[]).includes(t ?? '') ? (t as Tab) : 'overview';
@@ -138,10 +143,21 @@ export function ProspectDetailClient({
   const [addingContact, setAddingContact] = useState(false);
   const [addingLocation, setAddingLocation] = useState(false);
   const [addingNeed, setAddingNeed] = useState(false);
+  // Same NeedForm either way — classification is already fully automatic (no document =
+  // Potential, document attached = Opportunity, see classifyLead()). This just tracks which
+  // button was clicked so the copy/toast can tell the user what to do next.
+  const [addingNeedIntent, setAddingNeedIntent] = useState<'potential' | 'opportunity'>('potential');
+  const [historicalProjects, setHistoricalProjects] = useState<HistoricalProject[]>([]);
+  const [historicalProjectsLoaded, setHistoricalProjectsLoaded] = useState(false);
+  const [addingHistoricalProject, setAddingHistoricalProject] = useState(false);
   const [editingNeedId, setEditingNeedId] = useState<string | null>(null);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
+
+  useEffect(() => {
+    if (tab === 'history' && !historicalProjectsLoaded) loadHistoricalProjects();
+  }, [tab, historicalProjectsLoaded]);
 
   const DONE_POTENTIAL_STATUSES = new Set(['converted', 'lost', 'cancelled']);
   const activePotentials = potentials.filter(p => !DONE_POTENTIAL_STATUSES.has(p.status));
@@ -199,7 +215,30 @@ export function ProspectDetailClient({
     if (body.opportunity) setOpportunities(prev => [body.opportunity, ...prev]);
     if (body.potential) setPotentials(prev => [body.potential, ...prev]);
     setAddingNeed(false);
-    toast.success(`Need classified as ${NEED_CLASSIFICATION_LABEL[body.need.classification as NeedClassification]}`);
+    if (addingNeedIntent === 'opportunity' && body.need.classification !== 'opportunity') {
+      toast.success('Saved as a Potential — attach a document/layout below to confirm it as an Opportunity.');
+    } else {
+      toast.success(`Need classified as ${NEED_CLASSIFICATION_LABEL[body.need.classification as NeedClassification]}`);
+    }
+    return true;
+  }
+
+  async function loadHistoricalProjects() {
+    const res = await fetch(`/api/marketing/prospects/${prospect.id}/historical-projects`);
+    const body = await res.json().catch(() => ({}));
+    if (res.ok) setHistoricalProjects(body.projects ?? []);
+    setHistoricalProjectsLoaded(true);
+  }
+
+  async function saveHistoricalProject(payload: Record<string, unknown>): Promise<boolean> {
+    const res = await fetch(`/api/marketing/prospects/${prospect.id}/historical-projects`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { toast.error(body.error ?? 'Failed to save project'); return false; }
+    setHistoricalProjects(prev => [body.project, ...prev]);
+    setAddingHistoricalProject(false);
+    toast.success(`Logged as ${body.project.code}`);
     return true;
   }
 
@@ -366,6 +405,19 @@ export function ProspectDetailClient({
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {canEdit && (
+              <>
+                <button className="btn btn-secondary btn-sm" onClick={() => { setTab('needs'); setAddingNeedIntent('potential'); setAddingNeed(true); }}>
+                  <Clock size={13} /> Add Potential
+                </button>
+                <button className="btn btn-secondary btn-sm" onClick={() => { setTab('needs'); setAddingNeedIntent('opportunity'); setAddingNeed(true); }}>
+                  <ArrowRightCircle size={13} /> Add Opportunity
+                </button>
+                <button className="btn btn-secondary btn-sm" onClick={() => { setTab('history'); setAddingHistoricalProject(true); }}>
+                  <History size={13} /> Add Project
+                </button>
+              </>
+            )}
             {canEdit ? (
               <select className="form-input" style={{ fontSize: 12, width: 200 }} value={prospect.status}
                 onChange={e => patch({ status: e.target.value })}>
@@ -412,6 +464,7 @@ export function ProspectDetailClient({
           { key: 'opportunities', label: `Opportunities (${opportunities.length})`, icon: ArrowRightCircle },
           { key: 'activities', label: 'Activities', icon: Activity },
           { key: 'files', label: 'Files', icon: FileText },
+          { key: 'history', label: `Past Projects (${historicalProjects.length})`, icon: History },
         ] as { key: Tab; label: string; icon: typeof Building2 }[]).map(t => {
           const Icon = t.icon;
           const active = tab === t.key;
@@ -603,14 +656,14 @@ export function ProspectDetailClient({
             Each project need is classified automatically and independently. A Lead may have zero, one, or many —
             "another project" for this Lead is a new Need here, never edited into an existing Opportunity.
           </p>
-          {canEdit && (
-            <div style={{ marginBottom: 12 }}>
-              <button className="btn btn-primary btn-sm" onClick={() => setAddingNeed(s => !s)}>+ Add project need</button>
-            </div>
-          )}
           {addingNeed && canEdit && (
             <div className="card" style={{ marginBottom: 12 }}>
-              <div className="card-body"><NeedForm locations={locations} onSave={saveNeed} onCancel={() => setAddingNeed(false)} /></div>
+              <div className="card-body">
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-subtle)', marginBottom: 8 }}>
+                  Adding a {addingNeedIntent === 'opportunity' ? 'new Opportunity' : 'new Potential'}
+                </div>
+                <NeedForm locations={locations} onSave={saveNeed} onCancel={() => setAddingNeed(false)} />
+              </div>
             </div>
           )}
           {needs.length === 0 ? (
@@ -830,6 +883,44 @@ export function ProspectDetailClient({
           )}
         </div>
       )}
+
+      {tab === 'history' && (
+        <div>
+          <p style={{ fontSize: 12, color: 'var(--fg-subtle)', margin: '0 0 12px' }}>
+            Work Trust-Lines already completed for this Contact, logged for the record — not a live pipeline item.
+          </p>
+          {addingHistoricalProject && canEdit && (
+            <div className="card" style={{ marginBottom: 12 }}>
+              <div className="card-body">
+                <HistoricalProjectForm onSave={saveHistoricalProject} onCancel={() => setAddingHistoricalProject(false)} />
+              </div>
+            </div>
+          )}
+          {!historicalProjectsLoaded ? (
+            <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 32, color: 'var(--fg-subtle)' }}>Loading…</div></div>
+          ) : historicalProjects.length === 0 ? (
+            <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 32, color: 'var(--fg-subtle)' }}>
+              <History size={24} style={{ opacity: 0.4, marginBottom: 8 }} />
+              <div>No past projects logged yet.</div>
+            </div></div>
+          ) : (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {historicalProjects.map(p => (
+                <div key={p.id} className="card"><div className="card-body">
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{p.name}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--fg-subtle)' }}>{p.code}</div>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--fg-subtle)', marginTop: 4 }}>
+                    {p.region} · {p.service_line}{p.site_location ? ` · ${p.site_location}` : ''}
+                    {p.actual_delivery_date ? ` · Completed ${new Date(p.actual_delivery_date).toLocaleDateString('en-US')}` : ''}
+                  </div>
+                </div></div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }
@@ -894,6 +985,10 @@ function NeedDocumentsSection({ need, canEdit, prospectId, onNeedChange, onSync 
       setProjectCode(body.project.code);
       onNeedChange({ id: need.id, project_id: body.project.id });
       toast.success(`Evidence attached — became an Opportunity, project ${body.project.code} created`);
+    } else if (body.projectWarning) {
+      toast.success(body.opportunity ? 'Evidence attached — became an Opportunity' : 'Evidence attached', {
+        description: `No project folder yet: ${body.projectWarning}`,
+      });
     } else {
       toast.success('Evidence attached');
     }
@@ -1147,6 +1242,74 @@ function NeedForm({ initial, locations, onSave, onCancel }: { initial?: Need; lo
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn btn-primary btn-sm" onClick={submit} disabled={!title.trim() || saving || (timing === 'contact_later' && !targetContactDate)}>
           {saving ? 'Saving…' : initial ? 'Save changes' : 'Save need'}
+        </button>
+        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function HistoricalProjectForm({ onSave, onCancel }: { onSave: (p: Record<string, unknown>) => Promise<boolean>; onCancel: () => void }) {
+  const [title, setTitle] = useState('');
+  const [region, setRegion] = useState('');
+  const [serviceLine, setServiceLine] = useState('');
+  const [projectType, setProjectType] = useState<ProjectType | ''>('');
+  const [address, setAddress] = useState('');
+  const [completedDate, setCompletedDate] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const valid = title.trim() && region && serviceLine && projectType;
+
+  async function submit() {
+    if (!valid) return;
+    setSaving(true);
+    await onSave({
+      title: title.trim(), region, service_line: serviceLine, project_type: projectType,
+      address: address.trim() || undefined, completed_date: completedDate || undefined,
+    });
+    setSaving(false);
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: 10 }}>
+        <label className="form-label required" style={{ fontSize: 12 }}>Title</label>
+        <input className="form-input" placeholder="e.g. Manhattan Store Fixtures" value={title} onChange={e => setTitle(e.target.value)} autoFocus />
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <div className="form-label required" style={{ fontSize: 12, marginBottom: 4 }}>Store status</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {PROJECT_TYPES.map(t => (
+            <button key={t} type="button" onClick={() => setProjectType(t)}
+              className="pill" style={{ cursor: 'pointer', border: 'none', background: projectType === t ? 'var(--brand-navy)' : 'var(--bg-subtle)', color: projectType === t ? 'white' : 'var(--fg-subtle)', fontSize: 11 }}>
+              {PROJECT_TYPE_LABEL[t]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+        <div><label className="form-label required" style={{ fontSize: 12 }}>Region</label>
+          <select className="form-input" value={region} onChange={e => setRegion(e.target.value)}>
+            <option value="">—</option>
+            {REGIONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
+          </select></div>
+        <div><label className="form-label required" style={{ fontSize: 12 }}>Service line</label>
+          <select className="form-input" value={serviceLine} onChange={e => setServiceLine(e.target.value)}>
+            <option value="">—</option>
+            {SERVICE_LINES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select></div>
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <label className="form-label" style={{ fontSize: 12 }}>Address</label>
+        <input className="form-input" placeholder="Store address" value={address} onChange={e => setAddress(e.target.value)} />
+      </div>
+      <div style={{ marginBottom: 12, maxWidth: 220 }}>
+        <label className="form-label" style={{ fontSize: 12 }}>Completed date</label>
+        <input className="form-input" type="date" value={completedDate} onChange={e => setCompletedDate(e.target.value)} />
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn btn-primary btn-sm" onClick={submit} disabled={!valid || saving}>
+          {saving ? 'Saving…' : 'Save project'}
         </button>
         <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
       </div>
