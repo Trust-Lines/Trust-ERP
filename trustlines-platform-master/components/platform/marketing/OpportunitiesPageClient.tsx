@@ -83,10 +83,31 @@ const REGION_FILTER_LABEL: Record<string, string> = {
 // is handed off, it's Sales's business (/leads, which already merges it in). Every row on
 // this page is therefore always "Potential"; there's nothing to drop it down to here.
 export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, prospectTotal, assignees }: Props) {
-  const deals = initialDeals;
+  const [deals, setDeals] = useState(initialDeals);
   const [query, setQuery] = useState('');
   const [regionFilter, setRegionFilter] = useState<string>('all');
   const [open, setOpen] = useState<{ id: string; kind: 'opportunity' | 'potential' } | null>(null);
+  const [savingAssignee, setSavingAssignee] = useState<string | null>(null);
+
+  async function changeAssignee(d: DealRow, userId: string) {
+    setSavingAssignee(d.id);
+    const prev = deals;
+    const nextOwnerName = assignees.find(a => a.id === userId)?.full_name ?? null;
+    setDeals(ds => ds.map(x => (x.id === d.id ? { ...x, assigned_to: userId || null, owner_name: nextOwnerName } : x)));
+    try {
+      const path = d.kind === 'potential' ? `/api/marketing/potentials/${d.id}` : `/api/marketing/opportunities/${d.id}`;
+      const field = d.kind === 'potential' ? 'assigned_to' : 'marketing_owner_id';
+      const res = await fetch(path, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: userId || null }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setDeals(prev);
+    } finally {
+      setSavingAssignee(null);
+    }
+  }
 
   const regionFilteredDeals = useMemo(
     () => (regionFilter === 'all' || !regionFilter ? deals : deals.filter(d => d.region === regionFilter)),
@@ -215,8 +236,18 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
                         {d.priority ? d.priority[0].toUpperCase() + d.priority.slice(1) : 'Not set'}
                       </span>
                     </td>
-                    <td className="px-3 py-2">
-                      {d.owner_name ? (
+                    <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
+                      {canEdit ? (
+                        <select
+                          value={d.assigned_to ?? ''}
+                          disabled={savingAssignee === d.id}
+                          onChange={e => changeAssignee(d, e.target.value)}
+                          className="appearance-none bg-transparent border border-transparent hover:border-slate-200/80 rounded-lg pl-1 pr-5 py-1 text-xs text-slate-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 max-w-[160px]"
+                        >
+                          <option value="">— Unassigned —</option>
+                          {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
+                        </select>
+                      ) : d.owner_name ? (
                         <span className="inline-flex items-center gap-1.5 text-slate-700">
                           <span className="h-5 w-5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
                             {getInitials(d.owner_name)}
