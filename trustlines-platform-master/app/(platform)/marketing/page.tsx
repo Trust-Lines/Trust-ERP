@@ -32,7 +32,8 @@ export default async function MarketingWorkspacePage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
   const [prospectRes, opportunityRes, potentialRes, myDay, teamGaps] = await Promise.all([
-    sb.from('prospects').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('is_archived', false),
+    sb.from('prospects').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('is_archived', false)
+      .not('external_ref', 'like', 'opportunity-fallback:%'),
     sb.from('opportunities').select('id', { count: 'exact', head: true }).is('deleted_at', null),
     sb.from('prospect_potentials').select('id', { count: 'exact', head: true }).is('deleted_at', null)
       .not('status', 'in', '(converted,lost,cancelled)'),

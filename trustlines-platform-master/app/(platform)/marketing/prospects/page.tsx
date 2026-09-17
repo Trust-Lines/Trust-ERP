@@ -30,8 +30,13 @@ export default async function ProspectsListPage() {
         + 'project_types, scope_types, timing, next_action, next_action_date, target_contact_date, '
         + 'owner_id, assigned_marketing_user_id, is_archived, created_at, updated_at, external_created_at')
       .is('deleted_at', null).eq('is_archived', false)
+      // Placeholder Contacts created by clickup-import-potentials-only.mts's --allow-fallback
+      // (address as the name, no real Contact behind a Potential-stage deal) don't belong
+      // on this page — see the matching filter in app/api/marketing/prospects/route.ts.
+      .not('external_ref', 'like', 'opportunity-fallback:%')
       .order('created_at', { ascending: false }).range(0, PAGE_SIZE - 1),
-    sb.from('prospects').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('is_archived', false),
+    sb.from('prospects').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('is_archived', false)
+      .not('external_ref', 'like', 'opportunity-fallback:%'),
   ]);
   const base = (res.error ? [] : (res.data ?? [])) as Omit<ProspectRow, 'primary_contact' | 'owner_name' | 'location_count_actual' | 'potential_count' | 'opportunity_count'>[];
   const prospects: ProspectRow[] = await enrichProspectRows(sb, base);

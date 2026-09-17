@@ -68,6 +68,14 @@ export async function GET(req: NextRequest) {
       }
       // else: no assigned region → unrestricted, matching prospects_read_own (108/109).
     }
+    // 🔴 2026-09-17: clickup-import-potentials-only.mts's --allow-fallback creates a
+    // placeholder Contact (address as its name — "opportunity-fallback:<taskId>" as
+    // external_ref) purely to satisfy prospect_potentials.prospect_id's NOT NULL FK when a
+    // Potential-stage ClickUp task has no real linked Contact at all. It was never meant to
+    // be a real Contact — Contacts is company/person names only, an address belongs on the
+    // Potential/Opportunity itself. Excluded here; the Potential still shows normally on
+    // the Opportunities board (which reads its own `title`, not this hidden row's name).
+    query = query.not('external_ref', 'like', 'opportunity-fallback:%');
     if (!includeArchived) query = query.eq('is_archived', false);
     if (status) query = query.eq('status', status);
     if (region) query = query.contains('regions', [region]);
