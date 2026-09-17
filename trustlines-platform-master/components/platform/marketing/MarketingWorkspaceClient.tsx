@@ -1,9 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { Users, Target, ArrowRight, CheckCircle2, PartyPopper } from 'lucide-react';
 import { SALES_HANDOFF_ROLES } from '@/lib/sales/roles';
 import type { MyDaySection } from '@/lib/dashboard/myDay';
+
+const PAGE_SIZE = 20;
 
 interface MyStats {
   contactsComplete: number;
@@ -44,7 +47,11 @@ const ROLE_LABEL: Record<string, string> = {
 // Only the sections that mean something on a Marketing home page — "Waiting for your
 // signature" and "Unread notifications" are generic (already on the main /dashboard for
 // every role) and would just be noise repeated here.
-const MARKETING_SECTION_ORDER = ['nurture_overdue', 'handoffs_waiting', 'potentials_due', 'prospects_assigned'];
+// 🔴 2026-09-17: 'prospects_assigned' ("My Leads") dropped from this list — it isn't a task,
+// it's every Contact this person has ever created/owned/been assigned (thousands for the
+// account that ran the ClickUp imports), which just buried the real actionable items under a
+// giant "Load More" list. That inventory already lives on the Contacts page itself.
+const MARKETING_SECTION_ORDER = ['nurture_overdue', 'handoffs_waiting', 'potentials_due'];
 
 const TONE_COLOR: Record<string, { bg: string; fg: string; dot: string }> = {
   danger:  { bg: 'var(--status-danger-bg, #fee2e2)',  fg: 'var(--status-danger, #b91c1c)',  dot: '#dc2626' },
@@ -151,43 +158,7 @@ export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCo
           </div>
         </div>
       ) : (
-        sections.map(section => (
-          <div className="card" key={section.key}>
-            <div className="card-head">
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{section.title.replace(/\s*\(\d+\)$/, '')}</div>
-              <span className="pill" style={{ background: 'var(--status-warning-bg, #fef3c7)', color: 'var(--status-warning-fg, #92400e)' }}>
-                {section.items.length} to handle
-              </span>
-            </div>
-            <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {section.items.map((item, i) => {
-                const tone = TONE_COLOR[item.tone ?? 'default'];
-                return (
-                  <Link
-                    key={`${section.key}-${i}`}
-                    href={item.href}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit',
-                      padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-subtle)',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: tone.dot, flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</div>
-                      {item.sublabel && <div style={{ fontSize: 11.5, color: 'var(--fg-muted)', marginTop: 1 }}>{item.sublabel}</div>}
-                    </div>
-                    {item.badge && (
-                      <span className="pill" style={{ background: tone.bg, color: tone.fg, flexShrink: 0 }}>{item.badge}</span>
-                    )}
-                    <ArrowRight size={13} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        ))
+        sections.map(section => <SectionCard key={section.key} section={section} />)
       )}
 
       {/* ── Pipeline shortcuts ───────────────────────────────────────────────── */}
@@ -231,6 +202,59 @@ export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCo
           </div>
         </Link>
       )}
+    </div>
+  );
+}
+
+function SectionCard({ section }: { section: MyDaySection }) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const visible = section.items.slice(0, visibleCount);
+  const remaining = section.items.length - visible.length;
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <div style={{ fontWeight: 700, fontSize: 14 }}>{section.title.replace(/\s*\(\d+\)$/, '')}</div>
+        <span className="pill" style={{ background: 'var(--status-warning-bg, #fef3c7)', color: 'var(--status-warning-fg, #92400e)' }}>
+          {section.items.length} to handle
+        </span>
+      </div>
+      <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {visible.map((item, i) => {
+          const tone = TONE_COLOR[item.tone ?? 'default'];
+          return (
+            <Link
+              key={`${section.key}-${i}`}
+              href={item.href}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit',
+                padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-subtle)',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: tone.dot, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</div>
+                {item.sublabel && <div style={{ fontSize: 11.5, color: 'var(--fg-muted)', marginTop: 1 }}>{item.sublabel}</div>}
+              </div>
+              {item.badge && (
+                <span className="pill" style={{ background: tone.bg, color: tone.fg, flexShrink: 0 }}>{item.badge}</span>
+              )}
+              <ArrowRight size={13} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />
+            </Link>
+          );
+        })}
+        {remaining > 0 && (
+          <button
+            className="btn btn-secondary btn-sm"
+            style={{ marginTop: 4 }}
+            onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+          >
+            Load {Math.min(PAGE_SIZE, remaining)} more ({remaining} left)
+          </button>
+        )}
+      </div>
     </div>
   );
 }

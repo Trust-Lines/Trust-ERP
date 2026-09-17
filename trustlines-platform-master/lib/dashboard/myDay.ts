@@ -324,15 +324,28 @@ function pendingSection(key: SectionKey, title: string, note: string, phase: str
 }
 
 async function buildProspectsAssigned(admin: any, userId: string): Promise<MyDaySection> {
-  const { data, error } = await admin.from('prospects')
-    .select('id, organization_name, status')
-    .is('deleted_at', null).eq('is_archived', false)
-    .or(`created_by.eq.${userId},assigned_marketing_user_id.eq.${userId},owner_id.eq.${userId}`)
-    .order('created_at', { ascending: false }).limit(20) as {
-      data: { id: string; organization_name: string; status: string }[] | null; error: unknown;
-    };
-  if (error) return pendingSection('prospects_assigned', 'My Leads', 'Lead Cloud is not ready yet', 'Phase 00.3');
-  const rows = data ?? [];
+  // 🔴 2026-09-17: .limit(20) here was a genuine display cap on a section the UI shows as
+  // "20 of 20" with no way to see the rest — the account this ran under owns/is assigned
+  // thousands of Contacts (ran the ClickUp imports), so this silently hid almost all of it.
+  // The dashboard now paginates ("Load More", 20 at a time) client-side instead, so this
+  // needs to actually fetch everything — PostgREST caps any single request at 1000 rows
+  // regardless of .limit() (this exact module's own well-known gotcha), so page through with
+  // .range() instead of one big .limit().
+  type ProspectAssignedRow = { id: string; organization_name: string; status: string };
+  const rows: ProspectAssignedRow[] = [];
+  let queryError: unknown = null;
+  for (let offset = 0; offset < 20000; offset += 1000) {
+    const { data: page, error } = await admin.from('prospects')
+      .select('id, organization_name, status')
+      .is('deleted_at', null).eq('is_archived', false)
+      .or(`created_by.eq.${userId},assigned_marketing_user_id.eq.${userId},owner_id.eq.${userId}`)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + 999) as { data: ProspectAssignedRow[] | null; error: unknown };
+    if (error) { queryError = error; break; }
+    rows.push(...(page ?? []));
+    if (!page || page.length < 1000) break;
+  }
+  if (queryError) return pendingSection('prospects_assigned', 'My Leads', 'Lead Cloud is not ready yet', 'Phase 00.3');
   return {
     key: 'prospects_assigned', title: 'My Leads',
     items: rows.map(p => ({

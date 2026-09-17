@@ -71,6 +71,7 @@ function fakeDb(seed: Record<string, any[]> = {}) {
       let notIn: [string, any[]] | null = null;
       let lt: [string, any] | null = null;
       let orConds: [string, any][] | null = null;
+      let rangeBounds: [number, number] | null = null;
       const q: any = {
         select: () => q,
         eq: (c: string, v: any) => { eqs.push([c, v]); return q; },
@@ -87,13 +88,15 @@ function fakeDb(seed: Record<string, any[]> = {}) {
         },
         order: () => q,
         limit: () => q,
+        range: (from: number, to: number) => { rangeBounds = [from, to]; return q; },
         rows() {
-          return (tables[table] ?? []).filter(r =>
+          const filtered = (tables[table] ?? []).filter(r =>
             eqs.every(([c, v]) => r[c] === v) &&
             (!inFilter || inFilter[1].includes(r[inFilter[0]])) &&
             (!notIn || !notIn[1].includes(r[notIn[0]])) &&
             (!lt || r[lt[0]] < lt[1]) &&
             (!orConds || orConds.some(([c, v]) => String(r[c]) === String(v))));
+          return rangeBounds ? filtered.slice(rangeBounds[0], rangeBounds[1] + 1) : filtered;
         },
         then(res: any) { return Promise.resolve({ data: q.rows(), error: null }).then(res); },
         single: async () => ({ data: q.rows()[0] ?? null, error: null }),
