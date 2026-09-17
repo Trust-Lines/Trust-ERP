@@ -58,12 +58,18 @@ export default async function ProspectsListPage() {
   const potentialTotal = potTotalRes.error ? null : (potTotalRes.count ?? 0);
   const opportunityTotal = oppTotalRes.error ? null : (oppTotalRes.count ?? 0);
 
+  const { data: people } = await sb.from('profiles')
+    .select('id, full_name')
+    .in('role', ['marketing_pr', 'marketing_manager', 'sales_rep', 'sales_marketing_manager', 'ops_manager', 'general_manager'])
+    .eq('is_active', true).order('full_name', { ascending: true });
+
   return (
     <div style={{ padding: '24px 32px' }}>
       <ProspectsPageClient
         initialProspects={prospects} initialTotal={total} pageSize={PAGE_SIZE}
         canEdit={canEdit} loadError={!!res.error}
         potentialTotal={potentialTotal} opportunityTotal={opportunityTotal}
+        assignees={people ?? []}
       />
     </div>
   );

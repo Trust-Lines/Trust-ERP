@@ -68,6 +68,7 @@ interface Props {
   loadError?: boolean;
   potentialTotal: number | null;
   opportunityTotal: number | null;
+  assignees: { id: string; full_name: string }[];
 }
 
 function EntityIcon({ type }: { type: LeadEntityType }) {
@@ -86,7 +87,7 @@ function TagPill({ label, bg }: { label: string; bg: string }) {
   );
 }
 
-export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, canEdit, loadError, potentialTotal, opportunityTotal }: Props) {
+export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, canEdit, loadError, potentialTotal, opportunityTotal, assignees }: Props) {
   const [prospects, setProspects] = useState<ProspectRow[]>(initialProspects);
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -125,6 +126,20 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
       return;
     }
     if (value && !sourceOptions.includes(value)) setSourceOptions(prev => [...prev, value].sort());
+  }
+
+  async function updateAssignee(p: ProspectRow, next: string) {
+    const value = next || null;
+    const nextName = assignees.find(a => a.id === value)?.full_name ?? null;
+    setProspects(prev => prev.map(x => (x.id === p.id ? { ...x, assigned_marketing_user_id: value, owner_name: nextName } : x)));
+    const res = await fetch(`/api/marketing/prospects/${p.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assigned_marketing_user_id: value }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error(body.error ?? 'Could not update assignee');
+      setProspects(prev => prev.map(x => (x.id === p.id ? { ...x, assigned_marketing_user_id: p.assigned_marketing_user_id, owner_name: p.owner_name } : x)));
+    }
   }
 
   async function updateBusinessTypes(p: ProspectRow, next: string[]) {
@@ -423,8 +438,22 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                         </div>
                       )}
                     </td>
-                    <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>
-                      {p.owner_name ?? '—'}
+                    <td style={{ padding: '10px 12px' }} onClick={e => e.stopPropagation()}>
+                      {canEdit ? (
+                        <select
+                          value={p.assigned_marketing_user_id ?? ''}
+                          onChange={e => updateAssignee(p, e.target.value)}
+                          className="form-input"
+                          style={{ fontSize: 12, padding: '4px 6px', border: '1px solid transparent', background: 'transparent', cursor: 'pointer', maxWidth: 150 }}
+                          onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
+                          onMouseLeave={e => (e.currentTarget.style.borderColor = 'transparent')}
+                        >
+                          <option value="">— Unassigned —</option>
+                          {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
+                        </select>
+                      ) : (
+                        <span style={{ color: 'var(--fg-subtle)' }}>{p.owner_name ?? '—'}</span>
+                      )}
                     </td>
                     <td style={{ padding: '10px 12px' }}>
                       {p.target_contact_date ? (
