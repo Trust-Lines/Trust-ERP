@@ -78,18 +78,24 @@ export function CampaignsPageClient({ initialCampaigns, canEdit, canSeeAll, load
     toast.success('Deleted');
   }
 
+  // Active campaigns always lead, regardless of sort/search — they're the ones someone might
+  // actually need to act on right now (draft/paused/closed are reference/history).
+  const STATUS_RANK: Record<CampaignStatus, number> = { active: 0, draft: 1, paused: 2, closed: 3 };
   const filtered = useMemo(() => {
-    return campaigns.filter(c => {
-      if (statusFilter && c.status !== statusFilter) return false;
-      if (typeFilter && c.campaign_type !== typeFilter) return false;
-      const q = query.trim().toLowerCase();
-      if (!q) return true;
-      return c.name.toLowerCase().includes(q)
-        || (c.code ?? '').toLowerCase().includes(q)
-        || (c.city ?? '').toLowerCase().includes(q)
-        || (c.state ?? '').toLowerCase().includes(q)
-        || (c.owner_name ?? '').toLowerCase().includes(q);
-    });
+    return campaigns
+      .filter(c => {
+        if (statusFilter && c.status !== statusFilter) return false;
+        if (typeFilter && c.campaign_type !== typeFilter) return false;
+        const q = query.trim().toLowerCase();
+        if (!q) return true;
+        return c.name.toLowerCase().includes(q)
+          || (c.code ?? '').toLowerCase().includes(q)
+          || (c.city ?? '').toLowerCase().includes(q)
+          || (c.state ?? '').toLowerCase().includes(q)
+          || (c.owner_name ?? '').toLowerCase().includes(q);
+      })
+      .sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status]
+        || (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
   }, [campaigns, query, statusFilter, typeFilter]);
 
   if (loadError) {

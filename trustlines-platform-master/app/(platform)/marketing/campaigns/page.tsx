@@ -46,7 +46,7 @@ export default async function CampaignsListPage() {
   }));
 
   return (
-    <div className="main-inner">
+    <div style={{ padding: '24px 32px' }}>
       <CampaignsPageClient
         initialCampaigns={campaigns} canEdit={canEdit} loadError={!!res.error}
         canSeeAll={MARKETING_SEE_ALL_ROLES.includes(userRole)}
