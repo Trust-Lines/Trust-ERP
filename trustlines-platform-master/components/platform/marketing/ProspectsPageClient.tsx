@@ -433,7 +433,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                       ) : <span style={{ color: 'var(--fg-subtle)' }}>—</span>}
                     </td>
                     <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>
-                      {new Date(p.external_created_at ?? p.created_at).toLocaleDateString('en-US')}
+                      {new Date(p.created_at).toLocaleDateString('en-US')}
                     </td>
                     <td style={{ padding: '10px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
