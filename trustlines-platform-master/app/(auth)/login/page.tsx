@@ -106,18 +106,15 @@ export default function LoginPage() {
       }} />
 
       <div className="tl-login-brand">
-        <div style={{ position: 'relative', textAlign: 'center', maxWidth: 420 }}>
+        <div style={{ position: 'relative', textAlign: 'center', maxWidth: 680 }}>
           <Image
             src="/logo-creativity.png"
             alt="TLines Creativity Group"
-            width={280}
-            height={280}
+            width={600}
+            height={600}
             style={{ objectFit: 'contain', display: 'block', margin: '0 auto', filter: 'brightness(0) invert(1)' }}
             priority
           />
-          <p style={{ margin: '24px 0 0', fontSize: '15px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, letterSpacing: '0.01em' }}>
-            Production &amp; Delivery Platform
-          </p>
         </div>
       </div>
 
