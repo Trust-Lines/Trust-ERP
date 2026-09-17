@@ -42,12 +42,15 @@ export default async function ProspectsListPage() {
   const prospects: ProspectRow[] = await enrichProspectRows(sb, base);
   const total = countRes.error ? prospects.length : (countRes.count ?? 0);
 
+  // count-only head requests — a row-returning select().limit(1000) silently caps at 1000
+  // via PostgREST's own default regardless of the .limit() value once real data passes it
+  // (bit us on this exact pattern elsewhere in this module, 2026-09-17).
   const [potTotalRes, oppTotalRes] = await Promise.all([
-    sb.from('prospect_potentials').select('id').is('deleted_at', null).limit(1000),
-    sb.from('opportunities').select('id').is('deleted_at', null).limit(1000),
+    sb.from('prospect_potentials').select('id', { count: 'exact', head: true }).is('deleted_at', null),
+    sb.from('opportunities').select('id', { count: 'exact', head: true }).is('deleted_at', null),
   ]);
-  const potentialTotal = potTotalRes.error ? null : (potTotalRes.data?.length ?? 0);
-  const opportunityTotal = oppTotalRes.error ? null : (oppTotalRes.data?.length ?? 0);
+  const potentialTotal = potTotalRes.error ? null : (potTotalRes.count ?? 0);
+  const opportunityTotal = oppTotalRes.error ? null : (oppTotalRes.count ?? 0);
 
   return (
     <div style={{ padding: '24px 32px' }}>

@@ -1,22 +1,12 @@
 'use client';
 
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   Search,
-  ChevronRight,
-  MoreVertical,
-  GripVertical,
   ChevronDown,
-  User,
-  CheckSquare,
-  Building2,
-  Folder,
-  Calendar,
   AlertTriangle,
 } from 'lucide-react';
-import { toast } from 'sonner';
-import { REGIONS } from '@/lib/regions';
 import { OpportunityQuickView } from './OpportunityQuickView';
 import type { OpportunityStage, ProjectType, LeadEntityType } from '@/types/database';
 
@@ -59,8 +49,10 @@ export interface DealRow {
   lead_display_name: string;
   lead_entity_type: LeadEntityType;
   owner_name: string | null;
+  sales_rep_name: string | null;
   contact_name: string | null;
   project_code: string | null;
+  external_project_code: string | null;
 }
 
 interface Props {
@@ -70,17 +62,6 @@ interface Props {
   prospectTotal: number | null;
   assignees: { id: string; full_name: string }[];
 }
-
-const OTHER_STAGES = [
-  { key: 'In Target List', label: 'In Target List', stage: 'marketing_qualification' as OpportunityStage },
-  { key: 'READY TO START', label: 'READY TO START', stage: 'sales_accepted' as OpportunityStage },
-  { key: 'MODIFICATION REQUEST', label: 'MODIFICATION REQUEST', stage: 'negotiation' as OpportunityStage },
-  { key: 'WORKING ON IT TRUST', label: 'WORKING ON IT TRUST', stage: 'working_on_it_trust' as OpportunityStage },
-  { key: 'Design Proposal SENT', label: 'Design Proposal SENT', stage: 'proposal' as OpportunityStage },
-  { key: 'WAITING', label: 'WAITING', stage: 'on_hold' as OpportunityStage },
-  { key: 'DEAL MISSED', label: 'DEAL MISSED', stage: 'closed_lost' as OpportunityStage },
-  { key: 'DEAL CLOSED', label: 'DEAL CLOSED', stage: 'closed_won' as OpportunityStage },
-];
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
@@ -93,127 +74,36 @@ function formatDate(iso: string | null): string {
   }
 }
 
+const PRIORITY_COLOR: Record<string, string> = { high: '#ef4444', medium: '#f59e0b', low: '#94a3b8' };
+const REGION_FILTER_LABEL: Record<string, string> = {
+  TLINES_NE: 'TLINES NE', TLINES_SE: 'TLINES SE', TLINES_NW: 'TLINES NW', CVW: 'TLINES WEST',
+};
+
+// 🔴 2026-09-17: this page is Marketing's Potentials-only work queue now — once a Potential
+// is handed off, it's Sales's business (/leads, which already merges it in). Every row on
+// this page is therefore always "Potential"; there's nothing to drop it down to here.
 export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, prospectTotal, assignees }: Props) {
-  const [deals, setDeals] = useState<DealRow[]>(initialDeals);
+  const deals = initialDeals;
   const [query, setQuery] = useState('');
-  // 🔴 2026-09-15: this used to default to 'TLINES_NE' and was never actually applied to
-  // `deals` anywhere — the dropdown LOOKED like it was filtering to North East by default,
-  // but every region's records were always shown regardless of what was selected. Now it
-  // defaults to unfiltered ('all', matching real 0-based visibility) and is applied below.
   const [regionFilter, setRegionFilter] = useState<string>('all');
   const [open, setOpen] = useState<{ id: string; kind: 'opportunity' | 'potential' } | null>(null);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [handingOffId, setHandingOffId] = useState<string | null>(null);
-  const [highlightPotential, setHighlightPotential] = useState(false);
 
   const regionFilteredDeals = useMemo(
     () => (regionFilter === 'all' || !regionFilter ? deals : deals.filter(d => d.region === regionFilter)),
     [deals, regionFilter],
   );
-  const potentialDeals = useMemo(() => regionFilteredDeals.filter(d => d.kind === 'potential' || d.external_stage_label === 'Potential'), [regionFilteredDeals]);
-  const newQualifyingDeals = useMemo(() => regionFilteredDeals.filter(d => d.kind === 'opportunity' && d.external_stage_label !== 'Potential'), [regionFilteredDeals]);
 
-  const activeGroupsCount = useMemo(() => {
-    let count = 0;
-    if (potentialDeals.length > 0) count++;
-    if (newQualifyingDeals.length > 0) count++;
-    return count || 2;
-  }, [potentialDeals, newQualifyingDeals]);
-
-  const otherStageCounts = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const s of OTHER_STAGES) {
-      map[s.key] = regionFilteredDeals.filter(d => d.external_stage_label === s.key).length;
-    }
-    return map;
-  }, [regionFilteredDeals]);
-
-  async function patch(row: DealRow, body: Record<string, unknown>) {
-    const base = row.kind === 'potential' ? '/api/marketing/potentials' : '/api/marketing/opportunities';
-    const res = await fetch(`${base}/${row.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const resBody = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toast.error(resBody.error ?? 'Could not save');
-      return false;
-    }
-    const updated = resBody.opportunity ?? resBody.potential;
-    setDeals(prev => prev.map(d => (d.id === row.id ? { ...d, ...updated } : d)));
-    // "Working on it Trust" without a project behind it would otherwise be a silent trap — tell
-    // the user either that a project was opened, or exactly what's missing so it can't happen.
-    if (resBody.projectOpened?.code) {
-      toast.success(resBody.projectOpened.alreadyExisted
-        ? `Already has a project (${resBody.projectOpened.code}).`
-        : `Project ${resBody.projectOpened.code} opened automatically.`);
-    } else if (resBody.projectWarning) {
-      toast.error(resBody.projectWarning);
-    }
-    return true;
-  }
-
-  // "Hand off to Sales" — the real state-machine transition (lib/marketing/salesHandoff.ts
-  // initiateHandoff), NOT the raw admin-correction drag-and-drop below. Only valid while the
-  // Opportunity is still in Marketing's hands ('new' or 'marketing_qualification'); the API
-  // itself re-checks this and returns 409 otherwise, so this is a UX guard, not the real gate.
-  async function handleHandoff(row: DealRow) {
-    setHandingOffId(row.id);
-    try {
-      const res = await fetch(`/api/marketing/opportunities/${row.id}/handoff`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(body.error ?? 'Could not hand off to Sales');
-        return;
-      }
-      setDeals(prev => prev.map(d => (d.id === row.id ? { ...d, stage: body.opportunity?.stage ?? 'sales_handoff' } : d)));
-      toast.success(`"${row.title || row.lead_display_name}" handed off — Sales can Accept it from their Handoffs board now.`);
-    } catch {
-      toast.error('Could not hand off to Sales');
-    } finally {
-      setHandingOffId(null);
-    }
-  }
-
-  function handleDropStage(targetStageKey: string, targetStage: OpportunityStage) {
-    if (!dragId) return;
-    const row = deals.find(d => d.id === dragId);
-    if (!row) return;
-    const reason = window.prompt(`Move "${row.lead_display_name || row.title}" to "${targetStageKey}" — why?`);
-    if (!reason?.trim()) return;
-    patch(row, { stage: targetStage, external_stage_label: targetStageKey, admin_correction_reason: reason.trim() });
-    setDragId(null);
-  }
-
-  // Filtered lists based on search
-  const filteredPotential = useMemo(() => {
+  const filteredDeals = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return potentialDeals.filter(d => {
-      if (!q) return true;
-      return (d.title || '').toLowerCase().includes(q)
-        || (d.lead_display_name || '').toLowerCase().includes(q)
-        || (d.brand || '').toLowerCase().includes(q);
-    });
-  }, [potentialDeals, query]);
+    if (!q) return regionFilteredDeals;
+    return regionFilteredDeals.filter(d =>
+      (d.title || '').toLowerCase().includes(q)
+      || (d.lead_display_name || '').toLowerCase().includes(q)
+      || (d.brand || '').toLowerCase().includes(q));
+  }, [regionFilteredDeals, query]);
 
-  const filteredNewQualifying = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return newQualifyingDeals.filter(d => {
-      if (!q) return true;
-      return (d.title || '').toLowerCase().includes(q)
-        || (d.lead_display_name || '').toLowerCase().includes(q)
-        || (d.brand || '').toLowerCase().includes(q);
-    });
-  }, [newQualifyingDeals, query]);
-
-  // Initials for avatar
   const getInitials = (name: string) =>
-    (name || 'FD')
+    (name || '?')
       .split(' ')
       .map(n => n[0])
       .slice(0, 2)
@@ -224,7 +114,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
     return (
       <div className="bg-white border border-slate-200/80 rounded-2xl p-12 text-center text-slate-500 shadow-2xs">
         <AlertTriangle size={28} className="mx-auto text-amber-500 mb-2" />
-        <div>Opportunities aren&apos;t ready yet.</div>
+        <div>Potentials aren&apos;t ready yet.</div>
       </div>
     );
   }
@@ -233,18 +123,14 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
     <div className="w-full space-y-5 pb-12">
       {/* ── Top Header ────────────────────────────────────────────── */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Opportunities</h1>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Potentials</h1>
         <p className="text-xs text-slate-500 font-normal mt-0.5">
-          {regionFilteredDeals.length} records — click a card to open it, drag between groups to move its stage
+          {filteredDeals.length} records — click a row to open it, contacts still working toward real evidence for a Sales hand-off
         </p>
       </div>
 
       {/* ── Navigation Tabs Strip & Filters Bar ───────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-4 border-b border-slate-200/80 pb-3">
-        {/* Left Tabs — same three-stop pipeline as Lead Cloud's breadcrumb
-            (components/platform/marketing/MarketingPipelineNav.tsx); kept as its own markup
-            here (not the shared component) because Potentials needs to scroll to a column on
-            THIS page rather than navigate, which the shared nav doesn't support. */}
         <div className="flex items-center gap-6">
           <Link
             href="/marketing/prospects"
@@ -254,28 +140,11 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
             <span className="text-slate-400 font-normal">{prospectTotal ?? 0}</span>
           </Link>
 
-          {/* Potentials isn't a separate page — it's the "Potential" column below, on THIS page.
-              It used to be a Link to /marketing/potentials, which only redirected straight back
-              here — a click that looked like navigation but silently went nowhere. Now it's
-              honest about what it does: scroll down to the column. */}
-          <button
-            type="button"
-            onClick={() => {
-              document.getElementById('potential-column')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              setHighlightPotential(true);
-              window.setTimeout(() => setHighlightPotential(false), 1400);
-            }}
-            className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors pb-1 cursor-pointer"
-          >
-            <span>Potentials</span>
-            <span className="text-slate-400 font-normal">{potentialDeals.length}</span>
-          </button>
-
           <button
             className="flex items-center gap-2 text-xs font-bold text-blue-600 border-b-2 border-blue-600 pb-1 cursor-pointer -mb-[13px]"
           >
-            <span>Opportunities</span>
-            <span className="text-blue-600 font-bold">{newQualifyingDeals.length}</span>
+            <span>Potentials</span>
+            <span className="text-blue-600 font-bold">{filteredDeals.length}</span>
           </button>
         </div>
 
@@ -288,10 +157,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
               className="appearance-none bg-white border border-slate-200/80 rounded-xl pl-3 pr-7 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs font-medium"
             >
               <option value="all">All regions</option>
-              <option value="TLINES_NE">T-Lines North East</option>
-              <option value="TLINES_SE">T-Lines South East</option>
-              <option value="TLINES_NW">T-Lines North West</option>
-              <option value="CVW">West</option>
+              {Object.entries(REGION_FILTER_LABEL).map(([code, label]) => <option key={code} value={code}>{label}</option>)}
             </select>
             <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           </div>
@@ -301,7 +167,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search opportunities"
+              placeholder="Search potentials"
               value={query}
               onChange={e => setQuery(e.target.value)}
               className="pl-7 pr-3 py-1.5 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs"
@@ -310,315 +176,66 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
         </div>
       </div>
 
-      {/* ── 4 KPI Metric Row (Unified 4-column card) ──────────────── */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-2xs grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 text-center">
-        <div className="px-3 py-1">
-          <span className="text-xs font-medium text-slate-500">Records</span>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{regionFilteredDeals.length}</p>
-        </div>
-
-        <div className="px-3 py-1">
-          <span className="text-xs font-medium text-slate-500">Active groups</span>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{activeGroupsCount}</p>
-        </div>
-
-        <div className="px-3 py-1">
-          <span className="text-xs font-medium text-slate-500">Potential</span>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{potentialDeals.length}</p>
-        </div>
-
-        <div className="px-3 py-1">
-          <span className="text-xs font-medium text-slate-500">New / Qualifying</span>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{newQualifyingDeals.length}</p>
-        </div>
-      </div>
-
-      {/* ── Kanban Board Layout (3 Columns) ───────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Column 1: Potential */}
-        <div
-          id="potential-column"
-          className={`lg:col-span-4 bg-emerald-50/20 border rounded-2xl p-4 shadow-2xs space-y-3.5 transition-all duration-300 ${
-            highlightPotential ? 'border-emerald-400 ring-4 ring-emerald-200' : 'border-slate-200/80'
-          }`}
-        >
-          <div className="flex items-center justify-between pb-1">
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <h2 className="text-xs font-bold text-slate-900">Potential</h2>
-              <span className="text-xs font-semibold text-slate-500">{filteredPotential.length}</span>
-            </div>
-            <button className="text-slate-400 hover:text-slate-600 p-1 rounded-md">
-              <MoreVertical size={14} />
-            </button>
-          </div>
-
-          {/* Cards */}
-          <div className="space-y-3">
-            {filteredPotential.length > 0 ? (
-              filteredPotential.map(d => (
-                <div
-                  key={d.id}
-                  draggable
-                  onDragStart={() => setDragId(d.id)}
-                  onClick={() => setOpen({ id: d.id, kind: d.kind })}
-                  className="bg-white border border-slate-200/80 rounded-xl p-3.5 shadow-2xs hover:shadow-xs transition-all cursor-pointer space-y-2.5"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <GripVertical size={14} className="text-slate-300 shrink-0 cursor-grab" />
-                      <h3 className="text-xs font-bold text-slate-900 truncate">
-                        {d.title || d.lead_display_name || 'ZZDEMO Electronics Mart - Outlet TX'}
-                      </h3>
-                    </div>
-                    <ChevronRight size={14} className="text-slate-400 shrink-0" />
-                  </div>
-
-                  <div className="space-y-1.5 text-[11px] pt-1 border-t border-slate-100">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 flex items-center gap-1.5">
-                        <User size={12} className="text-slate-400" /> Assignee
+      {/* ── Dense flat table (single group — this page is Potential-only) ── */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-2xs overflow-hidden">
+        {filteredDeals.length === 0 ? (
+          <div className="p-12 text-center text-slate-400 text-sm">No Potentials match your filters.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs" style={{ minWidth: 1100 }}>
+              <thead>
+                <tr className="text-[10.5px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+                  <th className="text-left font-semibold px-4 py-2">Name</th>
+                  <th className="text-left font-semibold px-3 py-2">Brand</th>
+                  <th className="text-left font-semibold px-3 py-2">Project #</th>
+                  <th className="text-left font-semibold px-3 py-2">Priority</th>
+                  <th className="text-left font-semibold px-3 py-2">Assignee</th>
+                  <th className="text-left font-semibold px-3 py-2">Request</th>
+                  <th className="text-left font-semibold px-3 py-2">Location</th>
+                  <th className="text-left font-semibold px-3 py-2">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDeals.map(d => (
+                  <tr
+                    key={d.id}
+                    onClick={() => setOpen({ id: d.id, kind: d.kind })}
+                    className="border-b border-slate-50 last:border-b-0 hover:bg-slate-50/60 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-2 max-w-[240px]">
+                      <span className="font-semibold text-slate-900 truncate block">
+                        {d.title || d.lead_display_name || 'Untitled'}
                       </span>
-                      <div className="flex items-center gap-1.5">
-                        <div className="h-5 w-5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center">
-                          {getInitials(d.owner_name || 'FD')}
-                        </div>
-                        <span className="text-slate-800 font-medium">{d.owner_name || 'Frontend Demo'}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 flex items-center gap-1.5">
-                        <CheckSquare size={12} className="text-slate-400" /> To Do
+                    </td>
+                    <td className="px-3 py-2 text-slate-600">{d.brand || '—'}</td>
+                    <td className="px-3 py-2 text-slate-600">{d.external_project_code || '—'}</td>
+                    <td className="px-3 py-2">
+                      <span className="inline-flex items-center gap-1.5 text-slate-600">
+                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: PRIORITY_COLOR[d.priority] ?? '#cbd5e1' }} />
+                        {d.priority ? d.priority[0].toUpperCase() + d.priority.slice(1) : 'Not set'}
                       </span>
-                      <span className="text-slate-800 font-medium">{d.to_do_raw || 'Contract Stage'}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 flex items-center gap-1.5">
-                        <Building2 size={12} className="text-slate-400" /> Status OP
-                      </span>
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-semibold">
-                        Potential
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 flex items-center gap-1.5">
-                        <Folder size={12} className="text-slate-400" /> Project info
-                      </span>
-                      <span className="text-slate-800">{d.request_raw || 'Request'}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 flex items-center gap-1.5">
-                        <Calendar size={12} className="text-slate-400" /> Date created
-                      </span>
-                      <span className="text-slate-600">{formatDate(d.created_at) || 'Aug 21, 26'}</span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div
-                draggable
-                onDragStart={() => setDragId('demo-potential')}
-                className="bg-white border border-slate-200/80 rounded-xl p-3.5 shadow-2xs hover:shadow-xs transition-all cursor-pointer space-y-2.5"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <GripVertical size={14} className="text-slate-300 shrink-0 cursor-grab" />
-                    <h3 className="text-xs font-bold text-slate-900 truncate">
-                      ZZDEMO Electronics Mart - Outlet TX
-                    </h3>
-                  </div>
-                  <ChevronRight size={14} className="text-slate-400 shrink-0" />
-                </div>
-
-                <div className="space-y-1.5 text-[11px] pt-1 border-t border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 flex items-center gap-1.5">
-                      <User size={12} className="text-slate-400" /> Assignee
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <div className="h-5 w-5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center">
-                        FD
-                      </div>
-                      <span className="text-slate-800 font-medium">Frontend Demo</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 flex items-center gap-1.5">
-                      <CheckSquare size={12} className="text-slate-400" /> To Do
-                    </span>
-                    <span className="text-slate-800 font-medium">Contract Stage</span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 flex items-center gap-1.5">
-                      <Building2 size={12} className="text-slate-400" /> Status OP
-                    </span>
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-semibold">
-                      Potential
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 flex items-center gap-1.5">
-                      <Folder size={12} className="text-slate-400" /> Project info
-                    </span>
-                    <span className="text-slate-800">Request</span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 flex items-center gap-1.5">
-                      <Calendar size={12} className="text-slate-400" /> Date created
-                    </span>
-                    <span className="text-slate-600">Aug 21, 26</span>
-                  </div>
-                </div>
-              </div>
-            )}
+                    </td>
+                    <td className="px-3 py-2">
+                      {d.owner_name ? (
+                        <span className="inline-flex items-center gap-1.5 text-slate-700">
+                          <span className="h-5 w-5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
+                            {getInitials(d.owner_name)}
+                          </span>
+                          {d.owner_name}
+                        </span>
+                      ) : <span className="text-slate-400">—</span>}
+                    </td>
+                    <td className="px-3 py-2 text-slate-600 max-w-[160px] truncate">{d.request_raw || '—'}</td>
+                    <td className="px-3 py-2 text-slate-600 max-w-[200px] truncate">{d.formatted_address || d.state || '—'}</td>
+                    <td className="px-3 py-2 text-slate-500 whitespace-nowrap">
+                      {formatDate(d.due_date || d.created_at)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-
-        {/* Column 2: New / Qualifying */}
-        <div className="lg:col-span-5 bg-purple-50/20 border border-slate-200/80 rounded-2xl p-4 shadow-2xs space-y-3.5">
-          <div className="flex items-center justify-between pb-1">
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-indigo-600" />
-              <h2 className="text-xs font-bold text-slate-900">New / Qualifying</h2>
-              <span className="text-xs font-semibold text-slate-500">{filteredNewQualifying.length}</span>
-            </div>
-            <button className="text-slate-400 hover:text-slate-600 p-1 rounded-md">
-              <MoreVertical size={14} />
-            </button>
-          </div>
-
-          {/* Compact Cards */}
-          <div className="space-y-2.5">
-            {filteredNewQualifying.length > 0 ? (
-              filteredNewQualifying.map(d => (
-                <div
-                  key={d.id}
-                  draggable
-                  onDragStart={() => setDragId(d.id)}
-                  onClick={() => setOpen({ id: d.id, kind: d.kind })}
-                  className="bg-white border border-slate-200/80 rounded-xl p-3 shadow-2xs hover:shadow-xs transition-all cursor-pointer space-y-2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <GripVertical size={14} className="text-slate-300 shrink-0 cursor-grab" />
-                      <h3 className="text-xs font-bold text-slate-900 truncate">
-                        {d.title || d.lead_display_name || 'Untitled opportunity'}
-                      </h3>
-                    </div>
-                    <ChevronRight size={14} className="text-slate-400 shrink-0" />
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-                    <div className="flex items-center gap-1.5">
-                      <User size={12} className="text-slate-400" />
-                      <span>Assignee</span>
-                      <span className="text-slate-400 ml-1">{d.owner_name || 'Not set'}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <span>Priority</span>
-                      <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-                      <span className="text-slate-400">Not set</span>
-                    </div>
-                  </div>
-
-                  {(d.stage === 'new' || d.stage === 'marketing_qualification' || !d.stage) ? (
-                    <button
-                      onClick={e => { e.stopPropagation(); handleHandoff(d); }}
-                      disabled={handingOffId === d.id}
-                      className="w-full mt-1 px-2.5 py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors cursor-pointer"
-                    >
-                      {handingOffId === d.id ? 'Sending…' : 'Hand off to Sales'}
-                    </button>
-                  ) : d.stage === 'sales_handoff' ? (
-                    <div className="w-full mt-1 px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-semibold text-center">
-                      Waiting on Sales to Accept
-                    </div>
-                  ) : (
-                    <div className="w-full mt-1 px-2.5 py-1.5 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 text-[11px] font-medium text-center">
-                      Stage: {d.stage}
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              [1, 2, 3, 4].map(idx => (
-                <div
-                  key={idx}
-                  draggable
-                  onDragStart={() => setDragId(`demo-${idx}`)}
-                  className="bg-white border border-slate-200/80 rounded-xl p-3 shadow-2xs hover:shadow-xs transition-all cursor-pointer space-y-2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <GripVertical size={14} className="text-slate-300 shrink-0 cursor-grab" />
-                      <h3 className="text-xs font-bold text-slate-900 truncate">
-                        Untitled opportunity
-                      </h3>
-                    </div>
-                    <ChevronRight size={14} className="text-slate-400 shrink-0" />
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-                    <div className="flex items-center gap-1.5">
-                      <User size={12} className="text-slate-400" />
-                      <span>Assignee</span>
-                      <span className="text-slate-400 ml-1">Not set</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <span>Priority</span>
-                      <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-                      <span className="text-slate-400">Not set</span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Column 3: Other stages Sidebar Drop Target */}
-        <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs space-y-3">
-          <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
-              <span>Other stages</span>
-              <span className="text-slate-400 font-normal">ⓘ</span>
-            </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">Drop a card here to change stage</p>
-          </div>
-
-          {/* Stage drop zone pills */}
-          <div className="space-y-1.5">
-            {OTHER_STAGES.map(s => {
-              const count = otherStageCounts[s.key] ?? 0;
-
-              return (
-                <div
-                  key={s.key}
-                  onDragOver={e => e.preventDefault()}
-                  onDrop={() => handleDropStage(s.key, s.stage)}
-                  className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50/80 transition-all text-xs font-medium text-slate-700 cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <GripVertical size={13} className="text-slate-300 shrink-0" />
-                    <span className="truncate text-[11px] font-semibold tracking-tight">{s.label}</span>
-                  </div>
-                  <span className="text-xs font-bold text-slate-400">{count}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Quick View Drawer */}
@@ -627,6 +244,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
           opportunityId={open.id}
           kind={open.kind}
           assignees={assignees}
+          canEdit={canEdit}
           onClose={() => setOpen(null)}
         />
       )}
