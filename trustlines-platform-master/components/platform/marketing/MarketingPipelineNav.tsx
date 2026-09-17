@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Users, Clock, Target, ArrowRight } from 'lucide-react';
+import { Users, Clock, ArrowRight } from 'lucide-react';
 
 interface Props {
   current: 'prospects' | 'potentials' | 'opportunities';
@@ -10,14 +10,12 @@ interface Props {
   opportunityCount: number | null;
 }
 
-// All three segments live in the SAME "Lead Cloud" pipeline UI/design system
-// (Prospects → Potentials+Opportunities on one combined board). /leads is a separate,
-// older, differently-styled CRM board — linking "Opportunities" there made the pipeline
-// feel like it jumped to a different app mid-flow, which is exactly what was reported.
+// 🔴 2026-09-17: "Opportunities" dropped from this strip — it's Sales's board now
+// (marketing_pr is hard-blocked from /marketing/opportunities, see that page's role gate),
+// and this component only ever renders on the Contacts page. Contacts → Potentials only.
 const SEGMENTS = [
   { key: 'prospects' as const, href: '/marketing/prospects', label: 'Contacts', icon: Users },
   { key: 'potentials' as const, href: '/marketing/opportunities', label: 'Potentials', icon: Clock },
-  { key: 'opportunities' as const, href: '/marketing/opportunities', label: 'Opportunities', icon: Target },
 ];
 
 function countFor(key: Props['current'], p: Props): string {
