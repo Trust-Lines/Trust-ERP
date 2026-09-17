@@ -27,10 +27,10 @@ interface Props {
   prospectCount: number | null;
   potentialCount: number | null;
   myDaySections: MyDaySection[];
-  // Manager-only: team-wide gaps (unfollowed Potentials, missing-region records) — a
-  // manager doesn't personally own Leads, so myDaySections ("assigned to me") is always
-  // empty for them even when the team has real work sitting untouched. See
-  // lib/marketing/teamGaps.ts.
+  // Team-wide, real-data-gap tasks (unfollowed Potentials, Contacts with missing info,
+  // missing-region records, anniversaries, upcoming events) — generated the same way for
+  // everyone now, not scoped to "assigned to me" (myDaySections), which turned out to be an
+  // unreliable signal. See lib/marketing/teamGaps.ts.
   teamGapSections: MyDaySection[];
   // Personal completion percentages — everything here is derived from data this person
   // already owns/is assigned (never a $ figure; marketing_pr never sees pricing).

@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePage } from '@/lib/permissions/requirePage';
 import { MARKETING_SEE_ALL_ROLES } from '@/lib/marketing/roles';
 import { buildMyDay } from '@/lib/dashboard/myDay';
-import { buildTeamGaps, buildTeamAnniversaries, buildUpcomingEvents } from '@/lib/marketing/teamGaps';
+import { buildTeamGaps } from '@/lib/marketing/teamGaps';
 import { enrichProspectRows, type ProspectListBase } from '@/lib/marketing/prospectRows';
 import { MarketingWorkspaceClient } from '@/components/platform/marketing/MarketingWorkspaceClient';
 import type { UserRole } from '@/types/database';
@@ -91,30 +91,23 @@ export default async function MarketingWorkspacePage() {
   const { count: weeklyActivityCount } = await admin.from('audit_log')
     .select('id', { count: 'exact', head: true }).eq('actor_id', user!.id).gte('created_at', weekAgo);
 
-  const [prospectRes, potentialRes, myDay, teamGaps, myAnniversaries, myEvents] = await Promise.all([
+  const [prospectRes, potentialRes, myDay, teamGaps] = await Promise.all([
     sb.from('prospects').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('is_archived', false)
       .or('external_ref.is.null,external_ref.not.like.opportunity-fallback:%'),
     sb.from('prospect_potentials').select('id', { count: 'exact', head: true }).is('deleted_at', null)
       .not('status', 'in', '(converted,lost,cancelled)'),
     buildMyDay(admin, user!.id, role),
-    // Managers don't personally own Leads/Potentials, so "assigned to me" (myDay above) is
-    // always empty for them even when the team has real, unaddressed work — this is the
-    // team-wide counterpart (see lib/marketing/teamGaps.ts). Includes team anniversaries +
-    // upcoming events already.
-    isManager ? buildTeamGaps(admin) : Promise.resolve([]),
-    // Non-managers still get anniversaries and upcoming events (team-wide things, not
-    // manager-exclusive) — buildTeamGaps already covers both for managers above, so these
-    // only run otherwise. Found live: a marketing_pr never saw upcoming trade fairs/events at
-    // all before, only anniversaries — that's the one half of this that was wired up.
-    isManager ? Promise.resolve(null) : buildTeamAnniversaries(admin),
-    isManager ? Promise.resolve(null) : buildUpcomingEvents(admin),
+    // 🔴 2026-09-17: used to be manager-only ("Managers don't personally own Leads/
+    // Potentials, so myDay above is always empty for them") — reversed per direct
+    // instruction: a marketing_pr's task list should be GENERATED from real, team-wide data
+    // gaps too (missing Contact info, Potentials nobody's followed up on, missing region,
+    // anniversaries, upcoming events) — not just whatever happens to be "assigned to them",
+    // which turned out to be an unreliable signal this session (see the assignee-clearing
+    // fixes a few commits back). Everyone gets the same team-wide list now.
+    buildTeamGaps(admin),
   ]);
 
-  const teamGapSections = [
-    ...(myAnniversaries && myAnniversaries.items.length > 0 ? [myAnniversaries] : []),
-    ...(myEvents && myEvents.items.length > 0 ? [myEvents] : []),
-    ...teamGaps,
-  ];
+  const teamGapSections = teamGaps;
 
   return (
     <div style={{ padding: '24px 32px' }}>

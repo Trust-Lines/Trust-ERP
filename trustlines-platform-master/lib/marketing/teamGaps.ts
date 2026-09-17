@@ -19,6 +19,7 @@
 // could go stale; whatever isn't fixed by end of day is still exactly what shows tomorrow.
 
 import type { MyDaySection } from '@/lib/dashboard/myDay';
+import { enrichProspectRows, type ProspectListBase } from './prospectRows';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -145,6 +146,50 @@ export async function buildUpcomingEvents(admin: any): Promise<MyDaySection> {
   };
 }
 
+const MISSING_INFO_COLS = 'id, display_name, owner_id, assigned_marketing_user_id, organization_name, person_name, '
+  + 'main_email, main_phone, website, source_label, source_raw_label, source_detail, business_types, x_note, region';
+
+// "The actual work" — direct instruction (2026-09-17): marketing_pr's task list should be
+// GENERATED from real data gaps ("eksik kişi bilgileri doldurulmalı"), not just date-based
+// reminders. Same completeness_percent computation as the Contacts page's own "missing info"
+// filter (lib/marketing/prospectCompleteness.ts via enrichProspectRows) — team-wide, not
+// scoped to who's "assigned" (that field turned out to be unreliable this session — see
+// commits around the assignee-clearing fixes). Paginated with .range() rather than one big
+// .limit() (PostgREST's 1000-row cap, this module's own recurring gotcha) and capped at a
+// safety ceiling, not a top-N sample.
+export async function buildContactsMissingInfo(admin: any): Promise<MyDaySection> {
+  type Row = { id: string; display_name: string | null } & Record<string, unknown>;
+  const rows: Row[] = [];
+  let queryError: unknown = null;
+  for (let offset = 0; offset < QUERY_CAP; offset += 1000) {
+    const { data: page, error } = await admin.from('prospects').select(MISSING_INFO_COLS)
+      .is('deleted_at', null).eq('is_archived', false)
+      .or('external_ref.is.null,external_ref.not.like.opportunity-fallback:%')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + 999) as { data: Row[] | null; error: unknown };
+    if (error) { queryError = error; break; }
+    rows.push(...(page ?? []));
+    if (!page || page.length < 1000) break;
+  }
+  if (queryError) return { key: 'team_missing_info', title: 'Contacts with missing info', items: [] };
+
+  const enriched = await enrichProspectRows(admin, rows as unknown as ProspectListBase[]);
+  const missing = enriched
+    .filter(p => p.completeness_percent < 100)
+    .sort((a, b) => a.completeness_percent - b.completeness_percent);
+
+  return {
+    key: 'team_missing_info',
+    title: `Contacts with missing info (${missing.length})`,
+    items: missing.map(p => ({
+      label: (p as unknown as Row).display_name || 'Untitled contact',
+      sublabel: `${p.completeness_percent}% complete`,
+      href: `/marketing/prospects/${p.id}`,
+      tone: p.completeness_percent < 40 ? 'danger' as const : p.completeness_percent < 80 ? 'warn' as const : 'default' as const,
+    })),
+  };
+}
+
 // Work anniversaries — profiles.created_at is when the account was created (their real
 // start date on the platform), not a $-value or anything marketing_pr shouldn't see. Flags
 // anyone on the Marketing team whose join-date month/day is today, so someone actually sends
@@ -179,14 +224,14 @@ export async function buildTeamAnniversaries(admin: any): Promise<MyDaySection> 
 }
 
 export async function buildTeamGaps(admin: any): Promise<MyDaySection[]> {
-  const [followUp, missingRegion, events, anniversaries] = await Promise.all([
+  const [followUp, missingRegion, missingInfo, events, anniversaries] = await Promise.all([
     buildPotentialsNeedingFollowUp(admin),
     buildMissingRegion(admin),
+    buildContactsMissingInfo(admin),
     buildUpcomingEvents(admin),
     buildTeamAnniversaries(admin),
   ]);
-  // Anniversaries go first — everyone on the team should see this, not just managers, but
-  // this function is currently only called for isManager (see app/(platform)/marketing/
-  // page.tsx) — non-managers get it via a separate direct call there instead.
-  return [anniversaries, events, followUp, missingRegion].filter(s => s.items.length > 0);
+  // Anniversaries/events first (the "nice to know" ones), then the real work: Potentials
+  // nobody's followed up on, Contacts with missing info, Contacts missing a region.
+  return [anniversaries, events, followUp, missingInfo, missingRegion].filter(s => s.items.length > 0);
 }
