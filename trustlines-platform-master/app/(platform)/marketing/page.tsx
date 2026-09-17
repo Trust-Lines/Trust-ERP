@@ -37,13 +37,24 @@ export default async function MarketingWorkspacePage() {
   // never sees pricing/value figures), just percentages computed from Contacts/Potentials
   // this person owns/is assigned, plus their own audit trail. Scoped to just their own
   // rows, so this stays cheap regardless of how big the whole table gets.
+  // 🔴 PostgREST caps any row-returning select at 1000 regardless of how many rows actually
+  // match — bit this exact module more than once already this session (1758 Contacts showing
+  // as 1000). This account owns/is assigned the vast majority of Contacts (it ran every
+  // ClickUp import), so a single unpaginated request here silently dropped over 700 rows.
+  // Page through with .range() until a short page confirms there's nothing left.
   const myProspectCols = 'id, owner_id, assigned_marketing_user_id, organization_name, person_name, main_email, main_phone, '
     + 'website, source_label, source_raw_label, source_detail, business_types, x_note, region';
-  const { data: myProspectsRaw } = await admin.from('prospects').select(myProspectCols)
-    .is('deleted_at', null).eq('is_archived', false)
-    .not('external_ref', 'like', 'opportunity-fallback:%')
-    .or(`owner_id.eq.${user!.id},assigned_marketing_user_id.eq.${user!.id}`);
-  const myProspectsEnriched = await enrichProspectRows(admin, (myProspectsRaw ?? []) as unknown as ProspectListBase[]);
+  const myProspectsRaw: unknown[] = [];
+  for (let offset = 0; offset < 20000; offset += 1000) {
+    const { data: page } = await admin.from('prospects').select(myProspectCols)
+      .is('deleted_at', null).eq('is_archived', false)
+      .not('external_ref', 'like', 'opportunity-fallback:%')
+      .or(`owner_id.eq.${user!.id},assigned_marketing_user_id.eq.${user!.id}`)
+      .range(offset, offset + 999);
+    myProspectsRaw.push(...(page ?? []));
+    if (!page || page.length < 1000) break;
+  }
+  const myProspectsEnriched = await enrichProspectRows(admin, myProspectsRaw as unknown as ProspectListBase[]);
   const contactsComplete = myProspectsEnriched.filter(p => p.completeness_percent >= 80).length;
   const contactsTotal = myProspectsEnriched.length;
   const contactsWithRegion = myProspectsEnriched.filter(p => !!p.region).length;
@@ -54,7 +65,12 @@ export default async function MarketingWorkspacePage() {
     .select('id, need_id, target_contact_date').is('deleted_at', null)
     .not('status', 'in', '(converted,lost,cancelled)').eq('assigned_to', user!.id);
   const potentialsList = (myPotentials ?? []) as { id: string; need_id: string | null; target_contact_date: string | null }[];
-  const potentialsOnTime = potentialsList.filter(p => !p.target_contact_date || p.target_contact_date >= today).length;
+  // 🔴 A missing target_contact_date is NOT "on time" — it means nobody scheduled a
+  // next-contact date at all, which is exactly the gap lib/marketing/teamGaps.ts's
+  // buildPotentialsNeedingFollowUp already flags. Treating it as on-time made this read
+  // 100% for an account where every Potential still has no date set — the opposite of
+  // useful. On-time now requires a real, non-overdue date.
+  const potentialsOnTime = potentialsList.filter(p => !!p.target_contact_date && p.target_contact_date >= today).length;
   const potentialsTotal = potentialsList.length;
 
   // Document evidence — the ONE thing that actually promotes a Potential to Opportunity
