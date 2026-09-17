@@ -1,16 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { Users, Target, Clock, ArrowRight, CheckCircle2, PartyPopper } from 'lucide-react';
+import { Users, Target, ArrowRight, CheckCircle2, PartyPopper } from 'lucide-react';
 import { SALES_HANDOFF_ROLES } from '@/lib/sales/roles';
 import type { MyDaySection } from '@/lib/dashboard/myDay';
+
+interface MyStats {
+  contactsComplete: number;
+  contactsTotal: number;
+  potentialsOnTime: number;
+  potentialsTotal: number;
+}
 
 interface Props {
   role: string;
   fullName: string | null;
   isManager: boolean;
   prospectCount: number | null;
-  opportunityCount: number | null;
   potentialCount: number | null;
   myDaySections: MyDaySection[];
   // Manager-only: team-wide gaps (unfollowed Potentials, missing-region records) — a
@@ -18,6 +24,9 @@ interface Props {
   // empty for them even when the team has real work sitting untouched. See
   // lib/marketing/teamGaps.ts.
   teamGapSections: MyDaySection[];
+  // Personal completion percentages — everything here is derived from data this person
+  // already owns/is assigned (never a $ figure; marketing_pr never sees pricing).
+  myStats: MyStats;
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -44,7 +53,7 @@ function firstName(fullName: string | null): string | null {
   return fullName.trim().split(/\s+/)[0];
 }
 
-export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCount, opportunityCount, potentialCount, myDaySections, teamGapSections }: Props) {
+export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCount, potentialCount, myDaySections, teamGapSections, myStats }: Props) {
   const canReachSalesHandoff = SALES_HANDOFF_ROLES.includes(role);
   const name = firstName(fullName);
 
@@ -145,36 +154,44 @@ export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCo
 
           <div style={{ display: 'flex', alignItems: 'center', color: 'var(--fg-subtle)' }}><ArrowRight size={16} /></div>
 
-          {/* Points straight at Opportunities (where the Potential column actually lives) —
-              /marketing/potentials is only a redirect back to this same page, so linking to it
-              here was a click that pretended to go somewhere and didn't. */}
-          <Link href="/marketing/opportunities" style={{ flex: '1 1 200px', display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit', padding: '10px 12px', borderRadius: 8 }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-            <Clock size={18} style={{ color: 'var(--fg-muted)' }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>Potentials</div>
-              <div style={{ fontSize: 11.5, color: 'var(--fg-muted)' }}>
-                {potentialCount === null ? '—' : `${potentialCount} nurture & follow-up`}
-              </div>
-            </div>
-          </Link>
-
-          <div style={{ display: 'flex', alignItems: 'center', color: 'var(--fg-subtle)' }}><ArrowRight size={16} /></div>
-
           <Link href="/marketing/opportunities" style={{ flex: '1.3 1 220px', display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit', padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--brand-navy)' }}
             onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
             <Target size={18} style={{ color: 'var(--brand-navy)' }} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 13 }}>Opportunities</div>
+              <div style={{ fontWeight: 700, fontSize: 13 }}>Potentials</div>
               <div style={{ fontSize: 11.5, color: 'var(--fg-muted)' }}>
-                {opportunityCount === null ? '—' : `${opportunityCount} — primary business list`}
+                {potentialCount === null ? '—' : `${potentialCount} nurture & follow-up`}
               </div>
             </div>
           </Link>
         </div>
       </div>
+
+      {/* ── Your activity — completion percentages, never a $ figure ─────────── */}
+      {(myStats.contactsTotal > 0 || myStats.potentialsTotal > 0) && (
+        <div className="card">
+          <div className="card-head">
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Your activity</div>
+          </div>
+          <div className="card-body" style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            {myStats.contactsTotal > 0 && (
+              <StatBar
+                label="Contacts with complete info"
+                value={myStats.contactsComplete}
+                total={myStats.contactsTotal}
+              />
+            )}
+            {myStats.potentialsTotal > 0 && (
+              <StatBar
+                label="Potentials followed up on time"
+                value={myStats.potentialsOnTime}
+                total={myStats.potentialsTotal}
+              />
+            )}
+          </div>
+        </div>
+      )}
 
       {canReachSalesHandoff && (
         <Link href="/sales-projects" className="card" style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -186,6 +203,23 @@ export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCo
           </div>
         </Link>
       )}
+    </div>
+  );
+}
+
+function StatBar({ label, value, total }: { label: string; value: number; total: number }) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  const color = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
+  return (
+    <div style={{ flex: '1 1 220px', minWidth: 200 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg-muted)' }}>{label}</span>
+        <span style={{ fontSize: 15, fontWeight: 800, color }}>{pct}%</span>
+      </div>
+      <div style={{ height: 6, borderRadius: 999, background: 'var(--bg-subtle)', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 999 }} />
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 4 }}>{value} of {total}</div>
     </div>
   );
 }

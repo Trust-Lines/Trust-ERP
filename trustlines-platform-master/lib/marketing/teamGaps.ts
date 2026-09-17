@@ -145,11 +145,48 @@ export async function buildUpcomingEvents(admin: any): Promise<MyDaySection> {
   };
 }
 
+// Work anniversaries — profiles.created_at is when the account was created (their real
+// start date on the platform), not a $-value or anything marketing_pr shouldn't see. Flags
+// anyone on the Marketing team whose join-date month/day is today, so someone actually sends
+// them a note instead of it going unnoticed. Suggests the action — never sends anything
+// itself, this is a task list, not an autosend.
+export async function buildTeamAnniversaries(admin: any): Promise<MyDaySection> {
+  const { data, error } = await admin.from('profiles')
+    .select('id, full_name, created_at')
+    .in('role', ['marketing_pr', 'marketing_manager'])
+    .eq('is_active', true) as {
+      data: { id: string; full_name: string | null; created_at: string }[] | null;
+      error: unknown;
+    };
+  if (error) return { key: 'team_anniversaries', title: 'Team anniversaries', items: [] };
+
+  const today = new Date();
+  const items = (data ?? [])
+    .map(p => {
+      const joined = new Date(p.created_at);
+      const years = today.getFullYear() - joined.getFullYear();
+      return { p, joined, years };
+    })
+    .filter(({ joined, years }) => years > 0 && joined.getMonth() === today.getMonth() && joined.getDate() === today.getDate())
+    .map(({ p, years }) => ({
+      label: `${p.full_name ?? 'Someone'} — ${years} year${years === 1 ? '' : 's'} with the team today`,
+      sublabel: 'Send them a note',
+      href: '/team',
+      tone: 'good' as const,
+    }));
+
+  return { key: 'team_anniversaries', title: `Team anniversaries (${items.length})`, items };
+}
+
 export async function buildTeamGaps(admin: any): Promise<MyDaySection[]> {
-  const [followUp, missingRegion, events] = await Promise.all([
+  const [followUp, missingRegion, events, anniversaries] = await Promise.all([
     buildPotentialsNeedingFollowUp(admin),
     buildMissingRegion(admin),
     buildUpcomingEvents(admin),
+    buildTeamAnniversaries(admin),
   ]);
-  return [events, followUp, missingRegion].filter(s => s.items.length > 0);
+  // Anniversaries go first — everyone on the team should see this, not just managers, but
+  // this function is currently only called for isManager (see app/(platform)/marketing/
+  // page.tsx) — non-managers get it via a separate direct call there instead.
+  return [anniversaries, events, followUp, missingRegion].filter(s => s.items.length > 0);
 }

@@ -31,7 +31,10 @@ export function AppShell({
   notificationCount,
 }: AppShellProps) {
   const pathname = usePathname();
-  const fullWidth = FULL_WIDTH_ROUTES.some(r => pathname === r || pathname?.startsWith(`${r}/`));
+  // '/marketing' (Marketing Home) is exact-only — it must NOT widen every /marketing/*
+  // sub-route via the prefix match below (Campaigns, prospect detail, etc. aren't designed
+  // for full width; only Contacts/Potentials and Home itself are).
+  const fullWidth = pathname === '/marketing' || FULL_WIDTH_ROUTES.some(r => pathname === r || pathname?.startsWith(`${r}/`));
   const isHome = pathname === '/home' || pathname === '/';
 
   return (
