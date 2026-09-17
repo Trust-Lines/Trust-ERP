@@ -75,7 +75,13 @@ export async function GET(req: NextRequest) {
     // be a real Contact — Contacts is company/person names only, an address belongs on the
     // Potential/Opportunity itself. Excluded here; the Potential still shows normally on
     // the Opportunities board (which reads its own `title`, not this hidden row's name).
-    query = query.not('external_ref', 'like', 'opportunity-fallback:%');
+    // 🔴 2026-09-17: `.not('external_ref', 'like', ...)` alone silently dropped EVERY
+    // Contact with a NULL external_ref too — SQL's `NOT (NULL LIKE 'x%')` evaluates to NULL,
+    // not TRUE, so WHERE excludes it. That's most survey-native/manually-created Contacts —
+    // caught live when two records deliberately preserved through the ClickUp re-import
+    // ("Cco, llc", "Town mart") had vanished from the list entirely. `.or()` with an
+    // explicit `is.null` branch lets NULL rows through as intended.
+    query = query.or('external_ref.is.null,external_ref.not.like.opportunity-fallback:%');
     if (!includeArchived) query = query.eq('is_archived', false);
     if (status) query = query.eq('status', status);
     if (region) query = query.contains('regions', [region]);

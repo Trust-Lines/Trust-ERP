@@ -33,10 +33,13 @@ export default async function ProspectsListPage() {
       // Placeholder Contacts created by clickup-import-potentials-only.mts's --allow-fallback
       // (address as the name, no real Contact behind a Potential-stage deal) don't belong
       // on this page — see the matching filter in app/api/marketing/prospects/route.ts.
-      .not('external_ref', 'like', 'opportunity-fallback:%')
+      // `.or()` with an explicit `is.null` branch, NOT a plain `.not('external_ref','like',…)`
+      // — that alone silently drops every Contact with a NULL external_ref too (SQL's
+      // `NOT (NULL LIKE 'x%')` is NULL, not TRUE, so WHERE excludes it).
+      .or('external_ref.is.null,external_ref.not.like.opportunity-fallback:%')
       .order('created_at', { ascending: false }).range(0, PAGE_SIZE - 1),
     sb.from('prospects').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('is_archived', false)
-      .not('external_ref', 'like', 'opportunity-fallback:%'),
+      .or('external_ref.is.null,external_ref.not.like.opportunity-fallback:%'),
   ]);
   const base = (res.error ? [] : (res.data ?? [])) as Omit<ProspectRow, 'primary_contact' | 'owner_name' | 'location_count_actual' | 'potential_count' | 'opportunity_count'>[];
   const prospects: ProspectRow[] = await enrichProspectRows(sb, base);
