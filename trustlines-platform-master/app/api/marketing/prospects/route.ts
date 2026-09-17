@@ -36,7 +36,16 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(url.searchParams.get('pageSize') ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE));
 
-  const SORT_COLUMNS: Record<string, string> = { created_at: 'external_created_at', source: 'source_raw_label' };
+  // 🔴 2026-09-17: 'created_at' used to sort by external_created_at (ClickUp's original
+  // task-creation date) instead of our own real created_at — but a Contact with no ClickUp
+  // origin (survey-native, manually created) has external_created_at = NULL, so clicking
+  // this column pushed it to the very bottom regardless of how recently it was actually
+  // added (the column's own displayed value already falls back to created_at for exactly
+  // this reason — see external_created_at ?? created_at in ProspectsPageClient — the sort
+  // just never matched it). Sort on the real database created_at directly instead — still
+  // mapped explicitly (not left out of SORT_COLUMNS) so ascending/descending toggling still
+  // works the same as any other sortable column.
+  const SORT_COLUMNS: Record<string, string> = { created_at: 'created_at', source: 'source_raw_label' };
   const sortKey = url.searchParams.get('sort') ?? '';
   const sortDir = url.searchParams.get('dir') === 'asc' ? 'asc' : 'desc';
   const sortColumn = SORT_COLUMNS[sortKey] ?? null;
