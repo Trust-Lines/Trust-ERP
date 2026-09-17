@@ -45,7 +45,7 @@ export default async function ProspectsListPage() {
   const opportunityTotal = oppTotalRes.error ? null : (oppTotalRes.data?.length ?? 0);
 
   return (
-    <div className="main-inner">
+    <div style={{ padding: '24px 32px' }}>
       <ProspectsPageClient
         initialProspects={prospects} initialTotal={total} pageSize={PAGE_SIZE}
         canEdit={canEdit} loadError={!!res.error}
