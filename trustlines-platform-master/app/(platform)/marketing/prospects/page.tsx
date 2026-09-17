@@ -28,7 +28,7 @@ export default async function ProspectsListPage() {
     sb.from('prospects')
       .select('id, entity_type, display_name, organization_name, person_name, brand_name, industry, status, location_count, source_label, source_raw_label, source_detail, business_types, tags, main_email, main_phone, website, x_note, region, '
         + 'project_types, scope_types, timing, next_action, next_action_date, target_contact_date, '
-        + 'owner_id, assigned_marketing_user_id, is_archived, created_at, updated_at, external_created_at')
+        + 'owner_id, assigned_marketing_user_id, is_archived, created_at, updated_at, external_created_at, effective_created_at')
       .is('deleted_at', null).eq('is_archived', false)
       // Placeholder Contacts created by clickup-import-potentials-only.mts's --allow-fallback
       // (address as the name, no real Contact behind a Potential-stage deal) don't belong
@@ -37,7 +37,10 @@ export default async function ProspectsListPage() {
       // — that alone silently drops every Contact with a NULL external_ref too (SQL's
       // `NOT (NULL LIKE 'x%')` is NULL, not TRUE, so WHERE excludes it).
       .or('external_ref.is.null,external_ref.not.like.opportunity-fallback:%')
-      .order('created_at', { ascending: false }).range(0, PAGE_SIZE - 1),
+      // effective_created_at (migration 114) = COALESCE(external_created_at, created_at) —
+      // real ClickUp date when there is one, our own created_at otherwise. Matches the sort
+      // this page's own client-side refetch uses (app/api/marketing/prospects/route.ts).
+      .order('effective_created_at', { ascending: false }).range(0, PAGE_SIZE - 1),
     sb.from('prospects').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('is_archived', false)
       .or('external_ref.is.null,external_ref.not.like.opportunity-fallback:%'),
   ]);

@@ -13,7 +13,7 @@ import type { LeadEntityType } from '@/types/database';
 const LIST_COLS = 'id, entity_type, display_name, organization_name, person_name, brand_name, industry, status, location_count, '
   + 'source_label, source_raw_label, source_detail, business_types, tags, main_email, main_phone, website, x_note, '
   + 'region, project_types, scope_types, timing, target_contact_date, next_action, next_action_date, '
-  + 'owner_id, assigned_marketing_user_id, is_archived, created_at, updated_at, external_created_at';
+  + 'owner_id, assigned_marketing_user_id, is_archived, created_at, updated_at, external_created_at, effective_created_at';
 
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200;
@@ -36,16 +36,15 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(url.searchParams.get('pageSize') ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE));
 
-  // 🔴 2026-09-17: 'created_at' used to sort by external_created_at (ClickUp's original
-  // task-creation date) instead of our own real created_at — but a Contact with no ClickUp
-  // origin (survey-native, manually created) has external_created_at = NULL, so clicking
-  // this column pushed it to the very bottom regardless of how recently it was actually
-  // added (the column's own displayed value already falls back to created_at for exactly
-  // this reason — see external_created_at ?? created_at in ProspectsPageClient — the sort
-  // just never matched it). Sort on the real database created_at directly instead — still
-  // mapped explicitly (not left out of SORT_COLUMNS) so ascending/descending toggling still
-  // works the same as any other sortable column.
-  const SORT_COLUMNS: Record<string, string> = { created_at: 'created_at', source: 'source_raw_label' };
+  // 🔴 2026-09-17: 'created_at' needs to show/sort by the real ClickUp date when a Contact
+  // has one (external_created_at) and fall back to our own created_at otherwise — losing the
+  // real ClickUp dates isn't acceptable, but sorting by external_created_at alone buried
+  // every ClickUp-less Contact ("Cco, llc"/"Town mart") at the very bottom regardless of how
+  // recently it was actually added. Plain .order() can't express that COALESCE, so
+  // migration 114 added prospects.effective_created_at as a real generated column
+  // (COALESCE(external_created_at, created_at)) — sort AND display both use it now, so they
+  // always agree.
+  const SORT_COLUMNS: Record<string, string> = { created_at: 'effective_created_at', source: 'source_raw_label' };
   const sortKey = url.searchParams.get('sort') ?? '';
   const sortDir = url.searchParams.get('dir') === 'asc' ? 'asc' : 'desc';
   const sortColumn = SORT_COLUMNS[sortKey] ?? null;
@@ -119,8 +118,8 @@ export async function GET(req: NextRequest) {
     for (let offset = 0; offset < MISSING_INFO_CAP; offset += FETCH_PAGE) {
       let pageQuery = applyFilters(admin.from('prospects').select(LIST_COLS).is('deleted_at', null));
       pageQuery = sortColumn
-        ? pageQuery.order(sortColumn, { ascending: sortDir === 'asc', nullsFirst: false }).order('created_at', { ascending: false })
-        : pageQuery.order('created_at', { ascending: false });
+        ? pageQuery.order(sortColumn, { ascending: sortDir === 'asc', nullsFirst: false }).order('effective_created_at', { ascending: false })
+        : pageQuery.order('effective_created_at', { ascending: false });
       pageQuery = pageQuery.range(offset, offset + FETCH_PAGE - 1);
       const { data: pageData, error: pageError } = await pageQuery;
       if (pageError) return NextResponse.json({ error: pageError.message }, { status: 500 });
@@ -142,8 +141,8 @@ export async function GET(req: NextRequest) {
   const to = from + pageSize - 1;
   let dataQuery = applyFilters(admin.from('prospects').select(LIST_COLS).is('deleted_at', null));
   dataQuery = sortColumn
-    ? dataQuery.order(sortColumn, { ascending: sortDir === 'asc', nullsFirst: false }).order('created_at', { ascending: false })
-    : dataQuery.order('created_at', { ascending: false });
+    ? dataQuery.order(sortColumn, { ascending: sortDir === 'asc', nullsFirst: false }).order('effective_created_at', { ascending: false })
+    : dataQuery.order('effective_created_at', { ascending: false });
   dataQuery = dataQuery.range(from, to);
   const { data, error } = await dataQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -47,6 +47,7 @@ export interface ProspectRow {
   created_at: string;
   updated_at: string;
   external_created_at?: string | null;
+  effective_created_at?: string | null;
   primary_contact: string | null;
   primary_contact_id: string | null;
   location_count_actual: number;
@@ -433,7 +434,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                       ) : <span style={{ color: 'var(--fg-subtle)' }}>—</span>}
                     </td>
                     <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>
-                      {new Date(p.created_at).toLocaleDateString('en-US')}
+                      {new Date(p.effective_created_at ?? p.external_created_at ?? p.created_at).toLocaleDateString('en-US')}
                     </td>
                     <td style={{ padding: '10px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
