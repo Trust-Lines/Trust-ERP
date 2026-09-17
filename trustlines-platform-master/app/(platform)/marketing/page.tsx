@@ -34,10 +34,11 @@ export default async function MarketingWorkspacePage() {
   const admin = createAdminClient() as any;
 
   // 🔴 2026-09-17: personal "how am I doing" stats — no $ amounts anywhere (marketing_pr
-  // never sees pricing/value figures), just completion percentages computed from Contacts
-  // this person owns/is assigned. Scoped to just their own rows, so this stays cheap.
+  // never sees pricing/value figures), just percentages computed from Contacts/Potentials
+  // this person owns/is assigned, plus their own audit trail. Scoped to just their own
+  // rows, so this stays cheap regardless of how big the whole table gets.
   const myProspectCols = 'id, owner_id, assigned_marketing_user_id, organization_name, person_name, main_email, main_phone, '
-    + 'website, source_label, source_raw_label, source_detail, business_types, x_note';
+    + 'website, source_label, source_raw_label, source_detail, business_types, x_note, region';
   const { data: myProspectsRaw } = await admin.from('prospects').select(myProspectCols)
     .is('deleted_at', null).eq('is_archived', false)
     .not('external_ref', 'like', 'opportunity-fallback:%')
@@ -45,14 +46,31 @@ export default async function MarketingWorkspacePage() {
   const myProspectsEnriched = await enrichProspectRows(admin, (myProspectsRaw ?? []) as unknown as ProspectListBase[]);
   const contactsComplete = myProspectsEnriched.filter(p => p.completeness_percent >= 80).length;
   const contactsTotal = myProspectsEnriched.length;
+  const contactsWithRegion = myProspectsEnriched.filter(p => !!p.region).length;
+  const contactsWithWhatsapp = myProspectsEnriched.filter(p => p.whatsapp).length;
 
   const today = new Date().toISOString().slice(0, 10);
   const { data: myPotentials } = await admin.from('prospect_potentials')
-    .select('id, target_contact_date').is('deleted_at', null)
+    .select('id, need_id, target_contact_date').is('deleted_at', null)
     .not('status', 'in', '(converted,lost,cancelled)').eq('assigned_to', user!.id);
-  const potentialsList = (myPotentials ?? []) as { id: string; target_contact_date: string | null }[];
+  const potentialsList = (myPotentials ?? []) as { id: string; need_id: string | null; target_contact_date: string | null }[];
   const potentialsOnTime = potentialsList.filter(p => !p.target_contact_date || p.target_contact_date >= today).length;
   const potentialsTotal = potentialsList.length;
+
+  // Document evidence — the ONE thing that actually promotes a Potential to Opportunity
+  // Candidate (lib/marketing/classification.ts's classifyLead — timing/region/anything else
+  // never matters). Shows what fraction of this person's Potentials are actually ready to
+  // convert vs still need a layout/reference attached.
+  const myNeedIds = [...new Set(potentialsList.map(p => p.need_id).filter(Boolean))] as string[];
+  let potentialsWithEvidence = 0;
+  if (myNeedIds.length) {
+    const { data: docRows } = await admin.from('prospect_need_documents').select('need_id').in('need_id', myNeedIds);
+    potentialsWithEvidence = new Set((docRows ?? []).map((d: { need_id: string }) => d.need_id)).size;
+  }
+
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+  const { count: weeklyActivityCount } = await admin.from('audit_log')
+    .select('id', { count: 'exact', head: true }).eq('actor_id', user!.id).gte('created_at', weekAgo);
 
   const [prospectRes, potentialRes, myDay, teamGaps, myAnniversaries] = await Promise.all([
     sb.from('prospects').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('is_archived', false)
@@ -83,7 +101,12 @@ export default async function MarketingWorkspacePage() {
         potentialCount={potentialRes.error ? null : (potentialRes.count ?? 0)}
         myDaySections={myDay.sections}
         teamGapSections={teamGapSections}
-        myStats={{ contactsComplete, contactsTotal, potentialsOnTime, potentialsTotal }}
+        myStats={{
+          contactsComplete, contactsTotal, potentialsOnTime, potentialsTotal,
+          contactsWithRegion, contactsWithWhatsapp,
+          potentialsWithEvidence, potentialsWithNeed: myNeedIds.length,
+          weeklyActivityCount: weeklyActivityCount ?? 0,
+        }}
       />
     </div>
   );

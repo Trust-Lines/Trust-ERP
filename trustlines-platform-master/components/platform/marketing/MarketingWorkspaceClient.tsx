@@ -10,6 +10,11 @@ interface MyStats {
   contactsTotal: number;
   potentialsOnTime: number;
   potentialsTotal: number;
+  contactsWithRegion: number;
+  contactsWithWhatsapp: number;
+  potentialsWithEvidence: number;
+  potentialsWithNeed: number;
+  weeklyActivityCount: number;
 }
 
 interface Props {
@@ -74,10 +79,65 @@ export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCo
         </h1>
         <div style={{ fontSize: 12.5, color: 'var(--fg-muted)', marginTop: 3 }}>
           {ROLE_LABEL[role] ?? role} · {isManager ? 'sees every Lead and Opportunity' : 'sees Leads and Opportunities in your region'}
+          {totalActionCount > 0 && ` · ${totalActionCount} to handle today`}
         </div>
       </div>
 
-      {/* ── Today's actions — the real work, pulled straight from My Day ────────── */}
+      {/* ── Your activity — completion percentages, at the top, never a $ figure ────── */}
+      {(myStats.contactsTotal > 0 || myStats.potentialsTotal > 0) && (
+        <div className="card">
+          <div className="card-head">
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Your activity</div>
+            <span className="pill" style={{ background: 'var(--bg-subtle)', color: 'var(--fg-muted)' }}>
+              {myStats.weeklyActivityCount} action{myStats.weeklyActivityCount === 1 ? '' : 's'} this week
+            </span>
+          </div>
+          <div className="card-body" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
+            {myStats.contactsTotal > 0 && (
+              <StatTile
+                label="Contacts with complete info"
+                hint="Enough to actually reach out"
+                value={myStats.contactsComplete}
+                total={myStats.contactsTotal}
+              />
+            )}
+            {myStats.potentialsTotal > 0 && (
+              <StatTile
+                label="Followed up on time"
+                hint="No overdue next-contact date"
+                value={myStats.potentialsOnTime}
+                total={myStats.potentialsTotal}
+              />
+            )}
+            {myStats.potentialsWithNeed > 0 && (
+              <StatTile
+                label="Ready to convert"
+                hint="Has a layout/document attached"
+                value={myStats.potentialsWithEvidence}
+                total={myStats.potentialsWithNeed}
+              />
+            )}
+            {myStats.contactsTotal > 0 && (
+              <StatTile
+                label="Assigned to a region"
+                hint="Findable by your team"
+                value={myStats.contactsWithRegion}
+                total={myStats.contactsTotal}
+              />
+            )}
+            {myStats.contactsTotal > 0 && (
+              <StatTile
+                label="Reachable on WhatsApp"
+                hint="Fastest way to follow up"
+                value={myStats.contactsWithWhatsapp}
+                total={myStats.contactsTotal}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Today's actions — each kind of thing gets its own card, not one big mixed list ── */}
       {sections.length === 0 ? (
         <div className="card">
           <div className="card-body" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 16px' }}>
@@ -91,50 +151,43 @@ export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCo
           </div>
         </div>
       ) : (
-        <div className="card">
-          <div className="card-head">
-            <div style={{ fontWeight: 700, fontSize: 14 }}>Today&apos;s actions</div>
-            <span className="pill" style={{ background: 'var(--status-warning-bg, #fef3c7)', color: 'var(--status-warning-fg, #92400e)' }}>
-              {totalActionCount} to handle
-            </span>
+        sections.map(section => (
+          <div className="card" key={section.key}>
+            <div className="card-head">
+              <div style={{ fontWeight: 700, fontSize: 14 }}>{section.title.replace(/\s*\(\d+\)$/, '')}</div>
+              <span className="pill" style={{ background: 'var(--status-warning-bg, #fef3c7)', color: 'var(--status-warning-fg, #92400e)' }}>
+                {section.items.length} to handle
+              </span>
+            </div>
+            <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {section.items.map((item, i) => {
+                const tone = TONE_COLOR[item.tone ?? 'default'];
+                return (
+                  <Link
+                    key={`${section.key}-${i}`}
+                    href={item.href}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit',
+                      padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-subtle)',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: tone.dot, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</div>
+                      {item.sublabel && <div style={{ fontSize: 11.5, color: 'var(--fg-muted)', marginTop: 1 }}>{item.sublabel}</div>}
+                    </div>
+                    {item.badge && (
+                      <span className="pill" style={{ background: tone.bg, color: tone.fg, flexShrink: 0 }}>{item.badge}</span>
+                    )}
+                    <ArrowRight size={13} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-          <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {sections.map(section => (
-              <div key={section.key}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-                  {section.title}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {section.items.map((item, i) => {
-                    const tone = TONE_COLOR[item.tone ?? 'default'];
-                    return (
-                      <Link
-                        key={`${section.key}-${i}`}
-                        href={item.href}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit',
-                          padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-subtle)',
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: tone.dot, flexShrink: 0 }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</div>
-                          {item.sublabel && <div style={{ fontSize: 11.5, color: 'var(--fg-muted)', marginTop: 1 }}>{item.sublabel}</div>}
-                        </div>
-                        {item.badge && (
-                          <span className="pill" style={{ background: tone.bg, color: tone.fg, flexShrink: 0 }}>{item.badge}</span>
-                        )}
-                        <ArrowRight size={13} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        ))
       )}
 
       {/* ── Pipeline shortcuts ───────────────────────────────────────────────── */}
@@ -168,31 +221,6 @@ export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCo
         </div>
       </div>
 
-      {/* ── Your activity — completion percentages, never a $ figure ─────────── */}
-      {(myStats.contactsTotal > 0 || myStats.potentialsTotal > 0) && (
-        <div className="card">
-          <div className="card-head">
-            <div style={{ fontWeight: 700, fontSize: 14 }}>Your activity</div>
-          </div>
-          <div className="card-body" style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-            {myStats.contactsTotal > 0 && (
-              <StatBar
-                label="Contacts with complete info"
-                value={myStats.contactsComplete}
-                total={myStats.contactsTotal}
-              />
-            )}
-            {myStats.potentialsTotal > 0 && (
-              <StatBar
-                label="Potentials followed up on time"
-                value={myStats.potentialsOnTime}
-                total={myStats.potentialsTotal}
-              />
-            )}
-          </div>
-        </div>
-      )}
-
       {canReachSalesHandoff && (
         <Link href="/sales-projects" className="card" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="card-body" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px' }}>
@@ -207,19 +235,25 @@ export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCo
   );
 }
 
-function StatBar({ label, value, total }: { label: string; value: number; total: number }) {
+function StatTile({ label, hint, value, total }: { label: string; hint: string; value: number; total: number }) {
   const pct = total > 0 ? Math.round((value / total) * 100) : 0;
   const color = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
   return (
-    <div style={{ flex: '1 1 220px', minWidth: 200 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg-muted)' }}>{label}</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color }}>{pct}%</span>
+    <div style={{
+      border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '14px 16px',
+      background: 'var(--bg-subtle)', display: 'flex', flexDirection: 'column', gap: 8,
+    }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg-default)' }}>{label}</div>
+        <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1 }}>{hint}</div>
       </div>
-      <div style={{ height: 6, borderRadius: 999, background: 'var(--bg-subtle)', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ fontSize: 26, fontWeight: 800, color, letterSpacing: '-0.02em' }}>{pct}%</span>
+        <span style={{ fontSize: 11.5, color: 'var(--fg-faint)' }}>{value} of {total}</span>
+      </div>
+      <div style={{ height: 5, borderRadius: 999, background: 'var(--bg-surface)', overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 999 }} />
       </div>
-      <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 4 }}>{value} of {total}</div>
     </div>
   );
 }
