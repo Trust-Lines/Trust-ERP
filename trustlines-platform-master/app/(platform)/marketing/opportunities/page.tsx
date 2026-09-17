@@ -1,7 +1,6 @@
-import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { requirePage } from '@/lib/permissions/requirePage';
-import { MARKETING_ROLES, MARKETING_SEE_ALL_ROLES } from '@/lib/marketing/roles';
+import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { SALES_HANDOFF_ROLES } from '@/lib/sales/roles';
 import { OpportunitiesPageClient, type DealRow } from '@/components/platform/marketing/OpportunitiesPageClient';
 import type { UserRole, LeadEntityType } from '@/types/database';
@@ -25,16 +24,12 @@ export default async function OpportunitiesListPage() {
   const { data: profileData } = await supabase.from('profiles').select('role').eq('id', user!.id).single();
   const userRole = (profileData as { role: UserRole } | null)?.role ?? 'marketing_pr';
 
-  // 🔴 2026-09-17: this board shows Opportunities/Potentials by their deal fields —
-  // formatted_address, state — which is real Sales pipeline data (project/store addresses),
-  // not the contact-first view marketing_pr's job actually needs. marketing_pr's whole job
-  // is Contacts + Potentials (chase missing contact info, nurture a Potential toward real
-  // document evidence); their Potentials work happens in Contacts filtered to
-  // status=potential (person/company names), not here. This page was already hidden from
-  // their sidebar nav but still directly URL-reachable — block it outright, same pattern as
-  // /leads's role gate for non-Sales roles, and send them to the screen that's actually theirs.
-  if (!MARKETING_SEE_ALL_ROLES.includes(userRole)) redirect('/marketing/prospects?status=potential');
-
+  // 🔴 2026-09-17: previously blocked marketing_pr outright and redirected to Contacts
+  // filtered to status=potential — reversed per direct instruction ("marketinge atanan kişi
+  // herşeyi görecek", a marketing_pr should see every Potential here too, not just their own
+  // Contacts view of them). This board's own query already has no ownership/assignment
+  // filter at all (every active Potential, system-wide), so nothing else needs to change for
+  // marketing_pr to see everything a manager sees here.
   const canEdit = WRITE_ROLES.includes(userRole);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,7 +98,8 @@ export default async function OpportunitiesListPage() {
   // any row-returning select at 1000 regardless of .limit(), so this silently stuck at 1000
   // once real Contacts count passed it (1758 in reality). count-only head request instead.
   const { count: prospectCount } = await sb.from('prospects').select('id', { count: 'exact', head: true })
-    .is('deleted_at', null).eq('is_archived', false).not('external_ref', 'like', 'opportunity-fallback:%');
+    .is('deleted_at', null).eq('is_archived', false)
+    .or('external_ref.is.null,external_ref.not.like.opportunity-fallback:%');
   const prospectTotal = prospectCount ?? null;
 
   const { data: people } = await sb.from('profiles')

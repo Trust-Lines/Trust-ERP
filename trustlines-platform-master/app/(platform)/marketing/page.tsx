@@ -48,7 +48,10 @@ export default async function MarketingWorkspacePage() {
   for (let offset = 0; offset < 20000; offset += 1000) {
     const { data: page } = await admin.from('prospects').select(myProspectCols)
       .is('deleted_at', null).eq('is_archived', false)
-      .not('external_ref', 'like', 'opportunity-fallback:%')
+      // `.not('external_ref','like',…)` alone silently drops every Contact with a NULL
+      // external_ref too (SQL's NOT (NULL LIKE 'x%') is NULL, not TRUE) — see the same bug
+      // fixed in app/api/marketing/prospects/route.ts and its page.tsx counterpart.
+      .or('external_ref.is.null,external_ref.not.like.opportunity-fallback:%')
       .or(`owner_id.eq.${user!.id},assigned_marketing_user_id.eq.${user!.id}`)
       .range(offset, offset + 999);
     myProspectsRaw.push(...(page ?? []));
@@ -90,7 +93,7 @@ export default async function MarketingWorkspacePage() {
 
   const [prospectRes, potentialRes, myDay, teamGaps, myAnniversaries] = await Promise.all([
     sb.from('prospects').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('is_archived', false)
-      .not('external_ref', 'like', 'opportunity-fallback:%'),
+      .or('external_ref.is.null,external_ref.not.like.opportunity-fallback:%'),
     sb.from('prospect_potentials').select('id', { count: 'exact', head: true }).is('deleted_at', null)
       .not('status', 'in', '(converted,lost,cancelled)'),
     buildMyDay(admin, user!.id, role),
