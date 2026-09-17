@@ -346,25 +346,28 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
 
                 <Group title="Value & Timeline">
                   <Row label="Deal Size"><Inp type="number" value={v('estimated_value')} ph="e.g. 250000" onSave={x => saveField('estimated_value', x === '' ? null : Number(x))} /></Row>
-                  <Row label="Deposit"><span style={ro}>{v('deposit') !== '' ? `$${Number(v('deposit')).toLocaleString('en-US')}` : '—'}</span></Row>
-                  <Row label="Payment"><span style={ro}>{String(v('payment_raw')) || '—'}</span></Row>
-                  <Row label="Targeted"><span style={ro}>{opp?.targeted ? 'Yes' : 'No'}</span></Row>
+                  <Row label="Deposit"><Inp type="number" value={v('deposit')} ph="e.g. 5000" onSave={x => saveField('deposit', x === '' ? null : Number(x))} /></Row>
+                  <Row label="Payment"><Inp value={v('payment_raw')} ph="Payment terms…" onSave={x => saveField('payment_raw', x)} /></Row>
+                  <Row label="Targeted">
+                    <Sel value={String(!!opp?.targeted)} onChange={x => saveField('targeted', x === 'true')}
+                      opts={[['false', 'No'], ['true', 'Yes']]} />
+                  </Row>
                   {kind === 'opportunity' ? (
                     <>
                       <Row label="Due date (Deadline)"><Inp type="date" value={v('deadline')} onSave={x => saveField('deadline', x || null)} /></Row>
                       <Row label="Expected Close"><Inp type="date" value={v('expected_close_date')} onSave={x => saveField('expected_close_date', x || null)} /></Row>
                       <Row label="Next Action"><Inp value={v('next_action')} ph="e.g. Send estimate" onSave={x => saveField('next_action', x)} /></Row>
                       <Row label="Next Action Date"><Inp type="date" value={v('next_action_date')} onSave={x => saveField('next_action_date', x || null)} /></Row>
-                      <Row label="Date done"><span style={ro}>{v('closed_at') ? new Date(String(v('closed_at'))).toLocaleDateString('en-US') : '—'}</span></Row>
+                      <Row label="Date done"><Inp type="date" value={v('closed_at') ? String(v('closed_at')).slice(0, 10) : ''} onSave={x => saveField('closed_at', x || null)} /></Row>
                     </>
                   ) : (
                     <>
-                      <Row label="Due date"><span style={ro}>{v('due_date') ? new Date(String(v('due_date'))).toLocaleDateString('en-US') : '—'}</span></Row>
+                      <Row label="Due date"><Inp type="date" value={v('due_date')} onSave={x => saveField('due_date', x || null)} /></Row>
                       <Row label="Target Contact Date"><Inp type="date" value={v('target_contact_date')} onSave={x => saveField('target_contact_date', x || null)} /></Row>
-                      <Row label="Date done"><span style={ro}>{v('date_done') ? new Date(String(v('date_done'))).toLocaleDateString('en-US') : '—'}</span></Row>
+                      <Row label="Date done"><Inp type="date" value={v('date_done')} onSave={x => saveField('date_done', x || null)} /></Row>
                     </>
                   )}
-                  <Row label="Source"><span style={ro}>{String(v('source_raw_label') || v('source_label')) || '—'}</span></Row>
+                  <Row label="Source"><Inp value={v('source_raw_label') || v('source_label')} ph="Source…" onSave={x => saveField('source_raw_label', x)} /></Row>
                   <Row label="Notes">
                     <Inp value={v(kind === 'opportunity' ? 'description' : 'notes')} ph="Notes…" onSave={x => saveField(kind === 'opportunity' ? 'description' : 'notes', x)} />
                   </Row>
@@ -615,7 +618,9 @@ function Group({ title, muted, children }: { title: string; muted?: boolean; chi
   return (
     <div style={{
       background: muted ? 'var(--bg-subtle)' : 'var(--bg-surface)',
-      border: '1px solid var(--border-subtle)', borderRadius: 14, overflow: 'hidden',
+      border: '1px solid var(--border-subtle)', borderRadius: 14,
+      // 🔴 no overflow:hidden here — Sel/ContactSearchSelect open a position:absolute panel
+      // that needs to escape this card's rounded corners, not get clipped by them.
       boxShadow: muted ? 'none' : 'var(--shadow-xs)',
     }}>
       <div style={{

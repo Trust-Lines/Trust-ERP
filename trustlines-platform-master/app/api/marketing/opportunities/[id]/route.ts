@@ -21,7 +21,7 @@ const DETAIL_COLS = 'id, prospect_id, customer_id, primary_contact_id, project_i
   + 'closed_reason, auto_managed, classification_reasons, classification_rule_version, admin_corrected, '
   + 'admin_correction_reason, external_stage_label, state, formatted_address, brand, business_types, industry_raw, '
   + 'project_type_raw, request_raw, to_do_raw, direct_contact_raw, source_raw_label, tags, external_created_at, '
-  + 'source_description_raw, created_by, created_at, updated_at';
+  + 'source_description_raw, deposit, payment_raw, targeted, created_by, created_at, updated_at';
 
 const EDITABLE = [
   'description', 'priority', 'marketing_owner_id', 'sales_owner_id', 'estimated_location_count',
@@ -32,6 +32,7 @@ const EDITABLE = [
   'industry_raw',
   'to_do_raw', 'request_raw', 'project_type_raw', 'source_raw_label', 'targeted',
   'external_stage_label', 'direct_contact_raw', 'state', 'formatted_address', 'brand', 'business_types',
+  'deposit', 'payment_raw', 'closed_at',
 ] as const;
 
 export async function GET(_req: NextRequest, { params }: Params) {
