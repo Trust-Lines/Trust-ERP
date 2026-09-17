@@ -662,7 +662,7 @@ export function ProspectDetailClient({
                 <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-subtle)', marginBottom: 8 }}>
                   Adding a {addingNeedIntent === 'opportunity' ? 'new Opportunity' : 'new Potential'}
                 </div>
-                <NeedForm locations={locations} onSave={saveNeed} onCancel={() => setAddingNeed(false)} />
+                <NeedForm locations={locations} defaultRegion={prospect.region} onSave={saveNeed} onCancel={() => setAddingNeed(false)} />
               </div>
             </div>
           )}
@@ -1117,7 +1117,7 @@ function Field({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-function NeedForm({ initial, locations, onSave, onCancel }: { initial?: Need; locations: ProspectLocation[]; onSave: (n: Record<string, unknown>) => Promise<boolean>; onCancel: () => void }) {
+function NeedForm({ initial, defaultRegion, locations, onSave, onCancel }: { initial?: Need; defaultRegion?: string | null; locations: ProspectLocation[]; onSave: (n: Record<string, unknown>) => Promise<boolean>; onCancel: () => void }) {
   const [title, setTitle] = useState(initial?.title ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [locationId, setLocationId] = useState(initial?.location_id ?? '');
@@ -1131,7 +1131,10 @@ function NeedForm({ initial, locations, onSave, onCancel }: { initial?: Need; lo
   const [currency, setCurrency] = useState(initial?.currency ?? '');
   const [timing, setTiming] = useState<LeadTiming | ''>(initial?.timing ?? '');
   const [targetContactDate, setTargetContactDate] = useState(initial?.target_contact_date ?? '');
-  const [region, setRegion] = useState(initial?.region ?? '');
+  // A new Need defaults to the Contact's own region — the authoritative "who owns this"
+  // field elsewhere in the app — so it takes a deliberate override to route a Need's
+  // documents to a different region's Dropbox folder than its Contact actually lives in.
+  const [region, setRegion] = useState(initial?.region ?? defaultRegion ?? '');
   const [serviceLine, setServiceLine] = useState(initial?.service_line ?? '');
   const [state, setState] = useState(initial?.state ?? '');
   const [saving, setSaving] = useState(false);
