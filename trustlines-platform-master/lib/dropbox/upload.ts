@@ -87,7 +87,7 @@ export async function getDropboxTemporaryLink(path: string): Promise<string> {
   return res.result.link;
 }
 
-async function ensureFolderPath(path: string): Promise<void> {
+export async function ensureFolderPath(path: string): Promise<void> {
   const dbx      = getDropboxClient();
   const segments = path.split('/').filter(Boolean);
   let current    = '';
