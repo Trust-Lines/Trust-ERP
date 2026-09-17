@@ -221,6 +221,29 @@ export function ProspectDetailClient({
     return true;
   }
 
+  // Opportunities land here already in stage='sales_handoff' (auto — see
+  // opportunityEngine.ts) the moment document evidence gets attached, so Sales can Accept
+  // it right away without anyone clicking anything. This button is the manual fallback for
+  // the rest: an Opportunity returned to Marketing (back to 'new'/'marketing_qualification')
+  // needs a human to re-send it once whatever Sales flagged is fixed.
+  const [handingOffId, setHandingOffId] = useState<string | null>(null);
+  async function handOffOpportunity(oppId: string, title: string) {
+    setHandingOffId(oppId);
+    try {
+      const res = await fetch(`/api/marketing/opportunities/${oppId}/handoff`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(body.error ?? 'Could not hand off to Sales'); return; }
+      setOpportunities(prev => prev.map(o => (o.id === oppId ? { ...o, ...body.opportunity } : o)));
+      toast.success(`"${title}" handed off — Sales can Accept it from their Handoffs board now.`);
+    } catch {
+      toast.error('Could not hand off to Sales');
+    } finally {
+      setHandingOffId(null);
+    }
+  }
+
   async function saveContact(payload: Record<string, unknown>): Promise<boolean> {
     const res = await fetch(`/api/marketing/prospects/${prospect.id}/contacts`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
@@ -732,10 +755,19 @@ export function ProspectDetailClient({
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                         <div style={{ fontWeight: 600, fontSize: 13 }}>{o.title}</div>
                         <span className="pill" style={{ background: 'var(--bg-subtle)', fontSize: 10.5 }}>{OPPORTUNITY_STAGE_LABEL[o.stage]}</span>
-                        <Link href="/marketing/opportunities" onClick={e => e.stopPropagation()}
-                          style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--brand-teal)', textDecoration: 'none' }}>
-                          Open in Opportunities →
-                        </Link>
+                        {/* /marketing/opportunities is Potentials-only now — this Opportunity has
+                            nowhere else to "open" to, Sales's /leads board is where it actually
+                            lives once handed off. */}
+                        {canEdit && ['new', 'marketing_qualification'].includes(o.stage) && (
+                          <button
+                            onClick={e => { e.stopPropagation(); handOffOpportunity(o.id, o.title); }}
+                            disabled={handingOffId === o.id}
+                            className="btn btn-primary btn-sm"
+                            style={{ marginLeft: 'auto' }}
+                          >
+                            {handingOffId === o.id ? 'Sending…' : 'Hand off to Sales'}
+                          </button>
+                        )}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>{o.deadline ? `Deadline: ${o.deadline}` : 'No deadline set'}</div>
                     </div>

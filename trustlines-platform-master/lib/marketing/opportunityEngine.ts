@@ -139,9 +139,16 @@ export async function runClassificationForNeed(admin: any, needId: string, actor
       const { data } = await admin.from('opportunities').update(update).eq('id', existingOpp.id).select().maybeSingle();
       opportunity = data; opportunityAction = 'updated';
     } else {
+      // 🔴 2026-09-17: goes straight to Sales, not just visible-but-unhanded — direct
+      // product decision ("bence otomatik gitmeli Sales'e"). Document evidence attached is
+      // the one real signal this is ready; nobody should have to remember to click a
+      // button to send it. Manual "Hand off to Sales" stays available (Contact detail page)
+      // for the one case this doesn't cover: an Opportunity Sales already returned to
+      // Marketing, which needs a human to re-send once whatever was wrong is fixed.
       const { data } = await admin.from('opportunities').insert({
         prospect_id: n.prospect_id, need_id: needId, title: titleFor(displayName, n),
-        project_types: n.project_types ?? [], scope_types: n.scope_types ?? [], stage: 'new', source_label: n.source,
+        project_types: n.project_types ?? [], scope_types: n.scope_types ?? [], stage: 'sales_handoff',
+        sales_handoff_at: new Date().toISOString(), source_label: n.source,
         marketing_owner_id: ownerId, deadline: n.deadline, auto_managed: true, primary_contact_id: primaryContactId,
         classification_reasons: classification.reasons, classification_rule_version: CLASSIFICATION_RULE_VERSION,
         description: composedNotes(n),
