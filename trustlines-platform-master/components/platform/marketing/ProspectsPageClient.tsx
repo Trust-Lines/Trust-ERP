@@ -85,7 +85,9 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
   const [total, setTotal] = useState(initialTotal);
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  // Seeded from ?status=... on first load — used by the /marketing/opportunities redirect to
+  // land marketing_pr directly on their Potentials queue instead of an empty unfiltered list.
+  const [statusFilter, setStatusFilter] = useState(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('status') ?? '' : ''));
   const [regionFilter, setRegionFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
   const [completenessFilter, setCompletenessFilter] = useState('');
@@ -193,7 +195,14 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
   }
 
   useEffect(() => {
-    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      // initialProspects (server-rendered) is always the unfiltered list — if ?status=...
+      // seeded a non-empty statusFilter (e.g. the /marketing/opportunities → Lead Cloud
+      // redirect for marketing_pr), refetch immediately so the visible rows actually match it.
+      if (statusFilter) load(1);
+      return;
+    }
     const t = setTimeout(() => { load(1); }, 300);
     return () => clearTimeout(t);
 

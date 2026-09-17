@@ -1,6 +1,7 @@
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { requirePage } from '@/lib/permissions/requirePage';
-import { MARKETING_ROLES } from '@/lib/marketing/roles';
+import { MARKETING_ROLES, MARKETING_SEE_ALL_ROLES } from '@/lib/marketing/roles';
 import { SALES_HANDOFF_ROLES } from '@/lib/sales/roles';
 import { OpportunitiesPageClient, type DealRow } from '@/components/platform/marketing/OpportunitiesPageClient';
 import type { UserRole, LeadEntityType } from '@/types/database';
@@ -27,6 +28,17 @@ export default async function OpportunitiesListPage() {
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profileData } = await supabase.from('profiles').select('role').eq('id', user!.id).single();
   const userRole = (profileData as { role: UserRole } | null)?.role ?? 'marketing_pr';
+
+  // 🔴 2026-09-17: this board shows Opportunities/Potentials by their deal fields —
+  // formatted_address, state — which is real Sales pipeline data (project/store addresses),
+  // not the contact-first view marketing_pr's job actually needs. marketing_pr's whole job
+  // is Lead Cloud + Potentials (chase missing contact info, nurture a Potential toward real
+  // document evidence); their Potentials work happens in Lead Cloud filtered to
+  // status=potential (person/company names), not here. This page was already hidden from
+  // their sidebar nav but still directly URL-reachable — block it outright, same pattern as
+  // /leads's role gate for non-Sales roles, and send them to the screen that's actually theirs.
+  if (!MARKETING_SEE_ALL_ROLES.includes(userRole)) redirect('/marketing/prospects?status=potential');
+
   const canEdit = WRITE_ROLES.includes(userRole);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
