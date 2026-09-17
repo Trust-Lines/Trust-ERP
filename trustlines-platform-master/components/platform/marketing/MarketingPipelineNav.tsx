@@ -15,7 +15,7 @@ interface Props {
 // older, differently-styled CRM board — linking "Opportunities" there made the pipeline
 // feel like it jumped to a different app mid-flow, which is exactly what was reported.
 const SEGMENTS = [
-  { key: 'prospects' as const, href: '/marketing/prospects', label: 'Lead Cloud', icon: Users },
+  { key: 'prospects' as const, href: '/marketing/prospects', label: 'Contacts', icon: Users },
   { key: 'potentials' as const, href: '/marketing/opportunities', label: 'Potentials', icon: Clock },
   { key: 'opportunities' as const, href: '/marketing/opportunities', label: 'Opportunities', icon: Target },
 ];

@@ -136,9 +136,9 @@ export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCo
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
             <Users size={18} style={{ color: 'var(--fg-muted)' }} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>Lead Cloud</div>
+              <div style={{ fontWeight: 600, fontSize: 13 }}>Contacts</div>
               <div style={{ fontSize: 11.5, color: 'var(--fg-muted)' }}>
-                {prospectCount === null ? '—' : `${prospectCount} lead${prospectCount === 1 ? '' : 's'}`}
+                {prospectCount === null ? '—' : `${prospectCount} contact${prospectCount === 1 ? '' : 's'}`}
               </div>
             </div>
           </Link>

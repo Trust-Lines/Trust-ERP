@@ -133,7 +133,7 @@ const SALES_NAV: NavItem[] = [
 // there. See MARKETING_MANAGER_ONLY_NAV below.
 const MARKETING_NAV: NavItem[] = [
   { label: 'Marketing Home',      href: '/marketing',               icon: Megaphone,    perm: 'page.marketing' },
-  { label: 'Lead Cloud',          href: '/marketing/prospects',     icon: FolderSearch, perm: 'page.marketing' },
+  { label: 'Contacts',            href: '/marketing/prospects',     icon: FolderSearch, perm: 'page.marketing' },
   { label: 'Campaigns & Surveys', href: '/marketing/campaigns',     icon: QrCode,       perm: 'page.marketing_campaigns' },
   { label: 'Trash',               href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing' },
 ];

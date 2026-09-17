@@ -236,7 +236,7 @@ export function LeadCaptureWizard() {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) { setSaving(false); toast.error(body.error ?? 'Failed to save lead'); return; }
-    toast.success(`"${displayName}" saved to Lead Cloud`);
+    toast.success(`"${displayName}" saved to Contacts`);
     if (Array.isArray(body.duplicates) && body.duplicates.length) {
       toast.warning(`Possible duplicate of "${body.duplicates[0].display_name}" — review after saving.`);
     }
@@ -520,7 +520,7 @@ export function LeadCaptureWizard() {
           </button>
         ) : (
           <button className="btn btn-primary" disabled={saving} onClick={submit}>
-            {saving ? 'Saving…' : 'Save to Lead Cloud'}
+            {saving ? 'Saving…' : 'Save to Contacts'}
           </button>
         )}
       </div>

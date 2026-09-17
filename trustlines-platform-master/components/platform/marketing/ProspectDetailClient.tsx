@@ -172,7 +172,7 @@ export function ProspectDetailClient({
   }
 
   async function trashProspect() {
-    if (!window.confirm(`Delete "${prospect.display_name}"? It stays in the database (recoverable), but disappears everywhere in the UI — Lead Cloud, its Needs/Potentials/Opportunities, all of it.`)) return;
+    if (!window.confirm(`Delete "${prospect.display_name}"? It stays in the database (recoverable), but disappears everywhere in the UI — Contacts, its Needs/Potentials/Opportunities, all of it.`)) return;
     const res = await fetch(`/api/marketing/prospects/${prospect.id}/trash`, { method: 'POST' });
     if (!res.ok) { const body = await res.json().catch(() => ({})); toast.error(body.error ?? 'Could not delete'); return; }
     toast.success('Deleted');
@@ -326,7 +326,7 @@ export function ProspectDetailClient({
           </button>
         ) : (
           <Link href="/marketing/prospects" className="btn btn-ghost btn-sm" style={{ marginBottom: 10 }}>
-            <ArrowLeft size={14} /> Lead Cloud
+            <ArrowLeft size={14} /> Contacts
           </Link>
         )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>

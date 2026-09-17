@@ -261,7 +261,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     return (
       <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
         <AlertTriangle size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
-        <div>Lead Cloud isn&apos;t ready yet. Migrations 072/073 need to be applied.</div>
+        <div>Contacts isn&apos;t ready yet. Migrations 072/073 need to be applied.</div>
       </div></div>
     );
   }
@@ -270,6 +270,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
   const to = Math.min(page * pageSize, total);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const hasFilters = !!(query.trim() || statusFilter || regionFilter || sourceFilter || completenessFilter);
+  const todayIso = new Date().toISOString().slice(0, 10);
 
   return (
     <>
@@ -279,14 +280,14 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
       />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Lead Cloud</h1>
+          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Contacts</h1>
           <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
-            {total.toLocaleString('en-US')} lead{total !== 1 ? 's' : ''} — pre-Opportunity, Marketing-owned
+            {total.toLocaleString('en-US')} contact{total !== 1 ? 's' : ''} — Marketing-owned
           </p>
         </div>
         {canEdit && (
           <Link href="/marketing/prospects/new" className="btn btn-primary" title="Not a confirmed deal yet — no project is created until evidence is attached or Sales accepts">
-            + Capture New Lead
+            + Capture New Contact
           </Link>
         )}
       </div>
@@ -296,8 +297,8 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
           <Search size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)' }} />
           <input
             className="form-input" style={{ paddingLeft: 32, fontSize: 13 }}
-            placeholder="Search Lead Cloud…" value={query} onChange={e => setQuery(e.target.value)}
-            aria-label="Search Lead Cloud"
+            placeholder="Search Contacts…" value={query} onChange={e => setQuery(e.target.value)}
+            aria-label="Search Contacts"
           />
         </div>
         <select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by status">
@@ -338,7 +339,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
         <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
           <Users size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
           <div>
-            {hasFilters ? 'No leads match your filters.' : <>No leads yet.{canEdit && ' Click "Capture New Lead" to add the first one.'}</>}
+            {hasFilters ? 'No contacts match your filters.' : <>No contacts yet.{canEdit && ' Click "Capture New Contact" to add the first one.'}</>}
           </div>
         </div></div>
       ) : (
@@ -351,6 +352,8 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                   <SortableTh label="01 - State" sortKeyName="state" />
                   <SortableTh label="13 - Source" sortKeyName="source" />
                   <SortableTh label="08 - Business Type" sortKeyName="business_type" />
+                  <th style={{ padding: '10px 12px', fontWeight: 600 }}>Assignee</th>
+                  <th style={{ padding: '10px 12px', fontWeight: 600 }}>Due date</th>
                   <SortableTh label="Date created" sortKeyName="created_at" />
                   <SortableTh label="Information" sortKeyName="information" />
                   <SortableTh label="Whatsapp" sortKeyName="whatsapp" />
@@ -410,6 +413,16 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                       )}
                     </td>
                     <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>
+                      {p.owner_name ?? '—'}
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      {p.target_contact_date ? (
+                        <span style={{ color: p.target_contact_date < todayIso ? 'var(--status-danger)' : 'var(--fg-subtle)' }}>
+                          {new Date(p.target_contact_date).toLocaleDateString('en-US')}
+                        </span>
+                      ) : <span style={{ color: 'var(--fg-subtle)' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>
                       {new Date(p.external_created_at ?? p.created_at).toLocaleDateString('en-US')}
                     </td>
                     <td style={{ padding: '10px 12px' }}>
@@ -454,6 +467,8 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                           </div>
                         )}
                       </td>
+                      <td />
+                      <td />
                       <td />
                       <td style={{ padding: '8px 12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

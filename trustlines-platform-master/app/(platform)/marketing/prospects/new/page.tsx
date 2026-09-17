@@ -15,7 +15,7 @@ export default async function CaptureLeadPage() {
 
   return (
     <div className="main-inner" style={{ maxWidth: 860 }}>
-      <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Capture New Lead</h1>
+      <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Capture New Contact</h1>
       <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: '0 0 20px' }}>
         Nothing here creates a project, reserves a project number, or touches Dropbox —
         that happens only once Sales accepts an Opportunity handoff.

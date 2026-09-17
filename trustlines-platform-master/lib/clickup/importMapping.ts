@@ -88,6 +88,19 @@ export function mapTaskToProspectCandidate(task: ClickUpTask, region: RegionTag,
 
   const sourceRaw = firstString(cf.get('13 - SOURCE')) ?? firstString(cf.get('13-SOURCE'));
 
+  // The task's own free-text body ("Has more than 100 franchises and he is looking for
+  // designs...") lives on the task itself, not as a custom field — the bulk List/View task
+  // endpoints never included it before this, so it was silently dropped even though it's
+  // often the richest single piece of context on a contact. "nots"/"Nots" are two more
+  // freehand custom fields distinct from "x-Note" seen live on the Contacts NE list — folded
+  // into the same bucket since prospects only has one general-purpose note field to show them in.
+  const taskNotes = [
+    firstString(task.text_content) ?? firstString(task.description),
+    firstString(cf.get('nots')),
+    firstString(cf.get('Nots')),
+    firstString(cf.get('x-Note')),
+  ].filter((v, i, arr) => v && arr.indexOf(v) === i).join('\n\n') || null;
+
   const entityType: 'organization' | 'person' =
     task.custom_item_id === 1001 ? 'person'
     : task.custom_item_id === 1010 ? 'organization'
@@ -121,7 +134,7 @@ export function mapTaskToProspectCandidate(task: ClickUpTask, region: RegionTag,
     showsAttended: asStringArray(cf.get('10- Shows attended')),
     sourceDetail: firstString(cf.get('14-Source info')),
     company2Phone: firstString(cf.get('Company 2 Phone Number')),
-    xNote: firstString(cf.get('x-Note')),
+    xNote: taskNotes,
     tags: (task.tags ?? []).map(t => ({ name: t.name, color: t.tag_bg })),
     externalCreatedAt: task.date_created ? new Date(Number(task.date_created)).toISOString() : null,
   };

@@ -250,7 +250,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
             href="/marketing/prospects"
             className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors pb-1"
           >
-            <span>Lead Cloud</span>
+            <span>Contacts</span>
             <span className="text-slate-400 font-normal">{prospectTotal ?? 0}</span>
           </Link>
 

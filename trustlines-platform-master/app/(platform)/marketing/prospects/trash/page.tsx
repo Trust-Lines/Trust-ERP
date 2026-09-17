@@ -52,11 +52,11 @@ export default async function ProspectsTrashPage() {
   return (
     <div className="main-inner">
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-        <Link href="/marketing/prospects" className="btn btn-ghost btn-sm" style={{ color: 'var(--fg-subtle)' }}>← Lead Cloud</Link>
+        <Link href="/marketing/prospects" className="btn btn-ghost btn-sm" style={{ color: 'var(--fg-subtle)' }}>← Contacts</Link>
         <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: 0 }}>Lead Cloud Trash</h1>
+          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: 0 }}>Contacts Trash</h1>
           <p className="page-head-sub" style={{ margin: '2px 0 0' }}>
-            Deleted leads/organizations are kept for {PURGE_DAYS} days, then permanently removed.
+            Deleted contacts/organizations are kept for {PURGE_DAYS} days, then permanently removed.
             Restoring brings back their Needs and Potentials too.
           </p>
         </div>
