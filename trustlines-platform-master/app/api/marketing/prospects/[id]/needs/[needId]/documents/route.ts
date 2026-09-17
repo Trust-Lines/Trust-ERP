@@ -80,6 +80,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     return NextResponse.json({
       document: result.document, classification: result.sync.classification,
+      needClassification: result.sync.needClassification,
       opportunity: result.sync.opportunity, potential: result.sync.potential, project: result.project,
       projectWarning: result.projectError,
     }, { status: 201 });

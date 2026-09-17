@@ -981,9 +981,14 @@ function NeedDocumentsSection({ need, canEdit, prospectId, onNeedChange, onSync 
     const body = await res.json().catch(() => ({}));
     if (!res.ok) { toast.error(body.error ?? 'Could not add'); return; }
     setDocs(prev => [...prev, body.document]);
+    onNeedChange({
+      id: need.id,
+      classification: body.needClassification,
+      classification_reasons: body.classification?.reasons ?? [],
+      ...(body.project ? { project_id: body.project.id } : {}),
+    });
     if (body.project) {
       setProjectCode(body.project.code);
-      onNeedChange({ id: need.id, project_id: body.project.id });
       toast.success(`Evidence attached — became an Opportunity, project ${body.project.code} created`);
     } else if (body.projectWarning) {
       toast.success(body.opportunity ? 'Evidence attached — became an Opportunity' : 'Evidence attached', {
