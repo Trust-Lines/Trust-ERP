@@ -61,7 +61,10 @@ export async function GET(req: NextRequest) {
         // regions is the array of every region a Contact genuinely belongs to (111) — a
         // Contact cross-listed in two ClickUp regions must stay visible to whichever
         // region's marketing_pr is assigned, matching prospects_read_own's `&&` overlap.
-        query = query.overlaps('regions', assignedRegions);
+        // A Contact with NO region yet (public survey submissions can't collect one) stays
+        // visible to everyone too (112) — otherwise it's invisible to every region-scoped
+        // marketing_pr and only a no-region one could ever triage it into a region.
+        query = query.or(`regions.ov.{${assignedRegions.join(',')}},regions.eq.{}`);
       }
       // else: no assigned region → unrestricted, matching prospects_read_own (108/109).
     }
