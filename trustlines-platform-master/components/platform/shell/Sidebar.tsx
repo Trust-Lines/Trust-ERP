@@ -138,7 +138,7 @@ const MARKETING_NAV: NavItem[] = [
   { label: 'Trash',               href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing' },
 ];
 const MARKETING_MANAGER_ONLY_NAV: NavItem[] = [
-  { label: 'Opportunities', href: '/marketing/opportunities', icon: Target, perm: 'page.marketing' },
+  { label: 'Potentials', href: '/marketing/opportunities', icon: Target, perm: 'page.marketing' },
 ];
 
 interface SidebarProps {
