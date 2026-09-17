@@ -45,6 +45,7 @@ const SOURCES: Record<RegionTag, { id: string; kind: 'view' | 'list'; label: str
 };
 
 const WRITE = process.argv.includes('--write');
+const ALLOW_FALLBACK = process.argv.includes('--allow-fallback');
 const REGION = process.argv[2] as RegionTag | undefined;
 
 async function main() {
@@ -70,14 +71,20 @@ async function main() {
   }
   console.log(`  ${tasks.length} task(s) fetched`);
 
+  // 🔴 2026-09-17: mapStatusOp() (shared with clickup-import-opportunities.mts) buckets
+  // "Potential" AND "In Target List" together as outcome.kind === 'potential' — correct for
+  // that script's structural purpose, but the user counts them as two DIFFERENT things
+  // (confirmed live: "NE was 18" / "SE has 7" — both match the literal "Potential" count
+  // exactly, excluding "In Target List"). This script only ever imports the literal
+  // "Potential" label; "In Target List" stays untouched until asked for separately.
   const allCandidates = tasks.map(t => mapTaskToOpportunityCandidate(t, REGION));
-  const potentials = allCandidates.filter(c => c.outcome.kind === 'potential');
-  console.log(`  ${potentials.length} are Status OP = Potential/In Target List (the only ones this run touches)`);
+  const potentials = allCandidates.filter(c => c.outcome.kind === 'potential' && c.statusOpRaw.trim() === 'Potential');
+  console.log(`  ${potentials.length} are Status OP = "Potential" exactly (the only ones this run touches — "In Target List" is left alone)`);
 
   const { data: existingNeeds } = await admin.from('prospect_needs').select('external_ref').eq('external_source', 'clickup');
   const existingNeedRefs = new Set(((existingNeeds ?? []) as { external_ref: string }[]).map(r => r.external_ref));
 
-  let skippedAlready = 0, skippedNoContact = 0, created = 0, failed = 0;
+  let skippedAlready = 0, skippedNoContact = 0, created = 0, failed = 0, fallbackCreated = 0;
   const campaignCache = new Map<string, string>();
   const noContactSamples: string[] = [];
 
@@ -99,9 +106,30 @@ async function main() {
       }
 
       if (!prospectId) {
-        skippedNoContact += 1;
-        if (noContactSamples.length < 15) noContactSamples.push(`${c.siteName} (${c.externalRef})`);
-        continue;
+        // Opt-in only (--allow-fallback) — checked live 2026-09-17: 2 of these had a REAL
+        // Contact link in ClickUp that simply isn't a member of any of our 5 imported
+        // Contacts lists (deleted or moved on ClickUp's side, not an import bug), but the
+        // Opportunity task itself still carries a real "Brand" name for them. Falls back to
+        // the raw site name only when even that's missing (rare — 1 of 3 in the first run).
+        if (!ALLOW_FALLBACK) {
+          skippedNoContact += 1;
+          if (noContactSamples.length < 15) noContactSamples.push(`${c.siteName} (${c.externalRef})`);
+          continue;
+        }
+        if (!WRITE) { created += 1; continue; }
+        const { data: newProspect, error: pErr } = await admin.from('prospects').insert({
+          entity_type: 'organization',
+          organization_name: c.brand ?? c.siteName,
+          business_types: c.businessTypes,
+          region: c.region, regions: [c.region],
+          status: 'captured',
+          owner_id: actorId, assigned_marketing_user_id: actorId,
+          external_source: 'clickup', external_ref: `opportunity-fallback:${c.externalRef}`,
+          created_by: actorId,
+        }).select('id').single();
+        if (pErr) throw new Error(`fallback prospect insert: ${pErr.message}`);
+        prospectId = newProspect.id;
+        fallbackCreated += 1;
       }
 
       if (!WRITE) { created += 1; continue; }
@@ -179,7 +207,11 @@ async function main() {
   console.log(`\n── ${WRITE ? 'Import' : 'Dry run'} summary (${REGION}) ──`);
   console.log(`Potential-stage candidates: ${potentials.length}`);
   console.log(`Already imported (skipped): ${skippedAlready}`);
-  console.log(`No matching Contact (skipped, NOT created as a new Prospect): ${skippedNoContact}`);
+  if (ALLOW_FALLBACK) {
+    console.log(`No matching Contact (created as a new fallback Prospect): ${fallbackCreated}`);
+  } else {
+    console.log(`No matching Contact (skipped, NOT created as a new Prospect): ${skippedNoContact}`);
+  }
   console.log(`${WRITE ? 'Created' : 'Would create'}: ${created}`);
   console.log(`Failed: ${failed}`);
   if (noContactSamples.length) {
