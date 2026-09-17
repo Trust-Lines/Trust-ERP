@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { X, Loader2, ExternalLink, Paperclip, Send, Image as ImageIcon, Trash2, Link2, Upload, FileText } from 'lucide-react';
+import { X, Loader2, ExternalLink, Paperclip, Send, Image as ImageIcon, Trash2, Link2, Upload, FileText, ChevronDown } from 'lucide-react';
 import { TaskList } from '@/components/platform/shared/TaskList';
 import { DropboxFileList } from '@/components/platform/shared/DropboxFileList';
 import { TagMultiSelect } from './TagMultiSelect';
@@ -663,17 +663,64 @@ function Inp({ value, onSave, type = 'text', ph }: { value: string | number; onS
   );
 }
 
+// Custom combobox, not a native <select> — the browser's own dropdown chrome (especially on
+// Windows) looks dated next to the rest of this panel. Same value/onChange/opts contract as
+// before so every call site stayed unchanged.
 function Sel({ value, onChange, opts, emphasize }: { value: string; onChange: (v: string) => void; opts: [string, string][]; emphasize?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const current = opts.find(([v]) => v === value)?.[1] ?? opts[0]?.[1] ?? '';
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
   return (
-    <select
-      value={value} onChange={e => onChange(e.target.value)}
-      style={{
-        ...cellInput, padding: '4px 4px', cursor: 'pointer',
-        border: `1px solid ${emphasize ? 'var(--status-warning)' : 'transparent'}`,
-        background: emphasize ? 'var(--status-warning-bg)' : 'transparent',
-      }}
-    >
-      {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-    </select>
+    <div ref={wrapRef} style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={() => setOpen(s => !s)}
+        style={{
+          ...cellInput, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
+          border: `1px solid ${emphasize ? 'var(--status-warning)' : 'transparent'}`,
+          background: emphasize ? 'var(--status-warning-bg)' : 'transparent',
+        }}
+        onMouseEnter={e => { if (!emphasize) e.currentTarget.style.background = 'var(--bg-subtle)'; }}
+        onMouseLeave={e => { if (!emphasize) e.currentTarget.style.background = 'transparent'; }}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{current}</span>
+        <ChevronDown size={13} style={{ color: 'var(--fg-faint)', flexShrink: 0, marginLeft: 4, transform: open ? 'rotate(180deg)' : undefined, transition: 'transform .12s' }} />
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, marginTop: 4, minWidth: '100%', width: 'max-content', maxWidth: 260, zIndex: 100,
+          background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 10,
+          boxShadow: '0 8px 24px rgba(0,0,0,.15)', overflow: 'hidden', maxHeight: 260, overflowY: 'auto',
+        }}>
+          {opts.map(([v, l]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => { onChange(v); setOpen(false); }}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none',
+                background: v === value ? 'var(--bg-subtle)' : 'transparent', cursor: 'pointer',
+                fontSize: 13.5, fontWeight: v === value ? 700 : 500, color: 'var(--fg-default)',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
+              onMouseLeave={e => (e.currentTarget.style.background = v === value ? 'var(--bg-subtle)' : 'transparent')}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
