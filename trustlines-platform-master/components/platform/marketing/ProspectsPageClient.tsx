@@ -378,7 +378,10 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                   >
                     <td style={{ padding: '10px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        {p.other_contacts.length > 0 ? (
+                        {/* Companies always expand to their contact person(s), like ClickUp's
+                            Company → Person rows — even with just one, the primary contact's
+                            name is otherwise never shown anywhere on the collapsed row. */}
+                        {(p.entity_type === 'organization' ? !!p.primary_contact || p.other_contacts.length > 0 : p.other_contacts.length > 0) ? (
                           <button
                             onClick={e => { e.stopPropagation(); toggleExpand(p.id); }}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0, display: 'flex', transform: expandedIds.has(p.id) ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform .1s' }}
@@ -455,6 +458,46 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                       </td>
                     )}
                   </tr>
+                  {expandedIds.has(p.id) && p.entity_type === 'organization' && p.primary_contact && (
+                    <tr style={{ borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
+                      <td style={{ padding: '8px 12px 8px 41px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <User size={13} style={{ color: 'var(--brand-orange-600)', flexShrink: 0 }} />
+                          <span style={{ fontSize: 12.5 }}>{p.primary_contact}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '8px 12px', color: 'var(--fg-faint)', fontSize: 12 }}>{p.state ?? '—'}</td>
+                      <td style={{ padding: '8px 12px', color: 'var(--fg-faint)', fontSize: 12 }}>
+                        {p.source_raw_label || (p.source_label ? (SOURCE_LABEL[p.source_label as keyof typeof SOURCE_LABEL] ?? p.source_label) : '—')}
+                      </td>
+                      <td style={{ padding: '8px 12px' }}>
+                        {(p.business_types ?? []).length === 0 ? <span style={{ color: 'var(--fg-faint)', fontSize: 12 }}>—</span> : (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                            {(p.business_types ?? []).map(bt => <TagPill key={bt} label={bt} bg={hashColor(bt)} />)}
+                          </div>
+                        )}
+                      </td>
+                      <td />
+                      <td />
+                      <td />
+                      <td style={{ padding: '8px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ width: 60, height: 5, borderRadius: 3, background: 'var(--bg-sunken)', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${p.completeness_percent}%`, background: p.completeness_percent >= 80 ? 'var(--status-success)' : p.completeness_percent >= 40 ? 'var(--status-warning)' : 'var(--status-danger)' }} />
+                          </div>
+                          <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{p.completeness_percent}%</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '8px 12px' }}>
+                        <input
+                          type="checkbox" checked={p.whatsapp} disabled={!canEdit || !p.primary_contact_id}
+                          onChange={() => toggleWhatsapp(p)}
+                          style={{ accentColor: p.whatsapp ? 'var(--status-success)' : undefined, cursor: canEdit && p.primary_contact_id ? 'pointer' : 'default', width: 15, height: 15 }}
+                        />
+                      </td>
+                      {canEdit && <td />}
+                    </tr>
+                  )}
                   {expandedIds.has(p.id) && p.other_contacts.map(oc => (
                     <tr key={oc.id} style={{ borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
                       <td style={{ padding: '8px 12px 8px 41px' }}>
