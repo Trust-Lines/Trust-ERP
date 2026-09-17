@@ -7,6 +7,7 @@ import { X, Loader2, ExternalLink, Paperclip, Send, Image as ImageIcon, Trash2, 
 import { TaskList } from '@/components/platform/shared/TaskList';
 import { DropboxFileList } from '@/components/platform/shared/DropboxFileList';
 import { TagMultiSelect } from './TagMultiSelect';
+import { ContactSearchSelect } from './ContactSearchSelect';
 import { hashColor } from '@/lib/marketing/pillColor';
 import { normalizeIndustry, INDUSTRY_COLOR } from '@/lib/marketing/industry';
 import { OPPORTUNITY_STAGE_LABEL, TIMING_LABEL } from '@/lib/marketing/classification';
@@ -47,6 +48,10 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
   const [opp, setOpp] = useState<Deal | null>(null);
   const [prospect, setProspect] = useState<ProspectInfo | null>(null);
   const [contacts, setContacts] = useState<ContactOption[]>([]);
+  // Separate from `contacts` (that list is scoped to THIS record's own prospect) — once the
+  // Contact field is re-linked via search to a contact belonging to a different Contact
+  // entirely, its name has to be tracked independently to still render correctly.
+  const [contactLabel, setContactLabel] = useState('');
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [need, setNeed] = useState<NeedInfo | null>(null);
   const [notes, setNotes] = useState<NeedNote[]>([]);
@@ -71,9 +76,12 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
     try {
       const res = await fetch(apiBase);
       const body = await res.json();
-      setOpp((kind === 'potential' ? body.potential : body.opportunity) ?? null);
+      const dealRow = (kind === 'potential' ? body.potential : body.opportunity) ?? null;
+      setOpp(dealRow);
       setProspect(body.prospect ?? null);
-      setContacts(body.contacts ?? []);
+      const contactList = body.contacts ?? [];
+      setContacts(contactList);
+      setContactLabel((contactList as ContactOption[]).find(c => c.id === dealRow?.primary_contact_id)?.name ?? '');
       setProject(body.project ?? null);
       setNeed(body.need ?? null);
       setNotes(body.notes ?? []);
@@ -228,7 +236,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
             <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
               {project?.code && (
                 <div style={{
-                  display: 'inline-flex', fontSize: 10.5, fontFamily: 'var(--font-mono)', fontWeight: 600,
+                  display: 'inline-flex', fontSize: 11.5, fontFamily: 'var(--font-mono)', fontWeight: 600,
                   color: 'rgba(255,255,255,.75)', letterSpacing: '0.03em', background: 'rgba(255,255,255,.1)',
                   padding: '2px 8px', borderRadius: 999, marginBottom: 6,
                 }}>
@@ -236,7 +244,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                 </div>
               )}
               <h2 style={{ fontSize: 21, fontWeight: 800, margin: 0, color: '#fff', letterSpacing: '-0.01em' }}>{title}</h2>
-              <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.7)', marginTop: 3, fontWeight: 500 }}>
+              <div style={{ fontSize: 13.5, color: 'rgba(255,255,255,.7)', marginTop: 3, fontWeight: 500 }}>
                 {prospect?.industry || '—'} · {prospect?.brand_name || '—'}
               </div>
               <div style={{ marginTop: 10 }}>
@@ -253,7 +261,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                 ) : tags.length > 0 ? (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {tags.map(t => (
-                      <span key={t.name} style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: t.color || 'var(--bg-subtle)', color: readableOn(t.color) }}>
+                      <span key={t.name} style={{ fontSize: 11.5, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: t.color || 'var(--bg-subtle)', color: readableOn(t.color) }}>
                         {t.name}
                       </span>
                     ))}
@@ -311,7 +319,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                   <Sel value={String(v('region'))} onChange={x => saveField('region', x || null)}
                     opts={[['', '—'], ...REGIONS.map(r => [r.code, r.label] as [string, string])]}
                     emphasize={!v('region')} />
-                  {!v('region') && <div style={{ fontSize: 11, color: 'var(--status-warning-fg)', marginTop: 2 }}>Set a region so your team can see this</div>}
+                  {!v('region') && <div style={{ fontSize: 12, color: 'var(--status-warning-fg)', marginTop: 2 }}>Set a region so your team can see this</div>}
                 </Row>
                 <Row label="Priority">
                   <Sel value={String(v('priority') || 'medium')} onChange={x => saveField('priority', x)}
@@ -335,8 +343,15 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                   </Row>
                 )}
                 <Row label="Contact">
-                  <Sel value={String(v('primary_contact_id'))} onChange={x => saveField('primary_contact_id', x || null)}
-                    opts={[['', '—'], ...contacts.map(c => [c.id, c.name] as [string, string])]} />
+                  <ContactSearchSelect
+                    value={String(v('primary_contact_id'))}
+                    valueLabel={contactLabel || contacts.find(c => c.id === v('primary_contact_id'))?.name || ''}
+                    disabled={!canEdit}
+                    onChange={(id, name) => {
+                      setContactLabel(name ?? '');
+                      saveField('primary_contact_id', id);
+                    }}
+                  />
                 </Row>
                 <Row label="Deal Size"><Inp type="number" value={v('estimated_value')} ph="e.g. 250000" onSave={x => saveField('estimated_value', x === '' ? null : Number(x))} /></Row>
                 <Row label="Deposit"><span style={ro}>{v('deposit') !== '' ? `$${Number(v('deposit')).toLocaleString('en-US')}` : '—'}</span></Row>
@@ -368,33 +383,41 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                 display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 4, marginBottom: 24,
                 background: 'var(--bg-subtle)', borderRadius: 14, padding: 8, border: '1px solid var(--border-subtle)',
               }}>
-                <Row label="Direct Contact"><span style={ro}>{String(v('direct_contact_raw')) || '—'}</span></Row>
-                <Row label="01-State"><span style={ro}>{String(v('state')) || '—'}</span></Row>
-                <Row label="11-Location"><span style={ro}>{String(v('formatted_address')) || '—'}</span></Row>
-                <Row label="Brand"><span style={ro}>{String(v('brand')) || '—'}</span></Row>
+                <Row label="Direct Contact"><Inp value={v('direct_contact_raw')} ph="Name, phone, email…" onSave={x => saveField('direct_contact_raw', x)} /></Row>
+                <Row label="01-State"><Inp value={v('state')} ph="e.g. TX" onSave={x => saveField('state', x)} /></Row>
+                <Row label="11-Location"><Inp value={v('formatted_address')} ph="Address…" onSave={x => saveField('formatted_address', x)} /></Row>
+                <Row label="Brand"><Inp value={v('brand')} ph="Brand…" onSave={x => saveField('brand', x)} /></Row>
                 <Row label="Industry">
                   {(() => {
                     const industry = normalizeIndustry(v('industry_raw') as string);
-                    if (!industry) return <span style={ro}>—</span>;
-                    const bg = INDUSTRY_COLOR[industry];
-                    return <span style={{ fontWeight: 700, fontSize: 11, padding: '3px 10px', borderRadius: 999, background: bg, color: readableOn(bg) }}>{industry}</span>;
+                    const bg = industry ? INDUSTRY_COLOR[industry] : null;
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {bg && (
+                          <span style={{ fontWeight: 700, fontSize: 12, padding: '3px 10px', borderRadius: 999, background: bg, color: readableOn(bg), flexShrink: 0 }}>
+                            {industry}
+                          </span>
+                        )}
+                        <Inp value={v('industry_raw')} ph="Industry…" onSave={x => saveField('industry_raw', x)} />
+                      </div>
+                    );
                   })()}
                 </Row>
-                <Row label="Project Type"><span style={ro}>{String(v('project_type_raw')) || '—'}</span></Row>
+                <Row label="Project Type"><Inp value={v('project_type_raw')} ph="Project type…" onSave={x => saveField('project_type_raw', x)} /></Row>
                 <Row label="Business Type">
-                  <span style={ro}>{businessTypes.length ? businessTypes.join(', ') : '—'}</span>
+                  <Inp value={businessTypes.join(', ')} ph="Comma-separated…" onSave={x => saveField('business_types', x.split(',').map(s => s.trim()).filter(Boolean))} />
                 </Row>
-                <Row label="Status OP"><span style={ro}>{String(v('external_stage_label')) || '—'}</span></Row>
-                <Row label="Request"><span style={ro}>{String(v('request_raw')) || '—'}</span></Row>
-                <Row label="To Do"><span style={ro}>{String(v('to_do_raw')) || '—'}</span></Row>
+                <Row label="Status OP"><Inp value={v('external_stage_label')} ph="Status OP…" onSave={x => saveField('external_stage_label', x)} /></Row>
+                <Row label="Request"><Inp value={v('request_raw')} ph="Request…" onSave={x => saveField('request_raw', x)} /></Row>
+                <Row label="To Do"><Inp value={v('to_do_raw')} ph="To do…" onSave={x => saveField('to_do_raw', x)} /></Row>
               </div>
               {!!v('source_description_raw') && (
                 <div style={{ marginBottom: 24 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                     <FileText size={12} style={{ color: 'var(--fg-faint)' }} />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Description</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Description</span>
                   </div>
-                  <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, lineHeight: 1.6, color: 'var(--fg-default)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '12px 14px' }}>
+                  <div style={{ whiteSpace: 'pre-wrap', fontSize: 13.5, lineHeight: 1.6, color: 'var(--fg-default)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '12px 14px' }}>
                     {String(v('source_description_raw'))}
                   </div>
                 </div>
@@ -421,10 +444,10 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                     <div style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--brand-teal-100)', color: 'var(--brand-teal-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <FileText size={13} />
                     </div>
-                    <button onClick={() => viewFile(f)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-default)', fontSize: 12.5, fontWeight: 600, textAlign: 'left', flex: 1, minWidth: 0 }}>
+                    <button onClick={() => viewFile(f)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-default)', fontSize: 13.5, fontWeight: 600, textAlign: 'left', flex: 1, minWidth: 0 }}>
                       {f.file_name}
                     </button>
-                    <span style={{ fontSize: 10.5, color: 'var(--fg-faint)' }}>{f.uploaded_by_name ?? ''}</span>
+                    <span style={{ fontSize: 11.5, color: 'var(--fg-faint)' }}>{f.uploaded_by_name ?? ''}</span>
                     {canEdit && (
                       <button onClick={() => deleteFile(f)} title="Remove (temporary, dev-only)" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0, display: 'flex' }}>
                         <Trash2 size={12} />
@@ -433,7 +456,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                   </div>
                 ))}
                 {!files.length && !project?.dropbox_root_path && (
-                  <div style={{ fontSize: 12.5, color: 'var(--fg-faint)', padding: '6px 0' }}>No files yet.</div>
+                  <div style={{ fontSize: 13.5, color: 'var(--fg-faint)', padding: '6px 0' }}>No files yet.</div>
                 )}
                 {canEdit && (
                   <div style={{ marginTop: 8, padding: files.length || project?.dropbox_root_path ? '0 4px 4px' : 0 }}>
@@ -454,7 +477,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
               <div style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--brand-teal)' }} />
               <div style={{ fontWeight: 800, fontSize: 14, letterSpacing: '-0.01em' }}>Activity</div>
               {notes.length > 0 && (
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-faint)', background: 'var(--bg-subtle)', borderRadius: 999, padding: '1px 7px' }}>{notes.length}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg-faint)', background: 'var(--bg-subtle)', borderRadius: 999, padding: '1px 7px' }}>{notes.length}</span>
               )}
             </div>
             <button onClick={onClose} style={{ background: 'var(--bg-subtle)', border: 'none', borderRadius: 8, cursor: 'pointer', color: 'var(--fg-subtle)', padding: 6, display: 'flex' }} aria-label="Close">
@@ -463,7 +486,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'grid', gap: 10, alignContent: 'start' }}>
             {notes.length === 0 && loaded && (
-              <div style={{ fontSize: 12.5, color: 'var(--fg-subtle)', textAlign: 'center', marginTop: 24 }}>No activity yet.</div>
+              <div style={{ fontSize: 13.5, color: 'var(--fg-subtle)', textAlign: 'center', marginTop: 24 }}>No activity yet.</div>
             )}
             {notes.map(n => (
               <div key={n.id} style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '11px 13px', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
@@ -475,10 +498,10 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                     }}>
                       {(n.author_name || '?').charAt(0).toUpperCase()}
                     </div>
-                    <span style={{ fontWeight: 700, fontSize: 12.5 }}>{n.author_name || 'Unknown'}</span>
+                    <span style={{ fontWeight: 700, fontSize: 13.5 }}>{n.author_name || 'Unknown'}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ color: 'var(--fg-faint)', fontSize: 10.5 }}>
+                    <span style={{ color: 'var(--fg-faint)', fontSize: 11.5 }}>
                       {n.source_created_at ? new Date(n.source_created_at).toLocaleDateString('en-US') : ''}
                     </span>
                     {canEdit && (
@@ -488,7 +511,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                     )}
                   </div>
                 </div>
-                {n.body && n.body !== n.link_url && <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-default)', paddingLeft: 29 }}>{n.body}</div>}
+                {n.body && n.body !== n.link_url && <div style={{ whiteSpace: 'pre-wrap', fontSize: 13.5, lineHeight: 1.5, color: 'var(--fg-default)', paddingLeft: 29 }}>{n.body}</div>}
                 {n.link_url && (
                   <a href={n.link_url} target="_blank" rel="noopener noreferrer"
                     style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', border: '1px solid var(--border-subtle)', borderRadius: 8, padding: '8px 10px', background: 'var(--bg-subtle)' }}>
@@ -502,7 +525,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                     )}
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-default)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.link_title || n.link_url}</div>
-                      <div style={{ fontSize: 10.5, color: 'var(--fg-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.link_url}</div>
+                      <div style={{ fontSize: 11.5, color: 'var(--fg-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.link_url}</div>
                     </div>
                   </a>
                 )}
@@ -542,7 +565,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                   value={draft}
                   onChange={e => setDraft(e.target.value)}
                   rows={2}
-                  style={{ flex: 1, resize: 'none', fontSize: 12.5, borderRadius: 10 }}
+                  style={{ flex: 1, resize: 'none', fontSize: 13.5, borderRadius: 10 }}
                 />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <input ref={noteFileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
@@ -588,25 +611,25 @@ function SectionLabel({ children, icon }: { children: React.ReactNode; icon?: st
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
       {icon && <span style={{ fontSize: 7, color: 'var(--brand-teal)' }}>{icon}</span>}
-      <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{children}</div>
+      <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{children}</div>
       <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
     </div>
   );
 }
 
-const ro: React.CSSProperties = { fontSize: 13, color: 'var(--fg-default)', fontWeight: 500 };
+const ro: React.CSSProperties = { fontSize: 14, color: 'var(--fg-default)', fontWeight: 500 };
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="qv-field" style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '8px 10px', borderRadius: 9, minHeight: 52 }}>
-      <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--fg-faint)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</div>
+      <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--fg-faint)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</div>
       <div style={{ minWidth: 0 }}>{children}</div>
     </div>
   );
 }
 
 const cellInput: React.CSSProperties = {
-  width: '100%', fontSize: 13, fontWeight: 500, padding: '3px 4px', border: '1px solid transparent',
+  width: '100%', fontSize: 14, fontWeight: 500, padding: '4px 4px', border: '1px solid transparent',
   borderRadius: 6, background: 'transparent', color: 'var(--fg-default)',
 };
 

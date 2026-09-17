@@ -23,6 +23,7 @@ const EDITABLE = [
   'industry_raw',
   'to_do_raw', 'request_raw', 'project_type_raw', 'source_raw_label', 'targeted',
   'external_stage_label',
+  'direct_contact_raw', 'state', 'formatted_address', 'brand', 'business_types',
 ] as const;
 
 export async function GET(_req: NextRequest, { params }: Params) {
