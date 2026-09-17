@@ -67,7 +67,7 @@ export async function buildPotentialsNeedingFollowUp(admin: any): Promise<MyDayS
 }
 
 export async function buildMissingRegion(admin: any): Promise<MyDaySection> {
-  const [oppRes, potRes] = await Promise.all([
+  const [oppRes, potRes, contactRes] = await Promise.all([
     admin.from('opportunities')
       .select('id, prospect_id, title, stage')
       .is('deleted_at', null).is('region', null).not('stage', 'in', '(closed_won,closed_lost)')
@@ -76,12 +76,27 @@ export async function buildMissingRegion(admin: any): Promise<MyDaySection> {
       .select('id, prospect_id, title')
       .is('deleted_at', null).is('region', null).not('status', 'in', '(converted,lost,cancelled)')
       .order('updated_at', { ascending: false }).limit(QUERY_CAP),
+    // Public survey submissions never collect an internal region code (nothing a stranger
+    // filling out a public form could sensibly pick) — every submitted Contact lands with
+    // `regions = '{}'` by design (111) and stays that way until marketing_pr assigns one.
+    // Manual capture can no longer produce this gap (region is required there as of
+    // 2026-09-17), so anything showing up here going forward is effectively "needs triage
+    // from a survey submission."
+    admin.from('prospects')
+      .select('id, display_name, source_label')
+      .is('deleted_at', null).eq('is_archived', false).eq('regions', '{}')
+      .order('created_at', { ascending: false }).limit(QUERY_CAP),
   ]);
   const opps = (oppRes.error ? [] : (oppRes.data ?? [])) as { id: string; prospect_id: string; title: string | null; stage: string }[];
   const pots = (potRes.error ? [] : (potRes.data ?? [])) as { id: string; prospect_id: string; title: string | null }[];
-  const total = opps.length + pots.length;
+  const contacts = (contactRes.error ? [] : (contactRes.data ?? [])) as { id: string; display_name: string | null; source_label: string | null }[];
+  const total = opps.length + pots.length + contacts.length;
 
   const items = [
+    ...contacts.map(c => ({
+      label: c.display_name || 'Untitled contact', sublabel: `Contact — ${c.source_label ?? 'no source'}`,
+      href: `/marketing/prospects/${c.id}`, tone: 'warn' as const,
+    })),
     ...opps.map(o => ({
       label: o.title || 'Untitled opportunity', sublabel: `Opportunity — ${o.stage.replace(/_/g, ' ')}`,
       href: `/marketing/prospects/${o.prospect_id}`, tone: 'warn' as const,

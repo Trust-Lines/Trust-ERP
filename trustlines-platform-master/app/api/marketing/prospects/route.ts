@@ -58,13 +58,16 @@ export async function GET(req: NextRequest) {
     let query = q0 as any;
     if (!MARKETING_SEE_ALL_ROLES.includes(userRole)) {
       if (assignedRegions.length > 0) {
-        query = query.in('region', assignedRegions);
+        // regions is the array of every region a Contact genuinely belongs to (111) — a
+        // Contact cross-listed in two ClickUp regions must stay visible to whichever
+        // region's marketing_pr is assigned, matching prospects_read_own's `&&` overlap.
+        query = query.overlaps('regions', assignedRegions);
       }
       // else: no assigned region → unrestricted, matching prospects_read_own (108/109).
     }
     if (!includeArchived) query = query.eq('is_archived', false);
     if (status) query = query.eq('status', status);
-    if (region) query = query.eq('region', region);
+    if (region) query = query.contains('regions', [region]);
     if (source) query = query.eq('source_label', source);
     if (q) {
       const safe = q.replace(/[%,()\\]/g, '\\$&');
@@ -157,6 +160,13 @@ export async function POST(req: NextRequest) {
   if (entityType === 'person' && !personName) {
     return NextResponse.json({ error: 'Full name is required' }, { status: 400 });
   }
+  // 🔴 2026-09-17: manual capture never actually wrote region/regions onto the prospects
+  // row at all (only onto its Need, a separate table) — a Contact created this way was
+  // invisible to any marketing_pr scoped to a region, and never showed up filtered by
+  // region either. Now required at creation, same as the identity fields above.
+  if (!body?.need?.region) {
+    return NextResponse.json({ error: 'Region is required' }, { status: 400 });
+  }
 
   const needProjectTypes = (body?.need?.project_types ?? []).filter(t => (PROJECT_TYPES as string[]).includes(t));
   const needScopeTypes = (body?.need?.scope_types ?? []).filter(t => (SCOPE_TYPES as string[]).includes(t));
@@ -189,6 +199,8 @@ export async function POST(req: NextRequest) {
     source_raw_label: body?.source_raw_label?.trim() || null,
     tags: body?.tags ?? [],
     status: 'captured',
+    region: body.need!.region,
+    regions: [body.need!.region],
     owner_id: ownerId,
     assigned_marketing_user_id: assignedTo,
     created_by: user.id,

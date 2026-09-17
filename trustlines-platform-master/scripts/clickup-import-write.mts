@@ -129,12 +129,28 @@ async function main() {
   const existingContactRefs = new Set(existingContactRows.map(r => r.external_ref));
 
   const campaignCache = new Map<string, string>();
-  let created = 0, skipped = 0, failed = 0, additionalContacts = 0, additionalContactsSkipped = 0, orphanedChildren = 0;
+  let created = 0, skipped = 0, failed = 0, additionalContacts = 0, additionalContactsSkipped = 0, orphanedChildren = 0, regionsMerged = 0;
   const failures: { externalRef: string; name: string; error: string }[] = [];
 
   async function importTopLevel(task: ClickUpTask, region: RegionTag, label: string): Promise<void> {
     const c: ProspectCandidate = mapTaskToProspectCandidate(task, region, label);
-    if (prospectIdByTaskId.has(c.externalRef)) { skipped += 1; return; }
+    const existingId = prospectIdByTaskId.get(c.externalRef);
+    if (existingId) {
+      // 🔴 2026-09-17: a task genuinely cross-listed in two regions' ClickUp Contacts lists
+      // (confirmed live — "GoMart" sits in both NW and SE) used to just get silently
+      // skipped here on its second region's fetch, so it only ever carried the FIRST
+      // region it happened to be imported under and vanished from the other region's
+      // filter. Merge the new region into `regions` instead of dropping it — `region`
+      // (primary, ownership) stays whatever it was first assigned.
+      const { data: existing } = await admin.from('prospects').select('regions').eq('id', existingId).maybeSingle();
+      const currentRegions: string[] = existing?.regions ?? [];
+      if (!currentRegions.includes(region)) {
+        await admin.from('prospects').update({ regions: [...currentRegions, region] }).eq('id', existingId);
+        regionsMerged += 1;
+      }
+      skipped += 1;
+      return;
+    }
 
     try {
       // Original-touch campaign (the "13-SOURCE" value, if it classified as a real
@@ -166,6 +182,7 @@ async function main() {
         tags: c.tags,
         external_created_at: c.externalCreatedAt,
         region: c.region,
+        regions: [c.region],
         status: 'captured',
         owner_id: actorId,
         assigned_marketing_user_id: actorId,
@@ -298,6 +315,7 @@ async function main() {
   console.log(`\n── Done ──`);
   console.log(`Prospects created: ${created}`);
   console.log(`Prospects skipped (already imported): ${skipped}`);
+  console.log(`Regions merged onto an already-imported prospect (cross-listed in >1 region): ${regionsMerged}`);
   console.log(`Additional contacts (nested under an existing company): ${additionalContacts}`);
   console.log(`Additional contacts skipped (already imported): ${additionalContactsSkipped}`);
   console.log(`Nested contacts whose parent wasn't found (imported as standalone Prospects instead): ${orphanedChildren}`);

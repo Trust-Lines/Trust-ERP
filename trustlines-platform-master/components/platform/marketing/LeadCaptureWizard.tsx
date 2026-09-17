@@ -79,11 +79,11 @@ function TextField({ label, required, ...props }: { label: string; required?: bo
     </div>
   );
 }
-function SelectField({ label, options, ...props }: { label: string; options: { value: string; label: string }[] } & React.SelectHTMLAttributes<HTMLSelectElement>) {
+function SelectField({ label, required, options, ...props }: { label: string; required?: boolean; options: { value: string; label: string }[] } & React.SelectHTMLAttributes<HTMLSelectElement>) {
   const id = useId();
   return (
     <div>
-      <label htmlFor={id} className="form-label" style={{ fontSize: 12 }}>{label}</label>
+      <label htmlFor={id} className={`form-label${required ? ' required' : ''}`} style={{ fontSize: 12 }}>{label}</label>
       <select id={id} className="form-input" {...props}>
         <option value="">—</option>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -183,6 +183,7 @@ export function LeadCaptureWizard() {
     switch (step) {
       case 0: return !!f.entityType && !!f.sourceRaw.trim();
       case 1: return isPerson ? !!f.personName.trim() : !!f.organizationName.trim();
+      case 3: return !!f.region;
       case 4: return !!f.timing && (f.timing !== 'contact_later' || !!f.targetContactDate);
       default: return true;
     }
@@ -399,7 +400,7 @@ export function LeadCaptureWizard() {
                 Set once here — needed before a project folder can be created once this Need has evidence attached.
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-                <SelectField label="Region" value={f.region} onChange={e => set('region', e.target.value)}
+                <SelectField label="Region" required value={f.region} onChange={e => set('region', e.target.value)}
                   options={REGIONS.map(r => ({ value: r.code, label: r.label }))} />
                 <SelectField label="Service line" value={f.serviceLine} onChange={e => set('serviceLine', e.target.value)}
                   options={SERVICE_LINES.map(s => ({ value: s.value, label: s.label }))} />
