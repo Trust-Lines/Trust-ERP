@@ -3,6 +3,7 @@ import { getDropboxClient } from '@/lib/dropbox/client';
 import { scopeToCategories } from '@/lib/sales/scope';
 import { dropboxRegionFolder, composeProjectCode } from '@/lib/regions';
 import { runClassificationForNeed } from './opportunityEngine';
+import { buildNeedFilesPath } from './needFiles';
 import type { ScopeType } from '@/types/database';
 
 function buildMarketingEvidencePath(region: string, code: string, address: string): string {
@@ -16,7 +17,7 @@ export class NeedDocumentError extends Error {
   constructor(message: string, status = 400) { super(message); this.status = status; }
 }
 
-const NEED_PROJECT_COLS = 'id, prospect_id, location_id, scope_types, region, service_line, state, project_id';
+const NEED_PROJECT_COLS = 'id, prospect_id, location_id, title, scope_types, region, service_line, state, project_id';
 
 function composeAddress(city?: string | null, street?: string | null, state?: string | null): string {
   return [city, street, state].map(s => (s ?? '').trim()).filter(Boolean).join(' - ');
@@ -81,18 +82,24 @@ export async function addNeedDocument(admin: any, needId: string, actorId: strin
   const docRow: Record<string, unknown> = { need_id: needId, category: input.category, uploaded_by: actorId };
 
   if (isFile) {
-    if (!need.region || !need.service_line || !need.state) {
-      throw new NeedDocumentError('Set Region, Service Line, and State on this Need first, so a project folder exists to upload into', 409);
-    }
+    // Prefer the real numbered project folder when one already exists or all the fields to
+    // create it are in place; otherwise fall back to the same always-available staging
+    // folder Potentials/Opportunities already use for file uploads (see
+    // lib/marketing/needFiles.ts) — a file needs *somewhere* real to live, but that
+    // shouldn't require the Need to be fully filled out first.
     let rootPath: string | undefined;
     if (need.project_id) {
       const { data: existingProject } = await admin.from('projects').select('dropbox_root_path').eq('id', need.project_id).maybeSingle();
       rootPath = existingProject?.dropbox_root_path;
-    } else {
-      const created = await ensureProjectForNeed(admin, needId, actorId);
-      rootPath = (created as { dropbox_root_path?: string } | null)?.dropbox_root_path;
+    } else if (need.region && need.service_line && need.state) {
+      try {
+        const created = await ensureProjectForNeed(admin, needId, actorId);
+        rootPath = (created as { dropbox_root_path?: string } | null)?.dropbox_root_path;
+      } catch {
+        // Fall through to the staging path below (e.g. the linked Location has no City yet).
+      }
     }
-    if (!rootPath) throw new NeedDocumentError('Project folder not ready', 409);
+    if (!rootPath) rootPath = buildNeedFilesPath(need.region, need.title, needId);
 
     const safeName = (input.file!.name || 'upload')
       .replace(/[/\\]/g, '_').replace(/\.{2,}/g, '.').replace(/^\.+/, '').trim() || 'upload';

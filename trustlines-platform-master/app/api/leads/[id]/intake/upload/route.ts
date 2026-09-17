@@ -4,6 +4,7 @@ import { logAudit } from '@/lib/audit/log';
 import { SALES_INTAKE_ROLES } from '@/lib/sales/roles';
 import { getDropboxClient } from '@/lib/dropbox/client';
 import { assertLeadAccess } from '@/lib/sales/leadAccess';
+import { buildLeadFilesPath } from '@/lib/sales/leadFiles';
 
 const CATEGORIES = new Set([
   'shelving_note', 'millwork_note', 'image_note', 'ceiling_note',
@@ -24,22 +25,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!CATEGORIES.has(category))   return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
 
   const { data: intake } = await admin.from('lead_intake')
-    .select('id, project_id')
+    .select('id, project_id, region, customer_name')
     .eq('id', id).maybeSingle();
   if (!intake) return NextResponse.json({ error: 'Intake not found' }, { status: 404 });
 
-  const intakeRow = intake as { id: string; project_id: string | null };
-  if (!intakeRow.project_id) {
-    return NextResponse.json(
-      { error: 'BLOCK1_INCOMPLETE', message: 'Complete Region + Client + Service + Address first so a folder exists.' },
-      { status: 409 },
-    );
-  }
+  const intakeRow = intake as { id: string; project_id: string | null; region: string | null; customer_name: string | null };
 
-  const { data: project } = await admin.from('projects')
-    .select('dropbox_root_path').eq('id', intakeRow.project_id).single();
-  const rootPath = (project as { dropbox_root_path?: string } | null)?.dropbox_root_path;
-  if (!rootPath) return NextResponse.json({ error: 'Project folder not ready' }, { status: 409 });
+  let rootPath: string | undefined;
+  if (intakeRow.project_id) {
+    const { data: project } = await admin.from('projects')
+      .select('dropbox_root_path').eq('id', intakeRow.project_id).single();
+    rootPath = (project as { dropbox_root_path?: string } | null)?.dropbox_root_path ?? undefined;
+  }
+  if (!rootPath) rootPath = buildLeadFilesPath(intakeRow.region, intakeRow.customer_name, id);
 
   const safeName = (file.name || 'upload')
     .replace(/[/\\]/g, '_')

@@ -140,14 +140,16 @@ describe('addNeedDocument — the Opportunity signal', () => {
     expect(db.opportunities[0].region).toBe('TLINES_NE');
   });
 
-  it('rejects a file upload when region/service_line/state are not set yet', async () => {
-    const { admin } = makeFakeAdmin({
-      prospect_needs: [{ ...baseNeed, region: null }],
+  it('falls back to the always-available staging folder for a file upload when region/service_line/state are not set yet', async () => {
+    const { admin, db } = makeFakeAdmin({
+      prospect_needs: [{ ...baseNeed, region: null, title: 'Need' }],
       prospects: [{ id: 'p1', display_name: 'ZZTEST Acme' }],
       prospect_locations: [{ id: 'loc-1', city: 'Austin' }],
     });
 
-    await expect(addNeedDocument(admin, 'need-1', 'u1', { category: 'layout', file: { name: 'plan.pdf', buffer: Buffer.from('x') } }))
-      .rejects.toThrow(NeedDocumentError);
+    const result = await addNeedDocument(admin, 'need-1', 'u1', { category: 'layout', file: { name: 'plan.pdf', buffer: Buffer.from('x') } });
+
+    expect((result.document as { dropbox_path: string }).dropbox_path).toContain('/marketing/unassigned/_opportunities/');
+    expect(db.projects).toHaveLength(0);
   });
 });
