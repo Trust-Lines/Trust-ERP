@@ -6,6 +6,13 @@ import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, Che
 import { toast } from 'sonner';
 import { SOURCE_LABEL, SOURCES } from '@/lib/marketing/classification';
 import { REGIONS } from '@/lib/regions';
+
+// Local to this filter only — REGIONS.label ("T-Lines North East") is the shared,
+// company-wide label used across Sales/Projects/PM too; Marketing asked for the short
+// ClickUp-matching form here specifically, not a global rename.
+const REGION_FILTER_LABEL: Record<string, string> = {
+  TLINES_NE: 'TLINES NE', TLINES_SE: 'TLINES SE', TLINES_NW: 'TLINES NW', CVW: 'TLINES WEST',
+};
 import { hashColor, readableTextColor } from '@/lib/marketing/pillColor';
 import type { ProspectStatus, ProjectType, ScopeType, LeadTiming, LeadEntityType } from '@/types/database';
 import { MarketingPipelineNav } from './MarketingPipelineNav';
@@ -310,7 +317,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
         </select>
         <select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={regionFilter} onChange={e => setRegionFilter(e.target.value)} aria-label="Filter by region">
           <option value="">All regions</option>
-          {REGIONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
+          {REGIONS.map(r => <option key={r.code} value={r.code}>{REGION_FILTER_LABEL[r.code] ?? r.label}</option>)}
         </select>
         <select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} aria-label="Filter by source">
           <option value="">All sources</option>
