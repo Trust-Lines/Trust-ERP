@@ -96,6 +96,14 @@ async function createProspectFromSubmission(
 
   const attributedUser = attributionUser(campaign);
 
+  // 🔴 2026-09-18: owner_id/assigned_marketing_user_id used to be set to the campaign's
+  // owner/creator too — since most campaigns were set up by one admin account, EVERY survey
+  // submission auto-"assigned" to that same person regardless of who should actually work it
+  // ("surveyden gelenler assign oluyor otomatik Hamza adına, o olmaz" — direct report).
+  // created_by keeps the real audit trail (which account's campaign produced this row); the
+  // two fields that actually render as "this person owns/is assigned to this Contact" now
+  // stay unassigned until a human picks someone, same as every other auto-created row this
+  // session got cleared back to.
   const { data, error } = await admin.from('prospects').insert({
     entity_type: entityType,
     organization_name: organizationName,
@@ -108,8 +116,6 @@ async function createProspectFromSubmission(
     latest_source_label: campaign.source,
     latest_campaign_id: campaign.id,
     status: 'captured',
-    owner_id: attributedUser,
-    assigned_marketing_user_id: attributedUser,
     created_by: attributedUser,
   }).select('id').single();
   if (error) throw new SubmissionProcessingError(error.message);

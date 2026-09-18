@@ -88,7 +88,15 @@ export async function runClassificationForNeed(admin: any, needId: string, actor
 
   const { data: prospect } = await admin.from('prospects').select('display_name, owner_id, assigned_marketing_user_id').eq('id', n.prospect_id).maybeSingle();
   const displayName = prospect?.display_name ?? 'Lead';
-  const ownerId = prospect?.assigned_marketing_user_id ?? prospect?.owner_id ?? actorId;
+  // 🔴 2026-09-18: used to fall back to `actorId` when the Contact itself has no
+  // owner/assignee — for a human clicking "Add Potential" that's a reasonable default (assign
+  // to whoever's doing the work), but this same function also runs from the public-survey
+  // automation with actorId = the campaign's owner/creator account, auto-"assigning" every
+  // survey-sourced Potential to that one account regardless of who should actually work it
+  // (direct report: "surveyden gelenler assign oluyor otomatik Hamza adına, o olmaz"). No
+  // fallback to actorId — stays unassigned until a human explicitly picks someone, same as
+  // Contacts.
+  const ownerId = prospect?.assigned_marketing_user_id ?? prospect?.owner_id ?? null;
 
   const { data: primaryContactRow } = await admin.from('prospect_contacts')
     .select('id').eq('prospect_id', n.prospect_id).eq('is_primary', true).limit(1).maybeSingle();
