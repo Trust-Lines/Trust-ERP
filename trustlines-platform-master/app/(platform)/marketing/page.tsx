@@ -5,6 +5,7 @@ import { MARKETING_SEE_ALL_ROLES } from '@/lib/marketing/roles';
 import { buildMyDay } from '@/lib/dashboard/myDay';
 import { buildTeamGaps } from '@/lib/marketing/teamGaps';
 import { enrichProspectRows, type ProspectListBase } from '@/lib/marketing/prospectRows';
+import { getAssignedRegions } from '@/lib/access/regionScope';
 import { MarketingWorkspaceClient } from '@/components/platform/marketing/MarketingWorkspaceClient';
 import type { UserRole } from '@/types/database';
 
@@ -33,27 +34,32 @@ export default async function MarketingWorkspacePage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
-  // 🔴 2026-09-17: personal "how am I doing" stats — no $ amounts anywhere (marketing_pr
-  // never sees pricing/value figures), just percentages computed from Contacts/Potentials
-  // this person owns/is assigned, plus their own audit trail. Scoped to just their own
-  // rows, so this stays cheap regardless of how big the whole table gets.
+  // 🔴 2026-09-18: used to be scoped to Contacts this person personally owns/created/is
+  // assigned to — direct correction: "ekledeklerinden sorumlu olayı yanlış, sistemde kaç
+  // contact varsa onlardan sorumlu" (being responsible only for what you personally added is
+  // wrong — you're responsible for every Contact visible to you in the system). Now scoped
+  // the same way the real Contacts page itself decides visibility for a marketing_pr:
+  // region-assigned ones see their region (or an unset region, migration 112), everyone else
+  // (including managers) sees all of them. No $ amounts anywhere (marketing_pr never sees
+  // pricing/value figures) — just percentages.
   // 🔴 PostgREST caps any row-returning select at 1000 regardless of how many rows actually
   // match — bit this exact module more than once already this session (1758 Contacts showing
-  // as 1000). This account owns/is assigned the vast majority of Contacts (it ran every
-  // ClickUp import), so a single unpaginated request here silently dropped over 700 rows.
-  // Page through with .range() until a short page confirms there's nothing left.
+  // as 1000). Page through with .range() until a short page confirms there's nothing left.
+  const assignedRegions = isManager ? [] : await getAssignedRegions(admin, user!.id);
   const myProspectCols = 'id, owner_id, assigned_marketing_user_id, organization_name, person_name, main_email, main_phone, '
     + 'website, source_label, source_raw_label, source_detail, business_types, x_note, region';
   const myProspectsRaw: unknown[] = [];
   for (let offset = 0; offset < 20000; offset += 1000) {
-    const { data: page } = await admin.from('prospects').select(myProspectCols)
+    let pageQuery = admin.from('prospects').select(myProspectCols)
       .is('deleted_at', null).eq('is_archived', false)
       // `.not('external_ref','like',…)` alone silently drops every Contact with a NULL
       // external_ref too (SQL's NOT (NULL LIKE 'x%') is NULL, not TRUE) — see the same bug
       // fixed in app/api/marketing/prospects/route.ts and its page.tsx counterpart.
-      .or('external_ref.is.null,external_ref.not.like.opportunity-fallback:%')
-      .or(`owner_id.eq.${user!.id},assigned_marketing_user_id.eq.${user!.id}`)
-      .range(offset, offset + 999);
+      .or('external_ref.is.null,external_ref.not.like.opportunity-fallback:%');
+    if (assignedRegions.length > 0) {
+      pageQuery = pageQuery.or(`regions.ov.{${assignedRegions.join(',')}},regions.eq.{}`);
+    }
+    const { data: page } = await pageQuery.range(offset, offset + 999);
     myProspectsRaw.push(...(page ?? []));
     if (!page || page.length < 1000) break;
   }
