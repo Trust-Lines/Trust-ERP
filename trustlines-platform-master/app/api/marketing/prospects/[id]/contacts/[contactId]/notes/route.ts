@@ -8,7 +8,7 @@ import { buildProspectFilesPath, sanitizeFileName } from '@/lib/marketing/prospe
 
 type Params = { params: Promise<{ id: string; contactId: string }> };
 
-const NOTE_COLS = 'id, prospect_contact_id, author_name, author_id, body, image_path, source_created_at, created_at';
+const NOTE_COLS = 'id, prospect_contact_id, author_name, author_id, body, image_path, source_created_at, created_at, edited_at';
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id, contactId } = await params;

@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { X, Paperclip, Send, Loader2, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { X, Paperclip, Send, Loader2, Image as ImageIcon, Trash2, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProspectDetailClient } from './ProspectDetailClient';
 
 interface ContactNote {
   id: string; prospect_contact_id: string; author_name: string | null; author_id?: string | null;
-  body: string; image_path?: string | null; source_created_at: string | null; created_at: string;
+  body: string; image_path?: string | null; source_created_at: string | null; created_at: string; edited_at?: string | null;
 }
 interface ContactLite { id: string; name: string; is_primary: boolean; }
 
@@ -21,6 +21,9 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [notes, setNotes] = useState<ContactNote[]>([]);
+  const [viewerId, setViewerId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
   const [imageLinks, setImageLinks] = useState<Record<string, string>>({});
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -37,6 +40,7 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
       const body = await res.json();
       setData(body);
       setNotes(body.contactNotes ?? []);
+      setViewerId(body.viewerId ?? null);
     } catch { setNotFound(true); }
     finally { setLoading(false); }
   }, [prospectId]);
@@ -95,6 +99,18 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
       setDraftImage(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } finally { setPosting(false); }
+  }
+
+  async function saveEdit(n: ContactNote) {
+    const text = editDraft.trim();
+    if (!text) return;
+    const res = await fetch(`/api/marketing/prospects/${prospectId}/contacts/${n.prospect_contact_id}/notes/${n.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: text }),
+    });
+    const resBody = await res.json().catch(() => ({}));
+    if (!res.ok) { toast.error(resBody.error ?? 'Could not save'); return; }
+    setNotes(prev => prev.map(x => (x.id === n.id ? resBody.note : x)));
+    setEditingId(null);
   }
 
   async function deleteNote(n: ContactNote) {
@@ -159,6 +175,11 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
                     <span style={{ color: 'var(--fg-subtle)', fontSize: 11 }}>
                       {n.source_created_at ? new Date(n.source_created_at).toLocaleDateString('en-US') : ''}
                     </span>
+                    {n.author_id && n.author_id === viewerId && editingId !== n.id && (
+                      <button onClick={() => { setEditingId(n.id); setEditDraft(n.body); }} title="Edit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0, display: 'flex' }}>
+                        <Pencil size={12} />
+                      </button>
+                    )}
                     {canEdit && (
                       <button onClick={() => deleteNote(n)} title="Delete (temporary, dev-only)" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0, display: 'flex' }}>
                         <Trash2 size={12} />
@@ -171,7 +192,31 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
                     re: {contactNameById[n.prospect_contact_id] ?? 'Contact'}
                   </div>
                 )}
-                {n.body && <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, color: 'var(--fg-default)' }}>{n.body}</div>}
+                {editingId === n.id ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <textarea
+                      className="form-input"
+                      value={editDraft}
+                      onChange={e => setEditDraft(e.target.value)}
+                      rows={2}
+                      style={{ fontSize: 12.5, resize: 'none' }}
+                      autoFocus
+                    />
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button className="btn btn-primary btn-sm" onClick={() => saveEdit(n)} disabled={!editDraft.trim()}>
+                        <Check size={12} /> Save
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setEditingId(null)}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  n.body && (
+                    <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, color: 'var(--fg-default)' }}>
+                      {n.body}
+                      {n.edited_at && <span style={{ fontSize: 10.5, color: 'var(--fg-faint)' }}> (edited)</span>}
+                    </div>
+                  )
+                )}
                 {n.image_path && (
                   imageLinks[n.image_path] ? (
                     // eslint-disable-next-line @next/next/no-img-element

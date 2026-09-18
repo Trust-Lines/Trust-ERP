@@ -54,7 +54,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const [{ data: contactNotes }, { data: people }, { data: touchedCampaigns }, { data: files }] = await Promise.all([
     contactIds.length
       ? admin.from('prospect_contact_notes')
-          .select('id, prospect_contact_id, author_name, author_id, body, image_path, source_created_at, created_at')
+          .select('id, prospect_contact_id, author_name, author_id, body, image_path, source_created_at, created_at, edited_at')
           .in('prospect_contact_id', contactIds).order('source_created_at', { ascending: false })
       : Promise.resolve({ data: [] }),
     admin.from('profiles').select('id, full_name')
@@ -80,6 +80,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     contactNotes: contactNotes ?? [],
     people: people ?? [],
     showsAttended,
+    viewerId: user.id,
   });
 }
 
