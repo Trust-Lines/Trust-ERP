@@ -58,8 +58,15 @@ export default async function MarketingWorkspacePage() {
     if (!page || page.length < 1000) break;
   }
   const myProspectsEnriched = await enrichProspectRows(admin, myProspectsRaw as unknown as ProspectListBase[]);
-  const contactsComplete = myProspectsEnriched.filter(p => p.completeness_percent >= 80).length;
+  // 🔴 2026-09-18: was a count of contacts clearing an 80% threshold — on a small/real list
+  // where every Contact sits at a real, different, sub-80% completeness (30-70%, genuine
+  // gradual progress, not neglect), that rendered as a flat 0%, hiding the progress entirely
+  // and making the tile look broken ("100 var ya 100'de 0" — direct report). Average
+  // completeness instead — reflects partial progress instead of an all-or-nothing bar.
   const contactsTotal = myProspectsEnriched.length;
+  const contactsComplete = contactsTotal > 0
+    ? Math.round(myProspectsEnriched.reduce((sum, p) => sum + p.completeness_percent, 0) / contactsTotal)
+    : 0;
   const contactsWithRegion = myProspectsEnriched.filter(p => !!p.region).length;
   const contactsWithWhatsapp = myProspectsEnriched.filter(p => p.whatsapp).length;
 

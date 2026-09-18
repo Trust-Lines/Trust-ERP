@@ -103,9 +103,9 @@ export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCo
             {myStats.contactsTotal > 0 && (
               <StatTile
                 label="Contacts with complete info"
-                hint="Enough to actually reach out"
+                hint="Average completeness across your Contacts"
                 value={myStats.contactsComplete}
-                total={myStats.contactsTotal}
+                total={100}
               />
             )}
             {myStats.potentialsTotal > 0 && (
