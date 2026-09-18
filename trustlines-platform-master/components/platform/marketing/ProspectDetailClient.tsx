@@ -47,6 +47,16 @@ interface ProspectLocation {
   estimated_remodel_date: string | null; notes: string | null; created_at: string;
   mailing_address?: string | null;
 }
+// A location saved with only a street address (no location_name, no city/state — e.g. pasted
+// straight from a note) used to show as a generic "Location" everywhere it's picked from a
+// list, including the Potential-creation dropdown ("kişiye ana adres çıksın" — the Contact's
+// own address should actually be visible/selectable there, not hidden behind a placeholder).
+function locationLabel(l: ProspectLocation): string {
+  return l.location_name
+    || [l.address_line_1, l.city, l.state].filter(Boolean).join(', ')
+    || 'Location';
+}
+
 interface Need {
   id: string; prospect_id: string; location_id: string | null; title: string; description: string | null;
   has_active_project: boolean | null; project_types: ProjectType[]; scope_types: ScopeType[];
@@ -630,7 +640,7 @@ export function ProspectDetailClient({
                 return (
                 <div key={l.id} className="card"><div className="card-body" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{l.location_name || [l.city, l.state].filter(Boolean).join(', ') || 'Location'}</div>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{locationLabel(l)}</div>
                     <div style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>
                       {[l.address_line_1, l.city, l.state, l.postal_code, l.country].filter(Boolean).join(', ') || '—'}
                     </div>
@@ -1185,7 +1195,7 @@ function NeedForm({ initial, defaultRegion, locations, onSave, onCancel }: { ini
           <select className="form-input" value={locationId} onChange={e => setLocationId(e.target.value)}>
             <option value="">— Not location-specific —</option>
             {locations.map(l => (
-              <option key={l.id} value={l.id}>{l.location_name || [l.city, l.state].filter(Boolean).join(', ') || 'Location'}</option>
+              <option key={l.id} value={l.id}>{locationLabel(l)}</option>
             ))}
           </select>
         </div>
