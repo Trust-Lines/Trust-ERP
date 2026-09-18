@@ -9,14 +9,10 @@ import type { MyDaySection } from '@/lib/dashboard/myDay';
 const PAGE_SIZE = 20;
 
 interface MyStats {
-  contactsComplete: number;
   contactsTotal: number;
-  potentialsOnTime: number;
-  potentialsTotal: number;
-  contactsWithRegion: number;
-  contactsWithWhatsapp: number;
-  potentialsWithEvidence: number;
-  potentialsWithNeed: number;
+  incompleteCount: number;
+  unqualifiedCount: number;
+  contractSignedCount: number;
   weeklyActivityCount: number;
 }
 
@@ -90,8 +86,10 @@ export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCo
         </div>
       </div>
 
-      {/* ── Your activity — completion percentages, at the top, never a $ figure ────── */}
-      {(myStats.contactsTotal > 0 || myStats.potentialsTotal > 0) && (
+      {/* ── Top cards — direct spec (2026-09-18): incomplete Contacts %, unqualified count,
+          contract-signed % (from the real Sales `projects.closed_deal_date`), completed
+          projects (deferred — "soon", not wired up yet). Never a $ figure. ────── */}
+      {myStats.contactsTotal > 0 && (
         <div className="card">
           <div className="card-head">
             <div style={{ fontWeight: 700, fontSize: 14 }}>Your activity</div>
@@ -100,46 +98,25 @@ export function MarketingWorkspaceClient({ role, fullName, isManager, prospectCo
             </span>
           </div>
           <div className="card-body" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
-            {myStats.contactsTotal > 0 && (
-              <StatTile
-                label="Contacts with complete info"
-                hint="Average completeness across your Contacts"
-                value={myStats.contactsComplete}
-                total={100}
-              />
-            )}
-            {myStats.potentialsTotal > 0 && (
-              <StatTile
-                label="Followed up on time"
-                hint="No overdue next-contact date"
-                value={myStats.potentialsOnTime}
-                total={myStats.potentialsTotal}
-              />
-            )}
-            {myStats.potentialsWithNeed > 0 && (
-              <StatTile
-                label="Ready to convert"
-                hint="Has a layout/document attached"
-                value={myStats.potentialsWithEvidence}
-                total={myStats.potentialsWithNeed}
-              />
-            )}
-            {myStats.contactsTotal > 0 && (
-              <StatTile
-                label="Assigned to a region"
-                hint="Findable by your team"
-                value={myStats.contactsWithRegion}
-                total={myStats.contactsTotal}
-              />
-            )}
-            {myStats.contactsTotal > 0 && (
-              <StatTile
-                label="Reachable on WhatsApp"
-                hint="Fastest way to follow up"
-                value={myStats.contactsWithWhatsapp}
-                total={myStats.contactsTotal}
-              />
-            )}
+            <StatTile
+              label="Incomplete Contacts"
+              hint="Missing info, out of all visible Contacts"
+              value={myStats.incompleteCount}
+              total={myStats.contactsTotal}
+              invert
+            />
+            <CountTile
+              label="Unqualified clients"
+              hint="Every Need disqualified"
+              value={myStats.unqualifiedCount}
+            />
+            <StatTile
+              label="Contract signed"
+              hint="Closed deal on a real Sales project"
+              value={myStats.contractSignedCount}
+              total={myStats.contactsTotal}
+            />
+            <SoonTile label="Completed projects" hint="Coming soon" />
           </div>
         </div>
       )}
@@ -259,9 +236,14 @@ function SectionCard({ section }: { section: MyDaySection }) {
   );
 }
 
-function StatTile({ label, hint, value, total }: { label: string; hint: string; value: number; total: number }) {
+function StatTile({ label, hint, value, total, invert }: { label: string; hint: string; value: number; total: number; invert?: boolean }) {
   const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-  const color = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
+  // `invert`: for a tile where a HIGH number is bad (e.g. "Incomplete Contacts" — you want
+  // this low), flip which end of the scale reads as good/bad instead of always treating a
+  // bigger percentage as better.
+  const good = invert ? pct <= 20 : pct >= 80;
+  const mid = invert ? pct <= 50 : pct >= 50;
+  const color = good ? '#16a34a' : mid ? '#d97706' : '#dc2626';
   return (
     <div style={{
       border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '14px 16px',
@@ -278,6 +260,36 @@ function StatTile({ label, hint, value, total }: { label: string; hint: string; 
       <div style={{ height: 5, borderRadius: 999, background: 'var(--bg-surface)', overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 999 }} />
       </div>
+    </div>
+  );
+}
+
+function CountTile({ label, hint, value }: { label: string; hint: string; value: number }) {
+  return (
+    <div style={{
+      border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '14px 16px',
+      background: 'var(--bg-subtle)', display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'space-between',
+    }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg-default)' }}>{label}</div>
+        <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1 }}>{hint}</div>
+      </div>
+      <span style={{ fontSize: 26, fontWeight: 800, color: 'var(--fg-default)', letterSpacing: '-0.02em' }}>{value}</span>
+    </div>
+  );
+}
+
+function SoonTile({ label, hint }: { label: string; hint: string }) {
+  return (
+    <div style={{
+      border: '1px dashed var(--border-subtle)', borderRadius: 12, padding: '14px 16px',
+      background: 'var(--bg-subtle)', display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'space-between', opacity: 0.6,
+    }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg-default)' }}>{label}</div>
+        <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1 }}>{hint}</div>
+      </div>
+      <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--fg-faint)' }}>Soon</span>
     </div>
   );
 }

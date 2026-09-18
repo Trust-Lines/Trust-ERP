@@ -6,6 +6,7 @@ import { buildMyDay } from '@/lib/dashboard/myDay';
 import { buildTeamGaps } from '@/lib/marketing/teamGaps';
 import { enrichProspectRows, type ProspectListBase } from '@/lib/marketing/prospectRows';
 import { getAssignedRegions } from '@/lib/access/regionScope';
+import { fetchInChunks } from '@/lib/supabase/chunkedIn';
 import { MarketingWorkspaceClient } from '@/components/platform/marketing/MarketingWorkspaceClient';
 import type { UserRole } from '@/types/database';
 
@@ -47,7 +48,7 @@ export default async function MarketingWorkspacePage() {
   // as 1000). Page through with .range() until a short page confirms there's nothing left.
   const assignedRegions = isManager ? [] : await getAssignedRegions(admin, user!.id);
   const myProspectCols = 'id, owner_id, assigned_marketing_user_id, organization_name, person_name, main_email, main_phone, '
-    + 'website, source_label, source_raw_label, source_detail, business_types, x_note, region';
+    + 'website, source_label, source_raw_label, source_detail, business_types, x_note, region, status';
   const myProspectsRaw: unknown[] = [];
   for (let offset = 0; offset < 20000; offset += 1000) {
     let pageQuery = admin.from('prospects').select(myProspectCols)
@@ -64,41 +65,35 @@ export default async function MarketingWorkspacePage() {
     if (!page || page.length < 1000) break;
   }
   const myProspectsEnriched = await enrichProspectRows(admin, myProspectsRaw as unknown as ProspectListBase[]);
-  // 🔴 2026-09-18: was a count of contacts clearing an 80% threshold — on a small/real list
-  // where every Contact sits at a real, different, sub-80% completeness (30-70%, genuine
-  // gradual progress, not neglect), that rendered as a flat 0%, hiding the progress entirely
-  // and making the tile look broken ("100 var ya 100'de 0" — direct report). Average
-  // completeness instead — reflects partial progress instead of an all-or-nothing bar.
   const contactsTotal = myProspectsEnriched.length;
-  const contactsComplete = contactsTotal > 0
-    ? Math.round(myProspectsEnriched.reduce((sum, p) => sum + p.completeness_percent, 0) / contactsTotal)
-    : 0;
-  const contactsWithRegion = myProspectsEnriched.filter(p => !!p.region).length;
-  const contactsWithWhatsapp = myProspectsEnriched.filter(p => p.whatsapp).length;
 
-  const today = new Date().toISOString().slice(0, 10);
-  const { data: myPotentials } = await admin.from('prospect_potentials')
-    .select('id, need_id, target_contact_date').is('deleted_at', null)
-    .not('status', 'in', '(converted,lost,cancelled)').eq('assigned_to', user!.id);
-  const potentialsList = (myPotentials ?? []) as { id: string; need_id: string | null; target_contact_date: string | null }[];
-  // 🔴 A missing target_contact_date is NOT "on time" — it means nobody scheduled a
-  // next-contact date at all, which is exactly the gap lib/marketing/teamGaps.ts's
-  // buildPotentialsNeedingFollowUp already flags. Treating it as on-time made this read
-  // 100% for an account where every Potential still has no date set — the opposite of
-  // useful. On-time now requires a real, non-overdue date.
-  const potentialsOnTime = potentialsList.filter(p => !!p.target_contact_date && p.target_contact_date >= today).length;
-  const potentialsTotal = potentialsList.length;
+  // 🔴 2026-09-18: top dashboard cards redefined per direct spec — "tamamlanmayan contactlar
+  // kaç contact ise onun yüzdesi, unqualified client sayısı, contract imzası yüzdesi (Sales
+  // CRM'den), biten projeler (soon)". Same completeness_percent < 100 threshold the Contacts
+  // page's own "missing info" filter already uses, for consistency across the app.
+  const incompleteCount = myProspectsEnriched.filter(p => p.completeness_percent < 100).length;
 
-  // Document evidence — the ONE thing that actually promotes a Potential to Opportunity
-  // Candidate (lib/marketing/classification.ts's classifyLead — timing/region/anything else
-  // never matters). Shows what fraction of this person's Potentials are actually ready to
-  // convert vs still need a layout/reference attached.
-  const myNeedIds = [...new Set(potentialsList.map(p => p.need_id).filter(Boolean))] as string[];
-  let potentialsWithEvidence = 0;
-  if (myNeedIds.length) {
-    const { data: docRows } = await admin.from('prospect_need_documents').select('need_id').in('need_id', myNeedIds);
-    potentialsWithEvidence = new Set((docRows ?? []).map((d: { need_id: string }) => d.need_id)).size;
-  }
+  // "Unqualified" = every Need on this Contact was disqualified — prospects.status already
+  // rolls this up (lib/marketing/opportunityEngine.ts's rollupProspectStatus), so it's a
+  // direct count, not a fresh computation. A plain count, not a percentage — "sayısı".
+  const unqualifiedCount = (myProspectsRaw as { status?: string }[]).filter(p => p.status === 'disqualified').length;
+
+  // Contract signed = this Contact produced a real Sales project with a closed_deal_date
+  // (the actual "contract signed" field on `projects`, set once Sales closes the deal) —
+  // confirmed denominator: all visible Contacts, not just the ones with an Opportunity.
+  const visibleProspectIds = myProspectsEnriched.map(p => p.id);
+  const oppRows = await fetchInChunks(
+    visibleProspectIds,
+    chunk => admin.from('opportunities').select('prospect_id, project_id').in('prospect_id', chunk).not('project_id', 'is', null),
+  ) as { prospect_id: string; project_id: string }[];
+  const projectIds = [...new Set(oppRows.map(o => o.project_id))];
+  const closedProjectIds = new Set(
+    (await fetchInChunks(
+      projectIds,
+      chunk => admin.from('projects').select('id, closed_deal_date').in('id', chunk).not('closed_deal_date', 'is', null),
+    ) as { id: string; closed_deal_date: string }[]).map(p => p.id),
+  );
+  const contractSignedCount = new Set(oppRows.filter(o => closedProjectIds.has(o.project_id)).map(o => o.prospect_id)).size;
 
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
   const { count: weeklyActivityCount } = await admin.from('audit_log')
@@ -133,9 +128,7 @@ export default async function MarketingWorkspacePage() {
         myDaySections={myDay.sections}
         teamGapSections={teamGapSections}
         myStats={{
-          contactsComplete, contactsTotal, potentialsOnTime, potentialsTotal,
-          contactsWithRegion, contactsWithWhatsapp,
-          potentialsWithEvidence, potentialsWithNeed: myNeedIds.length,
+          contactsTotal, incompleteCount, unqualifiedCount, contractSignedCount,
           weeklyActivityCount: weeklyActivityCount ?? 0,
         }}
       />
