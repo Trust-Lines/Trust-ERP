@@ -45,8 +45,12 @@ async function rollupProspectStatus(admin: any, prospectId: string): Promise<voi
   await admin.from('prospects').update({ status }).eq('id', prospectId);
 }
 
-function titleFor(prospectDisplayName: string, need: NeedRowForEngine): string {
-  return `${prospectDisplayName} — ${need.title}`;
+// Direct instruction (2026-09-18): a Need with a real address on its Location should title
+// the Potential/Opportunity BY that address ("Salem, 4601 Silverton RD NE, OR"), matching how
+// the ClickUp-imported historical data always looked — not "ContactName — Need title", which
+// is what every one of these showed regardless of whether an address existed.
+function titleFor(prospectDisplayName: string, need: NeedRowForEngine, locationAddress: string | null): string {
+  return locationAddress || `${prospectDisplayName} — ${need.title}`;
 }
 
 // 🔴 2026-09-17: the Opportunity branch below already copies `project_types` straight from
@@ -90,6 +94,13 @@ export async function runClassificationForNeed(admin: any, needId: string, actor
     .select('id').eq('prospect_id', n.prospect_id).eq('is_primary', true).limit(1).maybeSingle();
   const primaryContactId: string | null = primaryContactRow?.id ?? null;
 
+  let locationAddress: string | null = null;
+  if (n.location_id) {
+    const { data: loc } = await admin.from('prospect_locations')
+      .select('city, address_line_1, state').eq('id', n.location_id).maybeSingle();
+    if (loc) locationAddress = [loc.city, loc.address_line_1, loc.state].filter(Boolean).join(', ') || null;
+  }
+
   const { data: docs } = await admin.from('prospect_need_documents').select('id').eq('need_id', needId).limit(1);
   const hasDocumentEvidence = Array.isArray(docs) && docs.length > 0;
 
@@ -131,7 +142,7 @@ export async function runClassificationForNeed(admin: any, needId: string, actor
     if (existingOpp) {
       const nextStage = existingOpp.stage === 'on_hold' ? 'marketing_qualification' : existingOpp.stage;
       const update: Record<string, unknown> = {
-        title: titleFor(displayName, n), project_types: n.project_types ?? [], scope_types: n.scope_types ?? [],
+        title: titleFor(displayName, n, locationAddress), project_types: n.project_types ?? [], scope_types: n.scope_types ?? [],
         deadline: n.deadline, source_label: n.source, classification_reasons: classification.reasons,
         classification_rule_version: CLASSIFICATION_RULE_VERSION, primary_contact_id: primaryContactId,
       };
@@ -146,7 +157,7 @@ export async function runClassificationForNeed(admin: any, needId: string, actor
       // for the one case this doesn't cover: an Opportunity Sales already returned to
       // Marketing, which needs a human to re-send once whatever was wrong is fixed.
       const { data } = await admin.from('opportunities').insert({
-        prospect_id: n.prospect_id, need_id: needId, title: titleFor(displayName, n),
+        prospect_id: n.prospect_id, need_id: needId, title: titleFor(displayName, n, locationAddress),
         project_types: n.project_types ?? [], scope_types: n.scope_types ?? [], stage: 'sales_handoff',
         sales_handoff_at: new Date().toISOString(), source_label: n.source,
         marketing_owner_id: ownerId, deadline: n.deadline, auto_managed: true, primary_contact_id: primaryContactId,
@@ -165,14 +176,14 @@ export async function runClassificationForNeed(admin: any, needId: string, actor
   } else if (needClassification === 'potential') {
     if (existingPotential) {
       const { data } = await admin.from('prospect_potentials').update({
-        title: titleFor(displayName, n), target_contact_date: contactDate,
+        title: titleFor(displayName, n, locationAddress), target_contact_date: contactDate,
         classification_reasons: classification.reasons, classification_rule_version: CLASSIFICATION_RULE_VERSION,
         primary_contact_id: primaryContactId, project_type_raw: projectTypeRawFor(n.project_types ?? []),
       }).eq('id', existingPotential.id).select().maybeSingle();
       potential = data; potentialAction = 'updated';
     } else {
       const { data } = await admin.from('prospect_potentials').insert({
-        need_id: needId, prospect_id: n.prospect_id, title: titleFor(displayName, n),
+        need_id: needId, prospect_id: n.prospect_id, title: titleFor(displayName, n, locationAddress),
         status: 'identified', target_contact_date: contactDate,
         assigned_to: ownerId, auto_managed: true, primary_contact_id: primaryContactId,
         classification_reasons: classification.reasons, classification_rule_version: CLASSIFICATION_RULE_VERSION,
