@@ -37,3 +37,68 @@ Task IDs are ClickUp task ids: open `https://app.clickup.com/t/<id>` to find the
 
 ## Southeast / Northwest
 - none
+
+## ClickUp Docs embedded in comments (29)
+The import could only get the Doc's id — ClickUp's API returns 403 for these Docs (not readable with our token), so their CONTENT is not in the CRM. In the CRM each shows as a "ClickUp Doc" link card. Before closing ClickUp, open each one and export/copy it (or move the Docs somewhere the token can read, then re-run the import).
+
+- dhdc7-6615 — Easton 160 S 3rd street, PA (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-6615
+- dhdc7-4995 — Bronx, 2918 Boston Rd, NY (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-4995
+- dhdc7-11095 — tallahassee, capital circle ne FL (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-11095
+- dhdc7-7975 — Morehead highway 60 ,KY (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-7975
+- dhdc7-8675 — New Britain 373 West Main Street  CT (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-8675
+- dhdc7-9195 — Providence, 545 broad ST, RI (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-9195
+- dhdc7-7655 — Morehead Highway 801 ,KY (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-7655
+- dhdc7-12415 — Bronx3535 white plains road  NY (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-12415
+- dhdc7-9395 — Hartford 181 Franklin Ave 
+CT (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-9395
+- dhdc7-11475 — Phillipsburg, 598 Memorial Parkway ,NJ (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-11475
+- dhdc7-12495 — Wolcott, 47 wolcott road, CT (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-12495
+- dhdc7-5255 — East Haven 227 Saltonstall Pkwy CT (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-5255
+- dhdc7-9815 — New Britain 296 Allen Street New Britain CT (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-9815
+- dhdc7-9575 — Hazleton, 3 Forest Hill Road ,PA (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-9575
+- dhdc7-6355 — Bristol 198 Burlington AVE CT (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-6355
+- dhdc7-12375 — Goshan, 303 Greenwich Ave, NY (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-12375
+- dhdc7-12335 — Strattanvile, Route 322, PA (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-12335
+- dhdc7-10815 — New Haven 80 Amity Rd CT (TLINES_NE) — https://app.clickup.com/14202247/v/dc/dhdc7-10815
+- dhdc7-5295 — Alamo, 939 S Alamo Rd
+ TX 78516 (TLINES_NW) — https://app.clickup.com/14202247/v/dc/dhdc7-5295
+- dhdc7-6735 — HOUSTON,10146 WESTHEIMER RD,TX (TLINES_NW) — https://app.clickup.com/14202247/v/dc/dhdc7-6735
+- dhdc7-6855 — HOUSTON, CYPRESS,21102 FM 529, TX (TLINES_NW) — https://app.clickup.com/14202247/v/dc/dhdc7-6855
+- dhdc7-8315 — LACOMBE ,LA HWY 434 AT LPB BLVD.  LA (TLINES_NW) — https://app.clickup.com/14202247/v/dc/dhdc7-8315
+- dhdc7-9435 — Channelview, 230 dell dale st, TX (TLINES_NW) — https://app.clickup.com/14202247/v/dc/dhdc7-9435
+- dhdc7-8455 — WILLIS, INTERSTATE 45 N,TX (TLINES_NW) — https://app.clickup.com/14202247/v/dc/dhdc7-8455
+- dhdc7-14735 — Deep Singh Build (CVW) — https://app.clickup.com/14202247/v/dc/dhdc7-14735
+- dhdc7-11015 — Grocery - Cottonwood, 206 Gas Point Rd CA (CVW) — https://app.clickup.com/14202247/v/dc/dhdc7-11015
+- dhdc7-14295 — Pasco, 10002 Burns Rd, WA (CVW) — https://app.clickup.com/14202247/v/dc/dhdc7-14295
+- dhdc7-17895 — The Dalles, 516 w 9th st, OR (CVW) — https://app.clickup.com/14202247/v/dc/dhdc7-17895
+- dhdc7-17855 — Keizer, 6375 River Road N, OR (CVW) — https://app.clickup.com/14202247/v/dc/dhdc7-17855
+
+## ClickUp Docs imported into the CRM (2026-09-19)
+165 Docs read from ClickUp: 130 became the **Documents** section of a deal, 15 became Contact notes. Files linked inside them (~470) were copied to Dropbox and appear under the record's Files.
+
+### Still not in the CRM
+- Docs whose parent task is not in the CRM (20) — the task itself was never imported (not in any Contacts / Opportunities list we pulled):
+  - EASTON OFFICE YOUR CHOICE — parent task 86byn2qtf
+  - Camilla, 300 W. Broad Street, Georgia — parent task 86bz4qy6h
+  - Collect Information — parent task 86bzmgzzn
+  - Project info — parent task 86c4tk385
+  - Fine Indian restaurant — parent task 86c8rdz1n
+  - Doc — parent task 86c8rdz1p
+  - Doc — parent task 86c8rdz2k
+  - Doc — parent task 86c8rdz4a
+  - Modification — parent task 86c8rdz6u
+  - New Britain 296 Allen Street New Britain CT — parent task 86c8rdzb4
+  - 598 Memorial Parkway, Phillipsburg, NJ 08865 — parent task 86c8rdzc7
+  - Doc — parent task 86c8rdzcr
+  - 373 West Main Street  New Britain CT 06052 — parent task 86c8rdzdv
+  - Doc — parent task 86c8rdzgg
+  - Easton160 S 3rd street,PA — parent task 86c8rdzmx
+  - Doc — parent task 86c8rdzv1
+  - Morehead,KY — parent task 86c8rdzwe
+  - Providence, 545 broad ST, RI — parent task 86c8re022
+  - Doc — parent task 86c8re024
+  - Doc — parent task 86c9tvjpf
+- Files from Docs that did not copy (2):
+  - Modify Request 8/14/2024 — Collect Information: Hand Draw Floorplan Example.pdf — download failed
+  - Modify Request 8/14/2024 — Collect Information: IMG__4126 (1).MOV — over 140MB
+- Contact notes from Docs are plain text (Markdown not rendered) and their files were attached to the Contact's company, not the person.

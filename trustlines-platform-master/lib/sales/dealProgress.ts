@@ -59,7 +59,7 @@ interface OppIn {
   closed_at: string | null; closed_reason: string | null; return_reason: string | null; updated_at: string;
 }
 interface ProjectIn { code: string; current_stage: ProjectStage | null; created_at: string | null }
-interface NoteIn { author_name: string | null; body: string; source_created_at: string | null; created_at: string }
+interface NoteIn { author_name: string | null; body: string; source_created_at: string | null; created_at: string; external_source?: string | null; link_title?: string | null }
 interface ActivityIn { actor_id: string | null; kind: string; body: string; created_at: string }
 interface JobIn { status: string; assigned_designer_id: string | null; created_at: string; updated_at: string }
 
@@ -96,7 +96,10 @@ export function buildDealProgress(input: {
     if (!importFallback) add(opp.closed_at, 'milestone', opp.stage === 'closed_won' ? 'Closed — won' : 'Closed — lost', null, reason);
   }
   for (const a of activity) add(a.created_at, a.kind === 'comment' ? 'comment' : 'change', a.body, a.actor_id ? names[a.actor_id] ?? null : null);
-  for (const n of notes) add(n.source_created_at ?? n.created_at, 'comment', 'Comment', n.author_name, clip(n.body.replace(/\s+/g, ' ').trim(), 220));
+  for (const n of notes) {
+    if (n.external_source === 'clickup_doc') add(n.source_created_at ?? n.created_at, 'project', `Document — ${n.link_title || 'ClickUp Doc'}`);
+    else add(n.source_created_at ?? n.created_at, 'comment', 'Comment', n.author_name, clip(n.body.replace(/\s+/g, ' ').trim(), 220));
+  }
 
   events.sort((x, y) => Date.parse(y.at) - Date.parse(x.at)); // newest first
 

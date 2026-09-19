@@ -54,7 +54,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       ? admin.from('projects').select('code, dropbox_root_path, current_stage, created_at').eq('id', data.project_id).maybeSingle()
       : Promise.resolve({ data: null }),
     data.need_id
-      ? admin.from('need_notes').select('id, author_name, author_id, body, image_path, link_url, link_title, link_thumbnail_url, source_created_at, created_at')
+      ? admin.from('need_notes').select('id, author_name, author_id, body, image_path, link_url, link_title, link_thumbnail_url, source_created_at, created_at, external_source')
           .eq('need_id', data.need_id).order('source_created_at', { ascending: true, nullsFirst: false }).order('created_at', { ascending: true })
       : Promise.resolve({ data: [] }),
     data.need_id

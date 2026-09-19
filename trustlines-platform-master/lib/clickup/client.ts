@@ -15,9 +15,11 @@ function requireToken(): string {
   return token;
 }
 
-async function clickupGet<T>(path: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
+const CLICKUP_API_V3 = 'https://api.clickup.com/api/v3';
+
+async function clickupGet<T>(path: string, params?: Record<string, string | number | boolean | undefined>, base: string = CLICKUP_API_BASE): Promise<T> {
   const token = requireToken();
-  const url = new URL(`${CLICKUP_API_BASE}${path}`);
+  const url = new URL(`${base}${path}`);
   for (const [k, v] of Object.entries(params ?? {})) {
     if (v !== undefined) url.searchParams.set(k, String(v));
   }
@@ -199,4 +201,41 @@ export async function getCommentReplies(commentId: string): Promise<ClickUpComme
 export async function getTaskAttachments(taskId: string): Promise<ClickUpAttachment[]> {
   const data = await clickupGet<{ attachments?: ClickUpAttachment[] }>(`/task/${taskId}`);
   return data.attachments ?? [];
+}
+
+// ── Docs (API v3) — read-only ────────────────────────────────────────────────────────────
+export interface ClickUpDoc {
+  id: string; name: string; date_created: number; date_updated: number;
+  parent?: { id: string; type: number } | null; deleted?: boolean;
+}
+export interface ClickUpDocPage {
+  id: string; doc_id?: string; name: string; sub_title?: string | null;
+  date_created?: number; date_updated?: number; content?: string; pages?: ClickUpDocPage[];
+}
+
+/** Every Doc in the workspace (paged by cursor). */
+export async function getAllDocs(workspaceId: string): Promise<ClickUpDoc[]> {
+  const all: ClickUpDoc[] = [];
+  let cursor: string | undefined;
+  for (let i = 0; i < 200; i++) {
+    const data = await clickupGet<{ docs: ClickUpDoc[]; next_cursor?: string }>(`/workspaces/${workspaceId}/docs`, { limit: 100, cursor }, CLICKUP_API_V3);
+    all.push(...(data.docs ?? []));
+    cursor = data.next_cursor;
+    if (!cursor || !(data.docs ?? []).length) break;
+  }
+  return all;
+}
+
+/** A Doc's pages as Markdown, flattened (sub-pages included, in reading order). */
+export async function getDocPages(workspaceId: string, docId: string): Promise<ClickUpDocPage[]> {
+  const pages = await clickupGet<ClickUpDocPage[]>(`/workspaces/${workspaceId}/docs/${docId}/pages`, { content_format: 'text/md', max_page_depth: -1 }, CLICKUP_API_V3);
+  const out: ClickUpDocPage[] = [];
+  const walk = (ps: ClickUpDocPage[]) => { for (const pg of ps ?? []) { out.push(pg); if (pg.pages?.length) walk(pg.pages); } };
+  walk(Array.isArray(pages) ? pages : []);
+  return out;
+}
+
+/** Just enough of a task to find out which task it is nested under. */
+export async function getTaskBasic(taskId: string): Promise<{ id: string; name: string; parent?: string | null }> {
+  return clickupGet(`/task/${taskId}`);
 }

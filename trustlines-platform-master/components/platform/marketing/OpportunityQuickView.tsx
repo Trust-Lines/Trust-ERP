@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { X, Loader2, ExternalLink, Paperclip, Send, Image as ImageIcon, Trash2, Link2, Upload, FileText, ChevronDown } from 'lucide-react';
 import { TaskList } from '@/components/platform/shared/TaskList';
 import { DealProgressPanel } from '@/components/platform/shared/DealProgressPanel';
+import { MarkdownLite } from '@/components/platform/shared/MarkdownLite';
 import type { DealProgress } from '@/lib/sales/dealProgress';
 import { DropboxFileList } from '@/components/platform/shared/DropboxFileList';
 import { TagMultiSelect } from './TagMultiSelect';
@@ -26,7 +27,7 @@ interface NeedInfo { timing: LeadTiming | null; has_active_project: boolean | nu
 interface NeedNote {
   id: string; author_name: string | null; author_id?: string | null; body: string;
   image_path: string | null; link_url: string | null; link_title: string | null; link_thumbnail_url: string | null;
-  source_created_at: string | null; created_at: string;
+  source_created_at: string | null; created_at: string; external_source?: string | null;
 }
 interface NeedFile { id: string; dropbox_path: string; file_name: string; uploaded_by: string | null; uploaded_by_name: string | null; created_at: string }
 interface Tag { name: string; color: string }
@@ -201,6 +202,10 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
     window.open(body.link, '_blank', 'noopener,noreferrer');
   }
 
+  // Imported ClickUp Docs live in their own section; everything else is the comment thread.
+  const docNotes = notes.filter(n => n.external_source === 'clickup_doc');
+  const activityNotes = notes.filter(n => n.external_source !== 'clickup_doc');
+
   const v = (k: string) => (opp?.[k] as string | number | null) ?? '';
   const tags = (opp?.tags as Tag[] | null) ?? [];
   const businessTypes = (opp?.business_types as string[] | null) ?? [];
@@ -293,8 +298,23 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
             <div style={{ padding: '22px 28px 24px' }}>
               {kind === 'opportunity' && (
                 <div style={{ marginBottom: 24 }}>
+                  <SectionLabel icon="◆">Start here</SectionLabel>
+                  <StillToFillIn missing={missingForDeal(opp)} stage={String(opp.stage)} />
+                  <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 14, padding: 10 }}>
+                    <TaskList apiBasePath={apiBase} assignees={assignees} />
+                  </div>
+                </div>
+              )}
+              {kind === 'opportunity' && (
+                <div style={{ marginBottom: 24 }}>
                   <SectionLabel icon="◆">Progress</SectionLabel>
                   <DealProgressPanel stage={String(opp.stage) as OpportunityStage} progress={progress} />
+                </div>
+              )}
+              {docNotes.length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  <SectionLabel icon="◆">Documents</SectionLabel>
+                  <DocumentsList docs={docNotes} />
                 </div>
               )}
               <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 16, marginBottom: 16, alignItems: 'start' }}>
@@ -430,15 +450,6 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                 </div>
               )}
 
-              {kind === 'opportunity' && (
-                <div style={{ marginBottom: 24 }}>
-                  <SectionLabel icon="◆">Tasks</SectionLabel>
-                  <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 14, padding: 10 }}>
-                    <TaskList apiBasePath={apiBase} assignees={assignees} />
-                  </div>
-                </div>
-              )}
-
               <SectionLabel icon="◆">Files</SectionLabel>
               <div style={{ marginBottom: 16, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 14, padding: files.length || project?.dropbox_root_path ? 6 : 12 }}>
                 {project?.dropbox_root_path && (
@@ -483,8 +494,8 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--brand-teal)' }} />
               <div style={{ fontWeight: 800, fontSize: 14, letterSpacing: '-0.01em' }}>Activity</div>
-              {notes.length > 0 && (
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg-faint)', background: 'var(--bg-subtle)', borderRadius: 999, padding: '1px 7px' }}>{notes.length}</span>
+              {activityNotes.length > 0 && (
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg-faint)', background: 'var(--bg-subtle)', borderRadius: 999, padding: '1px 7px' }}>{activityNotes.length}</span>
               )}
             </div>
             <button onClick={onClose} style={{ background: 'var(--bg-subtle)', border: 'none', borderRadius: 8, cursor: 'pointer', color: 'var(--fg-subtle)', padding: 6, display: 'flex' }} aria-label="Close">
@@ -492,10 +503,10 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
             </button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'grid', gap: 10, alignContent: 'start' }}>
-            {notes.length === 0 && loaded && (
+            {activityNotes.length === 0 && loaded && (
               <div style={{ fontSize: 13.5, color: 'var(--fg-subtle)', textAlign: 'center', marginTop: 24 }}>No activity yet.</div>
             )}
-            {notes.map(n => (
+            {activityNotes.map(n => (
               <div key={n.id} style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '11px 13px', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -612,6 +623,81 @@ function readableOn(bg: string): string {
   if (hex.length !== 6) return '#fff';
   const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
   return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#000' : '#fff';
+}
+
+// Imported ClickUp Docs ("Collect Information" briefs etc.). Collapsible; the first one starts open.
+function DocumentsList({ docs }: { docs: NeedNote[] }) {
+  const [open, setOpen] = useState<Set<string>>(() => new Set(docs.slice(0, 1).map(d => d.id)));
+  const toggle = (id: string) => setOpen(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : '');
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      {docs.map(d => {
+        const isOpen = open.has(d.id);
+        return (
+          <div key={d.id} style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 14, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px' }}>
+              <button
+                onClick={() => toggle(d.id)} aria-expanded={isOpen}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+              >
+                <FileText size={15} style={{ color: 'var(--brand-teal-600)', flexShrink: 0 }} />
+                <span style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.link_title || 'Document'}</span>
+                <ChevronDown size={14} style={{ color: 'var(--fg-faint)', flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+              </button>
+              <span style={{ fontSize: 11.5, color: 'var(--fg-faint)', whiteSpace: 'nowrap' }}>{when(d.source_created_at)}</span>
+              {d.link_url && (
+                <a href={d.link_url} target="_blank" rel="noopener noreferrer" title="Open in ClickUp" style={{ color: 'var(--fg-faint)', display: 'flex' }}>
+                  <ExternalLink size={13} />
+                </a>
+              )}
+            </div>
+            {isOpen && (
+              <div style={{ padding: '4px 18px 16px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+                <MarkdownLite text={d.body} />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// What a salesperson still has to get from the client / fill in on an open deal. Purely a reminder —
+// nothing here blocks anything.
+function missingForDeal(opp: Deal): string[] {
+  const empty = (k: string) => opp[k] == null || opp[k] === '';
+  const stage = String(opp.stage);
+  if (stage === 'closed_won' || stage === 'closed_lost') return [];
+  const out: string[] = [];
+  if (empty('primary_contact_id')) out.push('Contact');
+  if (empty('estimated_value')) out.push('Deal size');
+  if (empty('deadline')) out.push('Due date');
+  if (['sales_accepted', 'working_on_it_trust', 'proposal', 'negotiation'].includes(stage)) {
+    if (empty('deposit')) out.push('Deposit');
+    if (empty('payment_raw')) out.push('Payment terms');
+  }
+  return out;
+}
+
+function StillToFillIn({ missing, stage }: { missing: string[]; stage: string }) {
+  if (stage === 'closed_won' || stage === 'closed_lost') return null;
+  if (missing.length === 0) {
+    return (
+      <div style={{ marginBottom: 10, fontSize: 12.5, fontWeight: 600, padding: '8px 12px', borderRadius: 10, background: 'var(--status-success-bg)', color: 'var(--status-success-fg)' }}>
+        ✓ Everything Sales needs on this deal is filled in.
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, padding: '8px 12px', borderRadius: 10, background: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)' }}>
+      <span style={{ fontSize: 12.5, fontWeight: 700 }}>Still to fill in:</span>
+      {missing.map(m => (
+        <span key={m} style={{ fontSize: 12, fontWeight: 700, padding: '2px 9px', borderRadius: 999, background: 'rgba(255,255,255,.65)' }}>{m}</span>
+      ))}
+    </div>
+  );
 }
 
 function SectionLabel({ children, icon }: { children: React.ReactNode; icon?: string }) {

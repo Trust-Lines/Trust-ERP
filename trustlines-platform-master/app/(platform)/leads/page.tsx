@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { LeadsClient } from '@/components/platform/leads/LeadsClient';
-import type { Lead, OpportunityStatus } from '@/components/platform/leads/types';
+import { STATUS_ORDER, type Lead, type OpportunityStatus } from '@/components/platform/leads/types';
 import { serviceLineLabel, composeProjectCode } from '@/lib/regions';
 import { STAGE_LABELS } from '@/lib/workflow/machine';
 import { loadOpportunityLeadRows } from '@/lib/marketing/opportunityRows';
@@ -18,8 +18,9 @@ import type { ProjectStage } from '@/types/database';
 const LEADS_ALLOWED_ROLES = ['sales_marketing_manager', 'sales_rep', 'ops_manager', 'general_manager'];
 const BOARD_ALLOWED_ROLES = LEADS_ALLOWED_ROLES;
 
-export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ open?: string }> }) {
-  const { open: openId } = await searchParams;
+export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ open?: string; stage?: string }> }) {
+  const { open: openId, stage: stageParam } = await searchParams;
+  const initialStage = STATUS_ORDER.find(s => s.key === stageParam)?.key;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
@@ -148,7 +149,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       <LeadsClient
         initialLeads={allLeads} assignees={assignees} marketingAssignees={marketingAssignees ?? []}
         currentUserId={user.id} canManageNumber={canManageNumber} nextNumber={nextNumber}
-        truncatedAt={truncated ? 1000 : undefined} canSeeLeadIntake={canSeeLeadIntake} initialOpenId={openId}
+        truncatedAt={truncated ? 1000 : undefined} canSeeLeadIntake={canSeeLeadIntake} initialOpenId={openId} initialStage={initialStage}
       />
     </div>
   );

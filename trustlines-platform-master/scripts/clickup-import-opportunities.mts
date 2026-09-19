@@ -84,15 +84,18 @@ async function importNeedDetails(admin: any, need: { id: string; title: string; 
     }
     const body = c.comment_text?.trim() || (bookmarkBlock ? bookmarkBlock.bookmark!.url : '') || attBlocks.map(b => b.text || b.attachment?.title).filter(Boolean).join(', ');
     if (!body && !imagePath) return;
+    // A ClickUp Doc embedded in a comment arrives as the placeholder text "[Doc Embed: <id>]" — the
+    // API won't give us the Doc's content (403), so keep a clickable pointer instead of the raw text.
+    const docEmbed = /^\s*\[Doc Embed:\s*([^\]]+)\]\s*$/.exec(body);
     const { data: existing } = await admin.from('need_notes').select('id').eq('need_id', need.id).eq('external_ref', c.id).maybeSingle();
     if (existing) return;
     const { error } = await admin.from('need_notes').insert({
       need_id: need.id,
       author_name: c.user?.username ?? null,
-      body: body || '(attachment)',
+      body: docEmbed ? 'Attached a ClickUp Doc' : body || '(attachment)',
       image_path: imagePath,
-      link_url: bookmarkBlock?.bookmark?.url ?? null,
-      link_title: bookmarkBlock?.bookmark?.title ?? null,
+      link_url: docEmbed ? `https://app.clickup.com/14202247/v/dc/${docEmbed[1].trim()}` : bookmarkBlock?.bookmark?.url ?? null,
+      link_title: docEmbed ? `ClickUp Doc ${docEmbed[1].trim()}` : bookmarkBlock?.bookmark?.title ?? null,
       link_thumbnail_url: bookmarkBlock?.bookmark?.thumbnail_url ?? null,
       source_created_at: c.date ? new Date(Number(c.date)).toISOString() : null,
       external_source: 'clickup', external_ref: c.id,
