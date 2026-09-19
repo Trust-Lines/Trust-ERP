@@ -14,7 +14,7 @@ const WRITE_ROLES = [...SALES_HANDOFF_ROLES, ...MARKETING_ROLES];
 const POT_COLS = 'id, prospect_id, primary_contact_id, title, potential_type, status, priority, region, '
   + 'source_raw_label, assigned_to, estimated_value, deposit, payment_raw, targeted, due_date, date_done, '
   + 'industry_raw, brand, state, formatted_address, request_raw, to_do_raw, tags, external_project_code, '
-  + 'auto_managed, external_stage_label, created_at, updated_at';
+  + 'auto_managed, external_stage_label, created_at, external_created_at, updated_at';
 
 export default async function OpportunitiesListPage() {
   await requirePage('page.marketing');
@@ -43,7 +43,9 @@ export default async function OpportunitiesListPage() {
     .select(POT_COLS).is('deleted_at', null).not('status', 'in', '(converted,lost,cancelled)')
     .order('updated_at', { ascending: false }).limit(2000);
   const loadError = !!potError;
-  const potBase = (potError ? [] : (potData ?? [])) as Record<string, unknown>[];
+  // Newest first on the real timeline: ClickUp creation date when imported, our own created_at otherwise.
+  const effectiveDate = (r: Record<string, unknown>) => Date.parse((r.external_created_at ?? r.created_at) as string) || 0;
+  const potBase = ((potError ? [] : (potData ?? [])) as Record<string, unknown>[]).sort((a, b) => effectiveDate(b) - effectiveDate(a));
 
   const prospectIds = [...new Set(potBase.map(o => o.prospect_id as string))];
   const contactIds = [...new Set(potBase.map(o => o.primary_contact_id).filter(Boolean))] as string[];
@@ -83,7 +85,7 @@ export default async function OpportunitiesListPage() {
     request_raw: (p.request_raw as string) ?? null, to_do_raw: (p.to_do_raw as string) ?? null,
     external_stage_label: (p.external_stage_label as string) ?? null,
     tags: (p.tags as DealRow['tags']) ?? [],
-    created_at: p.created_at as string, updated_at: p.updated_at as string,
+    created_at: (p.external_created_at ?? p.created_at) as string, updated_at: p.updated_at as string,
     auto_managed: !!p.auto_managed, admin_corrected: false,
     lead_display_name: leadById[p.prospect_id as string]?.display_name ?? '—',
     lead_entity_type: (leadById[p.prospect_id as string]?.entity_type as LeadEntityType) ?? 'organization',

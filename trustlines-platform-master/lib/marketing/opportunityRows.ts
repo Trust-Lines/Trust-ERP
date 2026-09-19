@@ -39,7 +39,7 @@ interface OppBase {
   source_label: string | null; source_raw_label: string | null; marketing_owner_id: string | null; sales_owner_id: string | null;
   estimated_value: number | null; deposit: number | null; payment_raw: string | null; targeted: boolean;
   next_action: string | null; next_action_date: string | null; deadline: string | null;
-  created_at: string; closed_at: string | null; region: string | null;
+  created_at: string; external_created_at: string | null; closed_at: string | null; region: string | null;
   industry_raw: string | null; brand: string | null; state: string | null; formatted_address: string | null;
   request_raw: string | null; to_do_raw: string | null; external_stage_label: string | null;
   tags: { name: string; color: string }[] | null;
@@ -50,7 +50,7 @@ export async function loadOpportunityLeadRows(sb: any): Promise<Lead[]> {
   const res = await sb.from('opportunities')
     .select('id, prospect_id, project_id, primary_contact_id, title, project_types, stage, priority, '
       + 'source_label, source_raw_label, marketing_owner_id, sales_owner_id, estimated_value, deposit, payment_raw, targeted, '
-      + 'next_action, next_action_date, deadline, created_at, closed_at, region, '
+      + 'next_action, next_action_date, deadline, created_at, external_created_at, closed_at, region, '
       + 'industry_raw, brand, state, formatted_address, request_raw, to_do_raw, external_stage_label, tags, external_project_code')
     .is('deleted_at', null)
     .order('updated_at', { ascending: false }).limit(2000);
@@ -128,7 +128,9 @@ export async function loadOpportunityLeadRows(sb: any): Promise<Lead[]> {
       tasks_total: taskAgg.get(o.id)?.total ?? 0,
       archived: false,
       location: o.formatted_address || [loc?.city, loc?.state].filter(Boolean).join(', ') || '—',
-      date_created: o.created_at,
+      // ClickUp creation date when it came from ClickUp, else our own created_at — so imported and
+      // native rows sort on one real timeline (newest native rows land on top), not import order.
+      date_created: o.external_created_at ?? o.created_at,
       date_done: o.closed_at,
       source: o.source_raw_label || o.source_label || 'Marketing',
       origin: 'opportunity',

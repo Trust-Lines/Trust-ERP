@@ -9,7 +9,7 @@ import type { Lead, OpportunityStatus } from '@/components/platform/leads/types'
 interface PotBase {
   id: string; need_id: string; prospect_id: string; title: string;
   target_contact_date: string | null; estimated_value: number | null; assigned_to: string | null;
-  external_stage_label: string | null; created_at: string;
+  external_stage_label: string | null; created_at: string; external_created_at: string | null;
   primary_contact_id: string | null; region: string | null; priority: 'low' | 'medium' | 'high';
   due_date: string | null; date_done: string | null; deposit: number | null; payment_raw: string | null; targeted: boolean;
   industry_raw: string | null; brand: string | null; state: string | null; formatted_address: string | null;
@@ -25,7 +25,7 @@ function bucketFor(externalStageLabel: string | null): OpportunityStatus {
 
 export async function loadPotentialLeadRows(sb: any): Promise<Lead[]> {
   const res = await sb.from('prospect_potentials')
-    .select('id, need_id, prospect_id, title, target_contact_date, estimated_value, assigned_to, external_stage_label, created_at, '
+    .select('id, need_id, prospect_id, title, target_contact_date, estimated_value, assigned_to, external_stage_label, created_at, external_created_at, '
       + 'primary_contact_id, region, priority, due_date, date_done, deposit, payment_raw, targeted, '
       + 'industry_raw, brand, state, formatted_address, request_raw, to_do_raw, source_raw_label, tags, external_project_code')
     .is('deleted_at', null)
@@ -89,7 +89,7 @@ export async function loadPotentialLeadRows(sb: any): Promise<Lead[]> {
       tasks_total: 0,
       archived: false,
       location: p.formatted_address || need?.state || '—',
-      date_created: p.created_at,
+      date_created: p.external_created_at ?? p.created_at,
       date_done: p.date_done,
       source: p.source_raw_label || need?.source || 'Marketing',
       origin: 'potential',

@@ -20,14 +20,19 @@ function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' });
 }
 
-const COLUMNS = [
+export const LEAD_COLUMNS = [
   'Name', 'PROJECT #', 'Industry', 'Due date', 'Brand', '01-State', 'Priority',
   'Contact', 'Assignee', 'To Do', 'Status OP', 'Request', 'Project Type', 'Source',
   'Deal Size', 'Deposit', 'Payment', '11-Location', 'Date created', 'Date done', 'Targeted',
 ];
+
+const COLUMNS = LEAD_COLUMNS;
+
+// Columns off by default — ClickUp's own view keeps these out of the way too.
+export const DEFAULT_HIDDEN_COLUMNS = ['To Do', 'Deposit', 'Payment', 'Date done', 'Targeted'];
 
 const COLUMN_WIDTHS = [
   380, 100, 170, 100, 150, 80, 120, 150, 150, 140, 160, 150, 150, 120,
@@ -65,6 +70,7 @@ interface Props {
   assignees?: { id: string; full_name: string }[];
   marketingAssignees?: { id: string; full_name: string }[];
   collapsed: Set<OpportunityStatus>;
+  hiddenColumns?: Set<string>;
   onToggleGroup: (key: OpportunityStatus) => void;
   onStatusChange: (id: string, status: OpportunityStatus) => void;
   onPriorityChange?: (id: string, priority: Priority) => void;
@@ -87,7 +93,7 @@ const inlineSelect: React.CSSProperties = {
 };
 
 export function LeadsTable({
-  leads, assignees = [], marketingAssignees = [], collapsed, onToggleGroup, onStatusChange,
+  leads, assignees = [], marketingAssignees = [], collapsed, hiddenColumns, onToggleGroup, onStatusChange,
   onPriorityChange, onAssigneeChange, onIndustryChange, onToDoChange, onRequestChange,
   onProjectTypeRawChange, onSourceRawChange, onTargetedChange, onPaymentChange,
   onDealSizeChange, onDepositChange, onContextMenu, onOpen,
@@ -97,12 +103,18 @@ export function LeadsTable({
   const today = new Date().toISOString().slice(0, 10);
   const { widths, startResize } = useResizableColumns('leadsTable.columnWidths.v1', COLUMN_WIDTHS);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hidden = hiddenColumns ?? new Set<string>();
+  const visibleIdx = COLUMNS.map((_, i) => i).filter(i => !hidden.has(COLUMNS[i]));
+  const visibleCount = visibleIdx.length;
+  // Hide by CSS nth-child so the row markup stays one flat list of cells.
+  const hideCss = COLUMNS.map((c, i) => (hidden.has(c) && i > 0 ? `.leads-tbl th:nth-child(${i + 1}),.leads-tbl tr.lead-row > td:nth-child(${i + 1}){display:none}` : '')).join('');
   return (
     <div className="card" style={{ overflow: 'hidden' }}>
+      <style>{hideCss}</style>
       <div ref={scrollRef} className="scroll-x-hidden" style={{ overflow: 'auto', maxHeight: 'calc(100vh - 300px)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1200, tableLayout: 'fixed' }}>
+        <table className="leads-tbl" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1200, tableLayout: 'fixed' }}>
           <colgroup>
-            {widths.map((w, i) => <col key={COLUMNS[i]} style={{ width: w }} />)}
+            {visibleIdx.map(i => <col key={COLUMNS[i]} style={{ width: widths[i] }} />)}
           </colgroup>
           <thead>
             <tr>
@@ -123,6 +135,11 @@ export function LeadsTable({
           {STATUS_ORDER.map(meta => {
             const rows = leads.filter(l => l.opportunity_status === meta.key);
             const isCollapsed = collapsed.has(meta.key);
+            // Empty groups are noise — only show them while dragging (they're drop targets).
+            if (rows.length === 0 && dragId == null) return null;
+            const clickupColor = Object.entries(STATUS_OP_COLOR).find(([k]) => k.toUpperCase() === meta.label.toUpperCase())?.[1];
+            const groupBg = clickupColor ?? meta.bg;
+            const groupFg = clickupColor ? readableTextColor(clickupColor) : meta.fg;
 
             const isDropTarget = dragOverKey === meta.key && dragId != null;
 
@@ -139,7 +156,7 @@ export function LeadsTable({
               >
                 <tr>
                   <td
-                    colSpan={COLUMNS.length}
+                    colSpan={visibleCount}
                     onClick={() => onToggleGroup(meta.key)}
                     style={{
                       padding: '9px 12px', cursor: 'pointer',
@@ -153,10 +170,9 @@ export function LeadsTable({
                       {isCollapsed ? <ChevronRight size={15} color="var(--fg-subtle)" /> : <ChevronDown size={15} color="var(--fg-subtle)" />}
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: 6,
-                        padding: '3px 10px', borderRadius: 'var(--radius-pill)',
-                        fontSize: 12, fontWeight: 700, background: meta.bg, color: meta.fg,
+                        padding: '3px 12px', borderRadius: 6,
+                        fontSize: 12, fontWeight: 700, background: groupBg, color: groupFg,
                       }}>
-                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: meta.dot }} />
                         {meta.label}
                       </span>
                       <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--fg-subtle)' }}>
@@ -168,7 +184,7 @@ export function LeadsTable({
 
                 {!isCollapsed && rows.length === 0 && (
                   <tr>
-                    <td colSpan={COLUMNS.length} style={{ ...cell, textAlign: 'center', color: isDropTarget ? 'var(--brand-teal-600)' : 'var(--fg-faint)', fontStyle: 'italic' }}>
+                    <td colSpan={visibleCount} style={{ ...cell, textAlign: 'center', color: isDropTarget ? 'var(--brand-teal-600)' : 'var(--fg-faint)', fontStyle: 'italic' }}>
                       {isDropTarget ? 'Drop here to move to this status' : 'No leads in this group'}
                     </td>
                   </tr>

@@ -60,7 +60,7 @@ async function importNeedDetails(admin: any, need: { id: string; title: string; 
     try {
       const res = await getDropboxClient().filesUpload({ path, contents: buf, mode: { '.tag': 'add' }, autorename: true });
       const finalPath = res.result.path_lower ?? path;
-      const { error } = await admin.from('need_files').insert({ need_id: need.id, dropbox_path: finalPath, file_name: name, uploaded_by: actorId });
+      const { error } = await admin.from('need_files').insert({ need_id: need.id, dropbox_path: finalPath, file_name: name, uploaded_by: null });
       if (error) throw new Error(error.message);
       haveFiles.add(name); doneAttachmentIds.set(att.id, finalPath);
       return finalPath;
@@ -292,8 +292,8 @@ async function main() {
             latest_campaign_id: campaignId,
             region: c.region, regions: [c.region],
             status: 'captured',
-            owner_id: attributedUser,
-            assigned_marketing_user_id: attributedUser,
+            owner_id: null,
+            assigned_marketing_user_id: null,
             external_source: 'clickup',
             external_ref: `opportunity-fallback:${c.externalRef}`,
             created_by: attributedUser,
@@ -356,7 +356,8 @@ async function main() {
           const { error: oErr } = await admin.from('opportunities').insert({
             prospect_id: prospectId, need_id: need.id, title: c.siteName,
             project_types: c.projectType ? [c.projectType] : [],
-            stage: c.outcome.stage, source_label: sourceLabel, marketing_owner_id: attributedUser,
+            stage: c.outcome.stage, source_label: sourceLabel, marketing_owner_id: null, // never auto-assign imports to a person
+           
             region: c.region, primary_contact_id: primaryContactId,
             external_project_code: c.externalProjectCode,
             estimated_value: c.dealSize, deadline: c.dueDate, deposit: c.deposit, payment_raw: c.paymentRaw, targeted: c.targeted,
@@ -379,7 +380,7 @@ async function main() {
             primary_contact_id: primaryContactId, region: c.region,
             external_project_code: c.externalProjectCode,
             estimated_value: c.dealSize, due_date: c.dueDate, date_done: c.dateDone, deposit: c.deposit, payment_raw: c.paymentRaw, targeted: c.targeted,
-            auto_managed: false, assigned_to: attributedUser,
+            auto_managed: false, assigned_to: null,
             classification_reasons: [`Imported from ClickUp — Status OP: ${c.statusOpRaw}`],
             classification_rule_version: CLASSIFICATION_RULE_VERSION,
             external_source: 'clickup', external_ref: c.externalRef, external_stage_label: c.statusOpRaw,

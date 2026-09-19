@@ -200,10 +200,12 @@ export function LeadsClient({
     });
     const rank = { high: 0, medium: 1, low: 2 };
     out = [...out].sort((a, b) => {
-      if (sortBy === 'created_asc')  return (a.date_created).localeCompare(b.date_created);
+      // Compare real instants — mixed ISO offsets (Z vs +00:00) don't sort correctly as strings.
+      const ta = Date.parse(a.date_created) || 0, tb = Date.parse(b.date_created) || 0;
+      if (sortBy === 'created_asc')  return ta - tb;
       if (sortBy === 'deal_desc')    return (b.deal_size ?? 0) - (a.deal_size ?? 0);
       if (sortBy === 'priority')     return rank[a.priority] - rank[b.priority];
-      return (b.date_created).localeCompare(a.date_created);
+      return tb - ta;
     });
     return out;
   }, [leads, mine, showArchived, currentUserId, selectedStage, search, fPriority, fAssignee, fRegion, sortBy]);
@@ -293,7 +295,7 @@ export function LeadsClient({
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-xs font-medium text-slate-500">Proposal sent</span>
-            <span className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">{proposalSentCount || 2}</span>
+            <span className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">{proposalSentCount}</span>
           </div>
         </div>
 
@@ -304,7 +306,7 @@ export function LeadsClient({
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-xs font-medium text-slate-500">Deals closed</span>
-            <span className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">{dealsClosedCount || 1}</span>
+            <span className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">{dealsClosedCount}</span>
           </div>
         </div>
       </div>
@@ -348,7 +350,7 @@ export function LeadsClient({
           }`}
         >
           <User size={14} />
-          <span>Assigned to me · {myCount || 6}</span>
+          <span>Assigned to me · {myCount}</span>
         </button>
       </div>
 

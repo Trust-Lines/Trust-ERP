@@ -123,7 +123,7 @@ async function main() {
           business_types: c.businessTypes,
           region: c.region, regions: [c.region],
           status: 'captured',
-          owner_id: actorId, assigned_marketing_user_id: actorId,
+          owner_id: null, assigned_marketing_user_id: null,
           external_source: 'clickup', external_ref: `opportunity-fallback:${c.externalRef}`,
           created_by: actorId,
         }).select('id').single();
@@ -184,7 +184,7 @@ async function main() {
         primary_contact_id: primaryContact?.id ?? null, region: c.region,
         external_project_code: c.externalProjectCode,
         estimated_value: c.dealSize, due_date: c.dueDate, date_done: c.dateDone, deposit: c.deposit, payment_raw: c.paymentRaw, targeted: c.targeted,
-        auto_managed: false, assigned_to: actorId,
+        auto_managed: false, assigned_to: null,
         classification_reasons: [`Imported from ClickUp — Status OP: ${c.statusOpRaw}`],
         classification_rule_version: CLASSIFICATION_RULE_VERSION,
         external_source: 'clickup', external_ref: c.externalRef, external_stage_label: c.statusOpRaw,
