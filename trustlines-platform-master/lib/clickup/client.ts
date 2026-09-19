@@ -158,17 +158,45 @@ export async function getTaskChecklists(taskId: string): Promise<ClickUpChecklis
   return data.checklists ?? [];
 }
 
+export interface ClickUpAttachment {
+  id: string; title?: string; extension?: string; mimetype?: string; size?: number; url?: string; date?: string;
+}
 export interface ClickUpCommentBlock {
   text?: string;
   type?: string;
   bookmark?: { url: string; id?: string; title?: string; thumbnail_url?: string };
+  attachment?: ClickUpAttachment;
+  image?: { url?: string };
 }
 export interface ClickUpComment {
   id: string; comment_text: string; comment?: ClickUpCommentBlock[]; date: string;
   user: { username: string } | null;
+  reply_count?: number | string;
 }
 
+// ClickUp returns at most 25 comments per call, newest first — page with start/start_id.
 export async function getTaskComments(taskId: string): Promise<ClickUpComment[]> {
-  const data = await clickupGet<{ comments: ClickUpComment[] }>(`/task/${taskId}/comment`);
+  const all: ClickUpComment[] = [];
+  const seen = new Set<string>();
+  let params: Record<string, string> | undefined;
+  for (let i = 0; i < 40; i++) {
+    const data = await clickupGet<{ comments: ClickUpComment[] }>(`/task/${taskId}/comment`, params);
+    const batch = (data.comments ?? []).filter(c => !seen.has(c.id));
+    batch.forEach(c => seen.add(c.id));
+    all.push(...batch);
+    if ((data.comments ?? []).length < 25 || batch.length === 0) break;
+    const last = data.comments[data.comments.length - 1];
+    params = { start: last.date, start_id: last.id };
+  }
+  return all;
+}
+
+export async function getCommentReplies(commentId: string): Promise<ClickUpComment[]> {
+  const data = await clickupGet<{ comments: ClickUpComment[] }>(`/comment/${commentId}/reply`);
   return data.comments ?? [];
+}
+
+export async function getTaskAttachments(taskId: string): Promise<ClickUpAttachment[]> {
+  const data = await clickupGet<{ attachments?: ClickUpAttachment[] }>(`/task/${taskId}`);
+  return data.attachments ?? [];
 }

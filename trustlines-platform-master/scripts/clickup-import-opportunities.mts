@@ -12,43 +12,107 @@
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
-import { getAllViewTasks, getAllListTasks, getTaskComments, resolveCustomFieldValue, type ClickUpComment, type ClickUpTask } from '../lib/clickup/client';
+import { getAllViewTasks, getAllListTasks, getTaskComments, getCommentReplies, getTaskAttachments, resolveCustomFieldValue, type ClickUpAttachment, type ClickUpComment, type ClickUpTask } from '../lib/clickup/client';
+import { getDropboxClient } from '../lib/dropbox/client';
+import { buildNeedFilesPath } from '../lib/marketing/needFiles';
+import { sanitizeFileName } from '../lib/marketing/prospectFiles';
 import { mapTaskToOpportunityCandidate } from '../lib/clickup/importOpportunitiesMapping';
 import type { RegionTag } from '../lib/clickup/importMapping';
 import { createCampaign, setCampaignStatus } from '../lib/marketing/campaigns';
 import { CLASSIFICATION_RULE_VERSION } from '../lib/marketing/classification';
 import { logAudit } from '../lib/audit/log';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function importNeedComments(admin: any, needId: string, taskId: string) {
-  let comments: ClickUpComment[];
-  try {
-    comments = await getTaskComments(taskId);
-  } catch {
-    return; // best-effort — a task with a broken/inaccessible comment thread should never fail the whole import
+const dropboxFailures: string[] = [];
+
+async function downloadAttachment(url: string): Promise<Buffer | null> {
+  for (const headers of [{}, { Authorization: process.env.CLICKUP_API_TOKEN! }] as Record<string, string>[]) {
+    try {
+      const res = await fetch(url, { headers });
+      if (res.ok) return Buffer.from(await res.arrayBuffer());
+    } catch { /* try next */ }
   }
-  for (const c of comments) {
-    const bookmarkBlock = c.comment?.find(b => b.type === 'bookmark' && b.bookmark?.url);
-    const body = c.comment_text?.trim() || (bookmarkBlock ? bookmarkBlock.bookmark!.url : '');
-    if (!body && !bookmarkBlock) continue;
-    // A partial unique index (need_id, external_ref) isn't usable as a Postgrest upsert
-    // onConflict target — same issue hit on the Contacts checklist/notes backfill.
-    // Select-then-insert instead.
-    const { data: existing } = await admin.from('need_notes')
-      .select('id').eq('need_id', needId).eq('external_ref', c.id).maybeSingle();
-    if (existing) continue;
+  return null;
+}
+
+// Full Deal-task detail, all read-only from ClickUp: comment thread (+ threaded replies, paged past 25),
+// bookmark links, every file/image attached to the task or to a comment. Files/images are re-hosted in
+// Dropbox under the Need's folder (need_files / need_notes.image_path) — ClickUp's own attachment URLs
+// expire, so linking to them would silently break. Idempotent: notes dedupe on (need_id, external_ref),
+// files on (need_id, file_name).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function importNeedDetails(admin: any, need: { id: string; title: string; region: string | null }, taskId: string, actorId: string) {
+  const folder = buildNeedFilesPath(need.region, need.title, need.id);
+  const { data: existingFiles } = await admin.from('need_files').select('file_name').eq('need_id', need.id);
+  const haveFiles = new Set(((existingFiles ?? []) as { file_name: string }[]).map(f => f.file_name));
+  const doneAttachmentIds = new Map<string, string>(); // clickup attachment id -> dropbox path
+
+  async function ensureFile(att: ClickUpAttachment): Promise<string | null> {
+    if (doneAttachmentIds.has(att.id)) return doneAttachmentIds.get(att.id)!;
+    if (!att.url) return null;
+    const ext = att.extension && !/\s/.test(att.extension) ? att.extension : '';
+    let name = sanitizeFileName(att.title || att.id);
+    if (ext && !name.toLowerCase().endsWith('.' + ext.toLowerCase())) name = name + '.' + ext;
+    const path = folder + '/' + name;
+    if (haveFiles.has(name)) { doneAttachmentIds.set(att.id, path); return path; }
+    if ((att.size ?? 0) > 140 * 1024 * 1024) { dropboxFailures.push(taskId + ' ' + name + ': >140MB'); return null; }
+    const buf = await downloadAttachment(att.url);
+    if (!buf) { dropboxFailures.push(taskId + ' ' + name + ': download failed'); return null; }
+    try {
+      const res = await getDropboxClient().filesUpload({ path, contents: buf, mode: { '.tag': 'add' }, autorename: true });
+      const finalPath = res.result.path_lower ?? path;
+      const { error } = await admin.from('need_files').insert({ need_id: need.id, dropbox_path: finalPath, file_name: name, uploaded_by: actorId });
+      if (error) throw new Error(error.message);
+      haveFiles.add(name); doneAttachmentIds.set(att.id, finalPath);
+      return finalPath;
+    } catch (e) {
+      dropboxFailures.push(taskId + ' ' + name + ': ' + (e instanceof Error ? e.message : e));
+      return null;
+    }
+  }
+
+  async function writeNote(c: ClickUpComment) {
+    const blocks = c.comment ?? [];
+    const bookmarkBlock = blocks.find(b => b.type === 'bookmark' && b.bookmark?.url);
+    const attBlocks = blocks.filter(b => (b.type === 'attachment' && b.attachment) || (b.type === 'image' && b.image?.url));
+    let imagePath: string | null = null;
+    for (const b of attBlocks) {
+      const att: ClickUpAttachment | undefined = b.attachment ?? (b.image?.url ? { id: b.image.url, title: b.text || 'image', url: b.image.url } : undefined);
+      if (!att) continue;
+      const path = await ensureFile(att);
+      const isImage = (att.mimetype ?? '').startsWith('image/') || b.type === 'image';
+      if (path && isImage && !imagePath) imagePath = path;
+    }
+    const body = c.comment_text?.trim() || (bookmarkBlock ? bookmarkBlock.bookmark!.url : '') || attBlocks.map(b => b.text || b.attachment?.title).filter(Boolean).join(', ');
+    if (!body && !imagePath) return;
+    const { data: existing } = await admin.from('need_notes').select('id').eq('need_id', need.id).eq('external_ref', c.id).maybeSingle();
+    if (existing) return;
     const { error } = await admin.from('need_notes').insert({
-      need_id: needId,
+      need_id: need.id,
       author_name: c.user?.username ?? null,
-      body: body || bookmarkBlock!.bookmark!.url,
+      body: body || '(attachment)',
+      image_path: imagePath,
       link_url: bookmarkBlock?.bookmark?.url ?? null,
       link_title: bookmarkBlock?.bookmark?.title ?? null,
       link_thumbnail_url: bookmarkBlock?.bookmark?.thumbnail_url ?? null,
       source_created_at: c.date ? new Date(Number(c.date)).toISOString() : null,
       external_source: 'clickup', external_ref: c.id,
     });
-    if (error) console.error(`    note write failed (task ${taskId}, comment ${c.id}): ${error.message}`);
+    if (error) console.error('    note write failed (task ' + taskId + ', comment ' + c.id + '): ' + error.message);
   }
+
+  let comments: ClickUpComment[] = [];
+  try { comments = await getTaskComments(taskId); } catch (e) { console.error('    comments fetch failed (' + taskId + '): ' + (e instanceof Error ? e.message : e)); }
+  for (const c of comments) {
+    await writeNote(c);
+    if (Number(c.reply_count ?? 0) > 0) {
+      try { for (const r of await getCommentReplies(c.id)) await writeNote(r); }
+      catch (e) { console.error('    replies fetch failed (' + taskId + '/' + c.id + '): ' + (e instanceof Error ? e.message : e)); }
+    }
+  }
+
+  // Everything attached at task level that no comment already carried.
+  try { for (const att of await getTaskAttachments(taskId)) await ensureFile(att); }
+  catch (e) { console.error('    attachments fetch failed (' + taskId + '): ' + (e instanceof Error ? e.message : e)); }
 }
 
 function loadEnvLocal() {
@@ -97,6 +161,15 @@ const SOURCES: { id: string; kind: 'view' | 'list'; region: RegionTag; label: st
   { id: '901521322569', kind: 'list', region: 'CVW', label: 'Opportunities W', excludeSubtasksAndBlank: true },
 ];
 const WRITE = process.argv.includes('--write');
+// Region-by-region (2026-09-19): `tsx scripts/clickup-import-opportunities.mts TLINES_NE [--write]`.
+// No region arg = every source (old behaviour).
+const REGION_ARG = process.argv.slice(2).find(a => !a.startsWith('--')) as RegionTag | undefined;
+// A task whose ClickUp Contact can't be resolved to an already-imported Prospect is SKIPPED and
+// reported by default — the old always-on fallback created 141 bad address-only Prospects
+// (2026-09-17). Opt in explicitly with --allow-fallback.
+const ALLOW_FALLBACK = process.argv.includes('--allow-fallback');
+// Also add comments/files to Needs imported earlier (e.g. the 18 Potentials) — idempotent, adds nothing twice.
+const BACKFILL_DETAILS = process.argv.includes('--backfill-details');
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getOrCreateCampaign(admin: any, name: string, actorId: string, cache: Map<string, string>): Promise<string> {
@@ -122,14 +195,16 @@ async function main() {
     if (probe.error) { console.error('Migration 090 is not applied yet:', probe.error.message); process.exit(1); }
   }
 
-  const actorEmail = process.env.CLICKUP_IMPORT_ACTOR_EMAIL || 'batool@trust-lines.com';
+  const actorEmail = process.env.CLICKUP_IMPORT_ACTOR_EMAIL || 'hamzag@trust-lines.com';
   const { data: actor, error: actorErr } = await admin.from('profiles').select('id, full_name, role').eq('email', actorEmail).maybeSingle();
   if (actorErr || !actor) { console.error(`Could not resolve actor profile for ${actorEmail}:`, actorErr?.message ?? 'not found'); process.exit(1); }
   console.log(`${WRITE ? 'IMPORTING' : 'DRY RUN'} as ${actor.full_name} (${actor.role}, ${actorEmail})`);
   const actorId: string = actor.id;
 
   const candidates = [];
-  for (const src of SOURCES) {
+  const sources = REGION_ARG ? SOURCES.filter(s => s.region === REGION_ARG) : SOURCES;
+  if (REGION_ARG && sources.length === 0) { console.error(`Unknown region ${REGION_ARG}`); process.exit(1); }
+  for (const src of sources) {
     console.log(`Fetching "${src.label}"...`);
     const tasks: ClickUpTask[] = src.kind === 'view' ? await getAllViewTasks(src.id) : await getAllListTasks(src.id);
     console.log(`  ${tasks.length} task(s)`);
@@ -150,13 +225,21 @@ async function main() {
   const existingNeedRefs = new Set(((existingNeeds ?? []) as { external_ref: string }[]).map(r => r.external_ref));
 
   let matched = 0, createdProspect = 0, skipped = 0, created = 0, failed = 0;
-  let potentials = 0, opportunities = 0;
+  let potentials = 0, opportunities = 0, skippedNoContact = 0, backfilled = 0;
+  const noContactSamples: string[] = [];
   const stageCounts = new Map<string, number>();
   const unmatchedContacts: string[] = [];
   const campaignCache = new Map<string, string>();
 
   for (const c of candidates) {
-    if (existingNeedRefs.has(c.externalRef)) { skipped += 1; continue; }
+    if (existingNeedRefs.has(c.externalRef)) {
+      skipped += 1;
+      if (BACKFILL_DETAILS && WRITE) {
+        const { data: n } = await admin.from('prospect_needs').select('id, title, region').eq('external_source', 'clickup').eq('external_ref', c.externalRef).maybeSingle();
+        if (n) { await importNeedDetails(admin, n, c.externalRef, actorId); backfilled += 1; }
+      }
+      continue;
+    }
     stageCounts.set(c.statusOpRaw, (stageCounts.get(c.statusOpRaw) ?? 0) + 1);
     if (c.outcome.kind === 'potential') potentials += 1; else opportunities += 1;
 
@@ -191,6 +274,11 @@ async function main() {
         sourceLabel = c.sourceClassification.leadSource;
       }
 
+      if (!prospectId && !ALLOW_FALLBACK) {
+        skippedNoContact += 1;
+        noContactSamples.push(`${c.statusOpRaw} | ${c.siteName} (${c.externalRef})`);
+        continue;
+      }
       if (!prospectId) {
         createdProspect += 1;
         if (WRITE) {
@@ -202,7 +290,7 @@ async function main() {
             campaign_id: campaignId,
             latest_source_label: sourceLabel,
             latest_campaign_id: campaignId,
-            region: c.region,
+            region: c.region, regions: [c.region],
             status: 'captured',
             owner_id: attributedUser,
             assigned_marketing_user_id: attributedUser,
@@ -248,7 +336,7 @@ async function main() {
         }).select('id').single();
         if (nErr) throw new Error(`need insert: ${nErr.message}`);
 
-        await importNeedComments(admin, need.id, c.externalRef);
+        await importNeedDetails(admin, { id: need.id, title: c.siteName, region: c.region }, c.externalRef, actorId);
 
         // The matched/created Prospect's primary contact (e.g. the real "Don Leavitt"
         // imported earlier as prospect_contacts.is_primary) — without this the board's
@@ -265,7 +353,7 @@ async function main() {
         if (c.outcome.kind === 'opportunity') {
           const isClosed = c.outcome.stage === 'closed_won' || c.outcome.stage === 'closed_lost';
 
-          await admin.from('opportunities').insert({
+          const { error: oErr } = await admin.from('opportunities').insert({
             prospect_id: prospectId, need_id: need.id, title: c.siteName,
             project_types: c.projectType ? [c.projectType] : [],
             stage: c.outcome.stage, source_label: sourceLabel, marketing_owner_id: attributedUser,
@@ -284,8 +372,9 @@ async function main() {
             ...(isClosed ? { closed_at: c.dateDone ?? new Date().toISOString(), closed_reason: c.statusOpRaw } : {}),
             created_by: attributedUser,
           });
+          if (oErr) throw new Error(`opportunity insert: ${oErr.message}`);
         } else {
-          await admin.from('prospect_potentials').insert({
+          const { error: potErr } = await admin.from('prospect_potentials').insert({
             need_id: need.id, prospect_id: prospectId, title: c.siteName, status: 'identified',
             primary_contact_id: primaryContactId, region: c.region,
             external_project_code: c.externalProjectCode,
@@ -301,6 +390,7 @@ async function main() {
             source_description_raw: c.description,
             created_by: attributedUser,
           });
+          if (potErr) throw new Error(`potential insert: ${potErr.message}`);
         }
       }
 
@@ -317,7 +407,11 @@ async function main() {
   console.log(`${WRITE ? 'Created' : 'Would create'}: ${created} (${potentials} Potentials, ${opportunities} Opportunities)`);
   console.log(`Prospect matched via Contact link: ${matched}`);
   console.log(`Prospect ${WRITE ? 'created' : 'would be created'} (no Contact match): ${createdProspect}`);
+  console.log(`Skipped, Contact not resolvable (no Prospect created): ${skippedNoContact}`);
+  for (const x of noContactSamples) console.log(`    ${x}`);
   console.log(`Failed: ${failed}`);
+  console.log(`Existing Needs whose comments/files were backfilled: ${backfilled}`);
+  if (dropboxFailures.length) { console.log(`File problems (${dropboxFailures.length}):`); dropboxFailures.forEach(x => console.log(`    ${x}`)); }
   console.log('\n── Status OP breakdown ──');
   for (const [k, v] of stageCounts) console.log(`  ${k}: ${v}`);
   if (unmatchedContacts.length) {
