@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Plus, Trash2, Check, Loader2 } from 'lucide-react';
+import { Select } from '@/components/platform/shared/Select';
 
 interface TaskRow {
   id: string; title: string; status: 'todo' | 'in_progress' | 'done';
@@ -88,11 +89,11 @@ export function TaskList({ apiBasePath, assignees }: {
                   <span style={{ flex: 1, fontSize: 13, color: done ? 'var(--fg-faint)' : 'var(--fg-default)', textDecoration: done ? 'line-through' : 'none' }}>
                     {t.title}
                   </span>
-                  <select value={t.assignee_id ?? ''} onChange={e => patchTask(t, { assignee_id: e.target.value || null })}
+                  <Select value={t.assignee_id ?? ''} onChange={e => patchTask(t, { assignee_id: e.target.value || null })}
                     style={{ fontSize: 12, padding: '3px 6px', border: '1px solid var(--border-subtle)', borderRadius: 6, background: 'var(--bg-surface)', maxWidth: 130 }}>
                     <option value="">Unassigned</option>
                     {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-                  </select>
+                  </Select>
                   <input type="date" value={t.due_date ?? ''} onChange={e => patchTask(t, { due_date: e.target.value || null })}
                     style={{ fontSize: 12, padding: '3px 6px', border: '1px solid var(--border-subtle)', borderRadius: 6, background: 'var(--bg-surface)' }} />
                   <button onClick={() => removeTask(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 2 }} aria-label="Delete task">

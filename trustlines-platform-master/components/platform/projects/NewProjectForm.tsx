@@ -12,6 +12,7 @@ import { DropboxProjectBrowser, type DropboxProjectSelection } from './DropboxPr
 import { LocationSearch } from './LocationSearch';
 import { US_STATES } from '@/lib/usStates';
 import { REGIONS, composeProjectCode, dropboxRegionFolder } from '@/lib/regions';
+import { Select } from '@/components/platform/shared/Select';
 
 interface ProfileRow { id: string; full_name: string }
 interface PmProfileRow extends ProfileRow { pm_client_id?: string | null; is_pm_supervisor?: boolean }
@@ -1249,7 +1250,7 @@ export function NewProjectForm({
                           </button>
                         )}
                       </div>
-                      <select
+                      <Select
                         className="form-input form-select"
                         value={selectedClientId}
                         disabled={isEdit}
@@ -1268,13 +1269,13 @@ export function NewProjectForm({
                         {localClients.map(c => (
                           <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>
                         ))}
-                      </select>
+                      </Select>
                       <FieldError msg={errors.client_id?.message} />
                     </div>
 
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <FieldLabel required>Company</FieldLabel>
-                      <select
+                      <Select
                         className="form-input form-select"
                         value={watchedServiceId ?? ''}
                         onChange={e => {
@@ -1286,7 +1287,7 @@ export function NewProjectForm({
                         {companies.map(c => (
                           <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>
                         ))}
-                      </select>
+                      </Select>
                       <span className="form-hint">Choose a Store Maker, Premium, or Design company.</span>
                       <FieldError msg={errors.client_company_id?.message} />
                     </div>
@@ -1337,14 +1338,14 @@ export function NewProjectForm({
                     <div className="form-grid-2">
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <FieldLabel required>State</FieldLabel>
-                        <select
+                        <Select
                           className="form-input form-select"
                           value={searchState}
                           onChange={e => setSearchState(e.target.value)}
                         >
                           <option value="">Select state...</option>
                           {US_STATES.map(s => <option key={s.abbr} value={s.abbr}>{s.abbr} — {s.name}</option>)}
-                        </select>
+                        </Select>
                       </div>
 
                       <div className="form-group" style={{ marginBottom: 0 }}>
@@ -1457,11 +1458,11 @@ export function NewProjectForm({
                   <div className="form-grid-2" style={{ marginTop: 12 }}>
                     <div className="form-group">
                       <FieldLabel>Currency</FieldLabel>
-                      <select className="form-input form-select" {...register('currency')}>
+                      <Select className="form-input form-select" {...register('currency')}>
                         <option value="USD">USD — US Dollar</option>
                         <option value="EUR">EUR — Euro</option>
                         <option value="TRY">TRY — Turkish Lira</option>
-                      </select>
+                      </Select>
                     </div>
                     <div className="form-group" style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Total Deal Value</span>
@@ -1527,23 +1528,23 @@ export function NewProjectForm({
                 <div className="form-grid-2">
                   <div className="form-group">
                     <FieldLabel required>Trust-Lines PM</FieldLabel>
-                    <select className="form-input form-select" {...register('trustlines_pm_id')}>
+                    <Select className="form-input form-select" {...register('trustlines_pm_id')}>
                       <option value="">Select Trust-Lines PM...</option>
                       {trustlinesPmProfiles.map(p => (
                         <option key={p.id} value={p.id}>{p.full_name}</option>
                       ))}
-                    </select>
+                    </Select>
                     <FieldError msg={errors.trustlines_pm_id?.message} />
                   </div>
 
                   <div className="form-group">
                     <FieldLabel required>Client PM (T-Lines)</FieldLabel>
-                    <select className="form-input form-select" {...register('tlines_pm_id')}>
+                    <Select className="form-input form-select" {...register('tlines_pm_id')}>
                       <option value="">Select T-Lines PM...</option>
                       {tlinesPmProfiles.map(p => (
                         <option key={p.id} value={p.id}>{p.full_name}</option>
                       ))}
-                    </select>
+                    </Select>
                     <FieldError msg={errors.tlines_pm_id?.message} />
                   </div>
                 </div>

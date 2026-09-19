@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Check } from 'lucide-react';
 import { Avatar } from '@/components/platform/shared/Avatar';
 import { formatDate } from '@/lib/formatDate';
+import { Select } from '@/components/platform/shared/Select';
 
 export interface TaskRow {
   id: string;
@@ -92,17 +93,17 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
           Assigned to me{myOpen > 0 ? ` · ${myOpen}` : ''}
         </button>
         <input className="form-input" placeholder="Search task or lead…" value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 260, fontSize: 13 }} />
-        <select className="form-input form-select" value={fStatus} onChange={e => setFStatus(e.target.value)} style={{ width: 160, fontSize: 13 }}>
+        <Select className="form-input form-select" value={fStatus} onChange={e => setFStatus(e.target.value)} style={{ width: 160, fontSize: 13 }}>
           <option value="">All statuses</option>
           <option value="todo">To Do</option>
           <option value="in_progress">In Progress</option>
           <option value="done">Done</option>
-        </select>
-        <select className="form-input form-select" value={fAssignee} onChange={e => setFAssignee(e.target.value)} style={{ width: 180, fontSize: 13 }}>
+        </Select>
+        <Select className="form-input form-select" value={fAssignee} onChange={e => setFAssignee(e.target.value)} style={{ width: 180, fontSize: 13 }}>
           <option value="">All assignees</option>
           <option value="__none__">Unassigned</option>
           {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-        </select>
+        </Select>
         {(mine || fStatus || fAssignee || search) && (
           <button className="btn btn-ghost btn-sm" onClick={() => { setMine(false); setFStatus(''); setFAssignee(''); setSearch(''); }}>Clear</button>
         )}
@@ -156,7 +157,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
                       <td>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           {t.assignee_name && <Avatar name={t.assignee_name} size="sm" />}
-                          <select
+                          <Select
                             value={t.assignee_id ?? ''}
                             onChange={e => {
                               const id = e.target.value || null;
@@ -166,11 +167,11 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
                           >
                             <option value="">Unassigned</option>
                             {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-                          </select>
+                          </Select>
                         </span>
                       </td>
                       <td>
-                        <select
+                        <Select
                           value={t.status}
                           onChange={e => {
                             const s = e.target.value as TaskRow['status'];
@@ -181,7 +182,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
                           <option value="todo">To Do</option>
                           <option value="in_progress">In Progress</option>
                           <option value="done">Done</option>
-                        </select>
+                        </Select>
                       </td>
                       <td>
                         <input

@@ -7,6 +7,7 @@ import { REGIONS, SERVICE_LINES } from '@/lib/regions';
 import { OPPORTUNITY_STAGE_LABEL, PROJECT_TYPE_LABEL } from '@/lib/marketing/classification';
 import { StagePill, type StageTone } from '@/components/platform/shared/StagePill';
 import type { OpportunityStage, ProjectType, ScopeType } from '@/types/database';
+import { Select } from '@/components/platform/shared/Select';
 
 export interface SalesOpportunityRow {
   id: string;
@@ -249,15 +250,15 @@ function AcceptForm({ busy, onSave, onCancel }: { busy: boolean; onSave: (f: { r
     <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: 8, paddingTop: 10 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
         <div><label className="form-label required" style={{ fontSize: 12 }}>Region</label>
-          <select className="form-input" value={region} onChange={e => setRegion(e.target.value)}>
+          <Select className="form-input" value={region} onChange={e => setRegion(e.target.value)}>
             <option value="">—</option>
             {REGIONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
-          </select></div>
+          </Select></div>
         <div><label className="form-label required" style={{ fontSize: 12 }}>Service line</label>
-          <select className="form-input" value={serviceLine} onChange={e => setServiceLine(e.target.value)}>
+          <Select className="form-input" value={serviceLine} onChange={e => setServiceLine(e.target.value)}>
             <option value="">—</option>
             {SERVICE_LINES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select></div>
+          </Select></div>
       </div>
       <div style={{ marginBottom: 10 }}>
         <label className="form-label required" style={{ fontSize: 12 }}>Customer name</label>

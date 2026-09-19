@@ -1,4 +1,5 @@
 'use client';
+import { Select } from '@/components/platform/shared/Select';
 
 const style: React.CSSProperties = {
   fontSize: 12, padding: '3px 6px', border: '1px solid var(--border-subtle)',
@@ -13,7 +14,7 @@ export function InlineSelect({ value, onChange, options, style: extra, disabled 
   disabled?: boolean;
 }) {
   return (
-    <select
+    <Select
       value={value}
       onChange={e => onChange(e.target.value)}
       disabled={disabled}
@@ -21,6 +22,6 @@ export function InlineSelect({ value, onChange, options, style: extra, disabled 
       onClick={e => e.stopPropagation()}
     >
       {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-    </select>
+    </Select>
   );
 }

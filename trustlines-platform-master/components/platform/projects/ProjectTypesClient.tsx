@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Layers, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { STATUS_CHAIN } from '@/lib/production/board';
+import { Select } from '@/components/platform/shared/Select';
 
 const STATUSES = [...STATUS_CHAIN, 'HOLD_T', 'HOLD_PM', 'ASSEMBLY'];
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
@@ -88,27 +89,27 @@ export function ProjectTypesClient({ projectId, projectCode, projectName, canEdi
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12 }}>
                 <Field label="Sub-status">
                   {canEdit ? (
-                    <select className="form-input" value={r.status} disabled={busy === r.id + 'status'} onChange={e => patch(r.id, 'status', e.target.value)}>
+                    <Select className="form-input" value={r.status} disabled={busy === r.id + 'status'} onChange={e => patch(r.id, 'status', e.target.value)}>
                       {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                    </Select>
                   ) : <span style={{ color: STATUS_TONE[r.status] ?? 'var(--fg-default)', fontWeight: 600 }}>{r.status}</span>}
                 </Field>
 
                 <Field label="Owner">
                   {canEdit ? (
-                    <select className="form-input" value={r.assigned_to ?? ''} disabled={busy === r.id + 'assigned_to'} onChange={e => patch(r.id, 'assigned_to', e.target.value || null)}>
+                    <Select className="form-input" value={r.assigned_to ?? ''} disabled={busy === r.id + 'assigned_to'} onChange={e => patch(r.id, 'assigned_to', e.target.value || null)}>
                       <option value="">— unassigned —</option>
                       {people.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                    </select>
+                    </Select>
                   ) : personName(r.assigned_to)}
                 </Field>
 
                 <Field label="Priority">
                   {canEdit ? (
-                    <select className="form-input" value={r.priority ?? ''} disabled={busy === r.id + 'priority'} onChange={e => patch(r.id, 'priority', e.target.value || null)}>
+                    <Select className="form-input" value={r.priority ?? ''} disabled={busy === r.id + 'priority'} onChange={e => patch(r.id, 'priority', e.target.value || null)}>
                       <option value="">—</option>
                       {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
+                    </Select>
                   ) : <span style={{ color: PRIORITY_TONE[r.priority ?? ''] ?? 'var(--fg-subtle)', textTransform: 'capitalize' }}>{r.priority ?? '—'}</span>}
                 </Field>
 

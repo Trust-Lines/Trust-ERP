@@ -7,6 +7,7 @@ import { Search, Megaphone, AlertTriangle, Copy, Check, Trash2 } from 'lucide-re
 import { toast } from 'sonner';
 import { Pill } from '@/components/platform/shared/Pill';
 import type { CampaignStatus, CampaignType } from '@/types/database';
+import { Select } from '@/components/platform/shared/Select';
 
 export interface CampaignRow {
   id: string;
@@ -130,14 +131,14 @@ export function CampaignsPageClient({ initialCampaigns, canEdit, canSeeAll, load
             aria-label="Search campaigns"
           />
         </div>
-        <select className="form-input" style={{ maxWidth: 160, fontSize: 13 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by status">
+        <Select className="form-input" style={{ maxWidth: 160, fontSize: 13 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by status">
           <option value="">All statuses</option>
           {(['draft', 'active', 'paused', 'closed'] as CampaignStatus[]).map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-        </select>
-        <select className="form-input" style={{ maxWidth: 160, fontSize: 13 }} value={typeFilter} onChange={e => setTypeFilter(e.target.value)} aria-label="Filter by type">
+        </Select>
+        <Select className="form-input" style={{ maxWidth: 160, fontSize: 13 }} value={typeFilter} onChange={e => setTypeFilter(e.target.value)} aria-label="Filter by type">
           <option value="">All types</option>
           {(['trade_fair', 'event'] as CampaignType[]).map(t => <option key={t} value={t}>{CAMPAIGN_TYPE_LABEL[t]}</option>)}
-        </select>
+        </Select>
       </div>
 
       {campaigns.length === 0 ? (

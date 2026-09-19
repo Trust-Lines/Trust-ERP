@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { US_STATES } from '@/lib/usStates';
 import { LocationSearch } from '@/components/platform/projects/LocationSearch';
 import { SURVEY_TEMPLATES, SURVEY_TEMPLATE_LABELS, type SurveyTemplate } from '@/lib/marketing/surveyTemplates';
+import { Select } from '@/components/platform/shared/Select';
 
 function TextField({ label, required, hint, value, ...props }: { label: string; required?: boolean; hint?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   const id = useId();
@@ -157,7 +158,7 @@ export function CampaignFormClient({ mode, campaignId, initial }: Props) {
         <div>
           <label className="form-label" style={{ fontSize: 12 }}>Location (US)</label>
           <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-            <select
+            <Select
               className="form-input" autoComplete="off"
               style={{ width: 150, flexShrink: 0 }}
               value={form.state}
@@ -165,7 +166,7 @@ export function CampaignFormClient({ mode, campaignId, initial }: Props) {
             >
               <option value="">State…</option>
               {US_STATES.map(s => <option key={s.abbr} value={s.abbr}>{s.abbr} — {s.name}</option>)}
-            </select>
+            </Select>
             <div style={{ flex: 1, minWidth: 0 }}>
               <LocationSearch
                 stateAbbr={form.state}
@@ -184,13 +185,13 @@ export function CampaignFormClient({ mode, campaignId, initial }: Props) {
 
         <div>
           <label className="form-label" style={{ fontSize: 12 }}>Survey page template</label>
-          <select
+          <Select
             className="form-input" autoComplete="off"
             value={form.surveyTemplate}
             onChange={e => set('surveyTemplate', e.target.value as SurveyTemplate)}
           >
             {SURVEY_TEMPLATES.map(t => <option key={t} value={t}>{SURVEY_TEMPLATE_LABELS[t]}</option>)}
-          </select>
+          </Select>
           <div style={{ fontSize: 10.5, color: 'var(--fg-subtle)', marginTop: 2 }}>
             Which design the public link/QR code opens at /survey/{'{link}'}. You can change this later from Edit.
           </div>

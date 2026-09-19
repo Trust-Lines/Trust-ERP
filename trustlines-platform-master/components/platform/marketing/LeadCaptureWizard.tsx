@@ -15,6 +15,7 @@ import { hashColor } from '@/lib/marketing/pillColor';
 import { SourceSelect } from './SourceSelect';
 import { TagMultiSelect } from './TagMultiSelect';
 import type { LeadEntityType, ProjectType, ScopeType, LeadTiming } from '@/types/database';
+import { Select } from '@/components/platform/shared/Select';
 
 const STEPS = ['Source', 'Company', 'Contact', 'Project Need', 'Timing', 'Classification'] as const;
 const CONTACT_METHODS = ['Email', 'Phone', 'WhatsApp', 'Other'];
@@ -84,10 +85,10 @@ function SelectField({ label, required, options, ...props }: { label: string; re
   return (
     <div>
       <label htmlFor={id} className={`form-label${required ? ' required' : ''}`} style={{ fontSize: 12 }}>{label}</label>
-      <select id={id} className="form-input" {...props}>
+      <Select id={id} className="form-input" {...props}>
         <option value="">—</option>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
+      </Select>
     </div>
   );
 }

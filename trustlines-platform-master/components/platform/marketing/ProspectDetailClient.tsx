@@ -18,6 +18,7 @@ import {
 import { REGIONS, SERVICE_LINES } from '@/lib/regions';
 import { computeProspectCompleteness } from '@/lib/marketing/prospectCompleteness';
 import type { LeadEntityType, ProjectType, ScopeType, LeadTiming, NeedClassification, OpportunityStage, PotentialStatus } from '@/types/database';
+import { Select } from '@/components/platform/shared/Select';
 
 interface Prospect {
   id: string; entity_type: LeadEntityType; display_name: string;
@@ -429,10 +430,10 @@ export function ProspectDetailClient({
               </>
             )}
             {canEdit ? (
-              <select className="form-input" style={{ fontSize: 12, width: 200 }} value={prospect.status}
+              <Select className="form-input" style={{ fontSize: 12, width: 200 }} value={prospect.status}
                 onChange={e => patch({ status: e.target.value })}>
                 {STATUSES.map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-              </select>
+              </Select>
             ) : (
               <span className="pill" style={{ background: 'var(--bg-sunken)', color: 'var(--fg-subtle)' }}>{STATUS_LABEL[prospect.status]}</span>
             )}
@@ -1067,17 +1068,17 @@ function NeedDocumentsSection({ need, canEdit, prospectId, onNeedChange, onSync 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 6, alignItems: 'end' }}>
           <div>
             <div style={{ fontSize: 10.5, color: 'var(--fg-subtle)', marginBottom: 2 }}>Region</div>
-            <select className="form-input" style={{ fontSize: 12, padding: '4px 6px' }} value={region} onChange={e => setRegion(e.target.value)}>
+            <Select className="form-input" style={{ fontSize: 12, padding: '4px 6px' }} value={region} onChange={e => setRegion(e.target.value)}>
               <option value="">—</option>
               {REGIONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <div style={{ fontSize: 10.5, color: 'var(--fg-subtle)', marginBottom: 2 }}>Service line</div>
-            <select className="form-input" style={{ fontSize: 12, padding: '4px 6px' }} value={serviceLine} onChange={e => setServiceLine(e.target.value)}>
+            <Select className="form-input" style={{ fontSize: 12, padding: '4px 6px' }} value={serviceLine} onChange={e => setServiceLine(e.target.value)}>
               <option value="">—</option>
               {SERVICE_LINES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <div style={{ fontSize: 10.5, color: 'var(--fg-subtle)', marginBottom: 2 }}>State</div>
@@ -1102,10 +1103,10 @@ function NeedDocumentsSection({ need, canEdit, prospectId, onNeedChange, onSync 
             <ImageIcon size={12} /> Photo
             <input type="file" hidden disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile('photo', f); e.target.value = ''; }} />
           </label>
-          <select className="form-input" style={{ fontSize: 12, padding: '3px 6px', width: 110 }} value={linkCategory} onChange={e => setLinkCategory(e.target.value as 'matterport' | 'link')}>
+          <Select className="form-input" style={{ fontSize: 12, padding: '3px 6px', width: 110 }} value={linkCategory} onChange={e => setLinkCategory(e.target.value as 'matterport' | 'link')}>
             <option value="matterport">Matterport</option>
             <option value="link">Link</option>
-          </select>
+          </Select>
           <input className="form-input" style={{ fontSize: 12, padding: '3px 6px', flex: 1, minWidth: 160 }}
             placeholder="https://…" value={linkUrl} onChange={e => setLinkUrl(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') addLink(); }} />
@@ -1192,25 +1193,25 @@ function NeedForm({ initial, defaultRegion, locations, onSave, onCancel }: { ini
       {locations.length > 0 && (
         <div style={{ marginBottom: 10, maxWidth: 320 }}>
           <label className="form-label" style={{ fontSize: 12 }}>Location</label>
-          <select className="form-input" value={locationId} onChange={e => setLocationId(e.target.value)}>
+          <Select className="form-input" value={locationId} onChange={e => setLocationId(e.target.value)}>
             <option value="">— Not location-specific —</option>
             {locations.map(l => (
               <option key={l.id} value={l.id}>{locationLabel(l)}</option>
             ))}
-          </select>
+          </Select>
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
         <div><label className="form-label" style={{ fontSize: 12 }}>Region</label>
-          <select className="form-input" value={region} onChange={e => setRegion(e.target.value)}>
+          <Select className="form-input" value={region} onChange={e => setRegion(e.target.value)}>
             <option value="">—</option>
             {REGIONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
-          </select></div>
+          </Select></div>
         <div><label className="form-label" style={{ fontSize: 12 }}>Service line</label>
-          <select className="form-input" value={serviceLine} onChange={e => setServiceLine(e.target.value)}>
+          <Select className="form-input" value={serviceLine} onChange={e => setServiceLine(e.target.value)}>
             <option value="">—</option>
             {SERVICE_LINES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select></div>
+          </Select></div>
         <div><label className="form-label" style={{ fontSize: 12 }}>State</label>
           <input className="form-input" placeholder="e.g. NY" value={state} onChange={e => setState(e.target.value)} /></div>
       </div>
@@ -1307,15 +1308,15 @@ function HistoricalProjectForm({ onSave, onCancel }: { onSave: (p: Record<string
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
         <div><label className="form-label required" style={{ fontSize: 12 }}>Region</label>
-          <select className="form-input" value={region} onChange={e => setRegion(e.target.value)}>
+          <Select className="form-input" value={region} onChange={e => setRegion(e.target.value)}>
             <option value="">—</option>
             {REGIONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
-          </select></div>
+          </Select></div>
         <div><label className="form-label required" style={{ fontSize: 12 }}>Service line</label>
-          <select className="form-input" value={serviceLine} onChange={e => setServiceLine(e.target.value)}>
+          <Select className="form-input" value={serviceLine} onChange={e => setServiceLine(e.target.value)}>
             <option value="">—</option>
             {SERVICE_LINES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select></div>
+          </Select></div>
       </div>
       <div style={{ marginBottom: 10 }}>
         <label className="form-label" style={{ fontSize: 12 }}>Address</label>
@@ -1420,13 +1421,13 @@ function ContactForm({ initial, onSave, onCancel }: { initial?: Contact; onSave:
         <div><label className="form-label" style={{ fontSize: 12 }}>Company 2 phone</label>
           <input className="form-input" value={company2Phone} onChange={e => setCompany2Phone(e.target.value)} /></div>
         <div><label className="form-label" style={{ fontSize: 12 }}>Preferred contact method</label>
-          <select className="form-input" value={preferredContactMethod} onChange={e => setPreferredContactMethod(e.target.value)}>
+          <Select className="form-input" value={preferredContactMethod} onChange={e => setPreferredContactMethod(e.target.value)}>
             <option value="">—</option>
             <option value="Email">Email</option>
             <option value="Phone">Phone</option>
             <option value="WhatsApp">WhatsApp</option>
             <option value="Other">Other</option>
-          </select>
+          </Select>
         </div>
       </div>
       <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0 14px' }} />

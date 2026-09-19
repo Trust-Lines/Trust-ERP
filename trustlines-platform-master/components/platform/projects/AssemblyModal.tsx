@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Loader2, X, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Select } from '@/components/platform/shared/Select';
 
 type ItemRef = { code: string; description: string };
 interface PfEntry { pfCode: string; catGroup: string | null; items: ItemRef[] }
@@ -93,9 +94,9 @@ export function AssemblyModal({ projectId, catGroup, currentPfCode, onClose, onS
             <div style={{ display: 'flex', gap: 14 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', marginBottom: 6 }}>THIS PF (mounts)</div>
-                <select value={sourcePf ?? ''} onChange={e => { setSourcePf(e.target.value); setSrcSel(new Set()); }} style={{ width: '100%', fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border-default)', marginBottom: 8 }}>
+                <Select value={sourcePf ?? ''} onChange={e => { setSourcePf(e.target.value); setSrcSel(new Set()); }} style={{ width: '100%', fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border-default)', marginBottom: 8 }}>
                   {pfs.map(p => <option key={p.pfCode} value={p.pfCode}>{p.pfCode}</option>)}
-                </select>
+                </Select>
                 <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 8, maxHeight: 320, overflowY: 'auto' }}>
                   {sourceItems.length ? sourceItems.map((it, i) => itemRow(it, i, srcSel, setSrcSel)) : <div style={{ padding: 12, fontSize: 11, color: 'var(--fg-faint)' }}>No items.</div>}
                 </div>
@@ -105,10 +106,10 @@ export function AssemblyModal({ projectId, catGroup, currentPfCode, onClose, onS
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', marginBottom: 6 }}>ONTO THIS PF</div>
-                <select value={targetPf ?? ''} onChange={e => { setTargetPf(e.target.value || null); setTgtSel(new Set()); }} style={{ width: '100%', fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border-default)', marginBottom: 8 }}>
+                <Select value={targetPf ?? ''} onChange={e => { setTargetPf(e.target.value || null); setTgtSel(new Set()); }} style={{ width: '100%', fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border-default)', marginBottom: 8 }}>
                   <option value="">Select a PF…</option>
                   {otherPfs.map(p => <option key={p.pfCode} value={p.pfCode}>{p.pfCode}</option>)}
-                </select>
+                </Select>
                 <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 8, maxHeight: 320, overflowY: 'auto' }}>
                   {targetPf ? (targetItems.length ? targetItems.map((it, i) => itemRow(it, i, tgtSel, setTgtSel)) : <div style={{ padding: 12, fontSize: 11, color: 'var(--fg-faint)' }}>No items.</div>) : <div style={{ padding: 12, fontSize: 11, color: 'var(--fg-faint)' }}>Pick a PF to list its items.</div>}
                 </div>

@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import type { TrustExpense } from '@/types/database';
 import type { CurrencyTotals } from '@/lib/expenses/config';
 import { CURRENCIES, EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from '@/lib/expenses/config';
+import { Select } from '@/components/platform/shared/Select';
 
 interface Proj { id: string; code: string; name: string }
 interface Sup { id: string; code: string | null; name: string }
@@ -96,12 +97,12 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
 
       {showForm && canEdit && (
         <div className="card" style={{ padding: 16, marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 80px 1fr 1fr 1.4fr 1.4fr auto', gap: 8, alignItems: 'end' }}>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Category<select className="form-input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })}>{EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{EXPENSE_CATEGORY_LABELS[c]}</option>)}</select></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Cur.<select className="form-input" value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</select></label>
+          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Category<Select className="form-input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })}>{EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{EXPENSE_CATEGORY_LABELS[c]}</option>)}</Select></label>
+          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Cur.<Select className="form-input" value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</Select></label>
           <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Amount<input className="form-input" type="number" step="0.01" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></label>
           <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Date<input className="form-input" type="date" value={f.expense_date} onChange={e => setF({ ...f, expense_date: e.target.value })} /></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Project<select className="form-input" value={f.project_id} onChange={e => setF({ ...f, project_id: e.target.value })}><option value="">—</option>{projects.map(p => <option key={p.id} value={p.id}>{p.code}</option>)}</select></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Supplier<select className="form-input" value={f.supplier_id} onChange={e => setF({ ...f, supplier_id: e.target.value })}><option value="">—</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Project<Select className="form-input" value={f.project_id} onChange={e => setF({ ...f, project_id: e.target.value })}><option value="">—</option>{projects.map(p => <option key={p.id} value={p.id}>{p.code}</option>)}</Select></label>
+          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Supplier<Select className="form-input" value={f.supplier_id} onChange={e => setF({ ...f, supplier_id: e.target.value })}><option value="">—</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></label>
           <button className="btn btn-primary btn-sm" onClick={create} disabled={saving}>{saving ? '…' : 'Save'}</button>
           <label style={{ gridColumn: '1 / -1', display: 'flex', gap: 12, alignItems: 'center', fontSize: 12 }}>
             <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={f.is_paid} onChange={e => setF({ ...f, is_paid: e.target.checked })} /> Already paid</span>

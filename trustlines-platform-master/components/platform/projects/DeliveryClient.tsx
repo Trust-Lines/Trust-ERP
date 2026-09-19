@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Trash2, CheckCircle2, Circle, PackageCheck } from 'luc
 import { toast } from 'sonner';
 import type { DeliveryPlan, PunchListItem } from '@/types/database';
 import { DELIVERY_METHODS, DELIVERY_STATUSES, BUILD_BY } from '@/lib/delivery/config';
+import { Select } from '@/components/platform/shared/Select';
 
 export interface SiteReadinessBadge { overall_status: string; target_ready_date: string | null }
 export interface ContainerBadge {
@@ -138,12 +139,12 @@ export function DeliveryClient({
         <div className="card-body">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 10 }}>
             <div><label className="form-label" style={{ fontSize: 11 }}>Delivery method</label>
-              <select className="form-input" style={{ fontSize: 13 }} value={method} disabled={ro} onChange={e => patchPlan({ delivery_method: e.target.value })}>{DELIVERY_METHODS.map(m => <option key={m} value={m}>{label(m)}</option>)}</select></div>
+              <Select className="form-input" style={{ fontSize: 13 }} value={method} disabled={ro} onChange={e => patchPlan({ delivery_method: e.target.value })}>{DELIVERY_METHODS.map(m => <option key={m} value={m}>{label(m)}</option>)}</Select></div>
             <div><label className="form-label" style={{ fontSize: 11 }}>Status</label>
-              <select className="form-input" style={{ fontSize: 13 }} value={status} disabled={ro} onChange={e => patchPlan({ status: e.target.value })}>{DELIVERY_STATUSES.map(s => <option key={s} value={s}>{label(s)}</option>)}</select></div>
+              <Select className="form-input" style={{ fontSize: 13 }} value={status} disabled={ro} onChange={e => patchPlan({ status: e.target.value })}>{DELIVERY_STATUSES.map(s => <option key={s} value={s}>{label(s)}</option>)}</Select></div>
             <div><label className="form-label" style={{ fontSize: 11 }}>Installation date</label>{inp(plan?.installation_date ?? null, 'installation_date', 'date')}</div>
             <div><label className="form-label" style={{ fontSize: 11 }}>Built by</label>
-              <select className="form-input" style={{ fontSize: 13 }} value={plan?.build_by ?? ''} disabled={ro} onChange={e => patchPlan({ build_by: e.target.value || null })}><option value="">—</option>{BUILD_BY.map(b => <option key={b} value={b}>{label(b)}</option>)}</select></div>
+              <Select className="form-input" style={{ fontSize: 13 }} value={plan?.build_by ?? ''} disabled={ro} onChange={e => patchPlan({ build_by: e.target.value || null })}><option value="">—</option>{BUILD_BY.map(b => <option key={b} value={b}>{label(b)}</option>)}</Select></div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
             <div><label className="form-label" style={{ fontSize: 11 }}>Build schedule</label>{inp(plan?.build_schedule ?? null, 'build_schedule')}</div>

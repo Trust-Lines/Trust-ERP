@@ -7,6 +7,7 @@ import { Portal } from '@/components/platform/shared/Portal';
 import type { DocType } from '@/types/database';
 import { PROD_DOC_TYPES, PROD_TYPES } from '@/lib/dropbox/paths';
 import type { ProdType } from '@/lib/dropbox/paths';
+import { Select } from '@/components/platform/shared/Select';
 
 interface FileUploadZoneProps {
   projectId:       string;
@@ -156,7 +157,7 @@ export function FileUploadZone({
             {!presetDocType && (
               <div>
                 <label style={label12}>Document type <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-                <select
+                <Select
                   value={docType}
                   onChange={e => { setDocType(e.target.value as DocType); setFile(null); setProdType(presetProdType ?? ''); }}
                   style={selectStyle}
@@ -165,17 +166,17 @@ export function FileUploadZone({
                     .filter(t => !(t.value === 'pf' && userRole === 'tlines_pm'))
                     .map(t => <option key={t.value} value={t.value}>{t.label}</option>)
                   }
-                </select>
+                </Select>
               </div>
             )}
 
             {needsProdType(docType) && !presetProdType && (
               <div>
                 <label style={label12}>Production type <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-                <select value={prodType} onChange={e => setProdType(e.target.value as ProdType)} style={selectStyle}>
+                <Select value={prodType} onChange={e => setProdType(e.target.value as ProdType)} style={selectStyle}>
                   <option value="">Select type…</option>
                   {PROD_TYPES.map(pt => <option key={pt} value={pt}>{pt}</option>)}
-                </select>
+                </Select>
               </div>
             )}
 

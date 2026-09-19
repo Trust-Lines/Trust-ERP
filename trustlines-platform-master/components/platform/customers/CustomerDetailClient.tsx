@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Star, ShieldCheck, Pencil, Trash2, Plus, CheckCircle2, Circle, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
+import { Select } from '@/components/platform/shared/Select';
 
 interface Customer {
   id: string; name: string; code: string | null; industry: string | null;
@@ -377,12 +378,12 @@ export function CustomerDetailClient({
                     <div style={{ flex: 1 }} />
                     {canEdit && (
                       <>
-                        <select className="form-input" style={{ fontSize: 12, width: 'auto', padding: '2px 6px' }} value={m.status}
+                        <Select className="form-input" style={{ fontSize: 12, width: 'auto', padding: '2px 6px' }} value={m.status}
                           onChange={e => setMeetingStatus(m.id, e.target.value as Meeting['status'])} aria-label={`${m.title} status`}>
                           <option value="scheduled">Scheduled</option>
                           <option value="completed">Completed</option>
                           <option value="cancelled">Cancelled</option>
-                        </select>
+                        </Select>
                         <button className="btn btn-ghost btn-sm" style={{ padding: '3px 6px', color: '#dc2626' }} onClick={() => deleteMeeting(m.id)} aria-label="Remove meeting"><Trash2 size={13} /></button>
                       </>
                     )}
@@ -473,9 +474,9 @@ function CustomerEditForm({ customer, onSave, onCancel }: { customer: Customer; 
         <div><label className="form-label required" style={{ fontSize: 12 }}>Name</label><input className="form-input" value={f.name} onChange={set('name')} /></div>
         <div><label className="form-label" style={{ fontSize: 12 }}>Code</label><input className="form-input" value={f.code} onChange={set('code')} /></div>
         <div><label className="form-label" style={{ fontSize: 12 }}>Status</label>
-          <select className="form-input" value={f.status} onChange={set('status')}>
+          <Select className="form-input" value={f.status} onChange={set('status')}>
             <option value="active">Active</option><option value="prospect">Prospect</option><option value="inactive">Inactive</option>
-          </select></div>
+          </Select></div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
         <div><label className="form-label" style={{ fontSize: 12 }}>Industry</label><input className="form-input" value={f.industry} onChange={set('industry')} /></div>
@@ -521,10 +522,10 @@ function FollowUpForm({ assignees, onSave, onCancel }: {
         <div><label className="form-label required" style={{ fontSize: 11 }}>Due date</label>
           <input type="date" className="form-input" style={{ fontSize: 13 }} value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Assignee</label>
-          <select className="form-input" style={{ fontSize: 13 }} value={assigneeId} onChange={e => setAssigneeId(e.target.value)}>
+          <Select className="form-input" style={{ fontSize: 13 }} value={assigneeId} onChange={e => setAssigneeId(e.target.value)}>
             <option value="">— Unassigned</option>
             {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-          </select></div>
+          </Select></div>
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
         <button className="btn btn-primary btn-sm" onClick={submit} disabled={!note.trim() || !dueDate || saving}>{saving ? 'Saving…' : 'Add follow-up'}</button>
@@ -559,9 +560,9 @@ function MeetingForm({ onSave, onCancel }: { onSave: (p: Record<string, unknown>
         <div><label className="form-label required" style={{ fontSize: 11 }}>Title</label>
           <input className="form-input" style={{ fontSize: 13 }} placeholder="e.g. Site visit" value={f.title} onChange={set('title')} autoFocus /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Type</label>
-          <select className="form-input" style={{ fontSize: 13 }} value={f.meeting_type} onChange={set('meeting_type')}>
+          <Select className="form-input" style={{ fontSize: 13 }} value={f.meeting_type} onChange={set('meeting_type')}>
             <option value="">—</option>{MEETING_TYPES.map(t => <option key={t} value={t}>{cap(t)}</option>)}
-          </select></div>
+          </Select></div>
         <div><label className="form-label required" style={{ fontSize: 11 }}>Date & time</label>
           <input type="datetime-local" className="form-input" style={{ fontSize: 13 }} value={f.meeting_at} onChange={set('meeting_at')} /></div>
       </div>
@@ -569,9 +570,9 @@ function MeetingForm({ onSave, onCancel }: { onSave: (p: Record<string, unknown>
         <div><label className="form-label" style={{ fontSize: 11 }}>Location</label><input className="form-input" style={{ fontSize: 13 }} value={f.location} onChange={set('location')} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Attendees</label><input className="form-input" style={{ fontSize: 13 }} placeholder="Names, comma separated" value={f.attendees} onChange={set('attendees')} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Status</label>
-          <select className="form-input" style={{ fontSize: 13 }} value={f.status} onChange={set('status')}>
+          <Select className="form-input" style={{ fontSize: 13 }} value={f.status} onChange={set('status')}>
             <option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option>
-          </select></div>
+          </Select></div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
         <div><label className="form-label" style={{ fontSize: 11 }}>Notes</label><textarea className="form-input" rows={2} style={{ fontSize: 13, resize: 'vertical' }} value={f.notes} onChange={set('notes')} /></div>
@@ -613,9 +614,9 @@ function AddressForm({ address, onSave, onCancel }: { address?: Address; onSave:
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: 8, marginBottom: 8 }}>
         <div><label className="form-label" style={{ fontSize: 11 }}>Label</label><input className="form-input" style={{ fontSize: 13 }} placeholder="e.g. HQ, Store #4" value={f.label} onChange={set('label')} autoFocus /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Type</label>
-          <select className="form-input" style={{ fontSize: 13 }} value={f.address_type} onChange={set('address_type')}>
+          <Select className="form-input" style={{ fontSize: 13 }} value={f.address_type} onChange={set('address_type')}>
             <option value="">—</option>{ADDRESS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select></div>
+          </Select></div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
         <div><label className="form-label" style={{ fontSize: 11 }}>Street</label><input className="form-input" style={{ fontSize: 13 }} value={f.line1} onChange={set('line1')} /></div>
@@ -664,10 +665,10 @@ function ContactForm({ contact, onSave, onCancel }: { contact?: Contact; onSave:
         <div><label className="form-label required" style={{ fontSize: 11 }}>Name</label><input className="form-input" style={{ fontSize: 13 }} value={f.name} onChange={e => setF(p => ({ ...p, name: e.target.value }))} autoFocus /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Title</label><input className="form-input" style={{ fontSize: 13 }} placeholder="e.g. Owner" value={f.title} onChange={e => setF(p => ({ ...p, title: e.target.value }))} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Role</label>
-          <select className="form-input" style={{ fontSize: 13 }} value={f.role_type} onChange={e => setF(p => ({ ...p, role_type: e.target.value }))}>
+          <Select className="form-input" style={{ fontSize: 13 }} value={f.role_type} onChange={e => setF(p => ({ ...p, role_type: e.target.value }))}>
             <option value="">—</option>
             {ROLE_TYPES.map(r => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
-          </select></div>
+          </Select></div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
         <div><label className="form-label" style={{ fontSize: 11 }}>Email</label><input className="form-input" style={{ fontSize: 13 }} type="email" value={f.email} onChange={e => setF(p => ({ ...p, email: e.target.value }))} /></div>

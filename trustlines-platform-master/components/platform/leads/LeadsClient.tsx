@@ -17,19 +17,22 @@ import {
   Search,
   ChevronDown,
   User,
-  MoreVertical,
-  ArrowUpDown,
+  Archive,
+  ArchiveRestore,
+  Columns3,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { LeadsTable } from './LeadsTable';
+import { LeadsTable, LEAD_COLUMNS, DEFAULT_HIDDEN_COLUMNS } from './LeadsTable';
 import { LeadsBoard } from './LeadsBoard';
 import { LeadsCalendar } from './LeadsCalendar';
 import { LeadQuickView } from './LeadQuickView';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { formatMoney } from '@/lib/sales/format';
-import { STATUS_ORDER, STATUS_META, type Lead, type OpportunityStatus } from './types';
+import { STATUS_META, type Lead, type OpportunityStatus } from './types';
+import { STATUS_OP_COLOR } from '@/lib/marketing/dealFieldOptions';
 import { STATUS_TO_STAGE } from '@/lib/marketing/opportunityRows';
 import { REGIONS } from '@/lib/regions';
+import { Select } from '@/components/platform/shared/Select';
 
 type ViewMode = 'list' | 'board' | 'calendar';
 
@@ -66,6 +69,7 @@ export function LeadsClient({
   currentUserId,
   canManageNumber,
   nextNumber = 1,
+  truncatedAt,
   canSeeLeadIntake = true,
 }: Props) {
   const router = useRouter();
@@ -173,6 +177,108 @@ export function LeadsClient({
     });
   }
 
+  function handleIndustryChange(id: string, industry: string) {
+    const lead = leads.find(l => l.id === id);
+    if (lead?.origin === 'potential') patchOpportunity(id, { industry }, { industry_raw: industry || null }, 'potentials');
+    else if (lead?.origin === 'opportunity') patchOpportunity(id, { industry }, { industry_raw: industry || null });
+    else updateField(id, { industry }, { industry: industry || null });
+  }
+  function handleToDoChange(id: string, to_do: string) {
+    const lead = leads.find(l => l.id === id);
+    if (lead?.origin === 'potential') patchOpportunity(id, { to_do }, { to_do_raw: to_do || null }, 'potentials');
+    else if (lead?.origin === 'opportunity') patchOpportunity(id, { to_do }, { to_do_raw: to_do || null });
+  }
+  function handleRequestChange(id: string, request: string) {
+    const lead = leads.find(l => l.id === id);
+    if (lead?.origin === 'potential') patchOpportunity(id, { request }, { request_raw: request || null }, 'potentials');
+    else if (lead?.origin === 'opportunity') patchOpportunity(id, { request }, { request_raw: request || null });
+  }
+  function handleProjectTypeRawChange(id: string, project_type: string) {
+    const lead = leads.find(l => l.id === id);
+    if (lead?.origin === 'potential') patchOpportunity(id, { project_type }, { project_type_raw: project_type || null }, 'potentials');
+    else if (lead?.origin === 'opportunity') patchOpportunity(id, { project_type }, { project_type_raw: project_type || null });
+  }
+  function handleSourceRawChange(id: string, source: string) {
+    const lead = leads.find(l => l.id === id);
+    if (lead?.origin === 'potential') patchOpportunity(id, { source }, { source_raw_label: source || null }, 'potentials');
+    else if (lead?.origin === 'opportunity') patchOpportunity(id, { source }, { source_raw_label: source || null });
+  }
+  function handlePaymentChange(id: string, payment_raw: string) {
+    const lead = leads.find(l => l.id === id);
+    if (lead?.origin === 'potential') patchOpportunity(id, {}, { payment_raw: payment_raw || null }, 'potentials');
+    else if (lead?.origin === 'opportunity') patchOpportunity(id, {}, { payment_raw: payment_raw || null });
+  }
+  function handleDealSizeChange(id: string, deal_size: number | null) {
+    const lead = leads.find(l => l.id === id);
+    if (lead?.origin === 'potential') patchOpportunity(id, { deal_size }, { estimated_value: deal_size }, 'potentials');
+    else if (lead?.origin === 'opportunity') patchOpportunity(id, { deal_size }, { estimated_value: deal_size });
+    else updateField(id, { deal_size }, { deal_size });
+  }
+  function handleDepositChange(id: string, deposit: number | null) {
+    const lead = leads.find(l => l.id === id);
+    if (lead?.origin === 'potential') patchOpportunity(id, { deposit }, { deposit }, 'potentials');
+    else if (lead?.origin === 'opportunity') patchOpportunity(id, { deposit }, { deposit });
+  }
+  function handleTargetedChange(id: string, targeted: boolean) {
+    const lead = leads.find(l => l.id === id);
+    if (lead?.origin === 'potential') patchOpportunity(id, { targeted }, { targeted }, 'potentials');
+    else if (lead?.origin === 'opportunity') patchOpportunity(id, { targeted }, { targeted });
+  }
+
+  const [menu, setMenu] = useState<{ x: number; y: number; lead: Lead } | null>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(null); };
+    window.addEventListener('click', close);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('click', close); window.removeEventListener('scroll', close, true); window.removeEventListener('keydown', onKey); };
+  }, [menu]);
+
+  function openMenu(e: React.MouseEvent, lead: Lead) {
+    e.preventDefault();
+    if (lead.origin === 'opportunity' || lead.origin === 'potential') return;
+    setMenu({ x: Math.min(e.clientX, window.innerWidth - 210), y: e.clientY, lead });
+  }
+
+  async function archiveLead(lead: Lead, archived: boolean) {
+    setMenu(null);
+    setLeads(prev => prev.map(l => (l.id === lead.id ? { ...l, archived } : l)));
+    const res = await fetch('/api/leads/' + lead.id + '/archive', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived }),
+    }).catch(() => null);
+    if (!res || !res.ok) { toast.error('Could not archive'); router.refresh(); }
+    else toast.success(archived ? 'Archived' : 'Unarchived');
+  }
+
+  async function trashLead(lead: Lead) {
+    setMenu(null);
+    if (!window.confirm('Move "' + lead.name + '" to trash? It stays there for 30 days.')) return;
+    setLeads(prev => prev.filter(l => l.id !== lead.id));
+    const res = await fetch('/api/leads/' + lead.id + '/trash', { method: 'POST' }).catch(() => null);
+    if (!res || !res.ok) { toast.error('Could not move to trash'); router.refresh(); }
+    else toast.success('Moved to trash');
+  }
+
+  // Column visibility (Columns menu) — remembered per browser.
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(DEFAULT_HIDDEN_COLUMNS));
+  const [colsOpen, setColsOpen] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('leadsTable.hiddenCols.v1');
+      if (raw) setHiddenCols(new Set(JSON.parse(raw) as string[]));
+    } catch { /* storage unavailable — keep defaults */ }
+  }, []);
+  function toggleCol(name: string) {
+    setHiddenCols(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      try { localStorage.setItem('leadsTable.hiddenCols.v1', JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  }
+
   function toggleGroup(key: OpportunityStatus) {
     setCollapsed(prev => {
       const next = new Set(prev);
@@ -218,18 +324,11 @@ export function LeadsClient({
     return c;
   }, [leads]);
 
-  const pipelineValue = useMemo(() => leads.reduce((s, l) => s + (l.deal_size ?? 0), 0), [leads]);
+  // "In pipeline" = deals still open — closed/missed money isn't pipeline.
+  const pipelineValue = useMemo(() => leads.reduce((s, l) => s + (l.opportunity_status === 'deal_closed' || l.opportunity_status === 'deal_missed' ? 0 : (l.deal_size ?? 0)), 0), [leads]);
+  const archivedCount = useMemo(() => leads.filter(l => l.archived).length, [leads]);
   const proposalSentCount = useMemo(() => (counts['design_proposal_sent'] ?? 0) + (counts['modification_request'] ?? 0), [counts]);
   const dealsClosedCount = useMemo(() => counts['deal_closed'] ?? 0, [counts]);
-
-  // Initials for avatar
-  const getInitials = (name: string) =>
-    (name || 'FD')
-      .split(' ')
-      .map(n => n[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase();
 
   const maxStageCount = Math.max(...Object.values(counts), 1);
 
@@ -240,7 +339,7 @@ export function LeadsClient({
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">CRM</h1>
           <p className="text-xs text-slate-500 font-normal mt-0.5">
-            {leads.length} opportunities · {formatMoney(pipelineValue)} in pipeline
+            {leads.length} records · {formatMoney(pipelineValue)} open pipeline
           </p>
         </div>
 
@@ -270,7 +369,7 @@ export function LeadsClient({
             <Briefcase size={22} strokeWidth={1.8} />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium text-slate-500">Opportunities</span>
+            <span className="text-xs font-medium text-slate-500">All records</span>
             <span className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">{leads.length}</span>
           </div>
         </div>
@@ -283,7 +382,7 @@ export function LeadsClient({
           <div className="flex flex-col min-w-0">
             <span className="text-xs font-medium text-slate-500">Pipeline value</span>
             <span className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">
-              {pipelineValue > 0 ? formatMoney(pipelineValue) : '$342K'}
+              {formatMoney(pipelineValue)}
             </span>
           </div>
         </div>
@@ -354,6 +453,12 @@ export function LeadsClient({
         </button>
       </div>
 
+      {truncatedAt && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+          Showing the newest <b>{truncatedAt}</b> records — there are more. Counts, totals and search only cover what&apos;s loaded.
+        </div>
+      )}
+
       {/* ── 4. Search & Filter Bar ─────────────────────────────────── */}
       <div className="flex items-center gap-3 flex-wrap text-xs">
         {/* Search input */}
@@ -370,7 +475,7 @@ export function LeadsClient({
 
         {/* Priority filter */}
         <div className="relative">
-          <select
+          <Select
             value={fPriority}
             onChange={e => setFPriority(e.target.value)}
             className="appearance-none bg-white border border-slate-200/80 rounded-xl pl-3 pr-7 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
@@ -379,13 +484,13 @@ export function LeadsClient({
             <option value="high">High</option>
             <option value="medium">Medium</option>
             <option value="low">Low</option>
-          </select>
+          </Select>
           <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         </div>
 
         {/* Assignee filter */}
         <div className="relative">
-          <select
+          <Select
             value={fAssignee}
             onChange={e => setFAssignee(e.target.value)}
             className="appearance-none bg-white border border-slate-200/80 rounded-xl pl-3 pr-7 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
@@ -393,26 +498,26 @@ export function LeadsClient({
             <option value="">All assignees</option>
             <option value="__none__">Unassigned</option>
             {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-          </select>
+          </Select>
           <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         </div>
 
         {/* Region filter */}
         <div className="relative">
-          <select
+          <Select
             value={fRegion}
             onChange={e => setFRegion(e.target.value)}
             className="appearance-none bg-white border border-slate-200/80 rounded-xl pl-3 pr-7 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
           >
             <option value="">All regions</option>
             {REGIONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
-          </select>
+          </Select>
           <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         </div>
 
         {/* Sort */}
         <div className="relative">
-          <select
+          <Select
             value={sortBy}
             onChange={e => setSortBy(e.target.value)}
             className="appearance-none bg-white border border-slate-200/80 rounded-xl pl-3 pr-7 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
@@ -421,14 +526,47 @@ export function LeadsClient({
             <option value="created_asc">Oldest first</option>
             <option value="deal_desc">Deal size (high→low)</option>
             <option value="priority">Priority</option>
-          </select>
+          </Select>
           <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         </div>
 
-        <button className="bg-white border border-slate-200/80 rounded-xl px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs cursor-pointer">
-          <span>Columns</span>
-          <ChevronDown size={13} className="text-slate-400" />
-        </button>
+        {view === 'list' && (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); setColsOpen(o => !o); }}
+              className="bg-white border border-slate-200/80 rounded-xl px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <Columns3 size={13} className="text-slate-400" />
+              <span>Columns</span>
+              <ChevronDown size={13} className="text-slate-400" />
+            </button>
+            {colsOpen && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setColsOpen(false)} />
+                <div className="absolute right-0 top-full mt-1.5 z-30 w-52 max-h-80 overflow-auto bg-white border border-slate-200 rounded-xl shadow-lg p-1.5">
+                  {LEAD_COLUMNS.map((c, i) => (
+                    <label key={c} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs ${i === 0 ? 'text-slate-400' : 'text-slate-700 hover:bg-slate-50 cursor-pointer'}`}>
+                      <input type="checkbox" disabled={i === 0} checked={i === 0 || !hiddenCols.has(c)} onChange={() => toggleCol(c)} />
+                      {c}
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {archivedCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowArchived(a => !a)}
+            className="bg-white border border-slate-200/80 rounded-xl px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+          >
+            <Archive size={13} className="text-slate-400" />
+            {showArchived ? 'Hide' : 'Show'} archived · {archivedCount}
+          </button>
+        )}
 
         {selectedStage && (
           <button
@@ -447,175 +585,35 @@ export function LeadsClient({
       {/* ── 5. Main 2-Column Section (Table Area + Pipeline Stages Sidebar) ── */}
       <div className="flex items-start gap-5">
         {/* Left Side: Opportunities Table / Board View */}
-        <div className="flex-1 min-w-0 bg-white border border-slate-200/80 rounded-2xl shadow-2xs overflow-hidden">
+        <div className={view === 'list' ? 'flex-1 min-w-0' : 'flex-1 min-w-0 bg-white border border-slate-200/80 rounded-2xl shadow-2xs overflow-hidden'}>
           {view === 'list' && (
-            <div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none">
-                      <th className="py-3 px-3 w-8">
-                        <input type="checkbox" className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                      </th>
-                      <th className="py-3 px-3">
-                        <div className="flex items-center gap-1">
-                          <span>Name</span>
-                          <ArrowUpDown size={11} className="text-slate-400" />
-                        </div>
-                      </th>
-                      <th className="py-3 px-3">
-                        <div className="flex items-center gap-1">
-                          <span>Project #</span>
-                          <ArrowUpDown size={11} className="text-slate-400" />
-                        </div>
-                      </th>
-                      <th className="py-3 px-3">
-                        <div className="flex items-center gap-1">
-                          <span>Stage</span>
-                          <ChevronDown size={11} className="text-slate-400" />
-                        </div>
-                      </th>
-                      <th className="py-3 px-3">
-                        <div className="flex items-center gap-1">
-                          <span>Priority</span>
-                          <ArrowUpDown size={11} className="text-slate-400" />
-                        </div>
-                      </th>
-                      <th className="py-3 px-3">
-                        <div className="flex items-center gap-1">
-                          <span>Assignee</span>
-                          <ArrowUpDown size={11} className="text-slate-400" />
-                        </div>
-                      </th>
-                      <th className="py-3 px-3">
-                        <div className="flex items-center gap-1">
-                          <span>Brand</span>
-                          <ArrowUpDown size={11} className="text-slate-400" />
-                        </div>
-                      </th>
-                      <th className="py-3 px-3">
-                        <div className="flex items-center gap-1">
-                          <span>Industry</span>
-                          <ArrowUpDown size={11} className="text-slate-400" />
-                        </div>
-                      </th>
-                      <th className="py-3 px-3">
-                        <div className="flex items-center gap-1">
-                          <span>Due date</span>
-                          <ArrowUpDown size={11} className="text-slate-400" />
-                        </div>
-                      </th>
-                      <th className="py-3 px-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <span>Deal size</span>
-                          <ArrowUpDown size={11} className="text-slate-400" />
-                        </div>
-                      </th>
-                      <th className="py-3 px-3 text-right w-8"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {visibleLeads.length > 0 ? (
-                      visibleLeads.map((l) => {
-                        const statusMeta = STATUS_META[l.opportunity_status] || { label: l.opportunity_status, fg: '#475569', bg: '#F1F5F9', dot: '#94A3B8' };
-
-                        return (
-                          <tr
-                            key={l.id}
-                            onClick={() => handleOpen(l.id)}
-                            className="hover:bg-slate-50/60 transition-colors cursor-pointer"
-                          >
-                            <td className="py-3.5 px-3" onClick={e => e.stopPropagation()}>
-                              <input type="checkbox" className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                            </td>
-                            <td className="py-3.5 px-3 font-semibold text-slate-900">
-                              <span className="truncate block max-w-[200px]">{l.name || 'Untitled opportunity'}</span>
-                            </td>
-                            <td className="py-3.5 px-3 text-slate-500 font-mono text-[11px]">
-                              {l.project_no || '—'}
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <span
-                                className="inline-block px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-black/5"
-                                style={{ backgroundColor: statusMeta.bg, color: statusMeta.fg }}
-                              >
-                                {statusMeta.label}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <span className="inline-flex items-center gap-1.5 text-slate-700 font-medium capitalize">
-                                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
-                                {l.priority || 'Medium'}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <div className="flex items-center gap-2">
-                                {l.assignee && l.assignee !== 'Unassigned' ? (
-                                  <>
-                                    <div className="h-6 w-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
-                                      {getInitials(l.assignee)}
-                                    </div>
-                                    <span className="truncate text-slate-800">{l.assignee}</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div className="h-6 w-6 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold flex items-center justify-center shrink-0">
-                                      <User size={12} />
-                                    </div>
-                                    <span className="truncate text-slate-400">Unassigned</span>
-                                  </>
-                                )}
-                              </div>
-                            </td>
-                            <td className="py-3.5 px-3 text-slate-500">
-                              {l.brand !== '—' ? l.brand : '—'}
-                            </td>
-                            <td className="py-3.5 px-3 text-slate-500">
-                              {l.industry !== '—' ? l.industry : '—'}
-                            </td>
-                            <td className="py-3.5 px-3 text-slate-500">
-                              {l.follow_up_date || '—'}
-                            </td>
-                            <td className="py-3.5 px-3 text-right font-medium text-slate-900 font-mono">
-                              {l.deal_size ? `$${l.deal_size.toLocaleString()}` : '—'}
-                            </td>
-                            <td className="py-3.5 px-3 text-right text-slate-400" onClick={e => e.stopPropagation()}>
-                              <button type="button" className="p-1 hover:text-slate-600 rounded-md transition-colors cursor-pointer">
-                                <MoreVertical size={14} />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    ) : (
-                      <tr>
-                        <td colSpan={11} className="py-12 text-center text-slate-400 text-xs">
-                          No opportunities found. Click &quot;+ Opportunity&quot; to create one.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Table Footer */}
-              <div className="p-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                <span>{visibleLeads.length} opportunities</span>
-                <div className="flex items-center gap-2">
-                  <button className="px-2 py-1 rounded border border-slate-200 bg-white text-slate-400 disabled:opacity-40" disabled>
-                    &lt;
-                  </button>
-                  <span className="px-2.5 py-1 rounded bg-slate-100 font-bold text-slate-800">1</span>
-                  <button className="px-2 py-1 rounded border border-slate-200 bg-white text-slate-400 disabled:opacity-40" disabled>
-                    &gt;
-                  </button>
-                </div>
-              </div>
-            </div>
+            <LeadsTable
+              leads={visibleLeads}
+              assignees={assignees}
+              marketingAssignees={marketingAssignees}
+              collapsed={collapsed}
+              hiddenColumns={hiddenCols}
+              resetKey={[search, fPriority, fAssignee, fRegion, sortBy, mine, showArchived, selectedStage].join('|')}
+              onToggleGroup={toggleGroup}
+              onStatusChange={handleStatusChange}
+              onPriorityChange={handlePriorityChange}
+              onIndustryChange={handleIndustryChange}
+              onToDoChange={handleToDoChange}
+              onRequestChange={handleRequestChange}
+              onProjectTypeRawChange={handleProjectTypeRawChange}
+              onSourceRawChange={handleSourceRawChange}
+              onTargetedChange={handleTargetedChange}
+              onPaymentChange={handlePaymentChange}
+              onDealSizeChange={handleDealSizeChange}
+              onDepositChange={handleDepositChange}
+              onAssigneeChange={handleAssigneeChange}
+              onContextMenu={openMenu}
+              onOpen={handleOpen}
+            />
           )}
 
           {view === 'board' && (
-            <LeadsBoard leads={visibleLeads} onStatusChange={handleStatusChange} onOpen={handleOpen} />
+            <LeadsBoard leads={visibleLeads} onStatusChange={handleStatusChange} onContextMenu={openMenu} onOpen={handleOpen} />
           )}
 
           {view === 'calendar' && (
@@ -624,7 +622,7 @@ export function LeadsClient({
         </div>
 
         {/* ── Right Side: Pipeline Stages Sidebar ───────────────────── */}
-        <div className="w-64 sm:w-72 shrink-0 bg-white border border-slate-200/80 rounded-2xl p-4.5 shadow-2xs space-y-4">
+        <div className="hidden xl:block w-64 shrink-0 bg-white border border-slate-200/80 rounded-2xl p-4.5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
               Pipeline stages
@@ -650,8 +648,9 @@ export function LeadsClient({
 
           {/* Stage list with progress bar & counts */}
           <div className="space-y-2.5">
-            {ALL_PIPELINE_STAGES.map((s) => {
+            {ALL_PIPELINE_STAGES.filter(st => (counts[st.key] ?? 0) > 0 || selectedStage === st.key).map((s) => {
               const count = counts[s.key] ?? 0;
+              const stageColor = Object.entries(STATUS_OP_COLOR).find(([k]) => k.toUpperCase() === s.label.toUpperCase())?.[1] ?? s.color;
               const isFiltered = selectedStage === s.key;
               const pct = count > 0 ? Math.min(100, Math.round((count / maxStageCount) * 100)) : 0;
 
@@ -664,7 +663,7 @@ export function LeadsClient({
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: stageColor }} />
                     <span className="truncate text-slate-700 font-medium text-[12px]">{s.label}</span>
                   </div>
 
@@ -673,7 +672,7 @@ export function LeadsClient({
                       {count > 0 && (
                         <div
                           className="h-full rounded-full"
-                          style={{ width: `${pct}%`, backgroundColor: s.barColor }}
+                          style={{ width: `${pct}%`, backgroundColor: stageColor }}
                         />
                       )}
                     </div>
@@ -707,6 +706,32 @@ export function LeadsClient({
           />
         );
       })()}
+
+      {menu && (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: 'fixed', top: menu.y, left: menu.x, zIndex: 10001, minWidth: 200, padding: 4,
+            background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-sm)', boxShadow: '0 6px 24px rgba(0,0,0,0.16)',
+          }}
+        >
+          <div style={{ padding: '6px 10px 4px', fontSize: 11, color: 'var(--fg-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{menu.lead.name}</div>
+          <button onClick={() => archiveLead(menu.lead, !menu.lead.archived)} style={ctxItem}>
+            {menu.lead.archived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
+            {menu.lead.archived ? 'Unarchive' : 'Archive'}
+          </button>
+          <button onClick={() => trashLead(menu.lead)} style={{ ...ctxItem, color: 'var(--status-danger)' }}>
+            <Trash2 size={14} /> Move to trash
+          </button>
+        </div>
+      )}
     </div>
   );
 }
+
+const ctxItem: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px',
+  background: 'none', border: 'none', cursor: 'pointer', fontSize: 13,
+  color: 'var(--fg-default)', textAlign: 'left', borderRadius: 6,
+};

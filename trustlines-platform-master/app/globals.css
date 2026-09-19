@@ -1536,3 +1536,26 @@
 .auto-pill:hover {
   background: var(--border-subtle);
 }
+/* ── Shared <Select> (components/platform/shared/Select.tsx) ──────────────────────────────
+   Zero-specificity defaults (:where) so any className / inline style at a call site wins —
+   they exist only so a bare <Select> without styling still looks like a normal control. */
+:where(.ui-select-trigger) {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 6px;
+  text-align: left; cursor: pointer; font-family: inherit; font-size: inherit; color: inherit;
+  background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 6px; padding: 4px 8px;
+  max-width: 100%;
+}
+.ui-select-trigger:disabled { opacity: 0.6; cursor: not-allowed; }
+.ui-select-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-select-chevron { flex-shrink: 0; color: var(--fg-faint); }
+/* the real <select> behind the button: invisible, still in the form/validation/ref graph */
+.ui-select-native {
+  position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px;
+  margin: 0; padding: 0; border: 0; overflow: hidden;
+}
+
+/* ── "Hide amounts" privacy mode (lib/privacy/hideAmounts.ts) ─────────────────────────────
+   The head script sets data-hide-amounts before first paint; the page stays covered until
+   AmountsMasker has rewritten the money text (data-amounts-masked), so real figures never flash. */
+html[data-hide-amounts]:not([data-amounts-masked]) body { visibility: hidden; }
+html[data-hide-amounts] [data-money] { -webkit-text-security: disc; text-security: disc; }

@@ -45,7 +45,7 @@ export function CurrencyCell({ value, onSave, placeholder = '—' }: {
     >
       <span style={{ fontSize: 12, color: 'var(--fg-faint)', fontWeight: 600 }}>$</span>
       <input
-        autoFocus
+        autoFocus data-money
         type="text" inputMode="numeric"
         value={formatWithCommas(digits)}
         onChange={e => setDigits(e.target.value.replace(/[^\d]/g, ''))}

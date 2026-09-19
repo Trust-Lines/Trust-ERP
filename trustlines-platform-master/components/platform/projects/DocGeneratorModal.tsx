@@ -6,6 +6,7 @@ import { X, Plus, Loader2, Camera, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { VendorSelect } from '../production/VendorSelect';
 import { AddVendorModal, type Vendor } from '../production/AddVendorModal';
+import { Select } from '@/components/platform/shared/Select';
 
 interface DocItem {
   id:               string;
@@ -528,13 +529,13 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
         {showPrices && ilVersions.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginBottom: 12, background: '#f0f4ff', border: '1px solid #c5d3ff', borderRadius: 6 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#2255aa', whiteSpace: 'nowrap' }}>Load from Item List:</span>
-            <select value={selectedILVer} onChange={e => setSelectedILVer(e.target.value)}
+            <Select value={selectedILVer} onChange={e => setSelectedILVer(e.target.value)}
               style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid #c5d3ff', borderRadius: 4, background: '#fff', color: '#111', outline: 'none' }}>
               <option value="">— select a saved version —</option>
               {ilVersions.map(v => (
                 <option key={v.id} value={v.id}>V{v.version} — {v.file_name.replace(/\.pdf$/i, '')}</option>
               ))}
-            </select>
+            </Select>
             <button type="button" onClick={loadItemListVersion} disabled={!selectedILVer || loadingVersion}
               style={{ padding: '4px 14px', fontSize: 12, fontWeight: 700, background: '#2255aa', color: '#fff', border: 'none', borderRadius: 4, cursor: selectedILVer ? 'pointer' : 'not-allowed', opacity: selectedILVer ? 1 : 0.5 }}>
               {loadingVersion ? 'Loading…' : 'Load'}

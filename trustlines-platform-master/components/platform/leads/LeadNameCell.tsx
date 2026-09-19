@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ChevronDown, ChevronRight, Plus, Pencil, Check, Trash2, Clock, ListChecks } from 'lucide-react';
 import { readableTextColor } from '@/lib/marketing/pillColor';
 import type { Lead } from './types';
+import { Select } from '@/components/platform/shared/Select';
 
 interface TaskRow {
   id: string; title: string; status: 'todo' | 'in_progress' | 'done';
@@ -143,7 +144,7 @@ export function LeadNameCell({ lead, today, assignees, onOpen, onEdit }: {
                 <span style={{ flex: 1, fontSize: 12, color: done ? 'var(--fg-faint)' : 'var(--fg-default)', textDecoration: done ? 'line-through' : 'none' }}>
                   {t.title}
                 </span>
-                <select
+                <Select
                   value={t.assignee_id ?? ''} onClick={e => e.stopPropagation()}
                   onChange={e => patchTask(t, { assignee_id: e.target.value || null })}
                   style={{ fontSize: 11, padding: '2px 5px', border: '1px solid transparent', borderRadius: 5, background: 'transparent', maxWidth: 110, color: 'var(--fg-faint)' }}
@@ -152,7 +153,7 @@ export function LeadNameCell({ lead, today, assignees, onOpen, onEdit }: {
                 >
                   <option value="">Unassigned</option>
                   {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-                </select>
+                </Select>
                 <button onClick={() => removeTask(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0, display: 'flex' }} aria-label="Delete subtask">
                   <Trash2 size={11} />
                 </button>

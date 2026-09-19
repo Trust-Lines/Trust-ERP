@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, ChevronRight, Flag } from 'lucide-react';
 import { Avatar } from '@/components/platform/shared/Avatar';
 import { StickyBottomScrollbar } from '@/components/platform/shared/StickyBottomScrollbar';
@@ -30,6 +30,9 @@ export const LEAD_COLUMNS = [
 ];
 
 const COLUMNS = LEAD_COLUMNS;
+
+// Rows revealed per step while scrolling.
+const ROW_PAGE = 60;
 
 // Columns off by default — ClickUp's own view keeps these out of the way too.
 export const DEFAULT_HIDDEN_COLUMNS = ['To Do', 'Deposit', 'Payment', 'Date done', 'Targeted'];
@@ -71,6 +74,8 @@ interface Props {
   marketingAssignees?: { id: string; full_name: string }[];
   collapsed: Set<OpportunityStatus>;
   hiddenColumns?: Set<string>;
+  /** Changes whenever filters/search/sort change — resets the incremental row window. */
+  resetKey?: string;
   onToggleGroup: (key: OpportunityStatus) => void;
   onStatusChange: (id: string, status: OpportunityStatus) => void;
   onPriorityChange?: (id: string, priority: Priority) => void;
@@ -88,12 +93,13 @@ interface Props {
   onOpen?: (id: string) => void;
 }
 
-const inlineSelect: React.CSSProperties = {
-  fontSize: 12, padding: '3px 6px', borderRadius: 6, maxWidth: 150,
-};
+const PRIORITY_LABEL: Record<Priority, string> = { high: 'High', medium: 'Medium', low: 'Low' };
+const PRIORITY_PILL: Record<string, string> = { High: '#e5484d', Medium: '#f59e0b', Low: '#94a3b8' };
+// People aren't colour-coded — one calm neutral pill for every name.
+const NEUTRAL_PILL = (names: string[]): Record<string, string> => Object.fromEntries(names.map(n => [n, '#e6e9ef']));
 
 export function LeadsTable({
-  leads, assignees = [], marketingAssignees = [], collapsed, hiddenColumns, onToggleGroup, onStatusChange,
+  leads, assignees = [], marketingAssignees = [], collapsed, hiddenColumns, resetKey, onToggleGroup, onStatusChange,
   onPriorityChange, onAssigneeChange, onIndustryChange, onToDoChange, onRequestChange,
   onProjectTypeRawChange, onSourceRawChange, onTargetedChange, onPaymentChange,
   onDealSizeChange, onDepositChange, onContextMenu, onOpen,
@@ -102,7 +108,56 @@ export function LeadsTable({
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const today = new Date().toISOString().slice(0, 10);
   const { widths, startResize } = useResizableColumns('leadsTable.columnWidths.v1', COLUMN_WIDTHS);
+  const assigneePool = (l: Lead) => (l.origin === 'opportunity' || l.origin === 'potential' ? marketingAssignees : assignees);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLTableRowElement>(null);
+
+  // ── Never render hundreds of rows at once ─────────────────────────────────────────────
+  // The full list is already in memory, but each row carries ~16 interactive cells (selects,
+  // colour pills, currency inputs) — mounting 700 of them in one go is what froze the page.
+  // Rows are revealed a window at a time as the user scrolls toward the bottom.
+  const [limit, setLimit] = useState(ROW_PAGE);
+  useEffect(() => { setLimit(ROW_PAGE); scrollRef.current?.scrollTo({ top: 0 }); }, [resetKey]);
+
+  const { buckets, shownByGroup, hasMore, renderedCount } = useMemo(() => {
+    const buckets = new Map<OpportunityStatus, Lead[]>(STATUS_ORDER.map(m => [m.key, []]));
+    for (const l of leads) buckets.get(l.opportunity_status)?.push(l);
+    let budget = limit, total = 0;
+    const shownByGroup = new Map<OpportunityStatus, number>();
+    for (const m of STATUS_ORDER) {
+      const rows = buckets.get(m.key) ?? [];
+      if (collapsed.has(m.key)) { shownByGroup.set(m.key, 0); continue; }
+      const n = Math.min(rows.length, budget);
+      shownByGroup.set(m.key, n); budget -= n; total += rows.length;
+    }
+    return { buckets, shownByGroup, hasMore: limit - budget < total, renderedCount: limit - budget };
+  }, [leads, collapsed, limit]);
+
+  useEffect(() => {
+    const el = sentinelRef.current, root = scrollRef.current;
+    if (!hasMore || !el || !root) return;
+    const io = new IntersectionObserver(entries => {
+      if (entries[0]?.isIntersecting) setLimit(l => l + ROW_PAGE);
+    }, { root, rootMargin: '600px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, limit]);
+
+  // Fill the screen down to the bottom edge (the table scrolls inside itself, header stays put).
+  const [boxHeight, setBoxHeight] = useState<number | null>(null);
+  useEffect(() => {
+    function fit() {
+      const el = scrollRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      setBoxHeight(Math.max(360, Math.round(window.innerHeight - top - 12)));
+    }
+    fit();
+    const raf = requestAnimationFrame(fit);
+    window.addEventListener('resize', fit);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', fit); };
+  }, []);
+
   const hidden = hiddenColumns ?? new Set<string>();
   const visibleIdx = COLUMNS.map((_, i) => i).filter(i => !hidden.has(COLUMNS[i]));
   const visibleCount = visibleIdx.length;
@@ -111,7 +166,7 @@ export function LeadsTable({
   return (
     <div className="card" style={{ overflow: 'hidden' }}>
       <style>{hideCss}</style>
-      <div ref={scrollRef} className="scroll-x-hidden" style={{ overflow: 'auto', maxHeight: 'calc(100vh - 300px)' }}>
+      <div ref={scrollRef} className="scroll-x-hidden" style={{ overflow: 'auto', height: boxHeight ?? 'calc(100vh - 300px)' }}>
         <table className="leads-tbl" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1200, tableLayout: 'fixed' }}>
           <colgroup>
             {visibleIdx.map(i => <col key={COLUMNS[i]} style={{ width: widths[i] }} />)}
@@ -133,7 +188,8 @@ export function LeadsTable({
           </thead>
 
           {STATUS_ORDER.map(meta => {
-            const rows = leads.filter(l => l.opportunity_status === meta.key);
+            const rows = buckets.get(meta.key) ?? [];
+            const shownRows = rows.slice(0, shownByGroup.get(meta.key) ?? 0);
             const isCollapsed = collapsed.has(meta.key);
             // Empty groups are noise — only show them while dragging (they're drop targets).
             if (rows.length === 0 && dragId == null) return null;
@@ -190,7 +246,7 @@ export function LeadsTable({
                   </tr>
                 )}
 
-                {!isCollapsed && rows.map(l => (
+                {!isCollapsed && shownRows.map(l => (
                   <tr
                     key={l.id}
                     className="lead-row"
@@ -208,25 +264,13 @@ export function LeadsTable({
                     <td style={cell}>{l.project_no ?? '—'}</td>
 
                     <td style={cell}>
-                      {(() => {
-                        const value = l.industry && (INDUSTRY_OPTIONS as readonly string[]).includes(l.industry) ? l.industry as typeof INDUSTRY_OPTIONS[number] : '';
-                        const bg = value ? INDUSTRY_COLOR[value] : undefined;
-                        return (
-                          <select
-                            className="pill-select"
-                            value={value}
-                            onChange={e => onIndustryChange?.(l.id, e.target.value)}
-                            style={{
-                              ...inlineSelect, border: 'none', borderRadius: 'var(--radius-pill)',
-                              fontWeight: 700, fontSize: 11.5, padding: '4px 12px',
-                              background: bg ?? 'var(--bg-sunken)', color: bg ? readableTextColor(bg) : 'var(--fg-faint)',
-                            }}
-                          >
-                            <option value="">—</option>
-                            {INDUSTRY_OPTIONS.map(o => <option key={o} value={o} style={{ background: INDUSTRY_COLOR[o], color: readableTextColor(INDUSTRY_COLOR[o]) }}>{o}</option>)}
-                          </select>
-                        );
-                      })()}
+                      <ColorSelect
+                        value={l.industry && (INDUSTRY_OPTIONS as readonly string[]).includes(l.industry) ? l.industry : null}
+                        options={[...INDUSTRY_OPTIONS]}
+                        knownColors={INDUSTRY_COLOR}
+                        allowCreate={false} searchable={false}
+                        onChange={v => onIndustryChange?.(l.id, v)}
+                      />
                     </td>
 
                     <td style={{ ...cell, color: l.due_date && l.due_date.slice(0, 10) < today ? 'var(--status-danger)' : undefined, fontWeight: l.due_date && l.due_date.slice(0, 10) < today ? 600 : undefined }}>
@@ -241,32 +285,29 @@ export function LeadsTable({
                     <td style={cell}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         <Flag size={13} color={PRIORITY_COLOR[l.priority]} fill={l.priority === 'low' ? 'none' : PRIORITY_COLOR[l.priority]} />
-                        <select
-                          value={l.priority}
-                          onChange={e => onPriorityChange?.(l.id, e.target.value as Priority)}
-                          style={{ ...inlineSelect, color: PRIORITY_COLOR[l.priority], fontWeight: 600 }}
-                        >
-                          <option value="high">High</option>
-                          <option value="medium">Medium</option>
-                          <option value="low">Low</option>
-                        </select>
+                        <ColorSelect
+                          value={PRIORITY_LABEL[l.priority]}
+                          options={['High', 'Medium', 'Low']}
+                          knownColors={PRIORITY_PILL}
+                          allowCreate={false} searchable={false} clearable={false}
+                          onChange={v => onPriorityChange?.(l.id, v.toLowerCase() as Priority)}
+                        />
                       </span>
                     </td>
 
                     <td style={cell}>{l.contact}</td>
 
                     <td style={cell}>
-                      {(l.origin === 'opportunity' ? marketingAssignees : assignees).length > 0 ? (
+                      {assigneePool(l).length > 0 ? (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                           <Avatar name={l.assignee} size="sm" />
-                          <select
-                            value={l.assignee_id ?? ''}
-                            onChange={e => onAssigneeChange?.(l.id, e.target.value)}
-                            style={inlineSelect}
-                          >
-                            <option value="">Unassigned</option>
-                            {(l.origin === 'opportunity' ? marketingAssignees : assignees).map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-                          </select>
+                          <ColorSelect
+                            value={l.assignee_id && l.assignee !== 'Unassigned' ? l.assignee : null}
+                            options={assigneePool(l).map(a => a.full_name)}
+                            knownColors={NEUTRAL_PILL(assigneePool(l).map(a => a.full_name))}
+                            allowCreate={false} placeholder="Unassigned"
+                            onChange={name => onAssigneeChange?.(l.id, assigneePool(l).find(a => a.full_name === name)?.id ?? '')}
+                          />
                         </span>
                       ) : (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
@@ -284,18 +325,13 @@ export function LeadsTable({
 
                     <td style={cell}>
                       {l.origin === 'opportunity' || l.origin === 'potential' ? (
-                        <select
-                          value={l.opportunity_status}
-                          onChange={e => onStatusChange(l.id, e.target.value as OpportunityStatus)}
-                          className="pill-select"
-                          style={{
-                            ...inlineSelect, border: 'none', borderRadius: 999, fontWeight: 700, fontSize: 11,
-                            padding: '3px 10px', background: STATUS_OP_COLOR[l.external_stage_label ?? ''] ?? 'var(--bg-sunken)',
-                            color: STATUS_OP_COLOR[l.external_stage_label ?? ''] ? readableTextColor(STATUS_OP_COLOR[l.external_stage_label ?? '']) : 'var(--fg-faint)',
-                          }}
-                        >
-                          {STATUS_OP_OPTIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-                        </select>
+                        <ColorSelect
+                          value={STATUS_OP_OPTIONS.find(([k]) => k === l.opportunity_status)?.[1] ?? l.external_stage_label ?? null}
+                          options={STATUS_OP_OPTIONS.map(([, label]) => label)}
+                          knownColors={STATUS_OP_COLOR}
+                          allowCreate={false} searchable={false} clearable={false}
+                          onChange={label => { const key = STATUS_OP_OPTIONS.find(([, lb]) => lb === label)?.[0]; if (key) onStatusChange(l.id, key); }}
+                        />
                       ) : (l.external_stage_label ?? meta.label)}
                     </td>
 
@@ -345,6 +381,15 @@ export function LeadsTable({
               </tbody>
             );
           })}
+          {hasMore && (
+            <tbody>
+              <tr ref={sentinelRef}>
+                <td colSpan={visibleCount} style={{ ...cell, textAlign: 'center', color: 'var(--fg-faint)', height: 44 }}>
+                  Loading more… ({renderedCount} of {leads.length})
+                </td>
+              </tr>
+            </tbody>
+          )}
         </table>
       </div>
       <StickyBottomScrollbar targetRef={scrollRef} />

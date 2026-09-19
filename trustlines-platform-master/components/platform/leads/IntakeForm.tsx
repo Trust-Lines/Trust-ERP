@@ -20,6 +20,7 @@ import {
 import { US_STATES } from '@/lib/usStates';
 import { REGIONS, SERVICE_LINES, composeProjectCode } from '@/lib/regions';
 import { PROJECT_TYPES, LEAD_SOURCES } from '@/lib/sales/projectTypes';
+import { Select } from '@/components/platform/shared/Select';
 
 interface DocRow {
   id: string;
@@ -316,7 +317,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
                     Company <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
-                    <select
+                    <Select
                       value={form.company || form.service_line}
                       onChange={e => setForm(f => ({ ...f, company: e.target.value, service_line: e.target.value }))}
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -325,7 +326,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
                       {SERVICE_LINES.map(sl => (
                         <option key={sl.value} value={sl.value}>{sl.label}</option>
                       ))}
-                    </select>
+                    </Select>
                     <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   </div>
                 </div>
@@ -335,7 +336,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
                     Region <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
-                    <select
+                    <Select
                       value={form.region}
                       onChange={e => setForm(f => ({ ...f, region: e.target.value }))}
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -344,7 +345,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
                       {REGIONS.map(r => (
                         <option key={r.code} value={r.code}>{r.label}</option>
                       ))}
-                    </select>
+                    </Select>
                     <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   </div>
                 </div>
@@ -354,7 +355,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
                     Project type <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
-                    <select
+                    <Select
                       value={form.project_type}
                       onChange={e => setForm(f => ({ ...f, project_type: e.target.value }))}
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -363,7 +364,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
                       {PROJECT_TYPES.map(pt => (
                         <option key={pt} value={pt}>{pt}</option>
                       ))}
-                    </select>
+                    </Select>
                     <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   </div>
                 </div>
@@ -419,7 +420,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
                       State <span className="text-rose-500">*</span>
                     </label>
                     <div className="relative">
-                      <select
+                      <Select
                         value={form.state}
                         onChange={e => setForm(f => ({ ...f, state: e.target.value }))}
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -428,7 +429,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
                         {US_STATES.map(s => (
                           <option key={s.abbr} value={s.abbr}>{s.name} ({s.abbr})</option>
                         ))}
-                      </select>
+                      </Select>
                       <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
@@ -550,7 +551,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Priority</label>
-                  <select
+                  <Select
                     value={form.priority}
                     onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
                     className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
@@ -558,12 +559,12 @@ export function IntakeForm({ intakeId, assignees }: Props) {
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Assignee / Owner</label>
-                  <select
+                  <Select
                     value={form.assignee_id}
                     onChange={e => setForm(f => ({ ...f, assignee_id: e.target.value }))}
                     className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
@@ -572,7 +573,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
                     {assignees.map(a => (
                       <option key={a.id} value={a.id}>{a.full_name}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
 
@@ -590,7 +591,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Lead source</label>
-                  <select
+                  <Select
                     value={form.source}
                     onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
                     className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
@@ -599,7 +600,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
                     {LEAD_SOURCES.map(ls => (
                       <option key={ls} value={ls}>{ls}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
 

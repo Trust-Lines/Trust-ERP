@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Trash2, CheckCircle2, Circle, CalendarClock } from 'lu
 import { toast } from 'sonner';
 import { Pill } from '@/components/platform/shared/Pill';
 import type { ChangeRequest, SiteReadiness, SiteReadinessItem } from '@/types/database';
+import { Select } from '@/components/platform/shared/Select';
 
 interface Contact { id: string; name: string }
 interface TimelineEvent { kind: string; at: string; title: string; detail?: string }
@@ -129,10 +130,10 @@ export function FinalizationClient({
                     <div style={{ flex: 1 }} />
                     {canEdit && (
                       <>
-                        <select className="form-input" style={{ fontSize: 12, width: 'auto', padding: '2px 6px' }} value={cr.status}
+                        <Select className="form-input" style={{ fontSize: 12, width: 'auto', padding: '2px 6px' }} value={cr.status}
                           onChange={e => patchCr(cr.id, { status: e.target.value })} disabled={busy} aria-label={`${cr.title} status`}>
                           {CR_STATUSES.map(s => <option key={s} value={s}>{cap(s)}</option>)}
-                        </select>
+                        </Select>
                         <button className="btn btn-ghost btn-sm" style={{ padding: '3px 6px', color: 'var(--status-danger)' }} onClick={() => deleteCr(cr.id)} aria-label="Remove"><Trash2 size={13} /></button>
                       </>
                     )}
@@ -228,13 +229,13 @@ function CrForm({ contacts, onSave, onCancel }: { contacts: Contact[]; onSave: (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 1fr', gap: 8, marginBottom: 8 }}>
         <div><label className="form-label required" style={{ fontSize: 11 }}>Title</label><input className="form-input" style={{ fontSize: 13 }} placeholder="e.g. Move cashier wall" value={f.title} onChange={set('title')} autoFocus /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Category</label>
-          <select className="form-input" style={{ fontSize: 13 }} value={f.category} onChange={set('category')}>
+          <Select className="form-input" style={{ fontSize: 13 }} value={f.category} onChange={set('category')}>
             <option value="">—</option>{CR_CATEGORIES.map(c => <option key={c} value={c}>{cap(c)}</option>)}
-          </select></div>
+          </Select></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Requested by</label>
-          <select className="form-input" style={{ fontSize: 13 }} value={f.customer_contact_id} onChange={set('customer_contact_id')}>
+          <Select className="form-input" style={{ fontSize: 13 }} value={f.customer_contact_id} onChange={set('customer_contact_id')}>
             <option value="">—</option>{contacts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select></div>
+          </Select></div>
       </div>
       <div style={{ marginBottom: 8 }}><label className="form-label" style={{ fontSize: 11 }}>Description</label><textarea className="form-input" rows={2} style={{ fontSize: 13, resize: 'vertical' }} value={f.description} onChange={set('description')} /></div>
       <div style={{ display: 'grid', gridTemplateColumns: '180px 180px', gap: 8, marginBottom: 10 }}>

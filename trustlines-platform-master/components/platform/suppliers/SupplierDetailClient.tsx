@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import type { Supplier, SupplierInvoice, SupplierPayment } from '@/types/database';
 import type { CurrencyTotals } from '@/lib/suppliers/config';
 import { CURRENCIES, PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '@/lib/suppliers/config';
+import { Select } from '@/components/platform/shared/Select';
 
 interface Props {
   supplier: Supplier;
@@ -184,7 +185,7 @@ function InvoicesSection({ supplierId, invoices, projById, canEdit, onChange }: 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 90px 1fr 2fr auto', gap: 8, alignItems: 'end', marginBottom: 12 }}>
           <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Invoice #<input className="form-input" value={f.invoice_number} onChange={e => setF({ ...f, invoice_number: e.target.value })} /></label>
           <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Date<input className="form-input" type="date" value={f.invoice_date} onChange={e => setF({ ...f, invoice_date: e.target.value })} /></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Cur.<select className="form-input" value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</select></label>
+          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Cur.<Select className="form-input" value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</Select></label>
           <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Amount<input className="form-input" type="number" step="0.01" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></label>
           <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Description<input className="form-input" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>
           <button className="btn btn-primary btn-sm" onClick={add} disabled={saving}>{saving ? '…' : 'Save'}</button>
@@ -270,10 +271,10 @@ function PaymentsSection({ supplierId, payments, invoices, projById, canEdit, on
       {adding && canEdit && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 1fr 1fr 1.4fr auto', gap: 8, alignItems: 'end', marginBottom: 12 }}>
           <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Amount<input className="form-input" type="number" step="0.01" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Cur.<select className="form-input" value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</select></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Method<select className="form-input" value={f.method} onChange={e => setF({ ...f, method: e.target.value })}>{PAYMENT_METHODS.map(m => <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>)}</select></label>
+          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Cur.<Select className="form-input" value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</Select></label>
+          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Method<Select className="form-input" value={f.method} onChange={e => setF({ ...f, method: e.target.value })}>{PAYMENT_METHODS.map(m => <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>)}</Select></label>
           <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Date<input className="form-input" type="date" value={f.paid_at} onChange={e => setF({ ...f, paid_at: e.target.value })} /></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Against invoice<select className="form-input" value={f.invoice_id} onChange={e => setF({ ...f, invoice_id: e.target.value })}><option value="">On account</option>{invoices.map(inv => <option key={inv.id} value={inv.id}>{invLabel(inv)}</option>)}</select></label>
+          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Against invoice<Select className="form-input" value={f.invoice_id} onChange={e => setF({ ...f, invoice_id: e.target.value })}><option value="">On account</option>{invoices.map(inv => <option key={inv.id} value={inv.id}>{invLabel(inv)}</option>)}</Select></label>
           <button className="btn btn-primary btn-sm" onClick={add} disabled={saving}>{saving ? '…' : 'Save'}</button>
         </div>
       )}

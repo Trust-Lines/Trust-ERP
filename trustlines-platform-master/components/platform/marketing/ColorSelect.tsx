@@ -5,12 +5,18 @@ import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
 import { hashColor, readableTextColor } from '@/lib/marketing/pillColor';
 
-export function ColorSelect({ value, options, knownColors, onChange, placeholder = '—' }: {
+export function ColorSelect({ value, options, knownColors, onChange, placeholder = '—', allowCreate = true, searchable = true, clearable = true }: {
   value: string | null;
   options: string[];
   knownColors: Record<string, string>;
   onChange: (next: string) => void;
   placeholder?: string;
+  /** Let the user type a brand-new value (free-form fields). Off for fixed lists. */
+  allowCreate?: boolean;
+  /** Show the search box. Off for short fixed lists. */
+  searchable?: boolean;
+  /** Show the "Clear" row. Off for fields that must always have a value. */
+  clearable?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -42,7 +48,7 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [open]);
 
-  useEffect(() => { if (open) { setQuery(''); setTimeout(() => inputRef.current?.focus(), 0); } }, [open]);
+  useEffect(() => { if (open) { setQuery(''); if (searchable) setTimeout(() => inputRef.current?.focus(), 0); } }, [open, searchable]);
 
   const colorFor = (v: string) => knownColors[v] ?? hashColor(v);
   const filtered = options.filter(o => o.toLowerCase().includes(query.trim().toLowerCase()));
@@ -83,17 +89,17 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
             boxShadow: '0 12px 32px rgba(0,0,0,.18)', overflow: 'hidden',
           }}
         >
-          <input
+          {searchable && <input
             ref={inputRef}
             className="form-input"
             style={{ border: 'none', borderBottom: '1px solid var(--border-subtle)', borderRadius: 0, fontSize: 13, padding: '9px 12px' }}
             placeholder="Search…"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && query.trim()) select(query.trim()); if (e.key === 'Escape') setOpen(false); }}
-          />
+            onKeyDown={e => { if (e.key === 'Enter' && query.trim() && allowCreate) select(query.trim()); if (e.key === 'Escape') setOpen(false); }}
+          />}
           <div style={{ maxHeight: 260, overflowY: 'auto', padding: 6, display: 'grid', gap: 2 }}>
-            {query.trim() && !exactMatch && (
+            {allowCreate && query.trim() && !exactMatch && (
               <button
                 onClick={() => select(query.trim())}
                 style={optionRow}
@@ -103,7 +109,7 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
                 <span style={{ fontSize: 12.5, color: 'var(--fg-muted)' }}>+ Create &ldquo;{query.trim()}&rdquo;</span>
               </button>
             )}
-            {filtered.length === 0 && !query.trim() && (
+            {filtered.length === 0 && !query.trim() && allowCreate && (
               <div style={{ fontSize: 12, color: 'var(--fg-faint)', padding: '8px 10px' }}>No options yet — type to create one.</div>
             )}
             {filtered.map(o => {
@@ -124,7 +130,7 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
                 </button>
               );
             })}
-            {value && (
+            {value && clearable && (
               <>
                 <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 2px' }} />
                 <button

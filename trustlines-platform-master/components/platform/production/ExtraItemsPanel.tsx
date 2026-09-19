@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { VendorSelect } from './VendorSelect';
 import type { Vendor } from './AddVendorModal';
 import { STATUS_CHAIN } from '@/lib/production/board';
+import { Select } from '@/components/platform/shared/Select';
 
 const TYPES = ['Millwork', 'Shelving', 'Ceiling', 'Image', 'Furniture', 'Decoration'];
 const STATUSES = [...STATUS_CHAIN, 'HOLD_T', 'HOLD_PM', 'ASSEMBLY'];
@@ -99,16 +100,16 @@ export function ExtraItemsPanel({ source, label, canEdit, onChanged }: {
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
             <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>
               Project
-              <select className="form-input" value={projectId} onChange={e => setProjectId(e.target.value)} style={{ minWidth: 260 }}>
+              <Select className="form-input" value={projectId} onChange={e => setProjectId(e.target.value)} style={{ minWidth: 260 }}>
                 <option value="">— select project —</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-              </select>
+              </Select>
             </label>
             <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>
               Type
-              <select className="form-input" value={type} onChange={e => setType(e.target.value)}>
+              <Select className="form-input" value={type} onChange={e => setType(e.target.value)}>
                 {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              </Select>
             </label>
             <button className="btn btn-primary btn-sm" onClick={addRow} disabled={adding}>
               {adding ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={14} />} Add row
@@ -152,9 +153,9 @@ export function ExtraItemsPanel({ source, label, canEdit, onChanged }: {
                     <td style={{ padding: '8px 10px', fontFamily: 'monospace', color: 'var(--fg-subtle)' }}>{r.pf_code ?? '—'}</td>
                     <td style={{ padding: '8px 10px' }}>
                       {canEdit ? (
-                        <select className="form-input" value={r.status} onChange={e => patchRow(r.id, { status: e.target.value })} style={{ fontSize: 11 }}>
+                        <Select className="form-input" value={r.status} onChange={e => patchRow(r.id, { status: e.target.value })} style={{ fontSize: 11 }}>
                           {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                        </Select>
                       ) : r.status}
                     </td>
                     {canEdit && <td style={{ padding: '8px 10px', textAlign: 'right' }}><button className="btn btn-ghost btn-sm" onClick={() => removeRow(r.id)} title="Delete"><Trash2 size={14} /></button></td>}

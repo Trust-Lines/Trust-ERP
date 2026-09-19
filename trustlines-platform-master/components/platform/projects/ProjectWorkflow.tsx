@@ -13,6 +13,7 @@ import {
   type StepDef, type StepRecord,
 } from '@/lib/workflow/steps';
 import type { ProjectCategory } from '@/types/database';
+import { Select } from '@/components/platform/shared/Select';
 
 export interface DocSummary {
   id: string;
@@ -94,7 +95,7 @@ function ApproveArea({
         {stepDef.requiresVersionSelect && (
           <>
             <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>v</span>
-            <select
+            <Select
               value={ver}
               onChange={e => setVer(Number(e.target.value))}
               style={{
@@ -104,7 +105,7 @@ function ApproveArea({
               }}
             >
               {[1,2,3,4,5].map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
+            </Select>
           </>
         )}
         <button

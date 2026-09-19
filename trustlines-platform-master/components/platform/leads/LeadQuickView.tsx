@@ -8,6 +8,7 @@ import { LeadActivity } from './LeadActivity';
 import { PROJECT_TYPES, LEAD_SOURCES } from '@/lib/sales/projectTypes';
 import { composeProjectCode, serviceLineLabel, regionLabel } from '@/lib/regions';
 import { STATUS_ORDER, LEAD_INTAKE_STATUS_KEYS } from './types';
+import { Select } from '@/components/platform/shared/Select';
 
 interface TaskRow {
   id: string; title: string; status: 'todo' | 'in_progress' | 'done';
@@ -184,11 +185,11 @@ export function LeadQuickView({ intakeId, assignees, onClose }: {
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     }}>{done && <Check size={10} strokeWidth={3} color="#fff" />}</div>
                     <span style={{ flex: 1, fontSize: 13, color: done ? 'var(--fg-faint)' : 'var(--fg-default)', textDecoration: done ? 'line-through' : 'none' }}>{t.title}</span>
-                    <select value={t.assignee_id ?? ''} onChange={e => patchTask(t, { assignee_id: e.target.value || null })}
+                    <Select value={t.assignee_id ?? ''} onChange={e => patchTask(t, { assignee_id: e.target.value || null })}
                       style={{ fontSize: 12, padding: '3px 6px', border: '1px solid var(--border-subtle)', borderRadius: 6, background: 'var(--bg-surface)', maxWidth: 150 }}>
                       <option value="">Unassigned</option>
                       {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-                    </select>
+                    </Select>
                     <button onClick={() => removeTask(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 2 }} aria-label="Delete task"><Trash2 size={13} /></button>
                   </div>
                 );
@@ -243,8 +244,8 @@ function Inp({ value, onSave, type = 'text', ph }: { value: string | number; onS
 
 function Sel({ value, onChange, opts }: { value: string; onChange: (v: string) => void; opts: [string, string][] }) {
   return (
-    <select value={value} onChange={e => onChange(e.target.value)} style={{ ...cellInput, border: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+    <Select value={value} onChange={e => onChange(e.target.value)} style={{ ...cellInput, border: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
       {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-    </select>
+    </Select>
   );
 }

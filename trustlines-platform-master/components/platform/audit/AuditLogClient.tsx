@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronRight, Shield } from 'lucide-react';
+import { Select } from '@/components/platform/shared/Select';
 
 export interface AuditEntry {
   id: string;
@@ -208,7 +209,7 @@ export function AuditLogClient({ logs }: { logs: AuditEntry[] }) {
           />
         </div>
 
-        <select
+        <Select
           value={filterAction}
           onChange={e => setFilterAction(e.target.value)}
           className="form-input form-select"
@@ -218,9 +219,9 @@ export function AuditLogClient({ logs }: { logs: AuditEntry[] }) {
           {actions.map(a => (
             <option key={a} value={a}>{fmtAction(a)}</option>
           ))}
-        </select>
+        </Select>
 
-        <select
+        <Select
           value={filterActor}
           onChange={e => setFilterActor(e.target.value)}
           className="form-input form-select"
@@ -230,7 +231,7 @@ export function AuditLogClient({ logs }: { logs: AuditEntry[] }) {
           {actors.map(a => (
             <option key={a} value={a}>{a}</option>
           ))}
-        </select>
+        </Select>
 
         {(search || filterAction || filterActor) && (
           <button

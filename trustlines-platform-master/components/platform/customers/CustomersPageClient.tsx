@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Search, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Pill } from '@/components/platform/shared/Pill';
+import { Select } from '@/components/platform/shared/Select';
 
 export interface CustomerRow {
   id: string;
@@ -165,11 +166,11 @@ function CustomerForm({ onSave, onCancel }: { onSave: (c: NewCustomer) => Promis
         </div>
         <div>
           <label className="form-label" style={{ fontSize: 12 }}>Status</label>
-          <select className="form-input" value={status} onChange={e => setStatus(e.target.value)}>
+          <Select className="form-input" value={status} onChange={e => setStatus(e.target.value)}>
             <option value="active">Active</option>
             <option value="prospect">Prospect</option>
             <option value="inactive">Inactive</option>
-          </select>
+          </Select>
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>

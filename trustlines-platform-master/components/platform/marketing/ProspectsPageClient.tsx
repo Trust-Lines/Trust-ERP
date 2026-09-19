@@ -19,6 +19,7 @@ import { MarketingPipelineNav } from './MarketingPipelineNav';
 import { ProspectQuickView } from './ProspectQuickView';
 import { SourceSelect } from './SourceSelect';
 import { TagMultiSelect } from './TagMultiSelect';
+import { Select } from '@/components/platform/shared/Select';
 
 export interface ProspectRow {
   id: string;
@@ -324,29 +325,29 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
             aria-label="Search Contacts"
           />
         </div>
-        <select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by status">
+        <Select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by status">
           <option value="">All classifications</option>
           <option value="captured">No project yet</option>
           <option value="potential">Potential</option>
           <option value="opportunity_candidate">Opportunity Candidate</option>
           <option value="disqualified">Disqualified</option>
-        </select>
-        <select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={regionFilter} onChange={e => setRegionFilter(e.target.value)} aria-label="Filter by region">
+        </Select>
+        <Select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={regionFilter} onChange={e => setRegionFilter(e.target.value)} aria-label="Filter by region">
           <option value="">All regions</option>
           {REGIONS.map(r => <option key={r.code} value={r.code}>{REGION_FILTER_LABEL[r.code] ?? r.label}</option>)}
-        </select>
-        <select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} aria-label="Filter by source">
+        </Select>
+        <Select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} aria-label="Filter by source">
           <option value="">All sources</option>
           {SOURCES.map(s => <option key={s} value={s}>{SOURCE_LABEL[s]}</option>)}
-        </select>
+        </Select>
         {/* "Missing info" isn't a DB column — completeness_percent is computed per-row
             (lib/marketing/prospectCompleteness.ts) from contact/location/source fields — the
             API filters on it after enrichment rather than in SQL, see app/api/marketing/
             prospects/route.ts's `completeness === 'missing'` branch. */}
-        <select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={completenessFilter} onChange={e => setCompletenessFilter(e.target.value)} aria-label="Filter by info completeness">
+        <Select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={completenessFilter} onChange={e => setCompletenessFilter(e.target.value)} aria-label="Filter by info completeness">
           <option value="">All info levels</option>
           <option value="missing">Missing info</option>
-        </select>
+        </Select>
         {hasFilters && (
           <button
             className="btn btn-ghost btn-sm"
@@ -440,7 +441,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                     </td>
                     <td style={{ padding: '10px 12px' }} onClick={e => e.stopPropagation()}>
                       {canEdit ? (
-                        <select
+                        <Select
                           value={p.assigned_marketing_user_id ?? ''}
                           onChange={e => updateAssignee(p, e.target.value)}
                           className="form-input"
@@ -450,7 +451,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                         >
                           <option value="">— Unassigned —</option>
                           {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-                        </select>
+                        </Select>
                       ) : (
                         <span style={{ color: 'var(--fg-subtle)' }}>{p.owner_name ?? '—'}</span>
                       )}

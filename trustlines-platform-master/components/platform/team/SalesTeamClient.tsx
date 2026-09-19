@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { UserPlus } from 'lucide-react';
 import { Avatar } from '@/components/platform/shared/Avatar';
+import { Select } from '@/components/platform/shared/Select';
 
 export interface SalesRepRow {
   id: string;
@@ -128,12 +129,12 @@ export function SalesTeamClient({ reps, regionClients, nextNumber }: Props) {
             </div>
             <div className="form-group" style={{ maxWidth: 360 }}>
               <label className="form-label">Region</label>
-              <select className="form-input form-select" value={regionId} onChange={e => setRegionId(e.target.value)}>
+              <Select className="form-input form-select" value={regionId} onChange={e => setRegionId(e.target.value)}>
                 <option value="">No region (assign later)</option>
                 {regionClients.map(c => (
                   <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-primary btn-sm" onClick={handleInvite} disabled={inviting || !email.trim() || !fullName.trim()}>
@@ -172,7 +173,7 @@ export function SalesTeamClient({ reps, regionClients, nextNumber }: Props) {
                     </td>
                     <td><span style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>{r.email}</span></td>
                     <td>
-                      <select
+                      <Select
                         className="form-input form-select"
                         style={{ maxWidth: 240, fontSize: 13 }}
                         value={r.sales_region_id ?? ''}
@@ -183,7 +184,7 @@ export function SalesTeamClient({ reps, regionClients, nextNumber }: Props) {
                         {regionClients.map(c => (
                           <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>
                         ))}
-                      </select>
+                      </Select>
                     </td>
                     <td>
                       <span className="pill" style={{

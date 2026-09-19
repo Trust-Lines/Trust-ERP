@@ -5,6 +5,7 @@ import { Palette, Plus, ChevronDown, ExternalLink, UserPlus, Mail, FileText } fr
 import { toast } from 'sonner';
 import { Pill } from '@/components/platform/shared/Pill';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
+import { Select } from '@/components/platform/shared/Select';
 
 export interface DesignerOption { id: string; full_name: string; office: string | null }
 
@@ -178,24 +179,24 @@ export function SalesDesignCard({ initialJobs, initialVersions, designers: initi
                       {canManage && (
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '10px 0' }}>
                           <label style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Designer
-                            <select className="form-input" style={{ fontSize: 12, marginTop: 2, minWidth: 220 }}
+                            <Select className="form-input" style={{ fontSize: 12, marginTop: 2, minWidth: 220 }}
                               value={job.assigned_designer_id ?? ''} disabled={busy}
                               onChange={e => patchJob(job.id, { assigned_designer_id: e.target.value || null })}>
                               <option value="">— Awaiting assignment</option>
                               {designers.map(d => <option key={d.id} value={d.id}>{designerLabel(d)}</option>)}
-                            </select>
+                            </Select>
                           </label>
                           <label style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Status
-                            <select className="form-input" style={{ fontSize: 12, marginTop: 2 }} value={job.status} disabled={busy}
+                            <Select className="form-input" style={{ fontSize: 12, marginTop: 2 }} value={job.status} disabled={busy}
                               onChange={e => patchJob(job.id, { status: e.target.value })}>
                               {JOB_STATUSES.map(s => <option key={s} value={s}>{cap(s)}</option>)}
-                            </select>
+                            </Select>
                           </label>
                           <label style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Priority
-                            <select className="form-input" style={{ fontSize: 12, marginTop: 2 }} value={job.priority} disabled={busy}
+                            <Select className="form-input" style={{ fontSize: 12, marginTop: 2 }} value={job.priority} disabled={busy}
                               onChange={e => patchJob(job.id, { priority: e.target.value })}>
                               <option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option>
-                            </select>
+                            </Select>
                           </label>
                           <label style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Due date
                             <input type="date" className="form-input" style={{ fontSize: 12, marginTop: 2 }} defaultValue={job.due_date ?? ''} disabled={busy}
@@ -237,10 +238,10 @@ export function SalesDesignCard({ initialJobs, initialVersions, designers: initi
                               {v.presented_at && <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>presented {new Date(v.presented_at).toLocaleDateString()}</span>}
                               <div style={{ flex: 1 }} />
                               {canManage && (
-                                <select className="form-input" style={{ fontSize: 12, width: 'auto', padding: '2px 6px' }} value={v.status} disabled={busy}
+                                <Select className="form-input" style={{ fontSize: 12, width: 'auto', padding: '2px 6px' }} value={v.status} disabled={busy}
                                   onChange={e => patchVersion(job.id, v.id, { status: e.target.value })} aria-label={`V${v.version_no} status`}>
                                   {VER_STATUSES.map(s => <option key={s} value={s}>{cap(s)}</option>)}
-                                </select>
+                                </Select>
                               )}
                             </div>
                             {(designFiles[v.id] ?? []).length > 0 && (

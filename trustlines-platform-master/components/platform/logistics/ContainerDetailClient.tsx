@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Plus, Trash2, Search, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { CONTAINER_STATUSES } from '@/lib/logistics/containers';
+import { Select } from '@/components/platform/shared/Select';
 
 interface Container {
   id: string; container_no: string | null; booking_no: string | null; carrier: string | null; vessel_name: string | null;
@@ -115,7 +116,7 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
         <div className="card-head"><div className="form-section-title">Shipment</div></div>
         <div className="card-body">
           <div style={{ display: 'grid', gridTemplateColumns: '180px repeat(3, 1fr)', gap: 10, marginBottom: 10 }}>
-            {field('Status', <select className="form-input" style={{ fontSize: 13 }} value={c.status} disabled={ro} onChange={e => patch({ status: e.target.value })}>{CONTAINER_STATUSES.map(s => <option key={s} value={s}>{cap(s.toLowerCase())}</option>)}</select>)}
+            {field('Status', <Select className="form-input" style={{ fontSize: 13 }} value={c.status} disabled={ro} onChange={e => patch({ status: e.target.value })}>{CONTAINER_STATUSES.map(s => <option key={s} value={s}>{cap(s.toLowerCase())}</option>)}</Select>)}
             {field('Carrier', <input className="form-input" style={{ fontSize: 13 }} defaultValue={c.carrier ?? ''} disabled={ro} onBlur={e => e.target.value !== (c.carrier ?? '') && patch({ carrier: e.target.value })} />)}
             {field('Vessel', <input className="form-input" style={{ fontSize: 13 }} defaultValue={c.vessel_name ?? ''} disabled={ro} onBlur={e => e.target.value !== (c.vessel_name ?? '') && patch({ vessel_name: e.target.value })} />)}
             {field('Voyage', <input className="form-input" style={{ fontSize: 13 }} defaultValue={c.voyage_no ?? ''} disabled={ro} onBlur={e => e.target.value !== (c.voyage_no ?? '') && patch({ voyage_no: e.target.value })} />)}
@@ -138,7 +139,7 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
             {field('Warehouse', <input type="date" className="form-input" style={{ fontSize: 13 }} defaultValue={c.warehouse_arrival_date ?? ''} disabled={ro} onChange={e => patch({ warehouse_arrival_date: e.target.value || null })} />)}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 10 }}>
-            {field('Delivery destination', <select className="form-input" style={{ fontSize: 13 }} value={c.delivery_destination} disabled={ro} onChange={e => patch({ delivery_destination: e.target.value })}><option value="warehouse">Warehouse</option><option value="direct_job_site">Direct to job site</option></select>)}
+            {field('Delivery destination', <Select className="form-input" style={{ fontSize: 13 }} value={c.delivery_destination} disabled={ro} onChange={e => patch({ delivery_destination: e.target.value })}><option value="warehouse">Warehouse</option><option value="direct_job_site">Direct to job site</option></Select>)}
             {c.delivery_destination === 'direct_job_site' && field('Job site address', <input className="form-input" style={{ fontSize: 13 }} defaultValue={c.job_site_address ?? ''} disabled={ro} onBlur={e => e.target.value !== (c.job_site_address ?? '') && patch({ job_site_address: e.target.value })} />)}
           </div>
         </div>
@@ -153,7 +154,7 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
           {docForm.open && canEdit && (
             <div style={{ marginBottom: 12, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: 12, display: 'grid', gridTemplateColumns: '1.6fr 1fr 2fr auto', gap: 8, alignItems: 'end' }}>
               {field('Name', <input className="form-input" style={{ fontSize: 13 }} value={docForm.name} onChange={e => setDocForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. BL-12345" />)}
-              {field('Type', <select className="form-input" style={{ fontSize: 13 }} value={docForm.doc_type} onChange={e => setDocForm(f => ({ ...f, doc_type: e.target.value }))}>{DOC_TYPES.map(t => <option key={t} value={t}>{cap(t)}</option>)}</select>)}
+              {field('Type', <Select className="form-input" style={{ fontSize: 13 }} value={docForm.doc_type} onChange={e => setDocForm(f => ({ ...f, doc_type: e.target.value }))}>{DOC_TYPES.map(t => <option key={t} value={t}>{cap(t)}</option>)}</Select>)}
               {field('Link (URL or Dropbox path)', <input className="form-input" style={{ fontSize: 13 }} value={docForm.url} onChange={e => setDocForm(f => ({ ...f, url: e.target.value }))} placeholder="https://…" />)}
               <button className="btn btn-primary btn-sm" onClick={addDoc}>Save</button>
             </div>

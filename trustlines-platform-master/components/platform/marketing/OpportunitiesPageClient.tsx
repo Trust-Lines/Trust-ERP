@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { OpportunityQuickView } from './OpportunityQuickView';
 import type { OpportunityStage, ProjectType, LeadEntityType } from '@/types/database';
+import { Select } from '@/components/platform/shared/Select';
 
 export interface DealRow {
   id: string;
@@ -172,14 +173,14 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
         {/* Right Filter Controls */}
         <div className="flex items-center gap-3 text-xs">
           <div className="relative">
-            <select
+            <Select
               value={regionFilter}
               onChange={e => setRegionFilter(e.target.value)}
               className="appearance-none bg-white border border-slate-200/80 rounded-xl pl-3 pr-7 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs font-medium"
             >
               <option value="all">All regions</option>
               {Object.entries(REGION_FILTER_LABEL).map(([code, label]) => <option key={code} value={code}>{label}</option>)}
-            </select>
+            </Select>
             <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           </div>
 
@@ -238,7 +239,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
                     </td>
                     <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
                       {canEdit ? (
-                        <select
+                        <Select
                           value={d.assigned_to ?? ''}
                           disabled={savingAssignee === d.id}
                           onChange={e => changeAssignee(d, e.target.value)}
@@ -246,7 +247,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
                         >
                           <option value="">— Unassigned —</option>
                           {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-                        </select>
+                        </Select>
                       ) : d.owner_name ? (
                         <span className="inline-flex items-center gap-1.5 text-slate-700">
                           <span className="h-5 w-5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">

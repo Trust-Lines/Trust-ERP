@@ -17,15 +17,21 @@ interface Props {
   onOpen?: (id: string) => void;
 }
 
+const BOARD_PAGE = 30;
+
 export function LeadsBoard({ leads, onStatusChange, onContextMenu, onOpen }: Props) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overKey, setOverKey] = useState<string | null>(null);
+  // Cards revealed per column — hundreds of cards at once is what froze the page.
+  const [shown, setShown] = useState<Record<string, number>>({});
   const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start' }}>
       {STATUS_ORDER.map(meta => {
-        const cards = leads.filter(l => l.opportunity_status === meta.key);
+        const allCards = leads.filter(l => l.opportunity_status === meta.key);
+        const cap = shown[meta.key] ?? BOARD_PAGE;
+        const cards = allCards.slice(0, cap);
         const isOver = overKey === meta.key && dragId != null;
         return (
           <div
@@ -49,11 +55,11 @@ export function LeadsBoard({ leads, onStatusChange, onContextMenu, onOpen }: Pro
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: meta.dot }} />
                 {meta.label}
               </span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-subtle)' }}>{cards.length}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-subtle)' }}>{allCards.length}</span>
             </div>
 
             <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 60 }}>
-              {cards.length === 0 && (
+              {allCards.length === 0 && (
                 <div style={{ fontSize: 12, color: 'var(--fg-faint)', textAlign: 'center', padding: '16px 0', fontStyle: 'italic' }}>
                   {isOver ? 'Drop here' : '—'}
                 </div>
@@ -122,6 +128,15 @@ export function LeadsBoard({ leads, onStatusChange, onContextMenu, onOpen }: Pro
                   </div>
                 );
               })}
+              {allCards.length > cards.length && (
+                <button
+                  type="button"
+                  onClick={() => setShown(prev => ({ ...prev, [meta.key]: cap + BOARD_PAGE }))}
+                  style={{ padding: '8px 0', fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)', background: 'var(--bg-surface)', border: '1px dashed var(--border-default)', borderRadius: 8, cursor: 'pointer' }}
+                >
+                  Show {Math.min(BOARD_PAGE, allCards.length - cards.length)} more · {allCards.length - cards.length} left
+                </button>
+              )}
             </div>
           </div>
         );

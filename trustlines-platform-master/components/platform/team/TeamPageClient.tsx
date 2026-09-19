@@ -12,6 +12,7 @@ import {
 } from '@/lib/profile/metadata';
 import { REGIONS } from '@/lib/regions';
 import type { UserRole } from '@/types/database';
+import { Select } from '@/components/platform/shared/Select';
 
 interface ProfileRow {
   id: string;
@@ -221,7 +222,7 @@ function InviteModal({
           {(type === 'internal' || type === 'sales') && (
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label required">Role</label>
-              <select
+              <Select
                 className="form-input form-select"
                 value={role}
                 onChange={e => setRole(e.target.value)}
@@ -229,7 +230,7 @@ function InviteModal({
                 {(type === 'sales' ? salesRoles : internalRoles).map(r => (
                   <option key={r.name} value={r.name}>{r.label}</option>
                 ))}
-              </select>
+              </Select>
               {type === 'sales' && salesRoles.length === 0 && (
                 <div className="form-hint">No Sales roles found — run migration 026 to seed them.</div>
               )}
@@ -253,12 +254,12 @@ function InviteModal({
               {!isGeneralPm && (
                 <div className="form-group">
                   <label className="form-label">Region this PM manages</label>
-                  <select className="form-input form-select" value={selectedClientId} onChange={e => handleClientChange(e.target.value)}>
+                  <Select className="form-input form-select" value={selectedClientId} onChange={e => handleClientChange(e.target.value)}>
                     <option value="">Select region…</option>
                     {clients.map(c => (
                       <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>
                     ))}
-                  </select>
+                  </Select>
                   {clients.length === 0 && (
                     <div className="form-hint">No regions yet. <a href="/clients" style={{ color: 'var(--brand-teal)' }}>Add one in Clients →</a></div>
                   )}
@@ -377,7 +378,7 @@ function EditModal({
           </div>
           <div className="form-group">
             <label className="form-label required">Role</label>
-            <select
+            <Select
               className="form-input form-select"
               value={role}
               onChange={e => setRole(e.target.value as UserRole)}
@@ -385,7 +386,7 @@ function EditModal({
               {allRoles.map(r => (
                 <option key={r.name} value={r.name}>{r.label}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {metadataReady && (
@@ -399,34 +400,34 @@ function EditModal({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="edit-company-side">Company side</label>
-                  <select id="edit-company-side" className="form-input form-select" value={companySide} onChange={e => setCompanySide(e.target.value)}>
+                  <Select id="edit-company-side" className="form-input form-select" value={companySide} onChange={e => setCompanySide(e.target.value)}>
                     <option value="">—</option>
                     {COMPANY_SIDES.map(s => <option key={s} value={s}>{COMPANY_SIDE_LABELS[s]}</option>)}
-                  </select>
+                  </Select>
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="edit-office">Office</label>
-                  <select id="edit-office" className="form-input form-select" value={office} onChange={e => setOffice(e.target.value)}>
+                  <Select id="edit-office" className="form-input form-select" value={office} onChange={e => setOffice(e.target.value)}>
                     <option value="">—</option>
                     {OFFICES.map(o => <option key={o} value={o}>{OFFICE_LABELS[o]}</option>)}
-                  </select>
+                  </Select>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div className="form-group">
                   <label className="form-label" htmlFor="edit-department">Department</label>
-                  <select id="edit-department" className="form-input form-select" value={department} onChange={e => setDepartment(e.target.value)}>
+                  <Select id="edit-department" className="form-input form-select" value={department} onChange={e => setDepartment(e.target.value)}>
                     <option value="">—</option>
                     {DEPARTMENTS.map(d => <option key={d} value={d}>{DEPARTMENT_LABELS[d]}</option>)}
-                  </select>
+                  </Select>
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="edit-manager">Manager</label>
-                  <select id="edit-manager" className="form-input form-select" value={managerId} onChange={e => setManagerId(e.target.value)}>
+                  <Select id="edit-manager" className="form-input form-select" value={managerId} onChange={e => setManagerId(e.target.value)}>
                     <option value="">—</option>
                     {managerOptions.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                  </select>
+                  </Select>
                 </div>
               </div>
 
@@ -509,10 +510,10 @@ function EditModal({
               {!isGeneralPm && (
                 <>
                   <label className="form-label">Region this PM manages</label>
-                  <select className="form-input form-select" value={pmClientId} onChange={e => setPmClientId(e.target.value)}>
+                  <Select className="form-input form-select" value={pmClientId} onChange={e => setPmClientId(e.target.value)}>
                     <option value="">No region</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>)}
-                  </select>
+                  </Select>
                 </>
               )}
             </div>

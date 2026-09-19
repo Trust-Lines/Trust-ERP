@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Pill } from '@/components/platform/shared/Pill';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
 import type { LeadBrief, IntakeFile, DesignFile, ProjectMeta } from '@/app/(platform)/design/page';
+import { Select } from '@/components/platform/shared/Select';
 
 interface Props {
   jobs: SalesDesignJob[];
@@ -240,10 +241,10 @@ export function DesignWorkspaceClient({
 
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 10 }}>
                   <label style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Status
-                    <select className="form-input" style={{ fontSize: 12, marginTop: 2 }} value={job.status} disabled={busy}
+                    <Select className="form-input" style={{ fontSize: 12, marginTop: 2 }} value={job.status} disabled={busy}
                       onChange={e => patchJob(job.id, { status: e.target.value })}>
                       {(statuses.includes(job.status) ? statuses : [job.status, ...statuses]).map(s => <option key={s} value={s}>{cap(s)}</option>)}
-                    </select>
+                    </Select>
                   </label>
                   {!isManager && (
                     <span style={{ fontSize: 11, color: 'var(--fg-faint)', paddingBottom: 6 }}>
@@ -278,10 +279,10 @@ export function DesignWorkspaceClient({
                             </button>
                           )}
                           <UploadButton busy={busy} onPick={f => uploadDesignFile(job.id, v.id, f)} />
-                          <select className="form-input" style={{ fontSize: 12, width: 'auto', padding: '2px 6px' }} value={v.status} disabled={busy}
+                          <Select className="form-input" style={{ fontSize: 12, width: 'auto', padding: '2px 6px' }} value={v.status} disabled={busy}
                             onChange={e => patchVersion(job.id, v.id, { status: e.target.value })} aria-label={`V${v.version_no} status`}>
                             {VER_STATUSES.map(s => <option key={s} value={s}>{cap(s)}</option>)}
-                          </select>
+                          </Select>
                         </div>
 
                         {files.length > 0 && (
@@ -404,14 +405,14 @@ export function DesignWorkspaceClient({
                         <div style={{ fontWeight: 600, fontSize: 13 }}>{projectName(leadMap[anchor], projectMeta[anchor], job.title)}</div>
                         <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{leadMap[anchor]?.project_type || 'Design'} · unassigned</div>
                       </div>
-                      <select
+                      <Select
                         className="form-input" style={{ fontSize: 12, width: 'auto' }} disabled={busy}
                         defaultValue="" onChange={e => assignDesigner(job.id, e.target.value)}
                         aria-label={`Assign a designer to ${job.title}`}
                       >
                         <option value="" disabled>Assign to…</option>
                         {designers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
-                      </select>
+                      </Select>
                     </div>
                   );
                 })}
