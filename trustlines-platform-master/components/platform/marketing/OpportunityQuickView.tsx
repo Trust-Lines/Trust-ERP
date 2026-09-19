@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { X, Loader2, ExternalLink, Paperclip, Send, Image as ImageIcon, Trash2, Link2, Upload, FileText, ChevronDown } from 'lucide-react';
 import { TaskList } from '@/components/platform/shared/TaskList';
+import { DealProgressPanel } from '@/components/platform/shared/DealProgressPanel';
+import type { DealProgress } from '@/lib/sales/dealProgress';
 import { DropboxFileList } from '@/components/platform/shared/DropboxFileList';
 import { TagMultiSelect } from './TagMultiSelect';
 import { ContactSearchSelect } from './ContactSearchSelect';
@@ -54,6 +56,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
   const [contactLabel, setContactLabel] = useState('');
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [need, setNeed] = useState<NeedInfo | null>(null);
+  const [progress, setProgress] = useState<DealProgress | null>(null);
   const [notes, setNotes] = useState<NeedNote[]>([]);
   const [files, setFiles] = useState<NeedFile[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -84,6 +87,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
       setContactLabel((contactList as ContactOption[]).find(c => c.id === dealRow?.primary_contact_id)?.name ?? '');
       setProject(body.project ?? null);
       setNeed(body.need ?? null);
+      setProgress(body.progress ?? null);
       setNotes(body.notes ?? []);
       setFiles(body.files ?? []);
     } catch { }
@@ -287,6 +291,12 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
             <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-subtle)' }}>Couldn&apos;t load this {kind === 'potential' ? 'Potential' : 'Opportunity'}.</div>
           ) : (
             <div style={{ padding: '22px 28px 24px' }}>
+              {kind === 'opportunity' && (
+                <div style={{ marginBottom: 24 }}>
+                  <SectionLabel icon="◆">Progress</SectionLabel>
+                  <DealProgressPanel stage={String(opp.stage) as OpportunityStage} progress={progress} />
+                </div>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 16, marginBottom: 16, alignItems: 'start' }}>
                 <Group title="Status & Ownership">
                   {kind === 'opportunity' ? (

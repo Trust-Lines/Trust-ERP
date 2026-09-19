@@ -18,7 +18,8 @@ import type { ProjectStage } from '@/types/database';
 const LEADS_ALLOWED_ROLES = ['sales_marketing_manager', 'sales_rep', 'ops_manager', 'general_manager'];
 const BOARD_ALLOWED_ROLES = LEADS_ALLOWED_ROLES;
 
-export default async function LeadsPage() {
+export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ open?: string }> }) {
+  const { open: openId } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
@@ -147,7 +148,7 @@ export default async function LeadsPage() {
       <LeadsClient
         initialLeads={allLeads} assignees={assignees} marketingAssignees={marketingAssignees ?? []}
         currentUserId={user.id} canManageNumber={canManageNumber} nextNumber={nextNumber}
-        truncatedAt={truncated ? 1000 : undefined} canSeeLeadIntake={canSeeLeadIntake}
+        truncatedAt={truncated ? 1000 : undefined} canSeeLeadIntake={canSeeLeadIntake} initialOpenId={openId}
       />
     </div>
   );

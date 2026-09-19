@@ -45,6 +45,8 @@ interface Props {
   nextNumber?: number;
   truncatedAt?: number;
   canSeeLeadIntake?: boolean;
+  /** Open this record's quick view on load (used by links from the Tasks page). */
+  initialOpenId?: string;
 }
 
 const ALL_PIPELINE_STAGES: { key: OpportunityStatus; label: string; color: string; barColor: string }[] = [
@@ -71,6 +73,7 @@ export function LeadsClient({
   nextNumber = 1,
   truncatedAt,
   canSeeLeadIntake = true,
+  initialOpenId,
 }: Props) {
   const router = useRouter();
 
@@ -80,7 +83,7 @@ export function LeadsClient({
 
   const [mine, setMine] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
-  const [quickViewId, setQuickViewId] = useState<string | null>(null);
+  const [quickViewId, setQuickViewId] = useState<string | null>(initialOpenId ?? null);
   const [selectedStage, setSelectedStage] = useState<OpportunityStatus | null>(null);
 
   function handleOpen(id: string) {

@@ -63,6 +63,9 @@ export default async function SalesProjectsPage() {
     }
   }
 
+  // Everyone who can work Sales — used for the pop-up's task assignee list.
+  const { data: assigneeRows } = await admin.from('profiles').select('id, full_name').in('role', SALES_HANDOFF_ROLES).eq('is_active', true).order('full_name');
+
   const opportunities: SalesOpportunityRow[] = base.map(o => ({
     ...o,
     lead_display_name: leadById[o.prospect_id] ?? '—',
@@ -71,8 +74,8 @@ export default async function SalesProjectsPage() {
   }));
 
   return (
-    <div className="main-inner">
-      <SalesOpportunitiesClient initialOpportunities={opportunities} currentUserId={user.id} loadError={!!res.error} />
+    <div style={{ padding: '24px 32px' }}>
+      <SalesOpportunitiesClient initialOpportunities={opportunities} currentUserId={user.id} loadError={!!res.error} assignees={(assigneeRows ?? []) as { id: string; full_name: string }[]} />
     </div>
   );
 }

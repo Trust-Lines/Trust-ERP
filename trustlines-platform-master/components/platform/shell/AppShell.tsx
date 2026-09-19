@@ -7,7 +7,7 @@ import { TopBar } from './TopBar';
 import { TrustLinesAI } from '@/components/platform/ai/TrustLinesAI';
 import type { UserRole } from '@/types/database';
 
-const FULL_WIDTH_ROUTES = ['/production', '/leads', '/marketing/prospects', '/marketing/opportunities', '/marketing/campaigns'];
+const FULL_WIDTH_ROUTES = ['/production', '/leads', '/sales-tasks', '/sales-projects', '/marketing/prospects', '/marketing/opportunities', '/marketing/campaigns'];
 
 interface AppShellProps {
   children: React.ReactNode;

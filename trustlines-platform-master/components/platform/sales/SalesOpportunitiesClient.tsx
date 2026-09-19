@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AlertTriangle, Inbox } from 'lucide-react';
 import { REGIONS, SERVICE_LINES } from '@/lib/regions';
@@ -8,6 +9,7 @@ import { OPPORTUNITY_STAGE_LABEL, PROJECT_TYPE_LABEL } from '@/lib/marketing/cla
 import { StagePill, type StageTone } from '@/components/platform/shared/StagePill';
 import type { OpportunityStage, ProjectType, ScopeType } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
+import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 
 export interface SalesOpportunityRow {
   id: string;
@@ -48,6 +50,8 @@ interface Props {
   initialOpportunities: SalesOpportunityRow[];
   currentUserId: string;
   loadError?: boolean;
+  /** People a task can be assigned to inside the pop-up. */
+  assignees?: { id: string; full_name: string }[];
 }
 
 const STAGE_TONE: Record<OpportunityStage, StageTone> = {
@@ -61,7 +65,9 @@ function OpportunityStagePill({ stage }: { stage: OpportunityStage }) {
   return <StagePill tone={STAGE_TONE[stage]}>{OPPORTUNITY_STAGE_LABEL[stage]}</StagePill>;
 }
 
-export function SalesOpportunitiesClient({ initialOpportunities, loadError }: Props) {
+export function SalesOpportunitiesClient({ initialOpportunities, loadError, assignees = [] }: Props) {
+  const router = useRouter();
+  const [openId, setOpenId] = useState<string | null>(null); // deal shown in the progress pop-up
   const [opportunities, setOpportunities] = useState<SalesOpportunityRow[]>(initialOpportunities);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [returningId, setReturningId] = useState<string | null>(null);
@@ -169,9 +175,16 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError }: Pr
         <div style={{ display: 'grid', gap: 10 }}>
           {opportunities.map(o => (
             <div key={o.id} className="card"><div className="card-body">
+              <div
+                role="button" tabIndex={0} title="See how this deal has progressed"
+                onClick={() => setOpenId(o.id)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenId(o.id); } }}
+                style={{ cursor: 'pointer' }}
+              >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <div style={{ fontWeight: 600, fontSize: 14 }}>{o.title}</div>
                 <OpportunityStagePill stage={o.stage} />
+                <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, color: 'var(--brand-teal-600)' }}>View progress →</span>
               </div>
               <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 8 }}>
                 Lead: {o.lead_display_name} {o.deadline && `· Deadline: ${o.deadline}`} {o.owner_name && `· Owner: ${o.owner_name}`}
@@ -187,6 +200,7 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError }: Pr
               {o.closed_reason && o.stage === 'closed_lost' && (
                 <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 8 }}>Lost reason: {o.closed_reason}</div>
               )}
+              </div>
 
               {o.stage === 'sales_handoff' && acceptingId !== o.id && returningId !== o.id && (
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -231,6 +245,14 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError }: Pr
             </div></div>
           ))}
         </div>
+      )}
+
+      {openId && (
+        <OpportunityQuickView
+          opportunityId={openId}
+          assignees={assignees}
+          onClose={() => { setOpenId(null); router.refresh(); }}
+        />
       )}
     </>
   );

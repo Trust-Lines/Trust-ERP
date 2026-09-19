@@ -6,6 +6,7 @@ import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { SALES_HANDOFF_ROLES } from '@/lib/sales/roles';
 import { assertOpportunityAccess } from '@/lib/marketing/opportunityAccess';
 import { OPPORTUNITY_STAGE_LABEL } from '@/lib/marketing/classification';
+import { loadDealProgress } from '@/lib/sales/dealProgress';
 import type { OpportunityStage } from '@/types/database';
 
 type Params = { params: Promise<{ id: string }> };
@@ -21,7 +22,7 @@ const DETAIL_COLS = 'id, prospect_id, customer_id, primary_contact_id, project_i
   + 'closed_reason, auto_managed, classification_reasons, classification_rule_version, admin_corrected, '
   + 'admin_correction_reason, external_stage_label, state, formatted_address, brand, business_types, industry_raw, '
   + 'project_type_raw, request_raw, to_do_raw, direct_contact_raw, source_raw_label, tags, external_created_at, '
-  + 'source_description_raw, deposit, payment_raw, targeted, created_by, created_at, updated_at';
+  + 'source_description_raw, deposit, payment_raw, targeted, return_reason, created_by, created_at, updated_at';
 
 const EDITABLE = [
   'description', 'priority', 'marketing_owner_id', 'sales_owner_id', 'estimated_location_count',
@@ -50,7 +51,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     admin.from('prospects').select('display_name, industry, brand_name').eq('id', data.prospect_id).maybeSingle(),
     admin.from('prospect_contacts').select('id, name').eq('prospect_id', data.prospect_id).order('is_primary', { ascending: false }),
     data.project_id
-      ? admin.from('projects').select('code, dropbox_root_path').eq('id', data.project_id).maybeSingle()
+      ? admin.from('projects').select('code, dropbox_root_path, current_stage, created_at').eq('id', data.project_id).maybeSingle()
       : Promise.resolve({ data: null }),
     data.need_id
       ? admin.from('need_notes').select('id, author_name, author_id, body, image_path, link_url, link_title, link_thumbnail_url, source_created_at, created_at')
@@ -67,8 +68,18 @@ export async function GET(_req: NextRequest, { params }: Params) {
       : Promise.resolve({ data: null }),
   ]);
 
+  // "How has it progressed / what happened?" for the pop-up's Progress panel. Best-effort: the rest of the
+  // detail must still load if this part fails.
+  let progress = null;
+  try {
+    progress = await loadDealProgress(admin, data, projectRes.data ?? null, (notesRes.data ?? []) as never[]);
+  } catch (e) {
+    console.error('[opportunity detail] progress failed:', e instanceof Error ? e.message : e);
+  }
+
   return NextResponse.json({
     opportunity: data,
+    progress,
     prospect: prospectRes.data ?? null,
     contacts: contactsRes.data ?? [],
     project: projectRes.data ?? null,
@@ -120,6 +131,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       opportunityId: id, actorId: user.id, kind: 'change',
       body: `moved to "${OPPORTUNITY_STAGE_LABEL[body.stage as OpportunityStage]}" — ${stageReason}`,
     });
+    // The new stage brings its own Sales to-dos (and retires the old stage's untouched ones).
+    // Never let this fail the stage move itself.
+    try {
+      const { syncSalesTasks } = await import('@/lib/sales/syncTasks');
+      await syncSalesTasks(admin, { opportunityId: id });
+    } catch (e) {
+      console.error('[opportunities PATCH] sales task sync failed:', e instanceof Error ? e.message : e);
+    }
   }
 
   // 🔴 FIX (Roadmap Month 1, task 7): `ensureProjectForOpportunity` (the safety net that opens a
