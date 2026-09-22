@@ -2,15 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
+import { LoginShell } from '@/components/auth/LoginShell';
 
-// TLines Creativity Group brand — Brand Guidelines 2026, "1.2 Colors": #ffffff / #777777 /
-// #474747 / #1a1a1a. Kept local to this page (a deliberate, distinct "outside the app" moment)
-// rather than touching the app-wide design tokens, which are a separate, much bigger change.
-const INK = '#1a1a1a';
-const SLATE = '#474747';
-const MUTED = '#777777';
+// Design: Figma "Desktop - 11" (1440x1024 frame). Assets exported from Figma live in /public/login.
+const INK = '#2c2c2c';
+const PLACEHOLDER = '#a8a8a8';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,8 +15,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
-  const [focused, setFocused]   = useState<'email' | 'password' | null>(null);
-
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const hash = window.location.hash;
@@ -42,184 +37,65 @@ export default function LoginPage() {
       return;
     }
 
-    router.push('/home');
+    // TEMP preview: send this account to the new TLines branch screen. Remove once role routing is defined.
+    router.push(email.trim().toLowerCase() === 'hamzag@trust-lines.com' ? '/tlines-login' : '/home');
     router.refresh();
   }
 
-  const fieldStyle = (name: 'email' | 'password'): React.CSSProperties => ({
-    width: '100%',
-    padding: '13px 14px',
-    border: `1.5px solid ${focused === name ? INK : '#e5e5e5'}`,
-    borderRadius: '10px',
-    fontSize: '14.5px',
-    color: INK,
-    outline: 'none',
-    boxSizing: 'border-box',
-    transition: 'border-color 150ms, box-shadow 150ms',
-    fontFamily: 'var(--font-ui)',
-    background: '#fafafa',
-    boxShadow: focused === name ? '0 0 0 4px rgba(26,26,26,0.06)' : 'none',
-  });
-
   return (
-    <div className="tl-login">
+    <LoginShell
+      logo={
+        <div style={{ position: 'relative', width: 255, height: 106 }} role="img" aria-label="T Holding">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img alt="" src="/login/logo-top.svg" style={{ position: 'absolute', maxWidth: 'none', inset: '0 12.59% 47.7% 12.2%', width: '75.21%', height: '52.3%' }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img alt="" src="/login/logo-bottom.svg" style={{ position: 'absolute', maxWidth: 'none', inset: '47.53% 0 0 0', width: '100%', height: '52.47%' }} />
+        </div>
+      }
+    >
       <style>{`
-        .tl-login {
-          min-height: 100vh;
-          display: flex;
-          align-items: stretch;
-          position: relative;
-          overflow: hidden;
-          background:
-            radial-gradient(ellipse 1000px 800px at 18% 30%, ${SLATE} 0%, transparent 55%),
-            radial-gradient(ellipse 700px 700px at 85% 80%, #2a2a2a 0%, transparent 55%),
-            ${INK};
-        }
-        .tl-login-brand {
-          flex: 1 1 50%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          position: relative;
-          padding: 48px;
-        }
-        .tl-login-form-side {
-          flex: 1 1 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 24px;
-        }
-        @media (max-width: 860px) {
-          .tl-login { flex-direction: column; }
-          .tl-login-brand { flex: 0 0 auto; min-height: 240px; padding: 40px 24px 8px; }
-          .tl-login-form-side { flex: 1 1 auto; padding: 24px 24px 48px; }
-        }
+        .tl-login-field { display: flex; align-items: center; gap: 14px; height: 52px; padding: 0 11px; border: 1px solid ${PLACEHOLDER}; border-radius: 8px; box-sizing: border-box; background: #fff; }
+        .tl-login-field:focus-within { border-color: ${INK}; }
+        .tl-login-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: 500 15px var(--font-brand); letter-spacing: 1.2px; color: ${INK}; }
+        .tl-login-field input::placeholder { color: ${PLACEHOLDER}; }
       `}</style>
+      <h1 style={{ margin: 0, textAlign: 'center', fontSize: 22, fontWeight: 600, letterSpacing: '6.16px', textTransform: 'uppercase', color: INK, lineHeight: '38px' }}>
+        Welcome back
+      </h1>
+      <p style={{ margin: '11px auto 0', width: 343, maxWidth: '100%', textAlign: 'center', fontSize: 15, fontWeight: 500, letterSpacing: '0.75px', lineHeight: '23px', color: INK }}>
+        At accumsan metus ultricies, mauris metus felis, vehicula metus ultricie.
+      </p>
 
-      <div aria-hidden style={{
-        position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.04,
-        backgroundImage: `linear-gradient(135deg, transparent 45%, ${MUTED} 45%, ${MUTED} 46%, transparent 46%),
-                           linear-gradient(45deg, transparent 45%, ${MUTED} 45%, ${MUTED} 46%, transparent 46%)`,
-        backgroundSize: '120px 120px',
-      }} />
+      <form onSubmit={handleSubmit} style={{ marginTop: 47, display: 'flex', flexDirection: 'column', gap: 19 }}>
+        <label className="tl-login-field">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/login/mail.svg" alt="" width={22} height={22} />
+          <input id="email" type="email" autoComplete="email" required aria-label="Email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
+        </label>
+        <label className="tl-login-field">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/login/lock.svg" alt="" width={22} height={22} />
+          <input id="password" type="password" autoComplete="current-password" required aria-label="Password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
+        </label>
 
-      <div className="tl-login-brand">
-        <div style={{ position: 'relative', textAlign: 'center', maxWidth: 680 }}>
-          <Image
-            src="/logo-creativity.png"
-            alt="TLines Creativity Group"
-            width={600}
-            height={600}
-            style={{ objectFit: 'contain', display: 'block', margin: '0 auto', filter: 'brightness(0) invert(1)' }}
-            priority
-          />
-        </div>
-      </div>
+        <a href="/auth/set-password" style={{ alignSelf: 'flex-end', fontSize: 11, fontWeight: 500, letterSpacing: '0.88px', textTransform: 'uppercase', textDecoration: 'underline', color: INK }}>
+          Forgot password
+        </a>
 
-      <div className="tl-login-form-side">
-        <div style={{
-          width: '100%', maxWidth: '380px', position: 'relative',
-          background: '#ffffff', borderRadius: '20px', padding: '40px 36px',
-          boxShadow: '0 30px 80px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.2)',
-        }}>
-          <h1 style={{ margin: '0 0 6px', fontSize: '26px', fontWeight: 700, color: INK, letterSpacing: '-0.01em' }}>
-            Welcome back
-          </h1>
-          <p style={{ margin: '0 0 32px', fontSize: '14px', color: MUTED }}>
-            Sign in with your work email to continue
-          </p>
+        {error && (
+          <div role="alert" style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#b91c1c' }}>
+            {error}
+          </div>
+        )}
 
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '16px' }}>
-              <label
-                htmlFor="email"
-                style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: SLATE, marginBottom: '7px', textTransform: 'uppercase', letterSpacing: '0.04em' }}
-              >
-                Email address
-              </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                onFocus={() => setFocused('email')}
-                onBlur={() => setFocused(null)}
-                placeholder="you@trust-lines.com"
-                style={fieldStyle('email')}
-              />
-            </div>
-
-            <div style={{ marginBottom: '24px' }}>
-              <label
-                htmlFor="password"
-                style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: SLATE, marginBottom: '7px', textTransform: 'uppercase', letterSpacing: '0.04em' }}
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                onFocus={() => setFocused('password')}
-                onBlur={() => setFocused(null)}
-                placeholder="••••••••"
-                style={fieldStyle('password')}
-              />
-            </div>
-
-            {error && (
-              <div
-                style={{
-                  background: '#fef2f2',
-                  border: '1px solid #fecaca',
-                  borderRadius: '10px',
-                  padding: '11px 13px',
-                  fontSize: '13px',
-                  color: '#b91c1c',
-                  marginBottom: '20px',
-                }}
-              >
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '13px',
-                background: loading ? SLATE : INK,
-                color: 'white',
-                border: 'none',
-                borderRadius: '10px',
-                fontSize: '14.5px',
-                fontWeight: 700,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontFamily: 'var(--font-ui)',
-                transition: 'background 150ms, transform 100ms',
-                letterSpacing: '0.01em',
-              }}
-              onMouseDown={e => { if (!loading) e.currentTarget.style.transform = 'scale(0.98)'; }}
-              onMouseUp={e => (e.currentTarget.style.transform = 'scale(1)')}
-              onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-            >
-              {loading ? 'Signing in…' : 'Sign in'}
-            </button>
-          </form>
-
-          <p style={{ textAlign: 'center', marginTop: '32px', fontSize: '12px', color: MUTED }}>
-            TLines Creativity Group © {new Date().getFullYear()} · Internal Platform
-          </p>
-        </div>
-      </div>
-    </div>
+        <button
+          type="submit"
+          disabled={loading}
+          style={{ height: 52, marginTop: error ? 0 : 29, border: 0, borderRadius: 8, background: INK, color: '#fff', fontFamily: 'var(--font-brand)', fontSize: 18, fontWeight: 600, letterSpacing: '1.44px', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+        >
+          {loading ? 'Signing in…' : 'Sign in'}
+        </button>
+      </form>
+    </LoginShell>
   );
 }

@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  const publicPaths = ['/login', '/auth/callback', '/auth/set-password', '/review', '/survey', '/api/public', '/api/cron'];
+  const publicPaths = ['/login', '/tlines-login', '/trustlines-login', '/auth/callback', '/auth/set-password', '/review', '/survey', '/api/public', '/api/cron'];
   const isPublic = publicPaths.some(p => pathname.startsWith(p));
 
   if (!user && !isPublic) {
