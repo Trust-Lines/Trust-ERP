@@ -1,8 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
+import { requireUser, createClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit/log';
 
 type Params = { params: Promise<{ id: string }> };
+
+// Deliberately no margin_target_pct / deal_value / vendor pricing here — this feeds the
+// dashboard's project quick-view popup, open to any signed-in role, and tlines_pm must not
+// see cost/margin (AGENTS.md §2). Uses the regular (RLS) client, not admin, same as the
+// sibling documents route below it.
+export async function GET(_req: NextRequest, { params }: Params) {
+  const { user, unauth } = await requireUser();
+  if (!user) return unauth;
+  const { id } = await params;
+  const supabase = await createClient();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('projects')
+    .select('id, code, name, site_location, current_stage, est_delivery_date, closed_deal_date, created_at')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 404 });
+  return NextResponse.json({ project: data });
+}
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { user, admin, deny } = await requireRole(['ops_manager', 'general_manager'], 'Not authorized');

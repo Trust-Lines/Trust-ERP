@@ -1,29 +1,68 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect as nextRedirect } from 'next/navigation';
-import DashboardClient, {
-  type DashboardStats,
-  type ApprovalItem,
-  type ActivityItem,
-  type DashboardProjectItem,
-} from '@/components/platform/dashboard/DashboardClient';
-import { getRolePermissions } from '@/lib/permissions/server';
+import { REGIONS } from '@/lib/regions';
+import { regionLogoByCode } from '@/lib/regionLogo';
+import { getAssignedRegions, regionAllows } from '@/lib/access/regionScope';
+import { MARKETING_ROLES } from '@/lib/marketing/roles';
+import { SALES_HANDOFF_ROLES } from '@/lib/sales/roles';
+import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem } from '@/components/platform/dashboard/BranchBoard';
+import { TopSummaryRow, type ApprovalSummaryItem } from '@/components/platform/dashboard/TopSummaryRow';
 
-const STAGE_LABELS: Record<string, string> = {
-  closed_deal:    'Finalization',
-  finalization:   'Finalization',
-  client_approval:'Construction Documents',
-  production:     'Production',
-  delivered:      'Delivery',
+// Same set /marketing/opportunities uses to gate its own quick-view edits — reused here so
+// the popup opened from the dashboard board follows the exact same edit rule, not a new one.
+const OPPORTUNITY_EDIT_ROLES = [...SALES_HANDOFF_ROLES, ...MARKETING_ROLES];
+
+// Design: Figma "Tlines-Websites" → "Desktop - 17" (node 60:1139). Replaced the old
+// company-wide dashboard entirely — that page (temporarily kept at /old-dashboard for
+// comparison) has since been deleted; this is the only dashboard now.
+//
+// Column = real T-Lines region (lib/regions.ts). Visibility reuses the existing region-scope
+// rule (lib/access/regionScope.ts, already live for marketing_pr/sales_rep on Opportunities):
+// an account with assigned_regions = [] sees every column; one with specific regions set sees
+// only those — "bazıları belirli bölümleri görür, bazıları hepsini" from a single, already-
+// audited rule, not a new permission.
+//
+// Row mapping — projects.current_stage only has 5 values (migration 007), fewer than the
+// design's 7 rows. Best-effort mapping below; "To Production" and "Shipped" have no
+// distinguishing signal in the data model yet and are always empty until that's defined.
+const SECTION_DEFS = [
+  { key: 'opportunity',  label: 'Clients Opportunity',    accent: '#3a83f5', bg: '#eaf4ff', badgeBg: '#3a83f5', badgeText: '#eaf4ff' },
+  { key: 'finalization', label: 'Finalization',           accent: '#f59e0b', bg: '#fff4e3', badgeBg: '#f59e0b', badgeText: '#fff4e3' },
+  { key: 'technical',    label: 'Technical / PO + PF',    accent: '#a855f7', bg: '#f5e9ff', badgeBg: '#a855f7', badgeText: '#f5e9ff' },
+  { key: 'to_production',label: 'To Production',          accent: '#0d9488', bg: '#e2eae9', badgeBg: '#0d9488', badgeText: '#e2eae9' },
+  { key: 'in_production',label: 'Production In Progress', accent: '#ef4444', bg: '#fcdada', badgeBg: '#ef4444', badgeText: '#fcdada' },
+  { key: 'shipped',      label: 'Shipped',                accent: '#10b981', bg: '#e8f9f3', badgeBg: '#10b981', badgeText: '#e8f9f3' },
+  { key: 'ready',        label: 'Ready For Installation', accent: '#84cc16', bg: '#effade', badgeBg: '#84cc16', badgeText: '#effade' },
+] as const;
+
+const HEADER_COLORS: Record<string, string> = {
+  TLINES_NE: '#465b6d',
+  TLINES_SE: '#3b472b',
+  TLINES_NW: '#2e5ba3',
+  CVW:       '#7a655e',
 };
 
-const STAGE_COLORS: Record<string, string> = {
-  closed_deal:    '#6366f1',
-  finalization:   '#6366f1',
-  client_approval:'#0ea5e9',
-  production:     '#10b981',
-  delivered:      '#6b7280',
-};
+function fmtDate(d: string | null | undefined): string | null {
+  if (!d) return null;
+  const [y, m, day] = d.split('-');
+  return y && m && day ? `${m}/${day}/${y}` : d;
+}
+
+function projectBadge(code: string): [string, string] {
+  const i = code.lastIndexOf(' ');
+  return i === -1 ? [code, ''] : [code.slice(0, i), `#${code.slice(i + 1)}`];
+}
+
+// Opportunities don't get our own `projects.code` until Sales hands them off (they don't have
+// a project yet) — but ClickUp's own "PROJECT #" field (e.g. "417-NE") was already captured
+// per-row as external_project_code (migration 104). Use that; only fall back to a plain "OP"
+// tag for rows imported before that backfill ran.
+function opportunityBadge(externalProjectCode: string | null): [string, string] {
+  if (!externalProjectCode) return ['OP', ''];
+  const i = externalProjectCode.lastIndexOf('-');
+  return i === -1 ? [externalProjectCode, ''] : [externalProjectCode.slice(0, i), externalProjectCode.slice(i + 1)];
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -33,204 +72,170 @@ export default async function DashboardPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
-  const today      = new Date().toISOString().split('T')[0];
-  const weekAgo    = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-  const twoWeeksAgo= new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString();
-  const dayAgo     = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const { data: profileData } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  const userRole = (profileData as { role: string | null } | null)?.role ?? 'ops_manager';
 
-  const { data: profileData } = await supabase.from('profiles').select('full_name, role').eq('id', user.id).single();
-  const profile   = profileData as { full_name: string | null; role: string | null } | null;
-  const userRole  = profile?.role ?? 'ops_manager';
-  const userName  = profile?.full_name ?? user.email ?? 'User';
-
-  // This dashboard queries every active project company-wide (name, stage, margin_target_pct) and
-  // the last-24h system-wide audit feed — fine for internal Trust-Lines staff, but marketing_pr /
-  // marketing_manager are T-Lines-side accounts (same customer-side boundary as tlines_pm, which is
-  // barred from margin/cost data — see AGENTS.md §2). Send them to their own scoped landing page
-  // instead of ever running the query below.
+  // Same T-Lines-side boundary as the old dashboard (AGENTS.md §2) — send marketing accounts
+  // to their own scoped landing page instead of the branch board.
   if (userRole === 'marketing_pr' || userRole === 'marketing_manager') {
     nextRedirect('/marketing');
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userPerms = await getRolePermissions(admin as any, userRole);
+  const assignedRegions = await getAssignedRegions(admin, user.id);
+  const visibleRegions = REGIONS.filter(r => regionAllows(assignedRegions, r.code));
+  const regionCodes = visibleRegions.map(r => r.code);
 
-  const { data: allProjects } = await admin
-    .from('projects')
-    .select('id, code, name, current_stage, est_delivery_date, margin_target_pct, trustlines_pm_id, created_at')
-    .is('deleted_at', null)
-    .neq('is_archived', true) as { data: {
-      id: string; code: string; name: string; current_stage: string;
-      est_delivery_date: string | null; margin_target_pct: number | null;
-      trustlines_pm_id: string | null; created_at: string;
-    }[] | null };
+  const [{ data: projectRows }, { data: opportunityRows }] = regionCodes.length === 0
+    ? [{ data: [] }, { data: [] }]
+    : await Promise.all([
+        admin.from('projects')
+          .select('id, code, name, current_stage, region, site_location, est_delivery_date, closed_deal_date, created_at')
+          .in('region', regionCodes)
+          .is('deleted_at', null)
+          .neq('is_archived', true)
+          .eq('is_draft', false),
+        admin.from('opportunities')
+          .select('id, title, stage, region, external_created_at, created_at, external_project_code')
+          .in('region', regionCodes)
+          .is('deleted_at', null)
+          .not('stage', 'in', '(closed_won,closed_lost)'),
+      ]);
 
-  const projects = allProjects ?? [];
-  const active   = projects.filter(p => p.current_stage !== 'delivered');
-
-  const activeCount    = active.length;
-  const inProduction   = active.filter(p => p.current_stage === 'production').length;
-  const overdueProjs   = active.filter(p => p.est_delivery_date && p.est_delivery_date < today);
-  const overdueCount   = overdueProjs.length;
-
-  const marginsAll  = active.map(p => p.margin_target_pct).filter((m): m is number => m !== null);
-  const marginAvg   = marginsAll.length > 0 ? marginsAll.reduce((a, b) => a + b, 0) / marginsAll.length : null;
-
-  const newThisWeek = projects.filter(p => p.created_at >= weekAgo).length;
-  const prodLastWeek  = active.filter(p => p.current_stage === 'production' && p.created_at >= weekAgo).length;
-  const prod2WeeksAgo = active.filter(p => p.current_stage === 'production' && p.created_at >= twoWeeksAgo && p.created_at < weekAgo).length;
-  const prodDelta     = prodLastWeek - prod2WeeksAgo;
-  const overdueLastWeek  = active.filter(p => p.est_delivery_date && p.est_delivery_date < today && p.created_at >= weekAgo).length;
-  const overdueWeekBefore= active.filter(p => p.est_delivery_date && p.est_delivery_date < today && p.created_at >= twoWeeksAgo && p.created_at < weekAgo).length;
-  const overdueDelta     = overdueLastWeek - overdueWeekBefore;
-
-  const stats: DashboardStats = {
-    activeProjects: activeCount,
-    inProduction,
-    overdueCount,
-    marginAvg,
-    newThisWeek,
-    prodDelta,
-    overdueDelta,
+  type ProjectRow = {
+    id: string; code: string; name: string; current_stage: string; region: string | null;
+    site_location: string | null; est_delivery_date: string | null; closed_deal_date: string | null;
+    created_at: string;
+  };
+  type OpportunityRow = {
+    id: string; title: string; stage: string; region: string | null;
+    // external_created_at = the real ClickUp "date created" (when it became an opportunity
+    // there — lib/clickup/importOpportunitiesMapping.ts). Set on every imported row, unlike
+    // expected_close_date which is often left blank — use it as the card's date, falling back
+    // to our own created_at only for opportunities that were never imported from ClickUp.
+    external_created_at: string | null; created_at: string;
+    external_project_code: string | null;
   };
 
-  const isAdmin = ['ops_manager', 'general_manager'].includes(userRole);
-  let approvalsQuery = admin
-    .from('document_approvals')
-    .select('id, stage, doc_type, version_num, assigned_to, requested_by, created_at, project_id, document_id')
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true })
-    .limit(20);
+  const projects = (projectRows ?? []) as ProjectRow[];
+  const opportunities = (opportunityRows ?? []) as OpportunityRow[];
 
-  if (!isAdmin) {
-    approvalsQuery = approvalsQuery.eq('assigned_to', user.id);
-  }
+  const columns: BoardColumn[] = visibleRegions.map(r => {
+    const regionProjects = projects.filter(p => p.region === r.code);
+    const regionOpportunities = opportunities.filter(o => o.region === r.code);
 
-  const { data: approvalRows } = await approvalsQuery as { data: {
-    id: string; stage: number; doc_type: string; version_num: number | null;
-    assigned_to: string | null; requested_by: string | null; created_at: string;
-    project_id: string; document_id: string;
-  }[] | null };
+    const opportunityItems: BoardCardItem[] = regionOpportunities.map(o => {
+      const [top, bottom] = opportunityBadge(o.external_project_code);
+      const becameOpportunityDate = (o.external_created_at ?? o.created_at).slice(0, 10);
+      return {
+        id: o.id, kind: 'opportunity',
+        badgeTop: top, badgeBottom: bottom,
+        title: o.title,
+        subtitle: null,
+        dateISO: becameOpportunityDate,
+        dateLabel: fmtDate(becameOpportunityDate),
+        href: '/marketing/opportunities',
+      };
+    });
 
-  const apprProfileIds = [...new Set([
-    ...(approvalRows ?? []).map(a => a.requested_by),
-  ].filter(Boolean))] as string[];
+    const toCardItem = (p: ProjectRow): BoardCardItem => {
+      const [top, bottom] = projectBadge(p.code);
+      const date = p.est_delivery_date ?? p.closed_deal_date;
+      return {
+        id: p.id, kind: 'project', badgeTop: top, badgeBottom: bottom,
+        title: p.name,
+        subtitle: p.site_location,
+        dateISO: date,
+        dateLabel: fmtDate(date),
+        href: `/projects/${p.id}`,
+      };
+    };
 
-  const [apprProfilesRes, apprProjectsRes] = await Promise.all([
-    apprProfileIds.length > 0
-      ? admin.from('profiles').select('id, full_name').in('id', apprProfileIds)
-      : Promise.resolve({ data: [] }),
-    (approvalRows ?? []).length > 0
-      ? admin.from('projects').select('id, code, name')
-          .in('id', [...new Set((approvalRows ?? []).map(a => a.project_id))])
-      : Promise.resolve({ data: [] }),
-  ]);
+    const finalizationItems = regionProjects.filter(p => p.current_stage === 'closed_deal' || p.current_stage === 'finalization').map(toCardItem);
+    const technicalItems    = regionProjects.filter(p => p.current_stage === 'client_approval').map(toCardItem);
+    const inProductionItems = regionProjects.filter(p => p.current_stage === 'production').map(toCardItem);
+    const readyItems        = regionProjects.filter(p => p.current_stage === 'delivered').map(toCardItem);
 
-  const apprProfileMap = new Map(
-    ((apprProfilesRes.data ?? []) as { id: string; full_name: string }[]).map(p => [p.id, p.full_name])
-  );
-  const apprProjectMap = new Map(
-    ((apprProjectsRes.data ?? []) as { id: string; code: string; name: string }[]).map(p => [p.id, p])
-  );
+    // Newest date first within each section, undated cards pushed to the end (never dropped).
+    const byDate = (a: BoardCardItem, b: BoardCardItem) =>
+      a.dateISO && b.dateISO ? b.dateISO.localeCompare(a.dateISO) : a.dateISO ? -1 : b.dateISO ? 1 : 0;
 
-  const now = Date.now();
-  const approvals: ApprovalItem[] = (approvalRows ?? []).map(a => {
-    const proj = apprProjectMap.get(a.project_id);
+    const itemsByKey: Record<string, BoardCardItem[]> = {
+      opportunity:   [...opportunityItems].sort(byDate),
+      finalization:  [...finalizationItems].sort(byDate),
+      technical:     [...technicalItems].sort(byDate),
+      to_production: [],
+      in_production: [...inProductionItems].sort(byDate),
+      shipped:       [],
+      ready:         [...readyItems].sort(byDate),
+    };
+
+    const sections: BoardSection[] = SECTION_DEFS.map(def => ({
+      key: def.key, label: def.label, accent: def.accent, bg: def.bg,
+      badgeBg: def.badgeBg, badgeText: def.badgeText,
+      items: itemsByKey[def.key],
+      emptyLabel: 'No Active Projects',
+    }));
+
+    const total = sections.reduce((sum, s) => sum + s.items.length, 0);
+
     return {
-      id:            a.id,
-      projectId:     a.project_id,
-      projectCode:   proj?.code ?? '—',
-      projectName:   proj?.name ?? '—',
-      docType:       a.doc_type,
-      stage:         a.stage,
-      versionNum:    a.version_num,
-      requesterName: apprProfileMap.get(a.requested_by ?? '') ?? 'Unknown',
-      waitingMs:     now - new Date(a.created_at).getTime(),
+      regionCode: r.code,
+      logoSrc: regionLogoByCode(r.dropboxShort),
+      logoCode: r.dropboxShort,
+      headerColor: HEADER_COLORS[r.code] ?? '#465b6d',
+      total,
+      sections,
     };
   });
 
+  const { data: marketingAssignees } = await admin.from('profiles')
+    .select('id, full_name')
+    .in('role', ['marketing_pr', 'marketing_manager', 'sales_rep', 'sales_marketing_manager', 'ops_manager', 'general_manager'])
+    .eq('is_active', true).order('full_name', { ascending: true });
 
+  const canEditOpportunities = OPPORTUNITY_EDIT_ROLES.includes(userRole);
 
-  const { data: auditRows } = await admin
-    .from('audit_log')
-    .select('id, action, resource, new_value, created_at, actor_id, project_id')
-    .gte('created_at', dayAgo)
-    .order('created_at', { ascending: false })
-    .limit(20) as { data: {
-      id: string; action: string; resource: string | null;
-      new_value: unknown; created_at: string; actor_id: string | null; project_id: string | null;
+  // ── Active Projects / Approvals summary row ──────────────────────────────────────────
+  // Reuses the same `projects` this board already fetched (region-scoped) — no second query
+  // for the count itself, same "active = not delivered" rule as the old dashboard.
+  const today = new Date().toISOString().split('T')[0];
+  const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  const active = projects.filter(p => p.current_stage !== 'delivered');
+  const activeCount = active.length;
+  const overdueCount = active.filter(p => p.est_delivery_date && p.est_delivery_date < today).length;
+  const newThisWeek = projects.filter(p => p.created_at >= weekAgo).length;
+
+  const isApprovalsAdmin = ['ops_manager', 'general_manager'].includes(userRole);
+  const projectIds = projects.map(p => p.id);
+  let approvals: ApprovalSummaryItem[] = [];
+  if (projectIds.length > 0) {
+    let approvalsQuery = admin.from('document_approvals')
+      .select('id, stage, doc_type, assigned_to, created_at, project_id')
+      .eq('status', 'pending')
+      .in('project_id', projectIds)
+      .order('created_at', { ascending: true })
+      .limit(20);
+    if (!isApprovalsAdmin) approvalsQuery = approvalsQuery.eq('assigned_to', user.id);
+
+    const { data: approvalRows } = await approvalsQuery as { data: {
+      id: string; stage: number; doc_type: string; assigned_to: string | null; created_at: string; project_id: string;
     }[] | null };
 
-  const auditActorIds = [...new Set((auditRows ?? []).map(e => e.actor_id).filter(Boolean))] as string[];
-  const auditProjectIds = [...new Set((auditRows ?? []).map(e => e.project_id).filter(Boolean))] as string[];
-
-  const [auditProfilesRes, auditProjectsRes] = await Promise.all([
-    auditActorIds.length > 0
-      ? admin.from('profiles').select('id, full_name').in('id', auditActorIds)
-      : Promise.resolve({ data: [] }),
-    auditProjectIds.length > 0
-      ? admin.from('projects').select('id, code').in('id', auditProjectIds)
-      : Promise.resolve({ data: [] }),
-  ]);
-
-  const auditProfileMap = new Map(
-    ((auditProfilesRes.data ?? []) as { id: string; full_name: string }[]).map(p => [p.id, p.full_name])
-  );
-  const auditProjectMap = new Map(
-    ((auditProjectsRes.data ?? []) as { id: string; code: string }[]).map(p => [p.id, p.code])
-  );
-
-  const activity: ActivityItem[] = (auditRows ?? []).map(e => ({
-    id:          e.id,
-    action:      e.action,
-    resource:    e.resource,
-    createdAt:   e.created_at,
-    actorName:   auditProfileMap.get(e.actor_id ?? '') ?? 'System',
-    projectId:   e.project_id,
-    projectCode: e.project_id ? (auditProjectMap.get(e.project_id) ?? null) : null,
-  }));
-
-  const pmProfileIds = [...new Set(projects.map(p => p.trustlines_pm_id).filter(Boolean))] as string[];
-  const { data: pmProfilesData } = pmProfileIds.length > 0
-    ? await admin.from('profiles').select('id, full_name').in('id', pmProfileIds)
-    : { data: [] };
-  const pmProfileMap = new Map(
-    ((pmProfilesData ?? []) as { id: string; full_name: string }[]).map(p => [p.id, p.full_name])
-  );
-
-  const stageWeights: Record<string, number> = {
-    closed_deal: 15,
-    discovery: 15,
-    planning: 35,
-    client_approval: 55,
-    production: 75,
-    execution: 75,
-    qc: 90,
-    testing: 90,
-    finalization: 85,
-    delivered: 100,
-  };
-
-  const projectsList = active.slice(0, 10).map(p => ({
-    id: p.id,
-    code: p.code,
-    name: p.name,
-    stage: p.current_stage,
-    stageLabel: STAGE_LABELS[p.current_stage] ?? p.current_stage,
-    ownerName: pmProfileMap.get(p.trustlines_pm_id ?? '') ?? userName ?? 'Frontend Demo',
-    progress: stageWeights[p.current_stage] ?? 85,
-    updatedAt: p.created_at ? p.created_at.split('T')[0] : today,
-  }));
+    const projectMap = new Map(projects.map(p => [p.id, p]));
+    approvals = (approvalRows ?? []).map(a => {
+      const proj = projectMap.get(a.project_id);
+      return {
+        id: a.id, projectId: a.project_id,
+        projectCode: proj?.code ?? '—', projectName: proj?.name ?? '—',
+        docType: a.doc_type, stage: a.stage,
+      };
+    });
+  }
 
   return (
-    <DashboardClient
-      userName={userName}
-      userRole={userRole}
-      stats={stats}
-      approvals={approvals}
-      activity={activity}
-      projectsList={projectsList}
-      today={today}
-    />
+    <>
+      <TopSummaryRow approvals={approvals} activeCount={activeCount} overdueCount={overdueCount} newThisWeek={newThisWeek} />
+      <BranchBoard columns={columns} assignees={marketingAssignees ?? []} canEdit={canEditOpportunities} />
+    </>
   );
 }
