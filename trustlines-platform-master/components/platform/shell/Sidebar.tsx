@@ -123,14 +123,14 @@ const SALES_NAV: NavItem[] = [
 // whole module (MarketingWorkspaceClient), and it was previously reachable from NOWHERE in the
 // sidebar.
 //
-// 🔴 2026-09-17: "Potentials" was marketing_manager-only for a while (marketing_pr was routed
-// to Contacts filtered to status=potential instead) — reversed per direct instruction: a
-// marketing_pr should see every Potential here too, not just their own Contacts view of them.
-// Everyone with marketing access gets this link now.
+// 🔴 2026-09-23: "Potentials" direct nav link removed — that free-browsing list (122+ rows,
+// no query required) is exactly what the Contacts query-builder restriction was just added to
+// close off. Its data is still reachable, just query-first now: Contacts' "project status:
+// none/active" quick-query buttons cover the same ground. Route itself
+// (/marketing/opportunities) is untouched in case something still links to it directly.
 const MARKETING_NAV: NavItem[] = [
   { label: 'Marketing Home',      href: '/marketing',               icon: Megaphone,    perm: 'page.marketing' },
   { label: 'Contacts',            href: '/marketing/prospects',     icon: FolderSearch, perm: 'page.marketing' },
-  { label: 'Potentials',          href: '/marketing/opportunities', icon: Target,       perm: 'page.marketing' },
   { label: 'Campaigns & Surveys', href: '/marketing/campaigns',     icon: QrCode,       perm: 'page.marketing_campaigns' },
   { label: 'Trash',               href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing' },
 ];
@@ -386,7 +386,10 @@ export function Sidebar({
 
   return (
     <aside
-      className="h-screen flex flex-col text-white select-none overflow-hidden shrink-0 z-20"
+      // sticky, not the old fixed-shell/overflow-hidden trick — AppShell's outer container no
+      // longer clips to h-screen (2026-09-23, so short pages don't force-fill the viewport
+      // with empty content-area background), so the sidebar has to pin itself instead.
+      className="sticky top-0 h-screen flex flex-col text-white select-none overflow-hidden shrink-0 z-20"
       style={{
         backgroundColor: '#474747',
         borderRight: '1px solid rgba(255, 255, 255, 0.08)',

@@ -70,23 +70,42 @@ export async function GET(req: NextRequest) {
     includeIds = intersect(includeIds, [...new Set(prospectIdColumn(ciRows))]);
   }
 
+  // Project status: don't rely on our own `projects` table alone — most historical deals were
+  // opened AND closed entirely in ClickUp, long before this system's internal project pipeline
+  // existed, and never got a `projects` row / `opportunities.project_id` at all. ClickUp's own
+  // "Status OP" already recorded the real outcome, imported as opportunities.stage (see
+  // lib/clickup/importOpportunitiesMapping.ts's STATUS_OP_MAP — 'DEAL CLOSED' → 'closed_won').
+  // So "finished"/"active" here reads BOTH signals: our own projects.current_stage where a
+  // project row exists, OR the imported opportunity stage where it doesn't.
+  const ACTIVE_OPP_STAGES = ['sales_handoff', 'sales_accepted', 'discovery', 'sales_design', 'proposal', 'negotiation', 'working_on_it_trust', 'on_hold'];
+
   if (projectStatus === 'none') {
-    const { data: oppRows, error: oppError } = await admin.from('opportunities').select('prospect_id').not('project_id', 'is', null);
+    const { data: oppRows, error: oppError } = await admin.from('opportunities').select('prospect_id')
+      .or('project_id.not.is.null,stage.eq.closed_won');
     if (oppError) return NextResponse.json({ error: oppError.message }, { status: 500 });
     excludeIds.push(...new Set(prospectIdColumn(oppRows)));
   } else if (projectStatus === 'active' || projectStatus === 'finished') {
+    // Signal 1: an opportunity whose own ClickUp-sourced stage already says so.
+    const { data: stageOppRows, error: stageOppError } = projectStatus === 'finished'
+      ? await admin.from('opportunities').select('prospect_id').eq('stage', 'closed_won')
+      : await admin.from('opportunities').select('prospect_id').in('stage', ACTIVE_OPP_STAGES);
+    if (stageOppError) return NextResponse.json({ error: stageOppError.message }, { status: 500 });
+    const fromStage = prospectIdColumn(stageOppRows);
+
+    // Signal 2: a linked internal project at the matching lifecycle stage.
     let projQuery = admin.from('projects').select('id');
     projQuery = projectStatus === 'finished' ? projQuery.eq('current_stage', 'delivered') : projQuery.neq('current_stage', 'delivered');
     const { data: projRows, error: projError } = await projQuery;
     if (projError) return NextResponse.json({ error: projError.message }, { status: 500 });
     const projectIds = ((projRows ?? []) as { id: string }[]).map(p => p.id);
-    if (projectIds.length === 0) {
-      includeIds = intersect(includeIds, []);
-    } else {
+    let fromProject: string[] = [];
+    if (projectIds.length > 0) {
       const { data: oppRows, error: oppError } = await admin.from('opportunities').select('prospect_id').in('project_id', projectIds);
       if (oppError) return NextResponse.json({ error: oppError.message }, { status: 500 });
-      includeIds = intersect(includeIds, [...new Set(prospectIdColumn(oppRows))]);
+      fromProject = prospectIdColumn(oppRows);
     }
+
+    includeIds = intersect(includeIds, [...new Set([...fromStage, ...fromProject])]);
   }
 
   // 🔴 2026-09-17: 'created_at' needs to show/sort by the real ClickUp date when a Contact

@@ -38,7 +38,13 @@ export function AppShell({
   const isHome = pathname === '/home' || pathname === '/';
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-white text-neutral-900">
+    // items-start (not the flex-row default of stretch): the sidebar is a fixed h-screen
+    // column (sticky-pinned below), but the main column must NOT be stretched to match it —
+    // that stretch was exactly what made a short page's content area fill the whole viewport
+    // height, leaving a big empty band of its background under short lists (2026-09-23 fix).
+    // No overflow-hidden/h-screen here either — the page now scrolls normally (the body), with
+    // the sidebar and TopBar staying in view via `sticky`, not via clipping+internal scroll.
+    <div className="flex w-full items-start bg-white text-neutral-900">
       {/* Collapsible Claude-style Sidebar */}
       <Sidebar
         userRole={userRole}
@@ -48,7 +54,7 @@ export function AppShell({
         logoSrc={logoSrc}
       />
 
-      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+      <div className="flex flex-1 flex-col min-w-0">
         {/* TopBar with brand, breadcrumbs, search, and user menu */}
         <TopBar
           breadcrumbs={breadcrumbs}
@@ -58,8 +64,8 @@ export function AppShell({
           logoSrc={logoSrc}
         />
 
-        {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto min-h-0 bg-[#F8FAFC]">
+        {/* Main Content Area — sized to its own content now, not forced to viewport height */}
+        <main className="bg-[#F8FAFC]">
           <div
             className={fullWidth ? 'main-inner main-inner--full p-4 sm:p-6' : 'main-inner w-full'}
             style={{
