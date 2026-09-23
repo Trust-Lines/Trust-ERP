@@ -36,6 +36,59 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(url.searchParams.get('pageSize') ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE));
 
+  // Query-builder criteria (2026-09-23 decision: Marketing no longer gets to browse every
+  // Contact — see the "no criterion at all" guard below). campaignId/surveyOnly answer "who
+  // interacted with campaign X / came in through a survey" via campaign_interactions;
+  // projectStatus answers "who currently has / had / never had a project" via
+  // opportunities.project_id → projects.current_stage.
+  const campaignId = (url.searchParams.get('campaignId') ?? '').trim();
+  const surveyOnly = url.searchParams.get('surveyOnly') === '1';
+  const projectStatus = (url.searchParams.get('projectStatus') ?? '').trim(); // '' | 'active' | 'finished' | 'none'
+  const exportMode = url.searchParams.get('export') === '1';
+
+  const hasAnyCriterion = !!(q || status || region || source || completeness || campaignId || surveyOnly || projectStatus);
+  // No role exception — every MARKETING_READ_ROLES account (marketing_pr, marketing_manager,
+  // general_manager, ops_manager) must build a query before any row comes back. "kimse
+  // görmeyecek" (2026-09-23): a full-authority role browsing the whole Contacts table wasn't
+  // the intent, only the query-driven mailing-list workflow is.
+  if (!hasAnyCriterion) {
+    return NextResponse.json({ prospects: [], contacts: [], total: 0, page, pageSize, queryRequired: true });
+  }
+
+  let includeIds: string[] | null = null; // intersected across every "who matches" criterion below
+  const excludeIds: string[] = [];
+  const intersect = (a: string[] | null, b: string[]) => (a === null ? b : a.filter(x => new Set(b).has(x)));
+  const prospectIdColumn = (rows: unknown[] | null): string[] =>
+    ((rows ?? []) as { prospect_id: string }[]).map(r => r.prospect_id);
+
+  if (campaignId || surveyOnly) {
+    let ciQuery = admin.from('campaign_interactions').select('prospect_id');
+    if (campaignId) ciQuery = ciQuery.eq('campaign_id', campaignId);
+    if (surveyOnly) ciQuery = ciQuery.not('survey_submission_id', 'is', null);
+    const { data: ciRows, error: ciError } = await ciQuery;
+    if (ciError) return NextResponse.json({ error: ciError.message }, { status: 500 });
+    includeIds = intersect(includeIds, [...new Set(prospectIdColumn(ciRows))]);
+  }
+
+  if (projectStatus === 'none') {
+    const { data: oppRows, error: oppError } = await admin.from('opportunities').select('prospect_id').not('project_id', 'is', null);
+    if (oppError) return NextResponse.json({ error: oppError.message }, { status: 500 });
+    excludeIds.push(...new Set(prospectIdColumn(oppRows)));
+  } else if (projectStatus === 'active' || projectStatus === 'finished') {
+    let projQuery = admin.from('projects').select('id');
+    projQuery = projectStatus === 'finished' ? projQuery.eq('current_stage', 'delivered') : projQuery.neq('current_stage', 'delivered');
+    const { data: projRows, error: projError } = await projQuery;
+    if (projError) return NextResponse.json({ error: projError.message }, { status: 500 });
+    const projectIds = ((projRows ?? []) as { id: string }[]).map(p => p.id);
+    if (projectIds.length === 0) {
+      includeIds = intersect(includeIds, []);
+    } else {
+      const { data: oppRows, error: oppError } = await admin.from('opportunities').select('prospect_id').in('project_id', projectIds);
+      if (oppError) return NextResponse.json({ error: oppError.message }, { status: 500 });
+      includeIds = intersect(includeIds, [...new Set(prospectIdColumn(oppRows))]);
+    }
+  }
+
   // 🔴 2026-09-17: 'created_at' needs to show/sort by the real ClickUp date when a Contact
   // has one (external_created_at) and fall back to our own created_at otherwise — losing the
   // real ClickUp dates isn't acceptable, but sorting by external_created_at alone buried
@@ -94,11 +147,36 @@ export async function GET(req: NextRequest) {
     if (status) query = query.eq('status', status);
     if (region) query = query.contains('regions', [region]);
     if (source) query = query.eq('source_label', source);
+    if (includeIds !== null) query = query.in('id', includeIds);
+    if (excludeIds.length > 0) query = query.not('id', 'in', `(${excludeIds.join(',')})`);
     if (q) {
       const safe = q.replace(/[%,()\\]/g, '\\$&');
       query = query.or(`display_name.ilike.%${safe}%,brand_name.ilike.%${safe}%,industry.ilike.%${safe}%`);
     }
     return query;
+  }
+
+  if (exportMode) {
+    // Bulk-mail export: every matching row's name+email, ignoring pagination (capped, same
+    // 1000-row-per-request PostgREST ceiling worked around as the completeness branch below).
+    // completeness='missing' isn't supported in combination with export — it's a per-row
+    // computed field, not something worth the extra enrichment pass for a mailing-list export.
+    const EXPORT_CAP = 5000;
+    const FETCH_PAGE = 1000;
+    const rows: { display_name: string; main_email: string | null }[] = [];
+    for (let offset = 0; offset < EXPORT_CAP; offset += FETCH_PAGE) {
+      const pageQuery = applyFilters(admin.from('prospects').select('display_name, main_email').is('deleted_at', null))
+        .range(offset, offset + FETCH_PAGE - 1);
+      const { data, error } = await pageQuery;
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      rows.push(...((data ?? []) as { display_name: string; main_email: string | null }[]));
+      if (!data || data.length < FETCH_PAGE) break;
+    }
+    const withEmail = rows.filter(r => r.main_email);
+    return NextResponse.json({
+      contacts: withEmail.map(r => ({ name: r.display_name, email: r.main_email as string })),
+      total: rows.length,
+    });
   }
 
   if (completeness === 'missing') {

@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Loader2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Filter, Download, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { SOURCE_LABEL, SOURCES } from '@/lib/marketing/classification';
 import { REGIONS } from '@/lib/regions';
@@ -70,6 +70,11 @@ interface Props {
   potentialTotal: number | null;
   opportunityTotal: number | null;
   assignees: { id: string; full_name: string }[];
+  // 2026-09-23: every role — the page opens empty and stays empty until at least one filter
+  // below is set; app/api/marketing/prospects/route.ts enforces the same rule server-side
+  // regardless of what this prop says, so it can't be bypassed by tampering with the client.
+  queryRequired?: boolean;
+  campaigns: { id: string; name: string }[];
 }
 
 function EntityIcon({ type }: { type: LeadEntityType }) {
@@ -77,6 +82,26 @@ function EntityIcon({ type }: { type: LeadEntityType }) {
   const Icon = isOrg ? Building2 : User;
   return (
     <Icon size={14} style={{ color: isOrg ? 'var(--brand-teal-600)' : 'var(--brand-orange-600)', flexShrink: 0 }} />
+  );
+}
+
+// A clickable named-query button (2026-09-23) — toggles a criterion on/off, distinct in look
+// from the plain filter <Select>s below it: filled when active, outlined when not.
+function QueryPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        fontSize: 12.5, fontWeight: 600, padding: '5px 12px', borderRadius: 999, whiteSpace: 'nowrap',
+        border: active ? '1px solid var(--brand-teal-600, #0d9488)' : '1px solid var(--border-subtle)',
+        background: active ? 'var(--brand-teal-600, #0d9488)' : 'var(--bg-surface)',
+        color: active ? '#fff' : 'var(--fg-default)',
+        cursor: 'pointer', transition: 'background 120ms, color 120ms, border-color 120ms',
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -88,7 +113,7 @@ function TagPill({ label, bg }: { label: string; bg: string }) {
   );
 }
 
-export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, canEdit, loadError, potentialTotal, opportunityTotal, assignees }: Props) {
+export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, canEdit, loadError, potentialTotal, opportunityTotal, assignees, queryRequired, campaigns }: Props) {
   const [prospects, setProspects] = useState<ProspectRow[]>(initialProspects);
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -101,6 +126,12 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
   const [regionFilter, setRegionFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
   const [completenessFilter, setCompletenessFilter] = useState('');
+  // Query-builder-only filters (2026-09-23) — "who attended this campaign/event", "who came in
+  // through a survey", "who currently has / had / never had a project".
+  const [campaignFilter, setCampaignFilter] = useState('');
+  const [surveyOnlyFilter, setSurveyOnlyFilter] = useState(false);
+  const [projectStatusFilter, setProjectStatusFilter] = useState('');
+  const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(false);
   const SERVER_SORT_KEYS = new Set(['created_at', 'source']);
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -197,15 +228,29 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     });
   }
 
+  const hasAnyQuery = !!(query.trim() || statusFilter || regionFilter || sourceFilter || completenessFilter || campaignFilter || surveyOnlyFilter || projectStatusFilter);
+
+  function buildParams(extra: Record<string, string>) {
+    const params = new URLSearchParams(extra);
+    if (query.trim()) params.set('q', query.trim());
+    if (statusFilter) params.set('status', statusFilter);
+    if (regionFilter) params.set('region', regionFilter);
+    if (sourceFilter) params.set('source', sourceFilter);
+    if (completenessFilter) params.set('completeness', completenessFilter);
+    if (campaignFilter) params.set('campaignId', campaignFilter);
+    if (surveyOnlyFilter) params.set('surveyOnly', '1');
+    if (projectStatusFilter) params.set('projectStatus', projectStatusFilter);
+    return params;
+  }
+
   async function load(nextPage: number) {
+    // queryRequired accounts get nothing until they set at least one filter — never even asks
+    // the server for an unfiltered page (the API would refuse it anyway, this just skips the
+    // round trip and keeps the empty/prompt state showing instead of a flash of "0 results").
+    if (queryRequired && !hasAnyQuery) { setProspects([]); setTotal(0); setPage(1); return; }
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(nextPage), pageSize: String(pageSize) });
-      if (query.trim()) params.set('q', query.trim());
-      if (statusFilter) params.set('status', statusFilter);
-      if (regionFilter) params.set('region', regionFilter);
-      if (sourceFilter) params.set('source', sourceFilter);
-      if (completenessFilter) params.set('completeness', completenessFilter);
+      const params = buildParams({ page: String(nextPage), pageSize: String(pageSize) });
       if (sortKey && SERVER_SORT_KEYS.has(sortKey)) { params.set('sort', sortKey); params.set('dir', sortDir); }
       const res = await fetch(`/api/marketing/prospects?${params.toString()}`);
       const body = await res.json().catch(() => null);
@@ -215,6 +260,34 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
       setPage(nextPage);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function exportContacts(mode: 'csv' | 'copy') {
+    if (!hasAnyQuery) { toast.error('Set at least one filter first.'); return; }
+    setExporting(true);
+    try {
+      const params = buildParams({ export: '1' });
+      const res = await fetch(`/api/marketing/prospects?${params.toString()}`);
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body) { toast.error(body?.error ?? 'Could not export contacts'); return; }
+      const contacts = (body.contacts ?? []) as { name: string; email: string }[];
+      if (contacts.length === 0) { toast.error('No matching contacts have an email on file.'); return; }
+      if (mode === 'copy') {
+        await navigator.clipboard.writeText(contacts.map(c => c.email).join(', '));
+        toast.success(`Copied ${contacts.length} email${contacts.length !== 1 ? 's' : ''} to clipboard.`);
+      } else {
+        const csv = ['Name,Email', ...contacts.map(c => `"${c.name.replace(/"/g, '""')}","${c.email}"`)].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(`Downloaded ${contacts.length} contact${contacts.length !== 1 ? 's' : ''}.`);
+      }
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -230,7 +303,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     const t = setTimeout(() => { load(1); }, 300);
     return () => clearTimeout(t);
 
-  }, [query, statusFilter, regionFilter, sourceFilter, completenessFilter, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortKey : null, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortDir : null]);
+  }, [query, statusFilter, regionFilter, sourceFilter, completenessFilter, campaignFilter, surveyOnlyFilter, projectStatusFilter, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortKey : null, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortDir : null]);
 
   function toggleSort(key: string) {
     if (sortKey === key) { setSortDir(d => (d === 'asc' ? 'desc' : 'asc')); return; }
@@ -293,7 +366,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const hasFilters = !!(query.trim() || statusFilter || regionFilter || sourceFilter || completenessFilter);
+  const hasFilters = hasAnyQuery;
   const todayIso = new Date().toISOString().slice(0, 10);
 
   return (
@@ -306,7 +379,9 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
         <div>
           <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Contacts</h1>
           <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
-            {total.toLocaleString('en-US')} contact{total !== 1 ? 's' : ''} — Marketing-owned
+            {queryRequired && !hasAnyQuery
+              ? 'Build a query below to see a list — the full Contacts table isn’t browsable here.'
+              : `${total.toLocaleString('en-US')} contact${total !== 1 ? 's' : ''} — Marketing-owned`}
           </p>
         </div>
         {canEdit && (
@@ -314,6 +389,35 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
             + Capture New Contact
           </Link>
         )}
+      </div>
+
+      {/* Quick queries (2026-09-23, "butonlu olsun, sorgu/filtre gibi olmasın") — press a
+          button to run a named query, not fill in a dropdown. Each toggles on/off; a campaign
+          button and a project-status button combine (e.g. "Natso 2026" + "Never had a
+          project" = attendees Sales hasn't converted yet), same as before, just not a Select. */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--fg-subtle)' }}>
+          Quick queries
+        </span>
+        {campaigns.map(c => (
+          <QueryPill
+            key={c.id} label={c.name} active={campaignFilter === c.id}
+            onClick={() => setCampaignFilter(prev => (prev === c.id ? '' : c.id))}
+          />
+        ))}
+        <QueryPill label="From a survey" active={surveyOnlyFilter} onClick={() => setSurveyOnlyFilter(v => !v)} />
+        <QueryPill
+          label="Has an active project" active={projectStatusFilter === 'active'}
+          onClick={() => setProjectStatusFilter(prev => (prev === 'active' ? '' : 'active'))}
+        />
+        <QueryPill
+          label="Project finished" active={projectStatusFilter === 'finished'}
+          onClick={() => setProjectStatusFilter(prev => (prev === 'finished' ? '' : 'finished'))}
+        />
+        <QueryPill
+          label="Never had a project" active={projectStatusFilter === 'none'}
+          onClick={() => setProjectStatusFilter(prev => (prev === 'none' ? '' : 'none'))}
+        />
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -351,20 +455,42 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
         {hasFilters && (
           <button
             className="btn btn-ghost btn-sm"
-            onClick={() => { setQuery(''); setStatusFilter(''); setRegionFilter(''); setSourceFilter(''); setCompletenessFilter(''); }}
+            onClick={() => {
+              setQuery(''); setStatusFilter(''); setRegionFilter(''); setSourceFilter(''); setCompletenessFilter('');
+              setCampaignFilter(''); setSurveyOnlyFilter(false); setProjectStatusFilter('');
+            }}
           >
             Clear filters
           </button>
         )}
         {loading && <Loader2 size={15} style={{ color: 'var(--fg-subtle)', animation: 'spin 1s linear infinite' }} />}
+        {hasFilters && total > 0 && (
+          <span style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+            <button className="btn btn-ghost btn-sm" disabled={exporting} onClick={() => exportContacts('copy')} title="Copy every matching contact's email, comma-separated">
+              <Copy size={13} style={{ marginRight: 5 }} /> Copy emails
+            </button>
+            <button className="btn btn-ghost btn-sm" disabled={exporting} onClick={() => exportContacts('csv')} title="Download name + email for every matching contact">
+              <Download size={13} style={{ marginRight: 5 }} /> Download CSV
+            </button>
+          </span>
+        )}
       </div>
 
       {total === 0 ? (
         <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
-          <Users size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
-          <div>
-            {hasFilters ? 'No contacts match your filters.' : <>No contacts yet.{canEdit && ' Click "Capture New Contact" to add the first one.'}</>}
-          </div>
+          {queryRequired && !hasAnyQuery ? (
+            <>
+              <Filter size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
+              <div>Pick a campaign, survey, project status, or search above to pull a contact list.</div>
+            </>
+          ) : (
+            <>
+              <Users size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
+              <div>
+                {hasFilters ? 'No contacts match your filters.' : <>No contacts yet.{canEdit && ' Click "Capture New Contact" to add the first one.'}</>}
+              </div>
+            </>
+          )}
         </div></div>
       ) : (
         <>

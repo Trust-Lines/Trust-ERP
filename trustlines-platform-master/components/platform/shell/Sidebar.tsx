@@ -441,20 +441,20 @@ export function Sidebar({
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-0.5 scrollbar-none">
         <NavLink item={DASHBOARD_ITEM} perms={userPerms} pathname={pathname} collapsed={collapsed} />
 
-        {isSales && (
-          <NavGroup
-            title="Sales" icon={Target} items={salesNav} perms={userPerms} pathname={pathname} bypassPerm defaultOpen
-            collapsed={collapsed}
-            activeOverride={quickDealActive ? '/leads/new' : undefined}
-          />
-        )}
-
         {isMarketing && (
           <NavGroup
             title="Marketing" icon={Megaphone}
             items={marketingNav}
             perms={userPerms} pathname={pathname} bypassPerm defaultOpen
             collapsed={collapsed}
+          />
+        )}
+
+        {isSales && (
+          <NavGroup
+            title="Sales" icon={Target} items={salesNav} perms={userPerms} pathname={pathname} bypassPerm defaultOpen
+            collapsed={collapsed}
+            activeOverride={quickDealActive ? '/leads/new' : undefined}
           />
         )}
 
