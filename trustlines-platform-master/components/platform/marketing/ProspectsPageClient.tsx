@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Filter, Download, Copy } from 'lucide-react';
+import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Filter, Download, Copy, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { SOURCE_LABEL, SOURCES } from '@/lib/marketing/classification';
 import { REGIONS } from '@/lib/regions';
@@ -132,6 +132,9 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
   const [surveyOnlyFilter, setSurveyOnlyFilter] = useState(false);
   const [projectStatusFilter, setProjectStatusFilter] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
+  const [templateId, setTemplateId] = useState('');
   const [loading, setLoading] = useState(false);
   const SERVER_SORT_KEYS = new Set(['created_at', 'source']);
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -143,6 +146,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
   useEffect(() => {
     fetch('/api/marketing/prospects/source-options').then(r => r.json()).then(b => setSourceOptions(b.options ?? [])).catch(() => {});
     fetch('/api/marketing/prospects/business-type-options').then(r => r.json()).then(b => setBusinessTypeOptions(b.options ?? [])).catch(() => {});
+    fetch('/api/marketing/mail-templates').then(r => r.json()).then(b => setTemplates(b.templates ?? [])).catch(() => {});
   }, []);
 
   async function updateSource(p: ProspectRow, next: string) {
@@ -268,16 +272,24 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     setExporting(true);
     try {
       const params = buildParams({ export: '1' });
+      // 'copy' stays plain (just the addresses) even with a template picked — a merged
+      // subject+body per contact isn't something you can usefully paste into a clipboard.
+      if (mode === 'csv' && templateId) params.set('templateId', templateId);
       const res = await fetch(`/api/marketing/prospects?${params.toString()}`);
       const body = await res.json().catch(() => null);
       if (!res.ok || !body) { toast.error(body?.error ?? 'Could not export contacts'); return; }
-      const contacts = (body.contacts ?? []) as { name: string; email: string }[];
+      const contacts = (body.contacts ?? []) as { name: string; email: string; subject?: string; body?: string }[];
       if (contacts.length === 0) { toast.error('No matching contacts have an email on file.'); return; }
       if (mode === 'copy') {
         await navigator.clipboard.writeText(contacts.map(c => c.email).join(', '));
         toast.success(`Copied ${contacts.length} email${contacts.length !== 1 ? 's' : ''} to clipboard.`);
       } else {
-        const csv = ['Name,Email', ...contacts.map(c => `"${c.name.replace(/"/g, '""')}","${c.email}"`)].join('\n');
+        const merged = 'subject' in contacts[0];
+        const esc = (s: string) => `"${(s ?? '').replace(/"/g, '""')}"`;
+        const csv = [
+          merged ? 'Name,Email,Subject,Body' : 'Name,Email',
+          ...contacts.map(c => (merged ? [c.name, c.email, c.subject ?? '', c.body ?? ''] : [c.name, c.email]).map(esc).join(',')),
+        ].join('\n');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -288,6 +300,32 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
       }
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function sendWithTemplate() {
+    if (!templateId) { toast.error('Pick a template first.'); return; }
+    if (!hasAnyQuery) { toast.error('Set at least one filter first.'); return; }
+    const templateName = templates.find(t => t.id === templateId)?.name ?? 'this template';
+    if (!confirm(`Send "${templateName}" to ${total} matching contact${total !== 1 ? 's' : ''}? This can't be undone.`)) return;
+
+    setSending(true);
+    try {
+      const filters = {
+        q: query.trim() || undefined, status: statusFilter || undefined, region: regionFilter || undefined,
+        source: sourceFilter || undefined, completeness: completenessFilter || undefined,
+        campaignId: campaignFilter || undefined, surveyOnly: surveyOnlyFilter || undefined,
+        projectStatus: projectStatusFilter || undefined,
+      };
+      const res = await fetch('/api/marketing/prospects/bulk-send', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateId, filters }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(body.error ?? 'Could not send'); return; }
+      toast.success(`Sent to ${body.sent} contact${body.sent !== 1 ? 's' : ''}${body.failed ? ` — ${body.failed} failed` : ''}.`);
+    } finally {
+      setSending(false);
     }
   }
 
@@ -465,13 +503,32 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
         )}
         {loading && <Loader2 size={15} style={{ color: 'var(--fg-subtle)', animation: 'spin 1s linear infinite' }} />}
         {hasFilters && total > 0 && (
-          <span style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+          <span style={{ display: 'flex', gap: 6, marginLeft: 'auto', alignItems: 'center', flexWrap: 'wrap' }}>
+            {templates.length > 0 && (
+              <Select
+                className="form-input" style={{ maxWidth: 190, fontSize: 13 }}
+                value={templateId} onChange={e => setTemplateId(e.target.value)} aria-label="Mail template"
+                title="Pick a template to merge into the CSV or to send"
+              >
+                <option value="">No template (plain export)</option>
+                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </Select>
+            )}
             <button className="btn btn-ghost btn-sm" disabled={exporting} onClick={() => exportContacts('copy')} title="Copy every matching contact's email, comma-separated">
               <Copy size={13} style={{ marginRight: 5 }} /> Copy emails
             </button>
-            <button className="btn btn-ghost btn-sm" disabled={exporting} onClick={() => exportContacts('csv')} title="Download name + email for every matching contact">
+            <button
+              className="btn btn-ghost btn-sm" disabled={exporting}
+              onClick={() => exportContacts('csv')}
+              title={templateId ? "Download name, email, subject and merged body for every matching contact" : 'Download name + email for every matching contact'}
+            >
               <Download size={13} style={{ marginRight: 5 }} /> Download CSV
             </button>
+            {templateId && (
+              <button className="btn btn-primary btn-sm" disabled={sending} onClick={sendWithTemplate} title="Send this template to every matching contact">
+                <Send size={13} style={{ marginRight: 5 }} /> {sending ? 'Sending…' : `Send to ${total}`}
+              </button>
+            )}
           </span>
         )}
       </div>

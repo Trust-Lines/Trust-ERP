@@ -39,6 +39,7 @@ import {
   QrCode,
   LogOut,
   Shield,
+  Mail,
 } from 'lucide-react';
 import type { UserRole } from '@/types/database';
 import { permCan } from '@/lib/permissions/catalog';
@@ -131,6 +132,7 @@ const SALES_NAV: NavItem[] = [
 const MARKETING_NAV: NavItem[] = [
   { label: 'Marketing Home',      href: '/marketing',               icon: Megaphone,    perm: 'page.marketing' },
   { label: 'Contacts',            href: '/marketing/prospects',     icon: FolderSearch, perm: 'page.marketing' },
+  { label: 'Mail Templates',      href: '/marketing/mail-templates', icon: Mail,        perm: 'page.marketing' },
   { label: 'Campaigns & Surveys', href: '/marketing/campaigns',     icon: QrCode,       perm: 'page.marketing_campaigns' },
   { label: 'Trash',               href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing' },
 ];
