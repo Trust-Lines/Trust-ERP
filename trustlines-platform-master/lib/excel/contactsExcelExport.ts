@@ -43,6 +43,11 @@ export interface ContactExportRow {
   effective_created_at?: string | null;
   created_at?: string;
   updated_at?: string;
+  // "[date] Author: note text" lines, one per prospect_contact_notes entry, newest last —
+  // already combined into one string server-side (app/api/marketing/prospects/route.ts's
+  // export=1&detail=1) since an Excel cell is what this is for: one cell per Contact, not a
+  // second sheet or a row explosion (2026-09-28, "içeriği tek hücrede olsun").
+  activities?: string;
 }
 
 const COLUMNS: { header: string; width: number; get: (r: ContactExportRow) => string | number }[] = [
@@ -77,7 +82,10 @@ const COLUMNS: { header: string; width: number; get: (r: ContactExportRow) => st
   { header: 'Archived', width: 10, get: r => (r.is_archived ? 'Yes' : 'No') },
   { header: 'Added', width: 14, get: r => fmtDate(r.effective_created_at ?? r.created_at) },
   { header: 'Updated', width: 14, get: r => fmtDate(r.updated_at) },
+  { header: 'Activities', width: 60, get: r => r.activities ?? '' },
 ];
+
+const ACTIVITIES_COL = COLUMNS.findIndex(c => c.header === 'Activities') + 1; // 1-based, exceljs convention
 
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return '';
@@ -108,12 +116,18 @@ export async function exportContactsWorkbook(rows: ContactExportRow[], filename?
 
   rows.forEach((r, i) => {
     const row = ws.addRow(COLUMNS.map(c => c.get(r)));
-    row.eachCell(cell => {
+    row.eachCell((cell, colNumber) => {
+      const isActivities = colNumber === ACTIVITIES_COL;
       cell.font = { size: 10 };
       cell.border = BORDERS_ALL;
-      cell.alignment = { vertical: 'middle', wrapText: false };
+      cell.alignment = { vertical: 'middle', wrapText: isActivities };
     });
     if (i % 2 === 1) row.eachCell(cell => { cell.fill = fillBg('F9FAFB'); });
+    // Activities can be several lines — give the row enough height to actually show them
+    // instead of clipping to the default single line (Excel doesn't auto-size row height for
+    // wrapped text on its own when the file is opened).
+    const lineCount = (r.activities ?? '').split('\n').filter(Boolean).length;
+    if (lineCount > 1) row.height = Math.min(15 * lineCount, 300);
   });
 
   ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: COLUMNS.length } };

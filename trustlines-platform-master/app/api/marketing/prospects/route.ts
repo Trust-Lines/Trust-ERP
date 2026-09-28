@@ -12,6 +12,7 @@ import {
   type ProspectFilterContext,
 } from '@/lib/marketing/prospectQuery';
 import { renderTemplate } from '@/lib/marketing/mailTemplates';
+import { fetchInChunks } from '@/lib/supabase/chunkedIn';
 import type { LeadEntityType } from '@/types/database';
 
 const LIST_COLS = 'id, entity_type, display_name, organization_name, person_name, brand_name, industry, status, location_count, '
@@ -115,8 +116,36 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      // Activities (2026-09-28): each Contact's timeline — the same per-contact-person notes
+      // shown in the "Activity" panel of the Contact popup (prospect_contact_notes, linked via
+      // prospect_contacts, not directly by prospect_id — two hops). One combined cell per
+      // prospect: "[date] Author: body" lines, oldest first, so it reads like the popup's
+      // timeline rather than a jumbled bag.
+      const activitiesByProspect = new Map<string, string>();
+      if (ids.length > 0) {
+        const contactRows = await fetchInChunks(ids, chunk => admin.from('prospect_contacts').select('id, prospect_id').in('prospect_id', chunk));
+        const prospectByContact = new Map((contactRows as { id: string; prospect_id: string }[]).map(c => [c.id, c.prospect_id]));
+        const contactIds = [...prospectByContact.keys()];
+        if (contactIds.length > 0) {
+          const noteRows = await fetchInChunks(contactIds, chunk => admin.from('prospect_contact_notes')
+            .select('prospect_contact_id, author_name, body, source_created_at, created_at')
+            .in('prospect_contact_id', chunk).order('source_created_at', { ascending: true, nullsFirst: false }).order('created_at', { ascending: true }));
+          for (const n of noteRows as { prospect_contact_id: string; author_name: string | null; body: string; source_created_at: string | null; created_at: string }[]) {
+            const prospectId = prospectByContact.get(n.prospect_contact_id);
+            if (!prospectId) continue;
+            const date = (n.source_created_at ?? n.created_at).slice(0, 10);
+            const line = `[${date}] ${n.author_name ?? 'Unknown'}: ${n.body}`;
+            activitiesByProspect.set(prospectId, activitiesByProspect.has(prospectId) ? `${activitiesByProspect.get(prospectId)}\n${line}` : line);
+          }
+        }
+      }
+
       return NextResponse.json({
-        contacts: enriched.map(r => ({ ...r, project_code: projectByProspect.get(r.id)?.code ?? null, project_name: projectByProspect.get(r.id)?.name ?? null })),
+        contacts: enriched.map(r => ({
+          ...r,
+          project_code: projectByProspect.get(r.id)?.code ?? null, project_name: projectByProspect.get(r.id)?.name ?? null,
+          activities: activitiesByProspect.get(r.id) ?? '',
+        })),
         total: enriched.length,
       });
     }
