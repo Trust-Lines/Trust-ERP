@@ -14,7 +14,10 @@ export interface ProspectQueryParams {
   q: string;
   status: string;
   region: string;
-  source: string;
+  // Multiple sources, OR'd together (2026-09-28: "birden fazla source seçebilsin") — a repeated
+  // ?source=A&source=B, not a comma-joined single value (a source label could itself contain a
+  // comma, so a real list of query params is the safe encoding).
+  sources: string[];
   completeness: string;
   includeArchived: boolean;
   campaignId: string;
@@ -27,7 +30,7 @@ export function parseProspectQueryParams(url: URL): ProspectQueryParams {
     q: (url.searchParams.get('q') ?? '').trim(),
     status: (url.searchParams.get('status') ?? '').trim(),
     region: (url.searchParams.get('region') ?? '').trim(),
-    source: (url.searchParams.get('source') ?? '').trim(),
+    sources: url.searchParams.getAll('source').map(s => s.trim()).filter(Boolean),
     completeness: (url.searchParams.get('completeness') ?? '').trim(),
     includeArchived: url.searchParams.get('includeArchived') === '1',
     campaignId: (url.searchParams.get('campaignId') ?? '').trim(),
@@ -37,7 +40,7 @@ export function parseProspectQueryParams(url: URL): ProspectQueryParams {
 }
 
 export function hasAnyCriterion(p: ProspectQueryParams): boolean {
-  return !!(p.q || p.status || p.region || p.source || p.completeness || p.campaignId || p.surveyOnly || p.projectStatus);
+  return !!(p.q || p.status || p.region || p.sources.length > 0 || p.completeness || p.campaignId || p.surveyOnly || p.projectStatus);
 }
 
 const intersect = (a: string[] | null, b: string[]) => (a === null ? b : a.filter(x => new Set(b).has(x)));
@@ -127,7 +130,13 @@ export function applyProspectFilters(query: any, ctx: ProspectFilterContext): an
   if (!p.includeArchived) query = query.eq('is_archived', false);
   if (p.status) query = query.eq('status', p.status);
   if (p.region) query = query.contains('regions', [p.region]);
-  if (p.source) query = query.eq('source_label', p.source);
+  // source_raw_label, not source_label — the raw label is the free-text value the source pill
+  // in the Contacts table actually shows/edits (e.g. "HRA 2026"); source_label is a fixed
+  // classification enum that most rows don't even set. Filtering on the fixed enum meant a
+  // custom label like "HRA 2026" had no way to ever match (2026-09-28 fix — it had quietly
+  // become unfindable once Contacts stopped being browsable without a query). .in(), not .eq()
+  // — multiple sources OR together (2026-09-28).
+  if (p.sources.length > 0) query = query.in('source_raw_label', p.sources);
   if (includeIds !== null) query = query.in('id', includeIds);
   if (excludeIds.length > 0) query = query.not('id', 'in', `(${excludeIds.join(',')})`);
   if (p.q) {

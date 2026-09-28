@@ -40,6 +40,7 @@ import {
   LogOut,
   Shield,
   Mail,
+  UserSearch,
 } from 'lucide-react';
 import type { UserRole } from '@/types/database';
 import { permCan } from '@/lib/permissions/catalog';
@@ -132,6 +133,9 @@ const SALES_NAV: NavItem[] = [
 const MARKETING_NAV: NavItem[] = [
   { label: 'Marketing Home',      href: '/marketing',               icon: Megaphone,    perm: 'page.marketing' },
   { label: 'Contacts',            href: '/marketing/prospects',     icon: FolderSearch, perm: 'page.marketing' },
+  // 2026-09-28: query-builder Contacts still requires a criterion — this is the one deliberate
+  // exception, "type a name, see everyone" for whoever just needs to look a person up.
+  { label: 'Contact Manager',     href: '/marketing/contact-manager', icon: UserSearch,  perm: 'page.marketing' },
   { label: 'Mail Templates',      href: '/marketing/mail-templates', icon: Mail,        perm: 'page.marketing' },
   { label: 'Campaigns & Surveys', href: '/marketing/campaigns',     icon: QrCode,       perm: 'page.marketing_campaigns' },
   { label: 'Trash',               href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing' },

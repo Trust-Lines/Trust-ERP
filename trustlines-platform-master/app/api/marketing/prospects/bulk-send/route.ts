@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   const f = body?.filters ?? {};
   const params: ProspectQueryParams = {
-    q: f.q ?? '', status: f.status ?? '', region: f.region ?? '', source: f.source ?? '',
+    q: f.q ?? '', status: f.status ?? '', region: f.region ?? '', sources: f.sources ?? [],
     completeness: f.completeness ?? '', includeArchived: f.includeArchived ?? false,
     campaignId: f.campaignId ?? '', surveyOnly: f.surveyOnly ?? false, projectStatus: f.projectStatus ?? '',
   };

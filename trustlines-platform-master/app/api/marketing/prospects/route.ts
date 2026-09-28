@@ -34,12 +34,19 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(url.searchParams.get('pageSize') ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE));
   const exportMode = url.searchParams.get('export') === '1';
+  // Sent ONLY by /marketing/contact-manager's initial load (2026-09-28) — that page is the
+  // one deliberate exception to "no browsing without a query": it shows every Contact, newest
+  // first, same as the old unrestricted Contacts list, specifically so date-sorted/manually-
+  // tagged rows (e.g. "HRA 2026") that don't fit any of the query-builder's criteria are still
+  // reachable. The query-builder Contacts page itself never sends this.
+  const browseAll = url.searchParams.get('browseAll') === '1';
 
   // No role exception — every MARKETING_READ_ROLES account (marketing_pr, marketing_manager,
-  // general_manager, ops_manager) must build a query before any row comes back. "kimse
-  // görmeyecek" (2026-09-23): a full-authority role browsing the whole Contacts table wasn't
-  // the intent, only the query-driven mailing-list workflow is.
-  if (!hasAnyCriterion(params)) {
+  // general_manager, ops_manager) must build a query before any row comes back, UNLESS this is
+  // Contact Manager's browseAll. "kimse görmeyecek" (2026-09-23): a full-authority role
+  // browsing the whole Contacts table wasn't the intent for the query-builder page — Contact
+  // Manager is a separate, explicitly-requested full-browse tool.
+  if (!hasAnyCriterion(params) && !browseAll) {
     return NextResponse.json({ prospects: [], contacts: [], total: 0, page, pageSize, queryRequired: true });
   }
 
@@ -75,10 +82,49 @@ export async function GET(req: NextRequest) {
   }
 
   if (exportMode) {
-    // Bulk-mail export: every matching row, ignoring pagination (capped — see fetchAllMatching).
-    // completeness='missing' isn't supported in combination with export — it's a per-row
-    // computed field, not something worth the extra enrichment pass for a mailing-list export.
     const templateId = (url.searchParams.get('templateId') ?? '').trim();
+    // detail=1 (2026-09-28): "Export to Excel" on both Contacts and Contact Manager — every
+    // field the card has, plus project name/number if the Contact has one. Ignores templateId
+    // (a merge export and a full-detail export are two different requests).
+    const detail = url.searchParams.get('detail') === '1';
+
+    if (detail) {
+      const result = await fetchAllMatching<Record<string, unknown> & { id: string }>(admin, 'prospects', LIST_COLS, filterCtx);
+      if ('error' in result) return whitelistErrorResponse(result);
+      const enriched = await enrichProspectRows(admin, result.rows as unknown as ProspectListBase[]);
+
+      // Project name/number: via opportunities.project_id → projects (the only link a Contact
+      // has to a real project — see prospectQuery.ts's longer note on why opportunities.stage
+      // and project_id are both read elsewhere too). One row per prospect — a Contact with
+      // several linked projects gets its most recently created one.
+      const ids = enriched.map(r => r.id);
+      const projectByProspect = new Map<string, { code: string; name: string }>();
+      if (ids.length > 0) {
+        const { data: oppRows } = await admin.from('opportunities')
+          .select('prospect_id, project_id, created_at').in('prospect_id', ids).not('project_id', 'is', null)
+          .order('created_at', { ascending: true }); // last write wins below, so oldest-first here
+        const projectIds = [...new Set((oppRows ?? []).map((o: { project_id: string }) => o.project_id))];
+        if (projectIds.length > 0) {
+          const { data: projRows } = await admin.from('projects').select('id, code, name').in('id', projectIds);
+          const projectRows = (projRows ?? []) as { id: string; code: string; name: string }[];
+          const projectById = new Map<string, { id: string; code: string; name: string }>(projectRows.map(p => [p.id, p]));
+          for (const o of (oppRows ?? []) as { prospect_id: string; project_id: string }[]) {
+            const proj = projectById.get(o.project_id);
+            if (proj) projectByProspect.set(o.prospect_id, { code: proj.code, name: proj.name });
+          }
+        }
+      }
+
+      return NextResponse.json({
+        contacts: enriched.map(r => ({ ...r, project_code: projectByProspect.get(r.id)?.code ?? null, project_name: projectByProspect.get(r.id)?.name ?? null })),
+        total: enriched.length,
+      });
+    }
+
+    // Bulk-mail export (name+email, or name+email+merged subject/body for a template) — every
+    // matching row, ignoring pagination (capped — see fetchAllMatching). completeness='missing'
+    // isn't supported in combination with export — it's a per-row computed field, not something
+    // worth the extra enrichment pass for a mailing-list export.
     const MERGE_COLS = 'display_name, organization_name, person_name, brand_name, industry, region, state, source_label, main_email';
     const result = await fetchAllMatching<{
       display_name: string; organization_name: string | null; person_name: string | null; brand_name: string | null;

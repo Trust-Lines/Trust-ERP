@@ -2,9 +2,9 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Filter, Download, Copy, Send } from 'lucide-react';
+import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Filter, Download, Copy, Send, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
-import { SOURCE_LABEL, SOURCES } from '@/lib/marketing/classification';
+import { SOURCE_LABEL } from '@/lib/marketing/classification';
 import { REGIONS } from '@/lib/regions';
 
 // Local to this filter only — REGIONS.label ("T-Lines North East") is the shared,
@@ -20,6 +20,7 @@ import { ProspectQuickView } from './ProspectQuickView';
 import { SourceSelect } from './SourceSelect';
 import { TagMultiSelect } from './TagMultiSelect';
 import { Select } from '@/components/platform/shared/Select';
+import { exportContactsWorkbook, type ContactExportRow } from '@/lib/excel/contactsExcelExport';
 
 export interface ProspectRow {
   id: string;
@@ -124,7 +125,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
   // land marketing_pr directly on their Potentials queue instead of an empty unfiltered list.
   const [statusFilter, setStatusFilter] = useState(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('status') ?? '' : ''));
   const [regionFilter, setRegionFilter] = useState('');
-  const [sourceFilter, setSourceFilter] = useState('');
+  const [sourceFilters, setSourceFilters] = useState<string[]>([]);
   const [completenessFilter, setCompletenessFilter] = useState('');
   // Query-builder-only filters (2026-09-23) — "who attended this campaign/event", "who came in
   // through a survey", "who currently has / had / never had a project".
@@ -232,14 +233,14 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     });
   }
 
-  const hasAnyQuery = !!(query.trim() || statusFilter || regionFilter || sourceFilter || completenessFilter || campaignFilter || surveyOnlyFilter || projectStatusFilter);
+  const hasAnyQuery = !!(query.trim() || statusFilter || regionFilter || sourceFilters.length > 0 || completenessFilter || campaignFilter || surveyOnlyFilter || projectStatusFilter);
 
   function buildParams(extra: Record<string, string>) {
     const params = new URLSearchParams(extra);
     if (query.trim()) params.set('q', query.trim());
     if (statusFilter) params.set('status', statusFilter);
     if (regionFilter) params.set('region', regionFilter);
-    if (sourceFilter) params.set('source', sourceFilter);
+    sourceFilters.forEach(s => params.append('source', s));
     if (completenessFilter) params.set('completeness', completenessFilter);
     if (campaignFilter) params.set('campaignId', campaignFilter);
     if (surveyOnlyFilter) params.set('surveyOnly', '1');
@@ -267,14 +268,26 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     }
   }
 
-  async function exportContacts(mode: 'csv' | 'copy') {
+  async function exportContacts(mode: 'excel' | 'copy' | 'merge-csv') {
     if (!hasAnyQuery) { toast.error('Set at least one filter first.'); return; }
     setExporting(true);
     try {
+      if (mode === 'excel') {
+        // Every field the card has, project name/number included — same exporter and API mode
+        // Contact Manager's "Export to Excel" uses (2026-09-28).
+        const params = buildParams({ export: '1', detail: '1' });
+        const res = await fetch(`/api/marketing/prospects?${params.toString()}`);
+        const body = await res.json().catch(() => null);
+        if (!res.ok || !body) { toast.error(body?.error ?? 'Could not export contacts'); return; }
+        const contacts = (body.contacts ?? []) as ContactExportRow[];
+        if (contacts.length === 0) { toast.error('Nothing to export.'); return; }
+        await exportContactsWorkbook(contacts);
+        toast.success(`Exported ${contacts.length} contact${contacts.length !== 1 ? 's' : ''}.`);
+        return;
+      }
+
       const params = buildParams({ export: '1' });
-      // 'copy' stays plain (just the addresses) even with a template picked — a merged
-      // subject+body per contact isn't something you can usefully paste into a clipboard.
-      if (mode === 'csv' && templateId) params.set('templateId', templateId);
+      if (mode === 'merge-csv' && templateId) params.set('templateId', templateId);
       const res = await fetch(`/api/marketing/prospects?${params.toString()}`);
       const body = await res.json().catch(() => null);
       if (!res.ok || !body) { toast.error(body?.error ?? 'Could not export contacts'); return; }
@@ -293,7 +306,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url; a.download = `contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.href = url; a.download = `contacts-mail-merge-${new Date().toISOString().slice(0, 10)}.csv`;
         a.click();
         URL.revokeObjectURL(url);
         toast.success(`Downloaded ${contacts.length} contact${contacts.length !== 1 ? 's' : ''}.`);
@@ -313,7 +326,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     try {
       const filters = {
         q: query.trim() || undefined, status: statusFilter || undefined, region: regionFilter || undefined,
-        source: sourceFilter || undefined, completeness: completenessFilter || undefined,
+        sources: sourceFilters.length > 0 ? sourceFilters : undefined, completeness: completenessFilter || undefined,
         campaignId: campaignFilter || undefined, surveyOnly: surveyOnlyFilter || undefined,
         projectStatus: projectStatusFilter || undefined,
       };
@@ -341,7 +354,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     const t = setTimeout(() => { load(1); }, 300);
     return () => clearTimeout(t);
 
-  }, [query, statusFilter, regionFilter, sourceFilter, completenessFilter, campaignFilter, surveyOnlyFilter, projectStatusFilter, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortKey : null, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortDir : null]);
+  }, [query, statusFilter, regionFilter, sourceFilters, completenessFilter, campaignFilter, surveyOnlyFilter, projectStatusFilter, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortKey : null, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortDir : null]);
 
   function toggleSort(key: string) {
     if (sortKey === key) { setSortDir(d => (d === 'asc' ? 'desc' : 'asc')); return; }
@@ -429,20 +442,23 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
         )}
       </div>
 
-      {/* Quick queries (2026-09-23, "butonlu olsun, sorgu/filtre gibi olmasın") — press a
-          button to run a named query, not fill in a dropdown. Each toggles on/off; a campaign
-          button and a project-status button combine (e.g. "Natso 2026" + "Never had a
-          project" = attendees Sales hasn't converted yet), same as before, just not a Select. */}
+      {/* Quick queries — press a button to run a named query for the fixed, small set of
+          criteria (2026-09-23, "butonlu olsun"). Campaigns/events are NOT in that row — there
+          are 50+ real ones (2026-09-28), a row of that many buttons was the opposite of easy
+          to use, so that one stayed a searchable Select instead. */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--fg-subtle)' }}>
           Quick queries
         </span>
-        {campaigns.map(c => (
-          <QueryPill
-            key={c.id} label={c.name} active={campaignFilter === c.id}
-            onClick={() => setCampaignFilter(prev => (prev === c.id ? '' : c.id))}
-          />
-        ))}
+        {campaigns.length > 0 && (
+          <Select
+            className="form-input" style={{ maxWidth: 220, fontSize: 13 }}
+            value={campaignFilter} onChange={e => setCampaignFilter(e.target.value)} aria-label="Filter by campaign/event"
+          >
+            <option value="">Campaign / event…</option>
+            {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </Select>
+        )}
         <QueryPill label="From a survey" active={surveyOnlyFilter} onClick={() => setSurveyOnlyFilter(v => !v)} />
         <QueryPill
           label="Has an active project" active={projectStatusFilter === 'active'}
@@ -478,10 +494,20 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
           <option value="">All regions</option>
           {REGIONS.map(r => <option key={r.code} value={r.code}>{REGION_FILTER_LABEL[r.code] ?? r.label}</option>)}
         </Select>
-        <Select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} aria-label="Filter by source">
-          <option value="">All sources</option>
-          {SOURCES.map(s => <option key={s} value={s}>{SOURCE_LABEL[s]}</option>)}
-        </Select>
+        {/* Real, per-record source labels (e.g. "HRA 2026") — the same list the per-row source
+            editor below offers, not the fixed classification enum most rows never set at all.
+            Filtering against the wrong one made custom labels un-findable (2026-09-28 fix).
+            Multi-select (2026-09-28, "birden fazla source seçebilsin") — same TagMultiSelect
+            the per-row Business Type editor already uses, so picking several sources OR's them
+            together instead of being stuck with just one. */}
+        <div
+          style={{
+            minWidth: 160, maxWidth: 320, padding: '5px 8px', fontSize: 13,
+            border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', background: 'white',
+          }}
+        >
+          <TagMultiSelect values={sourceFilters} options={sourceOptions} onChange={setSourceFilters} placeholder="All sources" />
+        </div>
         {/* "Missing info" isn't a DB column — completeness_percent is computed per-row
             (lib/marketing/prospectCompleteness.ts) from contact/location/source fields — the
             API filters on it after enrichment rather than in SQL, see app/api/marketing/
@@ -494,7 +520,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => {
-              setQuery(''); setStatusFilter(''); setRegionFilter(''); setSourceFilter(''); setCompletenessFilter('');
+              setQuery(''); setStatusFilter(''); setRegionFilter(''); setSourceFilters([]); setCompletenessFilter('');
               setCampaignFilter(''); setSurveyOnlyFilter(false); setProjectStatusFilter('');
             }}
           >
@@ -519,11 +545,20 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
             </button>
             <button
               className="btn btn-ghost btn-sm" disabled={exporting}
-              onClick={() => exportContacts('csv')}
-              title={templateId ? "Download name, email, subject and merged body for every matching contact" : 'Download name + email for every matching contact'}
+              onClick={() => exportContacts('excel')}
+              title="Download every field for every matching contact as a formatted Excel file"
             >
-              <Download size={13} style={{ marginRight: 5 }} /> Download CSV
+              <FileSpreadsheet size={13} style={{ marginRight: 5 }} /> Export to Excel
             </button>
+            {templateId && (
+              <button
+                className="btn btn-ghost btn-sm" disabled={exporting}
+                onClick={() => exportContacts('merge-csv')}
+                title="Download name, email, subject and merged body for every matching contact — for a mail-merge tool"
+              >
+                <Download size={13} style={{ marginRight: 5 }} /> Download merge CSV
+              </button>
+            )}
             {templateId && (
               <button className="btn btn-primary btn-sm" disabled={sending} onClick={sendWithTemplate} title="Send this template to every matching contact">
                 <Send size={13} style={{ marginRight: 5 }} /> {sending ? 'Sending…' : `Send to ${total}`}
