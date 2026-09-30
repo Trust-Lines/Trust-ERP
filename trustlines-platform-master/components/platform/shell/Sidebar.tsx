@@ -28,6 +28,7 @@ import {
   FolderSearch,
   Trash2,
   ShieldCheck,
+  Globe,
   Target,
   FilePlus,
   BarChart3,
@@ -138,6 +139,7 @@ const MARKETING_NAV: NavItem[] = [
   { label: 'Contact Manager',     href: '/marketing/contact-manager', icon: UserSearch,  perm: 'page.marketing' },
   { label: 'Mail Templates',      href: '/marketing/mail-templates', icon: Mail,        perm: 'page.marketing' },
   { label: 'Campaigns & Surveys', href: '/marketing/campaigns',     icon: QrCode,       perm: 'page.marketing_campaigns' },
+  { label: 'Website (Store Maker)', href: '/marketing/website',     icon: Globe,        perm: 'page.marketing' },
   { label: 'Trash',               href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing' },
 ];
 
