@@ -15,8 +15,8 @@ export interface ProjectInput {
 export interface PhotoInput { image_url: string; alt: string | null }
 export interface SectionInput { heading: string | null; body: string | null; image_url: string | null; image_alt: string | null }
 
-const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
-const orNull = (v: unknown) => str(v) || null;
+export const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+export const orNull = (v: unknown) => str(v) || null;
 
 // Returns a cleaned payload or { error }. Everything the site renders is checked here, because
 // the ERP is the only writer and the site trusts what is in the tables.
@@ -52,15 +52,9 @@ export function parseProjectPayload(raw: unknown):
     photos.push({ image_url: str(r.image_url), alt: orNull(r.alt) });
   }
 
-  const sections: SectionInput[] = [];
-  for (const x of Array.isArray(b.sections) ? b.sections : []) {
-    const r = x as Record<string, unknown>;
-    const image = str(r.image_url);
-    if (image && !isImageKitUrl(image)) return { error: 'A section has an invalid image URL' };
-    const s: SectionInput = { heading: orNull(r.heading), body: orNull(r.body), image_url: image || null, image_alt: orNull(r.image_alt) };
-    if (!s.heading && !s.body && !s.image_url) continue; // drop empty blocks
-    sections.push(s);
-  }
+  const parsedSections = parseSections(b.sections);
+  if ('error' in parsedSections) return parsedSections;
+  const sections = parsedSections.sections;
 
   return {
     project: {
@@ -71,4 +65,18 @@ export function parseProjectPayload(raw: unknown):
     },
     photos, sections,
   };
+}
+
+// Body blocks, shared by projects and blog posts. Empty blocks are dropped.
+export function parseSections(raw: unknown): { error: string } | { sections: SectionInput[] } {
+  const sections: SectionInput[] = [];
+  for (const x of Array.isArray(raw) ? raw : []) {
+    const r = x as Record<string, unknown>;
+    const image = str(r.image_url);
+    if (image && !isImageKitUrl(image)) return { error: 'A section has an invalid image URL' };
+    const sec: SectionInput = { heading: orNull(r.heading), body: orNull(r.body), image_url: image || null, image_alt: orNull(r.image_alt) };
+    if (!sec.heading && !sec.body && !sec.image_url) continue;
+    sections.push(sec);
+  }
+  return { sections };
 }

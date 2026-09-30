@@ -16,7 +16,14 @@ export const PROJECT_CATEGORIES = [
   { value: 'grocery', label: 'Grocery' },
 ] as const;
 
-export const SETTINGS_KEYS = ['projects_page'] as const;
+export const BLOG_CATEGORIES = [
+  { value: 'industry-news', label: 'Industry News' },
+  { value: 'tips-and-tricks', label: 'Tips & Tricks' },
+  { value: 'success-stories', label: 'Success Stories' },
+  { value: 'company-updates', label: 'Company Updates' },
+] as const;
+
+export const SETTINGS_KEYS = ['projects_page', 'blog_page'] as const;
 export type SettingsKey = (typeof SETTINGS_KEYS)[number];
 
 export interface ProjectsPageSettings {
@@ -33,6 +40,19 @@ export const PROJECTS_PAGE_DEFAULTS: ProjectsPageSettings = {
   description: '',
   hero_image_url: '',
   hero_image_alt: '',
+};
+
+export const BLOG_PAGE_DEFAULTS: ProjectsPageSettings = {
+  eyebrow: 'Tlines Journal',
+  heading: 'Blog & News',
+  description: '',
+  hero_image_url: '',
+  hero_image_alt: '',
+};
+
+export const PAGE_DEFAULTS: Record<SettingsKey, ProjectsPageSettings> = {
+  projects_page: PROJECTS_PAGE_DEFAULTS,
+  blog_page: BLOG_PAGE_DEFAULTS,
 };
 
 export function isImageKitUrl(v: unknown): v is string {

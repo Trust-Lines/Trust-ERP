@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
 import { MARKETING_WRITE_ROLES, MARKETING_READ_ROLES } from '@/lib/marketing/roles';
 import { logAudit } from '@/lib/audit/log';
-import { PROJECTS_PAGE_DEFAULTS, SETTINGS_KEYS, isImageKitUrl, type SettingsKey } from '@/lib/web-cms/config';
+import { PAGE_DEFAULTS, SETTINGS_KEYS, isImageKitUrl, type SettingsKey } from '@/lib/web-cms/config';
 import { pingWebsite } from '@/lib/web-cms/revalidate';
 
 type Params = { params: Promise<{ key: string }> };
@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (!isKey(key)) return NextResponse.json({ error: 'Unknown setting' }, { status: 404 });
   const { data, error } = await admin.from('web_settings').select('value, updated_at').eq('key', key).maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ value: { ...PROJECTS_PAGE_DEFAULTS, ...(data?.value ?? {}) }, updated_at: data?.updated_at ?? null });
+  return NextResponse.json({ value: { ...PAGE_DEFAULTS[key], ...(data?.value ?? {}) }, updated_at: data?.updated_at ?? null });
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
@@ -29,7 +29,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const image = s(b?.hero_image_url);
   if (image && !isImageKitUrl(image)) return NextResponse.json({ error: 'Hero image must be an ImageKit URL' }, { status: 400 });
   const value = {
-    eyebrow: s(b?.eyebrow), heading: s(b?.heading) || PROJECTS_PAGE_DEFAULTS.heading,
+    eyebrow: s(b?.eyebrow), heading: s(b?.heading) || PAGE_DEFAULTS[key].heading,
     description: s(b?.description), hero_image_url: image, hero_image_alt: s(b?.hero_image_alt),
   };
 

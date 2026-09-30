@@ -4,11 +4,14 @@ import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowLeft, ArrowUp, ArrowDown, Trash2, Plus, ExternalLink, ImagePlus, Images, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowDown, Trash2, ExternalLink, ImagePlus, Images, Loader2 } from 'lucide-react';
 import { PROJECT_CATEGORIES, slugify, thumb } from '@/lib/web-cms/config';
 import { ImageField } from './ImageField';
 import { MediaPicker } from './MediaPicker';
 import { uploadMany } from './imagekitClient';
+import { SectionsEditor, moveItem, type EditorSection } from './SectionsEditor';
+
+export type { EditorSection };
 
 export interface EditorProject {
   id: string | null;
@@ -17,7 +20,6 @@ export interface EditorProject {
   is_published: boolean; sort_order: number;
 }
 export interface EditorPhoto { image_url: string; alt: string }
-export interface EditorSection { heading: string; body: string; image_url: string; image_alt: string }
 
 interface Props {
   initial: { project: EditorProject; photos: EditorPhoto[]; sections: EditorSection[] };
@@ -32,14 +34,6 @@ const sectionTitle = (t: string, hint?: string) => (
     {hint && <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 2 }}>{hint}</div>}
   </div>
 );
-
-function move<T>(arr: T[], i: number, dir: -1 | 1): T[] {
-  const j = i + dir;
-  if (j < 0 || j >= arr.length) return arr;
-  const c = arr.slice();
-  [c[i], c[j]] = [c[j], c[i]];
-  return c;
-}
 
 export function ProjectEditorClient({ initial, canEdit, siteUrl }: Props) {
   const router = useRouter();
@@ -155,8 +149,8 @@ export function ProjectEditorClient({ initial, canEdit, siteUrl }: Props) {
                       value={ph.alt} onChange={e => setPhotos(a => a.map((x, j) => (j === i ? { ...x, alt: e.target.value } : x)))} />
                     {canEdit && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                        <button className="btn btn-ghost btn-sm" disabled={i === 0} onClick={() => setPhotos(a => move(a, i, -1))}><ArrowUp size={12} /></button>
-                        <button className="btn btn-ghost btn-sm" disabled={i === photos.length - 1} onClick={() => setPhotos(a => move(a, i, 1))}><ArrowDown size={12} /></button>
+                        <button className="btn btn-ghost btn-sm" disabled={i === 0} onClick={() => setPhotos(a => moveItem(a, i, -1))}><ArrowUp size={12} /></button>
+                        <button className="btn btn-ghost btn-sm" disabled={i === photos.length - 1} onClick={() => setPhotos(a => moveItem(a, i, 1))}><ArrowDown size={12} /></button>
                         <button className="btn btn-ghost btn-sm" onClick={() => setPhotos(a => a.filter((_, j) => j !== i))}><Trash2 size={12} style={{ color: '#dc2626' }} /></button>
                       </div>
                     )}
@@ -185,48 +179,7 @@ export function ProjectEditorClient({ initial, canEdit, siteUrl }: Props) {
 
           <div className="card"><div className="card-body">
             {sectionTitle('Content blocks', 'Text under the info bar. With a photo the block is text + image (the photo side alternates automatically); without one it is full-width text.')}
-            <div style={{ display: 'grid', gap: 14 }}>
-              {sections.map((s, i) => (
-                <div key={i} style={{ border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .4, color: 'var(--fg-subtle)' }}>Block {i + 1}</span>
-                    {canEdit && (
-                      <div style={{ display: 'flex', gap: 2 }}>
-                        <button className="btn btn-ghost btn-sm" disabled={i === 0} onClick={() => setSections(a => move(a, i, -1))}><ArrowUp size={13} /></button>
-                        <button className="btn btn-ghost btn-sm" disabled={i === sections.length - 1} onClick={() => setSections(a => move(a, i, 1))}><ArrowDown size={13} /></button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setSections(a => a.filter((_, j) => j !== i))}><Trash2 size={13} style={{ color: '#dc2626' }} /></button>
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: s.image_url || canEdit ? '1fr 220px' : '1fr', gap: 14 }}>
-                    <div>
-                      <input className="form-input" style={{ width: '100%', marginBottom: 10 }} placeholder="Heading" disabled={ro}
-                        value={s.heading} onChange={e => setSections(a => a.map((x, j) => (j === i ? { ...x, heading: e.target.value } : x)))} />
-                      <textarea className="form-input" style={{ width: '100%', minHeight: 120 }} placeholder="Text" disabled={ro}
-                        value={s.body} onChange={e => setSections(a => a.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)))} />
-                    </div>
-                    {(s.image_url || canEdit) && (
-                      <div>
-                        <ImageField
-                          value={s.image_url} height={150} disabled={ro} folder={`${base}/sections`} label="Block image"
-                          onChange={u => setSections(a => a.map((x, j) => (j === i ? { ...x, image_url: u } : x)))}
-                        />
-                        {s.image_url && (
-                          <input className="form-input" style={{ width: '100%', marginTop: 8, fontSize: 12 }} placeholder="Alt text" disabled={ro}
-                            value={s.image_alt} onChange={e => setSections(a => a.map((x, j) => (j === i ? { ...x, image_alt: e.target.value } : x)))} />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {canEdit && (
-                <button className="btn btn-secondary" style={{ justifySelf: 'start' }}
-                  onClick={() => setSections(a => [...a, { heading: '', body: '', image_url: '', image_alt: '' }])}>
-                  <Plus size={14} style={{ marginRight: 5 }} /> Add block
-                </button>
-              )}
-            </div>
+            <SectionsEditor sections={sections} onChange={setSections} folder={`${base}/sections`} canEdit={canEdit} />
           </div></div>
         </div>
 
