@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
-import { MARKETING_MANAGE_ROLES, MARKETING_READ_ROLES } from '@/lib/marketing/roles';
+import { MARKETING_WRITE_ROLES, MARKETING_READ_ROLES } from '@/lib/marketing/roles';
 import { logAudit } from '@/lib/audit/log';
 import { parseProjectPayload } from '@/lib/web-cms/projectPayload';
 import { pingWebsite } from '@/lib/web-cms/revalidate';
@@ -15,7 +15,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { user, admin, deny } = await requireRole(MARKETING_MANAGE_ROLES);
+  const { user, admin, deny } = await requireRole(MARKETING_WRITE_ROLES);
   if (deny) return deny;
 
   const parsed = parseProjectPayload(await req.json().catch(() => null));

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
-import { MARKETING_MANAGE_ROLES, MARKETING_READ_ROLES } from '@/lib/marketing/roles';
+import { MARKETING_WRITE_ROLES, MARKETING_READ_ROLES } from '@/lib/marketing/roles';
 import { logAudit } from '@/lib/audit/log';
 import { PROJECTS_PAGE_DEFAULTS, SETTINGS_KEYS, isImageKitUrl, type SettingsKey } from '@/lib/web-cms/config';
 import { pingWebsite } from '@/lib/web-cms/revalidate';
@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  const { user, admin, deny } = await requireRole(MARKETING_MANAGE_ROLES);
+  const { user, admin, deny } = await requireRole(MARKETING_WRITE_ROLES);
   if (deny) return deny;
   const { key } = await params;
   if (!isKey(key)) return NextResponse.json({ error: 'Unknown setting' }, { status: 404 });

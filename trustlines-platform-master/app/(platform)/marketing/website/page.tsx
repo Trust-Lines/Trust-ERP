@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePage } from '@/lib/permissions/requirePage';
-import { MARKETING_MANAGE_ROLES } from '@/lib/marketing/roles';
+import { MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
 import { WebsiteHubClient, type WebProjectRow } from '@/components/platform/website/WebsiteHubClient';
 import { PROJECTS_PAGE_DEFAULTS, WEBSITE_URL } from '@/lib/web-cms/config';
 import { imageKitConfigured } from '@/lib/web-cms/imagekit';
@@ -16,7 +16,7 @@ export default async function WebsiteCmsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user!.id).single();
-  const canEdit = MARKETING_MANAGE_ROLES.includes(profile?.role ?? '');
+  const canEdit = MARKETING_WRITE_ROLES.includes(profile?.role ?? '');
 
   const [projects, settings] = await Promise.all([
     admin.from('web_projects')

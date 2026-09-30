@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePage } from '@/lib/permissions/requirePage';
-import { MARKETING_MANAGE_ROLES } from '@/lib/marketing/roles';
+import { MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
 import {
   ProjectEditorClient, type EditorPhoto, type EditorProject, type EditorSection,
 } from '@/components/platform/website/ProjectEditorClient';
@@ -24,7 +24,7 @@ export default async function WebsiteProjectPage({ params }: { params: Promise<{
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user!.id).single();
-  const canEdit = MARKETING_MANAGE_ROLES.includes(profile?.role ?? '');
+  const canEdit = MARKETING_WRITE_ROLES.includes(profile?.role ?? '');
 
   let initial = { project: EMPTY, photos: [] as EditorPhoto[], sections: [] as EditorSection[] };
 

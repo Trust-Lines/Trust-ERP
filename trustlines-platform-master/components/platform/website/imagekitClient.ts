@@ -3,9 +3,37 @@
 
 const MAX_BYTES = 15 * 1024 * 1024;
 
-export async function uploadToImageKit(file: File, folder: string): Promise<string> {
-  if (!file.type.startsWith('image/')) throw new Error(`${file.name} is not an image`);
-  if (file.size > MAX_BYTES) throw new Error(`${file.name} is over 15 MB`);
+const MAX_SIDE = 2400;
+const SKIP_OPTIMIZE_UNDER = 400 * 1024;
+
+// Website photos never need to be camera-original size: shrink to 2400 px on the long side and
+// re-encode before upload so pages load fast. GIF/SVG are left alone; if anything fails the
+// original file is uploaded unchanged.
+async function optimize(file: File): Promise<File> {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
+    if (scale === 1 && file.size < SKIP_OPTIMIZE_UNDER) { bmp.close(); return file; }
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bmp.width * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    bmp.close();
+    const type = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+    const blob: Blob | null = await new Promise(r => canvas.toBlob(r, type, 0.85));
+    if (!blob || blob.size >= file.size) return file;
+    const ext = type === 'image/png' ? 'png' : 'jpg';
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.' + ext, { type });
+  } catch {
+    return file;
+  }
+}
+
+export async function uploadToImageKit(original: File, folder: string): Promise<string> {
+  if (!original.type.startsWith('image/')) throw new Error(`${original.name} is not an image`);
+  if (original.size > MAX_BYTES) throw new Error(`${original.name} is over 15 MB`);
+  const file = await optimize(original);
 
   const authRes = await fetch('/api/web-cms/imagekit/auth', { cache: 'no-store' });
   const auth = await authRes.json().catch(() => ({}));

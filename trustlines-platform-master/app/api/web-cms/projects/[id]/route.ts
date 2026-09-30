@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
-import { MARKETING_MANAGE_ROLES, MARKETING_READ_ROLES } from '@/lib/marketing/roles';
+import { MARKETING_WRITE_ROLES, MARKETING_READ_ROLES } from '@/lib/marketing/roles';
 import { logAudit } from '@/lib/audit/log';
 import { parseProjectPayload } from '@/lib/web-cms/projectPayload';
 import { pingWebsite } from '@/lib/web-cms/revalidate';
@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 // New child rows are inserted first, old ones removed after, so a failed insert never leaves the
 // project without its photos/sections.
 export async function PUT(req: NextRequest, { params }: Params) {
-  const { user, admin, deny } = await requireRole(MARKETING_MANAGE_ROLES);
+  const { user, admin, deny } = await requireRole(MARKETING_WRITE_ROLES);
   if (deny) return deny;
   const { id } = await params;
 
@@ -61,7 +61,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
 // Quick toggles from the list (publish / unpublish, sort order) without resending the whole project.
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const { user, admin, deny } = await requireRole(MARKETING_MANAGE_ROLES);
+  const { user, admin, deny } = await requireRole(MARKETING_WRITE_ROLES);
   if (deny) return deny;
   const { id } = await params;
   const b = (await req.json().catch(() => null)) as { is_published?: unknown; sort_order?: unknown } | null;
@@ -78,7 +78,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const { user, admin, deny } = await requireRole(MARKETING_MANAGE_ROLES);
+  const { user, admin, deny } = await requireRole(MARKETING_WRITE_ROLES);
   if (deny) return deny;
   const { id } = await params;
   const { error } = await admin.from('web_projects').delete().eq('id', id);
