@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Globe, Plus, Pencil, ExternalLink, Eye, EyeOff, AlertTriangle, Image as ImageIcon, Newspaper } from 'lucide-react';
 import { BLOG_CATEGORIES, PROJECT_CATEGORIES, thumb, type ProjectsPageSettings } from '@/lib/web-cms/config';
 import { PageHeaderForm } from './PageHeaderForm';
+import { WebLeadsClient, type WebLeadRow } from './WebLeadsClient';
 
 export interface WebProjectRow {
   id: string; slug: string; title: string; category: string; location: string;
@@ -17,11 +18,12 @@ export interface WebPostRow {
   cover_image_url: string; published_at: string; is_published: boolean;
 }
 
-export type HubTab = 'projects' | 'blog' | 'projects_header' | 'blog_header';
+export type HubTab = 'projects' | 'blog' | 'leads' | 'projects_header' | 'blog_header';
 
 interface Props {
   projects: WebProjectRow[];
   posts: WebPostRow[];
+  leads: WebLeadRow[];
   projectsPage: ProjectsPageSettings;
   blogPage: ProjectsPageSettings;
   canEdit: boolean;
@@ -29,6 +31,7 @@ interface Props {
   imageKitReady: boolean;
   projectsError: boolean;
   blogError: boolean;
+  leadsError: boolean;
   initialTab: HubTab;
 }
 
@@ -54,8 +57,8 @@ function NotReady({ what, migration }: { what: string; migration: string }) {
 }
 
 export function WebsiteHubClient({
-  projects: initialProjects, posts: initialPosts, projectsPage, blogPage, canEdit, siteUrl, imageKitReady,
-  projectsError, blogError, initialTab,
+  projects: initialProjects, posts: initialPosts, leads, projectsPage, blogPage, canEdit, siteUrl, imageKitReady,
+  projectsError, blogError, leadsError, initialTab,
 }: Props) {
   const [tab, setTab] = useState<HubTab>(initialTab);
   const [projects, setProjects] = useState(initialProjects);
@@ -110,6 +113,9 @@ export function WebsiteHubClient({
       <div className="tab-bar" style={{ marginBottom: 20 }}>
         <button className={`tab-item ${tab === 'projects' ? 'active' : ''}`} onClick={() => setTab('projects')}>Projects ({projects.length})</button>
         <button className={`tab-item ${tab === 'blog' ? 'active' : ''}`} onClick={() => setTab('blog')}>Blog &amp; News ({posts.length})</button>
+        <button className={`tab-item ${tab === 'leads' ? 'active' : ''}`} onClick={() => setTab('leads')}>
+          Website Leads{leads.filter(l => l.status === 'new').length > 0 ? ` (${leads.filter(l => l.status === 'new').length} new)` : ''}
+        </button>
         <button className={`tab-item ${tab === 'projects_header' ? 'active' : ''}`} onClick={() => setTab('projects_header')}>Projects page header</button>
         <button className={`tab-item ${tab === 'blog_header' ? 'active' : ''}`} onClick={() => setTab('blog_header')}>Blog page header</button>
       </div>
@@ -208,6 +214,8 @@ export function WebsiteHubClient({
           )}
         </>
       ))}
+
+      {tab === 'leads' && <WebLeadsClient initial={leads} canEdit={canEdit} loadError={leadsError} />}
 
       {tab === 'projects_header' && (
         <PageHeaderForm settingsKey="projects_page" initial={projectsPage} canEdit={canEdit} folder="/store-maker/pages/projects-page" />
