@@ -100,8 +100,8 @@ export function PostEditorClient({ initial, canEdit, siteUrl }: Props) {
           </div></div>
 
           <div className="card"><div className="card-body">
-            {sectionTitle('Article body', 'Text blocks with an optional photo. Line breaks in the text are kept.')}
-            <SectionsEditor sections={sections} onChange={setSections} folder={`${base}/sections`} canEdit={canEdit} />
+            {sectionTitle('Article body', 'Heading + text blocks, shown in order under the title. Line breaks in the text are kept.')}
+            <SectionsEditor sections={sections} onChange={setSections} folder={`${base}/sections`} canEdit={canEdit} withImages={false} />
           </div></div>
         </div>
 
@@ -138,6 +138,22 @@ export function PostEditorClient({ initial, canEdit, siteUrl }: Props) {
             <ImageField value={post.cover_image_url} onChange={u => set('cover_image_url', u)} folder={`${base}/cover`} disabled={ro} height={190} label="Cover" />
             <input className="form-input" style={{ width: '100%', marginTop: 8, fontSize: 12 }} placeholder="Alt text" disabled={ro}
               value={post.cover_image_alt} onChange={e => set('cover_image_alt', e.target.value)} />
+          </div></div>
+
+          <div className="card"><div className="card-body">
+            {sectionTitle('Blog info box', 'How the article sidebar reads on the website.')}
+            <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 10, padding: 12, fontSize: 12.5, display: 'grid', gap: 10 }}>
+              {[
+                ['Author', post.author || '—'],
+                ['Tag', BLOG_CATEGORIES.find(c => c.value === post.category)?.label ?? '—'],
+                ['Publish Date', post.published_at || '—'],
+              ].map(([k, v]) => (
+                <div key={k}>
+                  <div style={{ fontSize: 10.5, color: 'var(--fg-subtle)' }}>{k}</div>
+                  <div style={{ fontWeight: 600 }}>{v}</div>
+                </div>
+              ))}
+            </div>
           </div></div>
         </div>
       </div>

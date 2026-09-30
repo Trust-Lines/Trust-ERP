@@ -19,10 +19,12 @@ interface Props {
   /** ImageKit folder for block images. */
   folder: string;
   canEdit: boolean;
+  /** false = heading + text only (blog articles have no in-body photos). Default true. */
+  withImages?: boolean;
 }
 
 // Ordered heading / text / optional-photo blocks. Used by both the project and blog editors.
-export function SectionsEditor({ sections, onChange, folder, canEdit }: Props) {
+export function SectionsEditor({ sections, onChange, folder, canEdit, withImages = true }: Props) {
   const patch = (i: number, p: Partial<EditorSection>) => onChange(sections.map((x, j) => (j === i ? { ...x, ...p } : x)));
   const ro = !canEdit;
 
@@ -40,14 +42,14 @@ export function SectionsEditor({ sections, onChange, folder, canEdit }: Props) {
               </div>
             )}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: s.image_url || canEdit ? '1fr 220px' : '1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: withImages && (s.image_url || canEdit) ? '1fr 220px' : '1fr', gap: 14 }}>
             <div>
               <input className="form-input" style={{ width: '100%', marginBottom: 10 }} placeholder="Heading" disabled={ro}
                 value={s.heading} onChange={e => patch(i, { heading: e.target.value })} />
               <textarea className="form-input" style={{ width: '100%', minHeight: 120 }} placeholder="Text" disabled={ro}
                 value={s.body} onChange={e => patch(i, { body: e.target.value })} />
             </div>
-            {(s.image_url || canEdit) && (
+            {withImages && (s.image_url || canEdit) && (
               <div>
                 <ImageField value={s.image_url} height={150} disabled={ro} folder={folder} label="Block image"
                   onChange={u => patch(i, { image_url: u })} />
