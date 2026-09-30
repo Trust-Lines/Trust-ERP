@@ -100,8 +100,8 @@ export function PostEditorClient({ initial, canEdit, siteUrl }: Props) {
           </div></div>
 
           <div className="card"><div className="card-body">
-            {sectionTitle('Article body', 'Heading + text blocks, shown in order under the title. Line breaks in the text are kept.')}
-            <SectionsEditor sections={sections} onChange={setSections} folder={`${base}/sections`} canEdit={canEdit} withImages={false} />
+            {sectionTitle('Article body', 'Heading + text blocks, shown in order under the title. Click "Add image" on a block to put a photo next to its text. Line breaks are kept.')}
+            <SectionsEditor sections={sections} onChange={setSections} folder={`${base}/sections`} canEdit={canEdit} images="optional" />
           </div></div>
         </div>
 
