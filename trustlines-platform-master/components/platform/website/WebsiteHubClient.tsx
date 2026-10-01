@@ -7,6 +7,8 @@ import { Globe, Plus, Pencil, ExternalLink, Eye, EyeOff, AlertTriangle, Image as
 import { BLOG_CATEGORIES, PROJECT_CATEGORIES, thumb, type ProjectsPageSettings } from '@/lib/web-cms/config';
 import { PageHeaderForm } from './PageHeaderForm';
 import { WebLeadsClient, type WebLeadRow } from './WebLeadsClient';
+import { WorkTypesClient } from './WorkTypesClient';
+import type { WorkTypeRow } from '@/lib/web-cms/workTypes';
 
 export interface WebProjectRow {
   id: string; slug: string; title: string; category: string; location: string;
@@ -18,7 +20,7 @@ export interface WebPostRow {
   cover_image_url: string; published_at: string; is_published: boolean;
 }
 
-export type HubTab = 'projects' | 'blog' | 'leads' | 'projects_header' | 'blog_header';
+export type HubTab = 'projects' | 'blog' | 'leads' | 'work_types' | 'projects_header' | 'blog_header';
 
 interface Props {
   projects: WebProjectRow[];
@@ -32,6 +34,8 @@ interface Props {
   projectsError: boolean;
   blogError: boolean;
   leadsError: boolean;
+  workTypes: WorkTypeRow[];
+  workTypesError: boolean;
   initialTab: HubTab;
 }
 
@@ -57,8 +61,8 @@ function NotReady({ what, migration }: { what: string; migration: string }) {
 }
 
 export function WebsiteHubClient({
-  projects: initialProjects, posts: initialPosts, leads, projectsPage, blogPage, canEdit, siteUrl, imageKitReady,
-  projectsError, blogError, leadsError, initialTab,
+  projects: initialProjects, posts: initialPosts, leads, workTypes, projectsPage, blogPage, canEdit, siteUrl, imageKitReady,
+  projectsError, blogError, leadsError, workTypesError, initialTab,
 }: Props) {
   const [tab, setTab] = useState<HubTab>(initialTab);
   const [projects, setProjects] = useState(initialProjects);
@@ -116,6 +120,7 @@ export function WebsiteHubClient({
         <button className={`tab-item ${tab === 'leads' ? 'active' : ''}`} onClick={() => setTab('leads')}>
           Website Leads{leads.filter(l => l.status === 'new').length > 0 ? ` (${leads.filter(l => l.status === 'new').length} new)` : ''}
         </button>
+        <button className={`tab-item ${tab === 'work_types' ? 'active' : ''}`} onClick={() => setTab('work_types')}>Types of work</button>
         <button className={`tab-item ${tab === 'projects_header' ? 'active' : ''}`} onClick={() => setTab('projects_header')}>Projects page header</button>
         <button className={`tab-item ${tab === 'blog_header' ? 'active' : ''}`} onClick={() => setTab('blog_header')}>Blog page header</button>
       </div>
@@ -214,6 +219,8 @@ export function WebsiteHubClient({
           )}
         </>
       ))}
+
+      {tab === 'work_types' && <WorkTypesClient initial={workTypes} canEdit={canEdit} siteUrl={siteUrl} loadError={workTypesError} />}
 
       {tab === 'leads' && <WebLeadsClient initial={leads} canEdit={canEdit} loadError={leadsError} />}
 

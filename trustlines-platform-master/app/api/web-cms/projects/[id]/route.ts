@@ -4,6 +4,7 @@ import { MARKETING_WRITE_ROLES, MARKETING_READ_ROLES } from '@/lib/marketing/rol
 import { logAudit } from '@/lib/audit/log';
 import { parseProjectPayload } from '@/lib/web-cms/projectPayload';
 import { pingWebsite } from '@/lib/web-cms/revalidate';
+import { checkWorkTypes, parseWorkTypeSlugs } from '@/lib/web-cms/workTypes';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -29,13 +30,24 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (deny) return deny;
   const { id } = await params;
 
-  const parsed = parseProjectPayload(await req.json().catch(() => null));
+  const body = await req.json().catch(() => null);
+  const parsed = parseProjectPayload(body);
   if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
-  const { data: existing } = await admin.from('web_projects').select('id').eq('id', id).maybeSingle();
+  const { data: existing } = await admin.from('web_projects').select('*').eq('id', id).maybeSingle();
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { data: project, error } = await admin.from('web_projects').update(parsed.project).eq('id', id).select('*').single();
+  // workTypes is optional: omitted = column untouched. A retired (inactive) type already on this
+  // project may stay; new picks must be active.
+  const wt = parseWorkTypeSlugs((body as { workTypes?: unknown } | null)?.workTypes);
+  if ('error' in wt) return NextResponse.json({ error: wt.error }, { status: 400 });
+  if (wt.slugs) {
+    const bad = await checkWorkTypes(admin, wt.slugs, (existing.work_types as string[] | undefined) ?? []);
+    if (bad) return NextResponse.json({ error: bad }, { status: 400 });
+  }
+
+  const { data: project, error } = await admin.from('web_projects')
+    .update({ ...parsed.project, ...(wt.slugs ? { work_types: wt.slugs } : {}) }).eq('id', id).select('*').single();
   if (error) {
     const dup = error.code === '23505';
     return NextResponse.json({ error: dup ? 'That slug is already used by another project' : error.message }, { status: dup ? 409 : 500 });

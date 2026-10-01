@@ -9,6 +9,8 @@ import { PROJECT_CATEGORIES, slugify, thumb } from '@/lib/web-cms/config';
 import { ImageField } from './ImageField';
 import { MediaPicker } from './MediaPicker';
 import { uploadMany } from './imagekitClient';
+import { WorkTypeTile } from './WorkTypeTile';
+import type { WorkTypeRow } from '@/lib/web-cms/workTypes';
 import { SectionsEditor, moveItem, type EditorSection } from './SectionsEditor';
 
 export type { EditorSection };
@@ -22,9 +24,11 @@ export interface EditorProject {
 export interface EditorPhoto { image_url: string; alt: string }
 
 interface Props {
-  initial: { project: EditorProject; photos: EditorPhoto[]; sections: EditorSection[] };
+  initial: { project: EditorProject; photos: EditorPhoto[]; sections: EditorSection[]; workTypes: string[] };
   canEdit: boolean;
   siteUrl: string;
+  /** All types of work, or null when migration 123 is not applied yet (the picker is then hidden). */
+  workTypes: WorkTypeRow[] | null;
 }
 
 const label = (t: string) => <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{t}</label>;
@@ -35,11 +39,12 @@ const sectionTitle = (t: string, hint?: string) => (
   </div>
 );
 
-export function ProjectEditorClient({ initial, canEdit, siteUrl }: Props) {
+export function ProjectEditorClient({ initial, canEdit, siteUrl, workTypes }: Props) {
   const router = useRouter();
   const [project, setProject] = useState(initial.project);
   const [photos, setPhotos] = useState(initial.photos);
   const [sections, setSections] = useState(initial.sections);
+  const [picked, setPicked] = useState<string[]>(initial.workTypes);
   const [slugTouched, setSlugTouched] = useState(initial.project.id !== null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -70,6 +75,8 @@ export function ProjectEditorClient({ initial, canEdit, siteUrl }: Props) {
       const payload = {
         project: { ...project, year_built: project.year_built === '' ? null : Number(project.year_built) },
         photos, sections,
+        // Only sent when the picker is available, so saving keeps working before migration 123.
+        ...(workTypes ? { workTypes: picked } : {}),
       };
       const res = await fetch(isNew ? '/api/web-cms/projects' : `/api/web-cms/projects/${project.id}`, {
         method: isNew ? 'POST' : 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
@@ -136,6 +143,25 @@ export function ProjectEditorClient({ initial, canEdit, siteUrl }: Props) {
               <div>{label('Year')}{input('year_built', '2024', 'number')}</div>
             </div>
           </div></div>
+
+          {workTypes && (
+            <div className="card"><div className="card-body">
+              {sectionTitle('Types of work', 'Tap the kinds of work this project covered. Visitors can filter the Projects page by them.')}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(112px, 1fr))', gap: 8 }}>
+                {workTypes.filter(t => t.is_active || picked.includes(t.slug)).map(t => (
+                  <WorkTypeTile
+                    key={t.id} slug={t.slug} label={t.label} iconUrl={t.icon_url} siteUrl={siteUrl} size={112}
+                    selected={picked.includes(t.slug)} dimmed={!t.is_active}
+                    title={t.is_active ? undefined : 'Retired type — untick to remove it from this project'}
+                    onClick={canEdit ? () => setPicked(p => (p.includes(t.slug) ? p.filter(x => x !== t.slug) : [...p, t.slug])) : undefined}
+                  />
+                ))}
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--fg-subtle)', marginTop: 8 }}>
+                {picked.length ? `${picked.length} selected` : "None selected — this project won't match any tile filter."}
+              </div>
+            </div></div>
+          )}
 
           <div className="card"><div className="card-body">
             {sectionTitle('Photo carousel', 'Top of the project page. Order matters — the first photo leads.')}
