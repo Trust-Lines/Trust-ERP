@@ -9,7 +9,8 @@ import { MiniFootball3D } from "./MiniFootball3D";
 type SurveyData = Record<string, string>;
 
 const steps = ["Pick your team", "Meet the player", "Your business", "Store status", "Final review", "Victory card"];
-const CONTACT_METHODS = ["Phone Call", "WhatsApp Text Message", "Email"];
+const POSITIONS = ["Owner", "Manager", "Partner", "Employee", "Other"];
+const CONTACT_METHODS =["Phone Call", "WhatsApp Text Message", "Email"];
 const teams = ["Convenience Stores", "Grocery Stores", "Truck Stop", "Other"];
 const initialData: SurveyData = {
   fullName: "",
@@ -22,18 +23,13 @@ const initialData: SurveyData = {
   storeStatus: "",
   storeSize: "",
   storeNeed: "",
-  storeType: "",
   mainChallenges: "",
   projectTimeline: "",
   companyWebsite2: ""
 };
 
-const requiredByStep = [
-  [],
-  ["fullName", "position", "phone", "email", "contactPreference"],
-  ["companyName", "companyAddress"],
-  ["storeStatus", "storeSize", "storeNeed", "storeType", "mainChallenges", "projectTimeline"]
-];
+// Only the person's name is required; every other answer (and the team pick) can be skipped.
+const requiredByStep = [[], ["fullName"], [], []];
 
 const TIMING_MAP: Record<string, string> = {
   "ASAP (Next 3 months)": "0_3_months",
@@ -49,7 +45,7 @@ const PROJECT_TYPE_MAP: Record<string, string[]> = {
 
 const newSubmissionToken = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 
-type Companion = { name: string; title: string; phone: string };
+type Companion = { name: string; title: string; phone: string; email: string };
 const MAX_COMPANIONS = 5;
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024; // matches the server limit (Vercel body cap)
@@ -90,17 +86,19 @@ function buildSubmissionPayload(team: string, data: SurveyData, submissionToken:
     data.contactPreference ? `Preferred contact: ${data.contactPreference.split("|").join(", ")}` : null,
     data.storeStatus ? `Store status: ${data.storeStatus}` : null,
     data.storeSize ? `Store size: ${data.storeSize}` : null,
-    data.storeType ? `Store type: ${data.storeType}` : null,
     data.storeNeed ? `Project scope: ${data.storeNeed}` : null,
-    data.mainChallenges ? `Main challenges: ${data.mainChallenges}` : null
+    data.mainChallenges ? `Notes: ${data.mainChallenges}` : null
   ].filter(Boolean);
+  // Only the person's name is mandatory — without a store name the lead is saved as a
+  // person (the backend rejects an "organization" lead with no organization name).
+  const hasCompany = !!data.companyName.trim();
   const namedCompanions = companions
-    .map((c) => ({ name: c.name.trim(), title: c.title.trim() || undefined, phone: c.phone.trim() || undefined }))
+    .map((c) => ({ name: c.name.trim(), title: c.title.trim() || undefined, phone: c.phone.trim() || undefined, email: c.email.trim() || undefined }))
     .filter((c) => c.name);
 
   return {
-    leadType: "organization" as const,
-    organizationName: data.companyName || undefined,
+    leadType: hasCompany ? ("organization" as const) : ("person" as const),
+    organizationName: hasCompany ? data.companyName : undefined,
     firstName: firstName || undefined,
     lastName: rest.join(" ") || undefined,
     email: data.email || undefined,
@@ -434,10 +432,6 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
   }, [showTeamPopup, step, team]);
 
   function goNext() {
-    if (step === 0 && !team) {
-      setErrors(["team"]);
-      return;
-    }
     const missing = (requiredByStep[step] ?? []).filter((name) => !data[name]?.trim());
     if (missing.length) {
       setErrors(missing);
@@ -681,7 +675,10 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                 <p className="intro">Tell us how our team can connect with you following NACS 2026.</p>
                 <div className="field-grid">
                   <Field label="Full name" name="fullName" value={data.fullName} update={update} placeholder="e.g. Alex Morgan" />
-                  <Field label="Position / job title" name="position" value={data.position} update={update} placeholder="e.g. Store Owner, Operations Manager" />
+                  <Field label="Position" name="position" value={data.position} update={update}>
+                    <option value="">Select position</option>
+                    {POSITIONS.map((p) => <option key={p}>{p}</option>)}
+                  </Field>
                   <Field label="Phone number" name="phone" value={data.phone} update={update} type="tel" placeholder="(555) 000-0000" />
                   <Field label="Email address" name="email" value={data.email} update={update} type="email" placeholder="name@company.com" />
                   <div className="field field-wide">
@@ -718,7 +715,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                       <p>Optional — we&apos;ll save them as a contact too.</p>
                     </div>
                     {companions.length < MAX_COMPANIONS && (
-                      <button type="button" className="secondary-btn" onClick={() => setCompanions((c) => [...c, { name: "", title: "", phone: "" }])}>
+                      <button type="button" className="secondary-btn" onClick={() => setCompanions((c) => [...c, { name: "", title: "", phone: "", email: "" }])}>
                         + Add person
                       </button>
                     )}
@@ -732,11 +729,23 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                         </label>
                         <label className="field">
                           <span className="field-label">Position (optional)</span>
-                          <input value={c.title} placeholder="e.g. Partner" autoComplete="off" onChange={(e) => updateCompanion(i, { title: e.target.value })} />
+                          <div className="select-wrapper">
+                            <select value={c.title} onChange={(e) => updateCompanion(i, { title: e.target.value })}>
+                              <option value="">Select position</option>
+                              {POSITIONS.map((p) => <option key={p}>{p}</option>)}
+                            </select>
+                            <svg className="select-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                              <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </div>
                         </label>
-                        <label className="field field-wide">
+                        <label className="field">
                           <span className="field-label">Phone (optional)</span>
                           <input value={c.phone} type="tel" placeholder="(555) 000-0000" autoComplete="off" onChange={(e) => updateCompanion(i, { phone: e.target.value })} />
+                        </label>
+                        <label className="field field-wide">
+                          <span className="field-label">Email (optional)</span>
+                          <input value={c.email} type="email" placeholder="name@company.com" autoComplete="off" onChange={(e) => updateCompanion(i, { email: e.target.value })} />
                         </label>
                       </div>
                       <button type="button" className="text-button" onClick={() => setCompanions((cur) => cur.filter((_, j) => j !== i))}>
@@ -752,7 +761,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
               <>
                 <span className="overline-tag">Business details</span>
                 <h1 className="step-heading">Your business</h1>
-                <p className="intro">Share the key details about your store.</p>
+                <p className="intro">Share the key details about your store — everything here is optional, you can skip ahead.</p>
                 <div className="field-grid">
                   <Field label="Store name" name="companyName" value={data.companyName} update={update} placeholder="Store Name" />
                   <Field label="Store address" name="companyAddress" value={data.companyAddress} update={update} type="textarea" placeholder="Street address, City, State, ZIP" wide />
@@ -764,13 +773,12 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
               <>
                 <span className="overline-tag">Project details</span>
                 <h1 className="step-heading">Store status</h1>
-                <p className="intro">Help us understand your project scope and upcoming timelines.</p>
+                <p className="intro">Help us understand your project scope and upcoming timelines — all optional.</p>
                 <div className="field-grid">
                   <Field label="Store status" name="storeStatus" value={data.storeStatus} update={update}>
                     <option value="">Select store status</option>
                     <option>New Store (Planning)</option>
                     <option>Existing Store (Operating)</option>
-                    <option>Expansion Plan</option>
                   </Field>
                   <Field label="Store size" name="storeSize" value={data.storeSize} update={update}>
                     <option value="">Select square footage</option>
@@ -786,13 +794,6 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                     <option>I'm considering it</option>
                     <option>Not right now</option>
                   </Field>
-                  <Field label="Store type" name="storeType" value={data.storeType} update={update}>
-                    <option value="">Select store category</option>
-                    <option>C-Store</option>
-                    <option>Truck Stop</option>
-                    <option>Grocery Market</option>
-                    <option>Other</option>
-                  </Field>
                   <Field label="Project timeline" name="projectTimeline" value={data.projectTimeline} update={update}>
                     <option value="">Select target timeline</option>
                     <option>ASAP (Next 3 months)</option>
@@ -800,7 +801,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                     <option>6-12 Months</option>
                     <option>Still Planning</option>
                   </Field>
-                  <Field label="Main challenges or needs" name="mainChallenges" value={data.mainChallenges} update={update} type="textarea" placeholder="What key goals or improvements would you like to achieve?" wide />
+                  <Field label="Notes" name="mainChallenges" value={data.mainChallenges} update={update} type="textarea" placeholder="Anything else we should know?" wide />
                 </div>
               </>
             )}
