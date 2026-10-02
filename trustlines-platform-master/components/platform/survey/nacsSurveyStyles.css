@@ -1716,3 +1716,123 @@ button:focus-visible {
         transform: none;
     }
 }
+
+/* ── Companion ("Is someone with you?") + attachments (photo / file) ───────────── */
+.companion-block,
+.attach-block {
+    margin-top: 22px;
+    padding: 16px;
+    border: 1.5px dashed var(--border-line);
+    border-radius: 14px;
+    background: var(--pitch-light);
+}
+
+.companion-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.companion-block strong,
+.attach-block strong {
+    color: var(--text-main);
+    font-size: 15px;
+}
+
+.companion-block p,
+.attach-block p {
+    margin: 2px 0 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.companion-card {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-line);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.companion-card .field-grid {
+    width: 100%;
+}
+
+.attach-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.attach-list {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.attach-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-main);
+}
+
+.attach-list li span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Multi-select choice buttons (preferred contact method) ─────────────────────── */
+.field-label small {
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.choice-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.choice-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 52px;
+    padding: 0 20px;
+    border: 1.5px solid var(--border-line);
+    border-radius: 12px;
+    background: var(--surface-card);
+    color: var(--text-main);
+    font-size: 15px;
+    font-family: var(--font-body);
+    cursor: pointer;
+    transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+}
+
+.choice-chip:hover {
+    border-color: var(--border-hover);
+}
+
+.choice-chip.selected {
+    border-color: var(--pitch-green);
+    background: var(--pitch-green);
+    color: var(--white);
+    box-shadow: 0 0 0 4px rgba(21, 69, 40, 0.12);
+}
+
+.choice-chip:focus-visible {
+    outline: 2px solid var(--pitch-green);
+    outline-offset: 2px;
+}

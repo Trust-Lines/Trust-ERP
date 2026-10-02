@@ -248,3 +248,63 @@ describe('processSurveySubmission — incomplete-data notification', () => {
     expect(db.notifications ?? []).toHaveLength(0);
   });
 });
+
+describe('processSurveySubmission — companions ("is someone with you?")', () => {
+  it('saves each companion as an extra non-primary Contact and posts Activity notes on both sides', async () => {
+    const { admin, db } = makeFakeAdmin();
+
+    const outcome = await processSurveySubmission(admin, baseCampaign, {
+      ...validBody, companions: [{ name: 'Sam Carter', title: 'Partner', phone: '555 0101' }],
+    });
+
+    expect(outcome.status).toBe('processed');
+    const names = db.prospect_contacts.map((c: { name: string }) => c.name);
+    expect(names).toEqual(['Jane Doe', 'Sam Carter']);
+    const sam = db.prospect_contacts.find((c: { name: string }) => c.name === 'Sam Carter');
+    expect(sam.is_primary).toBe(false);
+    expect(sam.title).toBe('Partner');
+
+    const jane = db.prospect_contacts.find((c: { name: string }) => c.name === 'Jane Doe');
+    const janeNote = db.prospect_contact_notes.find((n: { prospect_contact_id: string }) => n.prospect_contact_id === jane.id);
+    expect(janeNote.body).toContain('Sam Carter');
+    expect(janeNote.body).toContain('also saved as a contact');
+    const samNote = db.prospect_contact_notes.find((n: { prospect_contact_id: string }) => n.prospect_contact_id === sam.id);
+    expect(samNote.body).toContain('Jane Doe');
+  });
+
+  it('does not duplicate a companion who is already a Contact on the prospect', async () => {
+    const { admin, db } = makeFakeAdmin({
+      prospects: [{ id: 'p-existing', entity_type: 'organization', organization_name: 'ZZTEST Acme Retail', main_email: 'jane@zztest-acme.example', main_phone: null, deleted_at: null }],
+      prospect_contacts: [
+        { id: 'c-jane', prospect_id: 'p-existing', name: 'Jane Doe', is_primary: true },
+        { id: 'c-sam', prospect_id: 'p-existing', name: 'sam carter', is_primary: false },
+      ],
+    });
+
+    await processSurveySubmission(admin, baseCampaign, { ...validBody, companions: [{ name: 'Sam Carter' }] });
+
+    expect(db.prospect_contacts).toHaveLength(2);
+  });
+
+  it('ignores blank/garbage companions and caps the list', () => {
+    const dto = parsePublicSurveyBody({
+      ...validBody,
+      companions: [{ name: '  ' }, 'x', null, ...Array.from({ length: 9 }, (_, i) => ({ name: `P${i}` }))],
+    });
+    expect(dto.companions).toHaveLength(5);
+  });
+});
+
+describe('processSurveySubmission — different person on a matched Prospect', () => {
+  it('adds the survey taker as a Contact when the email/phone matched an existing Prospect', async () => {
+    const { admin, db } = makeFakeAdmin({
+      prospects: [{ id: 'p-existing', entity_type: 'organization', organization_name: 'ZZTEST Acme Retail', main_email: 'jane@zztest-acme.example', main_phone: null, deleted_at: null }],
+      prospect_contacts: [{ id: 'c-bob', prospect_id: 'p-existing', name: 'Bob Roe', is_primary: true }],
+    });
+
+    await processSurveySubmission(admin, baseCampaign, validBody);
+
+    expect(db.prospect_contacts.map((c: { name: string }) => c.name)).toEqual(['Bob Roe', 'Jane Doe']);
+    expect(db.prospect_contacts[1].is_primary).toBe(false);
+  });
+});

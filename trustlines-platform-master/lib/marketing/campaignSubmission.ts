@@ -15,6 +15,15 @@ export class SubmissionProcessingError extends Error {
   status = 500;
 }
 
+export interface SurveyCompanion {
+  name: string;
+  title?: string;
+  phone?: string;
+  email?: string;
+}
+
+const MAX_COMPANIONS = 5;
+
 export interface PublicSurveyDTO {
   leadType?: string;
   organizationName?: string;
@@ -39,6 +48,22 @@ export interface PublicSurveyDTO {
   honeypot?: string;
   storeAddress?: string;
   team?: string;
+  companions?: SurveyCompanion[];
+}
+
+function parseCompanions(v: unknown): SurveyCompanion[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const clip = (x: unknown, max: number) => (typeof x === 'string' && x.trim() ? x.trim().slice(0, max) : undefined);
+  const out: SurveyCompanion[] = [];
+  for (const item of v.slice(0, 50)) {
+    if (out.length >= MAX_COMPANIONS) break;
+    if (!item || typeof item !== 'object') continue;
+    const r = item as Record<string, unknown>;
+    const name = clip(r.name, 120);
+    if (!name) continue;
+    out.push({ name, title: clip(r.title, 120), phone: clip(r.phone, 40), email: clip(r.email, 160) });
+  }
+  return out.length ? out : undefined;
 }
 
 export function parsePublicSurveyBody(raw: unknown): PublicSurveyDTO {
@@ -55,6 +80,7 @@ export function parsePublicSurveyBody(raw: unknown): PublicSurveyDTO {
     timing: str('timing'), notes: str('notes'), consentAccepted: bool('consentAccepted'),
     consentTextVersion: str('consentTextVersion'), submissionToken: str('submissionToken'),
     honeypot: str('honeypot'), storeAddress: str('storeAddress'), team: str('team'),
+    companions: parseCompanions(b.companions),
   };
 }
 
@@ -138,6 +164,81 @@ async function createProspectFromSubmission(
   }
 
   return { prospectId: data.id as string, locationId };
+}
+
+// "Anyone with you?" on the trade-fair survey: each companion becomes an extra Contact on
+// the same Prospect, and a note on the Activity feed says so on both sides — the survey
+// taker's contact ("came with X, saved as a contact") and the companion's own contact.
+// Never fails the submission: the lead itself is already the important part.
+async function addCompanionContacts(
+  admin: any, prospectId: string, dto: PublicSurveyDTO, campaign: MarketingCampaign,
+): Promise<void> {
+  const companions = dto.companions ?? [];
+  if (!companions.length) return;
+  try {
+    const createdBy = attributionUser(campaign);
+    const { data: existingRows } = await admin.from('prospect_contacts')
+      .select('id, name, is_primary').eq('prospect_id', prospectId).limit(200);
+    const existing = (existingRows ?? []) as { id: string; name: string; is_primary: boolean }[];
+    const personName = [dto.firstName?.trim(), dto.lastName?.trim()].filter(Boolean).join(' ').trim() || null;
+    const key = (n: string) => n.trim().toLowerCase();
+    const primary = (personName ? existing.find(c => key(c.name) === key(personName)) : undefined)
+      ?? existing.find(c => c.is_primary) ?? existing[0] ?? null;
+
+    const companionContacts: { id: string; name: string }[] = [];
+    for (const comp of companions) {
+      const match = existing.find(c => key(c.name) === key(comp.name));
+      if (match) { companionContacts.push({ id: match.id, name: match.name }); continue; }
+      const { data: created, error } = await admin.from('prospect_contacts').insert({
+        prospect_id: prospectId, name: comp.name, title: comp.title ?? null,
+        email: comp.email ?? null, phone: comp.phone ?? null, is_primary: false, created_by: createdBy,
+      }).select('id, name').single();
+      if (error || !created) { console.error('[campaignSubmission] companion contact insert failed:', error?.message); continue; }
+      companionContacts.push({ id: created.id as string, name: created.name as string });
+    }
+    if (!companionContacts.length) return;
+
+    const now = new Date().toISOString();
+    const names = companionContacts.map(c => c.name).join(', ');
+    const base = { author_name: 'Survey', source_created_at: now };
+    const anchor = primary ?? companionContacts[0];
+    const notes: Record<string, unknown>[] = [{
+      ...base, prospect_contact_id: anchor.id,
+      body: `${personName ?? 'This contact'} came to ${campaign.name} together with ${names}, who ${companionContacts.length > 1 ? 'are' : 'is'} also saved as ${companionContacts.length > 1 ? 'contacts' : 'a contact'} on this record.`,
+    }];
+    for (const c of companionContacts) {
+      if (c.id === anchor.id) continue;
+      notes.push({
+        ...base, prospect_contact_id: c.id,
+        body: `Came to ${campaign.name} together with ${personName ?? 'another contact'}${primary ? ` — survey details are on ${primary.name}'s contact` : ''}.`,
+      });
+    }
+    await admin.from('prospect_contact_notes').insert(notes);
+  } catch (e) {
+    console.error('[campaignSubmission] companion contacts failed:', e instanceof Error ? e.message : e);
+  }
+}
+
+// A survey that matches an EXISTING Prospect (same email/phone) used to drop the person who
+// filled it in: only brand-new Prospects got their Contact row. So a different person
+// reusing the same phone/email left no trace of their name on the record.
+async function ensureSubmitterContact(
+  admin: any, prospectId: string, dto: PublicSurveyDTO, campaign: MarketingCampaign,
+): Promise<void> {
+  try {
+    const name = [dto.firstName?.trim(), dto.lastName?.trim()].filter(Boolean).join(' ').trim();
+    if (!name) return;
+    const { data: rows } = await admin.from('prospect_contacts').select('id, name').eq('prospect_id', prospectId).limit(200);
+    const existing = (rows ?? []) as { id: string; name: string }[];
+    if (existing.some(c => c.name.trim().toLowerCase() === name.toLowerCase())) return;
+    await admin.from('prospect_contacts').insert({
+      prospect_id: prospectId, name, title: dto.jobTitle?.trim() || null,
+      email: dto.email?.trim() || null, phone: dto.phone?.trim() || null,
+      is_primary: existing.length === 0, created_by: attributionUser(campaign),
+    });
+  } catch (e) {
+    console.error('[campaignSubmission] submitter contact failed:', e instanceof Error ? e.message : e);
+  }
 }
 
 async function backfillEmptyContactFields(admin: any, prospectId: string, dto: PublicSurveyDTO): Promise<void> {
@@ -301,6 +402,7 @@ export async function processSurveySubmission(admin: any, campaign: MarketingCam
       prospectId = matches[0].id;
       await applyLatestAttribution(admin, prospectId, campaign);
       await backfillEmptyContactFields(admin, prospectId, dto);
+      await ensureSubmitterContact(admin, prospectId, dto, campaign);
     } else {
       const created = await createProspectFromSubmission(admin, dto, campaign);
       prospectId = created.prospectId;
@@ -308,6 +410,7 @@ export async function processSurveySubmission(admin: any, campaign: MarketingCam
       isNewProspect = true;
     }
 
+    await addCompanionContacts(admin, prospectId, dto, campaign);
     const needId = await createNeedFromSubmission(admin, prospectId, locationId, dto, campaign);
     const sync = await runClassificationForNeed(admin, needId, attributionUser(campaign));
     await enrichCreatedRow(admin, sync, dto);

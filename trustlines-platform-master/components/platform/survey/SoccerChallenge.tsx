@@ -9,6 +9,7 @@ import { MiniFootball3D } from "./MiniFootball3D";
 type SurveyData = Record<string, string>;
 
 const steps = ["Pick your team", "Meet the player", "Your business", "Store status", "Final review", "Victory card"];
+const CONTACT_METHODS = ["Phone Call", "WhatsApp Text Message", "Email"];
 const teams = ["Convenience Stores", "Grocery Stores", "Truck Stop", "Other"];
 const initialData: SurveyData = {
   fullName: "",
@@ -18,7 +19,6 @@ const initialData: SurveyData = {
   contactPreference: "",
   companyName: "",
   companyAddress: "",
-  companyPhone: "",
   storeStatus: "",
   storeSize: "",
   storeNeed: "",
@@ -31,7 +31,7 @@ const initialData: SurveyData = {
 const requiredByStep = [
   [],
   ["fullName", "position", "phone", "email", "contactPreference"],
-  ["companyName", "companyAddress", "companyPhone"],
+  ["companyName", "companyAddress"],
   ["storeStatus", "storeSize", "storeNeed", "storeType", "mainChallenges", "projectTimeline"]
 ];
 
@@ -47,18 +47,56 @@ const PROJECT_TYPE_MAP: Record<string, string[]> = {
   "Both - remodel and new store": ["small_remodel", "new_construction"]
 };
 
-function buildSubmissionPayload(team: string, data: SurveyData, submissionToken: string, consentTextVersion: string) {
+const newSubmissionToken = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+
+type Companion = { name: string; title: string; phone: string };
+const MAX_COMPANIONS = 5;
+const MAX_ATTACHMENTS = 5;
+const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024; // matches the server limit (Vercel body cap)
+
+// Phone photos are 3–10 MB; shrink to a sane JPEG so the upload fits and is fast on booth Wi-Fi.
+async function compressImage(file: File): Promise<File> {
+  if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 1800 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.82));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch {
+    return file; // e.g. HEIC the browser can't decode — send as-is, server limit still applies
+  }
+}
+
+async function uploadAttachment(campaignSlug: string, submissionId: string, token: string, file: File) {
+  const form = new FormData();
+  form.append("token", token);
+  form.append("file", file);
+  const res = await fetch(`/api/public/campaigns/${campaignSlug}/submissions/${submissionId}/attachments`, { method: "POST", body: form });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(typeof body.error === "string" ? body.error : "Upload failed");
+  }
+}
+
+function buildSubmissionPayload(team: string, data: SurveyData, submissionToken: string, consentTextVersion: string, companions: Companion[]) {
   const [firstName, ...rest] = (data.fullName || "").trim().split(/\s+/);
   const notesLines = [
     team ? `Team: ${team}` : null,
-    data.contactPreference ? `Preferred contact: ${data.contactPreference}` : null,
-    data.companyPhone ? `Store phone: ${data.companyPhone}` : null,
+    data.contactPreference ? `Preferred contact: ${data.contactPreference.split("|").join(", ")}` : null,
     data.storeStatus ? `Store status: ${data.storeStatus}` : null,
     data.storeSize ? `Store size: ${data.storeSize}` : null,
     data.storeType ? `Store type: ${data.storeType}` : null,
     data.storeNeed ? `Project scope: ${data.storeNeed}` : null,
     data.mainChallenges ? `Main challenges: ${data.mainChallenges}` : null
   ].filter(Boolean);
+  const namedCompanions = companions
+    .map((c) => ({ name: c.name.trim(), title: c.title.trim() || undefined, phone: c.phone.trim() || undefined }))
+    .filter((c) => c.name);
 
   return {
     leadType: "organization" as const,
@@ -74,6 +112,7 @@ function buildSubmissionPayload(team: string, data: SurveyData, submissionToken:
     projectTypes: PROJECT_TYPE_MAP[data.storeNeed] ?? [],
     timing: TIMING_MAP[data.projectTimeline] ?? undefined,
     notes: notesLines.join("\n") || undefined,
+    companions: namedCompanions.length ? namedCompanions : undefined,
     consentAccepted: true,
     consentTextVersion,
     submissionToken,
@@ -81,11 +120,11 @@ function buildSubmissionPayload(team: string, data: SurveyData, submissionToken:
   };
 }
 
-async function submitSurveyResponse(campaignSlug: string, team: string, data: SurveyData, submissionToken: string, consentTextVersion: string) {
+async function submitSurveyResponse(campaignSlug: string, team: string, data: SurveyData, submissionToken: string, consentTextVersion: string, companions: Companion[]) {
   const res = await fetch(`/api/public/campaigns/${campaignSlug}/submissions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(buildSubmissionPayload(team, data, submissionToken, consentTextVersion))
+    body: JSON.stringify(buildSubmissionPayload(team, data, submissionToken, consentTextVersion, companions))
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -365,9 +404,16 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [submissionToken] = useState(() => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`));
+  const [submissionToken, setSubmissionToken] = useState(newSubmissionToken);
+  const [companions, setCompanions] = useState<Companion[]>([]);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [uploadFailures, setUploadFailures] = useState<string[]>([]);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLElement>(null);
-  const completedFields = useMemo(() => Object.values(data).filter(Boolean).length, [data]);
+  const contactMethods = data.contactPreference ? data.contactPreference.split("|") : [];
+  const completedFields =useMemo(() => Object.values(data).filter(Boolean).length, [data]);
   const score = completedFields * 5;
   const level = completedFields > 11 ? "Champion" : completedFields > 8 ? "Star player" : completedFields > 4 ? "First team" : team ? "Kickoff" : "Warm-up";
 
@@ -416,6 +462,34 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
     setErrors([]);
     setConsentAccepted(false);
     setSubmitError(null);
+    setCompanions([]);
+    setAttachments([]);
+    setAttachmentError(null);
+    setUploadFailures([]);
+    setSubmissionToken(newSubmissionToken()); // a new match is a new submission — reusing the token made the server treat it as a duplicate and drop it
+  }
+
+  function updateCompanion(index: number, patch: Partial<Companion>) {
+    setCompanions((current) => current.map((c, i) => (i === index ? { ...c, ...patch } : c)));
+  }
+
+  async function addAttachments(list: FileList | null) {
+    if (!list?.length) return;
+    setAttachmentError(null);
+    const accepted: File[] = [];
+    for (const original of Array.from(list)) {
+      if (attachments.length + accepted.length >= MAX_ATTACHMENTS) {
+        setAttachmentError(`You can add up to ${MAX_ATTACHMENTS} files.`);
+        break;
+      }
+      const file = await compressImage(original);
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        setAttachmentError(`"${original.name}" is too large (max 4 MB).`);
+        continue;
+      }
+      accepted.push(file);
+    }
+    if (accepted.length) setAttachments((current) => [...current, ...accepted]);
   }
 
   async function confirmAndScore() {
@@ -427,7 +501,18 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
     setSubmitError(null);
     setSubmitting(true);
     try {
-      await submitSurveyResponse(campaignSlug, team, data, submissionToken, consentTextVersion);
+      const outcome = await submitSurveyResponse(campaignSlug, team, data, submissionToken, consentTextVersion, companions);
+      // Attachments go up after the lead exists (they hang off the submission). A failed
+      // upload never blocks the goal — it's reported on the victory screen instead.
+      const failed: string[] = [];
+      for (const file of attachments) {
+        try {
+          await uploadAttachment(campaignSlug, outcome.submissionId, submissionToken, file);
+        } catch {
+          failed.push(file.name);
+        }
+      }
+      setUploadFailures(failed);
       setScoring(true);
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Something went wrong — please try again.");
@@ -599,12 +684,66 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                   <Field label="Position / job title" name="position" value={data.position} update={update} placeholder="e.g. Store Owner, Operations Manager" />
                   <Field label="Phone number" name="phone" value={data.phone} update={update} type="tel" placeholder="(555) 000-0000" />
                   <Field label="Email address" name="email" value={data.email} update={update} type="email" placeholder="name@company.com" />
-                  <Field label="Preferred contact method" name="contactPreference" value={data.contactPreference} update={update} wide>
-                    <option value="">Select contact method</option>
-                    <option>Phone Call</option>
-                    <option>WhatsApp Text Message</option>
-                    <option>Email</option>
-                  </Field>
+                  <div className="field field-wide">
+                    <span className="field-label">Preferred contact method <small>(pick one or more)</small></span>
+                    <div className="choice-chips" role="group" aria-label="Preferred contact method">
+                      {CONTACT_METHODS.map((method, i) => {
+                        const selected = contactMethods.includes(method);
+                        return (
+                          <button
+                            type="button"
+                            key={method}
+                            name={i === 0 ? "contactPreference" : undefined}
+                            aria-pressed={selected}
+                            className={`choice-chip ${selected ? "selected" : ""}`}
+                            onClick={() => update("contactPreference", (selected ? contactMethods.filter((m) => m !== method) : [...contactMethods, method]).join("|"))}
+                          >
+                            {selected && (
+                              <svg viewBox="0 0 20 20" width="14" height="14" fill="none" aria-hidden="true">
+                                <path d="M16.666 5L7.5 14.167 3.333 10" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                            {method}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="companion-block">
+                  <div className="companion-head">
+                    <div>
+                      <strong>Is someone with you?</strong>
+                      <p>Optional — we&apos;ll save them as a contact too.</p>
+                    </div>
+                    {companions.length < MAX_COMPANIONS && (
+                      <button type="button" className="secondary-btn" onClick={() => setCompanions((c) => [...c, { name: "", title: "", phone: "" }])}>
+                        + Add person
+                      </button>
+                    )}
+                  </div>
+                  {companions.map((c, i) => (
+                    <div className="companion-card" key={i}>
+                      <div className="field-grid">
+                        <label className="field">
+                          <span className="field-label">Name</span>
+                          <input value={c.name} placeholder="e.g. Sam Carter" autoComplete="off" onChange={(e) => updateCompanion(i, { name: e.target.value })} />
+                        </label>
+                        <label className="field">
+                          <span className="field-label">Position (optional)</span>
+                          <input value={c.title} placeholder="e.g. Partner" autoComplete="off" onChange={(e) => updateCompanion(i, { title: e.target.value })} />
+                        </label>
+                        <label className="field field-wide">
+                          <span className="field-label">Phone (optional)</span>
+                          <input value={c.phone} type="tel" placeholder="(555) 000-0000" autoComplete="off" onChange={(e) => updateCompanion(i, { phone: e.target.value })} />
+                        </label>
+                      </div>
+                      <button type="button" className="text-button" onClick={() => setCompanions((cur) => cur.filter((_, j) => j !== i))}>
+                        Remove
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </>
             )}
@@ -616,7 +755,6 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                 <p className="intro">Share the key details about your store.</p>
                 <div className="field-grid">
                   <Field label="Store name" name="companyName" value={data.companyName} update={update} placeholder="Store Name" />
-                  <Field label="Store phone number" name="companyPhone" value={data.companyPhone} update={update} type="tel" placeholder="Store Phone Number" />
                   <Field label="Store address" name="companyAddress" value={data.companyAddress} update={update} type="textarea" placeholder="Street address, City, State, ZIP" wide />
                 </div>
               </>
@@ -680,6 +818,9 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                     {[
                       ["Team", team, 0],
                       ["Player", data.fullName, 1],
+                      ...(companions.some((c) => c.name.trim())
+                        ? [["With you", companions.map((c) => c.name.trim()).filter(Boolean).join(", "), 1]]
+                        : []),
                       ["Business", data.companyName, 2],
                       ["Project", data.storeNeed, 3],
                       ["Timeline", data.projectTimeline, 3]
@@ -693,6 +834,37 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                       </div>
                     ))}
                   </dl>
+                  <div className="attach-block">
+                    <strong>Add a photo or file</strong>
+                    <p>Optional — snap a business card or store photo, or attach a document.</p>
+                    <div className="attach-actions">
+                      <button type="button" className="secondary-btn" disabled={scoring || submitting} onClick={() => photoInputRef.current?.click()}>
+                        Take photo
+                      </button>
+                      <button type="button" className="secondary-btn" disabled={scoring || submitting} onClick={() => fileInputRef.current?.click()}>
+                        Upload file
+                      </button>
+                    </div>
+                    <input ref={photoInputRef} type="file" accept="image/*" capture="environment" hidden
+                      onChange={(e) => { void addAttachments(e.target.files); e.target.value = ""; }} />
+                    <input ref={fileInputRef} type="file" multiple hidden
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip,.dwg"
+                      onChange={(e) => { void addAttachments(e.target.files); e.target.value = ""; }} />
+                    {attachments.length > 0 && (
+                      <ul className="attach-list">
+                        {attachments.map((f, i) => (
+                          <li key={`${f.name}-${i}`}>
+                            <span>{f.name}</span>
+                            <button type="button" className="text-button" disabled={scoring || submitting}
+                              onClick={() => setAttachments((cur) => cur.filter((_, j) => j !== i))}>
+                              Remove
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {attachmentError && <p className="error" role="alert">{attachmentError}</p>}
+                  </div>
                   <label className="consent-check">
                     <input
                       type="checkbox"
@@ -736,6 +908,11 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                   </motion.span>
                   <h1 className="step-heading">Goal scored!</h1>
                   <p className="intro">Thanks, {data.fullName}. You successfully completed the T LINES Soccer Challenge. Please collect your gift ball from our host at the booth.</p>
+                  {uploadFailures.length > 0 && (
+                    <p className="error" role="alert">
+                      Your answers were saved, but we couldn&apos;t upload: {uploadFailures.join(", ")}. Please show it to our host at the booth.
+                    </p>
+                  )}
                   <div className="victory-actions">
                     <button type="button" className="text-button" onClick={reset}>
                       Start a new match

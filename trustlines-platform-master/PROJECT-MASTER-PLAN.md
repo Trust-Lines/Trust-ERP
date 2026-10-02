@@ -2152,6 +2152,18 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-10-02 (NACS 26 survey — companion contact + photo/file attachments) — NO new migration
+- Soccer Challenge survey step "Meet the player": optional "Is someone with you?" → each person is saved as an
+  extra non-primary `prospect_contacts` row; an Activity note (`prospect_contact_notes`, author "Survey") is
+  posted on both the survey taker's contact and the companion's contact.
+- Final review step: "Take photo" (phone camera) / "Upload file" (max 5 files, 4 MB each, photos compressed
+  client-side). Uploaded after submit via public `POST /api/public/campaigns/[slug]/submissions/[submissionId]/attachments`
+  (auth = the submission's own random token, rate-limited). Files go to Dropbox
+  `/Marketing/NACS26 Contacts/<name - id8>/` (mode add + autorename, never overwrite), a `prospect_files` row
+  (Files tab) and an Activity note (images render inline via the existing dropbox-link route).
+- Files: lib/marketing/campaignSubmission.ts, lib/marketing/surveyAttachments.ts (new), the attachments route (new),
+  components/platform/survey/SoccerChallenge.tsx, nacsSurveyStyles.css, tests/campaignSubmission.test.ts.
+
 2026-08-28 (Catch-up documentation — migrations 087–104, ClickUp import + Deals Unified Board) — NO new migration
 - This file's CHANGE LOG had a real gap: the entire 087–104 batch (18 migrations, built via direct terminal
   work outside the normal "devam et" flow — see SALES_AUDIT.md's own flagging of this) was never recorded
