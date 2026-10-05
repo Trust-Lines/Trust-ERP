@@ -4,13 +4,16 @@ import { sanitizeFileName } from './prospectFiles';
 // NACS 26 survey) live in their own Dropbox section, one folder per contact.
 export const SURVEY_ATTACHMENTS_ROOT = '/Marketing/NACS26 Contacts';
 
-// Vercel serverless request bodies are capped at ~4.5 MB; the client compresses photos
-// well below this, other files must fit as-is.
-export const SURVEY_ATTACHMENT_MAX_BYTES = 4 * 1024 * 1024;
+// Per-file ceiling. Serverless request bodies are capped at ~4.5 MB, so anything bigger
+// than SURVEY_ATTACHMENT_SINGLE_MAX_BYTES is sent in SURVEY_ATTACHMENT_CHUNK_BYTES pieces
+// through a Dropbox upload session (see the attachments route).
+export const SURVEY_ATTACHMENT_MAX_BYTES = 200 * 1024 * 1024;
+export const SURVEY_ATTACHMENT_SINGLE_MAX_BYTES = 4_000_000;
+export const SURVEY_ATTACHMENT_CHUNK_BYTES = 4_000_000;
 export const SURVEY_ATTACHMENT_MAX_COUNT = 5;
 
 const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'gif'];
-const FILE_EXT = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv', 'txt', 'zip', 'dwg'];
+const FILE_EXT = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv', 'txt', 'zip', 'dwg', 'mp4', 'mov', 'm4v'];
 
 function extOf(name: string): string {
   const i = name.lastIndexOf('.');

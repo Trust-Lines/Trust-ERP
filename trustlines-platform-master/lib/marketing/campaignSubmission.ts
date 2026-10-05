@@ -47,6 +47,8 @@ export interface PublicSurveyDTO {
   submissionToken?: string;
   honeypot?: string;
   storeAddress?: string;
+  /** The visitor's free-text note — shown as the Prospect's X-NOTE. */
+  xNote?: string;
   team?: string;
   companions?: SurveyCompanion[];
 }
@@ -80,6 +82,7 @@ export function parsePublicSurveyBody(raw: unknown): PublicSurveyDTO {
     timing: str('timing'), notes: str('notes'), consentAccepted: bool('consentAccepted'),
     consentTextVersion: str('consentTextVersion'), submissionToken: str('submissionToken'),
     honeypot: str('honeypot'), storeAddress: str('storeAddress'), team: str('team'),
+    xNote: str('xNote')?.trim().slice(0, 2000) || undefined,
     companions: parseCompanions(b.companions),
   };
 }
@@ -105,6 +108,38 @@ async function findMatchingProspects(admin: any, email: string | null, phone: st
     if (emailMatch || phoneMatch) found.set(row.id, { id: row.id });
   }
   return [...found.values()];
+}
+
+// The team picked on the Soccer Challenge's first screen is the visitor's store category —
+// it fills the Contacts list's "Business Type" column. Values reuse the labels already on
+// existing prospects so the Business Type filter/dropdown doesn't grow near-duplicates.
+export const TEAM_BUSINESS_TYPE: Record<string, string> = {
+  'convenience stores': 'C-stores',
+  'grocery stores': 'Grocery store',
+  'truck stop': 'Truckstop',
+};
+
+export function businessTypeForTeam(team?: string | null): string | null {
+  return TEAM_BUSINESS_TYPE[(team ?? '').trim().toLowerCase()] ?? null;
+}
+
+async function addBusinessTypeFromTeam(admin: any, prospectId: string, team?: string | null): Promise<void> {
+  const type = businessTypeForTeam(team);
+  if (!type) return;
+  const { data } = await admin.from('prospects').select('business_types').eq('id', prospectId).maybeSingle();
+  const current = ((data?.business_types ?? []) as string[]);
+  if (current.some(t => t.trim().toLowerCase() === type.toLowerCase())) return;
+  await admin.from('prospects').update({ business_types: [...current, type] }).eq('id', prospectId);
+}
+
+// Existing Prospect: keep whatever X-NOTE is already there and append the new survey note.
+async function appendXNote(admin: any, prospectId: string, note?: string | null): Promise<void> {
+  const text = note?.trim();
+  if (!text) return;
+  const { data } = await admin.from('prospects').select('x_note').eq('id', prospectId).maybeSingle();
+  const current = ((data?.x_note ?? '') as string).trim();
+  if (current.includes(text)) return;
+  await admin.from('prospects').update({ x_note: current ? `${current}\n${text}` : text }).eq('id', prospectId);
 }
 
 function attributionUser(campaign: MarketingCampaign): string {
@@ -142,6 +177,8 @@ async function createProspectFromSubmission(
     latest_source_label: campaign.source,
     latest_campaign_id: campaign.id,
     status: 'captured',
+    business_types: businessTypeForTeam(dto.team) ? [businessTypeForTeam(dto.team)] : [],
+    x_note: dto.xNote ?? null,
     created_by: attributedUser,
   }).select('id').single();
   if (error) throw new SubmissionProcessingError(error.message);
@@ -403,6 +440,8 @@ export async function processSurveySubmission(admin: any, campaign: MarketingCam
       await applyLatestAttribution(admin, prospectId, campaign);
       await backfillEmptyContactFields(admin, prospectId, dto);
       await ensureSubmitterContact(admin, prospectId, dto, campaign);
+      await addBusinessTypeFromTeam(admin, prospectId, dto.team);
+      await appendXNote(admin, prospectId, dto.xNote);
     } else {
       const created = await createProspectFromSubmission(admin, dto, campaign);
       prospectId = created.prospectId;

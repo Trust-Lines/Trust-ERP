@@ -308,3 +308,40 @@ describe('processSurveySubmission — different person on a matched Prospect', (
     expect(db.prospect_contacts[1].is_primary).toBe(false);
   });
 });
+
+describe('processSurveySubmission — team → Business Type', () => {
+  it('fills business_types from the picked team on a new Prospect', async () => {
+    const { admin, db } = makeFakeAdmin();
+    await processSurveySubmission(admin, baseCampaign, { ...validBody, team: 'Truck Stop' });
+    expect(db.prospects[0].business_types).toEqual(['Truckstop']);
+  });
+
+  it('adds it to an existing Prospect without duplicating, and leaves "Other" empty', async () => {
+    const seed = () => makeFakeAdmin({
+      prospects: [{ id: 'p-existing', entity_type: 'organization', organization_name: 'ZZTEST Acme Retail', main_email: 'jane@zztest-acme.example', main_phone: null, business_types: ['Fuel Provider'], deleted_at: null }],
+    });
+    const a = seed();
+    await processSurveySubmission(a.admin, baseCampaign, { ...validBody, team: 'Convenience Stores' });
+    expect(a.db.prospects[0].business_types).toEqual(['Fuel Provider', 'C-stores']);
+
+    const b = seed();
+    await processSurveySubmission(b.admin, baseCampaign, { ...validBody, team: 'Other' });
+    expect(b.db.prospects[0].business_types).toEqual(['Fuel Provider']);
+  });
+});
+
+describe('processSurveySubmission — survey note → X-NOTE', () => {
+  it('sets x_note on a new Prospect', async () => {
+    const { admin, db } = makeFakeAdmin();
+    await processSurveySubmission(admin, baseCampaign, { ...validBody, xNote: 'Wants a quote before June' });
+    expect(db.prospects[0].x_note).toBe('Wants a quote before June');
+  });
+
+  it('appends to an existing X-NOTE without losing it or duplicating', async () => {
+    const { admin, db } = makeFakeAdmin({
+      prospects: [{ id: 'p-existing', entity_type: 'organization', organization_name: 'ZZTEST Acme Retail', main_email: 'jane@zztest-acme.example', main_phone: null, x_note: 'Met at 2025 show', deleted_at: null }],
+    });
+    await processSurveySubmission(admin, baseCampaign, { ...validBody, xNote: 'Wants a quote' });
+    expect(db.prospects[0].x_note).toBe('Met at 2025 show\nWants a quote');
+  });
+});

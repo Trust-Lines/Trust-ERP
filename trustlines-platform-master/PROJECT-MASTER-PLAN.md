@@ -2156,7 +2156,7 @@ Project architecture:
 - Soccer Challenge survey step "Meet the player": optional "Is someone with you?" → each person is saved as an
   extra non-primary `prospect_contacts` row; an Activity note (`prospect_contact_notes`, author "Survey") is
   posted on both the survey taker's contact and the companion's contact.
-- Final review step: "Take photo" (phone camera) / "Upload file" (max 5 files, 4 MB each, photos compressed
+- Final review step: "Take photo" (phone camera) / "Upload file" (max 5 files, 200 MB each — files over 4 MB are sent in 4 MB chunks through a Dropbox upload session; photos compressed
   client-side). Uploaded after submit via public `POST /api/public/campaigns/[slug]/submissions/[submissionId]/attachments`
   (auth = the submission's own random token, rate-limited). Files go to Dropbox
   `/Marketing/NACS26 Contacts/<name - id8>/` (mode add + autorename, never overwrite), a `prospect_files` row

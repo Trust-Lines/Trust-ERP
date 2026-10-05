@@ -48,7 +48,9 @@ const newSubmissionToken = () => (typeof crypto !== "undefined" && crypto.random
 type Companion = { name: string; title: string; phone: string; email: string };
 const MAX_COMPANIONS = 5;
 const MAX_ATTACHMENTS = 5;
-const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024; // matches the server limit (Vercel body cap)
+const MAX_ATTACHMENT_BYTES = 200 * 1024 * 1024; // matches the server limit
+const ATTACHMENT_SINGLE_MAX_BYTES = 4_000_000;
+const ATTACHMENT_CHUNK_BYTES = 4_000_000;
 
 // Phone photos are 3–10 MB; shrink to a sane JPEG so the upload fits and is fast on booth Wi-Fi.
 async function compressImage(file: File): Promise<File> {
@@ -68,14 +70,54 @@ async function compressImage(file: File): Promise<File> {
   }
 }
 
-async function uploadAttachment(campaignSlug: string, submissionId: string, token: string, file: File) {
+async function postAttachmentPart(url: string, fields: Record<string, string>, part: Blob, partName: string, fileName: string) {
   const form = new FormData();
-  form.append("token", token);
-  form.append("file", file);
-  const res = await fetch(`/api/public/campaigns/${campaignSlug}/submissions/${submissionId}/attachments`, { method: "POST", body: form });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(typeof body.error === "string" ? body.error : "Upload failed");
+  for (const [k, v] of Object.entries(fields)) form.append(k, v);
+  form.append(partName, part, fileName);
+  const res = await fetch(url, { method: "POST", body: form });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(typeof body.error === "string" ? body.error : "Upload failed");
+  return body as { sessionId?: string };
+}
+
+// A flaky booth connection shouldn't lose a 200 MB file over one dropped chunk.
+async function sendWithRetry<T>(send: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await send();
+    } catch (e) {
+      if (attempt >= 3) throw e;
+      await new Promise((r) => setTimeout(r, 800 * attempt));
+    }
+  }
+}
+
+// Small files go up in one request; anything bigger is sent in chunks (the server relays them
+// into a Dropbox upload session) because a single request body is capped at ~4.5 MB.
+async function uploadAttachment(
+  campaignSlug: string, submissionId: string, token: string, file: File, onProgress: (fraction: number) => void
+) {
+  const url = `/api/public/campaigns/${campaignSlug}/submissions/${submissionId}/attachments`;
+  if (file.size <= ATTACHMENT_SINGLE_MAX_BYTES) {
+    await postAttachmentPart(url, { token }, file, "file", file.name);
+    onProgress(1);
+    return;
+  }
+  let offset = 0;
+  let sessionId = "";
+  while (offset < file.size) {
+    const end = Math.min(offset + ATTACHMENT_CHUNK_BYTES, file.size);
+    const last = end === file.size;
+    const action = offset === 0 ? "start" : last ? "finish" : "append";
+    const fields: Record<string, string> = { token, action, offset: String(offset), fileName: file.name };
+    if (sessionId) fields.sessionId = sessionId;
+    const result = await sendWithRetry(() => postAttachmentPart(url, fields, file.slice(offset, end), "chunk", file.name));
+    if (action === "start") {
+      sessionId = result.sessionId ?? "";
+      if (!sessionId) throw new Error("Upload failed");
+    }
+    offset = end;
+    onProgress(offset / file.size);
   }
 }
 
@@ -110,6 +152,7 @@ function buildSubmissionPayload(team: string, data: SurveyData, submissionToken:
     projectTypes: PROJECT_TYPE_MAP[data.storeNeed] ?? [],
     timing: TIMING_MAP[data.projectTimeline] ?? undefined,
     notes: notesLines.join("\n") || undefined,
+    xNote: data.mainChallenges.trim() || undefined,
     companions: namedCompanions.length ? namedCompanions : undefined,
     consentAccepted: true,
     consentTextVersion,
@@ -253,10 +296,10 @@ function Field({
 }) {
   return (
     <label className={`field ${wide ? "field-wide" : ""}`}>
-      <span className="field-label">{label}</span>
+      <span className="field-label">{label}{name !== "fullName" && <small> (optional)</small>}</span>
       {children ? (
         <div className="select-wrapper">
-          <select name={name} value={value} onChange={(e) => update(name, e.target.value)} required>
+          <select name={name} value={value} onChange={(e) => update(name, e.target.value)} required={name === "fullName"}>
             {children}
           </select>
           <svg className="select-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -264,9 +307,9 @@ function Field({
           </svg>
         </div>
       ) : type === "textarea" ? (
-        <textarea name={name} value={value} placeholder={placeholder} onChange={(e) => update(name, e.target.value)} required />
+        <textarea name={name} value={value} placeholder={placeholder} onChange={(e) => update(name, e.target.value)} required={name === "fullName"} />
       ) : (
-        <input name={name} value={value} type={type} placeholder={placeholder} onChange={(e) => update(name, e.target.value)} required />
+        <input name={name} value={value} type={type} placeholder={placeholder} onChange={(e) => update(name, e.target.value)} required={name === "fullName"} />
       )}
     </label>
   );
@@ -407,6 +450,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
   const [attachments, setAttachments] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [uploadFailures, setUploadFailures] = useState<string[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLElement>(null);
@@ -478,7 +522,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
       }
       const file = await compressImage(original);
       if (file.size > MAX_ATTACHMENT_BYTES) {
-        setAttachmentError(`"${original.name}" is too large (max 4 MB).`);
+        setAttachmentError(`"${original.name}" is too large (max 200 MB).`);
         continue;
       }
       accepted.push(file);
@@ -499,13 +543,16 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
       // Attachments go up after the lead exists (they hang off the submission). A failed
       // upload never blocks the goal — it's reported on the victory screen instead.
       const failed: string[] = [];
-      for (const file of attachments) {
+      for (const [index, file] of attachments.entries()) {
         try {
-          await uploadAttachment(campaignSlug, outcome.submissionId, submissionToken, file);
+          await uploadAttachment(campaignSlug, outcome.submissionId, submissionToken, file, (fraction) =>
+            setUploadProgress(`Uploading file ${index + 1} of ${attachments.length} · ${Math.round(fraction * 100)}%`)
+          );
         } catch {
           failed.push(file.name);
         }
       }
+      setUploadProgress(null);
       setUploadFailures(failed);
       setScoring(true);
     } catch (e) {
@@ -622,7 +669,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
               <>
                 <span className="overline-tag">Kickoff</span>
                 <h1 className="step-heading">Pick your team</h1>
-                <p className="intro">Select the store category that best describes your retail business.</p>
+                <p className="intro">Select the store category that best describes your retail business (optional).</p>
                 <div className="team-grid" role="radiogroup" aria-label="Store type">
                   {teams.map((label) => (
                     <button
@@ -682,7 +729,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                   <Field label="Phone number" name="phone" value={data.phone} update={update} type="tel" placeholder="(555) 000-0000" />
                   <Field label="Email address" name="email" value={data.email} update={update} type="email" placeholder="name@company.com" />
                   <div className="field field-wide">
-                    <span className="field-label">Preferred contact method <small>(pick one or more)</small></span>
+                    <span className="field-label">Preferred contact method <small>(optional — pick one or more)</small></span>
                     <div className="choice-chips" role="group" aria-label="Preferred contact method">
                       {CONTACT_METHODS.map((method, i) => {
                         const selected = contactMethods.includes(method);
@@ -763,7 +810,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                 <h1 className="step-heading">Your business</h1>
                 <p className="intro">Share the key details about your store — everything here is optional, you can skip ahead.</p>
                 <div className="field-grid">
-                  <Field label="Store name" name="companyName" value={data.companyName} update={update} placeholder="Store Name" />
+                  <Field label="Brand name" name="companyName" value={data.companyName} update={update} placeholder="Brand name" />
                   <Field label="Store address" name="companyAddress" value={data.companyAddress} update={update} type="textarea" placeholder="Street address, City, State, ZIP" wide />
                 </div>
               </>
@@ -942,7 +989,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                     {scoring || submitting ? (
                       <>
                         <span className="spinner" />
-                        {submitting ? "Sending…" : "Shooting…"}
+                        {submitting ? uploadProgress ?? "Sending…" : "Shooting…"}
                       </>
                     ) : (
                       <>
