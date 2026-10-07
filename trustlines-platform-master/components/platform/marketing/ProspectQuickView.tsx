@@ -5,6 +5,7 @@ import { X, Paperclip, Send, Loader2, Image as ImageIcon, Trash2, Pencil, Check 
 import { toast } from 'sonner';
 import { ProspectDetailClient } from './ProspectDetailClient';
 import { compressImage, MAX_UPLOAD_BYTES } from '@/lib/client/compressImage';
+import { uploadImageDirect } from '@/lib/client/directDropboxUpload';
 
 interface ContactNote {
   id: string; prospect_contact_id: string; author_name: string | null; author_id?: string | null;
@@ -29,6 +30,7 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [draftImage, setDraftImage] = useState<File | null>(null);
+  const originalImageRef = useRef<File | null>(null);
   const [posting, setPosting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,11 +85,24 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
     setPosting(true);
     try {
       let res: Response;
-      if (draftImage) {
+      const notesUrl = `/api/marketing/prospects/${prospectId}/contacts/${primaryContact.id}/notes`;
+      // Preferred: original photo straight to Dropbox. Any failure falls back to the classic upload.
+      const directPath = draftImage ? await uploadImageDirect(notesUrl, originalImageRef.current ?? draftImage) : null;
+      let direct: Response | null = null;
+      if (directPath) {
+        direct = await fetch(notesUrl, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: draft.trim(), imagePath: directPath }),
+        });
+      }
+      if (direct?.ok) {
+        res = direct;
+      } else if (draftImage) {
+        // Direct upload unavailable, or the note could not be saved from it: classic upload of the compressed copy.
+        if (draftImage.size > MAX_UPLOAD_BYTES) { toast.error('This photo is too large to upload (max 4 MB). Try a smaller one.'); return; }
         const form = new FormData();
         form.set('body', draft.trim());
         form.set('image', draftImage);
-        res = await fetch(`/api/marketing/prospects/${prospectId}/contacts/${primaryContact.id}/notes`, { method: 'POST', body: form });
+        res = await fetch(notesUrl, { method: 'POST', body: form });
       } else {
         res = await fetch(`/api/marketing/prospects/${prospectId}/contacts/${primaryContact.id}/notes`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: draft.trim() }),
@@ -98,6 +113,7 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
       setNotes(prev => [body.note, ...prev]);
       setDraft('');
       setDraftImage(null);
+      originalImageRef.current = null;
       if (fileInputRef.current) fileInputRef.current.value = '';
     } finally { setPosting(false); }
   }
@@ -259,15 +275,9 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
                     onChange={async e => {
-                      const input = e.target;
-                      const picked = input.files?.[0];
-                      if (!picked) { setDraftImage(null); return; }
-                      const ready = await compressImage(picked);
-                      if (ready.size > MAX_UPLOAD_BYTES) {
-                        toast.error('This photo is too large (max 4 MB). Try a smaller one.');
-                        input.value = ''; setDraftImage(null); return;
-                      }
-                      setDraftImage(ready);
+                      const picked = e.target.files?.[0];
+                      originalImageRef.current = picked ?? null; // full-quality original for the direct Dropbox upload
+                      setDraftImage(picked ? await compressImage(picked) : null); // small copy = fallback upload
                     }} />
                   <button className="btn btn-ghost btn-sm" onClick={() => fileInputRef.current?.click()} title="Attach image">
                     <Paperclip size={14} />

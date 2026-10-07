@@ -5,6 +5,7 @@ import { MARKETING_READ_ROLES, MARKETING_WRITE_ROLES } from '@/lib/marketing/rol
 import { assertProspectAccess } from '@/lib/marketing/prospectAccess';
 import { getDropboxClient } from '@/lib/dropbox/client';
 import { buildProspectFilesPath, sanitizeFileName } from '@/lib/marketing/prospectFiles';
+import { handleDirectUploadRequest, isDirectUploadRequest } from '@/lib/marketing/directUpload';
 
 type Params = { params: Promise<{ id: string; contactId: string }> };
 
@@ -39,17 +40,28 @@ export async function POST(req: NextRequest, { params }: Params) {
   const contentType = req.headers.get('content-type') ?? '';
   let body: string;
   let image: File | null = null;
+  let json: Record<string, unknown> = {};
   if (contentType.includes('multipart/form-data')) {
     const form = await req.formData();
     body = String(form.get('body') ?? '').trim();
     image = form.get('image') as File | null;
   } else {
-    const json = await req.json().catch(() => ({}));
+    json = await req.json().catch(() => ({}));
     body = String(json.body ?? '').trim();
   }
-  if (!body && !image) return NextResponse.json({ error: 'Write something or attach an image' }, { status: 400 });
 
+  // Direct-to-Dropbox flow (see lib/marketing/directUpload.ts); the multipart path below is the fallback.
   let imagePath: string | null = null;
+  if (isDirectUploadRequest(json)) {
+    const { data: prospect } = await admin.from('prospects').select('id, display_name, region').eq('id', id).maybeSingle();
+    if (!prospect) return NextResponse.json({ error: 'Prospect not found' }, { status: 404 });
+    const direct = await handleDirectUploadRequest(json, buildProspectFilesPath(prospect.region, prospect.display_name, prospect.id));
+    if (direct && 'response' in direct) return direct.response;
+    if (direct) imagePath = direct.imagePath;
+  }
+
+  if (!body && !image && !imagePath) return NextResponse.json({ error: 'Write something or attach an image' }, { status: 400 });
+
   if (image && image.size > 0) {
     const { data: prospect } = await admin.from('prospects').select('id, display_name, region').eq('id', id).maybeSingle();
     if (!prospect) return NextResponse.json({ error: 'Prospect not found' }, { status: 404 });
@@ -73,7 +85,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     prospect_contact_id: contactId,
     author_id: user.id,
     author_name: authorProfile?.full_name ?? null,
-    body: body || (image ? `[image: ${image.name}]` : ''),
+    body: body || (image ? `[image: ${image.name}]` : imagePath ? `[image: ${imagePath.split('/').pop()}]` : ''),
     image_path: imagePath,
     source_created_at: now,
   }).select(NOTE_COLS).single();

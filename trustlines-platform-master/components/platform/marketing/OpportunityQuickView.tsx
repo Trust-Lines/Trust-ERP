@@ -11,6 +11,7 @@ import type { DealProgress } from '@/lib/sales/dealProgress';
 import { DropboxFileList } from '@/components/platform/shared/DropboxFileList';
 import { TagMultiSelect } from './TagMultiSelect';
 import { compressImage, MAX_UPLOAD_BYTES } from '@/lib/client/compressImage';
+import { uploadImageDirect } from '@/lib/client/directDropboxUpload';
 import { ContactSearchSelect } from './ContactSearchSelect';
 import { hashColor } from '@/lib/marketing/pillColor';
 import { normalizeIndustry, INDUSTRY_COLOR } from '@/lib/marketing/industry';
@@ -67,6 +68,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [draftImage, setDraftImage] = useState<File | null>(null);
+  const originalImageRef = useRef<File | null>(null);
   const [posting, setPosting] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [tagOptions, setTagOptions] = useState<string[]>([]);
@@ -151,7 +153,19 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
     setPosting(true);
     try {
       let res: Response;
-      if (draftImage) {
+      // Preferred: original photo straight to Dropbox. Any failure falls back to the classic upload.
+      const directPath = draftImage ? await uploadImageDirect(`${apiBase}/notes`, originalImageRef.current ?? draftImage) : null;
+      let direct: Response | null = null;
+      if (directPath) {
+        direct = await fetch(`${apiBase}/notes`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: draft.trim(), imagePath: directPath }),
+        });
+      }
+      if (direct?.ok) {
+        res = direct;
+      } else if (draftImage) {
+        // Direct upload unavailable, or the note could not be saved from it: classic upload of the compressed copy.
+        if (draftImage.size > MAX_UPLOAD_BYTES) { toast.error('This photo is too large to upload (max 4 MB). Try a smaller one.'); return; }
         const form = new FormData();
         form.set('body', draft.trim());
         form.set('image', draftImage);
@@ -166,6 +180,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
       setNotes(prev => [...prev, body.note]);
       setDraft('');
       setDraftImage(null);
+      originalImageRef.current = null;
       if (noteFileInputRef.current) noteFileInputRef.current.value = '';
     } finally { setPosting(false); }
   }
@@ -589,15 +604,9 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <input ref={noteFileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
                     onChange={async e => {
-                      const input = e.target;
-                      const picked = input.files?.[0];
-                      if (!picked) { setDraftImage(null); return; }
-                      const ready = await compressImage(picked);
-                      if (ready.size > MAX_UPLOAD_BYTES) {
-                        toast.error('This photo is too large (max 4 MB). Try a smaller one.');
-                        input.value = ''; setDraftImage(null); return;
-                      }
-                      setDraftImage(ready);
+                      const picked = e.target.files?.[0];
+                      originalImageRef.current = picked ?? null; // full-quality original for the direct Dropbox upload
+                      setDraftImage(picked ? await compressImage(picked) : null); // small copy = fallback upload
                     }} />
                   <button className="btn btn-ghost btn-sm" onClick={() => noteFileInputRef.current?.click()} title="Attach image">
                     <Paperclip size={14} />

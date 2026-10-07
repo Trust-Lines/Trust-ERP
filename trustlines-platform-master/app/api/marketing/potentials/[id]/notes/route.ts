@@ -7,6 +7,7 @@ import { assertPotentialAccess } from '@/lib/marketing/potentialAccess';
 import { getDropboxClient } from '@/lib/dropbox/client';
 import { buildNeedFilesPath } from '@/lib/marketing/needFiles';
 import { sanitizeFileName } from '@/lib/marketing/prospectFiles';
+import { handleDirectUploadRequest } from '@/lib/marketing/directUpload';
 
 const ALLOWED_ROLES = [...SALES_HANDOFF_ROLES, ...MARKETING_ROLES];
 
@@ -50,17 +51,24 @@ export async function POST(req: NextRequest, { params }: Params) {
   const contentType = req.headers.get('content-type') ?? '';
   let body: string;
   let image: File | null = null;
+  let json: Record<string, unknown> = {};
   if (contentType.includes('multipart/form-data')) {
     const form = await req.formData();
     body = String(form.get('body') ?? '').trim();
     image = form.get('image') as File | null;
   } else {
-    const json = await req.json().catch(() => ({}));
+    json = await req.json().catch(() => ({}));
     body = String(json.body ?? '').trim();
   }
-  if (!body && !image) return NextResponse.json({ error: 'Write something or attach an image' }, { status: 400 });
 
+  // Direct-to-Dropbox flow (see lib/marketing/directUpload.ts); the multipart path below is the fallback.
   let imagePath: string | null = null;
+  const direct = await handleDirectUploadRequest(json, buildNeedFilesPath(pot.region, pot.title, pot.need_id));
+  if (direct && 'response' in direct) return direct.response;
+  if (direct) imagePath = direct.imagePath;
+
+  if (!body && !image && !imagePath) return NextResponse.json({ error: 'Write something or attach an image' }, { status: 400 });
+
   if (image && image.size > 0) {
     const safeName = sanitizeFileName(image.name);
     const path = `${buildNeedFilesPath(pot.region, pot.title, pot.need_id)}/${safeName}`;
@@ -82,7 +90,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     need_id: pot.need_id,
     author_id: user.id,
     author_name: authorProfile?.full_name ?? null,
-    body: body || (image ? `[image: ${image.name}]` : ''),
+    body: body || (image ? `[image: ${image.name}]` : imagePath ? `[image: ${imagePath.split('/').pop()}]` : ''),
     image_path: imagePath,
     source_created_at: now,
   }).select(NOTE_COLS).single();
