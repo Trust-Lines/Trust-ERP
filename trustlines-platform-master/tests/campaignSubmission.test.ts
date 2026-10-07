@@ -345,3 +345,17 @@ describe('processSurveySubmission — survey note → X-NOTE', () => {
     expect(db.prospects[0].x_note).toBe('Met at 2025 show\nWants a quote');
   });
 });
+
+describe('processSurveySubmission — person Prospect (no brand name)', () => {
+  it('still creates a Contact so Activity notes have somewhere to live', async () => {
+    const { admin, db } = makeFakeAdmin();
+    const { organizationName: _org, ...noCompany } = validBody;
+
+    await processSurveySubmission(admin, baseCampaign, { ...noCompany, leadType: 'person' });
+
+    expect(db.prospects[0].entity_type).toBe('person');
+    expect(db.prospect_contacts).toHaveLength(1);
+    expect(db.prospect_contacts[0].name).toBe('Jane Doe');
+    expect(db.prospect_contacts[0].is_primary).toBe(true);
+  });
+});

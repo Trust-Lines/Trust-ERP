@@ -6,7 +6,7 @@ import { sanitizeFileName } from '@/lib/marketing/prospectFiles';
 import {
   SURVEY_ATTACHMENT_CHUNK_BYTES, SURVEY_ATTACHMENT_MAX_BYTES, SURVEY_ATTACHMENT_MAX_COUNT,
   SURVEY_ATTACHMENT_SINGLE_MAX_BYTES,
-  buildSurveyAttachmentFolder, isAllowedAttachment, isImageAttachment,
+  SURVEY_ATTACHMENTS_ROOT, buildSurveyAttachmentFolder, isAllowedAttachment, isImageAttachment,
 } from '@/lib/marketing/surveyAttachments';
 import { logAudit } from '@/lib/audit/log';
 import { checkRateLimit, clientIp, hashIp } from '@/lib/security/rateLimit';
@@ -68,7 +68,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { data: submission } = await admin.from('survey_submissions')
     .select('id, status, prospect_id')
     .eq('id', submissionId).eq('campaign_id', campaign.id).eq('idempotency_key', token).maybeSingle();
-  if (!submission || submission.status !== 'processed' || !submission.prospect_id) return fail('Submission not found', 404);
+  // 'needs_review' submissions (ambiguous email/phone match) have no Prospect yet — their files are
+  // still saved (see below) instead of being lost.
+  if (!submission || !['processed', 'needs_review'].includes(submission.status)) return fail('Submission not found', 404);
 
   const dbx = getDropboxClient();
   const bytes = async () => Buffer.from(await chunk.arrayBuffer());
@@ -108,13 +110,20 @@ export async function POST(req: NextRequest, { params }: Params) {
   const originalName = action === 'single' ? (chunk.name || 'upload') : String(form.get('fileName') ?? '');
   if (!originalName || !isAllowedAttachment(originalName, mime)) return fail('This file type is not supported.', 415);
 
-  const { data: prospect } = await admin.from('prospects')
-    .select('id, display_name').eq('id', submission.prospect_id).is('deleted_at', null).maybeSingle();
-  if (!prospect) return fail('Contact not found', 404);
+  let prospect: { id: string; display_name: string | null; person_name: string | null } | null = null;
+  if (submission.prospect_id) {
+    const { data } = await admin.from('prospects')
+      .select('id, display_name, person_name').eq('id', submission.prospect_id).is('deleted_at', null).maybeSingle();
+    if (!data) return fail('Contact not found', 404);
+    prospect = data;
+  }
 
   const isImage = isImageAttachment(originalName, mime);
   const safeName = sanitizeFileName(originalName);
-  const path = `${buildSurveyAttachmentFolder(prospect.display_name, prospect.id)}/${safeName}`;
+  const folder = prospect
+    ? buildSurveyAttachmentFolder(prospect.display_name, prospect.id)
+    : `${SURVEY_ATTACHMENTS_ROOT}/_Needs review/${submissionId}`;
+  const path = `${folder}/${safeName}`;
 
   let dropboxPath: string;
   try {
@@ -132,6 +141,15 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
   } catch (e) { return bad(e); }
 
+  // No Prospect to hang it on: the file is safe in Dropbox; leave a trace so it can be found.
+  if (!prospect) {
+    await logAudit({
+      actorId: null, action: 'survey_file.uploaded_unmatched', resource: `survey_submissions:${submissionId}`,
+      newValue: { submission_id: submissionId, dropbox_path: dropboxPath, file_name: safeName },
+    });
+    return NextResponse.json({ ok: true }, { status: 201, headers: cors });
+  }
+
   const { data: fileRow, error: fileErr } = await admin.from('prospect_files').insert({
     prospect_id: prospect.id, dropbox_path: dropboxPath, file_name: safeName, uploaded_by: null,
   }).select('id').single();
@@ -144,15 +162,26 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { data: contacts } = await admin.from('prospect_contacts')
     .select('id, is_primary').eq('prospect_id', prospect.id)
     .order('is_primary', { ascending: false }).order('created_at', { ascending: true }).limit(1);
-  const contactId = (contacts?.[0]?.id as string | undefined) ?? null;
+  let contactId = (contacts?.[0]?.id as string | undefined) ?? null;
+  if (!contactId) {
+    // Older/person-type Prospects have no Contact; the Activity feed needs one to show the photo.
+    const { data: created } = await admin.from('prospect_contacts').insert({
+      prospect_id: prospect.id, name: prospect.person_name || prospect.display_name || 'Contact',
+      is_primary: true, created_by: campaign.owner_user_id ?? campaign.created_by,
+    }).select('id').single();
+    contactId = (created?.id as string | undefined) ?? null;
+  }
   if (contactId) {
-    const { error: noteErr } = await admin.from('prospect_contact_notes').insert({
+    const note = {
       prospect_contact_id: contactId,
       author_name: 'Survey',
       body: isImage ? `Photo added at ${campaign.name}.` : `File added at ${campaign.name}: ${safeName}`,
       image_path: isImage ? dropboxPath : null,
       source_created_at: new Date().toISOString(),
-    });
+    };
+    // The Activity entry is what people look at — retry once so a blip doesn't hide the photo.
+    let { error: noteErr } = await admin.from('prospect_contact_notes').insert(note);
+    if (noteErr) ({ error: noteErr } = await admin.from('prospect_contact_notes').insert(note));
     if (noteErr) console.error('[survey attachments POST] note:', noteErr.message);
   }
 

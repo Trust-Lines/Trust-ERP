@@ -183,7 +183,10 @@ async function createProspectFromSubmission(
   }).select('id').single();
   if (error) throw new SubmissionProcessingError(error.message);
 
-  if (entityType === 'organization' && personFullName) {
+  // Every submission gets a Contact for the person who filled it in — also when no brand name was
+  // given (a "person" Prospect): the Activity feed, photo notes and companion notes all hang off a
+  // Contact, so without one they silently went nowhere.
+  if (personFullName) {
     await admin.from('prospect_contacts').insert({
       prospect_id: data.id, name: personFullName, title: dto.jobTitle?.trim() || null,
       email: dto.email?.trim() || null, phone: dto.phone?.trim() || null,
