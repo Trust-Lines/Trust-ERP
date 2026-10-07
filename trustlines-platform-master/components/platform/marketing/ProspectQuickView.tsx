@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { X, Paperclip, Send, Loader2, Image as ImageIcon, Trash2, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProspectDetailClient } from './ProspectDetailClient';
+import { compressImage, MAX_UPLOAD_BYTES } from '@/lib/client/compressImage';
 
 interface ContactNote {
   id: string; prospect_contact_id: string; author_name: string | null; author_id?: string | null;
@@ -93,7 +94,7 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
         });
       }
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(body.error ?? 'Could not post'); return; }
+      if (!res.ok) { toast.error(res.status === 413 ? 'The photo is too large to upload (max 4 MB).' : (body.error ?? 'Could not post')); return; }
       setNotes(prev => [body.note, ...prev]);
       setDraft('');
       setDraftImage(null);
@@ -257,7 +258,17 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
                 />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
-                    onChange={e => setDraftImage(e.target.files?.[0] ?? null)} />
+                    onChange={async e => {
+                      const input = e.target;
+                      const picked = input.files?.[0];
+                      if (!picked) { setDraftImage(null); return; }
+                      const ready = await compressImage(picked);
+                      if (ready.size > MAX_UPLOAD_BYTES) {
+                        toast.error('This photo is too large (max 4 MB). Try a smaller one.');
+                        input.value = ''; setDraftImage(null); return;
+                      }
+                      setDraftImage(ready);
+                    }} />
                   <button className="btn btn-ghost btn-sm" onClick={() => fileInputRef.current?.click()} title="Attach image">
                     <Paperclip size={14} />
                   </button>

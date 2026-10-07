@@ -10,6 +10,7 @@ import { MarkdownLite } from '@/components/platform/shared/MarkdownLite';
 import type { DealProgress } from '@/lib/sales/dealProgress';
 import { DropboxFileList } from '@/components/platform/shared/DropboxFileList';
 import { TagMultiSelect } from './TagMultiSelect';
+import { compressImage, MAX_UPLOAD_BYTES } from '@/lib/client/compressImage';
 import { ContactSearchSelect } from './ContactSearchSelect';
 import { hashColor } from '@/lib/marketing/pillColor';
 import { normalizeIndustry, INDUSTRY_COLOR } from '@/lib/marketing/industry';
@@ -161,7 +162,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
         });
       }
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(body.error ?? 'Could not post'); return; }
+      if (!res.ok) { toast.error(res.status === 413 ? 'The photo is too large to upload (max 4 MB).' : (body.error ?? 'Could not post')); return; }
       setNotes(prev => [...prev, body.note]);
       setDraft('');
       setDraftImage(null);
@@ -587,7 +588,17 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                 />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <input ref={noteFileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
-                    onChange={e => setDraftImage(e.target.files?.[0] ?? null)} />
+                    onChange={async e => {
+                      const input = e.target;
+                      const picked = input.files?.[0];
+                      if (!picked) { setDraftImage(null); return; }
+                      const ready = await compressImage(picked);
+                      if (ready.size > MAX_UPLOAD_BYTES) {
+                        toast.error('This photo is too large (max 4 MB). Try a smaller one.');
+                        input.value = ''; setDraftImage(null); return;
+                      }
+                      setDraftImage(ready);
+                    }} />
                   <button className="btn btn-ghost btn-sm" onClick={() => noteFileInputRef.current?.click()} title="Attach image">
                     <Paperclip size={14} />
                   </button>
