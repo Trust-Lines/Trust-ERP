@@ -28,8 +28,11 @@ const initialData: SurveyData = {
   companyWebsite2: ""
 };
 
-// Only the person's name is required; every other answer (and the team pick) can be skipped.
-const requiredByStep = [[], ["fullName"], [], []];
+// Required: the person's name, a valid email and the store address (location). Everything else
+// (and the team pick) can be skipped.
+const requiredByStep = [[], ["fullName", "email"], ["companyAddress"], []];
+const REQUIRED_FIELDS = new Set(requiredByStep.flat());
+const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
 
 const TIMING_MAP: Record<string, string> = {
   "ASAP (Next 3 months)": "0_3_months",
@@ -296,10 +299,10 @@ function Field({
 }) {
   return (
     <label className={`field ${wide ? "field-wide" : ""}`}>
-      <span className="field-label">{label}{name !== "fullName" && <small> (optional)</small>}</span>
+      <span className="field-label">{label}{!REQUIRED_FIELDS.has(name) && <small> (optional)</small>}</span>
       {children ? (
         <div className="select-wrapper">
-          <select name={name} value={value} onChange={(e) => update(name, e.target.value)} required={name === "fullName"}>
+          <select name={name} value={value} onChange={(e) => update(name, e.target.value)} required={REQUIRED_FIELDS.has(name)}>
             {children}
           </select>
           <svg className="select-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -307,9 +310,9 @@ function Field({
           </svg>
         </div>
       ) : type === "textarea" ? (
-        <textarea name={name} value={value} placeholder={placeholder} onChange={(e) => update(name, e.target.value)} required={name === "fullName"} />
+        <textarea name={name} value={value} placeholder={placeholder} onChange={(e) => update(name, e.target.value)} required={REQUIRED_FIELDS.has(name)} />
       ) : (
-        <input name={name} value={value} type={type} placeholder={placeholder} onChange={(e) => update(name, e.target.value)} required={name === "fullName"} />
+        <input name={name} value={value} type={type} placeholder={placeholder} onChange={(e) => update(name, e.target.value)} required={REQUIRED_FIELDS.has(name)} />
       )}
     </label>
   );
@@ -476,7 +479,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
   }, [showTeamPopup, step, team]);
 
   function goNext() {
-    const missing = (requiredByStep[step] ?? []).filter((name) => !data[name]?.trim());
+    const missing = (requiredByStep[step] ?? []).filter((name) => !data[name]?.trim() || (name === "email" && !EMAIL_PATTERN.test(data[name].trim())));
     if (missing.length) {
       setErrors(missing);
       contentRef.current?.querySelector<HTMLElement>(`[name="${missing[0]}"]`)?.focus();
