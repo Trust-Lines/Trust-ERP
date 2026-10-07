@@ -27,7 +27,10 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { id, contactId } = await params;
   const { user, role, admin, deny } = await requireRole(MARKETING_WRITE_ROLES);
   if (deny) return deny;
-  const denied = await assertProspectAccess(admin, id, user.id, role);
+  // Adding a comment/photo is purely additive, so anyone who can open the Prospect may do it.
+  // Survey-created Prospects have no owner/assignee, so the ownership rule used for edits
+  // ('write' mode) rejected every marketing_pr with "Not found" — e.g. booth staff at a fair.
+  const denied = await assertProspectAccess(admin, id, user.id, role, 'read');
   if (denied) return denied;
 
   const { data: contact } = await admin.from('prospect_contacts').select('id').eq('id', contactId).eq('prospect_id', id).maybeSingle();

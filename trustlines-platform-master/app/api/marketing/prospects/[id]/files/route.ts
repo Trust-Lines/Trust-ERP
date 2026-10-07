@@ -34,7 +34,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const { user, role, admin, deny } = await requireRole(MARKETING_WRITE_ROLES);
   if (deny) return deny;
-  const denied = await assertProspectAccess(admin, id, user.id, role);
+  // Uploading is additive (files are never overwritten or deleted): visibility is enough.
+  // See the same note in contacts/[contactId]/notes/route.ts.
+  const denied = await assertProspectAccess(admin, id, user.id, role, 'read');
   if (denied) return denied;
 
   const form = await req.formData();
