@@ -1,11 +1,83 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Download, DatabaseBackup, ShieldAlert, EyeOff } from 'lucide-react';
+import { Download, DatabaseBackup, ShieldAlert, EyeOff, KeyRound } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import { readHideAmounts, writeHideAmounts } from '@/lib/privacy/hideAmounts';
 import { toast } from 'sonner';
 
-export function SettingsClient({ isGeneralManager }: { isGeneralManager: boolean }) {
+const MIN_PASSWORD = 8;
+
+function ChangePasswordCard({ email }: { email: string }) {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [show, setShow] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const mismatch = confirm.length > 0 && next !== confirm;
+  const canSave = !saving && !!current && next.length >= MIN_PASSWORD && next === confirm && next !== current;
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (next === current) { setError('The new password must be different from the current one.'); return; }
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      // Re-check the current password first: a stolen open session alone must not be enough to change it.
+      const { error: verifyError } = await supabase.auth.signInWithPassword({ email, password: current });
+      if (verifyError) { setError('Your current password is incorrect.'); return; }
+      const { error: updateError } = await supabase.auth.updateUser({ password: next });
+      if (updateError) { setError(updateError.message); return; }
+      toast.success('Password changed');
+      setCurrent(''); setNext(''); setConfirm('');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const input: React.CSSProperties = { width: '100%', maxWidth: 360 };
+  return (
+    <div className="card">
+      <div className="card-body" style={{ padding: 20 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <KeyRound size={18} /> Password
+        </h2>
+        <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: '0 0 16px', maxWidth: 640 }}>
+          Change the password for <strong>{email}</strong>. Forgot it instead? Sign out and use “Forgot password” on the login screen.
+        </p>
+        <form onSubmit={save} style={{ display: 'grid', gap: 12, maxWidth: 360 }}>
+          <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)' }}>
+            Current password
+            <input className="form-input" style={input} type={show ? 'text' : 'password'} autoComplete="current-password" value={current} onChange={e => setCurrent(e.target.value)} />
+          </label>
+          <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)' }}>
+            New password
+            <input className="form-input" style={input} type={show ? 'text' : 'password'} autoComplete="new-password" placeholder={`At least ${MIN_PASSWORD} characters`} value={next} onChange={e => setNext(e.target.value)} />
+          </label>
+          <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)' }}>
+            Confirm new password
+            <input className="form-input" style={input} type={show ? 'text' : 'password'} autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} />
+          </label>
+          {mismatch && <span style={{ fontSize: 12, color: 'var(--status-danger, #b91c1c)' }}>Passwords do not match.</span>}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--fg-subtle)' }}>
+            <input type="checkbox" checked={show} onChange={e => setShow(e.target.checked)} /> Show passwords
+          </label>
+          {error && <div role="alert" style={{ fontSize: 13, color: 'var(--status-danger-fg, #b91c1c)' }}>{error}</div>}
+          <div>
+            <button type="submit" className="btn btn-primary" disabled={!canSave}>
+              {saving ? 'Saving…' : 'Change password'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export function SettingsClient({ isGeneralManager, email }: { isGeneralManager: boolean; email: string }) {
   const [downloading, setDownloading] = useState(false);
   const [hideAmounts, setHideAmounts] = useState(false);
   useEffect(() => { setHideAmounts(readHideAmounts()); }, []);
@@ -41,6 +113,8 @@ export function SettingsClient({ isGeneralManager }: { isGeneralManager: boolean
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
+      <ChangePasswordCard email={email} />
+
       <div className="card">
         <div className="card-body" style={{ padding: 20 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>

@@ -1,249 +1,172 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { LoginShell } from '@/components/auth/LoginShell';
+import { AuthAlert, AuthHeading, AuthStyles, LoginLogo } from '@/components/auth/AuthParts';
+
+// Reached from the e-mail link of an invitation OR a password reset. Same look as the login screen.
+type Step = 'loading' | 'form' | 'done' | 'error';
+type Mode = 'invite' | 'recovery' | 'generic';
+
+const MIN_LENGTH = 8;
+
+function readLinkParams() {
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const query = new URLSearchParams(window.location.search);
+  const get = (k: string) => hash.get(k) ?? query.get(k);
+  const type = get('type');
+  return {
+    accessToken: hash.get('access_token'),
+    refreshToken: hash.get('refresh_token'),
+    code: query.get('code'),
+    errorDescription: get('error_description'),
+    mode: (type === 'invite' ? 'invite' : type === 'recovery' ? 'recovery' : 'generic') as Mode,
+  };
+}
 
 export default function SetPasswordPage() {
-  const router   = useRouter();
-  const supabase = createClient();
+  const router = useRouter();
+  const [step, setStep] = useState<Step>('loading');
+  const [mode, setMode] = useState<Mode>('generic');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [show, setShow] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
 
-  const [step, setStep]                 = useState<'loading' | 'form' | 'done' | 'error'>('loading');
-  const [userEmail, setUserEmail]       = useState('');
-  const [password, setPassword]         = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [submitting, setSubmitting]     = useState(false);
-  const [errorMsg, setErrorMsg]         = useState('');
+  // React dev StrictMode runs effects twice; a one-time link/code must only be consumed once.
+  const started = useRef(false);
 
   useEffect(() => {
-    let done = false;
+    if (started.current) return;
+    started.current = true;
+    const supabase = createClient();
+    const link = readLinkParams();
+    setMode(link.mode);
+    let settled = false;
 
-    function gotSession(email: string) {
-      if (done) return;
-      done = true;
-      setUserEmail(email);
+    const ready = (userEmail: string | undefined) => {
+      if (settled) return;
+      settled = true;
+      setEmail(userEmail ?? '');
       setStep('form');
+      // The tokens are single-use secrets — don't leave them sitting in the address bar.
+      window.history.replaceState(null, '', window.location.pathname);
+    };
+    const fail = (text: string) => {
+      if (settled) return;
+      settled = true;
+      setMessage(text);
+      setStep('error');
+    };
+
+    if (link.errorDescription) {
+      fail(link.errorDescription.replace(/\+/g, ' '));
+      return;
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) gotSession(session.user.email ?? '');
+      if (session?.user && (link.accessToken || link.code)) ready(session.user.email);
     });
 
-    const hash = window.location.hash;
-    if (hash.includes('access_token=')) {
-      const p = new URLSearchParams(hash.slice(1));
-      const at = p.get('access_token');
-      const rt = p.get('refresh_token');
-      if (at && rt) {
-        supabase.auth.setSession({ access_token: at, refresh_token: rt })
-          .then(({ data, error }) => {
-            if (error) { setStep('error'); setErrorMsg(error.message); return; }
-            if (data.session?.user) gotSession(data.session.user.email ?? '');
-          });
-      }
+    if (link.accessToken && link.refreshToken) {
+      supabase.auth.setSession({ access_token: link.accessToken, refresh_token: link.refreshToken })
+        .then(({ data, error }) => (error ? fail(error.message) : ready(data.session?.user?.email)));
+    } else if (link.code) {
+      supabase.auth.exchangeCodeForSession(link.code)
+        .then(({ data, error }) => (error ? fail(error.message) : ready(data.session?.user?.email)));
+    } else {
+      // No link in the URL: only valid for someone who is already signed in.
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session?.user) ready(data.session.user.email);
+        else fail('This page needs the link from your e-mail.');
+      });
     }
 
-    const code = new URLSearchParams(window.location.search).get('code');
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code)
-        .then(({ data, error }) => {
-          if (error) { setStep('error'); setErrorMsg(error.message); return; }
-          if (data.session?.user) gotSession(data.session.user.email ?? '');
-        });
-    }
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) gotSession(session.user.email ?? '');
-    });
-
-    const timeout = setTimeout(() => { if (!done) setStep('error'); }, 8000);
-
+    const timeout = setTimeout(() => fail('This link could not be verified.'), 10000);
     return () => { subscription.unsubscribe(); clearTimeout(timeout); };
-  }, []);  
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setErrorMsg('');
-
-    if (password.length < 8) {
-      setErrorMsg('Password must be at least 8 characters.');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setErrorMsg('Passwords do not match.');
-      return;
-    }
+    setMessage('');
+    if (password.length < MIN_LENGTH) { setMessage(`Password must be at least ${MIN_LENGTH} characters.`); return; }
+    if (password !== confirm) { setMessage('Passwords do not match.'); return; }
 
     setSubmitting(true);
-    const { error } = await supabase.auth.updateUser({ password });
-
-    if (error) {
-      setErrorMsg(error.message);
-      setSubmitting(false);
-      return;
-    }
+    const { error } = await createClient().auth.updateUser({ password });
+    if (error) { setMessage(error.message); setSubmitting(false); return; }
 
     setStep('done');
-    setTimeout(() => {
-      router.push('/dashboard');
-      router.refresh();
-    }, 1800);
+    setTimeout(() => { router.push('/home'); router.refresh(); }, 1600);
   }
 
-  const card = (children: React.ReactNode) => (
-    <div style={{
-      minHeight: '100vh',
-      background: 'var(--brand-navy)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 24,
-    }}>
-      <div style={{ width: '100%', maxWidth: 400 }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 36, height: 36, background: 'var(--brand-teal)',
-              borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M10 2L18 7V13L10 18L2 13V7L10 2Z" stroke="white" strokeWidth="1.5" fill="none"/>
-                <path d="M10 2V18M2 7L18 13M18 7L2 13" stroke="white" strokeWidth="1.5" opacity="0.5"/>
-              </svg>
-            </div>
-            <span style={{ fontFamily: 'var(--font-brand)', fontSize: 20, fontWeight: 700, color: 'white' }}>
-              Trust-Lines
-            </span>
+  const mismatch = confirm.length > 0 && password !== confirm;
+  const title = mode === 'invite' ? 'Welcome' : mode === 'recovery' ? 'Reset password' : 'New password';
+  const subtitle = mode === 'invite'
+    ? 'Choose a password to activate your account.'
+    : 'Choose a new password for your account.';
+
+  return (
+    <LoginShell logo={<LoginLogo />}>
+      <AuthStyles />
+
+      {step === 'loading' && <AuthHeading title="One moment" subtitle="Verifying your link…" />}
+
+      {step === 'error' && (
+        <>
+          <AuthHeading title="Link not valid" subtitle="This link has expired, was already used, or could not be verified." />
+          <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 19 }}>
+            {message && <AuthAlert>{message}</AuthAlert>}
+            <a href="/auth/forgot-password" className="tl-auth-btn">Request a new link</a>
+            <a href="/login" className="tl-auth-link" style={{ alignSelf: 'center' }}>Back to login</a>
           </div>
-          <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, marginTop: 6 }}>
-            Production &amp; Delivery Platform
-          </p>
-        </div>
+        </>
+      )}
 
-        <div style={{ background: 'white', borderRadius: 10, padding: 32, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-          {children}
-        </div>
+      {step === 'done' && <AuthHeading title="Password updated" subtitle="Taking you to the platform…" />}
 
-        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
-          Trust-Lines © {new Date().getFullYear()} · Internal Platform
-        </p>
-      </div>
-    </div>
-  );
-
-  if (step === 'loading') return card(
-    <div style={{ textAlign: 'center', padding: '20px 0' }}>
-      <div style={{ fontSize: 28, marginBottom: 12 }}>⏳</div>
-      <p style={{ fontSize: 14, color: 'var(--fg-subtle)' }}>Verifying your invitation…</p>
-    </div>
-  );
-
-  if (step === 'error') return card(
-    <div style={{ textAlign: 'center', padding: '8px 0' }}>
-      <div style={{ fontSize: 28, marginBottom: 12 }}>⚠️</div>
-      <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 8px' }}>Link expired or invalid</h2>
-      <p style={{ fontSize: 13, color: 'var(--fg-subtle)', marginBottom: 20 }}>
-        {errorMsg || 'This invitation link has expired. Ask your admin to resend it.'}
-      </p>
-      <a href="/login" className="btn btn-primary" style={{ display: 'inline-block', width: '100%', textAlign: 'center' }}>
-        Go to login
-      </a>
-    </div>
-  );
-
-  if (step === 'done') return card(
-    <div style={{ textAlign: 'center', padding: '8px 0' }}>
-      <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
-      <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 8px' }}>Password set!</h2>
-      <p style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>
-        Redirecting to your dashboard…
-      </p>
-    </div>
-  );
-
-  return card(
-    <>
-      <h1 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700, color: 'var(--fg-default)' }}>
-        Welcome to Trust-Lines
-      </h1>
-      <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--fg-subtle)' }}>
-        You're joining as <strong>{userEmail}</strong>
-      </p>
-      <p style={{ margin: '0 0 24px', fontSize: 13, color: 'var(--fg-muted)' }}>
-        Set a password to activate your account.
-      </p>
-
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)', marginBottom: 6 }}>
-            New password
-          </label>
-          <input
-            type="password"
-            required
-            autoFocus
-            placeholder="At least 8 characters"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            style={{
-              width: '100%', padding: '9px 12px', boxSizing: 'border-box',
-              border: '1px solid var(--border-default)', borderRadius: 6,
-              fontSize: 14, fontFamily: 'var(--font-ui)', outline: 'none',
-            }}
-            onFocus={e  => (e.target.style.borderColor = 'var(--brand-teal)')}
-            onBlur={e   => (e.target.style.borderColor = 'var(--border-default)')}
-          />
-        </div>
-
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)', marginBottom: 6 }}>
-            Confirm password
-          </label>
-          <input
-            type="password"
-            required
-            placeholder="Repeat your password"
-            value={confirmPassword}
-            onChange={e => setConfirmPassword(e.target.value)}
-            style={{
-              width: '100%', padding: '9px 12px', boxSizing: 'border-box',
-              border: `1px solid ${confirmPassword && password !== confirmPassword ? 'var(--status-danger)' : 'var(--border-default)'}`,
-              borderRadius: 6, fontSize: 14, fontFamily: 'var(--font-ui)', outline: 'none',
-            }}
-            onFocus={e => (e.target.style.borderColor = 'var(--brand-teal)')}
-            onBlur={e  => (e.target.style.borderColor =
-              confirmPassword && password !== confirmPassword ? 'var(--status-danger)' : 'var(--border-default)')}
-          />
-          {confirmPassword && password !== confirmPassword && (
-            <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--status-danger)' }}>
-              Passwords do not match
+      {step === 'form' && (
+        <>
+          <AuthHeading title={title} subtitle={subtitle} />
+          {email && (
+            <p style={{ margin: '14px 0 0', textAlign: 'center', fontSize: 13, fontWeight: 500, letterSpacing: '0.6px', color: '#6b6b6b', wordBreak: 'break-all' }}>
+              {email}
             </p>
           )}
-        </div>
+          <form onSubmit={handleSubmit} style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 19 }}>
+            <label className="tl-login-field">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/login/lock.svg" alt="" width={22} height={22} />
+              <input
+                type={show ? 'text' : 'password'} autoComplete="new-password" required autoFocus
+                aria-label="New password" placeholder={`New password (min ${MIN_LENGTH} characters)`}
+                value={password} onChange={e => setPassword(e.target.value)}
+              />
+              <button type="button" className="tl-auth-toggle" onClick={() => setShow(s => !s)}>{show ? 'Hide' : 'Show'}</button>
+            </label>
+            <label className={`tl-login-field${mismatch ? ' tl-has-error' : ''}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/login/lock.svg" alt="" width={22} height={22} />
+              <input
+                type={show ? 'text' : 'password'} autoComplete="new-password" required
+                aria-label="Confirm password" placeholder="Confirm password"
+                value={confirm} onChange={e => setConfirm(e.target.value)}
+              />
+            </label>
+            {mismatch && <span style={{ marginTop: -11, fontSize: 12, color: '#b91c1c' }}>Passwords do not match.</span>}
 
-        {errorMsg && (
-          <div style={{
-            background: 'var(--status-danger-bg)', border: '1px solid #fca5a5',
-            borderRadius: 6, padding: '10px 12px', fontSize: 13,
-            color: 'var(--status-danger-fg)', marginBottom: 16,
-          }}>
-            {errorMsg}
-          </div>
-        )}
+            {message && <AuthAlert>{message}</AuthAlert>}
 
-        <button
-          type="submit"
-          disabled={submitting || password !== confirmPassword || password.length < 8}
-          style={{
-            width: '100%', padding: 10,
-            background: submitting ? 'var(--brand-teal-600)' : 'var(--brand-teal)',
-            color: 'white', border: 'none', borderRadius: 6,
-            fontSize: 14, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer',
-            fontFamily: 'var(--font-ui)', transition: 'background 120ms',
-            opacity: (password.length < 8 || password !== confirmPassword) && !submitting ? 0.5 : 1,
-          }}
-        >
-          {submitting ? 'Setting password…' : 'Set password & enter platform'}
-        </button>
-      </form>
-    </>
+            <button type="submit" className="tl-auth-btn" style={{ marginTop: message ? 0 : 10 }} disabled={submitting || password.length < MIN_LENGTH || mismatch || !confirm}>
+              {submitting ? 'Saving…' : 'Save password'}
+            </button>
+          </form>
+        </>
+      )}
+    </LoginShell>
   );
 }

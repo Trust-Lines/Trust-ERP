@@ -20,6 +20,20 @@ export default function LoginPage() {
     const hash = window.location.hash;
     if (hash && (hash.includes('type=invite') || hash.includes('type=recovery'))) {
       router.replace('/auth/set-password' + hash);
+      return;
+    }
+    // A PKCE-style link (…/login?code=…) belongs on the set-password screen too.
+    const search = window.location.search;
+    if (new URLSearchParams(search).get('code')) {
+      router.replace('/auth/set-password' + search);
+      return;
+    }
+    // Supabase sends people here with the failure in the URL when a reset/invite link is
+    // expired or was already opened (mail scanners often burn the one-time link first).
+    const params = new URLSearchParams(hash.replace(/^#/, '') || search);
+    if (params.get('error') || params.get('error_code')) {
+      setError('That email link has expired or was already used. Use “Forgot password” to get a new one.');
+      window.history.replaceState(null, '', window.location.pathname);
     }
   }, [router]);
 
@@ -78,7 +92,7 @@ export default function LoginPage() {
           <input id="password" type="password" autoComplete="current-password" required aria-label="Password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
         </label>
 
-        <a href="/auth/set-password" style={{ alignSelf: 'flex-end', fontSize: 11, fontWeight: 500, letterSpacing: '0.88px', textTransform: 'uppercase', textDecoration: 'underline', color: INK }}>
+        <a href="/auth/forgot-password" style={{ alignSelf: 'flex-end', fontSize: 11, fontWeight: 500, letterSpacing: '0.88px', textTransform: 'uppercase', textDecoration: 'underline', color: INK }}>
           Forgot password
         </a>
 

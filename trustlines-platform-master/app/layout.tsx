@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import { AmountsMasker } from "@/components/platform/shared/AmountsMasker";
+import { AuthLinkRedirect } from "@/components/auth/AuthLinkRedirect";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -41,6 +42,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full">
         <AmountsMasker />
+        <AuthLinkRedirect />
         {children}
       </body>
     </html>

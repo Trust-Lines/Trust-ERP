@@ -13,7 +13,7 @@ export default async function SettingsPage() {
       <div className="page-head">
         <h1>Settings</h1>
       </div>
-      <SettingsClient isGeneralManager={role === 'general_manager'} />
+      <SettingsClient isGeneralManager={role === 'general_manager'} email={user!.email ?? ''} />
     </div>
   );
 }
