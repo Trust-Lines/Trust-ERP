@@ -218,6 +218,45 @@ function TeamIcon({ name }: { name: string }) {
   }
 }
 
+const NOTE_MAX = 2000; // the server keeps at most this much of the X-note
+
+// A sticky note pinned to every page of the survey. It lives OUTSIDE the step container, so moving
+// between steps never resets it: what was typed stays, and it stays open or minimised as left.
+// The text is the same "Notes" answer as before — it still goes to the Contact's X-note and Activity.
+function StickyNote({ value, open, onToggle, onChange }: { value: string; open: boolean; onToggle: () => void; onChange: (v: string) => void }) {
+  return (
+    <aside className={`sticky-note${open ? " is-open" : ""}`} aria-label="Notes">
+      {open ? (
+        <>
+          <div className="sticky-note-head">
+            <strong>Notes</strong>
+            <span className="sticky-note-hint">Stays with you on every page</span>
+            <button type="button" className="sticky-note-min" aria-label="Minimise notes" onClick={onToggle}>–</button>
+          </div>
+          <textarea
+            autoFocus
+            value={value}
+            maxLength={NOTE_MAX}
+            rows={5}
+            placeholder="Anything else we should know?"
+            aria-label="Notes"
+            onChange={(e) => onChange(e.target.value)}
+          />
+          <span className="sticky-note-count">{value.length}/{NOTE_MAX}</span>
+        </>
+      ) : (
+        <button type="button" className="sticky-note-tab" aria-expanded={false} onClick={onToggle}>
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 17l1-4L14.5 2.5a1.5 1.5 0 0 1 2 0l1 1a1.5 1.5 0 0 1 0 2L7 16l-4 1z" />
+          </svg>
+          Notes
+          {value.trim() && <span className="sticky-note-dot" aria-label="has text" />}
+        </button>
+      )}
+    </aside>
+  );
+}
+
 function FootballIcon() {
   return (
     <span className="football-badge" aria-hidden="true">
@@ -315,7 +354,7 @@ function Field({
           </svg>
         </div>
       ) : type === "textarea" ? (
-        <textarea name={name} value={value} placeholder={placeholder} onChange={(e) => update(name, e.target.value)} required={REQUIRED_FIELDS.has(name)} />
+        <textarea name={name} value={value} placeholder={placeholder} maxLength={name === "mainChallenges" ? NOTE_MAX : undefined} onChange={(e) => update(name, e.target.value)} required={REQUIRED_FIELDS.has(name)} />
       ) : (
         <input name={name} value={value} type={type} placeholder={placeholder} onChange={(e) => update(name, e.target.value)} required={REQUIRED_FIELDS.has(name)} />
       )}
@@ -454,6 +493,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submissionToken, setSubmissionToken] = useState(newSubmissionToken);
+  const [noteOpen, setNoteOpen] = useState(false);
   const [companions, setCompanions] = useState<Companion[]>([]);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
@@ -519,6 +559,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
     setConsentAccepted(false);
     setSubmitError(null);
     setCompanions([]);
+    setNoteOpen(false);
     setAttachments([]);
     setAttachmentError(null);
     setUploadFailures([]);
@@ -870,6 +911,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                     <option>6-12 Months</option>
                     <option>Still Planning</option>
                   </Field>
+                  {/* Notes' real home: the sticky note (every other page) is the same text, so it shows up here. */}
                   <Field label="Notes" name="mainChallenges" value={data.mainChallenges} update={update} type="textarea" placeholder="Anything else we should know?" wide />
                 </div>
               </>
@@ -1041,6 +1083,10 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
         </form>
         {step > 0 && step < 5 && <p className="data-note">Your progress stays on this device.</p>}
       </section>
+
+      {step < 5 && step !== 3 && (
+        <StickyNote value={data.mainChallenges} open={noteOpen} onToggle={() => setNoteOpen((o) => !o)} onChange={(v) => update("mainChallenges", v)} />
+      )}
 
       <AnimatePresence>
         {showTeamPopup && team && (
