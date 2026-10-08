@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { requirePage } from '@/lib/permissions/requirePage';
-import { MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
+import { MARKETING_MANAGE_ROLES, MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
 
 // Per-user, RLS-scoped counts — never serve a cached render across users/sessions
 // (reported: Lead Cloud sometimes showing a stale 0 after the region-visibility fix).
@@ -93,7 +93,7 @@ export default async function ProspectsListPage() {
     <div style={{ padding: '24px 32px' }}>
       <ProspectsPageClient
         initialProspects={prospects} initialTotal={total} pageSize={PAGE_SIZE}
-        canEdit={canEdit} loadError={loadError}
+        canEdit={canEdit} canImport={MARKETING_MANAGE_ROLES.includes(userRole)} loadError={loadError}
         potentialTotal={potentialTotal} opportunityTotal={opportunityTotal}
         assignees={people ?? []}
         queryRequired={queryRequired}

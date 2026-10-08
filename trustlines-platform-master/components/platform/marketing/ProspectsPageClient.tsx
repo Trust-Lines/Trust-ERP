@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Filter, Download, Copy, Send, FileSpreadsheet } from 'lucide-react';
+import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Filter, Download, Copy, Send, FileSpreadsheet, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { SOURCE_LABEL } from '@/lib/marketing/classification';
 import { REGIONS } from '@/lib/regions';
@@ -67,6 +67,8 @@ interface Props {
   initialTotal: number;
   pageSize: number;
   canEdit?: boolean;
+  /** Marketing Manager and above: may import Excel files (bulk write). */
+  canImport?: boolean;
   loadError?: boolean;
   potentialTotal: number | null;
   opportunityTotal: number | null;
@@ -114,7 +116,7 @@ function TagPill({ label, bg }: { label: string; bg: string }) {
   );
 }
 
-export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, canEdit, loadError, potentialTotal, opportunityTotal, assignees, queryRequired, campaigns }: Props) {
+export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, canEdit, canImport, loadError, potentialTotal, opportunityTotal, assignees, queryRequired, campaigns }: Props) {
   const [prospects, setProspects] = useState<ProspectRow[]>(initialProspects);
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -435,11 +437,18 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
               : `${total.toLocaleString('en-US')} contact${total !== 1 ? 's' : ''} — Marketing-owned`}
           </p>
         </div>
-        {canEdit && (
-          <Link href="/marketing/prospects/new" className="btn btn-primary" title="Not a confirmed deal yet — no project is created until evidence is attached or Sales accepts">
-            + Capture New Contact
-          </Link>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {canImport && (
+            <Link href="/marketing/import" className="btn btn-ghost" title="Add contacts from any Excel / CSV file, with duplicate checking">
+              <Upload size={14} style={{ marginRight: 5 }} /> Import from Excel
+            </Link>
+          )}
+          {canEdit && (
+            <Link href="/marketing/prospects/new" className="btn btn-primary" title="Not a confirmed deal yet — no project is created until evidence is attached or Sales accepts">
+              + Capture New Contact
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Quick queries — press a button to run a named query for the fixed, small set of

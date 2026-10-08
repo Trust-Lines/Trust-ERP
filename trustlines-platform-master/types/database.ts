@@ -1162,7 +1162,7 @@ export interface SurveySubmission {
 }
 
 
-export type CampaignInteractionType = 'survey_submission' | 'clickup_import';
+export type CampaignInteractionType = 'survey_submission' | 'clickup_import' | 'excel_import';
 
 export interface CampaignInteraction {
   id: string;

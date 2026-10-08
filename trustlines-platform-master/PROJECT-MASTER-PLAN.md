@@ -2152,6 +2152,19 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-10-08 (Import from Excel — Marketing → Contact Manager → "Import from Excel") — migration 125 (NOT yet applied)
+- Any spreadsheet (.xlsx/.xls/.csv; several files at once) is read in the browser, header row + columns are recognised
+  automatically (header synonyms, then value sniffing) and can be overridden per column. Rows → people → Contacts: repeated people
+  (same email, same phone + compatible name, same name + company) are folded together across files; people of one company become ONE
+  Prospect with several Contacts. Each group is compared with the CRM (email/phone/name/company) and shown side by side; the user
+  decides per row: add as new / merge into existing / skip (bulk buttons for matches). Merge only fills EMPTY fields and adds missing
+  Contacts + Activity notes; nothing is overwritten or deleted. Managers only (MARKETING_MANAGE_ROLES).
+- New: lib/marketing/import/{keys,columns,records,group,match,commit,types}.ts, lib/client/readSpreadsheet.ts,
+  app/api/marketing/import/{match,commit}/route.ts, app/(platform)/marketing/import/page.tsx, ContactImportClient.tsx,
+  migration 125 (campaign_interactions.interaction_type += excel_import; code is tolerant until applied), tests/contactImport.test.ts.
+- Dependency: xlsx (SheetJS 0.20.3 from cdn.sheetjs.com — the npm registry copy is outdated/vulnerable) for legacy .xls.
+- Not created by the import: Needs / Potentials / Opportunities (only Prospect + Contacts + Activity notes + campaign link).
+
 2026-10-08 (NACS 26 survey — Representative dropdown → "Created by") — migration 124 (NOT yet applied)
 - Survey step 2 ("Meet the player"): required Representative dropdown (Layal, Justin, T, Naim, Merve, Hashem; remembered per device).
   Saved on `prospects.created_by_label` (new, migration 124) and shown as "Created by" on the Prospect profile. Never overwrites an
