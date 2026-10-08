@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
-import { MARKETING_MANAGE_ROLES } from '@/lib/marketing/roles';
+import { MARKETING_SEE_ALL_ROLES, MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
+import { getAssignedRegions, regionAllows } from '@/lib/access/regionScope';
 import { buildIndex, matchGroup, type ExistingContactRow, type ExistingProspectRow } from '@/lib/marketing/import/match';
 import type { ImportGroup, ImportPerson } from '@/lib/marketing/import/types';
 
@@ -34,10 +35,10 @@ function slimPerson(p: any): ImportPerson {
   };
 }
 
-// Compares the import groups with what the CRM already holds. Read-only. Managers only: it scans
-// every Contact's e-mail/phone, which a normal marketing user has no reason to do in bulk.
+// Compares the import groups with what the CRM already holds. Read-only. A user limited to some
+// regions is only shown matches inside them (same visibility rule as the Contacts list).
 export async function POST(req: NextRequest) {
-  const { admin, deny } = await requireRole(MARKETING_MANAGE_ROLES);
+  const { user, role, admin, deny } = await requireRole(MARKETING_WRITE_ROLES);
   if (deny) return deny;
 
   const body = await req.json().catch(() => null) as { groups?: any[] } | null;
@@ -53,12 +54,22 @@ export async function POST(req: NextRequest) {
   try {
     const [prospects, contacts] = await Promise.all([
       loadAll<ExistingProspectRow>((from, to) => admin.from('prospects')
-        .select('id, display_name, organization_name, person_name, main_email, main_phone, business_types, source_label, website, created_at, external_created_at')
+        .select('id, display_name, organization_name, person_name, main_email, main_phone, business_types, source_label, website, region, created_at, external_created_at')
         .is('deleted_at', null).order('id').range(from, to)),
       loadAll<ExistingContactRow>((from, to) => admin.from('prospect_contacts')
         .select('id, prospect_id, name, title, email, phone, other_contact, is_primary').order('id').range(from, to)),
     ]);
-    const idx = buildIndex(prospects, contacts);
+    let visibleProspects = prospects as (ExistingProspectRow & { region?: string | null })[];
+    let visibleContacts = contacts;
+    if (!MARKETING_SEE_ALL_ROLES.includes(role)) {
+      const regions = await getAssignedRegions(admin, user.id);
+      if (regions.length) {
+        visibleProspects = visibleProspects.filter(p => regionAllows(regions, p.region ?? null));
+        const ids = new Set(visibleProspects.map(p => p.id));
+        visibleContacts = contacts.filter(c => ids.has(c.prospect_id));
+      }
+    }
+    const idx = buildIndex(visibleProspects, visibleContacts);
     const matches: Record<string, ReturnType<typeof matchGroup>> = {};
     for (const g of groups) {
       const m = matchGroup(g, idx);

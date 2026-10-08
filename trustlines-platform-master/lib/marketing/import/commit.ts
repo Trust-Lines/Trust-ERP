@@ -27,6 +27,8 @@ export interface CommitResult {
   action: ImportAction;
   prospectId: string | null;
   contactsAdded: number;
+  /** false when the event link (Shows attended / event filter) could not be saved — migration 125 missing. */
+  linked?: boolean;
   error?: string;
 }
 
@@ -72,13 +74,14 @@ function noteBody(p: ImportPerson, ctx: CommitContext, diffs: string[] = []): st
   return lines.join('\n').slice(0, 40000);
 }
 
-async function addInteraction(admin: any, ctx: CommitContext, prospectId: string) {
-  if (!ctx.campaign) return;
+async function addInteraction(admin: any, ctx: CommitContext, prospectId: string): Promise<boolean> {
+  if (!ctx.campaign) return true;
   // 'excel_import' needs migration 125 on the check constraint; until then this is skipped, not fatal.
   const { error } = await admin.from('campaign_interactions').insert({
     campaign_id: ctx.campaign.id, prospect_id: prospectId, interaction_type: 'excel_import', source: ctx.campaign.source,
   });
   if (error) console.error('[import] campaign interaction not recorded (migration 125 applied?):', error.message);
+  return !error;
 }
 
 async function insertNotes(admin: any, ctx: CommitContext, entries: { contactId: string; person: ImportPerson; diffs?: string[] }[]) {
@@ -134,9 +137,9 @@ export async function createGroup(admin: any, ctx: CommitContext, g: CommitGroup
   }
   await insertNotes(admin, ctx, created);
   await insertLocation(admin, prospect.id, g.people.find(p => p.address || p.city || p.state || p.zip));
-  await addInteraction(admin, ctx, prospect.id);
+  const linked = await addInteraction(admin, ctx, prospect.id);
   await logAudit({ actorId: ctx.userId, action: 'prospect.created_via_import', resource: `prospect:${prospect.id}`, newValue: { file: ctx.fileLabel, contacts: created.length } });
-  return { id: g.id, action: 'create', prospectId: prospect.id as string, contactsAdded: created.length };
+  return { id: g.id, action: 'create', prospectId: prospect.id as string, contactsAdded: created.length, linked };
 }
 
 export async function mergeGroup(admin: any, ctx: CommitContext, g: CommitGroup): Promise<CommitResult> {
@@ -195,7 +198,7 @@ export async function mergeGroup(admin: any, ctx: CommitContext, g: CommitGroup)
   if (touched[0]) touched[0].diffs = [...plan.differences, ...touched[0].diffs];
   await insertNotes(admin, ctx, touched);
 
-  await addInteraction(admin, ctx, target.id);
+  const linked = await addInteraction(admin, ctx, target.id);
   await logAudit({ actorId: ctx.userId, action: 'prospect.merged_via_import', resource: `prospect:${target.id}`, newValue: { file: ctx.fileLabel, contactsAdded: added } });
-  return { id: g.id, action: 'merge', prospectId: target.id as string, contactsAdded: added };
+  return { id: g.id, action: 'merge', prospectId: target.id as string, contactsAdded: added, linked };
 }

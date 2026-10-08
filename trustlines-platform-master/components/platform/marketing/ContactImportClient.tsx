@@ -17,7 +17,7 @@ import {
 interface LoadedFile { id: string; name: string; sheets: SheetData[]; sheet: number; headerRow: number; mappings: ColumnMapping[] }
 interface Campaign { id: string; name: string; status: string }
 interface Decision { action: ImportAction | null; target: string | null }
-interface Outcome { created: number; merged: number; skipped: number; contacts: number; failed: { label: string; error: string }[] }
+interface Outcome { created: number; merged: number; skipped: number; contacts: number; unlinked: number; failed: { label: string; error: string }[] }
 
 const BATCH = 25;
 const PAGE = 40;
@@ -84,6 +84,7 @@ export function ContactImportClient() {
   }, []);
 
   const fileLabel = files.map(f => f.name).join(' + ') || 'Excel file';
+  const campaignName = campaigns.find(c => c.id === campaignId)?.name ?? '';
 
   // Everything below is derived: change a mapping and rows/groups recompute.
   const { groups, rowCount, skipped } = useMemo(() => {
@@ -183,7 +184,7 @@ export function ContactImportClient() {
 
   async function runImport() {
     const todo = groups.filter(g => decisions[g.id]?.action && decisions[g.id].action !== 'skip');
-    const result: Outcome = { created: 0, merged: 0, skipped: groups.length - todo.length, contacts: 0, failed: [] };
+    const result: Outcome = { created: 0, merged: 0, skipped: groups.length - todo.length, contacts: 0, unlinked: 0, failed: [] };
     setImporting({ done: 0, total: todo.length });
     try {
       for (let i = 0; i < todo.length; i += BATCH) {
@@ -197,8 +198,9 @@ export function ContactImportClient() {
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) { toast.error(body.error ?? 'Import stopped'); break; }
-        for (const r of body.results as { id: string; action: ImportAction; contactsAdded: number; error?: string }[]) {
+        for (const r of body.results as { id: string; action: ImportAction; contactsAdded: number; linked?: boolean; error?: string }[]) {
           const g = groups.find(x => x.id === r.id);
+          if (!r.error && r.linked === false) result.unlinked++;
           if (r.error) result.failed.push({ label: g?.company ?? g?.people[0]?.name ?? r.id, error: r.error });
           else if (r.action === 'create') { result.created++; result.contacts += g?.people.length ?? 0; }
           else if (r.action === 'merge') { result.merged++; result.contacts += r.contactsAdded; }
@@ -232,6 +234,11 @@ export function ContactImportClient() {
             <div style={{ fontSize: 14 }}>
               <strong>{outcome.created}</strong> new Contacts · <strong>{outcome.merged}</strong> merged into existing · <strong>{outcome.skipped}</strong> skipped · <strong>{outcome.contacts}</strong> people added
             </div>
+            {outcome.unlinked > 0 && (
+              <div style={{ marginTop: 10, fontSize: 13, color: '#a16207' }}>
+                <strong>{outcome.unlinked} Contacts were not linked to {campaignName || 'the event'}</strong> (they won&apos;t show under the event filter or &quot;Shows attended&quot; yet). Apply migration 125 in Supabase, then import again — already-imported Contacts will show as matches to merge.
+              </div>
+            )}
             {outcome.failed.length > 0 && (
               <div style={{ marginTop: 10, fontSize: 13, color: 'var(--status-danger-fg, #b91c1c)' }}>
                 <strong>{outcome.failed.length} failed:</strong>
@@ -251,9 +258,9 @@ export function ContactImportClient() {
           <div className="card-body" style={{ padding: 18, display: 'grid', gap: 14 }}>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)' }}>
-                Event / campaign these leads belong to
-                <select className="form-input" value={campaignId} onChange={e => setCampaignId(e.target.value)} style={{ minWidth: 260 }}>
-                  <option value="">— none —</option>
+                Event / campaign these leads belong to (required)
+                <select className="form-input" value={campaignId} onChange={e => setCampaignId(e.target.value)} style={{ ...smallControl, minWidth: 260 }}>
+                  <option value="">— choose one —</option>
                   {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </label>
@@ -322,7 +329,7 @@ export function ContactImportClient() {
                   <strong>{rowCount}</strong> people found{skipped ? ` (${skipped} empty rows skipped)` : ''} → <strong>{groups.length}</strong> Contacts after combining repeats
                   {counts.mergedRows > 0 && ` (${counts.mergedRows} repeated rows folded together)`}
                 </span>
-                <button className="btn btn-primary" disabled={checking || groups.length === 0 || !!importing} onClick={() => void checkDuplicates()}>
+                <button className="btn btn-primary" disabled={checking || groups.length === 0 || !campaignId || !!importing} onClick={() => void checkDuplicates()}>
                   {checking ? <Loader2 size={14} className="spin" /> : null} <span style={{ marginLeft: checking ? 6 : 0 }}>{matches ? 'Re-check against Contacts' : 'Check for duplicates'}</span>
                 </button>
               </div>
@@ -357,8 +364,8 @@ export function ContactImportClient() {
                 <button className="btn btn-ghost btn-sm" onClick={() => bulk(isStrong, 'skip')}>Skip all matches</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => bulk(isPossible, 'create')}>Similar → add as new</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => bulk(isPossible, 'skip')}>Similar → skip</button>
-                <button className="btn btn-primary" style={{ marginLeft: 'auto' }} disabled={counts.undecided > 0 || !!importing} onClick={() => void runImport()}>
-                  {importing ? <><Loader2 size={14} className="spin" /> <span style={{ marginLeft: 6 }}>Importing {importing.done}/{importing.total}…</span></> : `Import ${groups.filter(g => decisions[g.id]?.action && decisions[g.id].action !== 'skip').length} Contacts`}
+                <button className="btn btn-primary" style={{ marginLeft: 'auto' }} disabled={counts.undecided > 0 || !campaignId || !!importing} onClick={() => void runImport()}>
+                  {importing ? <><Loader2 size={14} className="spin" /> <span style={{ marginLeft: 6 }}>Importing {importing.done}/{importing.total}…</span></> : `Import ${groups.filter(g => decisions[g.id]?.action && decisions[g.id].action !== 'skip').length} Contacts into ${campaignName}`}
                 </button>
               </div>
             </div>

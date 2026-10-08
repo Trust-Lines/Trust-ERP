@@ -67,7 +67,7 @@ interface Props {
   initialTotal: number;
   pageSize: number;
   canEdit?: boolean;
-  /** Marketing Manager and above: may import Excel files (bulk write). */
+  /** Everyone who may edit Contacts may import Excel files (merging is still limited to Contacts they may edit). */
   canImport?: boolean;
   loadError?: boolean;
   potentialTotal: number | null;
