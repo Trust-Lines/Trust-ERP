@@ -26,6 +26,9 @@ export interface ExistingContactRow {
   email: string | null;
   phone: string | null;
   other_contact?: string | null;
+  whatsapp?: boolean | null;
+  linkedin_url?: string | null;
+  company2_phone?: string | null;
   is_primary: boolean;
 }
 
@@ -126,7 +129,8 @@ export function matchGroup(group: ImportGroup, idx: ExistingIndex): ExistingMatc
     .map(([id, c]) => {
       const p = idx.prospects.get(id)!;
       const contacts: ExistingContactLite[] = (idx.contacts.get(id) ?? []).map(c2 => ({
-        id: c2.id, name: c2.name, title: c2.title, email: c2.email, phone: c2.phone, otherContact: c2.other_contact ?? null, isPrimary: c2.is_primary,
+        id: c2.id, name: c2.name, title: c2.title, email: c2.email, phone: c2.phone, otherContact: c2.other_contact ?? null,
+        whatsapp: !!c2.whatsapp, linkedin: c2.linkedin_url ?? null, company2Phone: c2.company2_phone ?? null, isPrimary: c2.is_primary,
       }));
       return {
         prospectId: id,

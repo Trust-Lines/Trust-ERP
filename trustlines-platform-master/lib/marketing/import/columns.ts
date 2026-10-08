@@ -30,11 +30,23 @@ const SYNONYMS: { field: ImportField; score: number; keys: string[] }[] = [
   { field: 'business_type', score: 3, keys: ['businesstype', 'businesstypes', 'industry', 'category', 'storeclassification', 'segment', 'companytype'] },
   { field: 'notes', score: 3, keys: ['notes', 'note', 'comments', 'comment', 'remarks', 'activities', 'activity', 'projectdetails', 'originalteamnotes', 'description', 'badgescannotes', 'followup'] },
   { field: 'captured_date', score: 3, keys: ['captureddate', 'datecaptured', 'capturedat', 'dateadded', 'added', 'addedon', 'createddate', 'createdat', 'created', 'datecreated', 'timestamp', 'scanneddate', 'date'] },
-  { field: 'captured_by', score: 3, keys: ['leadorigin', 'leadinformationprovidedby', 'badgescannedby', 'leadprovidedby', 'capturedby', 'scannedby', 'enteredby', 'owner', 'repname', 'salesrep'] },
+  { field: 'status', score: 3, keys: ['status', 'leadstatus', 'stage', 'contactstatus'] },
+  { field: 'whatsapp', score: 3, keys: ['whatsapp', 'haswhatsapp', 'whatsappavailable', 'onwhatsapp'] },
+  { field: 'created_by', score: 3, keys: ['createdby', 'creator', 'addedby', 'enteredby'] },
+  { field: 'x_note', score: 3, keys: ['xnote', 'xnotes'] },
+  { field: 'source_info', score: 3, keys: ['sourceinfo', 'sourcedetail', 'sourcedetails'] },
+  { field: 'linkedin', score: 3, keys: ['linkedin', 'linkedinurl', 'linkedinprofile'] },
+  { field: 'other_contact', score: 3, keys: ['othercontact', 'alternatecontact'] },
+  { field: 'mailing_address', score: 3, keys: ['mailingaddress', 'mailaddress', 'billingaddress'] },
+  { field: 'company2_phone', score: 3, keys: ['company2phone', 'company2phonenumber', 'secondcompanyphone'] },
+  { field: 'need_title', score: 3, keys: ['needtitle', 'projecttitle', 'projectname'] },
+  { field: 'project_type', score: 3, keys: ['projecttype', 'projectscope', 'scope', 'projectneed'] },
+  { field: 'timing', score: 3, keys: ['timing', 'timeline', 'projecttimeline', 'purchasetimeframe'] },
+  { field: 'captured_by', score: 3, keys: ['leadorigin', 'leadinformationprovidedby', 'badgescannedby', 'leadprovidedby', 'capturedby', 'scannedby', 'owner', 'repname', 'salesrep'] },
 ];
 
 /** Headers that sound like a field but are known to be something else in the files we have seen. */
-const NEVER_MAP = new Set(['type', 'status', 'source', 'archived', 'updated', 'info', 'whatsapp', 'no', 'id', 'leadid', 'badgeid', 'leadtype', 'rating', 'collateral']);
+const NEVER_MAP = new Set(['type', 'source', 'archived', 'updated', 'info', 'no', 'id', 'leadid', 'badgeid', 'leadtype', 'rating', 'collateral']);
 
 function headerCandidates(header: string): { field: ImportField; score: number }[] {
   const k = norm(header);
@@ -142,9 +154,12 @@ export function autoMapColumns(headers: string[], dataRows: string[][]): ColumnM
     if (target !== 'ignore') { m.field = target; m.basis = 'content'; }
   });
 
-  // 3. a WhatsApp / yes-no style column must never be treated as a phone
+  // 3. a "WhatsApp" column is a Yes/No tick — unless it actually holds phone numbers
   mappings.forEach(m => {
-    if (norm(m.header) === 'whatsapp') { m.field = 'ignore'; m.basis = 'none'; }
+    if (m.field !== 'whatsapp') return;
+    const values = dataRows.map(r => String(r[m.index] ?? '').trim()).filter(Boolean);
+    const phoneLike = values.filter(v => allPhones(v).length > 0 && /^[\d\s()+.\-/;]+$/.test(v)).length;
+    if (values.length && phoneLike / values.length >= 0.6) { m.field = have('phone2') ? 'ignore' : 'phone2'; m.basis = 'content'; }
   });
 
   return mappings;

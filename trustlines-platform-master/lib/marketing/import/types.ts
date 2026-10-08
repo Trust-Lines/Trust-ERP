@@ -6,6 +6,9 @@ export type ImportField =
   | 'company' | 'email' | 'email2' | 'phone' | 'phone2' | 'website'
   | 'address' | 'city' | 'state' | 'zip' | 'city_state'
   | 'business_type' | 'notes' | 'captured_by' | 'captured_date'
+  | 'status' | 'whatsapp' | 'created_by' | 'x_note' | 'source_info'
+  | 'linkedin' | 'other_contact' | 'mailing_address' | 'company2_phone'
+  | 'need_title' | 'project_type' | 'timing'
   | 'ignore';
 
 export const IMPORT_FIELD_LABELS: Record<ImportField, string> = {
@@ -27,6 +30,18 @@ export const IMPORT_FIELD_LABELS: Record<ImportField, string> = {
   business_type: 'Business type',
   notes: 'Notes (added to Activity)',
   captured_by: 'Captured / provided by',
+  status: 'Status (Potential, Lead…)',
+  whatsapp: 'WhatsApp (Yes / No tick)',
+  created_by: 'Created by (shown on the card)',
+  x_note: 'X-note',
+  source_info: 'Source info',
+  linkedin: 'LinkedIn',
+  other_contact: 'Other contact',
+  mailing_address: 'Mailing address',
+  company2_phone: 'Company 2 phone number',
+  need_title: 'Project need — title',
+  project_type: 'Project need — type (remodel / new…)',
+  timing: 'Project need — timing',
   captured_date: 'Date captured / added (shown as "Created" on the card)',
   ignore: '— Ignore this column —',
 };
@@ -67,6 +82,19 @@ export interface ImportPerson {
   capturedBy: string | null;
   /** When the lead was captured (ISO) — becomes the Contact's "Created" date. */
   capturedAt: string | null;
+  // Card fields (all optional — a file without these columns just leaves them out).
+  whatsapp?: boolean | null;
+  linkedin?: string | null;
+  otherContact?: string | null;
+  company2Phone?: string | null;
+  mailingAddress?: string | null;
+  status?: string | null;
+  xNote?: string | null;
+  sourceInfo?: string | null;
+  createdBy?: string | null;
+  needTitle?: string | null;
+  projectType?: string | null;
+  timing?: string | null;
 }
 
 /** One company (or a lone person) and the people found for it — becomes ONE Prospect. */
@@ -89,6 +117,9 @@ export interface ExistingContactLite {
   email: string | null;
   phone: string | null;
   otherContact: string | null;
+  whatsapp?: boolean;
+  linkedin?: string | null;
+  company2Phone?: string | null;
   isPrimary: boolean;
 }
 

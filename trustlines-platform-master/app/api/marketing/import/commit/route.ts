@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const { user, role, admin, deny } = await requireRole(MARKETING_WRITE_ROLES);
   if (deny) return deny;
 
-  const body = await req.json().catch(() => null) as { fileLabel?: string; campaignId?: string; groups?: any[] } | null;
+  const body = await req.json().catch(() => null) as { fileLabel?: string; campaignId?: string; createNeeds?: boolean; groups?: any[] } | null;
   const rawGroups = Array.isArray(body?.groups) ? body!.groups! : [];
   if (!rawGroups.length) return NextResponse.json({ error: 'Nothing to import' }, { status: 400 });
   if (rawGroups.length > MAX_BATCH) return NextResponse.json({ error: `Send at most ${MAX_BATCH} rows per request` }, { status: 413 });
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   const { data: campaignRow } = await admin.from('marketing_campaigns').select('id, name, source').eq('id', body.campaignId).is('deleted_at', null).maybeSingle();
   if (!campaignRow) return NextResponse.json({ error: 'Campaign not found' }, { status: 400 });
   const campaign = campaignRow as { id: string; name: string; source: string };
-  const ctx = { userId: user.id, fileLabel: String(body?.fileLabel ?? 'Excel file').slice(0, 160), campaign };
+  const ctx = { userId: user.id, fileLabel: String(body?.fileLabel ?? 'Excel file').slice(0, 160), campaign, createNeeds: body?.createNeeds === true };
 
   const results: CommitResult[] = [];
   for (const raw of rawGroups) {

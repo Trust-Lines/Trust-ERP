@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
         .select('id, display_name, organization_name, person_name, main_email, main_phone, business_types, source_label, website, region, created_at, external_created_at')
         .is('deleted_at', null).order('id').range(from, to)),
       loadAll<ExistingContactRow>((from, to) => admin.from('prospect_contacts')
-        .select('id, prospect_id, name, title, email, phone, other_contact, is_primary').order('id').range(from, to)),
+        .select('id, prospect_id, name, title, email, phone, other_contact, whatsapp, linkedin_url, company2_phone, is_primary').order('id').range(from, to)),
     ]);
     let visibleProspects = prospects as (ExistingProspectRow & { region?: string | null })[];
     let visibleContacts = contacts;

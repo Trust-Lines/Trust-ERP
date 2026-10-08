@@ -79,6 +79,18 @@ function ChangePasswordCard({ email }: { email: string }) {
 
 export function SettingsClient({ isGeneralManager, email }: { isGeneralManager: boolean; email: string }) {
   const [downloading, setDownloading] = useState(false);
+  const [backingUpContacts, setBackingUpContacts] = useState(false);
+  async function backUpContacts() {
+    setBackingUpContacts(true);
+    try {
+      const res = await fetch('/api/marketing/backup', { method: 'POST' });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(b.error ?? 'Backup failed');
+      toast.success(`Contacts backed up to Dropbox: ${b.xlsxPath}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Backup failed');
+    } finally { setBackingUpContacts(false); }
+  }
   const [hideAmounts, setHideAmounts] = useState(false);
   useEffect(() => { setHideAmounts(readHideAmounts()); }, []);
   function toggleHideAmounts() {
@@ -160,9 +172,15 @@ export function SettingsClient({ isGeneralManager, email }: { isGeneralManager: 
           </p>
 
           {isGeneralManager ? (
-            <button className="btn btn-primary" onClick={downloadBackup} disabled={downloading}>
-              <Download size={15} /> {downloading ? 'Preparing…' : 'Download backup (JSON)'}
-            </button>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button className="btn btn-primary" onClick={downloadBackup} disabled={downloading}>
+                <Download size={15} /> {downloading ? 'Preparing…' : 'Download backup (JSON)'}
+              </button>
+              <button className="btn btn-ghost" onClick={backUpContacts} disabled={backingUpContacts} title="Excel + JSON of every Contact (people, locations, needs, potentials, notes) into Dropbox — the same file the nightly job makes">
+                <DatabaseBackup size={15} /> {backingUpContacts ? 'Backing up Contacts…' : 'Back up all Contacts to Dropbox now'}
+              </button>
+              <span style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>Contacts are also backed up automatically every night to Dropbox → Marketing/_Backups/Contacts.</span>
+            </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--fg-subtle)' }}>
               <ShieldAlert size={16} /> Only the General Manager can download the full data snapshot.

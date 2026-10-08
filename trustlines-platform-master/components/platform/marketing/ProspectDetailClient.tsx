@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Building2, Users, MapPin, Star, Trash2, Archive, ArchiveRestore, Target, Clock, ArrowRightCircle, Pencil, Activity, FileText, Image as ImageIcon, Link2, Video, Loader2, X, Paperclip, Globe, Tag, History } from 'lucide-react';
+import { Download, ArrowLeft, Building2, Users, MapPin, Star, Trash2, Archive, ArchiveRestore, Target, Clock, ArrowRightCircle, Pencil, Activity, FileText, Image as ImageIcon, Link2, Video, Loader2, X, Paperclip, Globe, Tag, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { Pill } from '@/components/platform/shared/Pill';
 import { SourceSelect } from './SourceSelect';
@@ -142,6 +142,16 @@ export function ProspectDetailClient({
   const [potentials, setPotentials] = useState<Potential[]>(initialPotentials);
   const [opportunities, setOpportunities] = useState<OpportunityRow[]>(initialOpportunities);
   const [files, setFiles] = useState<ProspectFile[]>(initialFiles);
+  const [backingUp, setBackingUp] = useState(false);
+  async function backUpThisContact() {
+    setBackingUp(true);
+    try {
+      const res = await fetch(`/api/marketing/prospects/${prospect.id}/backup`, { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(body.error ?? 'Backup failed'); return; }
+      toast.success(`Backed up to Dropbox: ${body.xlsxPath}`);
+    } finally { setBackingUp(false); }
+  }
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [expandedOppId, setExpandedOppId] = useState<string | null>(null);
@@ -437,6 +447,9 @@ export function ProspectDetailClient({
             ) : (
               <span className="pill" style={{ background: 'var(--bg-sunken)', color: 'var(--fg-subtle)' }}>{STATUS_LABEL[prospect.status]}</span>
             )}
+            <button className="btn btn-secondary btn-sm" disabled={backingUp} onClick={backUpThisContact} title="Save this Contact's whole card (people, locations, needs, potentials, notes…) to Dropbox as Excel + JSON">
+              {backingUp ? <Loader2 size={13} className="spin" /> : <Download size={13} />} Back up
+            </button>
             {canEdit && (
               <button className="btn btn-secondary btn-sm" onClick={() => patch({ is_archived: !prospect.is_archived })}>
                 {prospect.is_archived ? <><ArchiveRestore size={13} /> Unarchive</> : <><Archive size={13} /> Archive</>}

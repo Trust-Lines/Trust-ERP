@@ -49,6 +49,18 @@ export function mergePerson(into: ImportPerson, from: ImportPerson): ImportPerso
     businessTypes: [...new Set([...into.businessTypes, ...from.businessTypes])],
     notes,
     capturedBy: fold(into.capturedBy, from.capturedBy),
+    whatsapp: into.whatsapp || from.whatsapp ? true : (into.whatsapp ?? from.whatsapp ?? null),
+    linkedin: fold(into.linkedin ?? null, from.linkedin ?? null),
+    otherContact: fold(into.otherContact ?? null, from.otherContact ?? null),
+    company2Phone: fold(into.company2Phone ?? null, from.company2Phone ?? null),
+    mailingAddress: fold(into.mailingAddress ?? null, from.mailingAddress ?? null),
+    status: fold(into.status ?? null, from.status ?? null),
+    xNote: fold(into.xNote ?? null, from.xNote ?? null),
+    sourceInfo: fold(into.sourceInfo ?? null, from.sourceInfo ?? null),
+    createdBy: fold(into.createdBy ?? null, from.createdBy ?? null),
+    needTitle: fold(into.needTitle ?? null, from.needTitle ?? null),
+    projectType: fold(into.projectType ?? null, from.projectType ?? null),
+    timing: fold(into.timing ?? null, from.timing ?? null),
     capturedAt: [into.capturedAt, from.capturedAt].filter((d): d is string => !!d).sort()[0] ?? null,
   };
 }

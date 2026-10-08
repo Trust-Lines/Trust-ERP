@@ -1,5 +1,6 @@
 import { allEmails, allPhones, emailKey, parseLooseDate } from './keys';
 import { headerScore } from './columns';
+import { parseYesNo } from './cardFields';
 import type { ColumnMapping, ImportField, ImportPerson } from './types';
 
 // Collapses every kind of blank (tabs, non-breaking spaces…) but keeps line breaks — notes are multi-line.
@@ -87,6 +88,18 @@ export function buildPeople(rows: string[][], headerRow: number, mappings: Colum
       businessTypes: [...new Set(cols('business_type').flatMap(i => splitList(cell(i))))],
       notes,
       capturedBy: firstOf('captured_by'),
+      whatsapp: ordered('whatsapp').map(i => parseYesNo(row[i])).find(v => v !== null) ?? null,
+      linkedin: firstOf('linkedin'),
+      otherContact: firstOf('other_contact'),
+      company2Phone: firstOf('company2_phone'),
+      mailingAddress: firstOf('mailing_address'),
+      status: firstOf('status'),
+      xNote: firstOf('x_note'),
+      sourceInfo: firstOf('source_info'),
+      createdBy: firstOf('created_by'),
+      needTitle: firstOf('need_title'),
+      projectType: firstOf('project_type'),
+      timing: firstOf('timing'),
       capturedAt: ordered('captured_date').map(i => parseLooseDate(row[i])).find(Boolean) ?? null,
     };
 

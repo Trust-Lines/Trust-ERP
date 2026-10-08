@@ -17,7 +17,7 @@ import {
 interface LoadedFile { id: string; name: string; sheets: SheetData[]; sheet: number; headerRow: number; mappings: ColumnMapping[] }
 interface Campaign { id: string; name: string; status: string }
 interface Decision { action: ImportAction | null; target: string | null }
-interface Outcome { created: number; merged: number; skipped: number; contacts: number; unlinked: number; failed: { label: string; error: string }[] }
+interface Outcome { created: number; merged: number; skipped: number; contacts: number; needs: number; unlinked: number; failed: { label: string; error: string }[] }
 
 const BATCH = 25;
 const PAGE = 40;
@@ -56,6 +56,7 @@ function PersonLine({ p }: { p: ImportPerson }) {
     <div style={{ fontSize: 13, lineHeight: 1.45 }}>
       <strong>{p.name ?? '(no name)'}</strong>{p.title ? <span style={muted}> · {p.title}</span> : null}
       <div style={muted}>{[p.email, p.phone].filter(Boolean).join(' · ') || 'no email / phone'}</div>
+      {(p.whatsapp || p.status) && <div style={muted}>{[p.whatsapp ? 'WhatsApp ✓' : null, p.status ? `Status: ${p.status}` : null].filter(Boolean).join(' · ')}</div>}
       {p.capturedAt && <div style={muted}>Captured {new Date(p.capturedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>}
     </div>
   );
@@ -69,14 +70,17 @@ export function ContactImportClient() {
   const [checking, setChecking] = useState(false);
   const [matches, setMatches] = useState<Record<string, ExistingMatch[]> | null>(null);
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
-  const [filter, setFilter] = useState<'suspicious' | 'decide' | 'new' | 'all'>('suspicious');
+  const [filter, setFilter] = useState<'suspicious' | 'strong' | 'possible' | 'decide' | 'new' | 'all'>('suspicious');
+  const [createNeeds, setCreateNeeds] = useState(true);
+  // What happened to each card when it was imported (one by one or in bulk).
+  const [done, setDone] = useState<Record<string, { state: 'running' | 'ok' | 'error'; message: string; prospectId: string | null }>>({});
   const [shown, setShown] = useState(PAGE);
   const [importing, setImporting] = useState<{ done: number; total: number } | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch('/api/marketing/campaigns').then(r => r.json()).then(b => {
+    fetch('/api/marketing/import/campaigns').then(r => r.json()).then(b => {
       const list: Campaign[] = (b.campaigns ?? []).map((c: Campaign) => ({ id: c.id, name: c.name, status: c.status }));
       setCampaigns(list);
       setCampaignId(prev => prev || (list.find(c => /nacs/i.test(c.name)) ?? list[0])?.id || '');
@@ -98,7 +102,7 @@ export function ContactImportClient() {
     return { groups: buildGroups(people), rowCount: people.length, skipped: skippedEmpty };
   }, [files]);
 
-  function resetReview() { setMatches(null); setDecisions({}); setOutcome(null); setShown(PAGE); }
+  function resetReview() { setDone({}); setMatches(null); setDecisions({}); setOutcome(null); setShown(PAGE); }
 
   async function addFiles(list: FileList | null) {
     if (!list?.length) return;
@@ -178,29 +182,63 @@ export function ContactImportClient() {
   const visible = groups.filter(g => {
     if (filter === 'decide') return decisions[g.id]?.action === null;
     if (filter === 'suspicious') return matchOf(g).length > 0;
+    if (filter === 'strong') return isStrong(g);
+    if (filter === 'possible') return isPossible(g);
     if (filter === 'new') return matchOf(g).length === 0;
     return true;
   });
 
+  type CommitRow = { id: string; action: ImportAction; prospectId: string | null; contactsAdded: number; linked?: boolean; needCreated?: boolean; error?: string };
+
+  async function commitBatch(batch: ImportGroup[]): Promise<CommitRow[]> {
+    const res = await fetch('/api/marketing/import/commit', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileLabel, campaignId: campaignId || undefined, createNeeds,
+        groups: batch.map(g => ({ id: g.id, action: decisions[g.id].action, targetProspectId: decisions[g.id].target, company: g.company, people: g.people })),
+      }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error ?? 'Import failed');
+    return body.results as CommitRow[];
+  }
+
+  function rememberResult(r: CommitRow) {
+    const message = r.error ? r.error
+      : r.action === 'create' ? `Created${r.contactsAdded ? ` with ${r.contactsAdded} ${r.contactsAdded === 1 ? 'person' : 'people'}` : ''}${r.needCreated ? ' + project need' : ''}`
+      : r.action === 'merge' ? `Merged${r.contactsAdded ? ` — ${r.contactsAdded} ${r.contactsAdded === 1 ? 'person' : 'people'} added` : ''}`
+      : 'Skipped';
+    setDone(prev => ({ ...prev, [r.id]: { state: r.error ? 'error' : 'ok', message, prospectId: r.prospectId } }));
+  }
+
+  // One card at a time, so you can see exactly what happened (and the exact error, if any).
+  async function importOne(g: ImportGroup) {
+    setDone(prev => ({ ...prev, [g.id]: { state: 'running', message: 'Importing…', prospectId: null } }));
+    try {
+      const [r] = await commitBatch([g]);
+      rememberResult(r);
+      if (r.error) toast.error(r.error); else if (r.linked === false) toast.message('Imported, but not linked to the event yet — apply migration 125.');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Import failed';
+      setDone(prev => ({ ...prev, [g.id]: { state: 'error', message, prospectId: null } }));
+      toast.error(message);
+    }
+  }
+
   async function runImport() {
-    const todo = groups.filter(g => decisions[g.id]?.action && decisions[g.id].action !== 'skip');
-    const result: Outcome = { created: 0, merged: 0, skipped: groups.length - todo.length, contacts: 0, unlinked: 0, failed: [] };
+    const todo = groups.filter(g => decisions[g.id]?.action && decisions[g.id].action !== 'skip' && done[g.id]?.state !== 'ok');
+    const result: Outcome = { created: 0, merged: 0, skipped: groups.filter(g => decisions[g.id]?.action === 'skip').length, contacts: 0, needs: 0, unlinked: 0, failed: [] };
     setImporting({ done: 0, total: todo.length });
     try {
       for (let i = 0; i < todo.length; i += BATCH) {
         const batch = todo.slice(i, i + BATCH);
-        const res = await fetch('/api/marketing/import/commit', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileLabel, campaignId: campaignId || undefined,
-            groups: batch.map(g => ({ id: g.id, action: decisions[g.id].action, targetProspectId: decisions[g.id].target, company: g.company, people: g.people })),
-          }),
-        });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) { toast.error(body.error ?? 'Import stopped'); break; }
-        for (const r of body.results as { id: string; action: ImportAction; contactsAdded: number; linked?: boolean; error?: string }[]) {
+        let rows: CommitRow[];
+        try { rows = await commitBatch(batch); } catch (e) { toast.error(e instanceof Error ? e.message : 'Import stopped'); break; }
+        for (const r of rows) {
+          rememberResult(r);
           const g = groups.find(x => x.id === r.id);
           if (!r.error && r.linked === false) result.unlinked++;
+          if (!r.error && r.needCreated) result.needs++;
           if (r.error) result.failed.push({ label: g?.company ?? g?.people[0]?.name ?? r.id, error: r.error });
           else if (r.action === 'create') { result.created++; result.contacts += g?.people.length ?? 0; }
           else if (r.action === 'merge') { result.merged++; result.contacts += r.contactsAdded; }
@@ -213,7 +251,24 @@ export function ContactImportClient() {
     }
   }
 
-  const inReview = matches !== null && !outcome;
+  // One-click starting points; every card can still be changed afterwards.
+  function preset(kind: 'new_only' | 'new_and_merge' | 'all_new') {
+    setDecisions(prev => {
+      const next = { ...prev };
+      for (const g of groups) {
+        if (done[g.id]?.state === 'ok') continue;
+        const m = matches?.[g.id] ?? [];
+        const strong = m[0]?.strength === 'strong';
+        if (!m.length) next[g.id] = { action: 'create', target: null };
+        else if (kind === 'new_only') next[g.id] = { action: 'skip', target: m[0].prospectId };
+        else if (kind === 'new_and_merge') next[g.id] = strong ? { action: 'merge', target: m[0].prospectId } : { action: 'skip', target: m[0].prospectId };
+        else next[g.id] = { action: 'create', target: null };
+      }
+      return next;
+    });
+  }
+
+  const inReview = matches !== null;
 
   return (
     <div style={{ maxWidth: 1100 }}>
@@ -232,7 +287,7 @@ export function ContactImportClient() {
           <div className="card-body" style={{ padding: 18 }}>
             <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 8 }}><Check size={18} /> Import finished</h2>
             <div style={{ fontSize: 14 }}>
-              <strong>{outcome.created}</strong> new Contacts · <strong>{outcome.merged}</strong> merged into existing · <strong>{outcome.skipped}</strong> skipped · <strong>{outcome.contacts}</strong> people added
+              <strong>{outcome.created}</strong> new Contacts · <strong>{outcome.merged}</strong> merged into existing · <strong>{outcome.skipped}</strong> skipped · <strong>{outcome.contacts}</strong> people added{outcome.needs > 0 && <> · <strong>{outcome.needs}</strong> project needs / potentials created</>}
             </div>
             {outcome.unlinked > 0 && (
               <div style={{ marginTop: 10, fontSize: 13, color: '#a16207' }}>
@@ -263,6 +318,10 @@ export function ContactImportClient() {
                   <option value="">— choose one —</option>
                   {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
+              </label>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, maxWidth: 360 }} title="Fills the Needs and Potentials tabs of every NEW Contact, the same way survey leads get them. Merged Contacts are not given a new need.">
+                <input type="checkbox" checked={createNeeds} onChange={e => setCreateNeeds(e.target.checked)} />
+                Also create a project need + potential for each new Contact (like survey leads)
               </label>
               <input ref={inputRef} type="file" multiple hidden accept=".xlsx,.xls,.csv" onChange={e => void addFiles(e.target.files)} />
               <button className="btn btn-primary" disabled={reading || !!importing} onClick={() => inputRef.current?.click()}>
@@ -343,9 +402,9 @@ export function ContactImportClient() {
           <div className="card" style={{ marginBottom: 12, position: 'sticky', top: 0, zIndex: 5 }}>
             <div className="card-body" style={{ padding: 14, display: 'grid', gap: 10 }}>
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 13.5 }}>
-                <span><strong>{counts.fresh}</strong> new</span>
-                <span style={{ color: '#0a7a3d' }}><strong>{counts.strong}</strong> already in Contacts</span>
-                <span style={{ color: '#a16207' }}><strong>{counts.possible}</strong> look similar — your call</span>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setFilter('new'); setShown(PAGE); }}><strong>{counts.fresh}</strong>&nbsp;new</button>
+                <button className="btn btn-ghost btn-sm" style={{ color: '#0a7a3d' }} onClick={() => { setFilter('strong'); setShown(PAGE); }}><strong>{counts.strong}</strong>&nbsp;already in Contacts (merge by default)</button>
+                <button className="btn btn-ghost btn-sm" style={{ color: '#a16207' }} onClick={() => { setFilter('possible'); setShown(PAGE); }}><strong>{counts.possible}</strong>&nbsp;look similar — your call</button>
                 <span style={{ marginLeft: 'auto' }}>
                   {counts.undecided > 0 ? <strong style={{ color: '#a16207' }}>{counts.undecided} still need a decision</strong> : <strong style={{ color: '#0a7a3d' }}>All decided</strong>}
                 </span>
@@ -353,19 +412,25 @@ export function ContactImportClient() {
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 {([
                   ['suspicious', 'Only suspicious', counts.strong + counts.possible],
+                  ['strong', 'Already in Contacts', counts.strong],
+                  ['possible', 'Look similar', counts.possible],
                   ['decide', 'Need decision', counts.undecided],
                   ['new', 'New only', counts.fresh],
                   ['all', 'Show all', groups.length],
                 ] as const).map(([k, label, n]) => (
                   <button key={k} className={`btn btn-sm ${filter === k ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { setFilter(k); setShown(PAGE); }}>{label} ({n})</button>
                 ))}
+                <span style={{ ...muted, margin: '0 4px 0 12px' }}>Quick choice:</span>
+                <button className="btn btn-ghost btn-sm" onClick={() => preset('new_only')} title="Only the Contacts that are not in the system yet; everything that matches is skipped">Only add the new ones</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => preset('new_and_merge')} title="New ones are added, matches are merged, similar ones are skipped">New + merge matches</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => preset('all_new')} title="Everything is added as a separate new Contact">Add everything as new</button>
                 <span style={{ ...muted, margin: '0 4px 0 12px' }} title="Suspicious = already in Contacts, or looks similar to something that is">Bulk:</span>
                 <button className="btn btn-ghost btn-sm" onClick={() => bulk(isStrong, 'merge')}>Merge all matches</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => bulk(isStrong, 'skip')}>Skip all matches</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => bulk(isPossible, 'create')}>Similar → add as new</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => bulk(isPossible, 'skip')}>Similar → skip</button>
                 <button className="btn btn-primary" style={{ marginLeft: 'auto' }} disabled={counts.undecided > 0 || !campaignId || !!importing} onClick={() => void runImport()}>
-                  {importing ? <><Loader2 size={14} className="spin" /> <span style={{ marginLeft: 6 }}>Importing {importing.done}/{importing.total}…</span></> : `Import ${groups.filter(g => decisions[g.id]?.action && decisions[g.id].action !== 'skip').length} Contacts into ${campaignName}`}
+                  {importing ? <><Loader2 size={14} className="spin" /> <span style={{ marginLeft: 6 }}>Importing {importing.done}/{importing.total}…</span></> : `Import ${groups.filter(g => decisions[g.id]?.action && decisions[g.id].action !== 'skip' && done[g.id]?.state !== 'ok').length} Contacts into ${campaignName}`}
                 </button>
               </div>
             </div>
@@ -375,6 +440,7 @@ export function ContactImportClient() {
             {visible.slice(0, shown).map(g => {
               const m = matchOf(g);
               const d = decisions[g.id] ?? { action: null, target: null };
+              const st = done[g.id];
               const target = m.find(x => x.prospectId === d.target) ?? m[0];
               const border = d.action === null ? '#e0a82e' : m.length ? 'var(--border-default)' : 'var(--border-subtle)';
               return (
@@ -431,12 +497,22 @@ export function ContactImportClient() {
                   <div style={{ borderTop: '1px solid var(--border-subtle)', padding: '8px 14px', display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', fontSize: 13 }}>
                     {(m.length ? ([['create', 'Add as new'], ['merge', 'Merge into the existing one'], ['skip', 'Skip (don\'t import)']] as const) : ([['create', 'Add as new'], ['skip', 'Skip']] as const)).map(([k, label]) => (
                       <label key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
-                        <input type="radio" name={`d-${g.id}`} checked={d.action === k}
+                        <input type="radio" name={`d-${g.id}`} checked={d.action === k} disabled={st?.state === 'ok' || st?.state === 'running'}
                           onChange={() => setDecision(g.id, { action: k, target: k === 'merge' ? (d.target ?? m[0]?.prospectId ?? null) : d.target })} />
                         {label}
                       </label>
                     ))}
                     {d.action === null && <span style={{ color: '#a16207', fontWeight: 600 }}>Choose one</span>}
+                    <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {st?.state === 'running' && <Loader2 size={14} className="spin" />}
+                      {st && st.state !== 'running' && (
+                        <span style={{ fontWeight: 600, color: st.state === 'error' ? '#b91c1c' : '#0a7a3d' }}>{st.state === 'error' ? '✗ ' : '✓ '}{st.message}</span>
+                      )}
+                      {st?.state === 'ok' && st.prospectId && <Link href={`/marketing/prospects/${st.prospectId}`} target="_blank" style={{ textDecoration: 'underline', fontSize: 12.5 }}>Open</Link>}
+                      <button className="btn btn-primary btn-sm" disabled={d.action === null || st?.state === 'running' || st?.state === 'ok' || !campaignId || !!importing} onClick={() => void importOne(g)}>
+                        {st?.state === 'error' ? 'Try again' : d.action === 'skip' ? 'Mark skipped' : 'Import this one'}
+                      </button>
+                    </span>
                   </div>
                 </div>
               );

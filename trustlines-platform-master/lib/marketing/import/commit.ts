@@ -2,6 +2,9 @@
 
 import { logAudit } from '@/lib/audit/log';
 import { otherContactOf, planMerge } from './merge';
+import { parseProjectTypes, parseStatus, parseTiming } from './cardFields';
+import { setCreatedByLabelIfEmpty } from '@/lib/marketing/surveyRepresentatives';
+import { runClassificationForNeed } from '@/lib/marketing/opportunityEngine';
 import type { ImportAction, ImportPerson } from './types';
 
 // Server side of "Import Excel": writes the groups the user approved. Nothing here ever
@@ -20,6 +23,8 @@ export interface CommitContext {
   userId: string;
   fileLabel: string;
   campaign: { id: string; name: string; source: string } | null;
+  /** New Contacts also get a project need + potential, like survey leads (Needs / Potentials tabs). */
+  createNeeds?: boolean;
 }
 
 export interface CommitResult {
@@ -29,6 +34,7 @@ export interface CommitResult {
   contactsAdded: number;
   /** false when the event link (Shows attended / event filter) could not be saved — migration 125 missing. */
   linked?: boolean;
+  needCreated?: boolean;
   error?: string;
 }
 
@@ -52,6 +58,11 @@ export function sanitizeGroup(raw: any): CommitGroup | null {
     notes: (Array.isArray(p?.notes) ? p.notes : []).slice(0, 80).map((n: unknown) => String(n).slice(0, 8000)).filter(Boolean),
     capturedBy: clip(p?.capturedBy, 120),
     capturedAt: typeof p?.capturedAt === 'string' && !Number.isNaN(Date.parse(p.capturedAt)) ? new Date(p.capturedAt).toISOString() : null,
+    whatsapp: typeof p?.whatsapp === 'boolean' ? p.whatsapp : null,
+    linkedin: clip(p?.linkedin, 300), otherContact: clip(p?.otherContact, 300), company2Phone: clip(p?.company2Phone, 60),
+    mailingAddress: clip(p?.mailingAddress, 300), status: clip(p?.status, 60), xNote: clip(p?.xNote, 2000),
+    sourceInfo: clip(p?.sourceInfo, 500), createdBy: clip(p?.createdBy, 120),
+    needTitle: clip(p?.needTitle, 200), projectType: clip(p?.projectType, 300), timing: clip(p?.timing, 120),
   }));
   return {
     id: String(raw.id ?? '').slice(0, 40), action,
@@ -95,12 +106,37 @@ async function insertNotes(admin: any, ctx: CommitContext, entries: { contactId:
   }
 }
 
-async function insertLocation(admin: any, prospectId: string, p: ImportPerson | undefined) {
-  if (!p || !(p.address || p.city || p.state || p.zip)) return;
-  const { error } = await admin.from('prospect_locations').insert({
-    prospect_id: prospectId, address_line_1: p.address, city: p.city, state: p.state, postal_code: p.zip, is_active: true,
-  });
-  if (error) console.error('[import] location failed:', error.message);
+async function insertLocation(admin: any, prospectId: string, p: ImportPerson | undefined): Promise<string | null> {
+  if (!p || !(p.address || p.city || p.state || p.zip || p.mailingAddress)) return null;
+  const { data, error } = await admin.from('prospect_locations').insert({
+    prospect_id: prospectId, address_line_1: p.address, city: p.city, state: p.state, postal_code: p.zip,
+    mailing_address: p.mailingAddress ?? null, is_active: true,
+  }).select('id').single();
+  if (error) { console.error('[import] location failed:', error.message); return null; }
+  return data.id as string;
+}
+
+// A project need + automatic classification (Potential / Opportunity), the same way a survey lead gets
+// one — so the new Contact has its Needs / Potentials tabs filled. Never fails the Contact itself.
+async function createNeed(admin: any, ctx: CommitContext, prospectId: string, locationId: string | null, g: CommitGroup): Promise<boolean> {
+  try {
+    const first = <T,>(pick: (p: ImportPerson) => T | null | undefined) => g.people.map(pick).find(v => !!v) ?? null;
+    const rawType = first(p => p.projectType);
+    const { data, error } = await admin.from('prospect_needs').insert({
+      prospect_id: prospectId, location_id: locationId,
+      title: first(p => p.needTitle) || first(p => p.address) || `${ctx.campaign?.name ?? 'Import'} — imported lead`,
+      description: rawType ? `Project type (from the file): ${rawType}` : null,
+      project_types: [...new Set(g.people.flatMap(p => parseProjectTypes(p.projectType)))],
+      timing: g.people.map(p => parseTiming(p.timing)).find(Boolean) ?? null,
+      source: ctx.campaign?.source ?? null, created_by: ctx.userId,
+    }).select('id').single();
+    if (error) throw new Error(error.message);
+    await runClassificationForNeed(admin, data.id as string, ctx.userId);
+    return true;
+  } catch (e) {
+    console.error('[import] need/potential not created:', e instanceof Error ? e.message : e);
+    return false;
+  }
 }
 
 export async function createGroup(admin: any, ctx: CommitContext, g: CommitGroup): Promise<CommitResult> {
@@ -116,7 +152,8 @@ export async function createGroup(admin: any, ctx: CommitContext, g: CommitGroup
     person_name: companyName ? null : personName,
     main_email: withInfo(p => p.email), main_phone: withInfo(p => p.phone), website: withInfo(p => p.website),
     business_types: [...new Set(g.people.flatMap(p => p.businessTypes))],
-    status: 'captured',
+    status: g.people.map(p => parseStatus(p.status)).find(Boolean) ?? 'captured',
+    x_note: withInfo(p => p.xNote), source_detail: withInfo(p => p.sourceInfo),
     // The card's "Created" date: when the lead was really captured (earliest of the people), not the upload day.
     external_created_at: g.people.map(p => p.capturedAt).filter((d): d is string => !!d).sort()[0] ?? null,
     source_label: ctx.campaign?.source ?? null, source_raw_label: ctx.campaign?.name ?? null,
@@ -131,33 +168,39 @@ export async function createGroup(admin: any, ctx: CommitContext, g: CommitGroup
     const { data: c, error: cErr } = await admin.from('prospect_contacts').insert({
       prospect_id: prospect.id, name: contactName(person, companyName), title: person.title,
       email: person.email, phone: person.phone, other_contact: otherContactOf(person), is_primary: i === 0, created_by: ctx.userId,
+      whatsapp: person.whatsapp === true, linkedin_url: person.linkedin ?? null, company2_phone: person.company2Phone ?? null,
     }).select('id').single();
     if (cErr) { console.error('[import] contact failed:', cErr.message); continue; }
     created.push({ contactId: c.id as string, person });
   }
   await insertNotes(admin, ctx, created);
-  await insertLocation(admin, prospect.id, g.people.find(p => p.address || p.city || p.state || p.zip));
+  const locationId = await insertLocation(admin, prospect.id, g.people.find(p => p.address || p.city || p.state || p.zip || p.mailingAddress));
+  const needCreated = ctx.createNeeds ? await createNeed(admin, ctx, prospect.id, locationId, g) : false;
+  // An explicit Status column wins over what the automatic classification just decided.
+  const explicitStatus = g.people.map(p => parseStatus(p.status)).find(Boolean);
+  if (explicitStatus) await admin.from('prospects').update({ status: explicitStatus }).eq('id', prospect.id);
+  await setCreatedByLabelIfEmpty(admin, prospect.id, g.people.map(p => p.createdBy).find(Boolean) ?? undefined);
   const linked = await addInteraction(admin, ctx, prospect.id);
   await logAudit({ actorId: ctx.userId, action: 'prospect.created_via_import', resource: `prospect:${prospect.id}`, newValue: { file: ctx.fileLabel, contacts: created.length } });
-  return { id: g.id, action: 'create', prospectId: prospect.id as string, contactsAdded: created.length, linked };
+  return { id: g.id, action: 'create', prospectId: prospect.id as string, contactsAdded: created.length, linked, needCreated };
 }
 
 export async function mergeGroup(admin: any, ctx: CommitContext, g: CommitGroup): Promise<CommitResult> {
   if (!g.targetProspectId) throw new Error('No Contact selected to merge into');
   const { data: target } = await admin.from('prospects')
-    .select('id, organization_name, main_email, main_phone, website, business_types')
+    .select('id, organization_name, main_email, main_phone, website, business_types, x_note, source_detail')
     .eq('id', g.targetProspectId).is('deleted_at', null).maybeSingle();
   if (!target) throw new Error('The Contact to merge into no longer exists');
 
   const { data: existing } = await admin.from('prospect_contacts')
-    .select('id, name, title, email, phone, other_contact, is_primary').eq('prospect_id', target.id).limit(300);
-  const contacts = ((existing ?? []) as { id: string; name: string; title: string | null; email: string | null; phone: string | null; other_contact: string | null }[])
-    .map(c => ({ id: c.id, name: c.name, title: c.title, email: c.email, phone: c.phone, otherContact: c.other_contact }));
+    .select('id, name, title, email, phone, other_contact, whatsapp, linkedin_url, company2_phone, is_primary').eq('prospect_id', target.id).limit(300);
+  const contacts = ((existing ?? []) as { id: string; name: string; title: string | null; email: string | null; phone: string | null; other_contact: string | null; whatsapp: boolean | null; linkedin_url: string | null; company2_phone: string | null }[])
+    .map(c => ({ id: c.id, name: c.name, title: c.title, email: c.email, phone: c.phone, otherContact: c.other_contact, whatsapp: !!c.whatsapp, linkedin: c.linkedin_url, company2Phone: c.company2_phone }));
 
   // The same plan the user saw before confirming (lib/marketing/import/merge.ts).
   const plan = planMerge({
     organizationName: target.organization_name, email: target.main_email, phone: target.main_phone,
-    website: target.website, businessTypes: target.business_types ?? [],
+    website: target.website, businessTypes: target.business_types ?? [], xNote: target.x_note, sourceDetail: target.source_detail,
   }, contacts, g);
 
   // A different street address in the file never replaces the stored location: note it instead.
@@ -167,7 +210,7 @@ export async function mergeGroup(admin: any, ctx: CommitContext, g: CommitGroup)
     const stored = (locs[0].address_line_1 ?? '').trim().toLowerCase();
     if (fileAddress && stored && stored !== fileAddress.trim().toLowerCase()) plan.differences.push(`Address: ${fileAddress}`);
   } else {
-    await insertLocation(admin, target.id, g.people.find(p => p.address || p.city || p.state || p.zip));
+    await insertLocation(admin, target.id, g.people.find(p => p.address || p.city || p.state || p.zip || p.mailingAddress));
   }
 
   const patch: Record<string, unknown> = { ...plan.prospectPatch };
@@ -187,6 +230,7 @@ export async function mergeGroup(admin: any, ctx: CommitContext, g: CommitGroup)
       const { data: c, error } = await admin.from('prospect_contacts').insert({
         prospect_id: target.id, name: contactName(item.person, g.company), title: item.person.title,
         email: item.person.email, phone: item.person.phone, other_contact: otherContactOf(item.person),
+        whatsapp: item.person.whatsapp === true, linkedin_url: item.person.linkedin ?? null, company2_phone: item.person.company2Phone ?? null,
         is_primary: contacts.length === 0 && added === 0, created_by: ctx.userId,
       }).select('id').single();
       if (error) { console.error('[import] contact failed:', error.message); continue; }

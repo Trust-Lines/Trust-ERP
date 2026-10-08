@@ -6,6 +6,7 @@ import { buildGroups } from '@/lib/marketing/import/group';
 import { buildIndex, matchGroup } from '@/lib/marketing/import/match';
 import { sanitizeGroup } from '@/lib/marketing/import/commit';
 import { planMerge } from '@/lib/marketing/import/merge';
+import { parseProjectTypes, parseStatus, parseTiming, parseYesNo } from '@/lib/marketing/import/cardFields';
 import type { ImportGroup, ImportPerson } from '@/lib/marketing/import/types';
 
 const person = (over: Partial<ImportPerson>): ImportPerson => ({
@@ -76,7 +77,7 @@ describe('column detection', () => {
     expect(field('Primary Contact')).toBe('full_name');
     expect(field('Person')).toBe('full_name');
     expect(field('Type')).toBe('ignore');
-    expect(field('WhatsApp')).toBe('ignore');
+    expect(field('WhatsApp')).toBe('whatsapp'); // a Yes/No tick for the card, no longer ignored
   });
 });
 
@@ -245,5 +246,51 @@ describe('merge plan — the existing Contact always wins', () => {
     expect(plan.people[0].fill.other_contact).toBe('a2@kentoil.com · 432-111-2222');
     const again = planMerge(target, [{ ...adam, otherContact: 'someone else' }], { company: 'Kent oil', people: [person({ name: 'Adam Sturdivant', phone2: '432-111-2222' })] });
     expect(again.people[0].differences[0]).toMatch(/Alternate contact/);
+  });
+});
+
+describe('the whole card, not just the person', () => {
+  it('reads WhatsApp ticks, Status, project type and timing', () => {
+    expect([parseYesNo('Yes'), parseYesNo('no'), parseYesNo(''), parseYesNo('maybe')]).toEqual([true, false, null, null]);
+    expect(parseStatus('Potential')).toBe('potential');
+    expect(parseStatus('Lead')).toBe('captured');
+    expect(parseStatus('Qualified for sales')).toBe('qualified_for_sales');
+    expect(parseStatus('whatever')).toBeNull();
+    expect(parseProjectTypes('Full remodel of 3 stores')).toEqual(['full_remodel']);
+    expect(parseProjectTypes('Remodeling opportunities')).toEqual(['small_remodel']);
+    expect(parseProjectTypes('new store coming up')).toEqual(['new_construction']);
+    expect(parseTiming('ASAP')).toBe('immediate');
+    expect(parseTiming('3-6 Months')).toBe('3_6_months');
+  });
+
+  it('maps WhatsApp / Status / X-note / LinkedIn columns and builds the card fields', () => {
+    const rows = [
+      ['Name', 'Organization', 'Primary Contact', 'Email', 'Status', 'WhatsApp', 'X-Note', 'LinkedIn', 'Project Type'],
+      ['Acme', 'Acme', 'Jane Doe', 'jane@acme.com', 'potential', 'Yes', 'No store', 'linkedin.com/in/jane', 'Remodeling'],
+    ];
+    const maps = autoMapColumns(rows[0], rows.slice(1));
+    const field = (h: string) => maps.find(m => m.header === h)?.field;
+    expect(field('Status')).toBe('status');
+    expect(field('WhatsApp')).toBe('whatsapp');
+    expect(field('X-Note')).toBe('x_note');
+    expect(field('LinkedIn')).toBe('linkedin');
+    expect(field('Project Type')).toBe('project_type');
+    const { people } = buildPeople(rows, 0, maps, 'f');
+    expect(people[0]).toMatchObject({ status: 'potential', whatsapp: true, xNote: 'No store', linkedin: 'linkedin.com/in/jane', projectType: 'Remodeling' });
+  });
+
+  it('a WhatsApp column that holds phone numbers is treated as a phone, not a tick', () => {
+    const rows = [['Name', 'WhatsApp'], ['Ann', '555-123-4567'], ['Bob', '555-222-3333'], ['Cy', '555-444-5555']];
+    expect(autoMapColumns(rows[0], rows.slice(1)).find(m => m.header === 'WhatsApp')?.field).toBe('phone2');
+  });
+
+  it('merge adds a WhatsApp Yes and fills X-note but never turns an existing tick off', () => {
+    const target = { organizationName: 'Acme', email: null, phone: null, website: null, businessTypes: [], xNote: null, sourceDetail: null };
+    const jane = { id: 'c1', name: 'Jane Doe', title: null, email: 'jane@acme.com', phone: null, whatsapp: false };
+    const plan = planMerge(target, [jane], { company: 'Acme', people: [person({ name: 'Jane Doe', email: 'jane@acme.com', whatsapp: true, xNote: 'No store', linkedin: 'li/jane' })] });
+    expect(plan.people[0].fill).toMatchObject({ whatsapp: true, linkedin_url: 'li/jane' });
+    expect(plan.prospectPatch.x_note).toBe('No store');
+    const no = planMerge(target, [{ ...jane, whatsapp: true }], { company: 'Acme', people: [person({ name: 'Jane Doe', email: 'jane@acme.com', whatsapp: false })] });
+    expect(no.people[0].fill.whatsapp).toBeUndefined();
   });
 });
