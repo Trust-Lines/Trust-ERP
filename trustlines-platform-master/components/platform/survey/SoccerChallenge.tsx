@@ -5,6 +5,7 @@ import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { FootballPhoneScene } from "./FootballPhoneScene";
 import { MiniFootball3D } from "./MiniFootball3D";
+import { SURVEY_REPRESENTATIVES } from "@/lib/marketing/surveyRepresentatives";
 
 type SurveyData = Record<string, string>;
 
@@ -13,6 +14,7 @@ const POSITIONS = ["Owner", "Manager", "Partner", "Employee", "Other"];
 const CONTACT_METHODS =["Phone Call", "WhatsApp Text Message", "Email"];
 const teams = ["Convenience Stores", "Grocery Stores", "Truck Stop", "Other"];
 const initialData: SurveyData = {
+  representative: "",
   fullName: "",
   position: "",
   phone: "",
@@ -28,9 +30,10 @@ const initialData: SurveyData = {
   companyWebsite2: ""
 };
 
-// Required: the person's name, a valid email and the store address (location). Everything else
+// Required: which T-Lines representative is entering the survey (becomes the profile's "Created by"),
+// the person's name, a valid email and the store address (location). Everything else
 // (and the team pick) can be skipped.
-const requiredByStep = [[], ["fullName", "email"], ["companyAddress"], []];
+const requiredByStep = [[], ["representative", "fullName", "email"], ["companyAddress"], []];
 const REQUIRED_FIELDS = new Set(requiredByStep.flat());
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
 
@@ -127,6 +130,7 @@ async function uploadAttachment(
 function buildSubmissionPayload(team: string, data: SurveyData, submissionToken: string, consentTextVersion: string, companions: Companion[]) {
   const [firstName, ...rest] = (data.fullName || "").trim().split(/\s+/);
   const notesLines = [
+    data.representative ? `Entered by: ${data.representative}` : null,
     team ? `Team: ${team}` : null,
     data.contactPreference ? `Preferred contact: ${data.contactPreference.split("|").join(", ")}` : null,
     data.storeStatus ? `Store status: ${data.storeStatus}` : null,
@@ -152,6 +156,7 @@ function buildSubmissionPayload(team: string, data: SurveyData, submissionToken:
     city: data.companyAddress || undefined,
     storeAddress: data.companyAddress || undefined,
     team: team || undefined,
+    representative: data.representative || undefined,
     projectTypes: PROJECT_TYPE_MAP[data.storeNeed] ?? [],
     timing: TIMING_MAP[data.projectTimeline] ?? undefined,
     notes: notesLines.join("\n") || undefined,
@@ -462,7 +467,17 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
   const score = completedFields * 5;
   const level = completedFields > 11 ? "Champion" : completedFields > 8 ? "Star player" : completedFields > 4 ? "First team" : team ? "Kickoff" : "Warm-up";
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("nacs.representative");
+      if (saved && (SURVEY_REPRESENTATIVES as readonly string[]).includes(saved)) setData((c) => ({ ...c, representative: saved }));
+    } catch { /* storage unavailable — the dropdown still works */ }
+  }, []);
+
   function update(name: string, value: string) {
+    if (name === "representative") {
+      try { localStorage.setItem("nacs.representative", value); } catch { /* ignore */ }
+    }
     setData((current) => ({ ...current, [name]: value }));
     setErrors((current) => current.filter((item) => item !== name));
   }
@@ -499,7 +514,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
     setStep(0);
     setTeam("");
     setShowTeamPopup(false);
-    setData(initialData);
+    setData({ ...initialData, representative: data.representative }); // same person keeps entering the next one
     setErrors([]);
     setConsentAccepted(false);
     setSubmitError(null);
@@ -724,6 +739,10 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
                 <h1 className="step-heading">Meet the player</h1>
                 <p className="intro">Tell us how our team can connect with you following NACS 2026.</p>
                 <div className="field-grid">
+                  <Field label="Representative — who is entering this?" name="representative" value={data.representative} update={update} wide>
+                    <option value="">Select your name</option>
+                    {SURVEY_REPRESENTATIVES.map((r) => <option key={r}>{r}</option>)}
+                  </Field>
                   <Field label="Full name" name="fullName" value={data.fullName} update={update} placeholder="e.g. Alex Morgan" />
                   <Field label="Position" name="position" value={data.position} update={update}>
                     <option value="">Select position</option>

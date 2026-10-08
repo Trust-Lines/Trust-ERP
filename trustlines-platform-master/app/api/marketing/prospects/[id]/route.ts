@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchCreatedByLabel } from '@/lib/marketing/surveyRepresentatives';
 import { requireRole } from '@/lib/permissions/requireApi';
 import { logAudit } from '@/lib/audit/log';
 import { MARKETING_READ_ROLES, MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
@@ -73,8 +74,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const uploaderNameById = Object.fromEntries(((uploaders ?? []) as { id: string; full_name: string }[]).map(u => [u.id, u.full_name]));
   const filesWithNames = ((files ?? []) as { uploaded_by: string | null }[]).map(f => ({ ...f, uploaded_by_name: f.uploaded_by ? (uploaderNameById[f.uploaded_by] ?? null) : null }));
 
+  const createdByLabel = await fetchCreatedByLabel(admin, id); // tolerant of migration 124 not being applied yet
+
   return NextResponse.json({
-    prospect, contacts: contacts ?? [], locations: locations ?? [],
+    prospect: { ...prospect, created_by_label: createdByLabel }, contacts: contacts ?? [], locations: locations ?? [],
     needs: needs ?? [], potentials: potentials ?? [], opportunities: opportunities ?? [],
     files: filesWithNames,
     contactNotes: contactNotes ?? [],

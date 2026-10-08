@@ -1,3 +1,4 @@
+import { fetchCreatedByLabel } from '@/lib/marketing/surveyRepresentatives';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { requirePage } from '@/lib/permissions/requirePage';
@@ -23,6 +24,8 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
       + 'source_detail, source_raw_label, x_note, external_created_at')
     .eq('id', id).is('deleted_at', null).maybeSingle();
   if (error || !prospect) notFound();
+  // Separate, error-tolerant read: the column only exists once migration 124 is applied.
+  const createdByLabel = await fetchCreatedByLabel(sb, id);
 
   const [{ data: contacts }, { data: locations }, { data: needs }, { data: potentials }, { data: opportunities }] = await Promise.all([
     sb.from('prospect_contacts')
@@ -72,7 +75,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
   return (
     <div className="main-inner">
       <ProspectDetailClient
-        initialProspect={prospect}
+        initialProspect={{ ...prospect, created_by_label: createdByLabel }}
         initialContacts={contacts ?? []}
         initialLocations={locations ?? []}
         initialNeeds={needs ?? []}

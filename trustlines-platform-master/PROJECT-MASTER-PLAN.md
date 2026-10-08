@@ -2152,6 +2152,14 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-10-08 (NACS 26 survey — Representative dropdown → "Created by") — migration 124 (NOT yet applied)
+- Survey step 2 ("Meet the player"): required Representative dropdown (Layal, Justin, T, Naim, Merve, Hashem; remembered per device).
+  Saved on `prospects.created_by_label` (new, migration 124) and shown as "Created by" on the Prospect profile. Never overwrites an
+  existing label. Code is safe before the migration is applied (writes/reads swallow the missing-column error; the name is also
+  kept in the Need notes as "Entered by:" and in the submission snapshot).
+- Files: supabase/migrations/124_prospect_created_by_label.sql, lib/marketing/surveyRepresentatives.ts, campaignSubmission.ts,
+  SoccerChallenge.tsx, ProspectDetailClient.tsx, prospects/[id] page + API route, tests/campaignSubmission.test.ts.
+
 2026-10-02 (NACS 26 survey — companion contact + photo/file attachments) — NO new migration
 - Soccer Challenge survey step "Meet the player": optional "Is someone with you?" → each person is saved as an
   extra non-primary `prospect_contacts` row; an Activity note (`prospect_contact_notes`, author "Survey") is

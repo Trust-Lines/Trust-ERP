@@ -5,6 +5,7 @@ import { normalizeEmail, normalizePhone } from './duplicates';
 import { runClassificationForNeed, type NeedSyncResult } from './opportunityEngine';
 import { PROJECT_TYPES, TIMINGS } from './classification';
 import { logAudit } from '@/lib/audit/log';
+import { normalizeRepresentative, setCreatedByLabelIfEmpty } from './surveyRepresentatives';
 import { notifyUsers, usersWithRoles } from '@/lib/events/notify';
 import type { LeadEntityType, MarketingCampaign, SurveySubmissionStatus } from '@/types/database';
 
@@ -51,6 +52,8 @@ export interface PublicSurveyDTO {
   xNote?: string;
   team?: string;
   companions?: SurveyCompanion[];
+  /** Booth staff member entering the survey — becomes the profile's "Created by". */
+  representative?: string;
 }
 
 function parseCompanions(v: unknown): SurveyCompanion[] | undefined {
@@ -84,6 +87,7 @@ export function parsePublicSurveyBody(raw: unknown): PublicSurveyDTO {
     honeypot: str('honeypot'), storeAddress: str('storeAddress'), team: str('team'),
     xNote: str('xNote')?.trim().slice(0, 2000) || undefined,
     companions: parseCompanions(b.companions),
+    representative: normalizeRepresentative(b.representative),
   };
 }
 
@@ -451,6 +455,7 @@ export async function processSurveySubmission(admin: any, campaign: MarketingCam
       locationId = created.locationId;
       isNewProspect = true;
     }
+    await setCreatedByLabelIfEmpty(admin, prospectId, dto.representative);
 
     await addCompanionContacts(admin, prospectId, dto, campaign);
     const needId = await createNeedFromSubmission(admin, prospectId, locationId, dto, campaign);

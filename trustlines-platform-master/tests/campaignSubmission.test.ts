@@ -359,3 +359,41 @@ describe('processSurveySubmission — person Prospect (no brand name)', () => {
     expect(db.prospect_contacts[0].is_primary).toBe(true);
   });
 });
+
+describe('processSurveySubmission — representative → Created by', () => {
+  it('stores the canonical representative name on a new Prospect, ignoring unknown names', async () => {
+    const a = makeFakeAdmin();
+    await processSurveySubmission(a.admin, baseCampaign, { ...validBody, representative: 'merve' });
+    expect(a.db.prospects[0].created_by_label).toBe('Merve');
+
+    const b = makeFakeAdmin();
+    await processSurveySubmission(b.admin, baseCampaign, { ...validBody, representative: 'Somebody Else' });
+    expect(b.db.prospects[0].created_by_label).toBeUndefined();
+  });
+
+  it('never overwrites an existing "Created by"', async () => {
+    const { admin, db } = makeFakeAdmin({
+      prospects: [{ id: 'p-existing', entity_type: 'organization', organization_name: 'ZZTEST Acme Retail', main_email: 'jane@zztest-acme.example', main_phone: null, created_by_label: 'Layal', deleted_at: null }],
+    });
+    await processSurveySubmission(admin, baseCampaign, { ...validBody, representative: 'Hashem' });
+    expect(db.prospects[0].created_by_label).toBe('Layal');
+  });
+
+  it('still saves the submission when the column does not exist yet (migration 124 not applied)', async () => {
+    const { admin, db } = makeFakeAdmin();
+    const realFrom = admin.from;
+    admin.from = (table: string) => {
+      const b = realFrom(table);
+      if (table !== 'prospects') return b;
+      const origUpdate = b.update;
+      b.update = (patch: Record<string, unknown>) => {
+        if ('created_by_label' in patch) return { eq: () => ({ is: async () => ({ error: { message: 'column "created_by_label" does not exist' } }) }) };
+        return origUpdate(patch);
+      };
+      return b;
+    };
+    const outcome = await processSurveySubmission(admin, baseCampaign, { ...validBody, representative: 'Naim' });
+    expect(outcome.status).toBe('processed');
+    expect(db.prospects).toHaveLength(1);
+  });
+});

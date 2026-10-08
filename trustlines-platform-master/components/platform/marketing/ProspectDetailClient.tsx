@@ -30,7 +30,7 @@ interface Prospect {
   source_label: string | null;
   business_types?: string[]; region?: string | null;
   tags?: { name: string; color: string }[];
-  source_detail?: string | null; source_raw_label?: string | null; x_note?: string | null;
+  source_detail?: string | null; source_raw_label?: string | null; x_note?: string | null; created_by_label?: string | null;
   external_created_at?: string | null;
   is_archived: boolean; created_at: string; updated_at: string;
 }
@@ -195,7 +195,7 @@ export function ProspectDetailClient({
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) { toast.error(json.error ?? 'Failed to update'); return; }
-    setProspect(json.prospect);
+    setProspect(prev => ({ ...json.prospect, created_by_label: json.prospect.created_by_label ?? prev.created_by_label })); // PATCH does not return the label
   }
 
   async function trashProspect() {
@@ -529,6 +529,7 @@ export function ProspectDetailClient({
                   <Field label="12 - Mailing address" value={primaryLocation?.mailing_address || null} />
                   <Field label="13 - Source" value={prospect.source_raw_label || (prospect.source_label ? (SOURCE_LABEL[prospect.source_label as keyof typeof SOURCE_LABEL] ?? prospect.source_label) : null)} />
                   <Field label="14 - Source info" value={prospect.source_detail ?? null} />
+                  <Field label="Created by" value={prospect.created_by_label ?? null} />
                   <Field label="Company 2 Phone Number" value={primaryContact?.company2_phone ?? null} />
                   <Field label="WhatsApp" value={primaryContact?.whatsapp ? 'Yes' : 'No'} />
                   <Field label="x-Note" value={prospect.x_note ?? null} />
