@@ -122,17 +122,23 @@ export async function GET(req: NextRequest) {
       // prospect: "[date] Author: body" lines, oldest first, so it reads like the popup's
       // timeline rather than a jumbled bag.
       const activitiesByProspect = new Map<string, string>();
+      // Photos attached to the Contact's Activity (paths in Dropbox) — Export to Excel puts the pictures in the sheet.
+      const photosByProspect = new Map<string, string[]>();
       if (ids.length > 0) {
         const contactRows = await fetchInChunks(ids, chunk => admin.from('prospect_contacts').select('id, prospect_id').in('prospect_id', chunk));
         const prospectByContact = new Map((contactRows as { id: string; prospect_id: string }[]).map(c => [c.id, c.prospect_id]));
         const contactIds = [...prospectByContact.keys()];
         if (contactIds.length > 0) {
           const noteRows = await fetchInChunks(contactIds, chunk => admin.from('prospect_contact_notes')
-            .select('prospect_contact_id, author_name, body, source_created_at, created_at')
+            .select('prospect_contact_id, author_name, body, image_path, source_created_at, created_at')
             .in('prospect_contact_id', chunk).order('source_created_at', { ascending: true, nullsFirst: false }).order('created_at', { ascending: true }));
-          for (const n of noteRows as { prospect_contact_id: string; author_name: string | null; body: string; source_created_at: string | null; created_at: string }[]) {
+          for (const n of noteRows as { prospect_contact_id: string; author_name: string | null; body: string; image_path: string | null; source_created_at: string | null; created_at: string }[]) {
             const prospectId = prospectByContact.get(n.prospect_contact_id);
             if (!prospectId) continue;
+            if (n.image_path) {
+              const list = photosByProspect.get(prospectId) ?? [];
+              if (!list.includes(n.image_path) && list.length < 6) photosByProspect.set(prospectId, [...list, n.image_path]);
+            }
             const date = (n.source_created_at ?? n.created_at).slice(0, 10);
             const line = `[${date}] ${n.author_name ?? 'Unknown'}: ${n.body}`;
             activitiesByProspect.set(prospectId, activitiesByProspect.has(prospectId) ? `${activitiesByProspect.get(prospectId)}\n${line}` : line);
@@ -145,6 +151,7 @@ export async function GET(req: NextRequest) {
           ...r,
           project_code: projectByProspect.get(r.id)?.code ?? null, project_name: projectByProspect.get(r.id)?.name ?? null,
           activities: activitiesByProspect.get(r.id) ?? '',
+          photos: photosByProspect.get(r.id) ?? [],
         })),
         total: enriched.length,
       });

@@ -10,6 +10,9 @@ import { regionLabel } from '@/lib/regions';
 // included, if the Contact has one.
 
 export interface ContactExportRow {
+  id?: string;
+  /** Dropbox paths of the pictures on the Contact's Activity (the API caps these per Contact). */
+  photos?: string[];
   display_name: string;
   entity_type?: string | null;
   organization_name?: string | null;
@@ -97,13 +100,35 @@ const BORDER_THIN: Partial<ExcelJS.Border> = { style: 'thin', color: { argb: 'D1
 const BORDERS_ALL: Partial<ExcelJS.Borders> = { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN };
 function fillBg(argb: string): ExcelJS.Fill { return { type: 'pattern', pattern: 'solid', fgColor: { argb } }; }
 
-export async function exportContactsWorkbook(rows: ContactExportRow[], filename?: string): Promise<void> {
+// ── Pictures ──────────────────────────────────────────────────────────────────────────────
+// A picture cannot live INSIDE a text cell in Excel, so each Contact's Activity photos go into "Photo 1…N"
+// cells right after the Activities text, and the row grows to fit them — text and pictures side by side.
+export interface ExportPhoto { base64: string; width: number; height: number }
+export const photoKey = (prospectId: string, path: string) => `${prospectId}|${path}`;
+
+const PHOTO_BOX = { width: 168, height: 126 }; // px, on screen in Excel
+const PX_TO_PT = 0.75;
+const MAX_ROW_PT = 400; // Excel's limit is 409
+
+const fit = (w: number, h: number) => {
+  const k = Math.min(PHOTO_BOX.width / w, PHOTO_BOX.height / h, 1);
+  return { width: Math.max(1, Math.round(w * k)), height: Math.max(1, Math.round(h * k)) };
+};
+
+/** The workbook, with whatever pictures are in `photos` (key: photoKey(id, path)). Pure — no network, no download. */
+export function buildContactsWorkbook(rows: ContactExportRow[], photos: Map<string, ExportPhoto> = new Map()): ExcelJS.Workbook {
+  const available = (r: ContactExportRow) => (r.photos ?? []).filter(p => r.id && photos.has(photoKey(r.id, p)));
+  const photoColumns = rows.reduce((n, r) => Math.max(n, available(r).length), 0);
+
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Trust-Lines Contact Manager';
   wb.created = new Date();
   const ws = wb.addWorksheet('Contacts', { views: [{ state: 'frozen', ySplit: 1 }] });
 
-  ws.columns = COLUMNS.map(c => ({ header: c.header, width: c.width }));
+  ws.columns = [
+    ...COLUMNS.map(c => ({ header: c.header, width: c.width })),
+    ...Array.from({ length: photoColumns }, (_, i) => ({ header: `Photo ${i + 1}`, width: 25 })),
+  ];
 
   const headerRow = ws.getRow(1);
   headerRow.eachCell(cell => {
@@ -120,20 +145,78 @@ export async function exportContactsWorkbook(rows: ContactExportRow[], filename?
       const isActivities = colNumber === ACTIVITIES_COL;
       cell.font = { size: 10 };
       cell.border = BORDERS_ALL;
-      cell.alignment = { vertical: 'middle', wrapText: isActivities };
+      cell.alignment = { vertical: isActivities ? 'top' : 'middle', wrapText: isActivities };
     });
     if (i % 2 === 1) row.eachCell(cell => { cell.fill = fillBg('F9FAFB'); });
+
     // Activities can be several lines — give the row enough height to actually show them
     // instead of clipping to the default single line (Excel doesn't auto-size row height for
     // wrapped text on its own when the file is opened).
     const lineCount = (r.activities ?? '').split('\n').filter(Boolean).length;
-    if (lineCount > 1) row.height = Math.min(15 * lineCount, 300);
+    let height = lineCount > 1 ? Math.min(15 * lineCount, 300) : 0;
+
+    // Pictures: one per Photo cell, the row at least as tall as the tallest one.
+    let tallest = 0;
+    available(r).forEach((path, k) => {
+      const photo = photos.get(photoKey(r.id as string, path))!;
+      const size = fit(photo.width, photo.height);
+      const imageId = wb.addImage({ base64: photo.base64, extension: 'jpeg' });
+      ws.addImage(imageId, { tl: { col: COLUMNS.length + k + 0.05, row: row.number - 1 + 0.05 }, ext: size, editAs: 'oneCell' });
+      tallest = Math.max(tallest, size.height);
+    });
+    if (tallest) height = Math.max(height, Math.round(tallest * PX_TO_PT) + 8);
+    if (height) row.height = Math.min(height, MAX_ROW_PT);
   });
 
-  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: COLUMNS.length } };
+  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: COLUMNS.length + photoColumns } };
+  return wb;
+}
+
+const PHOTO_BATCH = 20;
+const PHOTO_LIMIT = 400; // total pictures per export — keeps the file and the wait reasonable
+
+async function measure(base64: string): Promise<{ width: number; height: number }> {
+  try {
+    const blob = await (await fetch(`data:image/jpeg;base64,${base64}`)).blob();
+    const bitmap = await createImageBitmap(blob);
+    return { width: bitmap.width, height: bitmap.height };
+  } catch {
+    return { width: 480, height: 320 }; // Dropbox's thumbnail box
+  }
+}
+
+/** Downloads small previews of the Contacts' pictures (in batches). Never throws: a failure just means fewer pictures. */
+async function loadPhotos(rows: ContactExportRow[], onProgress?: (message: string) => void): Promise<Map<string, ExportPhoto>> {
+  const wanted: { prospectId: string; path: string }[] = [];
+  for (const r of rows) for (const path of r.photos ?? []) if (r.id) wanted.push({ prospectId: r.id, path });
+  const photos = new Map<string, ExportPhoto>();
+  const items = wanted.slice(0, PHOTO_LIMIT);
+  for (let i = 0; i < items.length; i += PHOTO_BATCH) {
+    onProgress?.(`Getting photos ${Math.min(i + PHOTO_BATCH, items.length)} / ${items.length}…`);
+    try {
+      const res = await fetch('/api/marketing/prospects/photos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: items.slice(i, i + PHOTO_BATCH) }) });
+      if (!res.ok) continue;
+      const body = await res.json() as { photos?: Record<string, string | null> };
+      for (const it of items.slice(i, i + PHOTO_BATCH)) {
+        const base64 = body.photos?.[it.path];
+        if (base64) photos.set(photoKey(it.prospectId, it.path), { base64, ...(await measure(base64)) });
+      }
+    } catch { /* keep going — the Excel still gets the text */ }
+  }
+  return photos;
+}
+
+export async function exportContactsWorkbook(
+  rows: ContactExportRow[], filename?: string, opts: { onProgress?: (message: string) => void } = {},
+): Promise<{ photos: number; photosWanted: number }> {
+  const photosWanted = rows.reduce((n, r) => n + (r.photos?.length ?? 0), 0);
+  const photos = photosWanted ? await loadPhotos(rows, opts.onProgress) : new Map<string, ExportPhoto>();
+  opts.onProgress?.('Building the Excel file…');
+  const wb = buildContactsWorkbook(rows, photos);
 
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const dateStr = new Date().toISOString().slice(0, 10);
   saveAs(blob, filename || `Contacts_${dateStr}.xlsx`);
+  return { photos: photos.size, photosWanted };
 }

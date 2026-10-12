@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { AlertTriangle, ArrowLeft, Check, FileSpreadsheet, Loader2, Upload, X } from 'lucide-react';
 import { readSpreadsheet, type SheetData } from '@/lib/client/readSpreadsheet';
+import { compressImage, MAX_UPLOAD_BYTES } from '@/lib/client/compressImage';
+import type { SheetImage } from '@/lib/marketing/import/images';
+import { importPhotoName } from '@/lib/marketing/import/photos';
 import { autoMapColumns, detectHeaderRow } from '@/lib/marketing/import/columns';
 import { buildPeople } from '@/lib/marketing/import/records';
 import { buildGroups } from '@/lib/marketing/import/group';
@@ -17,7 +20,7 @@ import {
 interface LoadedFile { id: string; name: string; sheets: SheetData[]; sheet: number; headerRow: number; mappings: ColumnMapping[] }
 interface Campaign { id: string; name: string; status: string }
 interface Decision { action: ImportAction | null; target: string | null }
-interface Outcome { created: number; merged: number; skipped: number; contacts: number; needs: number; unlinked: number; failed: { label: string; error: string }[] }
+interface Outcome { created: number; merged: number; skipped: number; contacts: number; needs: number; photos: number; photosFailed: number; unlinked: number; failed: { label: string; error: string }[] }
 
 const BATCH = 25;
 const PAGE = 40;
@@ -51,12 +54,29 @@ function bestSheet(sheets: SheetData[]): number {
   return best;
 }
 
-function PersonLine({ p }: { p: ImportPerson }) {
+// A short fingerprint of the picture's bytes, so the same picture imported twice gets the same name.
+async function sha1Hex(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-1', bytes as BufferSource);
+  return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+const mimeOf = (ext: string) => `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+
+function PersonLine({ p, thumbs = [] }: { p: ImportPerson; thumbs?: string[] }) {
   return (
     <div style={{ fontSize: 13, lineHeight: 1.45 }}>
       <strong>{p.name ?? '(no name)'}</strong>{p.title ? <span style={muted}> · {p.title}</span> : null}
       <div style={muted}>{[p.email, p.phone].filter(Boolean).join(' · ') || 'no email / phone'}</div>
       {(p.whatsapp || p.status) && <div style={muted}>{[p.whatsapp ? 'WhatsApp ✓' : null, p.status ? `Status: ${p.status}` : null].filter(Boolean).join(' · ')}</div>}
+      {thumbs.length > 0 && (
+        <div style={{ display: 'flex', gap: 4, marginTop: 4, alignItems: 'center' }} title={`${thumbs.length} picture${thumbs.length === 1 ? '' : 's'} from this row will be added to the Contact`}>
+          {thumbs.slice(0, 4).map((src, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={i} src={src} alt="" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border-subtle)' }} />
+          ))}
+          <span style={muted}>📷 {thumbs.length}{thumbs.length > 4 ? ' (+' + (thumbs.length - 4) + ' more)' : ''}</span>
+        </div>
+      )}
       {p.capturedAt && <div style={muted}>Captured {new Date(p.capturedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>}
     </div>
   );
@@ -91,16 +111,34 @@ export function ContactImportClient() {
   const campaignName = campaigns.find(c => c.id === campaignId)?.name ?? '';
 
   // Everything below is derived: change a mapping and rows/groups recompute.
-  const { groups, rowCount, skipped } = useMemo(() => {
+  const { groups, rowCount, skipped, photoIndex } = useMemo(() => {
     const people: ImportPerson[] = [];
     let skippedEmpty = 0;
+    const index = new Map<string, { image: SheetImage; caption: string }>();
     for (const f of files) {
-      const res = buildPeople(f.sheets[f.sheet].rows, f.headerRow, f.mappings, f.name.replace(/\.[^.]+$/, ''));
+      const sheet = f.sheets[f.sheet];
+      const byRow = new Map<number, string[]>();
+      for (const image of sheet.images) {
+        const id = `${f.id}|${image.id}`;
+        const header = (sheet.rows[f.headerRow]?.[image.col] ?? '').trim();
+        index.set(id, { image, caption: header ? `${header} (${f.name})` : f.name });
+        byRow.set(image.row, [...(byRow.get(image.row) ?? []), id]);
+      }
+      const res = buildPeople(sheet.rows, f.headerRow, f.mappings, f.name.replace(/\.[^.]+$/, ''), byRow);
       people.push(...res.people);
       skippedEmpty += res.skippedEmpty;
     }
-    return { groups: buildGroups(people), rowCount: people.length, skipped: skippedEmpty };
+    return { groups: buildGroups(people), rowCount: people.length, skipped: skippedEmpty, photoIndex: index };
   }, [files]);
+
+  // Small previews of the pictures found in the file (revoked when the files change).
+  const thumbs = useMemo(() => {
+    const map = new Map<string, string>();
+    photoIndex.forEach(({ image }, id) => map.set(id, URL.createObjectURL(new Blob([image.bytes as BlobPart], { type: mimeOf(image.ext) }))));
+    return map;
+  }, [photoIndex]);
+  useEffect(() => () => { thumbs.forEach(url => URL.revokeObjectURL(url)); }, [thumbs]);
+  const [photoNote, setPhotoNote] = useState<string | null>(null);
 
   function resetReview() { setDone({}); setMatches(null); setDecisions({}); setOutcome(null); setShown(PAGE); }
 
@@ -188,7 +226,7 @@ export function ContactImportClient() {
     return true;
   });
 
-  type CommitRow = { id: string; action: ImportAction; prospectId: string | null; contactsAdded: number; linked?: boolean; needCreated?: boolean; error?: string };
+  type CommitRow = { id: string; action: ImportAction; prospectId: string | null; contactsAdded: number; linked?: boolean; needCreated?: boolean; contactIds?: (string | null)[]; error?: string };
 
   async function commitBatch(batch: ImportGroup[]): Promise<CommitRow[]> {
     const res = await fetch('/api/marketing/import/commit', {
@@ -202,6 +240,43 @@ export function ContactImportClient() {
     if (!res.ok) throw new Error(body.error ?? 'Import failed');
     return body.results as CommitRow[];
   }
+
+  const photoCount = (g: ImportGroup) => new Set(g.people.flatMap(p => p.photos ?? [])).size;
+
+  // Sends each picture of the group to its Contact (Dropbox + Files tab + Activity). Never throws.
+  async function uploadPhotosFor(g: ImportGroup, r: CommitRow): Promise<{ ok: number; failed: number; lastError: string }> {
+    const sum = { ok: 0, failed: 0, lastError: '' };
+    if (!r.prospectId || r.error) return sum;
+    for (const [i, person] of g.people.entries()) {
+      for (const id of new Set(person.photos ?? [])) {
+        const entry = photoIndex.get(id);
+        if (!entry) continue;
+        try {
+          let file = new File([entry.image.bytes as BlobPart], `photo.${entry.image.ext}`, { type: mimeOf(entry.image.ext) });
+          if (file.size > MAX_UPLOAD_BYTES) file = await compressImage(file); // a phone photo can be several MB
+          if (file.size > MAX_UPLOAD_BYTES) throw new Error('the picture is too large (max 4 MB)');
+          const form = new FormData();
+          form.append('prospectId', r.prospectId);
+          form.append('contactId', r.contactIds?.[i] ?? '');
+          form.append('campaignId', campaignId);
+          form.append('caption', entry.caption);
+          form.append('name', importPhotoName(await sha1Hex(entry.image.bytes), file.name.split('.').pop() ?? entry.image.ext));
+          form.append('file', file);
+          const res = await fetch('/api/marketing/import/photo', { method: 'POST', body: form });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(body.error ?? 'upload failed');
+          sum.ok++;
+        } catch (e) {
+          sum.failed++;
+          sum.lastError = e instanceof Error ? e.message : String(e);
+        }
+      }
+    }
+    return sum;
+  }
+
+  const photoText = (p: { ok: number; failed: number; lastError: string }) =>
+    [p.ok ? ` · ${p.ok} photo${p.ok === 1 ? '' : 's'} added` : '', p.failed ? ` · ⚠ ${p.failed} photo${p.failed === 1 ? '' : 's'} failed (${p.lastError})` : ''].join('');
 
   function rememberResult(r: CommitRow) {
     const message = r.error ? r.error
@@ -217,6 +292,11 @@ export function ContactImportClient() {
     try {
       const [r] = await commitBatch([g]);
       rememberResult(r);
+      if (!r.error && photoCount(g) > 0) {
+        setDone(prev => ({ ...prev, [g.id]: { ...prev[g.id], message: `${prev[g.id].message} · uploading ${photoCount(g)} photo(s)…` } }));
+        const p = await uploadPhotosFor(g, r);
+        setDone(prev => ({ ...prev, [g.id]: { ...prev[g.id], message: prev[g.id].message.replace(/ · uploading.*$/, '') + photoText(p) } }));
+      }
       if (r.error) toast.error(r.error); else if (r.linked === false) toast.message('Imported, but not linked to the event yet — apply migration 125.');
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Import failed';
@@ -227,7 +307,7 @@ export function ContactImportClient() {
 
   async function runImport() {
     const todo = groups.filter(g => decisions[g.id]?.action && decisions[g.id].action !== 'skip' && done[g.id]?.state !== 'ok');
-    const result: Outcome = { created: 0, merged: 0, skipped: groups.filter(g => decisions[g.id]?.action === 'skip').length, contacts: 0, needs: 0, unlinked: 0, failed: [] };
+    const result: Outcome = { created: 0, merged: 0, skipped: groups.filter(g => decisions[g.id]?.action === 'skip').length, contacts: 0, needs: 0, photos: 0, photosFailed: 0, unlinked: 0, failed: [] };
     setImporting({ done: 0, total: todo.length });
     try {
       for (let i = 0; i < todo.length; i += BATCH) {
@@ -237,6 +317,12 @@ export function ContactImportClient() {
         for (const r of rows) {
           rememberResult(r);
           const g = groups.find(x => x.id === r.id);
+          if (g && !r.error && photoCount(g) > 0) {
+            setPhotoNote(`photos for ${g.company ?? g.people[0]?.name ?? 'row'}`);
+            const p = await uploadPhotosFor(g, r);
+            result.photos += p.ok; result.photosFailed += p.failed;
+            setDone(prev => ({ ...prev, [g.id]: { ...prev[g.id], message: prev[g.id].message + photoText(p) } }));
+          }
           if (!r.error && r.linked === false) result.unlinked++;
           if (!r.error && r.needCreated) result.needs++;
           if (r.error) result.failed.push({ label: g?.company ?? g?.people[0]?.name ?? r.id, error: r.error });
@@ -247,6 +333,7 @@ export function ContactImportClient() {
       }
     } finally {
       setImporting(null);
+      setPhotoNote(null);
       setOutcome(result);
     }
   }
@@ -287,7 +374,7 @@ export function ContactImportClient() {
           <div className="card-body" style={{ padding: 18 }}>
             <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 8 }}><Check size={18} /> Import finished</h2>
             <div style={{ fontSize: 14 }}>
-              <strong>{outcome.created}</strong> new Contacts · <strong>{outcome.merged}</strong> merged into existing · <strong>{outcome.skipped}</strong> skipped · <strong>{outcome.contacts}</strong> people added{outcome.needs > 0 && <> · <strong>{outcome.needs}</strong> project needs / potentials created</>}
+              <strong>{outcome.created}</strong> new Contacts · <strong>{outcome.merged}</strong> merged into existing · <strong>{outcome.skipped}</strong> skipped · <strong>{outcome.contacts}</strong> people added{outcome.needs > 0 && <> · <strong>{outcome.needs}</strong> project needs / potentials created</>}{outcome.photos > 0 && <> · <strong>{outcome.photos}</strong> photos added</>}{outcome.photosFailed > 0 && <span style={{ color: '#b91c1c' }}> · {outcome.photosFailed} photos failed</span>}
             </div>
             {outcome.unlinked > 0 && (
               <div style={{ marginTop: 10, fontSize: 13, color: '#a16207' }}>
@@ -337,6 +424,7 @@ export function ContactImportClient() {
                     <FileSpreadsheet size={16} />
                     <strong style={{ fontSize: 13.5 }}>{f.name}</strong>
                     <span style={muted}>{rows.length - f.headerRow - 1} rows</span>
+                    {f.sheets[f.sheet].images.length > 0 && <span style={{ ...muted, fontWeight: 600 }}>📷 {f.sheets[f.sheet].images.length} pictures found</span>}
                     {f.sheets.length > 1 && (
                       <select className="form-input" style={smallControl} value={f.sheet} onChange={e => changeSheet(f.id, Number(e.target.value))}>
                         {f.sheets.map((s, i) => <option key={s.name} value={i}>Sheet: {s.name} ({s.rows.length})</option>)}
@@ -430,7 +518,7 @@ export function ContactImportClient() {
                 <button className="btn btn-ghost btn-sm" onClick={() => bulk(isPossible, 'create')}>Similar → add as new</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => bulk(isPossible, 'skip')}>Similar → skip</button>
                 <button className="btn btn-primary" style={{ marginLeft: 'auto' }} disabled={counts.undecided > 0 || !campaignId || !!importing} onClick={() => void runImport()}>
-                  {importing ? <><Loader2 size={14} className="spin" /> <span style={{ marginLeft: 6 }}>Importing {importing.done}/{importing.total}…</span></> : `Import ${groups.filter(g => decisions[g.id]?.action && decisions[g.id].action !== 'skip' && done[g.id]?.state !== 'ok').length} Contacts into ${campaignName}`}
+                  {importing ? <><Loader2 size={14} className="spin" /> <span style={{ marginLeft: 6 }}>Importing {importing.done}/{importing.total}…{photoNote ? ` · ${photoNote}` : ''}</span></> : `Import ${groups.filter(g => decisions[g.id]?.action && decisions[g.id].action !== 'skip' && done[g.id]?.state !== 'ok').length} Contacts into ${campaignName}`}
                 </button>
               </div>
             </div>
@@ -449,7 +537,7 @@ export function ContactImportClient() {
                     <div>
                       <div style={{ ...muted, textTransform: 'uppercase', letterSpacing: 0.4, fontSize: 11, marginBottom: 4 }}>From your file</div>
                       <div style={{ fontWeight: 700, fontSize: 14.5 }}>{g.company ?? g.people[0]?.name ?? '(no name)'}</div>
-                      <div style={{ display: 'grid', gap: 6, marginTop: 6 }}>{g.people.map((p, i) => <PersonLine key={i} p={p} />)}</div>
+                      <div style={{ display: 'grid', gap: 6, marginTop: 6 }}>{g.people.map((p, i) => <PersonLine key={i} p={p} thumbs={(p.photos ?? []).map(id => thumbs.get(id)).filter((u): u is string => !!u)} />)}</div>
                       <div style={{ ...muted, marginTop: 6 }}>
                         {[...new Set(g.people.flatMap(p => p.sources.map(s => s.split(' · ')[0])))].join(', ')}
                         {g.mergedRows > 0 && ` · ${g.mergedRows} repeated row${g.mergedRows > 1 ? 's' : ''} combined`}

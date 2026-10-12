@@ -95,8 +95,10 @@ export function ContactManagerClient({ canEdit }: { canEdit: boolean }) {
       if (!res.ok || !body) { toast.error(body?.error ?? 'Could not export.'); return; }
       const contacts = (body.contacts ?? []) as ContactExportRow[];
       if (contacts.length === 0) { toast.error('Nothing to export.'); return; }
-      await exportContactsWorkbook(contacts);
-      toast.success(`Exported ${contacts.length} contact${contacts.length !== 1 ? 's' : ''}.`);
+      const done = await exportContactsWorkbook(contacts, undefined, { onProgress: m => toast.loading(m, { id: 'excel-export' }) });
+      toast.dismiss('excel-export');
+      toast.success(`Exported ${contacts.length} contact${contacts.length !== 1 ? 's' : ''}${done.photos ? ` with ${done.photos} photo${done.photos === 1 ? '' : 's'}` : ''}.`);
+      if (done.photos < done.photosWanted) toast.message(`${done.photosWanted - done.photos} photo(s) could not be added to the Excel.`);
     } catch {
       toast.error('Could not export.');
     } finally {

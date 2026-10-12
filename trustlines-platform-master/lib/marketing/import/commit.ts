@@ -35,6 +35,8 @@ export interface CommitResult {
   /** false when the event link (Shows attended / event filter) could not be saved — migration 125 missing. */
   linked?: boolean;
   needCreated?: boolean;
+  /** The Contact person each imported person ended up as (same order as the group's people; null if it failed) — pictures hang off these. */
+  contactIds?: (string | null)[];
   error?: string;
 }
 
@@ -164,6 +166,7 @@ export async function createGroup(admin: any, ctx: CommitContext, g: CommitGroup
   if (error) throw new Error(error.message);
 
   const created: { contactId: string; person: ImportPerson }[] = [];
+  const contactIds: (string | null)[] = g.people.map(() => null);
   for (const [i, person] of g.people.entries()) {
     const { data: c, error: cErr } = await admin.from('prospect_contacts').insert({
       prospect_id: prospect.id, name: contactName(person, companyName), title: person.title,
@@ -172,6 +175,7 @@ export async function createGroup(admin: any, ctx: CommitContext, g: CommitGroup
     }).select('id').single();
     if (cErr) { console.error('[import] contact failed:', cErr.message); continue; }
     created.push({ contactId: c.id as string, person });
+    contactIds[i] = c.id as string;
   }
   await insertNotes(admin, ctx, created);
   const locationId = await insertLocation(admin, prospect.id, g.people.find(p => p.address || p.city || p.state || p.zip || p.mailingAddress));
@@ -182,7 +186,7 @@ export async function createGroup(admin: any, ctx: CommitContext, g: CommitGroup
   await setCreatedByLabelIfEmpty(admin, prospect.id, g.people.map(p => p.createdBy).find(Boolean) ?? undefined);
   const linked = await addInteraction(admin, ctx, prospect.id);
   await logAudit({ actorId: ctx.userId, action: 'prospect.created_via_import', resource: `prospect:${prospect.id}`, newValue: { file: ctx.fileLabel, contacts: created.length } });
-  return { id: g.id, action: 'create', prospectId: prospect.id as string, contactsAdded: created.length, linked, needCreated };
+  return { id: g.id, action: 'create', prospectId: prospect.id as string, contactsAdded: created.length, linked, needCreated, contactIds };
 }
 
 export async function mergeGroup(admin: any, ctx: CommitContext, g: CommitGroup): Promise<CommitResult> {
@@ -221,9 +225,11 @@ export async function mergeGroup(admin: any, ctx: CommitContext, g: CommitGroup)
   }
 
   const touched: { contactId: string; person: ImportPerson; diffs: string[] }[] = [];
+  const contactIds: (string | null)[] = g.people.map(() => null);
   let added = 0;
-  for (const item of plan.people) {
+  for (const [pi, item] of plan.people.entries()) {
     if (item.match) {
+      contactIds[pi] = item.match.id;
       if (Object.keys(item.fill).length) await admin.from('prospect_contacts').update(item.fill).eq('id', item.match.id);
       touched.push({ contactId: item.match.id, person: item.person, diffs: item.differences });
     } else {
@@ -235,6 +241,7 @@ export async function mergeGroup(admin: any, ctx: CommitContext, g: CommitGroup)
       }).select('id').single();
       if (error) { console.error('[import] contact failed:', error.message); continue; }
       added++;
+      contactIds[pi] = c.id as string;
       touched.push({ contactId: c.id as string, person: item.person, diffs: item.differences });
     }
   }
@@ -244,5 +251,5 @@ export async function mergeGroup(admin: any, ctx: CommitContext, g: CommitGroup)
 
   const linked = await addInteraction(admin, ctx, target.id);
   await logAudit({ actorId: ctx.userId, action: 'prospect.merged_via_import', resource: `prospect:${target.id}`, newValue: { file: ctx.fileLabel, contactsAdded: added } });
-  return { id: g.id, action: 'merge', prospectId: target.id as string, contactsAdded: added, linked };
+  return { id: g.id, action: 'merge', prospectId: target.id as string, contactsAdded: added, linked, contactIds };
 }

@@ -25,7 +25,11 @@ export interface BuildResult { people: ImportPerson[]; skippedEmpty: number }
  * Turns the rows under the header into cleaned people, following the column mapping.
  * `fileLabel` is only used to tell the user where a row came from.
  */
-export function buildPeople(rows: string[][], headerRow: number, mappings: ColumnMapping[], fileLabel: string): BuildResult {
+export function buildPeople(
+  rows: string[][], headerRow: number, mappings: ColumnMapping[], fileLabel: string,
+  /** Picture ids found on each (0-based) row of the sheet; they travel with the person built from that row. */
+  photosByRow?: Map<number, string[]>,
+): BuildResult {
   const cols = (field: ImportField) => mappings.filter(m => m.field === field).map(m => m.index);
   const ordered = (field: ImportField) => mappings
     .filter(m => m.field === field)
@@ -42,7 +46,7 @@ export function buildPeople(rows: string[][], headerRow: number, mappings: Colum
       for (const i of ordered(field)) { const v = cell(i); if (v) return v; }
       return null;
     };
-    if (!row.some(c => clean(c))) { skippedEmpty++; continue; }
+    if (!row.some(c => clean(c))) continue; // a fully blank row is not worth mentioning
 
     const first = firstOf('first_name');
     const last = firstOf('last_name');
@@ -88,6 +92,7 @@ export function buildPeople(rows: string[][], headerRow: number, mappings: Colum
       businessTypes: [...new Set(cols('business_type').flatMap(i => splitList(cell(i))))],
       notes,
       capturedBy: firstOf('captured_by'),
+      photos: photosByRow?.get(r) ?? [],
       whatsapp: ordered('whatsapp').map(i => parseYesNo(row[i])).find(v => v !== null) ?? null,
       linkedin: firstOf('linkedin'),
       otherContact: firstOf('other_contact'),

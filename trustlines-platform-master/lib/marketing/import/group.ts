@@ -61,6 +61,7 @@ export function mergePerson(into: ImportPerson, from: ImportPerson): ImportPerso
     needTitle: fold(into.needTitle ?? null, from.needTitle ?? null),
     projectType: fold(into.projectType ?? null, from.projectType ?? null),
     timing: fold(into.timing ?? null, from.timing ?? null),
+    photos: [...new Set([...(into.photos ?? []), ...(from.photos ?? [])])],
     capturedAt: [into.capturedAt, from.capturedAt].filter((d): d is string => !!d).sort()[0] ?? null,
   };
 }

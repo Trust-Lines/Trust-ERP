@@ -95,6 +95,8 @@ export interface ImportPerson {
   needTitle?: string | null;
   projectType?: string | null;
   timing?: string | null;
+  /** Pictures that sit on this person's row in the spreadsheet (ids from lib/marketing/import/images.ts). */
+  photos?: string[];
 }
 
 /** One company (or a lone person) and the people found for it — becomes ONE Prospect. */

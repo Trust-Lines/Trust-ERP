@@ -91,7 +91,7 @@ describe('rows → people', () => {
     const maps = autoMapColumns(rows[0], rows.slice(1));
     const { people, skippedEmpty } = buildPeople(rows, 0, maps, 'f');
     expect(people).toHaveLength(1);
-    expect(skippedEmpty).toBe(1);
+    expect(skippedEmpty).toBe(0); // a fully blank row is simply ignored (not reported)
     expect(people[0]).toMatchObject({ name: 'Jane Doe', company: 'Acme Fuel', email: 'jane@acme.com', email2: 'jd@acme.com', city: 'Macon', state: 'GA' });
   });
   it('splitCityState keeps compound places whole', () => {
