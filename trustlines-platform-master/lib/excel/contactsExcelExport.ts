@@ -53,6 +53,8 @@ export interface ContactExportRow {
   activities?: string;
   /** The Contact's X-note — what the team (and the fair survey's "Notes") wrote on the card. */
   x_note?: string | null;
+  /** "Created by" on the card: who took the fair survey (Layal, Justin, T, Naim, Merve, Hashem). */
+  created_by_label?: string | null;
 }
 
 const COLUMNS: { header: string; width: number; get: (r: ContactExportRow) => string | number }[] = [
@@ -87,6 +89,7 @@ const COLUMNS: { header: string; width: number; get: (r: ContactExportRow) => st
   { header: 'Archived', width: 10, get: r => (r.is_archived ? 'Yes' : 'No') },
   { header: 'Added', width: 14, get: r => fmtDate(r.effective_created_at ?? r.created_at) },
   { header: 'Updated', width: 14, get: r => fmtDate(r.updated_at) },
+  { header: 'Created by', width: 16, get: r => r.created_by_label ?? '' },
   { header: 'Notes', width: 42, get: r => r.x_note ?? '' },
   { header: 'Activities', width: 60, get: r => r.activities ?? '' },
 ];

@@ -99,6 +99,14 @@ export async function GET(req: NextRequest) {
       // and project_id are both read elsewhere too). One row per prospect — a Contact with
       // several linked projects gets its most recently created one.
       const ids = enriched.map(r => r.id);
+
+      // "Created by" = who took the fair survey (prospects.created_by_label, migration 124). Its own tolerant
+      // query, so the export keeps working in a database that doesn't have the column yet (empty column then).
+      const createdByLabel = new Map<string, string>();
+      try {
+        const labelRows = await fetchInChunks(ids, chunk => admin.from('prospects').select('id, created_by_label').in('id', chunk));
+        for (const lr of labelRows as { id: string; created_by_label: string | null }[]) if (lr.created_by_label) createdByLabel.set(lr.id, lr.created_by_label);
+      } catch { /* column not there yet */ }
       const projectByProspect = new Map<string, { code: string; name: string }>();
       if (ids.length > 0) {
         const { data: oppRows } = await admin.from('opportunities')
@@ -152,6 +160,7 @@ export async function GET(req: NextRequest) {
           project_code: projectByProspect.get(r.id)?.code ?? null, project_name: projectByProspect.get(r.id)?.name ?? null,
           activities: activitiesByProspect.get(r.id) ?? '',
           photos: photosByProspect.get(r.id) ?? [],
+          created_by_label: createdByLabel.get(r.id) ?? null,
         })),
         total: enriched.length,
       });

@@ -83,3 +83,19 @@ describe('Export to Excel — Notes (X-note)', () => {
     expect(loaded.getWorksheet('Contacts')!.getRow(2).height).toBeGreaterThan(60);
   });
 });
+
+describe('Export to Excel — Created by (who took the survey)', () => {
+  it('has a "Created by" column with the survey representative, empty when unknown', async () => {
+    const people: ContactExportRow[] = [
+      { id: 'c1', display_name: 'Fair lead', created_by_label: 'Merve' },
+      { id: 'c2', display_name: 'Older record' },
+    ];
+    const loaded = new ExcelJS.Workbook();
+    await loaded.xlsx.load((await buildContactsWorkbook(people).xlsx.writeBuffer()) as never);
+    const ws = loaded.getWorksheet('Contacts')!;
+    const col = (ws.getRow(1).values as unknown[]).indexOf('Created by');
+    expect(col).toBeGreaterThan(0);
+    expect(ws.getRow(2).getCell(col).value).toBe('Merve');
+    expect(ws.getRow(3).getCell(col).value ?? '').toBe('');
+  });
+});
