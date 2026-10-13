@@ -51,6 +51,8 @@ export interface ContactExportRow {
   // export=1&detail=1) since an Excel cell is what this is for: one cell per Contact, not a
   // second sheet or a row explosion (2026-09-28, "içeriği tek hücrede olsun").
   activities?: string;
+  /** The Contact's X-note — what the team (and the fair survey's "Notes") wrote on the card. */
+  x_note?: string | null;
 }
 
 const COLUMNS: { header: string; width: number; get: (r: ContactExportRow) => string | number }[] = [
@@ -85,10 +87,13 @@ const COLUMNS: { header: string; width: number; get: (r: ContactExportRow) => st
   { header: 'Archived', width: 10, get: r => (r.is_archived ? 'Yes' : 'No') },
   { header: 'Added', width: 14, get: r => fmtDate(r.effective_created_at ?? r.created_at) },
   { header: 'Updated', width: 14, get: r => fmtDate(r.updated_at) },
+  { header: 'Notes', width: 42, get: r => r.x_note ?? '' },
   { header: 'Activities', width: 60, get: r => r.activities ?? '' },
 ];
 
 const ACTIVITIES_COL = COLUMNS.findIndex(c => c.header === 'Activities') + 1; // 1-based, exceljs convention
+const NOTES_COL = COLUMNS.findIndex(c => c.header === 'Notes') + 1;
+const NOTES_CHARS_PER_LINE = 44; // a Notes line wraps at about this many characters (column width 42)
 
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return '';
@@ -142,7 +147,7 @@ export function buildContactsWorkbook(rows: ContactExportRow[], photos: Map<stri
   rows.forEach((r, i) => {
     const row = ws.addRow(COLUMNS.map(c => c.get(r)));
     row.eachCell((cell, colNumber) => {
-      const isActivities = colNumber === ACTIVITIES_COL;
+      const isActivities = colNumber === ACTIVITIES_COL || colNumber === NOTES_COL; // the two long-text columns
       cell.font = { size: 10 };
       cell.border = BORDERS_ALL;
       cell.alignment = { vertical: isActivities ? 'top' : 'middle', wrapText: isActivities };
@@ -152,7 +157,8 @@ export function buildContactsWorkbook(rows: ContactExportRow[], photos: Map<stri
     // Activities can be several lines — give the row enough height to actually show them
     // instead of clipping to the default single line (Excel doesn't auto-size row height for
     // wrapped text on its own when the file is opened).
-    const lineCount = (r.activities ?? '').split('\n').filter(Boolean).length;
+    const noteLines = (r.x_note ?? '').split('\n').reduce((n, line) => n + Math.max(1, Math.ceil(line.length / NOTES_CHARS_PER_LINE)), 0);
+    const lineCount = Math.max((r.activities ?? '').split('\n').filter(Boolean).length, (r.x_note ?? '') ? noteLines : 0);
     let height = lineCount > 1 ? Math.min(15 * lineCount, 300) : 0;
 
     // Pictures: one per Photo cell, the row at least as tall as the tallest one.

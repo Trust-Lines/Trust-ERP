@@ -106,6 +106,35 @@ export interface ProspectFilterContext {
   p: ProspectQueryParams;
   includeIds: string[] | null;
   excludeIds: string[];
+  /** Companies that hold a PERSON (name / e-mail / phone) matching the search text — a search for "shazad" must find ADJ. */
+  searchIds: string[];
+}
+
+// The search box used to look only at the company (display_name / brand / industry), so a person who is
+// a Contact INSIDE a company could never be found by name. This finds the companies that hold a matching
+// person. Capped: the ids travel inside the request URL, and a term that matches hundreds of people is
+// too generic to be useful anyway (the company-level matches still show).
+export const SEARCH_CONTACT_ID_CAP = 120;
+export async function prospectIdsMatchingContacts(admin: any, q: string): Promise<string[]> {
+  const term = q.trim();
+  if (term.length < 2) return [];
+  const safe = term.replace(/[%,()\\]/g, '\\$&');
+  const { data } = await admin.from('prospect_contacts').select('prospect_id')
+    .or(`name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%,other_contact.ilike.%${safe}%`)
+    .limit(400);
+  const ids = [...new Set(((data ?? []) as { prospect_id: string }[]).map(r => r.prospect_id))];
+  return ids.slice(0, SEARCH_CONTACT_ID_CAP);
+}
+
+/** The PostgREST filter for the search box: company fields, the Contact's own e-mail/phone, and the people inside it. */
+export function buildSearchFilter(q: string, searchIds: string[]): string {
+  const safe = q.replace(/[%,()\\]/g, '\\$&');
+  const parts = [
+    `display_name.ilike.%${safe}%`, `brand_name.ilike.%${safe}%`, `industry.ilike.%${safe}%`,
+    `main_email.ilike.%${safe}%`, `main_phone.ilike.%${safe}%`,
+  ];
+  if (searchIds.length) parts.push(`id.in.(${searchIds.join(',')})`);
+  return parts.join(',');
 }
 
 export async function buildFilterContext(admin: any, userId: string, userRole: string, p: ProspectQueryParams):
@@ -113,11 +142,12 @@ export async function buildFilterContext(admin: any, userId: string, userRole: s
   const whitelist = await computeProspectWhitelist(admin, p);
   if ('error' in whitelist) return whitelist;
   const assignedRegions = userRole === 'marketing_pr' ? await getAssignedRegions(admin, userId) : [];
-  return { userRole, assignedRegions, p, includeIds: whitelist.includeIds, excludeIds: whitelist.excludeIds };
+  const searchIds = p.q ? await prospectIdsMatchingContacts(admin, p.q) : [];
+  return { userRole, assignedRegions, p, includeIds: whitelist.includeIds, excludeIds: whitelist.excludeIds, searchIds };
 }
 
 export function applyProspectFilters(query: any, ctx: ProspectFilterContext): any {
-  const { userRole, assignedRegions, p, includeIds, excludeIds } = ctx;
+  const { userRole, assignedRegions, p, includeIds, excludeIds, searchIds } = ctx;
   if (!MARKETING_SEE_ALL_ROLES.includes(userRole) && assignedRegions.length > 0) {
     // A Contact cross-listed in two ClickUp regions stays visible to whichever region's
     // marketing_pr is assigned; one with NO region yet stays visible to everyone (108/109/111/112).
@@ -139,10 +169,7 @@ export function applyProspectFilters(query: any, ctx: ProspectFilterContext): an
   if (p.sources.length > 0) query = query.in('source_raw_label', p.sources);
   if (includeIds !== null) query = query.in('id', includeIds);
   if (excludeIds.length > 0) query = query.not('id', 'in', `(${excludeIds.join(',')})`);
-  if (p.q) {
-    const safe = p.q.replace(/[%,()\\]/g, '\\$&');
-    query = query.or(`display_name.ilike.%${safe}%,brand_name.ilike.%${safe}%,industry.ilike.%${safe}%`);
-  }
+  if (p.q) query = query.or(buildSearchFilter(p.q, searchIds));
   return query;
 }
 

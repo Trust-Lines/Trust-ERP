@@ -56,3 +56,30 @@ describe('Export to Excel with pictures', () => {
     expect(imagesOfWorkbook(ws.workbook, 'Contacts')).toEqual([]);
   });
 });
+
+describe('Export to Excel — Notes (X-note)', () => {
+  const noted: ContactExportRow[] = [
+    { id: 'n1', display_name: 'Fair lead', x_note: 'Wants a quote before June\nCall Justin', activities: 'one line' },
+    { id: 'n2', display_name: 'No note' },
+  ];
+
+  it('has a Notes column with each Contact\'s X-note, right before Activities', async () => {
+    const loaded = new ExcelJS.Workbook();
+    await loaded.xlsx.load((await buildContactsWorkbook(noted).xlsx.writeBuffer()) as never);
+    const ws = loaded.getWorksheet('Contacts')!;
+    const header = ws.getRow(1).values as unknown[];
+    const notes = header.indexOf('Notes');
+    expect(notes).toBeGreaterThan(0);
+    expect(header[notes + 1]).toBe('Activities');
+    expect(ws.getRow(2).getCell(notes).value).toBe('Wants a quote before June\nCall Justin');
+    expect(ws.getRow(3).getCell(notes).value ?? '').toBe('');
+    expect(ws.getRow(2).getCell(notes).alignment?.wrapText).toBe(true);
+  });
+
+  it('makes the row tall enough for a long note', async () => {
+    const long: ContactExportRow[] = [{ id: 'n3', display_name: 'Long', x_note: 'word '.repeat(80) }];
+    const loaded = new ExcelJS.Workbook();
+    await loaded.xlsx.load((await buildContactsWorkbook(long).xlsx.writeBuffer()) as never);
+    expect(loaded.getWorksheet('Contacts')!.getRow(2).height).toBeGreaterThan(60);
+  });
+});
