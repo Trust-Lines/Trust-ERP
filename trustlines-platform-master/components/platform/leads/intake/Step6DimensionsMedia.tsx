@@ -3,6 +3,7 @@
 import { Upload, Link2 } from 'lucide-react';
 import { StepFooter } from './StepFooter';
 import type { StepProps } from './types';
+import { Input } from '@/components/ui/input';
 
 export function Step6DimensionsMedia({ form, setForm, onBack, onNext }: StepProps) {
   return (
@@ -16,12 +17,12 @@ export function Step6DimensionsMedia({ form, setForm, onBack, onNext }: StepProp
         <label className="block text-xs font-semibold text-slate-700 mb-1">Matterport 360 Virtual Tour Link</label>
         <div className="relative">
           <Link2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
+          <Input
             type="url"
             placeholder="https://my.matterport.com/show/?m=..."
             value={form.matterport_link}
             onChange={e => setForm(f => ({ ...f, matterport_link: e.target.value }))}
-            className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800"
+            className="pl-8"
           />
         </div>
       </div>

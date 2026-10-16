@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { MessageSquare, Loader2, Send } from 'lucide-react';
-import { Avatar } from '@/components/platform/shared/Avatar';
+import { Avatar } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { formatDate } from '@/lib/formatDate';
 
 interface ActivityRow {
@@ -65,14 +67,14 @@ export function LeadActivity({ intakeId }: { intakeId: string }) {
       </div>
       <div className="card-body">
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <input
-            className="form-input" placeholder="Write a comment…"
+          <Input
+            aria-label="Write a comment" placeholder="Write a comment…"
             value={comment} onChange={e => setComment(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); postComment(); } }}
           />
-          <button className="btn btn-primary btn-sm" onClick={postComment} disabled={posting || !comment.trim()}>
-            {posting ? <Loader2 className="spin" size={14} /> : <Send size={14} />}
-          </button>
+          <Button size="icon" onClick={postComment} loading={posting} disabled={posting || !comment.trim()} aria-label="Post comment">
+            <Send size={14} />
+          </Button>
         </div>
 
         {!loaded ? (
@@ -84,7 +86,7 @@ export function LeadActivity({ intakeId }: { intakeId: string }) {
             {items.map(a => (
               <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 {a.kind === 'comment'
-                  ? <Avatar name={a.actor_name} size="sm" />
+                  ? <Avatar name={a.actor_name} size="xs" />
                   : <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--bg-sunken)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><MessageSquare size={12} color="var(--fg-faint)" /></span>}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, lineHeight: 1.5 }}>

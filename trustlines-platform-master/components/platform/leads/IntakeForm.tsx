@@ -15,6 +15,7 @@ import { Step5AdditionalNotes } from './intake/Step5AdditionalNotes';
 import { Step6DimensionsMedia } from './intake/Step6DimensionsMedia';
 import { Step7Checklist } from './intake/Step7Checklist';
 import { LeadSummary } from './intake/LeadSummary';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   intakeId: string;
@@ -142,35 +143,26 @@ export function IntakeForm({ intakeId, assignees }: Props) {
         <div>
           <Link
             href="/leads"
-            className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors flex items-center gap-1 mb-1"
+            className="text-xs font-semibold text-primary-500 hover:text-primary-800 transition-colors flex items-center gap-1 mb-1"
           >
             ← Leads
           </Link>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">New lead</h1>
-            <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+            <h1 className="text-2xl font-bold text-primary-800 tracking-tight">New lead</h1>
+            <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-primary-100 text-primary-600 border border-ui-divider">
               {savedAt ? 'Draft saved' : 'Not saved yet'}
             </span>
           </div>
-          <p className="text-xs text-slate-500 font-normal mt-0.5">Meeting / Intake form</p>
+          <p className="text-xs text-primary-500 font-normal mt-0.5">Meeting / Intake form</p>
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => router.push('/leads')}
-            className="px-4 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-          >
+          <Button variant="secondary" onClick={() => router.push('/leads')}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSave(true)}
-            disabled={saving}
-            className="px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : 'Save draft'}
-          </button>
+          </Button>
+          <Button onClick={() => handleSave(true)} loading={saving} disabled={saving}>
+            Save draft
+          </Button>
         </div>
       </div>
 
@@ -180,7 +172,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
         <StepNav activeStep={activeStep} onSelect={setActiveStep} />
 
         {/* ── 2. Center Column: Form Step Content ───────────────────── */}
-        <div className="lg:col-span-6 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xs space-y-6">
+        <div className="lg:col-span-6 bg-ui-surface-elevated border border-ui-divider rounded-2xl p-6 shadow-2xs space-y-6">
           {activeStep === 1 && (
             <Step1ProjectSetup
               form={form}

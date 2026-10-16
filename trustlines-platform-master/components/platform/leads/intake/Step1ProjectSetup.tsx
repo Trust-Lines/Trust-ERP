@@ -1,11 +1,13 @@
 'use client';
 
-import { ChevronDown, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { US_STATES } from '@/lib/usStates';
 import { REGIONS, SERVICE_LINES } from '@/lib/regions';
 import { PROJECT_TYPES } from '@/lib/sales/projectTypes';
-import { Select } from '@/components/platform/shared/Select';
 import type { FormState, SetForm } from './types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 export function Step1ProjectSetup({ form, setForm, generatedProjectCode, formattedAddressPreview, onNext, onSaveAndExit }: {
   form: FormState;
@@ -27,60 +29,42 @@ export function Step1ProjectSetup({ form, setForm, generatedProjectCode, formatt
       {/* 3-column row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label htmlFor="intake-company" className="block text-xs font-semibold text-slate-700 mb-1">
             Company <span className="text-rose-500">*</span>
           </label>
-          <div className="relative">
-            <Select
-              value={form.company || form.service_line}
-              onChange={e => setForm(f => ({ ...f, company: e.target.value, service_line: e.target.value }))}
-              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-            >
-              <option value="">Select company...</option>
-              {SERVICE_LINES.map(sl => (
-                <option key={sl.value} value={sl.value}>{sl.label}</option>
-              ))}
-            </Select>
-            <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          </div>
+          <Select
+            id="intake-company"
+            placeholder="Select company..."
+            value={form.company || form.service_line}
+            onValueChange={v => setForm(f => ({ ...f, company: v ?? '', service_line: v ?? '' }))}
+            options={SERVICE_LINES.map(sl => ({ value: sl.value, label: sl.label }))}
+          />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label htmlFor="intake-region" className="block text-xs font-semibold text-slate-700 mb-1">
             Region <span className="text-rose-500">*</span>
           </label>
-          <div className="relative">
-            <Select
-              value={form.region}
-              onChange={e => setForm(f => ({ ...f, region: e.target.value }))}
-              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-            >
-              <option value="">Select region...</option>
-              {REGIONS.map(r => (
-                <option key={r.code} value={r.code}>{r.label}</option>
-              ))}
-            </Select>
-            <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          </div>
+          <Select
+            id="intake-region"
+            placeholder="Select region..."
+            value={form.region}
+            onValueChange={v => setForm(f => ({ ...f, region: v ?? '' }))}
+            options={REGIONS.map(r => ({ value: r.code, label: r.label }))}
+          />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label htmlFor="intake-project-type" className="block text-xs font-semibold text-slate-700 mb-1">
             Project type <span className="text-rose-500">*</span>
           </label>
-          <div className="relative">
-            <Select
-              value={form.project_type}
-              onChange={e => setForm(f => ({ ...f, project_type: e.target.value }))}
-              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-            >
-              <option value="">Select project type...</option>
-              {PROJECT_TYPES.map(pt => (
-                <option key={pt} value={pt}>{pt}</option>
-              ))}
-            </Select>
-            <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          </div>
+          <Select
+            id="intake-project-type"
+            placeholder="Select project type..."
+            value={form.project_type}
+            onValueChange={v => setForm(f => ({ ...f, project_type: v ?? '' }))}
+            options={PROJECT_TYPES.map(pt => ({ value: pt, label: pt }))}
+          />
         </div>
       </div>
 
@@ -106,12 +90,11 @@ export function Step1ProjectSetup({ form, setForm, generatedProjectCode, formatt
           <label className="block text-xs font-semibold text-slate-700 mb-1">
             Street <span className="text-rose-500">*</span>
           </label>
-          <input
+          <Input
             type="text"
             placeholder="Enter street address"
             value={form.street}
             onChange={e => setForm(f => ({ ...f, street: e.target.value }))}
-            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
           />
         </div>
 
@@ -120,32 +103,25 @@ export function Step1ProjectSetup({ form, setForm, generatedProjectCode, formatt
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               City <span className="text-rose-500">*</span>
             </label>
-            <input
+            <Input
               type="text"
               placeholder="Enter city"
               value={form.city}
               onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
-              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label htmlFor="intake-state" className="block text-xs font-semibold text-slate-700 mb-1">
               State <span className="text-rose-500">*</span>
             </label>
-            <div className="relative">
-              <Select
-                value={form.state}
-                onChange={e => setForm(f => ({ ...f, state: e.target.value }))}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-              >
-                <option value="">Select state...</option>
-                {US_STATES.map(s => (
-                  <option key={s.abbr} value={s.abbr}>{s.name} ({s.abbr})</option>
-                ))}
-              </Select>
-              <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            </div>
+            <Select
+              id="intake-state"
+              placeholder="Select state..."
+              value={form.state}
+              onValueChange={v => setForm(f => ({ ...f, state: v ?? '' }))}
+              options={US_STATES.map(s => ({ value: s.abbr, label: `${s.name} (${s.abbr})` }))}
+            />
           </div>
         </div>
 
@@ -157,21 +133,20 @@ export function Step1ProjectSetup({ form, setForm, generatedProjectCode, formatt
 
       {/* Actions */}
       <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
-        <button
+        <Button
           type="button"
           onClick={onNext}
-          className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
         >
           <span>Continue to Customer</span>
           <ArrowRight size={14} />
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="secondary"
           type="button"
           onClick={onSaveAndExit}
-          className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
         >
           Save and exit
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Search, UserPlus, X, Contact } from 'lucide-react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface LinkedCustomer { id: string; name: string }
 interface Props {
@@ -74,16 +76,16 @@ export function CustomerLinkCard({ intakeId, initialCustomer, delivered = false 
             <Contact size={16} style={{ color: 'var(--fg-subtle)' }} />
             <Link href={`/customers/${linked.id}`} style={{ fontWeight: 600, fontSize: 14 }}>{linked.name}</Link>
             <div style={{ flex: 1 }} />
-            <button className="btn btn-ghost btn-sm" style={{ color: '#dc2626' }} onClick={unlink} disabled={busy}>
+            <Button variant="ghost" className="text-error-normal" onClick={unlink} disabled={busy}>
               <X size={13} /> Unlink
-            </button>
+            </Button>
           </div>
         ) : (
           <div>
             {delivered && (
               <div
                 role="alert"
-                style={{ fontSize: 12, color: 'var(--status-warning-fg, #b45309)', background: 'var(--status-warning-bg, #fef3c7)', border: '1px solid #fde68a', borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}
+                style={{ fontSize: 12, color: 'var(--status-warning-fg)', background: 'var(--status-warning-bg)', border: '1px solid var(--color-warning-normal)', borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}
               >
                 This project was delivered to Trust-Lines with no customer linked. Create one from the lead in one click below — it won’t block anything, but the project won’t have customer contacts until you do.
               </div>
@@ -93,25 +95,23 @@ export function CustomerLinkCard({ intakeId, initialCustomer, delivered = false 
             </p>
             <div style={{ display: 'flex', gap: 8, marginBottom: hits.length ? 8 : 0 }}>
               <div style={{ position: 'relative', flex: 1 }}>
-                <Search size={14} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)' }} />
-                <input className="form-input" style={{ paddingLeft: 30, fontSize: 13 }} placeholder="Search customers…"
+                <Search size={14} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-primary-400" />
+                <Input type="search" className="pl-8" placeholder="Search customers…"
                   value={query} onChange={e => runSearch(e.target.value)} aria-label="Search customers to link" />
               </div>
-              <button className="btn btn-primary btn-sm" onClick={createFromLead} disabled={busy} title="Create a customer from this lead's name/brand/contact">
+              <Button onClick={createFromLead} disabled={busy} title="Create a customer from this lead's name/brand/contact">
                 <UserPlus size={13} /> Create from lead
-              </button>
+              </Button>
             </div>
             {searching && <div style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>Searching…</div>}
             {hits.length > 0 && (
               <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 6, overflow: 'hidden' }}>
                 {hits.map(h => (
-                  <button key={h.id} onClick={() => linkExisting(h)} disabled={busy}
-                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', borderBottom: '1px solid var(--border-subtle)', background: 'transparent', cursor: 'pointer', fontSize: 13 }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    <span style={{ fontWeight: 600 }}>{h.name}</span>
-                    {h.industry && <span style={{ color: 'var(--fg-subtle)' }}> · {h.industry}</span>}
-                  </button>
+                  <Button key={h.id} variant="ghost" onClick={() => linkExisting(h)} disabled={busy}
+                    className="h-auto w-full justify-start rounded-none border-b border-ui-divider px-3 py-2 text-[13px] font-normal text-primary-800">
+                    <span className="font-semibold">{h.name}</span>
+                    {h.industry && <span className="text-primary-500"> · {h.industry}</span>}
+                  </Button>
                 ))}
               </div>
             )}

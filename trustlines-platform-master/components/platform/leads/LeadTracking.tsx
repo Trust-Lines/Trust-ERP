@@ -56,8 +56,8 @@ export function LeadTracking({ intakeId }: { intakeId: string }) {
                 display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 11px', borderRadius: 'var(--radius-pill)',
                 fontSize: 12, fontWeight: 600,
                 background: current ? 'var(--brand-teal)' : done ? 'var(--brand-teal-100)' : 'var(--bg-subtle)',
-                color: current ? '#fff' : done ? 'var(--brand-teal-600)' : 'var(--fg-faint)',
-                border: `1px solid ${current ? 'var(--brand-teal)' : done ? '#b2d8d8' : 'var(--border-subtle)'}`,
+                color: current ? 'var(--ui-btn-primary-fg)' : done ? 'var(--brand-teal-600)' : 'var(--fg-faint)',
+                border: `1px solid ${current ? 'var(--brand-teal)' : done ? 'var(--color-secondary-100)' : 'var(--border-subtle)'}`,
               }}>
                 {done ? <Check size={12} /> : <Circle size={9} />}
                 {STAGE_LABELS[stage]}
@@ -78,7 +78,7 @@ export function LeadTracking({ intakeId }: { intakeId: string }) {
                   border: `1.5px solid ${done ? 'var(--brand-teal)' : 'var(--border-default)'}`,
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  {done && <Check size={10} strokeWidth={3} color="#fff" />}
+                  {done && <Check size={10} strokeWidth={3} color="var(--ui-btn-primary-fg)" />}
                 </span>
                 <span style={{ fontSize: 13, color: done ? 'var(--fg-default)' : 'var(--fg-muted)' }}>{s.label}</span>
               </div>

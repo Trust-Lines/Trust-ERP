@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Montserrat } from "next/font/google";
+import { Inter, Instrument_Sans, Montserrat } from "next/font/google";
 import "./globals.css";
 import { AmountsMasker } from "@/components/platform/shared/AmountsMasker";
 import { AuthLinkRedirect } from "@/components/auth/AuthLinkRedirect";
@@ -7,6 +7,13 @@ import { AuthLinkRedirect } from "@/components/auth/AuthLinkRedirect";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
+});
+
+// Approved UI font (2026 palette / Figma). Drives --font-ui in globals.css.
+const instrumentSans = Instrument_Sans({
+  variable: "--font-instrument-sans",
+  subsets: ["latin", "latin-ext"],
   display: "swap",
 });
 
@@ -29,7 +36,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${montserrat.variable} h-full antialiased`}
+      className={`${instrumentSans.variable} ${inter.variable} ${montserrat.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

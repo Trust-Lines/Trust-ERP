@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { PRIORITY_COLOR, type Lead } from './types';
 
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -41,9 +42,9 @@ export function LeadsCalendar({ leads }: { leads: Lead[] }) {
         <div style={{ fontWeight: 700, fontSize: 15 }}>{monthLabel}</div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {withoutDate > 0 && <span style={{ fontSize: 12, color: 'var(--fg-faint)', marginRight: 8 }}>{withoutDate} without a follow-up date</span>}
-          <button className="btn btn-ghost btn-sm" onClick={() => setOffset(o => o - 1)}><ChevronLeft size={15} /></button>
-          <button className="btn btn-ghost btn-sm" onClick={() => setOffset(0)} disabled={offset === 0}>Today</button>
-          <button className="btn btn-ghost btn-sm" onClick={() => setOffset(o => o + 1)}><ChevronRight size={15} /></button>
+          <Button variant="ghost" size="icon" onClick={() => setOffset(o => o - 1)} aria-label="Previous month"><ChevronLeft size={15} /></Button>
+          <Button variant="outline" onClick={() => setOffset(0)} disabled={offset === 0}>Today</Button>
+          <Button variant="ghost" size="icon" onClick={() => setOffset(o => o + 1)} aria-label="Next month"><ChevronRight size={15} /></Button>
         </div>
       </div>
 

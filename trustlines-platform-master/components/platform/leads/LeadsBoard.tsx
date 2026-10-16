@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { Flag, Clock, CheckSquare, Tag } from 'lucide-react';
-import { Avatar } from '@/components/platform/shared/Avatar';
+import { Avatar } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { STATUS_ORDER, PRIORITY_COLOR, type Lead, type OpportunityStatus } from './types';
 import { formatMoney } from '@/lib/sales/format';
 
@@ -91,7 +92,7 @@ export function LeadsBoard({ leads, onStatusChange, onContextMenu, onOpen }: Pro
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                         {l.assignee && l.assignee !== 'Unassigned' && (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            <Avatar name={l.assignee} size="sm" />
+                            <Avatar name={l.assignee} size="xs" />
                           </span>
                         )}
                         {m && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)' }}>{m}</span>}
@@ -99,7 +100,7 @@ export function LeadsBoard({ leads, onStatusChange, onContextMenu, onOpen }: Pro
                           <span style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 'var(--radius-pill)', background: 'var(--bg-sunken)', color: 'var(--fg-muted)' }}>{l.project_type}</span>
                         )}
                         {(overdue || dueToday) && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 'var(--radius-pill)', fontSize: 10, fontWeight: 700, background: overdue ? '#fee2e2' : '#fef3c7', color: overdue ? '#b91c1c' : '#92400e' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 'var(--radius-pill)', fontSize: 10, fontWeight: 700, background: overdue ? 'var(--status-danger-bg)' : 'var(--status-warning-bg)', color: overdue ? 'var(--status-danger-fg)' : 'var(--status-warning-fg)' }}>
                             <Clock size={9} /> {overdue ? 'Overdue' : 'Today'}
                           </span>
                         )}
@@ -118,7 +119,7 @@ export function LeadsBoard({ leads, onStatusChange, onContextMenu, onOpen }: Pro
                       {!!l.tags?.length && (
                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
                           {l.tags.slice(0, 4).map(t => (
-                            <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, padding: '1px 6px', borderRadius: 'var(--radius-pill)', background: 'var(--brand-teal-100)', color: 'var(--brand-teal-600)', border: '1px solid #b2d8d8' }}>
+                            <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, padding: '1px 6px', borderRadius: 'var(--radius-pill)', background: 'var(--brand-teal-100)', color: 'var(--brand-teal-600)', border: '1px solid var(--color-secondary-100)' }}>
                               <Tag size={8} /> {t}
                             </span>
                           ))}
@@ -129,13 +130,13 @@ export function LeadsBoard({ leads, onStatusChange, onContextMenu, onOpen }: Pro
                 );
               })}
               {allCards.length > cards.length && (
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  className="w-full border-dashed"
                   onClick={() => setShown(prev => ({ ...prev, [meta.key]: cap + BOARD_PAGE }))}
-                  style={{ padding: '8px 0', fontSize: 12, fontWeight: 600, color: 'var(--fg-muted)', background: 'var(--bg-surface)', border: '1px dashed var(--border-default)', borderRadius: 8, cursor: 'pointer' }}
                 >
                   Show {Math.min(BOARD_PAGE, allCards.length - cards.length)} more · {allCards.length - cards.length} left
-                </button>
+                </Button>
               )}
             </div>
           </div>

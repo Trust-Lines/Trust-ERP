@@ -2,6 +2,7 @@
 
 import { StepFooter } from './StepFooter';
 import type { StepProps } from './types';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export function Step4ScopeOfWork({ form, setForm, onBack, onNext }: StepProps) {
   return (
@@ -21,11 +22,10 @@ export function Step4ScopeOfWork({ form, setForm, onBack, onNext }: StepProps) {
                 : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
             }`}
           >
-            <input
-              type="checkbox"
+            <Checkbox
               checked={form.scope_of_work[trade]}
-              onChange={e => setForm(f => ({ ...f, scope_of_work: { ...f.scope_of_work, [trade]: e.target.checked } }))}
-              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 mb-2"
+              onCheckedChange={checked => setForm(f => ({ ...f, scope_of_work: { ...f.scope_of_work, [trade]: checked } }))}
+              className="mb-2"
             />
             <span className="text-xs capitalize">{trade}</span>
           </label>

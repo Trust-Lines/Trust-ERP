@@ -2,6 +2,9 @@
 
 import { Check, Trash2 } from 'lucide-react';
 import type { FormState, SetForm } from './types';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 
 export function Step7Checklist({ form, setForm, newChecklistText, setNewChecklistText, canCreate, onBack, onCreate }: {
   form: FormState;
@@ -22,31 +25,31 @@ export function Step7Checklist({ form, setForm, newChecklistText, setNewChecklis
       <div className="space-y-2">
         {form.checklist.map((item, idx) => (
           <div key={item.id || idx} className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={item.done}
-              onChange={e => {
+              onCheckedChange={checked => {
                 const next = [...form.checklist];
-                next[idx].done = e.target.checked;
+                next[idx].done = checked;
                 setForm(f => ({ ...f, checklist: next }));
               }}
-              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
             />
             <span className={`text-xs flex-1 ${item.done ? 'line-through text-slate-400' : 'text-slate-800'}`}>
               {item.text}
             </span>
-            <button
+            <Button
+              variant="ghost"
+              size="icon-xs"
               type="button"
+              aria-label="Remove checklist item"
               onClick={() => setForm(f => ({ ...f, checklist: f.checklist.filter((_, i) => i !== idx) }))}
-              className="text-slate-400 hover:text-rose-500 p-1 cursor-pointer"
             >
               <Trash2 size={13} />
-            </button>
+            </Button>
           </div>
         ))}
 
         <div className="flex items-center gap-2 pt-2">
-          <input
+          <Input
             type="text"
             placeholder="Add checklist item..."
             value={newChecklistText}
@@ -61,9 +64,10 @@ export function Step7Checklist({ form, setForm, newChecklistText, setNewChecklis
                 setNewChecklistText('');
               }
             }}
-            className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+            className="flex-1"
           />
-          <button
+          <Button
+            variant="outline"
             type="button"
             onClick={() => {
               if (!newChecklistText.trim()) return;
@@ -73,30 +77,28 @@ export function Step7Checklist({ form, setForm, newChecklistText, setNewChecklis
               }));
               setNewChecklistText('');
             }}
-            className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
           >
             Add
-          </button>
+          </Button>
         </div>
       </div>
 
       <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
-        <button
+        <Button
+          variant="secondary"
           type="button"
           onClick={onBack}
-          className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 cursor-pointer"
         >
           ← Back
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           onClick={onCreate}
           disabled={!canCreate}
-          className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold shadow-xs disabled:opacity-50 cursor-pointer"
         >
           <span>Complete & Create Lead</span>
           <Check size={14} />
-        </button>
+        </Button>
       </div>
     </div>
   );

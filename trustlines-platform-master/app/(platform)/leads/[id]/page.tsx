@@ -12,6 +12,7 @@ import { SALES_INTAKE_ROLES } from '@/lib/sales/roles';
 import { canAccessLead } from '@/lib/sales/leadAccess';
 import { DESIGNER_ROLES, DESIGNER_INVITE_ROLES, DESIGN_TRIGGER_STATUS, ensureDesignJobForLead } from '@/lib/sales/design';
 import type { SalesDesignVersion } from '@/types/database';
+import { buttonVariants } from '@/components/ui/button';
 
 export default async function LeadIntakePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -115,7 +116,7 @@ export default async function LeadIntakePage({ params }: { params: Promise<{ id:
   return (
     <div className="main-inner">
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-        <Link href="/leads" className="btn btn-ghost btn-sm" style={{ color: 'var(--fg-subtle)' }}>← Leads</Link>
+        <Link href="/leads" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>← Leads</Link>
         <div style={{ flex: 1 }}>
           <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: 0 }}>{title}</h1>
           <p className="page-head-sub" style={{ margin: '2px 0 0' }}>Meeting / Intake form</p>

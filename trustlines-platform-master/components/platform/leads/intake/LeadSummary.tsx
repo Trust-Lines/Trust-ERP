@@ -1,6 +1,7 @@
 'use client';
 
 import { Lock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export function LeadSummary({
   savedAt, generatedProjectCode, filledRequiredCount,
@@ -61,19 +62,10 @@ export function LeadSummary({
 
       {/* Create Lead Button */}
       <div className="pt-3">
-        <button
-          type="button"
-          onClick={onCreate}
-          disabled={!canCreate}
-          className={`w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer ${
-            canCreate
-              ? 'bg-[#2563EB] hover:bg-blue-700 text-white shadow-xs'
-              : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200/60'
-          }`}
-        >
+        <Button size="md" className="w-full" onClick={onCreate} disabled={!canCreate}>
           {!canCreate && <Lock size={13} />}
           <span>Create lead</span>
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, ChevronRight, Flag } from 'lucide-react';
-import { Avatar } from '@/components/platform/shared/Avatar';
+import { Avatar } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
 import { StickyBottomScrollbar } from '@/components/platform/shared/StickyBottomScrollbar';
 import { LeadNameCell } from './LeadNameCell';
 import {
@@ -94,9 +95,11 @@ interface Props {
 }
 
 const PRIORITY_LABEL: Record<Priority, string> = { high: 'High', medium: 'Medium', low: 'Low' };
-const PRIORITY_PILL: Record<string, string> = { High: '#e5484d', Medium: '#f59e0b', Low: '#94a3b8' };
+// Hex (not var()) on purpose: pill text colour is computed from these by readableTextColor().
+// Values = 2026 palette: error-normal / warning-normal / primary-300.
+const PRIORITY_PILL: Record<string, string> = { High: '#D52D31', Medium: '#F4A717', Low: '#96A3B6' };
 // People aren't colour-coded — one calm neutral pill for every name.
-const NEUTRAL_PILL = (names: string[]): Record<string, string> => Object.fromEntries(names.map(n => [n, '#e6e9ef']));
+const NEUTRAL_PILL = (names: string[]): Record<string, string> => Object.fromEntries(names.map(n => [n, '#F0F2F5'] /* palette primary-50 */));
 
 export function LeadsTable({
   leads, assignees = [], marketingAssignees = [], collapsed, hiddenColumns, resetKey, onToggleGroup, onStatusChange,
@@ -300,7 +303,7 @@ export function LeadsTable({
                     <td style={cell}>
                       {assigneePool(l).length > 0 ? (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                          <Avatar name={l.assignee} size="sm" />
+                          <Avatar name={l.assignee} size="xs" />
                           <ColorSelect
                             value={l.assignee_id && l.assignee !== 'Unassigned' ? l.assignee : null}
                             options={assigneePool(l).map(a => a.full_name)}
@@ -311,7 +314,7 @@ export function LeadsTable({
                         </span>
                       ) : (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                          <Avatar name={l.assignee} size="sm" />
+                          <Avatar name={l.assignee} size="xs" />
                           <span style={{ color: 'var(--fg-muted)' }}>{l.assignee}</span>
                         </span>
                       )}
@@ -368,12 +371,13 @@ export function LeadsTable({
                     <td style={{ ...cell, color: 'var(--fg-subtle)' }}>{formatDate(l.date_done)}</td>
 
                     <td style={{ ...cell, textAlign: 'center' }}>
-                      <input
-                        type="checkbox" checked={!!l.targeted}
+                      <Checkbox
+                        checked={!!l.targeted}
                         disabled={l.origin !== 'opportunity' && l.origin !== 'potential'}
-                        onChange={e => onTargetedChange?.(l.id, e.target.checked)}
+                        onCheckedChange={checked => onTargetedChange?.(l.id, checked)}
                         onClick={e => e.stopPropagation()}
-                        style={{ width: 14, height: 14, cursor: 'pointer', accentColor: 'var(--brand-teal)' }}
+                        aria-label={`Targeted: ${l.name}`}
+                        className="mx-auto"
                       />
                     </td>
                   </tr>

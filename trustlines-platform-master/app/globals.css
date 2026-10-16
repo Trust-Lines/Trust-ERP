@@ -47,25 +47,50 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* Trust-Lines brand colors exposed as Tailwind utilities */
-  --color-navy: #0F2A44;
-  --color-navy-700: #163655;
-  --color-navy-600: #1E466B;
-  --color-teal: #2D7D7D;
-  --color-teal-600: #266B6B;
-  --color-teal-100: #E1F0F0;
-  --color-brand-orange: #C7572B;
-  --color-orange-600: #A8481F;
-  --color-orange-100: #FBE6DC;
-  --color-canvas: #F8F7F4;
-  --color-surface: #FFFFFF;
-  --color-subtle: #F3F1EC;
-  --color-sunken: #EDEAE3;
-  --color-border-subtle: #E7E3DA;
-  --color-border-default: #D8D3C7;
-  --color-fg-default: #1A1A1A;
-  --color-fg-muted: #4A4A4A;
-  --color-fg-subtle: #6B6B6B;
+  /* Semantic UI colours (2026 palette) — values switch per mode in :root / .dark */
+  --color-ui-page-bg: var(--ui-page-bg);
+  --color-ui-surface: var(--ui-surface);
+  --color-ui-surface-elevated: var(--ui-surface-elevated);
+  --color-ui-heading: var(--ui-heading);
+  --color-ui-body: var(--ui-body);
+  --color-ui-text-secondary: var(--ui-text-secondary);
+  --color-ui-text-disabled: var(--ui-text-disabled);
+  --color-ui-btn-primary: var(--ui-btn-primary);
+  --color-ui-btn-primary-fg: var(--ui-btn-primary-fg);
+  --color-ui-btn-accent: var(--ui-btn-accent);
+  --color-ui-btn-accent-fg: var(--ui-btn-accent-fg);
+  --color-ui-link: var(--ui-link);
+  --color-ui-nav-bg: var(--ui-nav-bg);
+  --color-ui-nav-active: var(--ui-nav-active);
+  --color-ui-divider: var(--ui-divider);
+  --color-ui-input-bg: var(--ui-input-bg);
+  --color-ui-input-border: var(--ui-input-border);
+  --color-ui-selected-bg: var(--ui-selected-bg);
+  --color-ui-accent-badge-bg: var(--ui-accent-badge-bg);
+  --color-ui-accent-badge-fg: var(--ui-accent-badge-fg);
+  --color-ui-hover-bg: var(--ui-hover-bg);
+  --color-ui-focus-ring: var(--ui-focus-ring);
+
+  /* Legacy Trust-Lines brand utilities — now aliases of the new palette.
+     Delete each one once no page uses it any more. */
+  --color-navy: var(--brand-navy);
+  --color-navy-700: var(--brand-navy-700);
+  --color-navy-600: var(--brand-navy-600);
+  --color-teal: var(--brand-teal);
+  --color-teal-600: var(--brand-teal-600);
+  --color-teal-100: var(--brand-teal-100);
+  --color-brand-orange: var(--brand-orange);
+  --color-orange-600: var(--brand-orange-600);
+  --color-orange-100: var(--brand-orange-100);
+  --color-canvas: var(--bg-canvas);
+  --color-surface: var(--bg-surface);
+  --color-subtle: var(--bg-subtle);
+  --color-sunken: var(--bg-sunken);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-fg-default: var(--fg-default);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
   --color-phase-1: #475569;
   --color-phase-1-bg: #E5E9EE;
   --color-phase-2: #2563EB;
@@ -82,7 +107,96 @@
   --color-phase-done-bg: #E7F6EC;
 }
 
+/* ── 2026 PALETTE — approved colours (Figma "01 Foundations") ──────────────
+   Raw colours, identical in light and dark. Use the semantic ui-* / status-*
+   tokens in components; reach for these only when no semantic token fits.
+   Tailwind utilities: bg-primary-800, text-accent-600, border-grey-100 …
+   `static` = always emit every variable, so inline styles can use
+   var(--color-*) even when no utility class references that colour. */
+@theme static {
+  --color-primary-950: #0A0C0F;
+  --color-primary-800: #1F252D;
+  --color-primary-700: #343D4B;
+  --color-primary-600: #495669;
+  --color-primary-500: #5E6F87;
+  --color-primary-400: #7888A1;
+  --color-primary-300: #96A3B6;
+  --color-primary-200: #B4BDCB;
+  --color-primary-100: #D2D7E0;
+  --color-primary-50: #F0F2F5;
+
+  --color-secondary-950: #090C11;
+  --color-secondary-800: #1A2533;
+  --color-secondary-700: #2B3D55;
+  --color-secondary-600: #3C5577;
+  --color-secondary-500: #4D6E98;
+  --color-secondary-400: #6787B2;
+  --color-secondary-300: #88A2C3;
+  --color-secondary-200: #AABCD4;
+  --color-secondary-100: #CCD7E5;
+  --color-secondary-50: #EEF2F6;
+
+  --color-accent-950: #1A0600;
+  --color-accent-800: #4D1200;
+  --color-accent-700: #801F00;
+  --color-accent-600: #B32B00;
+  --color-accent-500: #E63700;
+  --color-accent-400: #FF511A;
+  --color-accent-300: #FF774D;
+  --color-accent-200: #FF9E80;
+  --color-accent-100: #FFC5B3;
+  --color-accent-50: #FFECE5;
+
+  --color-grey-950: #0C0C0D;
+  --color-grey-800: #242428;
+  --color-grey-700: #3D3D43;
+  --color-grey-600: #55555D;
+  --color-grey-500: #6D6D78;
+  --color-grey-400: #878792;
+  --color-grey-300: #A2A2AA;
+  --color-grey-200: #BCBCC2;
+  --color-grey-100: #D7D7DB;
+  --color-grey-50: #F2F2F3;
+
+  --color-success-dark: #216B2E;
+  --color-success-normal: #38A648;
+  --color-success-light: #E4F5E7;
+  --color-error-dark: #922025;
+  --color-error-normal: #D52D31;
+  --color-error-light: #FBE7E7;
+  --color-warning-dark: #805000;
+  --color-warning-normal: #F4A717;
+  --color-warning-light: #FFF2D8;
+  --color-info-dark: #19477D;
+  --color-info-normal: #2A6FBE;
+  --color-info-light: #E5F0FA;
+}
+
 :root {
+  /* ── SEMANTIC UI COLOURS — LIGHT (Figma "Basic UI Colors", Light Mode) ── */
+  --ui-page-bg: #FFFFFF;
+  --ui-surface: var(--color-primary-50);
+  --ui-surface-elevated: #FFFFFF;
+  --ui-heading: var(--color-primary-500);
+  --ui-body: var(--color-primary-500);
+  --ui-text-secondary: var(--color-primary-400);
+  --ui-text-disabled: var(--color-primary-300);
+  --ui-btn-primary: var(--color-secondary-500);
+  --ui-btn-primary-fg: #FFFFFF;
+  --ui-btn-accent: var(--color-accent-600);
+  --ui-btn-accent-fg: #FFFFFF;
+  --ui-link: var(--color-accent-600);
+  --ui-nav-bg: #FFFFFF;
+  --ui-nav-active: var(--color-secondary-500);
+  --ui-divider: var(--color-primary-100);
+  --ui-input-bg: #FFFFFF;
+  --ui-input-border: var(--color-primary-200);
+  --ui-selected-bg: var(--color-secondary-100);
+  --ui-accent-badge-bg: var(--color-accent-100);
+  --ui-accent-badge-fg: var(--color-accent-700);
+  --ui-hover-bg: var(--color-primary-100);
+  --ui-focus-ring: var(--color-accent-600);
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -116,50 +230,52 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
 
-  /* ── TRUST-LINES BRAND ─────────────────────────────────── */
-  --brand-navy: #0F2A44;
-  --brand-navy-700: #163655;
-  --brand-navy-600: #1E466B;
-  --brand-teal: #2D7D7D;
-  --brand-teal-600: #266B6B;
-  --brand-teal-100: #E1F0F0;
-  --brand-orange: #C7572B;
-  --brand-orange-600: #A8481F;
-  --brand-orange-100: #FBE6DC;
+  /* ── TRUST-LINES BRAND (legacy names → 2026 palette) ────────
+     Kept so existing pages pick up the new colours. Migrate pages to the
+     ui-* / palette tokens, then delete these. Old values in comments. */
+  --brand-navy: var(--color-primary-800);        /* was #0F2A44 */
+  --brand-navy-700: var(--color-primary-700);    /* was #163655 */
+  --brand-navy-600: var(--color-primary-600);    /* was #1E466B */
+  --brand-teal: var(--color-secondary-500);      /* was #2D7D7D */
+  --brand-teal-600: var(--color-secondary-600);  /* was #266B6B */
+  --brand-teal-100: var(--color-secondary-50);   /* was #E1F0F0 */
+  --brand-orange: var(--color-accent-600);       /* was #C7572B */
+  --brand-orange-600: var(--color-accent-700);   /* was #A8481F */
+  --brand-orange-100: var(--color-accent-50);    /* was #FBE6DC */
 
   /* BACKGROUNDS */
-  --bg-canvas: #F8F7F4;
-  --bg-surface: #FFFFFF;
-  --bg-subtle: #F3F1EC;
-  --bg-sunken: #EDEAE3;
-  --bg-inverse: #0F2A44;
+  --bg-canvas: var(--ui-page-bg);                /* was #F8F7F4 */
+  --bg-surface: var(--ui-surface-elevated);     /* was #FFFFFF */
+  --bg-subtle: var(--color-primary-50);         /* was #F3F1EC (warm beige) */
+  --bg-sunken: color-mix(in srgb, var(--color-primary-100) 45%, var(--color-primary-50)); /* was #EDEAE3 */
+  --bg-inverse: var(--brand-navy);
 
   /* BORDERS */
-  --border-subtle: #E7E3DA;
-  --border-default: #D8D3C7;
-  --border-strong: #B8B1A0;
-  --border-focus: #2D7D7D;
+  --border-subtle: color-mix(in srgb, var(--color-primary-100) 55%, var(--color-primary-50)); /* was #E7E3DA */
+  --border-default: var(--ui-divider);          /* was #D8D3C7 */
+  --border-strong: var(--color-primary-200);    /* was #B8B1A0 */
+  --border-focus: var(--brand-teal);
 
   /* TEXT */
-  --fg-default: #1A1A1A;
-  --fg-muted: #4A4A4A;
-  --fg-subtle: #6B6B6B;
-  --fg-faint: #8A8A8A;
-  --fg-disabled: #B0AFA8;
+  --fg-default: var(--color-primary-800);       /* was #1A1A1A */
+  --fg-muted: var(--color-primary-600);         /* was #4A4A4A */
+  --fg-subtle: var(--color-primary-500);        /* was #6B6B6B */
+  --fg-faint: var(--color-primary-400);         /* was #8A8A8A */
+  --fg-disabled: var(--ui-text-disabled);       /* was #B0AFA8 */
 
   /* STATUS */
-  --status-success: #16A34A;
-  --status-success-bg: #E7F6EC;
-  --status-success-fg: #0E6B30;
-  --status-warning: #D97706;
-  --status-warning-bg: #FDF1DD;
-  --status-warning-fg: #92500A;
-  --status-danger: #DC2626;
-  --status-danger-bg: #FCE5E5;
-  --status-danger-fg: #991B1B;
-  --status-info: #2563EB;
-  --status-info-bg: #E2EBFC;
-  --status-info-fg: #1740B0;
+  --status-success: var(--color-success-normal);
+  --status-success-bg: var(--color-success-light);
+  --status-success-fg: var(--color-success-dark);
+  --status-warning: var(--color-warning-normal);
+  --status-warning-bg: var(--color-warning-light);
+  --status-warning-fg: var(--color-warning-dark);
+  --status-danger: var(--color-error-normal);
+  --status-danger-bg: var(--color-error-light);
+  --status-danger-fg: var(--color-error-dark);
+  --status-info: var(--color-info-normal);
+  --status-info-bg: var(--color-info-light);
+  --status-info-fg: var(--color-info-dark);
 
   /* WORKFLOW PHASES */
   --phase-1: #475569;
@@ -178,7 +294,7 @@
   --phase-done-bg: #E7F6EC;
 
   /* TYPOGRAPHY */
-  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-ui: var(--font-instrument-sans), "Instrument Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-brand: "Montserrat", "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
   --fs-micro: 11px;
@@ -213,7 +329,7 @@
   --shadow-xs: 0 1px 2px rgba(15, 42, 68, 0.05), 0 0 0 1px rgba(15, 42, 68, 0.04);
   --shadow-sm: 0 1px 3px rgba(15, 42, 68, 0.06), 0 4px 12px rgba(15, 42, 68, 0.05);
   --shadow-md: 0 2px 8px rgba(15, 42, 68, 0.08), 0 8px 24px rgba(15, 42, 68, 0.07);
-  --shadow-focus: 0 0 0 3px rgba(45, 125, 125, 0.25);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--brand-teal) 25%, transparent);
 
   /* LAYOUT */
   --sidebar-width: 240px;
@@ -229,6 +345,30 @@
 }
 
 .dark {
+  /* ── SEMANTIC UI COLOURS — DARK (Figma "Basic UI Colors", Dark Mode) ── */
+  --ui-page-bg: var(--color-primary-950);
+  --ui-surface: var(--color-primary-800);
+  --ui-surface-elevated: var(--color-secondary-800);
+  --ui-heading: var(--color-primary-50);
+  --ui-body: var(--color-primary-100);
+  --ui-text-secondary: var(--color-primary-200);
+  --ui-text-disabled: var(--color-primary-400);
+  --ui-btn-primary: var(--color-secondary-300);
+  --ui-btn-primary-fg: var(--color-primary-950);
+  --ui-btn-accent: var(--color-accent-400);
+  --ui-btn-accent-fg: var(--color-primary-950);
+  --ui-link: var(--color-accent-400);
+  --ui-nav-bg: var(--color-primary-950);
+  --ui-nav-active: var(--color-secondary-300);
+  --ui-divider: var(--color-primary-600);
+  --ui-input-bg: var(--color-primary-800);
+  --ui-input-border: var(--color-secondary-500);
+  --ui-selected-bg: var(--color-secondary-700);
+  --ui-accent-badge-bg: var(--color-accent-800);
+  --ui-accent-badge-fg: var(--color-accent-200);
+  --ui-hover-bg: var(--color-primary-700);
+  --ui-focus-ring: var(--color-accent-400);
+
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -318,7 +458,7 @@
 }
 
 .sidebar .nav-item.active {
-  background: rgba(45, 125, 125, 0.24);
+  background: color-mix(in srgb, var(--brand-teal) 24%, transparent);
   color: white;
   box-shadow: inset 3px 0 0 var(--brand-teal);
   font-weight: 600;
@@ -1324,15 +1464,15 @@
 
 @keyframes pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 rgba(45, 125, 125, 0.4);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-teal) 40%, transparent);
   }
 
   70% {
-    box-shadow: 0 0 0 6px rgba(45, 125, 125, 0);
+    box-shadow: 0 0 0 6px transparent;
   }
 
   100% {
-    box-shadow: 0 0 0 0 rgba(45, 125, 125, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 
@@ -1441,9 +1581,12 @@
   font-feature-settings: "tnum" 1;
 }
 
-:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
+/* In @layer base so components/ui focus outlines (Tailwind utilities) can override it. */
+@layer base {
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
 }
 
 /* ── AI PARSER ────────────────────────────────────────────── */

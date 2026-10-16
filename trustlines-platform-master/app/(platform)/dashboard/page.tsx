@@ -26,21 +26,24 @@ const OPPORTUNITY_EDIT_ROLES = [...SALES_HANDOFF_ROLES, ...MARKETING_ROLES];
 // Row mapping — projects.current_stage only has 5 values (migration 007), fewer than the
 // design's 7 rows. Best-effort mapping below; "To Production" and "Shipped" have no
 // distinguishing signal in the data model yet and are always empty until that's defined.
+// Colours come from the 2026 palette tokens in globals.css (text/badge use the darker
+// shade so labels keep contrast on the light section background).
+const c = (token: string) => `var(--color-${token})`;
 const SECTION_DEFS = [
-  { key: 'opportunity',  label: 'Clients Opportunity',    accent: '#3a83f5', bg: '#eaf4ff', badgeBg: '#3a83f5', badgeText: '#eaf4ff' },
-  { key: 'finalization', label: 'Finalization',           accent: '#f59e0b', bg: '#fff4e3', badgeBg: '#f59e0b', badgeText: '#fff4e3' },
-  { key: 'technical',    label: 'Technical / PO + PF',    accent: '#a855f7', bg: '#f5e9ff', badgeBg: '#a855f7', badgeText: '#f5e9ff' },
-  { key: 'to_production',label: 'To Production',          accent: '#0d9488', bg: '#e2eae9', badgeBg: '#0d9488', badgeText: '#e2eae9' },
-  { key: 'in_production',label: 'Production In Progress', accent: '#ef4444', bg: '#fcdada', badgeBg: '#ef4444', badgeText: '#fcdada' },
-  { key: 'shipped',      label: 'Shipped',                accent: '#10b981', bg: '#e8f9f3', badgeBg: '#10b981', badgeText: '#e8f9f3' },
-  { key: 'ready',        label: 'Ready For Installation', accent: '#84cc16', bg: '#effade', badgeBg: '#84cc16', badgeText: '#effade' },
+  { key: 'opportunity',  label: 'Clients Opportunity',    accent: c('info-normal'),    bg: c('info-light'),    badgeBg: c('info-normal'),    badgeText: c('info-light') },
+  { key: 'finalization', label: 'Finalization',           accent: c('warning-dark'),   bg: c('warning-light'), badgeBg: c('warning-dark'),   badgeText: c('warning-light') },
+  { key: 'technical',    label: 'Technical / PO + PF',    accent: c('secondary-600'),  bg: c('secondary-50'),  badgeBg: c('secondary-600'),  badgeText: c('secondary-50') },
+  { key: 'to_production',label: 'To Production',          accent: c('primary-600'),    bg: c('primary-50'),    badgeBg: c('primary-600'),    badgeText: c('primary-50') },
+  { key: 'in_production',label: 'Production In Progress', accent: c('accent-600'),     bg: c('accent-50'),     badgeBg: c('accent-600'),     badgeText: c('accent-50') },
+  { key: 'shipped',      label: 'Shipped',                accent: c('grey-600'),       bg: c('grey-50'),       badgeBg: c('grey-600'),       badgeText: c('grey-50') },
+  { key: 'ready',        label: 'Ready For Installation', accent: c('success-dark'),   bg: c('success-light'), badgeBg: c('success-dark'),   badgeText: c('success-light') },
 ] as const;
 
 const HEADER_COLORS: Record<string, string> = {
-  TLINES_NE: '#465b6d',
-  TLINES_SE: '#3b472b',
-  TLINES_NW: '#2e5ba3',
-  CVW:       '#7a655e',
+  TLINES_NE: c('secondary-600'),
+  TLINES_SE: c('grey-700'),
+  TLINES_NW: c('info-dark'),
+  CVW:       c('accent-700'),
 };
 
 function fmtDate(d: string | null | undefined): string | null {
@@ -182,7 +185,7 @@ export default async function DashboardPage() {
       regionCode: r.code,
       logoSrc: regionLogoByCode(r.dropboxShort),
       logoCode: r.dropboxShort,
-      headerColor: HEADER_COLORS[r.code] ?? '#465b6d',
+      headerColor: HEADER_COLORS[r.code] ?? c('secondary-600'),
       total,
       sections,
     };
