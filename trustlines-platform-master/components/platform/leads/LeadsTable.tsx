@@ -15,13 +15,18 @@ import { useResizableColumns } from '@/lib/hooks/useResizableColumns';
 import { ColorSelect } from '@/components/platform/marketing/ColorSelect';
 import { TO_DO_COLOR, SOURCE_COLOR, REQUEST_COLOR, PROJECT_TYPE_RAW_COLOR, PAYMENT_OPTIONS } from '@/lib/marketing/dealFieldOptions';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { OPPORTUNITY_STATUS_TAG, TAG_HEX, opportunityTagHue } from '@/lib/status/tags';
+import { OPPORTUNITY_STATUS_TAG, TONE_HEX, opportunityTagTone } from '@/lib/status/tags';
 import { CurrencyCell } from '@/components/platform/marketing/CurrencyCell';
 
-// Status column picker: each CRM stage label shows its mapped lead-tag colour (lib/status/tags.ts).
+// Status column picker: each CRM stage label renders as its mapped lead tag (T0–T10 tone + icon).
 const STATUS_TAG_COLORS: Record<string, string> = Object.fromEntries(
-  STATUS_OP_OPTIONS.map(([key, label]) => [label, TAG_HEX[opportunityTagHue(key)]]),
+  STATUS_OP_OPTIONS.map(([key, label]) => [label, TONE_HEX[opportunityTagTone(key)].bg]),
 );
+const STATUS_KEY_BY_LABEL: Record<string, string> = Object.fromEntries(STATUS_OP_OPTIONS.map(([key, label]) => [label, key]));
+function renderStatusPill(label: string) {
+  const key = STATUS_KEY_BY_LABEL[label];
+  return <StatusBadge group="lead_stage" status={(key && OPPORTUNITY_STATUS_TAG[key]) || label} label={label} size="sm" />;
+}
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
@@ -330,10 +335,11 @@ export function LeadsTable({
                           value={STATUS_OP_OPTIONS.find(([k]) => k === l.opportunity_status)?.[1] ?? l.external_stage_label ?? null}
                           options={STATUS_OP_OPTIONS.map(([, label]) => label)}
                           knownColors={STATUS_TAG_COLORS}
+                          renderPill={renderStatusPill}
                           allowCreate={false} searchable={false} clearable={false}
                           onChange={label => { const key = STATUS_OP_OPTIONS.find(([, lb]) => lb === label)?.[0]; if (key) onStatusChange(l.id, key); }}
                         />
-                      ) : (l.external_stage_label ?? meta.label)}
+                      ) : <StatusBadge group="lead_stage" status={OPPORTUNITY_STATUS_TAG[meta.key] ?? meta.key} label={l.external_stage_label ?? meta.label} size="sm" />}
                     </td>
 
                     <td style={cell}>

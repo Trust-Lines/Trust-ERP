@@ -29,7 +29,7 @@ import { LeadQuickView } from './LeadQuickView';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { formatMoney } from '@/lib/sales/format';
 import { STATUS_META, type Lead, type OpportunityStatus } from './types';
-import { opportunityTagHue } from '@/lib/status/tags';
+import { opportunityTagTone } from '@/lib/status/tags';
 import { STATUS_TO_STAGE } from '@/lib/marketing/opportunityRows';
 import { REGIONS } from '@/lib/regions';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -611,7 +611,7 @@ export function LeadsClient({
           <div className="space-y-2.5">
             {ALL_PIPELINE_STAGES.filter(st => (counts[st.key] ?? 0) > 0 || selectedStage === st.key).map((s) => {
               const count = counts[s.key] ?? 0;
-              const stageColor = `var(--color-tag-${opportunityTagHue(s.key)})`;
+              const stageColor = `var(--status-${opportunityTagTone(s.key)}-fg)`;
               const isFiltered = selectedStage === s.key;
               const pct = count > 0 ? Math.min(100, Math.round((count / maxStageCount) * 100)) : 0;
 

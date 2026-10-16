@@ -8,7 +8,6 @@ import { ClipboardCheck, AlertTriangle, RotateCcw, CheckCircle2, Inbox } from 'l
 import { Avatar } from '@/components/platform/shared/Avatar';
 import type { QcQueue, QcRow } from '@/lib/qc/queue';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { QC_BUCKET_TAG } from '@/lib/status/tags';
 
 interface Props {
   queue: QcQueue;
@@ -122,7 +121,6 @@ export function QcWorkspaceClient({ queue, names, projects, canInspect, migratio
               <QcRowView
                 key={r.itemId + (r.inspectionId ?? '')}
                 row={r}
-                bucket={tab}
                 first={i === 0}
                 names={names}
                 project={projects[r.projectId]}
@@ -144,10 +142,9 @@ export function QcWorkspaceClient({ queue, names, projects, canInspect, migratio
 }
 
 function QcRowView({
-  row, bucket, first, names, project, canInspect, busy, onOpen, onRework, onDecide,
+  row, first, names, project, canInspect, busy, onOpen, onRework, onDecide,
 }: {
   row: QcRow;
-  bucket: SectionKey;
   first: boolean;
   names: Record<string, string>;
   project?: { code: string; name: string };
@@ -175,10 +172,10 @@ function QcRowView({
         )}
       </Link>
 
-      {/* QC state tag (approved mapping: lib/status/tags.ts → QC_BUCKET_TAG). */}
-      <StatusBadge group="quality_control" status={QC_BUCKET_TAG[bucket]} size="sm" />
-      {row.isRework && bucket !== 'rework' && (
-        <StatusBadge group="quality_control" status="rework_required" size="sm" label="Re-inspection" />
+      {/* Colour + icon from lib/status/tags.ts (quality_control); labels stay the app's own. */}
+      {row.isRework && <StatusBadge group="quality_control" status="rework_required" size="sm" label="Rework" />}
+      {row.result && row.result !== 'pending' && (
+        <StatusBadge group="quality_control" status={row.result === 'pass' ? 'passed' : 'failed'} size="sm" label={row.result === 'pass' ? 'Passed' : 'Failed'} />
       )}
 
       {who && (

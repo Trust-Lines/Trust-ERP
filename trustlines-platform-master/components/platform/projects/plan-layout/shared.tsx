@@ -25,14 +25,19 @@ export function DropboxIcon({ size = 14 }: { size?: number }) {
   );
 }
 
+const DOC_STATUS_LABEL: Record<string, string> = {
+  approved: 'Approved', rejected: 'Rejected', pending_approval: 'Pending Review',
+  draft: 'Draft', revised: 'Revised', signed: 'Signed',
+};
+
 export function DocStatusBadge({ status }: { status: string }) {
-  // Approved mapping: lib/status/tags.ts → DOC_STATUS_TAG. "signed" keeps its own label (Approved colour).
+  // Colour + icon from lib/status/tags.ts (DOC_STATUS_TAG); the label stays the app's own status name.
   return (
     <TagBadge
       group="approval"
       status={DOC_STATUS_TAG[status] ?? status}
       size="sm"
-      label={status === 'signed' ? 'Signed' : undefined}
+      label={DOC_STATUS_LABEL[status] ?? DOC_STATUS_LABEL.draft}
     />
   );
 }

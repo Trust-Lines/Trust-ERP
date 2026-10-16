@@ -56,13 +56,14 @@ function FileBadge({ name }: { name: string }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  // Approved mapping: lib/status/tags.ts → DOC_STATUS_TAG. "signed" keeps its own label (Approved colour).
+  // Colour + icon from lib/status/tags.ts (DOC_STATUS_TAG); the label stays the app's own status name.
   return (
     <TagBadge
       group="approval"
       status={DOC_STATUS_TAG[status] ?? status}
       size="sm"
-      label={status === 'signed' ? 'Signed' : undefined}
+      label={status.replace('_', ' ')}
+      className="uppercase tracking-wide"
     />
   );
 }

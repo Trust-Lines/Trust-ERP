@@ -22,9 +22,10 @@ interface StageBadgeProps {
   stage: ProjectStage;
 }
 
-/** Project stage as a status tag (approved mapping in lib/status/tags.ts → PROJECT_STAGE_TAG). */
+/** Project stage: colour + icon from lib/status/tags.ts (PROJECT_STAGE_TAG); number + label stay the app's own stage names. */
 export function StageBadge({ stage }: StageBadgeProps) {
   const tag = PROJECT_STAGE_TAG[stage];
-  if (!tag) return null;
-  return <StatusBadge group="project_stage" status={tag} />;
+  const info = STAGES_FULL.find(s => s.stage === stage);
+  if (!tag || !info) return null;
+  return <StatusBadge group="project_stage" status={tag} label={`${info.number}. ${info.label}`} />;
 }

@@ -23,6 +23,8 @@ type SelectProps = {
   className?: string
   "aria-label"?: string
   "aria-invalid"?: boolean
+  /** Draw an option (trigger + list) yourself, e.g. as a <StatusBadge>. Defaults to its label. */
+  renderOption?: (option: SelectOption) => React.ReactNode
 }
 
 /** Figma "Dropdown": single choice from a fixed list. Keyboard: Space/Enter opens, arrows move, Enter picks, Esc closes. */
@@ -36,6 +38,7 @@ function Select({
   name,
   id,
   className,
+  renderOption,
   ...aria
 }: SelectProps) {
   // base-ui treats "" as "nothing selected" (shows the placeholder), but filters commonly use
@@ -63,13 +66,20 @@ function Select({
         <SelectPrimitive.Value
           placeholder={placeholder}
           className="truncate data-placeholder:text-primary-700"
-        />
+        >
+          {renderOption
+            ? (v: string | null) => {
+                const o = items.find((i) => i.value === v)
+                return o ? renderOption({ ...o, value: o.value === EMPTY ? "" : o.value }) : null
+              }
+            : undefined}
+        </SelectPrimitive.Value>
         <SelectPrimitive.Icon className="shrink-0 transition-transform group-data-popup-open:rotate-180">
           <ChevronDownIcon className="size-4" strokeWidth={1.5} />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
-        <SelectPrimitive.Positioner className="z-50 outline-none" sideOffset={2} alignItemWithTrigger={false}>
+        <SelectPrimitive.Positioner className="z-[10050] outline-none" sideOffset={2} alignItemWithTrigger={false}>
           <SelectPrimitive.Popup
             data-slot="select-content"
             className={cn(popupBase, "min-w-(--anchor-width)")}
@@ -82,7 +92,9 @@ function Select({
                   disabled={o.disabled}
                   className={cn(optionBase, "justify-between")}
                 >
-                  <SelectPrimitive.ItemText>{o.label}</SelectPrimitive.ItemText>
+                  <SelectPrimitive.ItemText>
+                    {renderOption ? renderOption({ ...o, value: o.value === EMPTY ? "" : o.value }) : o.label}
+                  </SelectPrimitive.ItemText>
                   <SelectPrimitive.ItemIndicator>
                     <CheckIcon className="size-3.5" />
                   </SelectPrimitive.ItemIndicator>

@@ -22,22 +22,24 @@ type StatusBadgeProps = {
 }
 
 /**
- * Status tag from lib/status/tags.ts: its hue (soft tint) + Lucide icon + label.
- * An unknown status still renders (slate, raw text) so the screen doesn't break,
- * but it means a mapping row is missing in lib/status/tags.ts.
+ * Status tag from lib/status/tags.ts: its tone (T0–T10 background + text, light/dark from
+ * app/globals.css) + Lucide icon + label. An unknown status still renders (T0, raw text) so the
+ * screen doesn't break, but it means a mapping row is missing in lib/status/tags.ts.
  */
 function StatusBadge({ group, status, size = "md", showIcon = true, label, className }: StatusBadgeProps) {
   const tag = findStatusTag(group, status)
   const Icon = tag?.icon
+  const tone = tag?.tone ?? "t0"
   return (
     <span
       data-slot="status-badge"
       data-status={tag?.key ?? "unmapped"}
-      className={cn("status-tag inline-flex w-fit shrink-0 items-center rounded-tag font-medium leading-[1.5] whitespace-nowrap", SIZE[size], className)}
-      style={{ "--tag": `var(--color-tag-${tag?.hue ?? "slate"})` } as React.CSSProperties}
+      data-tone={tone}
+      className={cn("inline-flex w-fit max-w-full shrink-0 items-center rounded-tag font-medium leading-[1.5] whitespace-nowrap", SIZE[size], className)}
+      style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}
     >
       {showIcon && Icon && <Icon aria-hidden />}
-      {label ?? tag?.label ?? status}
+      <span className="truncate">{label ?? tag?.label ?? status}</span>
     </span>
   )
 }

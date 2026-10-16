@@ -62,7 +62,7 @@ function Combobox({
         </ComboboxPrimitive.Trigger>
       </ComboboxPrimitive.InputGroup>
       <ComboboxPrimitive.Portal>
-        <ComboboxPrimitive.Positioner className="z-50 outline-none" sideOffset={2}>
+        <ComboboxPrimitive.Positioner className="z-[10050] outline-none" sideOffset={2}>
           <ComboboxPrimitive.Popup className={cn(popupBase, "w-(--anchor-width) max-w-(--available-width)")}>
             <ComboboxPrimitive.Empty className="px-3 py-2 text-primary-400">{emptyText}</ComboboxPrimitive.Empty>
             <ComboboxPrimitive.List className="max-h-[min(18rem,var(--available-height))] overflow-y-auto p-1.5 data-empty:p-0">

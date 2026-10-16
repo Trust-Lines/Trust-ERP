@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState, useLayoutEffect } from 'react';
+import { useEffect, useRef, useState, useLayoutEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
 import { hashColor, readableTextColor } from '@/lib/marketing/pillColor';
 
-export function ColorSelect({ value, options, knownColors, onChange, placeholder = '—', allowCreate = true, searchable = true, clearable = true }: {
+export function ColorSelect({ value, options, knownColors, onChange, placeholder = '—', allowCreate = true, searchable = true, clearable = true, renderPill }: {
   value: string | null;
   options: string[];
   knownColors: Record<string, string>;
@@ -17,6 +17,8 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
   searchable?: boolean;
   /** Show the "Clear" row. Off for fields that must always have a value. */
   clearable?: boolean;
+  /** Draw each value yourself (e.g. a <StatusBadge>) instead of the coloured pill. */
+  renderPill?: (value: string) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -69,7 +71,7 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
           borderRadius: 6, padding: '2px 6px 2px 2px', background: 'transparent', cursor: 'pointer', minHeight: 22,
         }}
       >
-        {value ? (
+        {value && renderPill ? renderPill(value) : value ? (
           <span style={{ background: colorFor(value), color: readableTextColor(colorFor(value)), fontSize: 10.5, fontWeight: 600, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap' }}>
             {value}
           </span>
@@ -123,9 +125,11 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                 >
-                  <span style={{ background: bg, color: readableTextColor(bg), fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 999 }}>
-                    {o}
-                  </span>
+                  {renderPill ? renderPill(o) : (
+                    <span style={{ background: bg, color: readableTextColor(bg), fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 999 }}>
+                      {o}
+                    </span>
+                  )}
                   {selected && <Check size={14} style={{ color: 'var(--brand-teal)', marginLeft: 'auto', flexShrink: 0 }} />}
                 </button>
               );

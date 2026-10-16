@@ -6,6 +6,7 @@ import { BadgeAlertIcon, BriefcaseBusinessIcon, CheckIcon, CircleCheckIcon, Clip
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { DocStatusBadge } from '@/components/platform/projects/plan-layout/shared';
 import { STATUS_TAGS, type StatusGroup } from '@/lib/status/tags';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
@@ -247,22 +248,43 @@ export function UiShowcase() {
               </div>
             </div>
             <div className="col-span-3">
-              <Label>Status tags — one colour per status (lib/status/tags.ts → &lt;StatusBadge&gt;)</Label>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {(Object.keys(STATUS_TAGS) as StatusGroup[]).map(group => (
-                  <div key={group} className="rounded-card border border-ui-divider p-3">
-                    <div className="mb-2 text-meta font-semibold text-primary-800">{STATUS_TAGS[group].title}</div>
-                    <ul className="space-y-1.5">
-                      {STATUS_TAGS[group].tags.map(t => (
-                        <li key={t.key} className="flex items-center justify-between gap-3">
-                          <StatusBadge group={group} status={t.key} />
-                          <span className="font-mono text-[10px] text-primary-400">tag-{t.hue}</span>
-                        </li>
-                      ))}
-                    </ul>
+              <Label>Status Chip tones T0–T10 (Figma &quot;Status Colors&quot;) — light / dark</Label>
+              <div className="mb-4 grid gap-2 sm:grid-cols-2">
+                {(['', 'dark'] as const).map(mode => (
+                  <div key={mode || 'light'} className={`${mode} flex flex-wrap gap-x-3 gap-y-2 rounded-card p-3 ${mode ? 'bg-primary-950' : 'border border-ui-divider bg-ui-surface-elevated'}`}>
+                    {(['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10'] as const).map(t => (
+                      <div key={t} className="flex flex-col items-center gap-1">
+                        <span className="inline-flex h-6 items-center gap-1 rounded-tag px-2.5 text-[11px] font-medium" style={{ background: `var(--status-${t}-bg)`, color: `var(--status-${t}-fg)` }}>
+                          <CircleCheckIcon className="size-3.5" />Status
+                        </span>
+                        <span className={`text-[10px] font-semibold ${mode ? 'text-primary-50' : 'text-primary-800'}`}>{t.toUpperCase()}</span>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
+              <Label>Status tags — tone + icon + label per status (lib/status/tags.ts → &lt;StatusBadge&gt;)</Label>
+              {(['', 'dark'] as const).map(mode => (
+                <div key={mode || 'light'} className={`${mode} mb-4 grid gap-4 rounded-card p-3 md:grid-cols-2 xl:grid-cols-3 ${mode ? 'bg-primary-950' : ''}`}>
+                  {(Object.keys(STATUS_TAGS) as StatusGroup[]).map(group => (
+                    <div key={group} className="rounded-card border border-ui-divider bg-ui-surface p-3">
+                      <div className="mb-2 flex items-baseline gap-2">
+                        <span className="text-meta font-semibold text-ui-heading">{STATUS_TAGS[group].title}</span>
+                        <span className="text-[10px] text-ui-text-secondary">{STATUS_TAGS[group].tags.length} statuses</span>
+                      </div>
+                      <ul className="space-y-1.5">
+                        {STATUS_TAGS[group].tags.map(t => (
+                          <li key={t.key} className="grid grid-cols-[1fr_auto_7rem] items-center gap-3">
+                            <StatusBadge group={group} status={t.key} />
+                            <span className="text-[10px] font-semibold text-ui-body">{t.tone.toUpperCase()}</span>
+                            <span className="truncate font-mono text-[10px] text-ui-text-secondary">{t.icon.displayName ?? ''}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ))}
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Label>Sizes S / M / L, without icon, and an unmapped status:</Label>
                 <StatusBadge group="production" status="in_production" size="sm" />
@@ -270,6 +292,17 @@ export function UiShowcase() {
                 <StatusBadge group="production" status="in_production" size="lg" />
                 <StatusBadge group="approval" status="approved" showIcon={false} />
                 <StatusBadge group="approval" status="Mystery status" />
+              </div>
+              <div className="mt-3 rounded-card border border-ui-divider p-3" data-testid="doc-status-check">
+                <Label>Document status → tag (the real DocStatusBadge used on project documents, all 6 stored values)</Label>
+                <ul className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                  {(['draft', 'pending_approval', 'revised', 'rejected', 'approved', 'signed'] as const).map(s => (
+                    <li key={s} className="flex items-center justify-between gap-3">
+                      <code className="text-[11px] text-primary-500">{s}</code>
+                      <DocStatusBadge status={s} />
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>

@@ -210,37 +210,8 @@
   --text-h1: 36px;
   --text-h1--line-height: 1.22;
   --text-h1--font-weight: 600;
-
-  /* ── STATUS TAG COLOURS (approved list, 2026-10-16) ─────────────────────
-     One hue per status; which status uses which hue is in lib/status/tags.ts.
-     Render tags with the .status-tag style below (soft tint, AA contrast). */
-  --color-tag-slate: #8290A4;
-  --color-tag-steel: #678FAF;
-  --color-tag-blue: #2A6FBE;
-  --color-tag-indigo: #5260AE;
-  --color-tag-purple: #8064BA;
-  --color-tag-violet: #8968A8;
-  --color-tag-teal: #168E90;
-  --color-tag-jade: #3A9180;
-  --color-tag-ochre: #C48A28;
-  --color-tag-amber: #F4A717;
-  --color-tag-copper: #C46A43;
-  --color-tag-green: #38A648;
-  --color-tag-red: #D52D31;
 }
 
-/* Soft-tint status tag: light background + dark text in the same hue. Set the hue with
-   style={{ '--tag': 'var(--color-tag-…)' }}. Contrast ≥ 5.3:1 light, ≥ 8.8:1 dark for every hue. */
-@layer components {
-  .status-tag {
-    background: color-mix(in srgb, var(--tag, var(--color-tag-slate)) 14%, #FFFFFF);
-    color: color-mix(in srgb, var(--tag, var(--color-tag-slate)) 55%, #000000);
-  }
-  .dark .status-tag {
-    background: color-mix(in srgb, var(--tag, var(--color-tag-slate)) 28%, #0A0C0F);
-    color: color-mix(in srgb, var(--tag, var(--color-tag-slate)) 35%, #FFFFFF);
-  }
-}
 
 :root {
   /* ── SEMANTIC UI COLOURS — LIGHT (Figma "Basic UI Colors", Light Mode) ── */
@@ -253,7 +224,7 @@
   --ui-text-disabled: var(--color-primary-300);
   --ui-btn-primary: var(--color-secondary-500);
   --ui-btn-primary-fg: #FFFFFF;
-  --ui-btn-accent: var(--color-accent-600);
+  --ui-btn-accent: var(--color-accent-400);
   --ui-btn-accent-fg: #FFFFFF;
   --ui-link: var(--color-accent-600);
   --ui-nav-bg: #FFFFFF;
@@ -266,6 +237,32 @@
   --ui-accent-badge-fg: var(--color-accent-700);
   --ui-hover-bg: var(--color-primary-100);
   --ui-focus-ring: var(--color-accent-600);
+
+  /* ── STATUS TONES T0–T10 (Figma "Status Colors", Light) ─────────────────
+     Which status uses which tone: lib/status/tags.ts. Dark mode swaps bg/fg (see .dark).
+     NOTE: T2 is labelled the other way round in the Figma export; values follow the design. */
+  --status-t0-bg: #DDDDDD;
+  --status-t0-fg: #787881;
+  --status-t1-bg: #D2F7FF;
+  --status-t1-fg: #2398B2;
+  --status-t2-bg: #D2E6FF;
+  --status-t2-fg: #2366B2;
+  --status-t3-bg: #FDDBFF;
+  --status-t3-fg: #B93FBF;
+  --status-t4-bg: #EEDDFF;
+  --status-t4-fg: #74489D;
+  --status-t5-bg: #D0FBFB;
+  --status-t5-fg: #206470;
+  --status-t6-bg: #E7F6F3;
+  --status-t6-fg: #3A9166;
+  --status-t7-bg: #FFF2D8;
+  --status-t7-fg: #805000;
+  --status-t8-bg: #FFE3D7;
+  --status-t8-fg: #B34819;
+  --status-t9-bg: var(--color-success-light);
+  --status-t9-fg: var(--color-success-dark);
+  --status-t10-bg: var(--color-error-light);
+  --status-t10-fg: var(--color-error-dark);
 
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -418,7 +415,7 @@
 .dark {
   /* ── SEMANTIC UI COLOURS — DARK (Figma "Basic UI Colors", Dark Mode) ── */
   --ui-page-bg: var(--color-primary-950);
-  --ui-surface: var(--color-primary-800);
+  --ui-surface: var(--color-primary-700);
   --ui-surface-elevated: var(--color-secondary-800);
   --ui-heading: var(--color-primary-50);
   --ui-body: var(--color-primary-100);
@@ -439,6 +436,30 @@
   --ui-accent-badge-fg: var(--color-accent-200);
   --ui-hover-bg: var(--color-primary-700);
   --ui-focus-ring: var(--color-accent-400);
+
+  /* Status tones T0–T10 — Dark: strong colour as background, light colour as text. */
+  --status-t0-bg: #787881;
+  --status-t0-fg: #DDDDDD;
+  --status-t1-bg: #2398B2;
+  --status-t1-fg: #D2F7FF;
+  --status-t2-bg: #2366B2;
+  --status-t2-fg: #D2E6FF;
+  --status-t3-bg: #B93FBF;
+  --status-t3-fg: #FDDBFF;
+  --status-t4-bg: #74489D;
+  --status-t4-fg: #EEDDFF;
+  --status-t5-bg: #206470;
+  --status-t5-fg: #D0FBFB;
+  --status-t6-bg: #3A9166;
+  --status-t6-fg: #E7F6F3;
+  --status-t7-bg: #805000;
+  --status-t7-fg: #FFF2D8;
+  --status-t8-bg: #B34819;
+  --status-t8-fg: #FFE3D7;
+  --status-t9-bg: var(--color-success-dark);
+  --status-t9-fg: var(--color-success-light);
+  --status-t10-bg: var(--color-error-dark);
+  --status-t10-fg: var(--color-error-light);
 
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
