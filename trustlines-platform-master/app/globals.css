@@ -170,6 +170,76 @@
   --color-info-dark: #19477D;
   --color-info-normal: #2A6FBE;
   --color-info-light: #E5F0FA;
+
+  /* ── FOUNDATIONS (Figma DAY 02 › Foundations, Task 5) ──────────────────
+     Spacing: Ahmet's 4·8·12·16·20·24·32·40·48·64 = Tailwind's own scale
+     (p-1 … p-16), so no extra tokens. Icons: 16/20/24 = size-4/5/6. */
+
+  /* Shadows 01–04 → shadow-01 … shadow-04 */
+  --shadow-01: 0 1px 2px 0 rgb(0 0 0 / 0.06);
+  --shadow-02: 0 2px 6px 0 rgb(0 0 0 / 0.10);
+  --shadow-03: 0 6px 16px -2px rgb(0 0 0 / 0.12);
+  --shadow-04: 0 12px 32px -4px rgb(0 0 0 / 0.16);
+
+  /* Corner radius by role → rounded-tag / -control / -card / -modal */
+  --radius-tag: 4px;      /* tags, compact inputs */
+  --radius-control: 8px;  /* buttons, dropdowns */
+  --radius-card: 12px;    /* cards, panels */
+  --radius-modal: 16px;   /* modals, large containers */
+
+  /* Text sizes → text-caption … text-h1 */
+  --text-caption: 12px;
+  --text-caption--line-height: 1.5;
+  --text-meta: 13px;
+  --text-meta--line-height: 1.5;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 1.5;
+  --text-body: 16px;
+  --text-body--line-height: 1.5;
+  --text-body-lg: 18px;
+  --text-body-lg--line-height: 1.5;
+  --text-h4: 20px;
+  --text-h4--line-height: 1.4;
+  --text-h4--font-weight: 600;
+  --text-h3: 24px;
+  --text-h3--line-height: 1.33;
+  --text-h3--font-weight: 600;
+  --text-h2: 30px;
+  --text-h2--line-height: 1.27;
+  --text-h2--font-weight: 600;
+  --text-h1: 36px;
+  --text-h1--line-height: 1.22;
+  --text-h1--font-weight: 600;
+
+  /* ── STATUS TAG COLOURS (approved list, 2026-10-16) ─────────────────────
+     One hue per status; which status uses which hue is in lib/status/tags.ts.
+     Render tags with the .status-tag style below (soft tint, AA contrast). */
+  --color-tag-slate: #8290A4;
+  --color-tag-steel: #678FAF;
+  --color-tag-blue: #2A6FBE;
+  --color-tag-indigo: #5260AE;
+  --color-tag-purple: #8064BA;
+  --color-tag-violet: #8968A8;
+  --color-tag-teal: #168E90;
+  --color-tag-jade: #3A9180;
+  --color-tag-ochre: #C48A28;
+  --color-tag-amber: #F4A717;
+  --color-tag-copper: #C46A43;
+  --color-tag-green: #38A648;
+  --color-tag-red: #D52D31;
+}
+
+/* Soft-tint status tag: light background + dark text in the same hue. Set the hue with
+   style={{ '--tag': 'var(--color-tag-…)' }}. Contrast ≥ 5.3:1 light, ≥ 8.8:1 dark for every hue. */
+@layer components {
+  .status-tag {
+    background: color-mix(in srgb, var(--tag, var(--color-tag-slate)) 14%, #FFFFFF);
+    color: color-mix(in srgb, var(--tag, var(--color-tag-slate)) 55%, #000000);
+  }
+  .dark .status-tag {
+    background: color-mix(in srgb, var(--tag, var(--color-tag-slate)) 28%, #0A0C0F);
+    color: color-mix(in srgb, var(--tag, var(--color-tag-slate)) 35%, #FFFFFF);
+  }
 }
 
 :root {
@@ -326,9 +396,10 @@
   --radius-pill: 999px;
 
   /* SHADOWS */
-  --shadow-xs: 0 1px 2px rgba(15, 42, 68, 0.05), 0 0 0 1px rgba(15, 42, 68, 0.04);
-  --shadow-sm: 0 1px 3px rgba(15, 42, 68, 0.06), 0 4px 12px rgba(15, 42, 68, 0.05);
-  --shadow-md: 0 2px 8px rgba(15, 42, 68, 0.08), 0 8px 24px rgba(15, 42, 68, 0.07);
+  /* Legacy shadow names → Foundations shadows (old navy-tinted values in comments). */
+  --shadow-xs: var(--shadow-01); /* was 0 1px 2px rgba(15,42,68,.05), 0 0 0 1px rgba(15,42,68,.04) */
+  --shadow-sm: var(--shadow-02); /* was 0 1px 3px rgba(15,42,68,.06), 0 4px 12px rgba(15,42,68,.05) */
+  --shadow-md: var(--shadow-03); /* was 0 2px 8px rgba(15,42,68,.08), 0 8px 24px rgba(15,42,68,.07) */
   --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--brand-teal) 25%, transparent);
 
   /* LAYOUT */
@@ -1483,7 +1554,7 @@
 /* ── MODAL ────────────────────────────────────────────── */
 :root {
   --z-modal: 100;
-  --shadow-lg: 0 20px 60px rgba(15, 42, 68, 0.18), 0 4px 20px rgba(15, 42, 68, 0.1);
+  --shadow-lg: var(--shadow-04); /* was 0 20px 60px rgba(15,42,68,.18), 0 4px 20px rgba(15,42,68,.1) */
 }
 
 .modal-overlay {

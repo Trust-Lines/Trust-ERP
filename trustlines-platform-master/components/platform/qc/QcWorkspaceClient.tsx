@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 import { ClipboardCheck, AlertTriangle, RotateCcw, CheckCircle2, Inbox } from 'lucide-react';
 import { Avatar } from '@/components/platform/shared/Avatar';
 import type { QcQueue, QcRow } from '@/lib/qc/queue';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { QC_BUCKET_TAG } from '@/lib/status/tags';
 
 interface Props {
   queue: QcQueue;
@@ -120,6 +122,7 @@ export function QcWorkspaceClient({ queue, names, projects, canInspect, migratio
               <QcRowView
                 key={r.itemId + (r.inspectionId ?? '')}
                 row={r}
+                bucket={tab}
                 first={i === 0}
                 names={names}
                 project={projects[r.projectId]}
@@ -141,9 +144,10 @@ export function QcWorkspaceClient({ queue, names, projects, canInspect, migratio
 }
 
 function QcRowView({
-  row, first, names, project, canInspect, busy, onOpen, onRework, onDecide,
+  row, bucket, first, names, project, canInspect, busy, onOpen, onRework, onDecide,
 }: {
   row: QcRow;
+  bucket: SectionKey;
   first: boolean;
   names: Record<string, string>;
   project?: { code: string; name: string };
@@ -171,10 +175,10 @@ function QcRowView({
         )}
       </Link>
 
-      {row.isRework && (
-        <span className="pill" style={{ background: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)' }}>
-          Rework
-        </span>
+      {/* QC state tag (approved mapping: lib/status/tags.ts → QC_BUCKET_TAG). */}
+      <StatusBadge group="quality_control" status={QC_BUCKET_TAG[bucket]} size="sm" />
+      {row.isRework && bucket !== 'rework' && (
+        <StatusBadge group="quality_control" status="rework_required" size="sm" label="Re-inspection" />
       )}
 
       {who && (
@@ -183,14 +187,6 @@ function QcRowView({
         </span>
       )}
 
-      {row.result && row.result !== 'pending' && (
-        <span className="pill" style={{
-          background: row.result === 'pass' ? 'var(--status-success-bg)' : 'var(--status-danger-bg)',
-          color: row.result === 'pass' ? 'var(--status-success-fg)' : 'var(--status-danger-fg)',
-        }}>
-          {row.result === 'pass' ? 'Passed' : 'Failed'}
-        </span>
-      )}
 
       {canInspect && (
         <span style={{ display: 'inline-flex', gap: 6 }}>

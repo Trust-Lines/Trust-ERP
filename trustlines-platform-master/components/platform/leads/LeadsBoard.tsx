@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { Flag, Clock, CheckSquare, Tag } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { OPPORTUNITY_STATUS_TAG } from '@/lib/status/tags';
 import { Button } from '@/components/ui/button';
 import { STATUS_ORDER, PRIORITY_COLOR, type Lead, type OpportunityStatus } from './types';
 import { formatMoney } from '@/lib/sales/format';
@@ -52,10 +54,7 @@ export function LeadsBoard({ leads, onStatusChange, onContextMenu, onOpen }: Pro
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 700, background: meta.bg, color: meta.fg }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: meta.dot }} />
-                {meta.label}
-              </span>
+              <StatusBadge group="lead_stage" status={OPPORTUNITY_STATUS_TAG[meta.key] ?? meta.key} label={meta.label} />
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-subtle)' }}>{allCards.length}</span>
             </div>
 

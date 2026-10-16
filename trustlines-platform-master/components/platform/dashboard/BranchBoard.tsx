@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { MapPinOff } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ProjectQuickView } from './ProjectQuickView';
 // The real, editable opportunity popup — same one /leads and /marketing/opportunities use
 // (comments, files, ClickUp reference, inline edits) — not a dashboard-only rebuild.
@@ -241,9 +243,12 @@ export function BranchBoard({ columns, assignees, canEdit }: {
 
   if (columns.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-ui-input-border bg-ui-surface-elevated p-8 text-center text-sm text-ui-text-secondary">
-        No branch is assigned to your account yet — ask an admin to set your region on the Team page.
-      </div>
+      <EmptyState
+        boxed
+        icon={<MapPinOff />}
+        title="No branch is assigned to your account yet"
+        description="Ask an admin to set your region on the Team page."
+      />
     );
   }
   return (

@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { PermissionShield } from '@/components/platform/shared/PermissionShield';
 import { FileUploadZone } from './FileUploadZone';
 import type { DocumentRow } from './ProjectDetailClient';
+import { StatusBadge as TagBadge } from '@/components/ui/status-badge';
+import { DOC_STATUS_TAG } from '@/lib/status/tags';
 
 interface Props {
   documents:       DocumentRow[];
@@ -53,20 +55,15 @@ function FileBadge({ name }: { name: string }) {
   );
 }
 
-const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
-  draft:            { bg: 'var(--status-warning-bg)', color: 'var(--status-warning)' },
-  pending_approval: { bg: 'var(--status-info-bg)', color: 'var(--status-info)' },
-  approved:         { bg: 'var(--status-success-bg)', color: 'var(--status-success)' },
-  rejected:         { bg: 'var(--status-danger-bg)', color: 'var(--status-danger)' },
-  signed:           { bg: 'var(--phase-5-bg)', color: 'var(--phase-5)' },
-  revised:          { bg: 'var(--status-warning-bg)', color: 'var(--status-warning)' },
-};
 function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_STYLE[status] ?? { bg: 'var(--bg-sunken)', color: 'var(--fg-subtle)' };
+  // Approved mapping: lib/status/tags.ts → DOC_STATUS_TAG. "signed" keeps its own label (Approved colour).
   return (
-    <span style={{ padding: '2px 7px', borderRadius: 3, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', background: s.bg, color: s.color, whiteSpace: 'nowrap' }}>
-      {status.replace('_', ' ')}
-    </span>
+    <TagBadge
+      group="approval"
+      status={DOC_STATUS_TAG[status] ?? status}
+      size="sm"
+      label={status === 'signed' ? 'Signed' : undefined}
+    />
   );
 }
 

@@ -10,12 +10,18 @@ import {
   STATUS_ORDER, STATUS_OP_OPTIONS, PRIORITY_COLOR,
   type Lead, type OpportunityStatus, type Priority,
 } from './types';
-import { readableTextColor } from '@/lib/marketing/pillColor';
 import { INDUSTRY_OPTIONS, INDUSTRY_COLOR } from '@/lib/marketing/industry';
 import { useResizableColumns } from '@/lib/hooks/useResizableColumns';
 import { ColorSelect } from '@/components/platform/marketing/ColorSelect';
-import { TO_DO_COLOR, SOURCE_COLOR, REQUEST_COLOR, PROJECT_TYPE_RAW_COLOR, STATUS_OP_COLOR, PAYMENT_OPTIONS } from '@/lib/marketing/dealFieldOptions';
+import { TO_DO_COLOR, SOURCE_COLOR, REQUEST_COLOR, PROJECT_TYPE_RAW_COLOR, PAYMENT_OPTIONS } from '@/lib/marketing/dealFieldOptions';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { OPPORTUNITY_STATUS_TAG, TAG_HEX, opportunityTagHue } from '@/lib/status/tags';
 import { CurrencyCell } from '@/components/platform/marketing/CurrencyCell';
+
+// Status column picker: each CRM stage label shows its mapped lead-tag colour (lib/status/tags.ts).
+const STATUS_TAG_COLORS: Record<string, string> = Object.fromEntries(
+  STATUS_OP_OPTIONS.map(([key, label]) => [label, TAG_HEX[opportunityTagHue(key)]]),
+);
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
@@ -196,9 +202,6 @@ export function LeadsTable({
             const isCollapsed = collapsed.has(meta.key);
             // Empty groups are noise — only show them while dragging (they're drop targets).
             if (rows.length === 0 && dragId == null) return null;
-            const clickupColor = Object.entries(STATUS_OP_COLOR).find(([k]) => k.toUpperCase() === meta.label.toUpperCase())?.[1];
-            const groupBg = clickupColor ?? meta.bg;
-            const groupFg = clickupColor ? readableTextColor(clickupColor) : meta.fg;
 
             const isDropTarget = dragOverKey === meta.key && dragId != null;
 
@@ -227,13 +230,8 @@ export function LeadsTable({
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, position: 'sticky', left: 12 }}>
                       {isCollapsed ? <ChevronRight size={15} color="var(--fg-subtle)" /> : <ChevronDown size={15} color="var(--fg-subtle)" />}
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 6,
-                        padding: '3px 12px', borderRadius: 6,
-                        fontSize: 12, fontWeight: 700, background: groupBg, color: groupFg,
-                      }}>
-                        {meta.label}
-                      </span>
+                      {/* CRM keeps its stage names; colour + icon come from the mapped lead tag. */}
+                      <StatusBadge group="lead_stage" status={OPPORTUNITY_STATUS_TAG[meta.key] ?? meta.key} label={meta.label} size="lg" />
                       <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--fg-subtle)' }}>
                         {rows.length}
                       </span>
@@ -331,7 +329,7 @@ export function LeadsTable({
                         <ColorSelect
                           value={STATUS_OP_OPTIONS.find(([k]) => k === l.opportunity_status)?.[1] ?? l.external_stage_label ?? null}
                           options={STATUS_OP_OPTIONS.map(([, label]) => label)}
-                          knownColors={STATUS_OP_COLOR}
+                          knownColors={STATUS_TAG_COLORS}
                           allowCreate={false} searchable={false} clearable={false}
                           onChange={label => { const key = STATUS_OP_OPTIONS.find(([, lb]) => lb === label)?.[0]; if (key) onStatusChange(l.id, key); }}
                         />

@@ -1,20 +1,26 @@
 'use client';
 
 import * as React from 'react';
-import { BriefcaseBusinessIcon, CircleCheckIcon, HourglassIcon, InfoIcon, PlusIcon, XIcon } from 'lucide-react';
+import { BadgeAlertIcon, BriefcaseBusinessIcon, CheckIcon, CircleCheckIcon, ClipboardListIcon, ClockIcon, DollarSignIcon, InboxIcon, InfoIcon, PlusIcon, SearchXIcon, SendIcon, Trash2Icon, UsersIcon, XIcon } from 'lucide-react';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { STATUS_TAGS, type StatusGroup } from '@/lib/status/tags';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
 import { CurrencyCell } from '@/components/ui/currency-cell';
 import { DatePicker } from '@/components/ui/date-picker';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
+import { KpiCard, KpiCardRow } from '@/components/ui/kpi-card';
+import { ConfirmModal, Modal, ModalClose, ModalContent, ModalTrigger } from '@/components/ui/modal';
 import { Pagination } from '@/components/ui/pagination';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select } from '@/components/ui/select';
+import { Skeleton, SkeletonCard, SkeletonGroup, SkeletonTable, SkeletonText } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TagInput } from '@/components/ui/tag-input';
@@ -45,6 +51,7 @@ export function UiShowcase() {
   const [tags, setTags] = React.useState<string[]>(['urgent']);
   const [page, setPage] = React.useState(1);
   const [hidden, setHidden] = React.useState(false);
+  const [confirmResult, setConfirmResult] = React.useState<string | null>(null);
 
   return (
     <TooltipProvider>
@@ -55,6 +62,64 @@ export function UiShowcase() {
             components/ui — compare with Figma TRUST-LINES-ERP › DAY 03 › Components. Tab through the page to check keyboard focus.
           </p>
         </header>
+
+        <Panel title="Foundations (Figma DAY 02 › Task 5)">
+          <div className="grid gap-6 md:grid-cols-3">
+            <div>
+              <Label>Text sizes</Label>
+              <div className="space-y-1 text-primary-950">
+                <div className="text-h1">Heading H1 · 36</div>
+                <div className="text-h2">Heading H2 · 30</div>
+                <div className="text-h3">Heading H3 · 24</div>
+                <div className="text-h4">Heading H4 · 20</div>
+                <div className="text-body-lg">Body Large · 18</div>
+                <div className="text-body">Body Default · 16</div>
+                <div className="text-body-sm">Body Small · 14</div>
+                <div className="text-meta">Helper / Metadata · 13</div>
+                <div className="text-caption">Caption / small · 12</div>
+              </div>
+            </div>
+            <div>
+              <Label>Shadows</Label>
+              <div className="grid grid-cols-2 gap-4 p-2">
+                {(['shadow-01', 'shadow-02', 'shadow-03', 'shadow-04'] as const).map((s, i) => (
+                  <div key={s} className={`grid h-16 place-items-center rounded-card bg-ui-surface-elevated text-caption text-primary-500 ${s}`}>
+                    Shadow/0{i + 1}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label>Corner radius</Label>
+                <div className="flex flex-wrap gap-3">
+                  {[
+                    ['rounded-tag', '4 · tags, compact inputs'],
+                    ['rounded-control', '8 · buttons, dropdowns'],
+                    ['rounded-card', '12 · cards, panels'],
+                    ['rounded-modal', '16 · modals'],
+                  ].map(([cls, label]) => (
+                    <div key={cls} className="flex flex-col items-center gap-1">
+                      <div className={`size-12 border border-primary-700 bg-primary-50 ${cls}`} />
+                      <span className="max-w-20 text-center text-[10px] text-primary-500">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label>Spacing (Tailwind scale)</Label>
+                <div className="flex items-end gap-1.5">
+                  {[1, 2, 3, 4, 5, 6, 8, 10, 12, 16].map(n => (
+                    <div key={n} className="flex flex-col items-center gap-1">
+                      <div className="w-3 bg-accent-500" style={{ height: n * 4 }} />
+                      <span className="text-[9px] text-primary-500">{n * 4}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Panel>
 
         <Panel title="Buttons">
           <div className="grid grid-cols-4 gap-x-6 gap-y-3">
@@ -182,17 +247,165 @@ export function UiShowcase() {
               </div>
             </div>
             <div className="col-span-3">
-              <Label>Status badges (Status Language tones)</Label>
-              <div className="flex flex-wrap gap-1.5">
-                <Badge tone="neutral" icon={<CircleCheckIcon />}>Neutral</Badge>
-                <Badge tone="info">Info</Badge>
-                <Badge tone="accent" icon={<HourglassIcon />}>Pending Review</Badge>
-                <Badge tone="warning">Warning</Badge>
-                <Badge tone="success" icon={<CircleCheckIcon />}>Approved</Badge>
-                <Badge tone="error">Rejected</Badge>
+              <Label>Status tags — one colour per status (lib/status/tags.ts → &lt;StatusBadge&gt;)</Label>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {(Object.keys(STATUS_TAGS) as StatusGroup[]).map(group => (
+                  <div key={group} className="rounded-card border border-ui-divider p-3">
+                    <div className="mb-2 text-meta font-semibold text-primary-800">{STATUS_TAGS[group].title}</div>
+                    <ul className="space-y-1.5">
+                      {STATUS_TAGS[group].tags.map(t => (
+                        <li key={t.key} className="flex items-center justify-between gap-3">
+                          <StatusBadge group={group} status={t.key} />
+                          <span className="font-mono text-[10px] text-primary-400">tag-{t.hue}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Label>Sizes S / M / L, without icon, and an unmapped status:</Label>
+                <StatusBadge group="production" status="in_production" size="sm" />
+                <StatusBadge group="production" status="in_production" size="md" />
+                <StatusBadge group="production" status="in_production" size="lg" />
+                <StatusBadge group="approval" status="approved" showIcon={false} />
+                <StatusBadge group="approval" status="Mystery status" />
               </div>
             </div>
           </div>
+        </Panel>
+
+        <Panel title="ERP components (Task 11) · Empty state">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label>Page / table level — with create action</Label>
+              <EmptyState
+                boxed
+                icon={<UsersIcon />}
+                title="No customers yet"
+                description="Click “New customer” to add the first one."
+                action={<Button size="sm"><PlusIcon />New customer</Button>}
+              />
+            </div>
+            <div>
+              <Label>Filtered list — nothing matches</Label>
+              <EmptyState
+                boxed
+                icon={<SearchXIcon />}
+                title="No contact matches your filters"
+                description="Try a different search or clear the filters."
+                action={<Button variant="outline" size="sm">Clear filters</Button>}
+              />
+            </div>
+            <div>
+              <Label>No action (read-only view)</Label>
+              <EmptyState boxed icon={<Trash2Icon />} title="Trash is empty" description="Deleted items stay here for 30 days." />
+            </div>
+            <div>
+              <Label>Small — inline inside a card</Label>
+              <div className="rounded-card border border-ui-divider bg-ui-surface-elevated px-4 py-2">
+                <div className="text-meta font-semibold text-primary-800">Contacts</div>
+                <EmptyState size="sm" title="No contacts yet." />
+                <EmptyState size="sm" icon={<InboxIcon />} title="No activity yet." description="Comments and changes will show here." />
+              </div>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel title="ERP components (Task 11) · Skeleton (loading placeholders)">
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="space-y-4">
+              <div><Label>Text (3 lines)</Label><SkeletonText /></div>
+              <div><Label>Card (KPI / quick-view section)</Label><SkeletonCard /></div>
+              <div>
+                <Label>Custom shapes with &lt;Skeleton&gt;</Label>
+                <SkeletonGroup className="flex items-center gap-3">
+                  <Skeleton className="size-10 rounded-full" />
+                  <Skeleton className="h-8 w-28 rounded-control" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </SkeletonGroup>
+              </div>
+            </div>
+            <div><Label>Table (any list while it loads)</Label><SkeletonTable rows={5} /></div>
+          </div>
+        </Panel>
+
+        <Panel title="ERP components (Task 11) · KPI card (Figma DAY 02 › Approval)">
+          <Label>As in Figma: Approvals (up = good), Projects (down = bad), Tasks (wide, with list)</Label>
+          <div className="grid gap-2.5 lg:grid-cols-[257px_257px_1fr]">
+            <KpiCard icon={<CircleCheckIcon />} label="Approvals" value={14} trend={{ value: 3.5, context: 'versus last month' }} />
+            <KpiCard icon={<BriefcaseBusinessIcon />} label="Projects" value={32} trend={{ value: -1.3, context: 'versus last month' }} />
+            <KpiCard tone="muted" icon={<ClipboardListIcon />} label="Tasks" value={2}>
+              <KpiCardRow tone="error" icon={<BadgeAlertIcon />} title="High Priority" subtitle="Provision - Approval Request" meta="10/09/2026" />
+              <KpiCardRow tone="warning" icon={<BadgeAlertIcon />} title="Medium Priority" subtitle="Provision - Approval Request" meta="10/09/2026" />
+            </KpiCard>
+          </div>
+          <div className="mt-5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+            <div><Label>Clickable (href) — hover / Tab</Label><KpiCard href="/leads" icon={<DollarSignIcon />} label="Pipeline value" value="$277K" /></div>
+            <div><Label>Down is good (overdue)</Label><KpiCard icon={<ClockIcon />} label="Overdue" value={3} trend={{ value: -25, goodWhen: 'down' }} /></div>
+            <div><Label>No change</Label><KpiCard icon={<SendIcon />} label="Proposal sent" value={3} trend={{ value: 0 }} /></div>
+            <div><Label>Loading</Label><KpiCard icon={<CheckIcon />} label="Deals closed" value={0} loading /></div>
+          </div>
+        </Panel>
+
+        <Panel title="ERP components (Task 11) · Modal">
+          <p className="mb-3 text-meta text-primary-500">
+            Open each one, then test the keyboard: Tab stays inside, Esc closes, focus returns to the button. Confirm dialogs ignore backdrop clicks.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Modal>
+              <ModalTrigger render={<Button />}>Form modal (md)</ModalTrigger>
+              <ModalContent
+                title="Invite a designer"
+                description="They get an email invite and the designer role."
+                footer={<>
+                  <ModalClose render={<Button variant="secondary" />}>Cancel</ModalClose>
+                  <ModalClose render={<Button />}>Send invite</ModalClose>
+                </>}
+              >
+                <div className="space-y-3">
+                  <div><label htmlFor="m-name" className="mb-1 block text-caption font-medium text-primary-700">Full name</label><Input id="m-name" placeholder="e.g. Sara Khaled" /></div>
+                  <div><label htmlFor="m-email" className="mb-1 block text-caption font-medium text-primary-700">Email</label><Input id="m-email" type="email" placeholder="sara@…" /></div>
+                  <div><label htmlFor="m-office" className="mb-1 block text-caption font-medium text-primary-700">Office</label><Select id="m-office" options={[{ value: 'tr', label: 'Trust Lines Türkiye' }, { value: 'sy', label: 'Syria Office' }]} placeholder="Select office" /></div>
+                </div>
+              </ModalContent>
+            </Modal>
+
+            <Modal>
+              <ModalTrigger render={<Button variant="secondary" />}>Info modal (sm)</ModalTrigger>
+              <ModalContent size="sm" title="Project code" footer={<ModalClose render={<Button />}>Got it</ModalClose>}>
+                Codes are generated from company + region + a running number, e.g. STW 460.
+              </ModalContent>
+            </Modal>
+
+            <Modal>
+              <ModalTrigger render={<Button variant="outline" />}>Long content (lg, scrolls)</ModalTrigger>
+              <ModalContent size="lg" title="Activity history" description="Body scrolls; header and footer stay put." footer={<ModalClose render={<Button variant="secondary" />}>Close</ModalClose>}>
+                <ul className="space-y-2">
+                  {Array.from({ length: 30 }, (_, i) => (
+                    <li key={i} className="rounded-control bg-primary-50 px-3 py-2 text-meta">Change #{30 - i} — status updated by ZZTEST Ops Manager</li>
+                  ))}
+                </ul>
+              </ModalContent>
+            </Modal>
+
+            <ConfirmModal
+              trigger={<Button variant="outline">Confirm (archive)</Button>}
+              title="Archive this lead?"
+              description="It disappears from the board but stays searchable. You can restore it any time."
+              confirmLabel="Archive"
+              onConfirm={() => setConfirmResult('Archived (demo)')}
+            />
+            <ConfirmModal
+              trigger={<Button variant="destructive"><Trash2Icon />Destructive confirm</Button>}
+              tone="destructive"
+              title="Delete permanently?"
+              description="This removes the record for good. It cannot be undone."
+              confirmLabel="Delete forever"
+              onConfirm={() => new Promise<void>(r => setTimeout(() => { setConfirmResult('Deleted after 1s save (demo)'); r(); }, 1000))}
+            />
+          </div>
+          {confirmResult && <p role="status" className="mt-3 text-meta text-success-dark">Last confirm: {confirmResult}</p>}
         </Panel>
       </div>
     </TooltipProvider>
