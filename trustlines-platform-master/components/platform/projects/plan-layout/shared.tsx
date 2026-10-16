@@ -1,4 +1,6 @@
 import { approvalStagesFor } from '@/lib/approvals/stageConfig';
+import { StatusBadge as TagBadge } from '@/components/ui/status-badge';
+import { DOC_STATUS_TAG } from '@/lib/status/tags';
 
 export interface ApprovalRow {
   id:          string;
@@ -23,23 +25,20 @@ export function DropboxIcon({ size = 14 }: { size?: number }) {
   );
 }
 
+const DOC_STATUS_LABEL: Record<string, string> = {
+  approved: 'Approved', rejected: 'Rejected', pending_approval: 'Pending Review',
+  draft: 'Draft', revised: 'Revised', signed: 'Signed',
+};
+
 export function DocStatusBadge({ status }: { status: string }) {
-  const cfg: Record<string, [string, string, string]> = {
-    approved:         ['var(--status-success-bg)', 'var(--status-success)', 'Approved'],
-    rejected:         ['var(--status-danger-bg)', 'var(--status-danger)', 'Rejected'],
-    pending_approval: ['var(--status-warning-bg)', 'var(--status-warning)', 'Pending Review'],
-    draft:            ['var(--bg-sunken)', 'var(--fg-muted)', 'Draft'],
-    revised:          ['var(--phase-5-bg)', 'var(--phase-5)', 'Revised'],
-    signed:           ['var(--status-info-bg)', 'var(--status-info)', 'Signed'],
-  };
-  const [bg, color, label] = cfg[status] ?? cfg.draft;
+  // Colour + icon from lib/status/tags.ts (DOC_STATUS_TAG); the label stays the app's own status name.
   return (
-    <span style={{
-      display: 'inline-block', padding: '2px 8px', borderRadius: 99,
-      fontSize: 10, fontWeight: 700, background: bg, color,
-    }}>
-      {label}
-    </span>
+    <TagBadge
+      group="approval"
+      status={DOC_STATUS_TAG[status] ?? status}
+      size="sm"
+      label={DOC_STATUS_LABEL[status] ?? DOC_STATUS_LABEL.draft}
+    />
   );
 }
 

@@ -11,7 +11,9 @@ import { STATUS_ORDER, LEAD_INTAKE_STATUS_KEYS } from './types';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
+import { Select, type SelectOption } from '@/components/ui/select';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { OPPORTUNITY_STATUS_TAG } from '@/lib/status/tags';
 
 interface TaskRow {
   id: string; title: string; status: 'todo' | 'in_progress' | 'done';
@@ -142,7 +144,8 @@ export function LeadQuickView({ intakeId, assignees, onClose }: {
               <Row label="Customer name"><Inp label="Customer name" value={v('customer_name')} ph="e.g. Lumen Optics" onSave={x => saveField('customer_name', x)} /></Row>
               <Row label="Status OP">
                 <Sel label="Status OP" value={String(v('opportunity_status') || 'new_opportunity')} onChange={x => saveField('opportunity_status', x)}
-                  opts={STATUS_ORDER.filter(s => LEAD_INTAKE_STATUS_KEYS.includes(s.key)).map(s => [s.key, s.label])} />
+                  opts={STATUS_ORDER.filter(s => LEAD_INTAKE_STATUS_KEYS.includes(s.key)).map(s => [s.key, s.label])}
+                  renderOption={o => <StatusBadge group="lead_stage" status={OPPORTUNITY_STATUS_TAG[o.value] ?? o.value} label={o.label} size="sm" className="shrink" />} />
               </Row>
               <Row label="Assignee">
                 <Sel label="Assignee" value={String(v('assignee_id'))} onChange={x => saveField('assignee_id', x)}
@@ -242,7 +245,10 @@ function Inp({ value, onSave, type = 'text', ph, label }: { value: string | numb
   );
 }
 
-function Sel({ value, onChange, opts, label }: { value: string; onChange: (v: string) => void; opts: [string, string][]; label: string }) {
+function Sel({ value, onChange, opts, label, renderOption }: {
+  value: string; onChange: (v: string) => void; opts: [string, string][]; label: string;
+  renderOption?: (option: SelectOption) => React.ReactNode;
+}) {
   return (
     <Select
       aria-label={label}
@@ -250,6 +256,7 @@ function Sel({ value, onChange, opts, label }: { value: string; onChange: (v: st
       value={value}
       onValueChange={v => onChange(v ?? '')}
       options={opts.map(([v, l]) => ({ value: v, label: l }))}
+      renderOption={renderOption}
     />
   );
 }

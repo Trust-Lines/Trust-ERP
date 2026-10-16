@@ -1,4 +1,6 @@
 import type { ProjectStage, ProjectPhase } from '@/types/database';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { PROJECT_STAGE_TAG } from '@/lib/status/tags';
 
 interface StageInfo {
   stage: ProjectStage;
@@ -16,29 +18,14 @@ export const STAGES_FULL: StageInfo[] = [
   { stage: 'delivered',      label: 'Delivery',               number: 4, phase: 'delivery',               phaseNumber: 4 },
 ];
 
-const PHASE_COLORS: Record<number, { color: string; bg: string }> = {
-  1: { color: 'var(--phase-1)', bg: 'var(--phase-1-bg)' },
-  2: { color: 'var(--phase-2)', bg: 'var(--phase-2-bg)' },
-  3: { color: 'var(--phase-5)', bg: 'var(--phase-5-bg)' },
-  4: { color: 'var(--phase-6)', bg: 'var(--phase-6-bg)' },
-};
-
 interface StageBadgeProps {
   stage: ProjectStage;
 }
 
+/** Project stage: colour + icon from lib/status/tags.ts (PROJECT_STAGE_TAG); number + label stay the app's own stage names. */
 export function StageBadge({ stage }: StageBadgeProps) {
+  const tag = PROJECT_STAGE_TAG[stage];
   const info = STAGES_FULL.find(s => s.stage === stage);
-  if (!info) return null;
-
-  const { color, bg } = PHASE_COLORS[info.phaseNumber];
-
-  return (
-    <span className="stage" style={{ background: bg, color }}>
-      <span className="n" style={{ background: color }}>
-        {info.number}
-      </span>
-      {info.label}
-    </span>
-  );
+  if (!tag || !info) return null;
+  return <StatusBadge group="project_stage" status={tag} label={`${info.number}. ${info.label}`} />;
 }

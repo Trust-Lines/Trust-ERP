@@ -170,7 +170,48 @@
   --color-info-dark: #19477D;
   --color-info-normal: #2A6FBE;
   --color-info-light: #E5F0FA;
+
+  /* ── FOUNDATIONS (Figma DAY 02 › Foundations, Task 5) ──────────────────
+     Spacing: Ahmet's 4·8·12·16·20·24·32·40·48·64 = Tailwind's own scale
+     (p-1 … p-16), so no extra tokens. Icons: 16/20/24 = size-4/5/6. */
+
+  /* Shadows 01–04 → shadow-01 … shadow-04 */
+  --shadow-01: 0 1px 2px 0 rgb(0 0 0 / 0.06);
+  --shadow-02: 0 2px 6px 0 rgb(0 0 0 / 0.10);
+  --shadow-03: 0 6px 16px -2px rgb(0 0 0 / 0.12);
+  --shadow-04: 0 12px 32px -4px rgb(0 0 0 / 0.16);
+
+  /* Corner radius by role → rounded-tag / -control / -card / -modal */
+  --radius-tag: 4px;      /* tags, compact inputs */
+  --radius-control: 8px;  /* buttons, dropdowns */
+  --radius-card: 12px;    /* cards, panels */
+  --radius-modal: 16px;   /* modals, large containers */
+
+  /* Text sizes → text-caption … text-h1 */
+  --text-caption: 12px;
+  --text-caption--line-height: 1.5;
+  --text-meta: 13px;
+  --text-meta--line-height: 1.5;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 1.5;
+  --text-body: 16px;
+  --text-body--line-height: 1.5;
+  --text-body-lg: 18px;
+  --text-body-lg--line-height: 1.5;
+  --text-h4: 20px;
+  --text-h4--line-height: 1.4;
+  --text-h4--font-weight: 600;
+  --text-h3: 24px;
+  --text-h3--line-height: 1.33;
+  --text-h3--font-weight: 600;
+  --text-h2: 30px;
+  --text-h2--line-height: 1.27;
+  --text-h2--font-weight: 600;
+  --text-h1: 36px;
+  --text-h1--line-height: 1.22;
+  --text-h1--font-weight: 600;
 }
+
 
 :root {
   /* ── SEMANTIC UI COLOURS — LIGHT (Figma "Basic UI Colors", Light Mode) ── */
@@ -183,7 +224,7 @@
   --ui-text-disabled: var(--color-primary-300);
   --ui-btn-primary: var(--color-secondary-500);
   --ui-btn-primary-fg: #FFFFFF;
-  --ui-btn-accent: var(--color-accent-600);
+  --ui-btn-accent: var(--color-accent-400);
   --ui-btn-accent-fg: #FFFFFF;
   --ui-link: var(--color-accent-600);
   --ui-nav-bg: #FFFFFF;
@@ -196,6 +237,32 @@
   --ui-accent-badge-fg: var(--color-accent-700);
   --ui-hover-bg: var(--color-primary-100);
   --ui-focus-ring: var(--color-accent-600);
+
+  /* ── STATUS TONES T0–T10 (Figma "Status Colors", Light) ─────────────────
+     Which status uses which tone: lib/status/tags.ts. Dark mode swaps bg/fg (see .dark).
+     NOTE: T2 is labelled the other way round in the Figma export; values follow the design. */
+  --status-t0-bg: #DDDDDD;
+  --status-t0-fg: #787881;
+  --status-t1-bg: #D2F7FF;
+  --status-t1-fg: #2398B2;
+  --status-t2-bg: #D2E6FF;
+  --status-t2-fg: #2366B2;
+  --status-t3-bg: #FDDBFF;
+  --status-t3-fg: #B93FBF;
+  --status-t4-bg: #EEDDFF;
+  --status-t4-fg: #74489D;
+  --status-t5-bg: #D0FBFB;
+  --status-t5-fg: #206470;
+  --status-t6-bg: #E7F6F3;
+  --status-t6-fg: #3A9166;
+  --status-t7-bg: #FFF2D8;
+  --status-t7-fg: #805000;
+  --status-t8-bg: #FFE3D7;
+  --status-t8-fg: #B34819;
+  --status-t9-bg: var(--color-success-light);
+  --status-t9-fg: var(--color-success-dark);
+  --status-t10-bg: var(--color-error-light);
+  --status-t10-fg: var(--color-error-dark);
 
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -326,9 +393,10 @@
   --radius-pill: 999px;
 
   /* SHADOWS */
-  --shadow-xs: 0 1px 2px rgba(15, 42, 68, 0.05), 0 0 0 1px rgba(15, 42, 68, 0.04);
-  --shadow-sm: 0 1px 3px rgba(15, 42, 68, 0.06), 0 4px 12px rgba(15, 42, 68, 0.05);
-  --shadow-md: 0 2px 8px rgba(15, 42, 68, 0.08), 0 8px 24px rgba(15, 42, 68, 0.07);
+  /* Legacy shadow names → Foundations shadows (old navy-tinted values in comments). */
+  --shadow-xs: var(--shadow-01); /* was 0 1px 2px rgba(15,42,68,.05), 0 0 0 1px rgba(15,42,68,.04) */
+  --shadow-sm: var(--shadow-02); /* was 0 1px 3px rgba(15,42,68,.06), 0 4px 12px rgba(15,42,68,.05) */
+  --shadow-md: var(--shadow-03); /* was 0 2px 8px rgba(15,42,68,.08), 0 8px 24px rgba(15,42,68,.07) */
   --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--brand-teal) 25%, transparent);
 
   /* LAYOUT */
@@ -347,7 +415,7 @@
 .dark {
   /* ── SEMANTIC UI COLOURS — DARK (Figma "Basic UI Colors", Dark Mode) ── */
   --ui-page-bg: var(--color-primary-950);
-  --ui-surface: var(--color-primary-800);
+  --ui-surface: var(--color-primary-700);
   --ui-surface-elevated: var(--color-secondary-800);
   --ui-heading: var(--color-primary-50);
   --ui-body: var(--color-primary-100);
@@ -368,6 +436,30 @@
   --ui-accent-badge-fg: var(--color-accent-200);
   --ui-hover-bg: var(--color-primary-700);
   --ui-focus-ring: var(--color-accent-400);
+
+  /* Status tones T0–T10 — Dark: strong colour as background, light colour as text. */
+  --status-t0-bg: #787881;
+  --status-t0-fg: #DDDDDD;
+  --status-t1-bg: #2398B2;
+  --status-t1-fg: #D2F7FF;
+  --status-t2-bg: #2366B2;
+  --status-t2-fg: #D2E6FF;
+  --status-t3-bg: #B93FBF;
+  --status-t3-fg: #FDDBFF;
+  --status-t4-bg: #74489D;
+  --status-t4-fg: #EEDDFF;
+  --status-t5-bg: #206470;
+  --status-t5-fg: #D0FBFB;
+  --status-t6-bg: #3A9166;
+  --status-t6-fg: #E7F6F3;
+  --status-t7-bg: #805000;
+  --status-t7-fg: #FFF2D8;
+  --status-t8-bg: #B34819;
+  --status-t8-fg: #FFE3D7;
+  --status-t9-bg: var(--color-success-dark);
+  --status-t9-fg: var(--color-success-light);
+  --status-t10-bg: var(--color-error-dark);
+  --status-t10-fg: var(--color-error-light);
 
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -1483,7 +1575,7 @@
 /* ── MODAL ────────────────────────────────────────────── */
 :root {
   --z-modal: 100;
-  --shadow-lg: 0 20px 60px rgba(15, 42, 68, 0.18), 0 4px 20px rgba(15, 42, 68, 0.1);
+  --shadow-lg: var(--shadow-04); /* was 0 20px 60px rgba(15,42,68,.18), 0 4px 20px rgba(15,42,68,.1) */
 }
 
 .modal-overlay {

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { ClipboardCheck, AlertTriangle, RotateCcw, CheckCircle2, Inbox } from 'lucide-react';
 import { Avatar } from '@/components/platform/shared/Avatar';
 import type { QcQueue, QcRow } from '@/lib/qc/queue';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 interface Props {
   queue: QcQueue;
@@ -171,10 +172,10 @@ function QcRowView({
         )}
       </Link>
 
-      {row.isRework && (
-        <span className="pill" style={{ background: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)' }}>
-          Rework
-        </span>
+      {/* Colour + icon from lib/status/tags.ts (quality_control); labels stay the app's own. */}
+      {row.isRework && <StatusBadge group="quality_control" status="rework_required" size="sm" label="Rework" />}
+      {row.result && row.result !== 'pending' && (
+        <StatusBadge group="quality_control" status={row.result === 'pass' ? 'passed' : 'failed'} size="sm" label={row.result === 'pass' ? 'Passed' : 'Failed'} />
       )}
 
       {who && (
@@ -183,14 +184,6 @@ function QcRowView({
         </span>
       )}
 
-      {row.result && row.result !== 'pending' && (
-        <span className="pill" style={{
-          background: row.result === 'pass' ? 'var(--status-success-bg)' : 'var(--status-danger-bg)',
-          color: row.result === 'pass' ? 'var(--status-success-fg)' : 'var(--status-danger-fg)',
-        }}>
-          {row.result === 'pass' ? 'Passed' : 'Failed'}
-        </span>
-      )}
 
       {canInspect && (
         <span style={{ display: 'inline-flex', gap: 6 }}>

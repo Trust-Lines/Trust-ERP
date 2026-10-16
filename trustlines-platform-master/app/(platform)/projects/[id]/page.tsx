@@ -430,8 +430,10 @@ export default async function ProjectDetailPage({
     teamCandidates,
   );
 
+  // Keyed: an element built here (server) and rendered by the client component as a prop
+  // otherwise trips React's "unique key" dev warning.
   const topSlot = cockpit ? (
-    <div style={{ marginBottom: 20 }}>
+    <div key="project-cockpit" style={{ marginBottom: 20 }}>
       <ProjectCockpit
         projectId={cockpit.projectId}
         phase={cockpit.lifecycle.phase}

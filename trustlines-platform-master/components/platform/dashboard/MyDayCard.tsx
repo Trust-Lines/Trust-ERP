@@ -1,24 +1,30 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Sun, Check, ChevronRight } from 'lucide-react';
+import { BadgeAlert, CircleCheck, ClipboardList, Clock } from 'lucide-react';
 import type { MyDayData, MyDayItem } from '@/lib/dashboard/myDay';
+import { KpiCard, KpiCardRow } from '@/components/ui/kpi-card';
 
 // Same /api/my-day feed as components/platform/dashboard/MyDay.tsx (signatures waiting on me,
-// QC queue, overdue follow-ups, etc. — computed per-role in lib/dashboard/myDay.ts). That
-// component renders one card PER section, full width; this one flattens everything into a
-// single box so it sits next to Approvals / Active Projects as an equal third tile.
-const TONE_DOT: Record<NonNullable<MyDayItem['tone']>, string> = {
-  default: 'bg-slate-400',
-  warn: 'bg-amber-500',
-  danger: 'bg-red-500',
-  good: 'bg-blue-500',
+// QC queue, overdue follow-ups, etc. — computed per-role in lib/dashboard/myDay.ts), flattened
+// into the wide "Tasks" card from Ahmet's Figma dashboard: count on the left, top items as rows.
+const ROW_TONE: Record<NonNullable<MyDayItem['tone']>, 'error' | 'warning' | 'info' | 'neutral'> = {
+  danger: 'error',
+  warn: 'warning',
+  good: 'info',
+  default: 'neutral',
+};
+const ROW_ICON: Record<NonNullable<MyDayItem['tone']>, React.ReactNode> = {
+  danger: <BadgeAlert />,
+  warn: <BadgeAlert />,
+  good: <CircleCheck />,
+  default: <Clock />,
 };
 
-const MAX_ITEMS = 5;
+// The Figma card is 145px high — room for two rows.
+const MAX_ITEMS = 2;
 
-export function MyDayCard() {
+export function MyDayCard({ className }: { className?: string }) {
   const [data, setData] = useState<MyDayData | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -37,46 +43,35 @@ export function MyDayCard() {
   const shown = items.slice(0, MAX_ITEMS);
 
   return (
-    <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs">
-      <div className="flex items-center justify-between pb-3">
-        <h2 className="text-sm font-bold text-slate-900">My Day</h2>
-        <Sun size={17} className="text-slate-400" />
-      </div>
-
-      {loading ? (
-        <div className="py-7 text-center text-xs font-medium text-slate-400">Loading…</div>
-      ) : error ? (
-        <div className="py-7 text-center text-xs font-medium text-red-600">Couldn&apos;t load. Refresh to try again.</div>
+    <KpiCard tone="muted" icon={<ClipboardList />} label="My Day" value={items.length} loading={loading} className={className}>
+      {loading ? null : error ? (
+        <p role="alert" className="my-auto rounded-control bg-primary-600 px-3.5 py-4 text-caption">
+          Couldn&apos;t load your day. Refresh to try again.
+        </p>
       ) : items.length === 0 ? (
-        <div className="py-7 flex flex-col items-center justify-center text-center">
-          <div className="w-11 h-11 rounded-full border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-400 mb-3 shadow-2xs">
-            <Check size={18} strokeWidth={2.5} />
-          </div>
-          <div className="text-xs font-medium text-slate-500">Nothing needs you right now.</div>
-        </div>
+        <p role="status" className="my-auto rounded-control bg-primary-600 px-3.5 py-4 text-caption">
+          Nothing needs you right now.
+        </p>
       ) : (
-        <div className="space-y-1">
-          {shown.map((item, i) => (
-            <Link
-              key={i}
-              href={item.href}
-              className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
-            >
-              <span className={`size-2 shrink-0 rounded-full ${TONE_DOT[item.tone ?? 'default']}`} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-bold text-slate-900">{item.label}</span>
-                <span className="block truncate text-[11px] text-slate-500">{item.sublabel ?? item.section}</span>
-              </span>
-              <ChevronRight size={14} className="shrink-0 text-slate-300" />
-            </Link>
-          ))}
+        <>
+          {shown.map((item, i) => {
+            const tone = item.tone ?? 'default';
+            return (
+              <KpiCardRow
+                key={i}
+                href={item.href}
+                tone={ROW_TONE[tone]}
+                icon={ROW_ICON[tone]}
+                title={item.label}
+                subtitle={item.sublabel ?? item.section}
+              />
+            );
+          })}
           {items.length > MAX_ITEMS && (
-            <p className="pt-1 text-center text-[11px] font-medium text-slate-400">
-              +{items.length - MAX_ITEMS} more
-            </p>
+            <p className="self-end text-caption text-primary-200">+{items.length - MAX_ITEMS} more</p>
           )}
-        </div>
+        </>
       )}
-    </div>
+    </KpiCard>
   );
 }

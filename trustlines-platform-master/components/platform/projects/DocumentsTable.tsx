@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { ExternalLink, Loader2, Download } from 'lucide-react';
 import type { DocType, DocStatus } from '@/types/database';
+import { StatusBadge as TagBadge } from '@/components/ui/status-badge';
+import { DOC_STATUS_TAG } from '@/lib/status/tags';
 
 export interface DocumentRow {
   id: string;
@@ -49,25 +51,16 @@ function FileIcon({ name }: { name: string }) {
   );
 }
 
-const STATUS_STYLES: Record<DocStatus, { bg: string; color: string; border: string }> = {
-  draft:            { bg: 'var(--bg-sunken)', color: 'var(--fg-muted)', border: 'var(--border-default)' },
-  pending_approval: { bg: 'var(--status-warning-bg)', color: 'var(--status-warning)', border: 'var(--status-warning)' },
-  approved:         { bg: 'var(--status-success-bg)', color: 'var(--status-success)', border: 'var(--status-success)' },
-  signed:           { bg: 'var(--phase-5-bg)', color: 'var(--phase-5)', border: 'var(--phase-5)' },
-  rejected:         { bg: 'var(--status-danger-bg)', color: 'var(--status-danger)', border: 'var(--status-danger)' },
-  revised:          { bg: 'var(--status-warning-bg)', color: 'var(--status-warning)', border: 'var(--status-warning)' },
-};
-
 function StatusPill({ status }: { status: DocStatus }) {
-  const { bg, color, border } = STATUS_STYLES[status];
+  // Colour + icon from lib/status/tags.ts (DOC_STATUS_TAG); the label stays the app's own status name.
   return (
-    <span style={{
-      padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700,
-      background: bg, color, border: `1px solid ${border}`,
-      textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap',
-    }}>
-      {status.replace('_', ' ')}
-    </span>
+    <TagBadge
+      group="approval"
+      status={DOC_STATUS_TAG[status] ?? status}
+      size="sm"
+      label={status.replace('_', ' ')}
+      className="uppercase tracking-wide"
+    />
   );
 }
 
