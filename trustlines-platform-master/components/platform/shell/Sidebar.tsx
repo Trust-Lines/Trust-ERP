@@ -399,7 +399,7 @@ export function Sidebar({
       // with empty content-area background), so the sidebar has to pin itself instead.
       className="sticky top-0 h-screen flex flex-col text-white select-none overflow-hidden shrink-0 z-20"
       style={{
-        backgroundColor: '#474747',
+        backgroundColor: 'var(--brand-navy)',
         borderRight: '1px solid rgba(255, 255, 255, 0.08)',
         width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
         transition: `width ${DURATION}ms ${EASE}`,

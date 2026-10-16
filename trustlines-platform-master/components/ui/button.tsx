@@ -1,57 +1,88 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
+import { Loader2Icon } from "lucide-react"
+
 import { cn } from "@/lib/utils"
 
-const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+// Figma: DAY 03 › Components › Buttons. Colours are 2026 palette tokens only.
+// Sizes S/M/L = 32/40/48px. The Figma "Ghost" column is the disabled look.
+const buttonVariantsBase = cva(
+  "group/button relative inline-flex shrink-0 items-center justify-center border border-transparent font-semibold leading-[1.5] whitespace-nowrap transition-colors select-none outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring disabled:pointer-events-none aria-busy:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
-        outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+        primary:
+          "bg-primary-950 text-primary-50 hover:bg-primary-700 active:bg-primary-700 disabled:bg-grey-100 disabled:text-grey-200",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "border-primary-950 bg-transparent text-primary-950 hover:border-primary-700 hover:text-primary-700 active:border-primary-700 active:text-primary-700 disabled:border-grey-200 disabled:text-grey-200",
+        outline:
+          "border-primary-700 bg-transparent text-primary-700 hover:bg-primary-50 disabled:border-grey-200 disabled:text-grey-200",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          "bg-transparent text-primary-700 hover:bg-ui-hover-bg disabled:text-grey-200",
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-error-normal text-primary-50 hover:bg-error-dark disabled:bg-grey-100 disabled:text-grey-200",
+        link: "h-auto! border-0 p-0! text-ui-link underline-offset-4 hover:underline",
+        // Legacy shadcn name, kept so existing callers keep working.
+        default:
+          "bg-primary-950 text-primary-50 hover:bg-primary-700 disabled:bg-grey-100 disabled:text-grey-200",
       },
       size: {
-        default:
-          "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        icon: "size-8",
-        "icon-xs":
-          "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm":
-          "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
-        "icon-lg": "size-9",
+        sm: "h-8 gap-1.5 rounded-[4px] px-3 text-[13px] [&_svg:not([class*='size-'])]:size-4",
+        md: "h-10 gap-2 rounded-[6px] px-4 text-[14px] [&_svg:not([class*='size-'])]:size-[18px]",
+        lg: "h-12 gap-2.5 rounded-[8px] px-5 text-[16px] [&_svg:not([class*='size-'])]:size-5",
+        icon: "size-8 rounded-[4px] [&_svg:not([class*='size-'])]:size-5",
+        "icon-md": "size-10 rounded-[6px] [&_svg:not([class*='size-'])]:size-5",
+        "icon-lg": "size-12 rounded-[8px] [&_svg:not([class*='size-'])]:size-6",
+        // Legacy shadcn sizes (sheet / sidebar use icon-sm).
+        default: "h-8 gap-1.5 rounded-[4px] px-3 text-[13px] [&_svg:not([class*='size-'])]:size-4",
+        xs: "h-6 gap-1 rounded-[4px] px-2 text-xs [&_svg:not([class*='size-'])]:size-3",
+        "icon-xs": "size-6 rounded-[4px] [&_svg:not([class*='size-'])]:size-3",
+        "icon-sm": "size-7 rounded-[4px] [&_svg:not([class*='size-'])]:size-4",
       },
     },
     defaultVariants: {
-      variant: "default",
-      size: "default",
+      variant: "primary",
+      size: "sm",
     },
   }
 )
 
+/** Button classes, conflict-resolved — safe to put on a <Link> or <a> directly. */
+const buttonVariants = (props?: Parameters<typeof buttonVariantsBase>[0]) => cn(buttonVariantsBase(props))
+
+type ButtonProps = ButtonPrimitive.Props &
+  VariantProps<typeof buttonVariantsBase> & {
+    /** Figma "Loading" state: a spinner replaces the content and the width stays the same. */
+    loading?: boolean
+  }
+
 function Button({
   className,
-  variant = "default",
-  size = "default",
+  variant = "primary",
+  size = "sm",
+  loading = false,
+  children,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonProps) {
   return (
     <ButtonPrimitive
       data-slot="button"
+      aria-busy={loading || undefined}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+    >
+      {loading ? (
+        <>
+          <span className="invisible inline-flex items-center gap-[inherit]">{children}</span>
+          <Loader2Icon aria-hidden className="absolute animate-spin" />
+          <span className="sr-only">Loading</span>
+        </>
+      ) : (
+        children
+      )}
+    </ButtonPrimitive>
   )
 }
 
 export { Button, buttonVariants }
+export type { ButtonProps }

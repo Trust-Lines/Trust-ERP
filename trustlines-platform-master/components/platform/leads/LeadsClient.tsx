@@ -32,7 +32,11 @@ import { STATUS_META, type Lead, type OpportunityStatus } from './types';
 import { STATUS_OP_COLOR } from '@/lib/marketing/dealFieldOptions';
 import { STATUS_TO_STAGE } from '@/lib/marketing/opportunityRows';
 import { REGIONS } from '@/lib/regions';
-import { Select } from '@/components/platform/shared/Select';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type ViewMode = 'list' | 'board' | 'calendar';
 
@@ -52,18 +56,18 @@ interface Props {
 }
 
 const ALL_PIPELINE_STAGES: { key: OpportunityStatus; label: string; color: string; barColor: string }[] = [
-  { key: 'potential', label: 'Potential', color: '#94A3B8', barColor: '#94A3B8' },
-  { key: 'in_target_list', label: 'In Target List', color: '#94A3B8', barColor: '#94A3B8' },
-  { key: 'new_opportunity', label: 'New Opportunity', color: '#2563EB', barColor: '#2563EB' },
-  { key: 'ready_to_start', label: 'READY TO START', color: '#94A3B8', barColor: '#94A3B8' },
-  { key: 'modification_request', label: 'MODIFICATION REQUEST', color: '#8B5CF6', barColor: '#8B5CF6' },
-  { key: 'working_on_it_trust', label: 'Working on it Trust', color: '#94A3B8', barColor: '#94A3B8' },
-  { key: 'design_proposal_sent', label: 'Design Proposal SENT', color: '#6366F1', barColor: '#6366F1' },
-  { key: 'waiting_from_op', label: 'Waiting from OP', color: '#94A3B8', barColor: '#94A3B8' },
-  { key: 'contract_stage', label: 'Contract Stage', color: '#94A3B8', barColor: '#94A3B8' },
-  { key: 'waiting', label: 'WAITING', color: '#94A3B8', barColor: '#94A3B8' },
-  { key: 'deal_closed', label: 'DEAL CLOSED', color: '#16A34A', barColor: '#16A34A' },
-  { key: 'deal_missed', label: 'DEAL MISSED', color: '#94A3B8', barColor: '#94A3B8' },
+  { key: 'potential', label: 'Potential', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
+  { key: 'in_target_list', label: 'In Target List', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
+  { key: 'new_opportunity', label: 'New Opportunity', color: 'var(--color-info-normal)', barColor: 'var(--color-info-normal)' },
+  { key: 'ready_to_start', label: 'READY TO START', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
+  { key: 'modification_request', label: 'MODIFICATION REQUEST', color: 'var(--color-warning-normal)', barColor: 'var(--color-warning-normal)' },
+  { key: 'working_on_it_trust', label: 'Working on it Trust', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
+  { key: 'design_proposal_sent', label: 'Design Proposal SENT', color: 'var(--color-accent-600)', barColor: 'var(--color-accent-600)' },
+  { key: 'waiting_from_op', label: 'Waiting from OP', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
+  { key: 'contract_stage', label: 'Contract Stage', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
+  { key: 'waiting', label: 'WAITING', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
+  { key: 'deal_closed', label: 'DEAL CLOSED', color: 'var(--color-success-normal)', barColor: 'var(--color-success-normal)' },
+  { key: 'deal_missed', label: 'DEAL MISSED', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
 ];
 
 export function LeadsClient({
@@ -343,51 +347,45 @@ export function LeadsClient({
       {/* ── 1. Header Section ─────────────────────────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">CRM</h1>
-          <p className="text-xs text-slate-500 font-normal mt-0.5">
+          <h1 className="text-2xl font-bold text-primary-800 tracking-tight">CRM</h1>
+          <p className="text-xs text-primary-500 font-normal mt-0.5">
             {leads.length} records · {formatMoney(pipelineValue)} open pipeline
           </p>
         </div>
 
         <div className="flex items-center gap-2.5">
-          <Link
-            href="/leads/new"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors"
-          >
-            <Plus size={15} strokeWidth={2.5} />
+          <Link href="/leads/new" className={buttonVariants({ variant: 'primary', size: 'sm' })}>
+            <Plus strokeWidth={2.5} />
             <span>Opportunity</span>
           </Link>
 
-          <Link
-            href="/leads/new?view=quick_deal"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors"
-          >
+          <Link href="/leads/new?view=quick_deal" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
             <span>Quick Deal</span>
           </Link>
         </div>
       </div>
 
       {/* ── 2. Top 4 KPI Metrics Card (Unified 4-column card) ─────── */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-2xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+      <div className="bg-ui-surface-elevated border border-ui-divider rounded-2xl p-4 sm:p-5 shadow-2xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-ui-divider">
         {/* Opportunities */}
         <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-[#EEF4FF] text-[#2563EB] flex items-center justify-center shrink-0">
+          <div className="w-13 h-13 rounded-2xl bg-info-light text-info-normal flex items-center justify-center shrink-0">
             <Briefcase size={22} strokeWidth={1.8} />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium text-slate-500">All records</span>
-            <span className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">{leads.length}</span>
+            <span className="text-xs font-medium text-primary-500">All records</span>
+            <span className="text-2xl font-bold text-primary-800 leading-tight mt-0.5">{leads.length}</span>
           </div>
         </div>
 
         {/* Pipeline value */}
         <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-[#EDF7EE] text-[#16A34A] flex items-center justify-center shrink-0">
+          <div className="w-13 h-13 rounded-2xl bg-success-light text-success-dark flex items-center justify-center shrink-0">
             <DollarSign size={22} strokeWidth={2.2} />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium text-slate-500">Pipeline value</span>
-            <span className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">
+            <span className="text-xs font-medium text-primary-500">Pipeline value</span>
+            <span className="text-2xl font-bold text-primary-800 leading-tight mt-0.5">
               {formatMoney(pipelineValue)}
             </span>
           </div>
@@ -395,72 +393,52 @@ export function LeadsClient({
 
         {/* Proposal sent */}
         <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-[#F5F3FF] text-[#8B5CF6] flex items-center justify-center shrink-0">
+          <div className="w-13 h-13 rounded-2xl bg-accent-50 text-accent-600 flex items-center justify-center shrink-0">
             <Send size={20} strokeWidth={2} />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium text-slate-500">Proposal sent</span>
-            <span className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">{proposalSentCount}</span>
+            <span className="text-xs font-medium text-primary-500">Proposal sent</span>
+            <span className="text-2xl font-bold text-primary-800 leading-tight mt-0.5">{proposalSentCount}</span>
           </div>
         </div>
 
         {/* Deals closed */}
         <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-[#EDF7EE] text-[#16A34A] flex items-center justify-center shrink-0">
+          <div className="w-13 h-13 rounded-2xl bg-success-light text-success-dark flex items-center justify-center shrink-0">
             <CheckCircle2 size={22} strokeWidth={2} />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium text-slate-500">Deals closed</span>
-            <span className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">{dealsClosedCount}</span>
+            <span className="text-xs font-medium text-primary-500">Deals closed</span>
+            <span className="text-2xl font-bold text-primary-800 leading-tight mt-0.5">{dealsClosedCount}</span>
           </div>
         </div>
       </div>
 
       {/* ── 3. View Tabs Strip ────────────────────────────────────── */}
-      <div className="flex items-center gap-6 border-b border-slate-200/80 px-1">
-        <button
-          onClick={() => setView('list')}
-          className={`flex items-center gap-2 py-3 text-xs font-semibold transition-colors border-b-2 -mb-px cursor-pointer ${
-            view === 'list' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <List size={15} />
-          <span>List</span>
-        </button>
+      <div className="flex items-center gap-3 px-1">
+        <Tabs value={view} onValueChange={v => setView(v as ViewMode)}>
+          <TabsList aria-label="View">
+            <TabsTrigger value="list" className="gap-1.5"><List size={14} />List</TabsTrigger>
+            <TabsTrigger value="board" className="gap-1.5"><LayoutGrid size={14} />Board</TabsTrigger>
+            <TabsTrigger value="calendar" className="gap-1.5"><Calendar size={14} />Calendar</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-        <button
-          onClick={() => setView('board')}
-          className={`flex items-center gap-2 py-3 text-xs font-semibold transition-colors border-b-2 -mb-px cursor-pointer ${
-            view === 'board' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <LayoutGrid size={15} />
-          <span>Board</span>
-        </button>
-
-        <button
-          onClick={() => setView('calendar')}
-          className={`flex items-center gap-2 py-3 text-xs font-semibold transition-colors border-b-2 -mb-px cursor-pointer ${
-            view === 'calendar' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <Calendar size={15} />
-          <span>Calendar</span>
-        </button>
-
-        <button
+        {/* A filter toggle, not a view — so a pressed button, not a tab. */}
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-pressed={mine}
           onClick={() => setMine(m => !m)}
-          className={`flex items-center gap-1.5 py-3 text-xs font-semibold transition-colors border-b-2 -mb-px ml-2 cursor-pointer ${
-            mine ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-900'
-          }`}
+          className="aria-pressed:bg-ui-selected-bg aria-pressed:text-primary-950"
         >
           <User size={14} />
           <span>Assigned to me · {myCount}</span>
-        </button>
+        </Button>
       </div>
 
       {truncatedAt && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+        <div className="rounded-xl border border-warning-normal bg-warning-light px-4 py-2.5 text-xs text-warning-dark">
           Showing the newest <b>{truncatedAt}</b> records — there are more. Counts, totals and search only cover what&apos;s loaded.
         </div>
       )}
@@ -469,91 +447,82 @@ export function LeadsClient({
       <div className="flex items-center gap-3 flex-wrap text-xs">
         {/* Search input */}
         <div className="relative flex-1 min-w-[240px] max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
+          <Search size={14} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-primary-400" />
+          <Input
+            type="search"
+            aria-label="Search records"
             placeholder="Search customer, brand, project #..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+            className="pl-8"
           />
         </div>
 
-        {/* Priority filter */}
-        <div className="relative">
-          <Select
-            value={fPriority}
-            onChange={e => setFPriority(e.target.value)}
-            className="appearance-none bg-white border border-slate-200/80 rounded-xl pl-3 pr-7 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
-          >
-            <option value="">All priorities</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </Select>
-          <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-        </div>
+        <Select
+          aria-label="Priority"
+          className="w-auto min-w-32"
+          value={fPriority}
+          onValueChange={v => setFPriority(v ?? '')}
+          options={[
+            { value: '', label: 'All priorities' },
+            { value: 'high', label: 'High' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'low', label: 'Low' },
+          ]}
+        />
 
-        {/* Assignee filter */}
-        <div className="relative">
-          <Select
-            value={fAssignee}
-            onChange={e => setFAssignee(e.target.value)}
-            className="appearance-none bg-white border border-slate-200/80 rounded-xl pl-3 pr-7 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
-          >
-            <option value="">All assignees</option>
-            <option value="__none__">Unassigned</option>
-            {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-          </Select>
-          <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-        </div>
+        <Select
+          aria-label="Assignee"
+          className="w-auto min-w-32"
+          value={fAssignee}
+          onValueChange={v => setFAssignee(v ?? '')}
+          options={[
+            { value: '', label: 'All assignees' },
+            { value: '__none__', label: 'Unassigned' },
+            ...assignees.map(a => ({ value: a.id, label: a.full_name })),
+          ]}
+        />
 
-        {/* Region filter */}
-        <div className="relative">
-          <Select
-            value={fRegion}
-            onChange={e => setFRegion(e.target.value)}
-            className="appearance-none bg-white border border-slate-200/80 rounded-xl pl-3 pr-7 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
-          >
-            <option value="">All regions</option>
-            {REGIONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
-          </Select>
-          <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-        </div>
+        <Select
+          aria-label="Region"
+          className="w-auto min-w-32"
+          value={fRegion}
+          onValueChange={v => setFRegion(v ?? '')}
+          options={[{ value: '', label: 'All regions' }, ...REGIONS.map(r => ({ value: r.code, label: r.label }))]}
+        />
 
-        {/* Sort */}
-        <div className="relative">
-          <Select
-            value={sortBy}
-            onChange={e => setSortBy(e.target.value)}
-            className="appearance-none bg-white border border-slate-200/80 rounded-xl pl-3 pr-7 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
-          >
-            <option value="created_desc">Newest first</option>
-            <option value="created_asc">Oldest first</option>
-            <option value="deal_desc">Deal size (high→low)</option>
-            <option value="priority">Priority</option>
-          </Select>
-          <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-        </div>
+        <Select
+          aria-label="Sort"
+          className="w-auto min-w-32"
+          value={sortBy}
+          onValueChange={v => setSortBy(v ?? 'created_desc')}
+          options={[
+            { value: 'created_desc', label: 'Newest first' },
+            { value: 'created_asc', label: 'Oldest first' },
+            { value: 'deal_desc', label: 'Deal size (high→low)' },
+            { value: 'priority', label: 'Priority' },
+          ]}
+        />
 
         {view === 'list' && (
           <div className="relative">
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
+              aria-expanded={colsOpen}
               onClick={e => { e.stopPropagation(); setColsOpen(o => !o); }}
-              className="bg-white border border-slate-200/80 rounded-xl px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs cursor-pointer"
             >
-              <Columns3 size={13} className="text-slate-400" />
+              <Columns3 size={13} />
               <span>Columns</span>
-              <ChevronDown size={13} className="text-slate-400" />
-            </button>
+              <ChevronDown size={13} />
+            </Button>
             {colsOpen && (
               <>
                 <div className="fixed inset-0 z-20" onClick={() => setColsOpen(false)} />
-                <div className="absolute right-0 top-full mt-1.5 z-30 w-52 max-h-80 overflow-auto bg-white border border-slate-200 rounded-xl shadow-lg p-1.5">
+                <div className="absolute right-0 top-full mt-1.5 z-30 w-52 max-h-80 overflow-auto bg-ui-surface-elevated border border-ui-divider rounded-xl shadow-lg p-1.5">
                   {LEAD_COLUMNS.map((c, i) => (
-                    <label key={c} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs ${i === 0 ? 'text-slate-400' : 'text-slate-700 hover:bg-slate-50 cursor-pointer'}`}>
-                      <input type="checkbox" disabled={i === 0} checked={i === 0 || !hiddenCols.has(c)} onChange={() => toggleCol(c)} />
+                    <label key={c} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs ${i === 0 ? 'text-primary-400' : 'text-primary-700 hover:bg-primary-50 cursor-pointer'}`}>
+                      <Checkbox disabled={i === 0} checked={i === 0 || !hiddenCols.has(c)} onCheckedChange={() => toggleCol(c)} />
                       {c}
                     </label>
                   ))}
@@ -564,26 +533,19 @@ export function LeadsClient({
         )}
 
         {archivedCount > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowArchived(a => !a)}
-            className="bg-white border border-slate-200/80 rounded-xl px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs cursor-pointer"
-          >
-            <Archive size={13} className="text-slate-400" />
+          <Button variant="outline" size="sm" aria-pressed={showArchived} onClick={() => setShowArchived(a => !a)}>
+            <Archive size={13} />
             {showArchived ? 'Hide' : 'Show'} archived · {archivedCount}
-          </button>
+          </Button>
         )}
 
         {selectedStage && (
-          <button
-            onClick={() => setSelectedStage(null)}
-            className="text-xs text-blue-600 font-semibold hover:underline"
-          >
+          <Button variant="link" size="sm" onClick={() => setSelectedStage(null)}>
             Clear stage filter
-          </button>
+          </Button>
         )}
 
-        <span className="text-xs text-slate-400 font-medium ml-auto">
+        <span className="text-xs text-primary-400 font-medium ml-auto">
           {visibleLeads.length} shown
         </span>
       </div>
@@ -591,7 +553,7 @@ export function LeadsClient({
       {/* ── 5. Main 2-Column Section (Table Area + Pipeline Stages Sidebar) ── */}
       <div className="flex items-start gap-5">
         {/* Left Side: Opportunities Table / Board View */}
-        <div className={view === 'list' ? 'flex-1 min-w-0' : 'flex-1 min-w-0 bg-white border border-slate-200/80 rounded-2xl shadow-2xs overflow-hidden'}>
+        <div className={view === 'list' ? 'flex-1 min-w-0' : 'flex-1 min-w-0 bg-ui-surface-elevated border border-ui-divider rounded-2xl shadow-2xs overflow-hidden'}>
           {view === 'list' && (
             <LeadsTable
               leads={visibleLeads}
@@ -628,24 +590,17 @@ export function LeadsClient({
         </div>
 
         {/* ── Right Side: Pipeline Stages Sidebar ───────────────────── */}
-        <div className="hidden xl:block w-64 shrink-0 bg-white border border-slate-200/80 rounded-2xl p-4.5 shadow-2xs space-y-4">
+        <div className="hidden xl:block w-64 shrink-0 bg-ui-surface-elevated border border-ui-divider rounded-2xl p-4.5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+            <h3 className="text-xs font-bold text-primary-800 uppercase tracking-wider">
               Pipeline stages
             </h3>
-            <div className="flex items-center gap-3 text-[11px] text-slate-400">
-              <button
-                type="button"
-                onClick={() => router.push('/settings')}
-                className="flex items-center gap-1 hover:text-slate-700 transition-colors cursor-pointer"
-              >
+            <div className="flex items-center gap-3 text-[11px] text-primary-400">
+              <Link href="/settings" className={buttonVariants({ variant: 'ghost', size: 'xs', className: 'text-primary-400 hover:text-primary-700' })}>
                 <Settings size={13} />
                 <span>Set</span>
-              </button>
-              <Link
-                href="/leads/trash"
-                className="flex items-center gap-1 hover:text-slate-700 transition-colors"
-              >
+              </Link>
+              <Link href="/leads/trash" className={buttonVariants({ variant: 'ghost', size: 'xs', className: 'text-primary-400 hover:text-primary-700' })}>
                 <Trash2 size={13} />
                 <span>Trash</span>
               </Link>
@@ -665,16 +620,16 @@ export function LeadsClient({
                   key={s.key}
                   onClick={() => setSelectedStage(prev => prev === s.key ? null : s.key)}
                   className={`flex items-center justify-between gap-3 text-xs py-1 px-1.5 rounded-lg transition-colors cursor-pointer ${
-                    isFiltered ? 'bg-blue-50 font-bold' : 'hover:bg-slate-50'
+                    isFiltered ? 'bg-ui-selected-bg font-bold' : 'hover:bg-primary-50'
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: stageColor }} />
-                    <span className="truncate text-slate-700 font-medium text-[12px]">{s.label}</span>
+                    <span className="truncate text-primary-700 font-medium text-[12px]">{s.label}</span>
                   </div>
 
                   <div className="flex items-center gap-2.5 shrink-0">
-                    <div className="w-14 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="w-14 h-1.5 bg-primary-100 rounded-full overflow-hidden">
                       {count > 0 && (
                         <div
                           className="h-full rounded-full"
@@ -682,7 +637,7 @@ export function LeadsClient({
                         />
                       )}
                     </div>
-                    <span className="text-slate-900 font-bold text-xs w-4 text-right">{count}</span>
+                    <span className="text-primary-800 font-bold text-xs w-4 text-right">{count}</span>
                   </div>
                 </div>
               );

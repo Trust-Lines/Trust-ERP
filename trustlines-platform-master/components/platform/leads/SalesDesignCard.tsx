@@ -1,11 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { Palette, Plus, ChevronDown, ExternalLink, UserPlus, Mail, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { Pill } from '@/components/platform/shared/Pill';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
-import { Select } from '@/components/platform/shared/Select';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 export interface DesignerOption { id: string; full_name: string; office: string | null }
 
@@ -31,10 +35,19 @@ const cap = (s: string) => s.replace(/_/g, ' ');
 
 const designerLabel = (d: DesignerOption) => (d.office ? `${d.full_name} — ${d.office}` : d.full_name);
 
+/** 'YYYY-MM-DD' ⇄ local Date, so the DatePicker can edit the date-only DB column. */
+const parseISODate = (s: string | null) => {
+  if (!s) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+const toISODate = (d: Date | null) =>
+  d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : null;
+
 function StatusPill({ status }: { status: string }) {
   const good = ['approved_by_sales', 'completed', 'approved'].includes(status);
   const warn = ['revision_requested', 'rejected', 'cancelled', 'awaiting_assignment'].includes(status);
-  return <Pill variant={good ? 'success' : warn ? 'warning' : 'neutral'}><span style={{ textTransform: 'capitalize' }}>{cap(status)}</span></Pill>;
+  return <Badge size="sm" tone={good ? 'success' : warn ? 'warning' : 'neutral'} className="capitalize">{cap(status)}</Badge>;
 }
 
 export function SalesDesignCard({ initialJobs, initialVersions, designers: initialDesigners, canManage, canInviteDesigner, schemaError, leadStatus, designFiles = {} }: Props) {
@@ -157,7 +170,12 @@ export function SalesDesignCard({ initialJobs, initialVersions, designers: initi
               const designerName = nameOf(job.assigned_designer_id);
               return (
                 <div key={job.id} style={{ border: '1px solid var(--border-subtle)', borderRadius: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', cursor: 'pointer' }} onClick={() => toggle(job.id)}>
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    onClick={() => toggle(job.id)}
+                    className="flex w-full items-center gap-2.5 rounded-[8px] px-3 py-2.5 text-left outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
+                  >
                     <ChevronDown size={15} style={{ color: 'var(--fg-subtle)', transform: open ? 'none' : 'rotate(-90deg)', transition: 'transform 150ms' }} />
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -170,7 +188,7 @@ export function SalesDesignCard({ initialJobs, initialVersions, designers: initi
                         {job.due_date ? ` · due ${job.due_date}` : ''} · {jv.length} version{jv.length !== 1 ? 's' : ''}
                       </div>
                     </div>
-                  </div>
+                  </button>
 
                   {open && (
                     <div style={{ padding: '0 12px 12px', borderTop: '1px solid var(--border-subtle)' }}>
@@ -178,35 +196,40 @@ export function SalesDesignCard({ initialJobs, initialVersions, designers: initi
 
                       {canManage && (
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '10px 0' }}>
-                          <label style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Designer
-                            <Select className="form-input" style={{ fontSize: 12, marginTop: 2, minWidth: 220 }}
+                          <div className="flex flex-col gap-0.5">
+                            <label htmlFor={`dj-designer-${job.id}`} style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Designer</label>
+                            <Select id={`dj-designer-${job.id}`} className="min-w-[220px]"
                               value={job.assigned_designer_id ?? ''} disabled={busy}
-                              onChange={e => patchJob(job.id, { assigned_designer_id: e.target.value || null })}>
-                              <option value="">— Awaiting assignment</option>
-                              {designers.map(d => <option key={d.id} value={d.id}>{designerLabel(d)}</option>)}
-                            </Select>
-                          </label>
-                          <label style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Status
-                            <Select className="form-input" style={{ fontSize: 12, marginTop: 2 }} value={job.status} disabled={busy}
-                              onChange={e => patchJob(job.id, { status: e.target.value })}>
-                              {JOB_STATUSES.map(s => <option key={s} value={s}>{cap(s)}</option>)}
-                            </Select>
-                          </label>
-                          <label style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Priority
-                            <Select className="form-input" style={{ fontSize: 12, marginTop: 2 }} value={job.priority} disabled={busy}
-                              onChange={e => patchJob(job.id, { priority: e.target.value })}>
-                              <option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option>
-                            </Select>
-                          </label>
-                          <label style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Due date
-                            <input type="date" className="form-input" style={{ fontSize: 12, marginTop: 2 }} defaultValue={job.due_date ?? ''} disabled={busy}
-                              onChange={e => patchJob(job.id, { due_date: e.target.value || null })} />
-                          </label>
+                              onValueChange={v => patchJob(job.id, { assigned_designer_id: v || null })}
+                              options={[{ value: '', label: '— Awaiting assignment' }, ...designers.map(d => ({ value: d.id, label: designerLabel(d) }))]} />
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <label htmlFor={`dj-status-${job.id}`} style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Status</label>
+                            <Select id={`dj-status-${job.id}`} className="w-auto min-w-40 capitalize" value={job.status} disabled={busy}
+                              onValueChange={v => v && patchJob(job.id, { status: v })}
+                              options={JOB_STATUSES.map(s => ({ value: s, label: cap(s) }))} />
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <label htmlFor={`dj-priority-${job.id}`} style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Priority</label>
+                            <Select id={`dj-priority-${job.id}`} className="w-28" value={job.priority} disabled={busy}
+                              onValueChange={v => v && patchJob(job.id, { priority: v })}
+                              options={[{ value: 'low', label: 'Low' }, { value: 'normal', label: 'Normal' }, { value: 'high', label: 'High' }]} />
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <label htmlFor={`dj-due-${job.id}`} style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>Due date</label>
+                            <div className="flex items-center gap-1">
+                              <DatePicker id={`dj-due-${job.id}`} placeholder="No due date" disabled={busy}
+                                value={parseISODate(job.due_date)}
+                                onValueChange={d => patchJob(job.id, { due_date: toISODate(d) })} />
+                              {job.due_date && (
+                                <Button variant="ghost" size="xs" disabled={busy} onClick={() => patchJob(job.id, { due_date: null })}>Clear</Button>
+                              )}
+                            </div>
+                          </div>
                           {canInviteDesigner && inviteFor !== job.id && (
-                            <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-end', fontSize: 12, color: 'var(--brand-teal)' }}
-                              onClick={() => setInviteFor(job.id)} disabled={busy}>
+                            <Button variant="ghost" className="self-end" onClick={() => setInviteFor(job.id)} disabled={busy}>
                               <Mail size={12} /> Invite designer
-                            </button>
+                            </Button>
                           )}
                         </div>
                       )}
@@ -238,20 +261,18 @@ export function SalesDesignCard({ initialJobs, initialVersions, designers: initi
                               {v.presented_at && <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>presented {new Date(v.presented_at).toLocaleDateString()}</span>}
                               <div style={{ flex: 1 }} />
                               {canManage && (
-                                <Select className="form-input" style={{ fontSize: 12, width: 'auto', padding: '2px 6px' }} value={v.status} disabled={busy}
-                                  onChange={e => patchVersion(job.id, v.id, { status: e.target.value })} aria-label={`V${v.version_no} status`}>
-                                  {VER_STATUSES.map(s => <option key={s} value={s}>{cap(s)}</option>)}
-                                </Select>
+                                <Select className="w-auto min-w-32 capitalize" value={v.status} disabled={busy}
+                                  onValueChange={s => s && patchVersion(job.id, v.id, { status: s })} aria-label={`V${v.version_no} status`}
+                                  options={VER_STATUSES.map(s => ({ value: s, label: cap(s) }))} />
                               )}
                             </div>
                             {(designFiles[v.id] ?? []).length > 0 && (
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                                 {(designFiles[v.id] ?? []).map(f => (
-                                  <button key={f.id} className="btn btn-ghost btn-sm" disabled={busy}
-                                    style={{ border: '1px solid var(--border-subtle)', fontSize: 12 }}
+                                  <Button key={f.id} variant="outline" size="xs" disabled={busy}
                                     onClick={() => openDesignFile(job.id, f.id)}>
                                     <FileText size={12} /> {f.file_name}
-                                  </button>
+                                  </Button>
                                 ))}
                               </div>
                             )}
@@ -281,6 +302,7 @@ const OFFICE_SUGGESTIONS = ['Trust Lines Türkiye', 'Syria Office'];
 function InviteDesignerForm({ busy, onInvite, onCancel }: {
   busy: boolean; onInvite: (fullName: string, email: string, office: string) => void; onCancel: () => void;
 }) {
+  const uid = useId();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [office, setOffice] = useState('');
@@ -292,41 +314,42 @@ function InviteDesignerForm({ busy, onInvite, onCancel }: {
         <Mail size={13} /> Invite a designer
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
-        <div><label className="form-label required" style={{ fontSize: 11 }}>Full name</label>
-          <input className="form-input" style={{ fontSize: 13 }} placeholder="e.g. Sara Khaled" value={fullName} onChange={e => setFullName(e.target.value)} autoFocus /></div>
-        <div><label className="form-label required" style={{ fontSize: 11 }}>Email</label>
-          <input className="form-input" style={{ fontSize: 13 }} type="email" placeholder="sara@…" value={email} onChange={e => setEmail(e.target.value)} /></div>
-        <div><label className="form-label" style={{ fontSize: 11 }}>Office</label>
-          <input className="form-input" style={{ fontSize: 13 }} list="designer-offices" placeholder="e.g. Syria Office" value={office} onChange={e => setOffice(e.target.value)} />
+        <div><label htmlFor={`invite-name-${uid}`} className="form-label required" style={{ fontSize: 11 }}>Full name</label>
+          <Input id={`invite-name-${uid}`} placeholder="e.g. Sara Khaled" value={fullName} onChange={e => setFullName(e.target.value)} autoFocus /></div>
+        <div><label htmlFor={`invite-email-${uid}`} className="form-label required" style={{ fontSize: 11 }}>Email</label>
+          <Input id={`invite-email-${uid}`} type="email" placeholder="sara@…" value={email} onChange={e => setEmail(e.target.value)} /></div>
+        <div><label htmlFor={`invite-office-${uid}`} className="form-label" style={{ fontSize: 11 }}>Office</label>
+          <Input id={`invite-office-${uid}`} list="designer-offices" placeholder="e.g. Syria Office" value={office} onChange={e => setOffice(e.target.value)} />
           <datalist id="designer-offices">{OFFICE_SUGGESTIONS.map(o => <option key={o} value={o} />)}</datalist></div>
       </div>
       <div style={{ fontSize: 11, color: 'var(--fg-subtle)', marginBottom: 10 }}>
         They get an email invite, receive the <strong>designer</strong> role, and are assigned to this job right away.
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn btn-primary btn-sm" disabled={!valid || busy} onClick={() => onInvite(fullName.trim(), email.trim(), office.trim())}>
-          {busy ? 'Sending…' : 'Send invite & assign'}
-        </button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel} disabled={busy}>Cancel</button>
+        <Button disabled={!valid || busy} loading={busy} onClick={() => onInvite(fullName.trim(), email.trim(), office.trim())}>
+          Send invite &amp; assign
+        </Button>
+        <Button variant="ghost" onClick={onCancel} disabled={busy}>Cancel</Button>
       </div>
     </div>
   );
 }
 
 function AddVersionRow({ busy, onAdd }: { busy: boolean; onAdd: (link: string, notes: string) => void }) {
+  const uid = useId();
   const [open, setOpen] = useState(false);
   const [link, setLink] = useState('');
   const [notes, setNotes] = useState('');
-  if (!open) return <button className="btn btn-ghost btn-sm" style={{ marginTop: 10, fontSize: 12, color: 'var(--brand-teal)' }} onClick={() => setOpen(true)}><Plus size={12} /> Add version</button>;
+  if (!open) return <Button variant="ghost" className="mt-2.5" onClick={() => setOpen(true)}><Plus size={12} /> Add version</Button>;
   return (
     <div style={{ marginTop: 10, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '10px 12px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, marginBottom: 8 }}>
-        <div><label className="form-label" style={{ fontSize: 11 }}>Preview link (Dropbox / Drive / Matterport)</label><input className="form-input" style={{ fontSize: 13 }} placeholder="https://…" value={link} onChange={e => setLink(e.target.value)} autoFocus /></div>
-        <div><label className="form-label" style={{ fontSize: 11 }}>Notes</label><input className="form-input" style={{ fontSize: 13 }} value={notes} onChange={e => setNotes(e.target.value)} /></div>
+        <div><label htmlFor={`version-link-${uid}`} className="form-label" style={{ fontSize: 11 }}>Preview link (Dropbox / Drive / Matterport)</label><Input id={`version-link-${uid}`} type="url" placeholder="https://…" value={link} onChange={e => setLink(e.target.value)} autoFocus /></div>
+        <div><label htmlFor={`version-notes-${uid}`} className="form-label" style={{ fontSize: 11 }}>Notes</label><Input id={`version-notes-${uid}`} value={notes} onChange={e => setNotes(e.target.value)} /></div>
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => { onAdd(link.trim(), notes.trim()); setLink(''); setNotes(''); setOpen(false); }}>Add</button>
-        <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>Cancel</button>
+        <Button disabled={busy} onClick={() => { onAdd(link.trim(), notes.trim()); setLink(''); setNotes(''); setOpen(false); }}>Add</Button>
+        <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
       </div>
     </div>
   );
@@ -336,8 +359,8 @@ function FeedbackRow({ value, busy, onSave }: { value: string; busy: boolean; on
   const [fb, setFb] = useState(value);
   return (
     <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-      <textarea className="form-input" style={{ fontSize: 12, resize: 'vertical' }} rows={2} placeholder="Customer feedback…" value={fb} onChange={e => setFb(e.target.value)} />
-      <button className="btn btn-ghost btn-sm" disabled={busy || fb === value} onClick={() => onSave(fb.trim())}>Save</button>
+      <Textarea aria-label="Customer feedback" className="min-h-14" rows={2} placeholder="Customer feedback…" value={fb} onChange={e => setFb(e.target.value)} />
+      <Button variant="outline" disabled={busy || fb === value} onClick={() => onSave(fb.trim())}>Save</Button>
     </div>
   );
 }

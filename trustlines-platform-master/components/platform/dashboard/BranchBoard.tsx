@@ -86,7 +86,7 @@ function CroppedLogo({ src, code, className }: { src: string; code: string; clas
 
 function CardBody({ item }: { item: BoardCardItem }) {
   return (
-    <span className="min-w-0 flex-1 text-[#2f2f2f]">
+    <span className="min-w-0 flex-1 text-primary-800">
       <span className="flex items-center justify-between gap-3">
         <span className="truncate text-[14px] font-bold">{item.title}</span>
         {item.dateLabel && <span className="shrink-0 text-[11px] font-medium opacity-70">{item.dateLabel}</span>}
@@ -151,28 +151,28 @@ function DateFilterBar({ from, to, onFrom, onTo, onClear }: {
 }) {
   const active = from !== '' || to !== '';
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-neutral-200 bg-white px-4 py-3">
-      <span className="text-[12px] font-semibold uppercase tracking-wide text-neutral-500">Date filter</span>
-      <label className="flex items-center gap-1.5 text-[13px] text-neutral-700">
+    <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-ui-divider bg-ui-surface-elevated px-4 py-3">
+      <span className="text-[12px] font-semibold uppercase tracking-wide text-ui-text-secondary">Date filter</span>
+      <label className="flex items-center gap-1.5 text-[13px] text-primary-700">
         From
         <input
           type="date" value={from} onChange={e => onFrom(e.target.value)}
-          className="rounded-md border border-neutral-300 px-2 py-1 text-[13px]"
+          className="rounded-md border border-ui-input-border bg-ui-input-bg px-2 py-1 text-[13px]"
         />
       </label>
-      <label className="flex items-center gap-1.5 text-[13px] text-neutral-700">
+      <label className="flex items-center gap-1.5 text-[13px] text-primary-700">
         To
         <input
           type="date" value={to} onChange={e => onTo(e.target.value)}
-          className="rounded-md border border-neutral-300 px-2 py-1 text-[13px]"
+          className="rounded-md border border-ui-input-border bg-ui-input-bg px-2 py-1 text-[13px]"
         />
       </label>
       {active && (
-        <button type="button" onClick={onClear} className="text-[12px] font-medium text-neutral-500 hover:text-neutral-800 hover:underline">
+        <button type="button" onClick={onClear} className="text-[12px] font-medium text-ui-link hover:underline">
           Clear
         </button>
       )}
-      <span className="basis-full text-[11px] text-neutral-400 sm:basis-auto">
+      <span className="basis-full text-[11px] text-ui-text-secondary sm:basis-auto">
         Project cards: delivery date. Opportunity cards: date it became an opportunity (ClickUp
         creation date). Cards with no date are hidden while a filter is set.
       </span>
@@ -191,14 +191,14 @@ function Column({ column, onOpen }: { column: BoardColumn; onOpen: (item: BoardC
         </div>
         {/* No fixed/stretched height here — each column is exactly as tall as its own content,
             so a branch with fewer items never drags a leftover block of header color below it. */}
-        <div className="space-y-3.5 bg-white p-3 sm:p-3.5">
+        <div className="space-y-3.5 bg-ui-surface-elevated p-3 sm:p-3.5">
           {column.sections.map(section => (
             <Section key={section.key} section={section} onOpen={onOpen} />
           ))}
         </div>
       </div>
       <div
-        className="absolute -top-3 -right-3 grid size-11 place-items-center rounded-[10px] border-4 border-[#f4f4f4] text-[22px] font-bold text-[#f4f4f4]"
+        className="absolute -top-3 -right-3 grid size-11 place-items-center rounded-[10px] border-4 border-ui-page-bg text-[22px] font-bold text-primary-50"
         style={{ background: column.headerColor }}
       >
         {column.total}
@@ -241,7 +241,7 @@ export function BranchBoard({ columns, assignees, canEdit }: {
 
   if (columns.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-[#d8d8d8] bg-white p-8 text-center text-sm text-[#777]">
+      <div className="rounded-xl border border-dashed border-ui-input-border bg-ui-surface-elevated p-8 text-center text-sm text-ui-text-secondary">
         No branch is assigned to your account yet — ask an admin to set your region on the Team page.
       </div>
     );

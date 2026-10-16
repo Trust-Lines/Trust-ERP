@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export function WatchButton({ intakeId }: { intakeId: string }) {
   const [watching, setWatching] = useState(false);
@@ -28,9 +29,9 @@ export function WatchButton({ intakeId }: { intakeId: string }) {
   }
 
   return (
-    <button className={`btn btn-sm ${watching ? 'btn-secondary' : 'btn-ghost'}`} onClick={toggle} disabled={busy}
+    <Button variant={watching ? 'secondary' : 'ghost'} onClick={toggle} disabled={busy} aria-pressed={watching}
       title={watching ? 'Stop watching this lead' : 'Watch this lead to get notified of changes'}>
       {watching ? <Eye size={14} /> : <EyeOff size={14} />} {watching ? 'Watching' : 'Watch'}{count > 0 ? ` · ${count}` : ''}
-    </button>
+    </Button>
   );
 }

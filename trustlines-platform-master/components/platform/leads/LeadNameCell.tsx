@@ -1,10 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronDown, ChevronRight, Plus, Pencil, Check, Trash2, Clock, ListChecks } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, Clock, ListChecks } from 'lucide-react';
 import { readableTextColor } from '@/lib/marketing/pillColor';
 import type { Lead } from './types';
-import { Select } from '@/components/platform/shared/Select';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 interface TaskRow {
   id: string; title: string; status: 'todo' | 'in_progress' | 'done';
@@ -78,13 +82,13 @@ export function LeadNameCell({ lead, today, assignees, onOpen, onEdit }: {
       <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           {(taskCount > 0 || expanded) ? (
-            <button onClick={() => setExpanded(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0, display: 'flex', flexShrink: 0 }}>
+            <Button variant="ghost" size="icon-xs" onClick={() => setExpanded(s => !s)} aria-expanded={expanded} aria-label={expanded ? 'Hide subtasks' : 'Show subtasks'} className="size-[13px]">
               {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-            </button>
+            </Button>
           ) : <span style={{ width: 13, flexShrink: 0 }} />}
 
-          <div onClick={onOpen} style={{ cursor: 'pointer', flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 600, color: 'var(--brand-teal-600)', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <button type="button" onClick={onOpen} className="min-w-0 flex-1 rounded-[2px] text-left outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring">
+            <span style={{ fontWeight: 600, color: 'var(--brand-teal-600)', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{lead.name}</span>
               {(lead.tag_pills ?? []).map(t => (
                 <span key={t.name} style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 4, background: t.color || 'var(--bg-subtle)', color: readableTextColor(t.color || '#888888') }}>
@@ -106,20 +110,21 @@ export function LeadNameCell({ lead, today, assignees, onOpen, onEdit }: {
                   </span>
                 );
               })()}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', overflow: 'hidden' }}>
               <span>{lead.project_no ?? 'Open →'}</span>
               {taskCount > 0 && (
                 <span title={`${doneCount} of ${taskCount} subtasks done`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 700, color: doneCount === taskCount ? 'var(--brand-teal-600)' : 'var(--status-warning-fg)' }}>
                   <ListChecks size={11} /> {doneCount}/{taskCount}
                 </span>
               )}
-            </div>
-          </div>
+            </span>
+          </button>
 
-          <div style={{ display: 'flex', gap: 2, opacity: hovered ? 1 : 0, transition: 'opacity 100ms', flexShrink: 0 }}>
-            <button onClick={() => { setAdding(true); setExpanded(true); }} title="Add subtask" style={iconBtn}><Plus size={13} /></button>
-            <button onClick={onEdit} title="Edit" style={iconBtn}><Pencil size={12} /></button>
+          {/* Shown on hover, and whenever one of them has keyboard focus. */}
+          <div className={cn('flex shrink-0 gap-0.5 transition-opacity', hovered ? 'opacity-100' : 'opacity-0 focus-within:opacity-100')}>
+            <Button variant="ghost" size="icon-xs" onClick={() => { setAdding(true); setExpanded(true); }} title="Add subtask" aria-label="Add subtask"><Plus size={13} /></Button>
+            <Button variant="ghost" size="icon-xs" onClick={onEdit} title="Edit" aria-label="Edit"><Pencil size={12} /></Button>
           </div>
         </div>
       </div>
@@ -131,32 +136,27 @@ export function LeadNameCell({ lead, today, assignees, onOpen, onEdit }: {
             const done = t.status === 'done';
             return (
               <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 7, height: 26 }}>
-                <div
-                  onClick={() => patchTask(t, { status: done ? 'todo' : 'done' })}
+                <Checkbox
+                  checked={done}
+                  onCheckedChange={() => patchTask(t, { status: done ? 'todo' : 'done' })}
                   title={done ? 'Re-open' : 'Mark done'}
-                  style={{
-                    width: 13, height: 13, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
-                    border: `1.5px ${done ? 'solid' : 'dashed'} ${done ? 'var(--brand-teal)' : 'var(--fg-faint)'}`,
-                    background: done ? 'var(--brand-teal)' : 'transparent',
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >{done && <Check size={8} strokeWidth={3} color="white" />}</div>
+                  aria-label={`${done ? 'Re-open' : 'Mark done'}: ${t.title}`}
+                />
                 <span style={{ flex: 1, fontSize: 12, color: done ? 'var(--fg-faint)' : 'var(--fg-default)', textDecoration: done ? 'line-through' : 'none' }}>
                   {t.title}
                 </span>
-                <Select
-                  value={t.assignee_id ?? ''} onClick={e => e.stopPropagation()}
-                  onChange={e => patchTask(t, { assignee_id: e.target.value || null })}
-                  style={{ fontSize: 11, padding: '2px 5px', border: '1px solid transparent', borderRadius: 5, background: 'transparent', maxWidth: 110, color: 'var(--fg-faint)' }}
-                  onFocus={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.background = 'var(--bg-surface)'; }}
-                  onBlur={e => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
-                >
-                  <option value="">Unassigned</option>
-                  {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-                </Select>
-                <button onClick={() => removeTask(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0, display: 'flex' }} aria-label="Delete subtask">
+                <div onClick={e => e.stopPropagation()}>
+                  <Select
+                    aria-label={`Assignee for ${t.title}`}
+                    className="h-6 w-auto max-w-[110px] border-transparent bg-transparent text-primary-400 hover:border-ui-divider"
+                    value={t.assignee_id ?? ''}
+                    onValueChange={v => patchTask(t, { assignee_id: v || null })}
+                    options={[{ value: '', label: 'Unassigned' }, ...assignees.map(a => ({ value: a.id, label: a.full_name }))]}
+                  />
+                </div>
+                <Button variant="ghost" size="icon-xs" onClick={() => removeTask(t)} aria-label={`Delete subtask: ${t.title}`}>
                   <Trash2 size={11} />
-                </button>
+                </Button>
               </div>
             );
           })}
@@ -164,29 +164,21 @@ export function LeadNameCell({ lead, today, assignees, onOpen, onEdit }: {
           {adding ? (
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <span style={{ width: 14 }} />
-              <input
-                autoFocus className="form-input" placeholder="Subtask name…" value={draft}
+              <Input
+                autoFocus aria-label="New subtask name" placeholder="Subtask name…" value={draft}
                 onChange={e => setDraft(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') saveNewSubtask(); if (e.key === 'Escape') { setAdding(false); setDraft(''); } }}
                 onBlur={() => saveNewSubtask()}
-                style={{ fontSize: 12, padding: '3px 8px', flex: 1, maxWidth: 220 }}
+                className="h-7 max-w-[220px] flex-1"
               />
             </div>
           ) : (
-            <button
-              onClick={() => setAdding(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', fontSize: 11.5, padding: '2px 0', width: 'fit-content' }}
-            >
+            <Button variant="ghost" size="xs" className="w-fit text-primary-400" onClick={() => setAdding(true)}>
               <Plus size={12} /> Add subtask
-            </button>
+            </Button>
           )}
         </div>
       )}
     </>
   );
 }
-
-const iconBtn: React.CSSProperties = {
-  background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)',
-  padding: 3, display: 'flex', borderRadius: 4,
-};

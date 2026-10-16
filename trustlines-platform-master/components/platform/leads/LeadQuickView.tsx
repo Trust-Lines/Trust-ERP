@@ -3,12 +3,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { X, Plus, Trash2, Check, Loader2, ExternalLink } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, ExternalLink } from 'lucide-react';
 import { LeadActivity } from './LeadActivity';
 import { PROJECT_TYPES, LEAD_SOURCES } from '@/lib/sales/projectTypes';
 import { composeProjectCode, serviceLineLabel, regionLabel } from '@/lib/regions';
 import { STATUS_ORDER, LEAD_INTAKE_STATUS_KEYS } from './types';
-import { Select } from '@/components/platform/shared/Select';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 interface TaskRow {
   id: string; title: string; status: 'todo' | 'in_progress' | 'done';
@@ -124,8 +127,8 @@ export function LeadQuickView({ intakeId, assignees, onClose }: {
             </div>
           </div>
           {saving && <Loader2 size={14} className="qv-spin" style={{ color: 'var(--fg-faint)', marginTop: 6 }} />}
-          <Link href={`/leads/${intakeId}`} className="btn btn-secondary btn-sm"><ExternalLink size={13} /> Full form</Link>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 4 }} aria-label="Close"><X size={18} /></button>
+          <Link href={`/leads/${intakeId}`} className={buttonVariants({ variant: 'secondary', size: 'sm' })}><ExternalLink size={13} /> Full form</Link>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close"><X size={18} /></Button>
         </div>
 
         <style>{`.qv-spin{animation:qv-spin 1s linear infinite}@keyframes qv-spin{to{transform:rotate(360deg)}}`}</style>
@@ -136,37 +139,37 @@ export function LeadQuickView({ intakeId, assignees, onClose }: {
           <div style={{ padding: '16px 20px 20px' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>Fields</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2px 24px', marginBottom: 20 }}>
-              <Row label="Customer name"><Inp value={v('customer_name')} ph="e.g. Lumen Optics" onSave={x => saveField('customer_name', x)} /></Row>
+              <Row label="Customer name"><Inp label="Customer name" value={v('customer_name')} ph="e.g. Lumen Optics" onSave={x => saveField('customer_name', x)} /></Row>
               <Row label="Status OP">
-                <Sel value={String(v('opportunity_status') || 'new_opportunity')} onChange={x => saveField('opportunity_status', x)}
+                <Sel label="Status OP" value={String(v('opportunity_status') || 'new_opportunity')} onChange={x => saveField('opportunity_status', x)}
                   opts={STATUS_ORDER.filter(s => LEAD_INTAKE_STATUS_KEYS.includes(s.key)).map(s => [s.key, s.label])} />
               </Row>
               <Row label="Assignee">
-                <Sel value={String(v('assignee_id'))} onChange={x => saveField('assignee_id', x)}
+                <Sel label="Assignee" value={String(v('assignee_id'))} onChange={x => saveField('assignee_id', x)}
                   opts={[['', 'Unassigned'], ...assignees.map(a => [a.id, a.full_name] as [string, string])]} />
               </Row>
               <Row label="Priority">
-                <Sel value={String(v('priority') || 'medium')} onChange={x => saveField('priority', x)}
+                <Sel label="Priority" value={String(v('priority') || 'medium')} onChange={x => saveField('priority', x)}
                   opts={[['high', 'High'], ['medium', 'Medium'], ['low', 'Low']]} />
               </Row>
               <Row label="Project Type">
-                <Sel value={String(v('project_type'))} onChange={x => saveField('project_type', x)}
+                <Sel label="Project Type" value={String(v('project_type'))} onChange={x => saveField('project_type', x)}
                   opts={[['', '—'], ...PROJECT_TYPES.map(t => [t, t] as [string, string])]} />
               </Row>
               <Row label="Source">
-                <Sel value={String(v('source'))} onChange={x => saveField('source', x)}
+                <Sel label="Source" value={String(v('source'))} onChange={x => saveField('source', x)}
                   opts={[['', '—'], ...LEAD_SOURCES.map(s => [s, s] as [string, string])]} />
               </Row>
-              <Row label="Deal Size"><Inp type="number" value={v('deal_size')} ph="e.g. 250000" onSave={x => saveField('deal_size', x === '' ? null : Number(x))} /></Row>
-              <Row label="Direct Contact"><Inp value={v('contact_person')} ph="e.g. John Smith" onSave={x => saveField('contact_person', x)} /></Row>
-              <Row label="Phone"><Inp value={v('contact_phone')} ph="e.g. +1 555 123 4567" onSave={x => saveField('contact_phone', x)} /></Row>
-              <Row label="Email"><Inp type="email" value={v('customer_email')} ph="e.g. john@lumenoptics.com" onSave={x => saveField('customer_email', x)} /></Row>
-              <Row label="Brand"><Inp value={v('brand')} ph="e.g. Lumen" onSave={x => saveField('brand', x)} /></Row>
-              <Row label="Industry"><Inp value={v('industry')} ph="e.g. Retail, F&B" onSave={x => saveField('industry', x)} /></Row>
-              <Row label="Location (City)"><Inp value={v('city')} ph="e.g. Briarcliff Manor" onSave={x => saveField('city', x)} /></Row>
-              <Row label="State"><Inp value={v('state')} ph="e.g. NY" onSave={x => saveField('state', x)} /></Row>
-              <Row label="Follow-up"><Inp type="date" value={v('follow_up_date')} onSave={x => saveField('follow_up_date', x)} /></Row>
-              <Row label="To Do / Next action"><Inp value={v('next_action')} ph="e.g. Send estimate" onSave={x => saveField('next_action', x)} /></Row>
+              <Row label="Deal Size"><Inp label="Deal Size" type="number" value={v('deal_size')} ph="e.g. 250000" onSave={x => saveField('deal_size', x === '' ? null : Number(x))} /></Row>
+              <Row label="Direct Contact"><Inp label="Direct Contact" value={v('contact_person')} ph="e.g. John Smith" onSave={x => saveField('contact_person', x)} /></Row>
+              <Row label="Phone"><Inp label="Phone" value={v('contact_phone')} ph="e.g. +1 555 123 4567" onSave={x => saveField('contact_phone', x)} /></Row>
+              <Row label="Email"><Inp label="Email" type="email" value={v('customer_email')} ph="e.g. john@lumenoptics.com" onSave={x => saveField('customer_email', x)} /></Row>
+              <Row label="Brand"><Inp label="Brand" value={v('brand')} ph="e.g. Lumen" onSave={x => saveField('brand', x)} /></Row>
+              <Row label="Industry"><Inp label="Industry" value={v('industry')} ph="e.g. Retail, F&B" onSave={x => saveField('industry', x)} /></Row>
+              <Row label="Location (City)"><Inp label="Location (City)" value={v('city')} ph="e.g. Briarcliff Manor" onSave={x => saveField('city', x)} /></Row>
+              <Row label="State"><Inp label="State" value={v('state')} ph="e.g. NY" onSave={x => saveField('state', x)} /></Row>
+              <Row label="Follow-up"><Inp label="Follow-up" type="date" value={v('follow_up_date')} onSave={x => saveField('follow_up_date', x)} /></Row>
+              <Row label="To Do / Next action"><Inp label="To Do / Next action" value={v('next_action')} ph="e.g. Send estimate" onSave={x => saveField('next_action', x)} /></Row>
               <Row label="Request"><span style={ro}>{serviceLineLabel(intake?.service_line as string) || '—'}</span></Row>
               <Row label="PROJECT #"><span style={{ ...ro, fontFamily: 'var(--font-mono)' }}>{code}</span></Row>
             </div>
@@ -178,28 +181,29 @@ export function LeadQuickView({ intakeId, assignees, onClose }: {
                 const done = t.status === 'done';
                 return (
                   <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border-subtle)' }}>
-                    <div onClick={() => patchTask(t, { status: done ? 'todo' : 'done' })} style={{
-                      width: 16, height: 16, borderRadius: 4, flexShrink: 0, cursor: 'pointer',
-                      border: `1.5px solid ${done ? 'var(--brand-teal)' : 'var(--border-default)'}`,
-                      background: done ? 'var(--brand-teal)' : 'transparent',
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    }}>{done && <Check size={10} strokeWidth={3} color="#fff" />}</div>
+                    <Checkbox
+                      checked={done}
+                      onCheckedChange={() => patchTask(t, { status: done ? 'todo' : 'done' })}
+                      aria-label={`${done ? 'Reopen' : 'Complete'} subtask: ${t.title}`}
+                    />
                     <span style={{ flex: 1, fontSize: 13, color: done ? 'var(--fg-faint)' : 'var(--fg-default)', textDecoration: done ? 'line-through' : 'none' }}>{t.title}</span>
-                    <Select value={t.assignee_id ?? ''} onChange={e => patchTask(t, { assignee_id: e.target.value || null })}
-                      style={{ fontSize: 12, padding: '3px 6px', border: '1px solid var(--border-subtle)', borderRadius: 6, background: 'var(--bg-surface)', maxWidth: 150 }}>
-                      <option value="">Unassigned</option>
-                      {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-                    </Select>
-                    <button onClick={() => removeTask(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 2 }} aria-label="Delete task"><Trash2 size={13} /></button>
+                    <Select
+                      aria-label={`Assignee for ${t.title}`}
+                      className="w-auto max-w-[150px]"
+                      value={t.assignee_id ?? ''}
+                      onValueChange={v => patchTask(t, { assignee_id: v || null })}
+                      options={[{ value: '', label: 'Unassigned' }, ...assignees.map(a => ({ value: a.id, label: a.full_name }))]}
+                    />
+                    <Button variant="ghost" size="icon-xs" onClick={() => removeTask(t)} aria-label={`Delete subtask: ${t.title}`}><Trash2 size={13} /></Button>
                   </div>
                 );
               })}
             </div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-              <input className="form-input" placeholder="Add a subtask (e.g. Collect Information)…" value={newTask}
+              <Input aria-label="New subtask" placeholder="Add a subtask (e.g. Collect Information)…" value={newTask}
                 onChange={e => setNewTask(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTask(); } }} style={{ fontSize: 13 }} />
-              <button className="btn btn-secondary btn-sm" onClick={addTask} disabled={!newTask.trim()}><Plus size={13} /> Add</button>
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTask(); } }} />
+              <Button variant="outline" onClick={addTask} disabled={!newTask.trim()}><Plus size={13} /> Add</Button>
             </div>
 
             <LeadActivity intakeId={intakeId} />
@@ -221,31 +225,31 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-const cellInput: React.CSSProperties = {
-  width: '100%', fontSize: 13, padding: '3px 6px', border: '1px solid transparent',
-  borderRadius: 5, background: 'transparent', color: 'var(--fg-default)',
-};
+// Inline-edit cell: reads like plain text until hovered/focused, then shows the field border.
+const cellClass = 'h-7 border-transparent bg-transparent text-[13px] text-primary-800 hover:border-ui-divider focus-visible:border-primary-700 focus-visible:bg-primary-50';
 
-function Inp({ value, onSave, type = 'text', ph }: { value: string | number; onSave: (v: string) => void; type?: string; ph?: string }) {
+function Inp({ value, onSave, type = 'text', ph, label }: { value: string | number; onSave: (v: string) => void; type?: string; ph?: string; label: string }) {
   const [val, setVal] = useState(String(value ?? ''));
   useEffect(() => { setVal(String(value ?? '')); }, [value]);
   return (
-    <input
-      type={type} value={val} placeholder={ph ?? '—'}
+    <Input
+      type={type} value={val} placeholder={ph ?? '—'} aria-label={label}
       onChange={e => setVal(e.target.value)}
       onBlur={() => { if (val !== String(value ?? '')) onSave(val); }}
       onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-      style={cellInput}
-      onFocus={e => { e.target.style.border = '1px solid var(--border-default)'; e.target.style.background = 'var(--bg-surface)'; }}
-      onBlurCapture={e => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent'; }}
+      className={cellClass}
     />
   );
 }
 
-function Sel({ value, onChange, opts }: { value: string; onChange: (v: string) => void; opts: [string, string][] }) {
+function Sel({ value, onChange, opts, label }: { value: string; onChange: (v: string) => void; opts: [string, string][]; label: string }) {
   return (
-    <Select value={value} onChange={e => onChange(e.target.value)} style={{ ...cellInput, border: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
-      {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-    </Select>
+    <Select
+      aria-label={label}
+      className="h-7 text-[13px] text-primary-800"
+      value={value}
+      onValueChange={v => onChange(v ?? '')}
+      options={opts.map(([v, l]) => ({ value: v, label: l }))}
+    />
   );
 }

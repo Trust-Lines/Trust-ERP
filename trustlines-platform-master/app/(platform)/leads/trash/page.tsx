@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { LeadsTrashClient, type TrashRow } from '@/components/platform/leads/LeadsTrashClient';
 import { SALES_INTAKE_ROLES } from '@/lib/sales/roles';
 import { composeProjectCode } from '@/lib/regions';
+import { buttonVariants } from '@/components/ui/button';
 
 const PURGE_DAYS = 30;
 const PURGE_ROLES = ['sales_marketing_manager', 'ops_manager', 'general_manager'];
@@ -44,7 +45,7 @@ export default async function LeadsTrashPage() {
   return (
     <div className="main-inner">
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-        <Link href="/leads" className="btn btn-ghost btn-sm" style={{ color: 'var(--fg-subtle)' }}>← Leads</Link>
+        <Link href="/leads" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>← Leads</Link>
         <div>
           <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: 0 }}>Leads Trash</h1>
           <p className="page-head-sub" style={{ margin: '2px 0 0' }}>

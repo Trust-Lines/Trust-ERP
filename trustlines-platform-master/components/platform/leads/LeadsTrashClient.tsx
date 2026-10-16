@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { RotateCcw, Trash2 } from 'lucide-react';
 import { formatDate } from '@/lib/formatDate';
+import { Button } from '@/components/ui/button';
 
 export interface TrashRow {
   id: string;
@@ -77,13 +78,13 @@ export function LeadsTrashClient({ rows, canPurge }: { rows: TrashRow[]; canPurg
                 </td>
                 <td>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button className="btn btn-secondary btn-sm" disabled={busy === r.id} onClick={() => restore(r)}>
+                    <Button variant="secondary" disabled={busy === r.id} loading={busy === r.id} onClick={() => restore(r)}>
                       <RotateCcw size={13} /> Restore
-                    </button>
+                    </Button>
                     {canPurge && (
-                      <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }} disabled={busy === r.id} onClick={() => purge(r)}>
+                      <Button variant="ghost" className="text-error-normal" disabled={busy === r.id} onClick={() => purge(r)}>
                         <Trash2 size={13} /> Delete
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </td>
