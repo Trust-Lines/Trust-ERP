@@ -2152,6 +2152,28 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-10-15 (Split large files — same look, same behaviour) — NO migration, NO API change
+- Pure front-end refactor: five oversized components were cut into smaller files. State, fetch calls and API URLs stay
+  in each main component; the new files only render. No UI text, styling or route changed.
+  • NewProjectForm.tsx 1667 → 871 lines → projects/new-project/ (Step1ProjectInfo … Step6InitialTeam, StartFasterBar,
+    StepperSidebar, SummaryPanel, helpers, formTypes, styles — the inline <style> block moved verbatim).
+  • ProspectDetailClient.tsx 1652 → 526 → marketing/prospect-detail/ (Overview/Contacts/Locations/Needs/Potentials/
+    Opportunities/Activities/Files/History tabs + the existing ContactForm, LocationForm, NeedForm, NeedDocumentsSection,
+    HistoricalProjectForm, ProfileForm moved unchanged, types, shared).
+  • PlanLayoutTab.tsx 1266 → 471 → projects/plan-layout/ (VersionsPanel, PreviewToolbar, FilePreview, FullscreenViewer,
+    ApprovalPanel, ApprovalStage, RoleApprovalFallback, ActivityTimeline, SignatureBanner, shared).
+  • IntakeForm.tsx 959 → 227 → leads/intake/ (Step1ProjectSetup … Step7Checklist, StepNav, StepFooter, LeadSummary, types).
+  • CustomerDetailClient.tsx 691 → 196 → customers/customer-detail/ (Details/Contacts/Addresses/FollowUps/Meetings/
+    ProjectHistory cards, types).
+  • survey/SoccerChallenge.tsx 1173 → 274 → survey/soccer-challenge/ (StepPickTeam … StepVictory, ScoreHeader,
+    MatchProgress, FormActions, KickoffPopup, StickyNote, Field, VictoryEffects, icons, constants, and submission.ts —
+    the submit/upload helpers moved verbatim). Browser-checked on /survey/zztest-soccer-survey: steps 1–5, kickoff
+    popup, required-field errors, companion row, consent guard, Edit links — nothing submitted.
+- Verified: tsc 0 · lint 0 errors in the touched files (10 pre-existing warnings, was 15) · 42/42 test files
+  (571 passed, 9 skipped) · npm run build EXIT 0. Pages to click through once logged in: /projects/new,
+  /projects/[id]/edit, /projects/[id], /marketing/prospects/[id] (+ quick view on /marketing/prospects and
+  /marketing/contact-manager), /leads/new, /leads/[id], /customers/[id].
+
 2026-10-08 (Import from Excel — Marketing → Contact Manager → "Import from Excel") — migration 125 (NOT yet applied)
 - Any spreadsheet (.xlsx/.xls/.csv; several files at once) is read in the browser, header row + columns are recognised
   automatically (header synonyms, then value sniffing) and can be overridden per column. Rows → people → Contacts: repeated people
