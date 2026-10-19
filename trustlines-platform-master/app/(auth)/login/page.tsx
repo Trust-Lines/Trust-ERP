@@ -1,18 +1,25 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { LoginShell } from '@/components/auth/LoginShell';
 
-// Design: Figma "Desktop - 11" (1440x1024 frame). Assets exported from Figma live in /public/login.
-const INK = 'var(--tl-ink, #2c2c2c)';
-const PLACEHOLDER = 'var(--tl-placeholder, #a8a8a8)';
+// Design: Figma "TRUST-LINES ERP" → "Desktop login" (1440x900) and "Mobile login" (390 wide),
+// light + dark. Colours are the 2026 palette tokens (Figma "Basic UI Colors"). Assets: /public/login.
+const FIELD =
+  'flex h-12 items-center rounded-md border border-primary-200 bg-white transition-colors focus-within:border-secondary-700 focus-within:ring-1 focus-within:ring-secondary-700 dark:border-secondary-600 dark:bg-secondary-800 dark:focus-within:border-primary-50 dark:focus-within:ring-primary-50';
+const ICON_SLOT = 'flex h-11 w-[45px] shrink-0 items-center justify-center text-[#787881] dark:text-primary-200';
+const INPUT =
+  'h-full min-w-0 flex-1 bg-transparent pr-3.5 text-base text-secondary-700 outline-none placeholder:text-primary-300 dark:text-primary-50 dark:placeholder:text-primary-400';
+const LABEL = 'block text-base leading-[120%] text-primary-500 dark:text-primary-50';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
   useEffect(() => {
@@ -57,59 +64,107 @@ export default function LoginPage() {
   }
 
   return (
-    <LoginShell
-      logo={
-        <div style={{ position: 'relative', width: 255, height: 106 }} role="img" aria-label="T Holding">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img alt="" src="/login/logo-top.svg" style={{ position: 'absolute', maxWidth: 'none', inset: '0 12.59% 47.7% 12.2%', width: '75.21%', height: '52.3%' }} />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img alt="" src="/login/logo-bottom.svg" style={{ position: 'absolute', maxWidth: 'none', inset: '47.53% 0 0 0', width: '100%', height: '52.47%' }} />
-        </div>
-      }
-    >
-      <style>{`
-        .tl-login-field { display: flex; align-items: center; gap: 14px; height: 52px; padding: 0 11px; border: 1px solid ${PLACEHOLDER}; border-radius: 8px; box-sizing: border-box; background: var(--tl-field-bg, #fff); }
-        .tl-login-field:focus-within { border-color: ${INK}; }
-        .tl-login-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: 500 15px var(--font-brand); letter-spacing: 1.2px; color: ${INK}; }
-        .tl-login-field input::placeholder { color: ${PLACEHOLDER}; }
-      `}</style>
-      <h1 style={{ margin: 0, textAlign: 'center', fontSize: 22, fontWeight: 600, letterSpacing: '6.16px', textTransform: 'uppercase', color: INK, lineHeight: '38px' }}>
-        Welcome back
-      </h1>
-      <p style={{ margin: '11px auto 0', width: 343, maxWidth: '100%', textAlign: 'center', fontSize: 15, fontWeight: 500, letterSpacing: '0.75px', lineHeight: '23px', color: INK }}>
-        At accumsan metus ultricies, mauris metus felis, vehicula metus ultricie.
-      </p>
+    <main className="relative flex min-h-screen w-full flex-col overflow-hidden bg-primary-100 font-ui lg:flex-row lg:bg-white dark:bg-primary-600 lg:dark:bg-secondary-800">
+      {/* Decorative backdrop (876 x 900 at the 1440 x 900 reference size) */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 hidden w-[60.83%] lg:block">
+        <Image src="/login/backdrop.svg" alt="" fill priority className="object-cover object-left dark:hidden" />
+        <Image src="/login/backdrop-dark.svg" alt="" fill priority className="hidden object-cover object-left dark:block" />
+      </div>
 
-      <form onSubmit={handleSubmit} style={{ marginTop: 47, display: 'flex', flexDirection: 'column', gap: 19 }}>
-        <label className="tl-login-field">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/login/mail.svg" alt="" width={22} height={22} />
-          <input id="email" type="email" autoComplete="email" required aria-label="Email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
-        </label>
-        <label className="tl-login-field">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/login/lock.svg" alt="" width={22} height={22} />
-          <input id="password" type="password" autoComplete="current-password" required aria-label="Password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
-        </label>
-
-        <a href="/auth/forgot-password" style={{ alignSelf: 'flex-end', fontSize: 11, fontWeight: 500, letterSpacing: '0.88px', textTransform: 'uppercase', textDecoration: 'underline', color: INK }}>
-          Forgot password
-        </a>
-
-        {error && (
-          <div role="alert" style={{ background: 'var(--status-danger-bg)', border: '1px solid var(--status-danger)', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--status-danger-fg)' }}>
-            {error}
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ height: 52, marginTop: error ? 0 : 29, border: 0, borderRadius: 8, background: INK, color: 'var(--tl-ink-on, #fff)', fontFamily: 'var(--font-brand)', fontSize: 18, fontWeight: 600, letterSpacing: '1.44px', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+      {/* Brand: mobile header with chevron band; plain logo column on desktop */}
+      <div className="relative flex flex-col items-center bg-white pt-[68px] lg:w-[39.17%] lg:flex-row lg:justify-end lg:bg-transparent lg:py-12 lg:pl-6 lg:pr-[10.875%] dark:bg-secondary-800 lg:dark:bg-transparent">
+        <Image src="/login/t-holding-logo.svg" alt="T Holding" width={253} height={105} priority className="relative h-auto w-[192px] lg:w-[253px] dark:hidden" />
+        <Image src="/login/t-holding-logo-dark.svg" alt="T Holding" width={253} height={105} priority className="relative hidden h-auto w-[192px] lg:w-[253px] dark:block" />
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 390 90"
+          preserveAspectRatio="none"
+          className="-mt-[7px] block h-[90px] w-full fill-primary-100 lg:hidden dark:fill-primary-600"
         >
-          {loading ? 'Signing in…' : 'Sign in'}
-        </button>
-      </form>
-    </LoginShell>
+          <path d="M390 21.0384L202.869 64.794C198.365 66.0331 195.247 65.7172 189.941 63.6103L0 0L0 7.76029L186.251 69.9041C193.306 72.7057 198.658 73.3243 205.522 71.4355L390 28.7603Z" />
+          <path d="M0 23.76L186.251 85.9041C193.306 88.7057 198.658 89.3243 205.522 87.4355L390 44.7603L390 90L0 90Z" />
+        </svg>
+      </div>
+
+      {/* Login panel */}
+      <div className="relative flex flex-1 flex-col items-center px-6 pt-[22px] pb-6 lg:justify-center lg:pt-0 lg:pb-0 lg:pl-[10.28%] lg:pr-12">
+        <div className="w-full max-w-[440px]">
+          <section
+            aria-labelledby="login-heading"
+            className="rounded-[10px] bg-white px-5 pt-8 pb-7 shadow-[0_12px_40px_rgba(43,61,85,0.10)] lg:rounded-lg lg:px-10 lg:pt-[60px] lg:pb-10 dark:bg-secondary-800 dark:shadow-[0_12px_40px_rgba(0,0,0,0.25)]"
+          >
+            <div className="space-y-1">
+              <h1 id="login-heading" className="self-stretch text-[32px] font-medium leading-[120%] text-primary-500 dark:text-primary-50">
+                Welcome back
+              </h1>
+              <p className="self-stretch text-base text-primary-400 dark:text-primary-200">Sign in to your workspace.</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="mt-[17px] space-y-5">
+              {error && (
+                <div role="alert" style={{ background: 'var(--status-danger-bg)', border: '1px solid var(--status-danger)', borderRadius: 6, padding: '10px 12px', fontSize: 13, color: 'var(--status-danger-fg)' }}>
+                  {error}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label htmlFor="email" className={LABEL}>Email</label>
+                <div className={FIELD}>
+                  <span className={ICON_SLOT} aria-hidden="true"><Mail className="h-4 w-4" strokeWidth={1.5} /></span>
+                  <input id="email" type="email" autoComplete="email" required placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} className={INPUT} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="password" className={LABEL}>Password</label>
+                <div className={FIELD}>
+                  <span className={ICON_SLOT} aria-hidden="true"><Lock className="h-4 w-4" strokeWidth={1.5} /></span>
+                  <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" required placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className={INPUT} />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(v => !v)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="flex h-11 w-12 shrink-0 cursor-pointer items-center justify-center rounded-r-md text-secondary-700 hover:text-primary-500 dark:text-primary-200 dark:hover:text-primary-50"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" strokeWidth={1.5} /> : <Eye className="h-5 w-5" strokeWidth={1.5} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <a href="/auth/forgot-password" className="text-base text-secondary-700 underline underline-offset-4 hover:text-primary-500 dark:text-primary-50 dark:hover:text-primary-200">
+                  Forgot password
+                </a>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex h-12 w-full cursor-pointer items-center justify-center gap-2.5 rounded-md bg-secondary-700 text-base font-medium text-white transition-colors hover:bg-secondary-700/90 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-primary-50 dark:text-secondary-800 dark:hover:bg-primary-50/90"
+              >
+                {loading ? 'Signing in…' : 'Sign-in'}
+              </button>
+            </form>
+
+            <AccessNote className="mt-8 lg:hidden" />
+          </section>
+
+          <AccessNote className="mt-6 hidden lg:block" />
+        </div>
+
+        <footer className="mt-auto space-y-2 pt-12 text-center text-xs lg:hidden">
+          <p className="text-primary-500 dark:text-primary-100">Privacy policy</p>
+          <p className="text-primary-400 dark:text-primary-300">© {new Date().getFullYear()} TLines Creativity Group</p>
+        </footer>
+      </div>
+    </main>
+  );
+}
+
+function AccessNote({ className }: { className: string }) {
+  return (
+    <p className={`text-center text-sm text-primary-400 dark:text-primary-200 ${className}`}>
+      Need access? <span className="font-medium text-primary-500 dark:text-primary-50">Contact your administrator</span>
+    </p>
   );
 }
