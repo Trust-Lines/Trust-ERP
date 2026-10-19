@@ -140,7 +140,7 @@ export function WebsiteHubClient({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
               {shownProjects.map(p => (
                 <div key={p.id} className="card" style={{ overflow: 'hidden', opacity: p.is_published ? 1 : .8 }}>
-                  <div style={{ position: 'relative', aspectRatio: '16/10', background: '#e2e8f0' }}>
+                  <div style={{ position: 'relative', aspectRatio: '16/10', background: 'var(--bg-sunken)' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={thumb(p.cover_image_url, 640)} alt={p.title} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     <Badge text={p.is_published ? 'Published' : 'Draft'} color={p.is_published ? '#16a34a' : '#475569'} />
@@ -188,7 +188,7 @@ export function WebsiteHubClient({
                 const scheduled = p.is_published && p.published_at > today();
                 return (
                   <div key={p.id} className="card" style={{ overflow: 'hidden', opacity: p.is_published ? 1 : .8 }}>
-                    <div style={{ position: 'relative', aspectRatio: '16/10', background: '#e2e8f0' }}>
+                    <div style={{ position: 'relative', aspectRatio: '16/10', background: 'var(--bg-sunken)' }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={thumb(p.cover_image_url, 640)} alt={p.title} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                       <Badge text={scheduled ? 'Scheduled' : p.is_published ? 'Published' : 'Draft'} color={scheduled ? '#d97706' : p.is_published ? '#16a34a' : '#475569'} />

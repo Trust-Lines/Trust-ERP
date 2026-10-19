@@ -84,7 +84,7 @@ export function MediaPicker({ multiple, onClose, onPick }: Props) {
               ) : (
                 <button
                   key={e.path} onClick={() => toggle(e.url!)} title={e.name}
-                  style={{ position: 'relative', border: selected.includes(e.url!) ? '2px solid var(--brand-teal-600, #0d9488)' : '1px solid var(--border-subtle)', borderRadius: 10, padding: 0, overflow: 'hidden', background: '#f1f5f9', cursor: 'pointer', aspectRatio: '1' }}
+                  style={{ position: 'relative', border: selected.includes(e.url!) ? '2px solid var(--brand-teal-600, #0d9488)' : '1px solid var(--border-subtle)', borderRadius: 10, padding: 0, overflow: 'hidden', background: 'var(--bg-subtle)', cursor: 'pointer', aspectRatio: '1' }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={thumb(e.url!, 300)} alt={e.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />

@@ -148,7 +148,7 @@ export function LeadNameCell({ lead, today, assignees, onOpen, onEdit }: {
                 <div onClick={e => e.stopPropagation()}>
                   <Select
                     aria-label={`Assignee for ${t.title}`}
-                    className="h-6 w-auto max-w-[110px] border-transparent bg-transparent text-primary-400 hover:border-ui-divider"
+                    className="h-6 w-auto max-w-[110px] border-transparent bg-transparent text-primary-400 dark:text-primary-300 hover:border-ui-divider"
                     value={t.assignee_id ?? ''}
                     onValueChange={v => patchTask(t, { assignee_id: v || null })}
                     options={[{ value: '', label: 'Unassigned' }, ...assignees.map(a => ({ value: a.id, label: a.full_name }))]}
@@ -173,7 +173,7 @@ export function LeadNameCell({ lead, today, assignees, onOpen, onEdit }: {
               />
             </div>
           ) : (
-            <Button variant="ghost" size="xs" className="w-fit text-primary-400" onClick={() => setAdding(true)}>
+            <Button variant="ghost" size="xs" className="w-fit text-primary-400 dark:text-primary-300" onClick={() => setAdding(true)}>
               <Plus size={12} /> Add subtask
             </Button>
           )}

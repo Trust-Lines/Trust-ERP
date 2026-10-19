@@ -2,8 +2,9 @@
 
 // Building blocks shared by the password screens (forgot / reset / invite) so they look exactly
 // like the login screen: same Figma shell, logo, field style and button.
-export const INK = '#2c2c2c';
-export const PLACEHOLDER = '#a8a8a8';
+// Light values are the fallbacks; the .dark theme (app/globals.css) sets the --tl-* variables.
+export const INK = 'var(--tl-ink, #2c2c2c)';
+export const PLACEHOLDER = 'var(--tl-placeholder, #a8a8a8)';
 
 export function LoginLogo() {
   return (
@@ -19,13 +20,13 @@ export function LoginLogo() {
 export function AuthStyles() {
   return (
     <style>{`
-      .tl-login-field { display: flex; align-items: center; gap: 14px; height: 52px; padding: 0 11px; border: 1px solid ${PLACEHOLDER}; border-radius: 8px; box-sizing: border-box; background: #fff; }
+      .tl-login-field { display: flex; align-items: center; gap: 14px; height: 52px; padding: 0 11px; border: 1px solid ${PLACEHOLDER}; border-radius: 8px; box-sizing: border-box; background: var(--tl-field-bg, #fff); }
       .tl-login-field:focus-within { border-color: ${INK}; }
       .tl-login-field.tl-has-error { border-color: #b91c1c; }
       .tl-login-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: 500 15px var(--font-brand); letter-spacing: 1.2px; color: ${INK}; }
       .tl-login-field input::placeholder { color: ${PLACEHOLDER}; }
       .tl-auth-toggle { border: 0; background: transparent; padding: 4px; cursor: pointer; font: 500 11px var(--font-brand); letter-spacing: 0.88px; text-transform: uppercase; color: ${INK}; text-decoration: underline; }
-      .tl-auth-btn { display: block; width: 100%; height: 52px; border: 0; border-radius: 8px; background: ${INK}; color: #fff; font-family: var(--font-brand); font-size: 18px; font-weight: 600; letter-spacing: 1.44px; text-transform: uppercase; cursor: pointer; text-align: center; text-decoration: none; line-height: 52px; }
+      .tl-auth-btn { display: block; width: 100%; height: 52px; border: 0; border-radius: 8px; background: ${INK}; color: var(--tl-ink-on, #fff); font-family: var(--font-brand); font-size: 18px; font-weight: 600; letter-spacing: 1.44px; text-transform: uppercase; cursor: pointer; text-align: center; text-decoration: none; line-height: 52px; }
       .tl-auth-btn:disabled { cursor: not-allowed; opacity: 0.6; }
       .tl-auth-link { font-size: 11px; font-weight: 500; letter-spacing: 0.88px; text-transform: uppercase; text-decoration: underline; color: ${INK}; }
     `}</style>
@@ -49,8 +50,8 @@ export function AuthHeading({ title, subtitle }: { title: string; subtitle?: str
 
 export function AuthAlert({ children, tone = 'error' }: { children: React.ReactNode; tone?: 'error' | 'success' }) {
   const palette = tone === 'error'
-    ? { background: '#fef2f2', border: '#fecaca', color: '#b91c1c' }
-    : { background: '#f0fdf4', border: '#bbf7d0', color: '#166534' };
+    ? { background: 'var(--status-danger-bg)', border: 'var(--status-danger)', color: 'var(--status-danger-fg)' }
+    : { background: 'var(--status-success-bg)', border: 'var(--status-success)', color: 'var(--status-success-fg)' };
   return (
     <div role={tone === 'error' ? 'alert' : 'status'} style={{ background: palette.background, border: `1px solid ${palette.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 13, color: palette.color }}>
       {children}

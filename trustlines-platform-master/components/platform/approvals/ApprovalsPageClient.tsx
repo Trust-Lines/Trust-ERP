@@ -44,7 +44,8 @@ import { Button } from '@/components/ui/button';
 import { modalSecondaryButtonClass } from '@/components/ui/modal';
 
 // Tab text per design: active = Primary-button colour, 600; inactive = Secondary-text colour, 400.
-const TAB_ACTIVE = 'border-[var(--color-secondary-700)] font-semibold text-[var(--color-secondary-700)]';
+// Dark: light-blue active text with a soft glowing underline (Figma dark tabs).
+const TAB_ACTIVE = 'border-[var(--color-secondary-700)] font-semibold text-[var(--color-secondary-700)] dark:border-[var(--ui-tab-active)] dark:text-[var(--ui-tab-active)] dark:shadow-[0_8px_14px_-8px_var(--ui-tab-active)]';
 const TAB_INACTIVE = 'border-transparent font-normal text-[var(--ui-text-secondary)] hover:text-[var(--ui-body)]';
 
 export interface MyApproval {
@@ -153,11 +154,11 @@ const STATUS_OPTIONS: StatusType[] = ['Planning', 'Design', 'Production', 'Quali
 
 // Phone-size outlined buttons (view picker, layout toggle, paging).
 const MOBILE_BTN =
-  'inline-flex h-10 items-center justify-center gap-2 px-3 rounded-md border border-[var(--color-primary-200)] bg-white font-[family-name:var(--font-ui)] text-[14px] font-semibold text-[var(--ui-body)] hover:bg-[var(--color-primary-50)] transition-colors';
+  'inline-flex h-10 items-center justify-center gap-2 px-3 rounded-md border border-[var(--color-primary-200)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated font-[family-name:var(--font-ui)] text-[14px] font-semibold text-[var(--ui-body)] hover:bg-[var(--color-primary-50)] dark:hover:bg-white/5 transition-colors';
 
 // Bulk bar buttons — same outlined style as "All views".
 const BULK_BTN =
-  'inline-flex h-[30px] items-center justify-center gap-2 px-[9px] rounded-md border border-[var(--color-primary-100)] bg-white font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-[var(--ui-body)] hover:bg-[var(--color-primary-50)] transition-colors';
+  'inline-flex h-[30px] items-center justify-center gap-2 px-[9px] rounded-md border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-[var(--ui-body)] hover:bg-[var(--color-primary-50)] dark:hover:bg-white/5 transition-colors';
 
 // Sample fallback items matching the reference specification exactly
 const SAMPLE_REQUESTS: UnifiedRequestRow[] = [
@@ -696,7 +697,7 @@ export function ApprovalsPageClient() {
   const formatAmount = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const savedViewsMenu = showAllViewsMenu && (
-    <div className="absolute left-0 top-full mt-1 w-[320px] bg-white border border-[var(--color-primary-100)] rounded-xl shadow-lg p-2 z-30 font-[family-name:var(--font-ui)] text-[13px] leading-[1.4]">
+    <div className="absolute left-0 top-full mt-1 w-[320px] bg-ui-surface-elevated border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] rounded-xl shadow-lg p-2 z-30 font-[family-name:var(--font-ui)] text-[13px] leading-[1.4]">
       <div className="px-2 pt-1 pb-1.5 text-[11px] uppercase tracking-wide text-[var(--ui-text-secondary)]">
         Workspace views
       </div>
@@ -708,7 +709,7 @@ export function ApprovalsPageClient() {
             key={v.key}
             onClick={() => { setActiveTab(v.key); setStatusFilterOpen(true); setShowAllViewsMenu(false); }}
             className={`w-full flex items-center gap-2.5 h-9 px-2 rounded-md text-left transition-colors ${
-              active ? 'bg-[var(--color-primary-50)] font-semibold text-[var(--ui-body)]' : 'text-[var(--ui-body)] hover:bg-[var(--color-primary-50)]'
+              active ? 'bg-[var(--color-primary-50)] dark:bg-[var(--ui-menu-active-bg)] dark:text-[var(--ui-menu-active-fg)] dark:[--ui-body:var(--ui-menu-active-fg)] dark:[--ui-heading:var(--ui-menu-active-fg)] dark:[--ui-text-secondary:var(--ui-menu-active-muted)] font-semibold text-[var(--ui-body)]' : 'text-[var(--ui-body)] hover:bg-[var(--color-primary-50)] dark:hover:bg-white/5'
             }`}
           >
             <Icon className="w-4 h-4 shrink-0" />
@@ -719,19 +720,19 @@ export function ApprovalsPageClient() {
         );
       })}
 
-      <div className="my-1.5 border-t border-[var(--color-primary-100)]" />
+      <div className="my-1.5 border-t border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)]" />
 
       {/* No saved-view storage yet — shown for the design, disabled until it exists. */}
-      <button disabled title="Not available yet" className="w-full flex items-center gap-2.5 h-9 px-2 rounded-md text-left text-[var(--ui-body)] disabled:cursor-not-allowed disabled:opacity-60">
+      <button disabled title="Not available yet" className="w-full flex items-center gap-2.5 h-9 px-2 rounded-md dark:[&_svg]:text-[var(--ui-tab-active)] text-left text-[var(--ui-body)] disabled:cursor-not-allowed disabled:opacity-60">
         <Plus className="w-4 h-4" />
         Save as new view
       </button>
-      <button disabled title="Not available yet" className="w-full flex items-center gap-2.5 h-9 px-2 rounded-md text-left text-[var(--ui-body)] disabled:cursor-not-allowed disabled:opacity-60">
+      <button disabled title="Not available yet" className="w-full flex items-center gap-2.5 h-9 px-2 rounded-md dark:[&_svg]:text-[var(--ui-tab-active)] text-left text-[var(--ui-body)] disabled:cursor-not-allowed disabled:opacity-60">
         <Settings2 className="w-4 h-4" />
         Manage views
       </button>
 
-      <div className="mt-1.5 rounded-md bg-[var(--color-primary-50)] px-2.5 py-2 text-xs text-[var(--ui-text-secondary)]">
+      <div className="mt-1.5 rounded-md bg-[var(--color-primary-50)] dark:border dark:border-[var(--ui-menu-active-border)] dark:bg-[var(--ui-menu-active-bg)] dark:text-[var(--ui-menu-active-fg)] dark:[--ui-body:var(--ui-menu-active-fg)] dark:[--ui-heading:var(--ui-menu-active-fg)] dark:[--ui-text-secondary:var(--ui-menu-active-muted)] px-2.5 py-2 text-xs text-[var(--ui-text-secondary)]">
         {statusFilterOpen ? 'Open status' : 'All statuses'} · {sortField.charAt(0).toUpperCase() + sortField.slice(1)} {sortAsc ? '↑' : '↓'} · {Object.values(visibleColumns).filter(Boolean).length} columns · {density.charAt(0).toUpperCase() + density.slice(1)}
       </div>
     </div>
@@ -740,9 +741,9 @@ export function ApprovalsPageClient() {
   const bulkBar = selectedCount > 0 && (
     <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 border-b border-slate-200 rounded-t-xl font-[family-name:var(--font-ui)] text-[13px] leading-[1.4]">
       <div className="flex items-center gap-4">
-        <span className="font-semibold text-[var(--color-secondary-700)]">{selectedCount} selected</span>
+        <span className="font-semibold text-[var(--color-secondary-700)] dark:text-[var(--ui-heading)]">{selectedCount} selected</span>
         {selectedCount < allRows.length && (
-          <button onClick={selectAllRequests} className="font-normal text-[var(--ui-body)] hover:text-[var(--color-secondary-700)] transition-colors">
+          <button onClick={selectAllRequests} className="font-normal text-[var(--ui-body)] hover:text-[var(--color-secondary-700)] dark:hover:text-[var(--ui-heading)] transition-colors">
             Select all {plural(allRows.length)}
           </button>
         )}
@@ -755,7 +756,7 @@ export function ApprovalsPageClient() {
             <ChevronDown className="w-3.5 h-3.5" />
           </button>
           {bulkMenu === 'status' && (
-            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg p-1 z-30">
+            <div className="absolute right-0 top-full mt-1 w-48 bg-ui-surface-elevated border border-slate-200 rounded-lg shadow-lg p-1 z-30">
               {STATUS_OPTIONS.map(s => (
                 <button key={s} onClick={() => bulkChangeStatus(s)} className="w-full flex px-2 py-1.5 rounded hover:bg-slate-50">
                   {renderStatusPill(s)}
@@ -771,7 +772,7 @@ export function ApprovalsPageClient() {
             Assign owner
           </button>
           {bulkMenu === 'owner' && (
-            <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-slate-200 rounded-lg shadow-lg p-1 z-30">
+            <div className="absolute right-0 top-full mt-1 w-52 bg-ui-surface-elevated border border-slate-200 rounded-lg shadow-lg p-1 z-30">
               {ownerOptions.map(o => (
                 <button
                   key={o.name}
@@ -806,7 +807,7 @@ export function ApprovalsPageClient() {
 
   function renderDetails(row: UnifiedRequestRow) {
     return (
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+      <div className="bg-ui-surface-elevated border border-slate-200 rounded-xl p-5 shadow-xs">
         {row.isRealApproval && row.approvalData ? (
           <div>
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
@@ -962,7 +963,7 @@ export function ApprovalsPageClient() {
           <div className="flex items-center gap-2.5">
             <button
               onClick={handleExport}
-              className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 shadow-xs transition-colors"
+              className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-700 bg-ui-surface-elevated border border-slate-200 rounded-lg hover:bg-slate-50 shadow-xs transition-colors"
             >
               <Download className="w-4 h-4 text-slate-500" />
               Export
@@ -1027,10 +1028,11 @@ export function ApprovalsPageClient() {
             }`}
           >
             {/* list-filter icon (design export) */}
-            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
-              <path d="M1.1662 2.91626H12.8338M3.49972 7.00006H10.5003M5.24986 11.0839H8.75014" strokeWidth="1.6" strokeLinecap="round" stroke="var(--ui-body)" />
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" className={`shrink-0 ${activeTab === 'open' ? 'text-[var(--ui-body)] dark:text-[var(--ui-tab-active)]' : 'text-current'}`}>
+              <path d="M1.1662 2.91626H12.8338M3.49972 7.00006H10.5003M5.24986 11.0839H8.75014" strokeWidth="1.6" strokeLinecap="round" stroke="currentColor" />
             </svg>
-            Open requests {totalCount}
+            Open requests
+            <span className="dark:rounded-md dark:bg-[var(--ui-tab-badge)] dark:px-1.5 dark:text-[12px] dark:leading-5 dark:text-white">{totalCount}</span>
           </button>
 
           <button
@@ -1054,7 +1056,7 @@ export function ApprovalsPageClient() {
           <div className="relative mb-2">
             <button
               onClick={() => setShowAllViewsMenu(!showAllViewsMenu)}
-              className="flex h-[30px] items-center justify-center gap-2 px-[9px] rounded-md border border-[var(--color-primary-100)] bg-white font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-[var(--ui-body)] hover:bg-[var(--color-primary-50)] transition-colors"
+              className="flex h-[30px] items-center justify-center gap-2 px-[9px] rounded-md border border-[var(--color-primary-100)] dark:border-[var(--ui-body)] dark:bg-transparent dark:text-[var(--ui-heading)] bg-ui-surface-elevated font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-[var(--ui-body)] hover:bg-[var(--color-primary-50)] dark:hover:bg-white/5 transition-colors"
             >
               All views
               <ChevronDown className="w-3.5 h-3.5" />
@@ -1077,12 +1079,12 @@ export function ApprovalsPageClient() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search requests..."
-              className="w-full pl-9 pr-3 py-1.5 text-sm bg-white border border-slate-200 rounded-md placeholder-slate-400 text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300 transition-all"
+              className="w-full pl-9 pr-3 py-1.5 text-sm bg-ui-surface-elevated dark:bg-[var(--bg-sunken)] border border-slate-200 dark:border-[var(--ui-divider-strong)] rounded-md placeholder-slate-400 text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300 transition-all"
             />
           </div>
 
           {statusFilterOpen && (
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-md font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-[var(--ui-body)] shadow-2xs">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-ui-surface-elevated border border-slate-200 dark:bg-[var(--ui-chip-teal-bg)] dark:border-[var(--ui-chip-teal-border)] dark:text-[var(--ui-chip-teal-fg)] rounded-md font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-[var(--ui-body)] shadow-2xs">
               <span>Status: Open</span>
               <button
                 onClick={() => setStatusFilterOpen(false)}
@@ -1095,7 +1097,7 @@ export function ApprovalsPageClient() {
           )}
 
           {conditions.map(c => (
-            <div key={c.field} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-md font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-[var(--ui-body)] shadow-2xs">
+            <div key={c.field} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-ui-surface-elevated border border-slate-200 rounded-md font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-[var(--ui-body)] shadow-2xs">
               <span>{FILTER_FIELD_LABEL[c.field]}: {c.values.join(', ')}</span>
               <button
                 onClick={() => setConditions(prev => prev.filter(x => x.field !== c.field))}
@@ -1110,7 +1112,7 @@ export function ApprovalsPageClient() {
           <div className="relative">
           <button
             onClick={openAddFilter}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#334155] hover:bg-[#1e293b] text-[var(--ui-btn-accent-fg)] font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] rounded-md shadow-2xs transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#334155] hover:bg-[#1e293b] text-white dark:bg-transparent dark:hover:bg-white/5 dark:border dark:border-[var(--ui-divider-strong)] dark:text-[var(--ui-text-secondary)] font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] rounded-md shadow-2xs transition-colors"
           >
             {/* square-dashed-plus icon (design export) */}
             <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
@@ -1120,10 +1122,10 @@ export function ApprovalsPageClient() {
           </button>
 
           {showAddFilter && (
-            <div className="absolute left-0 top-full mt-1 w-[340px] bg-white border border-[var(--color-primary-100)] rounded-xl shadow-lg p-4 z-30 font-[family-name:var(--font-ui)] text-[13px] leading-[1.4]">
+            <div className="absolute left-0 top-full mt-1 w-[340px] bg-ui-surface-elevated border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] rounded-xl shadow-lg p-4 z-30 font-[family-name:var(--font-ui)] text-[13px] leading-[1.4]">
               <div className="flex items-center justify-between mb-3">
                 <span className="font-semibold text-[var(--ui-body)]">Add a condition</span>
-                <button onClick={() => setShowAddFilter(false)} title="Close" className="text-[var(--ui-body)] hover:text-[var(--color-secondary-700)]">
+                <button onClick={() => setShowAddFilter(false)} title="Close" className="text-[var(--ui-body)] hover:text-[var(--color-secondary-700)] dark:hover:text-[var(--ui-heading)]">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -1134,7 +1136,7 @@ export function ApprovalsPageClient() {
                     value={draftField}
                     onChange={e => changeDraftField(e.target.value as FilterField)}
                     aria-label="Filter field"
-                    className="appearance-none h-[34px] pl-3 pr-8 rounded-md border border-[var(--color-primary-100)] bg-white font-semibold text-[var(--ui-body)] cursor-pointer focus:outline-none focus:border-[var(--color-secondary-700)]"
+                    className="appearance-none h-[34px] pl-3 pr-8 rounded-md border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated font-semibold text-[var(--ui-body)] cursor-pointer focus:outline-none focus:border-[var(--color-secondary-700)]"
                   >
                     {(Object.keys(FILTER_FIELD_LABEL) as FilterField[]).map(f => (
                       <option key={f} value={f}>{FILTER_FIELD_LABEL[f]}</option>
@@ -1143,7 +1145,7 @@ export function ApprovalsPageClient() {
                   <ChevronDown className="w-3.5 h-3.5 text-[var(--ui-body)] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
                 {/* Only operator for now */}
-                <div className="inline-flex h-[34px] items-center px-3 rounded-md border border-[var(--color-primary-100)] font-semibold text-[var(--ui-body)]">
+                <div className="inline-flex h-[34px] items-center px-3 rounded-md border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] font-semibold text-[var(--ui-body)]">
                   is any of
                 </div>
               </div>
@@ -1155,7 +1157,7 @@ export function ApprovalsPageClient() {
                     <label
                       key={value}
                       className={`flex items-center gap-2.5 h-9 px-2.5 rounded-md cursor-pointer ${
-                        checked ? 'bg-[var(--color-primary-50)]' : 'hover:bg-[var(--color-primary-50)]'
+                        checked ? 'bg-[var(--color-primary-50)] dark:bg-[var(--ui-row-checked)]' : 'hover:bg-[var(--color-primary-50)] dark:hover:bg-white/5'
                       }`}
                     >
                       <input
@@ -1164,9 +1166,9 @@ export function ApprovalsPageClient() {
                         onChange={() =>
                           setDraftValues(prev => (checked ? prev.filter(v => v !== value) : [...prev, value]))
                         }
-                        className="w-4 h-4 rounded accent-[var(--color-secondary-700)]"
+                        className="w-4 h-4 rounded accent-[var(--color-secondary-700)] dark:accent-[var(--ui-tab-badge)]"
                       />
-                      <span className={checked ? 'font-semibold text-[var(--ui-body)]' : 'text-[var(--ui-text-secondary)]'}>
+                      <span className={checked ? 'font-semibold text-[var(--ui-body)] dark:text-[var(--ui-heading)]' : 'text-[var(--ui-text-secondary)]'}>
                         {value}
                       </span>
                     </label>
@@ -1174,7 +1176,7 @@ export function ApprovalsPageClient() {
                 })}
               </div>
 
-              <div className="mt-3 pt-3 border-t border-[var(--color-primary-100)] flex items-center justify-between">
+              <div className="mt-3 pt-3 border-t border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] flex items-center justify-between">
                 <span className="text-xs text-[var(--ui-text-secondary)]">
                   {draftValues.length} value{draftValues.length === 1 ? '' : 's'} selected
                 </span>
@@ -1197,16 +1199,16 @@ export function ApprovalsPageClient() {
           <div className="relative">
             <button
               onClick={() => { setShowColumnsMenu(!showColumnsMenu); setShowDensityMenu(false); }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-ui-surface-elevated border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs dark:bg-transparent dark:border-[var(--ui-body)] dark:text-[var(--ui-heading)] dark:hover:bg-white/5"
             >
               <Eye className="w-3.5 h-3.5 text-slate-500" />
               Columns
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
             {showColumnsMenu && (
-              <div className="absolute right-0 top-full mt-1 w-[300px] bg-white border border-[var(--color-primary-100)] rounded-xl shadow-lg p-2 z-30 font-[family-name:var(--font-ui)] text-[13px] leading-[1.4]">
+              <div className="absolute right-0 top-full mt-1 w-[300px] bg-ui-surface-elevated border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] rounded-xl shadow-lg p-2 z-30 font-[family-name:var(--font-ui)] text-[13px] leading-[1.4]">
                 <div className="flex items-center justify-between px-2 pt-1 pb-2">
-                  <span className="font-semibold text-[var(--ui-body)]">
+                  <span className="font-semibold text-[var(--ui-body)] dark:text-[var(--ui-heading)]">
                     Columns · {Object.values(visibleColumns).filter(Boolean).length} of {Object.keys(visibleColumns).length} visible
                   </span>
                   <button
@@ -1224,7 +1226,7 @@ export function ApprovalsPageClient() {
                       <label
                         key={col}
                         className={`flex items-center gap-2.5 h-9 px-2 rounded-md capitalize ${
-                          checked ? 'bg-[var(--color-primary-50)]' : 'hover:bg-[var(--color-primary-50)]'
+                          locked ? 'bg-[var(--color-primary-50)] dark:bg-[var(--ui-row-locked)]' : checked ? 'bg-[var(--color-primary-50)] dark:bg-[var(--ui-row-checked)]' : 'hover:bg-[var(--color-primary-50)] dark:hover:bg-white/5'
                         } ${locked ? 'cursor-default' : 'cursor-pointer'}`}
                       >
                         <input
@@ -1232,9 +1234,9 @@ export function ApprovalsPageClient() {
                           checked={checked}
                           disabled={locked}
                           onChange={() => setVisibleColumns(prev => ({ ...prev, [col]: !prev[col] }))}
-                          className="w-4 h-4 rounded accent-[var(--color-secondary-700)] disabled:opacity-100"
+                          className="w-4 h-4 rounded accent-[var(--color-secondary-700)] dark:accent-[var(--ui-tab-badge)] dark:disabled:accent-[var(--ui-row-locked-check)] disabled:opacity-100"
                         />
-                        <span className={checked ? 'font-semibold text-[var(--ui-body)]' : 'font-normal text-[var(--ui-text-secondary)]'}>
+                        <span className={locked ? 'font-semibold text-[var(--ui-body)] dark:font-normal dark:text-[var(--ui-text-secondary)]' : checked ? 'font-semibold text-[var(--ui-body)] dark:text-[var(--ui-heading)]' : 'font-normal text-[var(--ui-text-secondary)]'}>
                           {col}
                         </span>
                         {locked && <span className="ml-auto text-[var(--ui-text-secondary)] normal-case">Locked</span>}
@@ -1250,14 +1252,14 @@ export function ApprovalsPageClient() {
           <div className="relative">
             <button
               onClick={() => { setShowDensityMenu(!showDensityMenu); setShowColumnsMenu(false); }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs capitalize"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-ui-surface-elevated border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs dark:bg-transparent dark:border-[var(--ui-body)] dark:text-[var(--ui-heading)] dark:hover:bg-white/5 capitalize"
             >
               <List className="w-3.5 h-3.5 text-slate-500" />
               {density}
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
             {showDensityMenu && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-30 text-xs">
+              <div className="absolute right-0 top-full mt-1 w-48 bg-ui-surface-elevated border border-slate-200 rounded-lg shadow-lg py-1 z-30 text-xs">
                 {(['compact', 'normal', 'comfortable'] as Density[]).map(d => (
                   <button
                     key={d}
@@ -1277,7 +1279,7 @@ export function ApprovalsPageClient() {
       </div>
 
       {/* ── 4. TABLE CONTAINER ────────────────────────────────────────── */}
-      <div className={`border border-slate-200 rounded-xl bg-white shadow-2xs ${mobileView === 'cards' ? 'hidden md:block' : ''}`}>
+      <div className={`border border-slate-200 rounded-xl bg-ui-surface-elevated shadow-2xs ${mobileView === 'cards' ? 'hidden md:block' : ''}`}>
         {bulkBar}
 
         {/* Scrolls inside the card; column headings stay pinned (sticky th). */}
@@ -1292,7 +1294,7 @@ export function ApprovalsPageClient() {
                     ref={el => { if (el) el.indeterminate = isSomeSelected; }}
                     onChange={handleSelectAll}
                     aria-label="Select all requests"
-                    className="w-4 h-4 rounded accent-[var(--color-secondary-700)] cursor-pointer"
+                    className="w-4 h-4 rounded accent-[var(--color-secondary-700)] dark:accent-[var(--ui-tab-badge)] cursor-pointer"
                   />
                 </th>
 
@@ -1396,7 +1398,7 @@ export function ApprovalsPageClient() {
                         className={`group cursor-pointer transition-colors ${rowHeightClass} ${
                           isSelected
                             ? 'bg-[var(--ui-selected-bg)]'
-                            : isExpanded ? 'bg-slate-50/50 hover:bg-slate-50/70' : 'bg-white hover:bg-slate-50/70'
+                            : isExpanded ? 'bg-slate-50/50 hover:bg-slate-50/70' : 'bg-ui-surface-elevated hover:bg-slate-50/70'
                         }`}
                       >
                         {/* Checkbox */}
@@ -1406,7 +1408,7 @@ export function ApprovalsPageClient() {
                             checked={isSelected}
                             onChange={() => {}}
                             aria-label={`Select request ${row.code}`}
-                            className="w-4 h-4 rounded accent-[var(--color-secondary-700)] cursor-pointer"
+                            className="w-4 h-4 rounded accent-[var(--color-secondary-700)] dark:accent-[var(--ui-tab-badge)] cursor-pointer"
                           />
                         </td>
 
@@ -1416,7 +1418,7 @@ export function ApprovalsPageClient() {
                             {editingId === row.id ? (
                               <div
                                 onClick={e => e.stopPropagation()}
-                                className="flex h-8 items-center gap-1.5 rounded-md border-2 border-[var(--color-secondary-700)] bg-white pl-2 pr-1.5"
+                                className="flex h-8 items-center gap-1.5 rounded-md border-2 border-[var(--color-secondary-700)] dark:border-[var(--ui-tab-active)] bg-ui-surface-elevated dark:bg-[var(--bg-sunken)] pl-2 pr-1.5"
                               >
                                 <input
                                   autoFocus
@@ -1427,12 +1429,12 @@ export function ApprovalsPageClient() {
                                     else if (e.key === 'Escape') setEditingId(null);
                                   }}
                                   aria-label={`Edit title of ${row.code}`}
-                                  className="min-w-0 flex-1 bg-transparent outline-none font-[family-name:var(--font-ui)] text-[13px] leading-[1.4] text-[var(--color-secondary-700)]"
+                                  className="min-w-0 flex-1 bg-transparent outline-none dark:selection:bg-[var(--ui-tab-badge)] dark:selection:text-white font-[family-name:var(--font-ui)] text-[13px] leading-[1.4] text-[var(--color-secondary-700)] dark:text-[var(--ui-heading)]"
                                 />
-                                <button onClick={saveEdit} title="Save (Enter)" className="text-[var(--ui-body)] hover:text-[var(--color-secondary-700)]">
+                                <button onClick={saveEdit} title="Save (Enter)" className="text-[var(--ui-body)] hover:text-[var(--color-secondary-700)] dark:hover:text-[var(--ui-heading)]">
                                   <Check className="w-3.5 h-3.5" />
                                 </button>
-                                <button onClick={() => setEditingId(null)} title="Cancel (Esc)" className="text-[var(--ui-body)] hover:text-[var(--color-secondary-700)]">
+                                <button onClick={() => setEditingId(null)} title="Cancel (Esc)" className="text-[var(--ui-body)] hover:text-[var(--color-secondary-700)] dark:hover:text-[var(--ui-heading)]">
                                   <X className="w-3.5 h-3.5" />
                                 </button>
                               </div>
@@ -1544,11 +1546,11 @@ export function ApprovalsPageClient() {
                 checked={isPageSelected}
                 ref={el => { if (el) el.indeterminate = isPagePartlySelected; }}
                 onChange={togglePageSelection}
-                className="w-4 h-4 rounded accent-[var(--color-secondary-700)]"
+                className="w-4 h-4 rounded accent-[var(--color-secondary-700)] dark:accent-[var(--ui-tab-badge)]"
               />
               Select page
             </label>
-            <div className="relative inline-flex h-9 items-center rounded-md border border-[var(--color-primary-100)] bg-white text-[13px] font-semibold text-[var(--ui-body)]">
+            <div className="relative inline-flex h-9 items-center rounded-md border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated text-[13px] font-semibold text-[var(--ui-body)]">
               <button
                 onClick={() => setSortAsc(a => !a)}
                 aria-label={sortAsc ? 'Sort descending' : 'Sort ascending'}
@@ -1570,10 +1572,10 @@ export function ApprovalsPageClient() {
             </div>
           </div>
 
-          {bulkBar && <div className="mb-3 rounded-xl border border-slate-200 bg-white">{bulkBar}</div>}
+          {bulkBar && <div className="mb-3 rounded-xl border border-slate-200 bg-ui-surface-elevated">{bulkBar}</div>}
 
           {pageRows.length === 0 ? (
-            <div className="rounded-xl border border-[var(--color-primary-100)] bg-white">{noMatchState}</div>
+            <div className="rounded-xl border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated">{noMatchState}</div>
           ) : (
             <div className="flex flex-col gap-3">
               {pageRows.map(row => {
@@ -1583,7 +1585,7 @@ export function ApprovalsPageClient() {
                   <div
                     key={row.id}
                     className={`rounded-xl border p-4 ${
-                      isSelected ? 'border-[var(--color-secondary-200)] bg-[var(--ui-selected-bg)]' : 'border-[var(--color-primary-100)] bg-white'
+                      isSelected ? 'border-[var(--color-secondary-200)] bg-[var(--ui-selected-bg)]' : 'border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -1593,7 +1595,7 @@ export function ApprovalsPageClient() {
                           checked={isSelected}
                           onChange={() => setSelectedIds(prev => ({ ...prev, [row.id]: !prev[row.id] }))}
                           aria-label={`Select request ${row.code}`}
-                          className="w-4 h-4 shrink-0 rounded accent-[var(--color-secondary-700)]"
+                          className="w-4 h-4 shrink-0 rounded accent-[var(--color-secondary-700)] dark:accent-[var(--ui-tab-badge)]"
                         />
                         <span className="truncate">{row.code}</span>
                       </label>
@@ -1614,7 +1616,7 @@ export function ApprovalsPageClient() {
                       {renderPriority(row.priority)}
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--color-primary-100)] pt-4 text-[13px]">
+                    <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] pt-4 text-[13px]">
                       <div className="min-w-0">
                         <div className="text-[var(--ui-text-secondary)]">Owner</div>
                         <div className="mt-0.5 truncate text-[15px] text-[var(--ui-body)]">{row.ownerName}</div>
@@ -1644,7 +1646,7 @@ export function ApprovalsPageClient() {
               value={pageSize}
               onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
               aria-label="Requests per page"
-              className="h-9 rounded-md border border-[var(--color-primary-100)] bg-white px-2.5 font-semibold text-[var(--ui-body)]"
+              className="h-9 rounded-md border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated px-2.5 font-semibold text-[var(--ui-body)]"
             >
               {[10, 25, 50].map(n => <option key={n} value={n}>{n} per page</option>)}
             </select>

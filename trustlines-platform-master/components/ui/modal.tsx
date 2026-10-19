@@ -37,9 +37,9 @@ const descriptionClass = "text-[13px] text-ui-text-secondary"
 const footerClass = "mx-5 flex flex-wrap items-center justify-end gap-2 border-t border-ui-divider py-4"
 
 /** Light-outline "Cancel" / "Not now" button used in dialog footers. */
-const modalSecondaryButtonClass = "border-ui-divider bg-white text-ui-body hover:border-primary-200 hover:bg-primary-50 hover:text-ui-body"
+const modalSecondaryButtonClass = "border-ui-divider bg-ui-surface-elevated text-ui-body hover:border-primary-200 hover:bg-primary-50 hover:text-ui-body dark:border-primary-600 dark:hover:border-primary-400 dark:hover:bg-primary-700"
 /** Soft destructive confirm ("Move to Trash"): light red fill, dark red text. */
-const modalDangerButtonClass = "bg-error-light text-error-dark hover:bg-error-light hover:brightness-95"
+const modalDangerButtonClass = "bg-error-light text-error-dark hover:bg-error-light hover:brightness-95 dark:bg-error-dark dark:text-error-light dark:hover:bg-error-dark dark:hover:brightness-110"
 
 const Modal = DialogPrimitive.Root
 const ModalTrigger = DialogPrimitive.Trigger
@@ -155,7 +155,7 @@ function ConfirmModal({
           {(warning || children) && (
             <div className="space-y-4 px-5 pt-2 pb-5">
               {warning && (
-                <div role="alert" className="flex items-start gap-2.5 rounded-md bg-error-light px-3 py-3 text-error-dark">
+                <div role="alert" className="flex items-start gap-2.5 rounded-md bg-error-light px-3 py-3 text-error-dark dark:bg-error-dark/60 dark:text-error-light">
                   <CircleXIcon className="mt-px size-4 shrink-0" aria-hidden />
                   <div>{warning}</div>
                 </div>

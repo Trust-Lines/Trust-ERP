@@ -77,7 +77,7 @@ export function ApprovalActionBar({
     return (
       <div style={{ marginTop: 8 }}>
         {isFinalStage && (
-          <div style={{ fontSize: 10, color: '#b45309', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 5, padding: '5px 8px', marginBottom: 5 }}>
+          <div style={{ fontSize: 10, color: 'var(--status-warning-fg)', background: 'var(--status-warning-bg)', border: '1px solid #fcd34d', borderRadius: 5, padding: '5px 8px', marginBottom: 5 }}>
             ⚠️ Final-stage rejection opens the next version
             {versionNum != null ? ` (V${versionNum + 1})` : ''} for the whole document set.
           </div>
@@ -119,14 +119,14 @@ export function ApprovalActionBar({
   return (
     <div style={{ marginTop: 8 }}>
       {userSignature === null && (
-        <div style={{ fontSize: md ? 11 : 10, color: '#b45309', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ fontSize: md ? 11 : 10, color: 'var(--status-warning-fg)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
           ✍️ You&apos;ll draw your signature before approving
         </div>
       )}
       {userSignature && (
         <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={userSignature} alt="Your signature" style={{ height: md ? 26 : 22, maxWidth: 110, objectFit: 'contain', border: '1px solid #e5e7eb', borderRadius: 3, background: '#fff', padding: '1px 3px' }} />
+          <img src={userSignature} alt="Your signature" style={{ height: md ? 26 : 22, maxWidth: 110, objectFit: 'contain', border: '1px solid var(--border-default)', borderRadius: 3, background: 'var(--bg-surface)', padding: '1px 3px' }} />
           <span style={{ fontSize: md ? 11 : 10, color: '#16a34a' }}>will be stamped on PDF</span>
         </div>
       )}
@@ -149,7 +149,7 @@ export function ApprovalActionBar({
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
             padding: padBtn, borderRadius: 5, fontSize: fsBtn, fontWeight: 600, cursor: 'pointer',
-            background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5',
+            background: 'var(--status-danger-bg)', color: '#dc2626', border: '1px solid #fca5a5',
           }}
         >
           <ThumbsDown size={icon} /> Reject

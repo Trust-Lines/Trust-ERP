@@ -102,7 +102,7 @@ function ApproveArea({
               onChange={e => setVer(Number(e.target.value))}
               style={{
                 padding: '2px 6px', fontSize: 11, borderRadius: 4,
-                border: '1px solid var(--border-default)', background: 'white',
+                border: '1px solid var(--border-default)', background: 'var(--bg-surface)',
                 width: 52,
               }}
             >
@@ -270,7 +270,7 @@ export function DropboxSyncBtn({
           ref={dropdownRef}
           style={{
             position: 'fixed', top: pos.top, right: pos.right, zIndex: 9999,
-            background: 'white',
+            background: 'var(--bg-surface)',
             border: '1px solid var(--border-default)',
             borderRadius: 7,
             boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
@@ -312,7 +312,7 @@ export function DropboxSyncBtn({
                 padding: '5px 12px 3px',
                 fontSize: 9, fontWeight: 800, textTransform: 'uppercase',
                 letterSpacing: '0.1em', color: '#1a6b6b',
-                background: '#f0f9f9',
+                background: 'var(--brand-teal-100)',
                 borderTop: '1px solid var(--border-subtle)',
               }}>
                 V{group.version}
@@ -364,7 +364,7 @@ export function DropboxSyncBtn({
                           display: 'inline-flex', alignItems: 'center', gap: 3,
                           padding: '3px 8px', borderRadius: 4,
                           fontSize: 10, fontWeight: 600, cursor: isSyncing ? 'wait' : 'pointer',
-                          background: '#e1f0f0', color: '#1a6b6b',
+                          background: 'var(--brand-teal-100)', color: '#1a6b6b',
                           border: '1px solid #9ecfcf', flexShrink: 0,
                         }}
                       >

@@ -92,7 +92,7 @@ export function DeliveryClient({
         <span className="pill" style={{ fontSize: 11, textTransform: 'capitalize', background: completed ? 'var(--status-success-bg)' : 'var(--bg-sunken)', color: completed ? 'var(--status-success-fg)' : 'var(--fg-subtle)' }}>{cap(status)}</span>
       </div>
 
-      {schemaError && <div className="card" style={{ marginBottom: 20 }}><div className="card-body" style={{ fontSize: 13, color: '#b91c1c', background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 6 }}>{schemaError}</div></div>}
+      {schemaError && <div className="card" style={{ marginBottom: 20 }}><div className="card-body" style={{ fontSize: 13, color: '#b91c1c', background: 'var(--status-danger-bg)', border: '1px solid #fecaca', borderRadius: 6 }}>{schemaError}</div></div>}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
         {siteReadiness ? (

@@ -127,7 +127,7 @@ export default function DashboardClient({
       <div className="flex items-center justify-end">
         <Link
           href="/projects/new"
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold shadow-xs transition-colors"
         >
           <Plus size={15} strokeWidth={2.5} />
           <span>New project</span>
@@ -135,10 +135,10 @@ export default function DashboardClient({
       </div>
 
       {/* ── 1. Top 4 KPI Metric Row with Squircles ─────────────────── */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-2xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+      <div className="bg-ui-surface-elevated border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-2xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
         {/* Active projects */}
         <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-[#EEF4FF] text-[#2563EB] flex items-center justify-center shrink-0">
+          <div className="w-13 h-13 rounded-2xl bg-[var(--status-info-bg)] text-[#2563EB] flex items-center justify-center shrink-0">
             <Briefcase size={22} strokeWidth={1.8} />
           </div>
           <div className="flex flex-col min-w-0">
@@ -153,7 +153,7 @@ export default function DashboardClient({
 
         {/* In production */}
         <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-[#FFF4ED] text-[#F97316] flex items-center justify-center shrink-0">
+          <div className="w-13 h-13 rounded-2xl bg-[var(--brand-orange-100)] text-[#F97316] flex items-center justify-center shrink-0">
             <BarChart2 size={22} strokeWidth={1.8} />
           </div>
           <div className="flex flex-col min-w-0">
@@ -164,7 +164,7 @@ export default function DashboardClient({
 
         {/* Overdue */}
         <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-[#FEF2F2] text-[#EF4444] flex items-center justify-center shrink-0">
+          <div className="w-13 h-13 rounded-2xl bg-[var(--status-danger-bg)] text-[#EF4444] flex items-center justify-center shrink-0">
             <AlarmClock size={22} strokeWidth={1.8} />
           </div>
           <div className="flex flex-col min-w-0">
@@ -177,7 +177,7 @@ export default function DashboardClient({
 
         {/* Margin (avg) */}
         <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-[#F1F5F9] text-[#475569] flex items-center justify-center shrink-0">
+          <div className="w-13 h-13 rounded-2xl bg-[var(--bg-subtle)] text-[#475569] flex items-center justify-center shrink-0">
             <TrendingUp size={22} strokeWidth={1.8} />
           </div>
           <div className="flex flex-col min-w-0">
@@ -192,7 +192,7 @@ export default function DashboardClient({
       {/* ── 2. Middle Section: Pipeline Overview (Left 2 cols) + My Day & Approvals (Right col) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
         {/* ── Left 2 Columns: Pipeline Overview Card ────────────── */}
-        <div className="lg:col-span-2 bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-6">
+        <div className="lg:col-span-2 bg-ui-surface-elevated border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-6">
           <div>
             <h2 className="text-base font-bold text-slate-900 tracking-tight">
               Pipeline overview
@@ -212,7 +212,7 @@ export default function DashboardClient({
                     className={`relative flex flex-col items-center justify-center py-3.5 px-2 text-center transition-all select-none border-r last:border-r-0 border-slate-200 ${
                       isActive
                         ? 'bg-blue-50/50 border-blue-500 text-blue-600 font-bold ring-1 ring-inset ring-blue-500'
-                        : 'bg-white text-slate-500'
+                        : 'bg-ui-surface-elevated text-slate-500'
                     }`}
                   >
                     <div className="flex items-center gap-1.5 text-xs">
@@ -323,7 +323,7 @@ export default function DashboardClient({
         {/* ── Right Column: My Day & Approvals ──────────────────── */}
         <div className="space-y-5">
           {/* Card: My Day */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs">
+          <div className="bg-ui-surface-elevated border border-slate-200/80 rounded-2xl p-5 shadow-2xs">
             <div className="flex items-center justify-between pb-3">
               <h2 className="text-sm font-bold text-slate-900">
                 My Day
@@ -342,7 +342,7 @@ export default function DashboardClient({
           </div>
 
           {/* Card: Approvals */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs">
+          <div className="bg-ui-surface-elevated border border-slate-200/80 rounded-2xl p-5 shadow-2xs">
             <div className="flex items-center justify-between pb-3">
               <h2 className="text-sm font-bold text-slate-900">
                 Approvals
@@ -380,7 +380,7 @@ export default function DashboardClient({
       </div>
 
       {/* ── 3. Bottom Card: Recent activity ───────────────────────── */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
+      <div className="bg-ui-surface-elevated border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
         <h2 className="text-base font-bold text-slate-900 tracking-tight">
           Recent activity
         </h2>

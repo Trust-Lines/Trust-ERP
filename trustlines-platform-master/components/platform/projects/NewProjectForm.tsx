@@ -719,13 +719,13 @@ export function NewProjectForm({
 
         {importSelection && (
           <div style={{
-            background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '12px 16px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13, color: '#166534'
+            background: 'var(--status-success-bg)', border: '1px solid #86efac', borderRadius: 8, padding: '12px 16px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13, color: 'var(--status-success-fg)'
           }}>
             <div>
               <strong>Linked Dropbox Project:</strong> {importSelection.dropboxPath}
             </div>
-            <button type="button" onClick={() => setImportSelection(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#166534', fontWeight: 700 }}>
+            <button type="button" onClick={() => setImportSelection(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--status-success-fg)', fontWeight: 700 }}>
               ✕ Clear
             </button>
           </div>

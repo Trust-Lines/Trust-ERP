@@ -20,7 +20,7 @@ export function Step4DropboxFolder({ form, watchedCode, watchedSiteLocation }: {
           {...register('dropbox_client_name')}
         />
       </div>
-      <div style={{ background: '#f8fafc', padding: 14, borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, fontFamily: 'var(--font-mono, monospace)', color: '#475569' }}>
+      <div style={{ background: 'var(--bg-subtle)', padding: 14, borderRadius: 8, border: '1px solid var(--border-default)', fontSize: 12, fontFamily: 'var(--font-mono, monospace)', color: '#475569' }}>
         /D-Projects/T LINES/{watch('dropbox_section') || '1-Store Maker'}/{watch('dropbox_region') || 'T Lines NE Projects'}/Under Working/
         {watch('dropbox_client_type') === 'Clients' ? 'Clients' : 'Individiuals'}
         {watch('dropbox_client_type') === 'Clients' && watch('dropbox_client_name') ? `/${watch('dropbox_client_name')}` : ''}

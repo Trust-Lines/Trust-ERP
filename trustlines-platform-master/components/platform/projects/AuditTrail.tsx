@@ -16,14 +16,14 @@ interface ActionCfg { icon: string; color: string; bg: string; label: (n: unknow
 const ACTION_MAP: Record<string, ActionCfg> = {
   'document.approved':  { icon: '✓', color: '#0E6B30', bg: '#E7F6EC', label: (n) => `approved ${_str(n, 'doc_type', 'document')} v${_str(n, 'version', '')}` },
   'stage.advanced':     { icon: '→', color: '#0E6B30', bg: '#E7F6EC', label: (n, o) => `advanced stage from ${_str(o, 'stage', '?').replace(/_/g,' ')} to ${_str(n, 'stage', '?').replace(/_/g,' ')}` },
-  'document.uploaded':  { icon: '↑', color: '#1740B0', bg: '#E2EBFC', label: (n) => `uploaded ${_str(n, 'fileName', _str(n, 'doc_type', 'document'))}` },
-  'document.created':   { icon: '↑', color: '#1740B0', bg: '#E2EBFC', label: (n) => `created ${_str(n, 'doc_type', 'document')}` },
-  'qc.failed':          { icon: '✕', color: '#991B1B', bg: '#FCE5E5', label: () => 'QC failed' },
-  'document.rejected':  { icon: '✕', color: '#991B1B', bg: '#FCE5E5', label: () => 'rejected document' },
-  'stage.overdue':      { icon: '⚠', color: '#92500A', bg: '#FDF1DD', label: () => 'stage marked overdue' },
-  'gate.blocked':       { icon: '⚠', color: '#92500A', bg: '#FDF1DD', label: (n) => `gate blocked: ${_str(n, 'reason', '')}` },
+  'document.uploaded':  { icon: '↑', color: 'var(--status-info-fg)', bg: '#E2EBFC', label: (n) => `uploaded ${_str(n, 'fileName', _str(n, 'doc_type', 'document'))}` },
+  'document.created':   { icon: '↑', color: 'var(--status-info-fg)', bg: '#E2EBFC', label: (n) => `created ${_str(n, 'doc_type', 'document')}` },
+  'qc.failed':          { icon: '✕', color: 'var(--status-danger-fg)', bg: '#FCE5E5', label: () => 'QC failed' },
+  'document.rejected':  { icon: '✕', color: 'var(--status-danger-fg)', bg: '#FCE5E5', label: () => 'rejected document' },
+  'stage.overdue':      { icon: '⚠', color: 'var(--status-warning-fg)', bg: '#FDF1DD', label: () => 'stage marked overdue' },
+  'gate.blocked':       { icon: '⚠', color: 'var(--status-warning-fg)', bg: '#FDF1DD', label: (n) => `gate blocked: ${_str(n, 'reason', '')}` },
   'project.created':    { icon: '✦', color: '#1F5A5A', bg: '#DDECEC', label: (n) => `created project ${_str(n, 'code', '')}` },
-  'stage.overridden':   { icon: '⚡', color: '#92500A', bg: '#FDF1DD', label: (n) => `overrode stage gate — reason: ${_str(n, 'reason', '')}` },
+  'stage.overridden':   { icon: '⚡', color: 'var(--status-warning-fg)', bg: '#FDF1DD', label: (n) => `overrode stage gate — reason: ${_str(n, 'reason', '')}` },
 };
 
 function _str(val: unknown, key: string, fallback: string): string {

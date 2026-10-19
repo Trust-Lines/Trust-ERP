@@ -38,7 +38,7 @@ export function TabShell({ children }: TabShellProps) {
               key={tab.id}
               role="tabpanel"
               aria-label={tab.label}
-              className={`absolute inset-0 w-full h-full bg-white ${
+              className={`absolute inset-0 w-full h-full bg-ui-surface-elevated ${
                 isActive ? 'block' : 'hidden'
               }`}
             >

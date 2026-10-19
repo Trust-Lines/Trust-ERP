@@ -50,7 +50,7 @@ function EmptyState({ icon, title, description, action, hint, size, boxed, class
   return (
     <div data-slot="empty-state" role="status" className={cn(emptyStateVariants({ size, boxed }), className)} {...props}>
       {icon && (
-        <span aria-hidden className="mb-1 grid size-14 place-items-center rounded-[12px] bg-primary-50 text-ui-body [&_svg]:size-6">
+        <span aria-hidden className="mb-1 grid size-14 place-items-center rounded-[12px] bg-primary-50 text-ui-body dark:bg-primary-700 [&_svg]:size-6">
           {icon}
         </span>
       )}

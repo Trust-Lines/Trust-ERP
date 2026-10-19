@@ -43,7 +43,7 @@ export function AddressesCard({ addresses, canEdit, onSave, onDelete }: {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontWeight: 600, fontSize: 13 }}>{a.label || a.address_type || 'Address'}</span>
-                    {a.is_primary && <span title="Primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#b45309' }}><Star size={11} fill="#f59e0b" stroke="#f59e0b" /> Primary</span>}
+                    {a.is_primary && <span title="Primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--status-warning-fg)' }}><Star size={11} fill="#f59e0b" stroke="#f59e0b" /> Primary</span>}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 2 }}>
                     {[a.line1, a.line2, a.city, a.state, a.postal_code, a.country].filter(Boolean).join(', ') || '—'}

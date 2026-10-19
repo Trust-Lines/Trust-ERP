@@ -44,7 +44,7 @@ export function ContactsCard({ contacts, canEdit, onSave, onDelete }: {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontWeight: 600, fontSize: 14 }}>{ct.name}</span>
-                    {ct.is_primary && <span title="Primary contact" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#b45309' }}><Star size={11} fill="#f59e0b" stroke="#f59e0b" /> Primary</span>}
+                    {ct.is_primary && <span title="Primary contact" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--status-warning-fg)' }}><Star size={11} fill="#f59e0b" stroke="#f59e0b" /> Primary</span>}
                     {ct.is_authorized_approver && <span title="Authorized approver" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--brand-teal, #0d9488)' }}><ShieldCheck size={11} /> Approver</span>}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 2 }}>

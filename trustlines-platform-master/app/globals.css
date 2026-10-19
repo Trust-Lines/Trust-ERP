@@ -558,7 +558,7 @@
 
 .topbar {
   grid-area: topbar;
-  background: white;
+  background: var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-xs);
   display: flex;
@@ -675,7 +675,7 @@
 }
 
 .btn-secondary {
-  background: white;
+  background: var(--bg-surface);
   border-color: var(--border-default);
   color: var(--fg-default);
 }
@@ -790,7 +790,7 @@
   border-bottom: 1px solid var(--border-default);
   position: sticky;
   top: 0;
-  background: rgba(255, 255, 255, 0.95);
+  background: color-mix(in srgb, var(--bg-surface) 95%, transparent);
 }
 
 .tbl tbody td {
@@ -887,7 +887,7 @@
 }
 
 .kpi {
-  background: white;
+  background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: 15px 17px;
@@ -936,7 +936,7 @@
 }
 
 .view-toggle button.active {
-  background: white;
+  background: var(--bg-surface);
   color: var(--brand-teal);
   box-shadow: var(--shadow-xs);
 }
@@ -963,7 +963,7 @@
 }
 
 .view-toggle button.active {
-  background: white;
+  background: var(--bg-surface);
   color: var(--brand-teal);
   box-shadow: var(--shadow-xs);
 }
@@ -984,7 +984,7 @@
   border-radius: var(--radius-pill);
   font-size: 12px;
   font-weight: 500;
-  background: white;
+  background: var(--bg-surface);
   border: 1px solid var(--border-default);
   color: var(--fg-muted);
   cursor: pointer;
@@ -1014,7 +1014,7 @@
   padding: 9px 12px;
   font: inherit;
   font-size: 14px;
-  background: white;
+  background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   color: var(--fg-default);
@@ -1036,7 +1036,7 @@
   color: var(--fg-faint);
 }
 
-.form-input:read-only {
+.form-input:read-only:not(button) {
   background: var(--bg-subtle);
   color: var(--fg-muted);
   cursor: default;
@@ -1114,7 +1114,7 @@
   font-weight: 600;
   cursor: pointer;
   border: 1.5px solid var(--border-default);
-  background: white;
+  background: var(--bg-surface);
   color: var(--fg-muted);
   transition: all 120ms var(--ease-out);
   user-select: none;
@@ -1183,7 +1183,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: white;
+  background: var(--bg-surface);
   transition: transform 160ms var(--ease-out);
   box-shadow: var(--shadow-xs);
 }
@@ -1200,7 +1200,7 @@
   position: sticky;
   bottom: 0;
   z-index: 20;
-  background: white;
+  background: var(--bg-surface);
   border-top: 1px solid var(--border-subtle);
   padding: 14px 32px;
   display: flex;
@@ -1420,7 +1420,7 @@
 }
 
 .stage-dot-current {
-  background: white;
+  background: var(--bg-surface);
   border: 2px solid var(--brand-teal);
   color: var(--brand-teal);
   animation: pulse-ring 2s ease-in-out infinite;
@@ -1464,7 +1464,7 @@
 
 /* ── RAIL CARDS ───────────────────────────────────────── */
 .rail-card {
-  background: white;
+  background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   padding: 14px 16px;
@@ -1543,13 +1543,13 @@
 }
 
 .timeline-dot-current {
-  background: white;
+  background: var(--bg-surface);
   border: 2px solid;
   box-shadow: 0 0 0 3px;
 }
 
 .timeline-dot-future {
-  background: white;
+  background: var(--bg-surface);
   border: 1.5px solid var(--border-default);
   color: var(--fg-faint);
 }
@@ -1590,7 +1590,7 @@
 }
 
 .modal-box {
-  background: white;
+  background: var(--bg-surface);
   border-radius: var(--radius-md);
   width: 100%;
   max-width: 480px;
@@ -1720,7 +1720,7 @@
   font-size: 13px;
   font-weight: 500;
   transition: all 120ms;
-  background: white;
+  background: var(--bg-surface);
   user-select: none;
 }
 
@@ -1794,3 +1794,149 @@
    AmountsMasker has rewritten the money text (data-amounts-masked), so real figures never flash. */
 html[data-hide-amounts]:not([data-amounts-masked]) body { visibility: hidden; }
 html[data-hide-amounts] [data-money] { -webkit-text-security: disc; text-security: disc; }
+
+/* ── DARK THEME — legacy tokens + Tailwind grey scales ───────────────────────────
+   The `dark` class on <html> (lib/theme/theme.ts) turns this on. The --ui-* and status-tone
+   tokens already swap in the .dark block above; these give the older names (--fg-*, --bg-*,
+   --border-*, --status-*-bg, --phase-*-bg) and the slate/neutral utilities used by older
+   screens their dark values, so those screens follow the theme without per-file edits. */
+.dark {
+  color-scheme: dark;
+
+  /* Eye-comfort surfaces: softer than pure black, less saturated than navy; one step between layers. */
+  --ui-page-bg: #12171D;
+  --ui-surface-elevated: #1B222B;
+  --ui-divider: #2C3542;
+  --ui-heading: #E6E9EE;
+  --ui-body: #C9D0DA;
+  --ui-text-secondary: #9AA6B6;
+
+  /* Tabs, filter chips, inputs (dark only) */
+  --ui-tab-active: #8FC1FF;
+  --ui-tab-badge: #2F6FD6;
+  --ui-chip-teal-bg: #0F5566;
+  --ui-chip-teal-border: #1E8BA3;
+  --ui-chip-teal-fg: #E3F6FA;
+  --ui-divider-strong: #3A4554;
+  --ui-control-border: #465262; /* outlined buttons (Columns, Assigned to me) */
+  /* Grouped tables (CRM Board): header a step above the rows, group rows a step below the card */
+  --ui-table-head-bg: #1E2530;
+  --ui-group-row-bg: #171D25;
+  --ui-group-count: #C9D0DA;
+  /* List rows shown as cards (Design projects) and review-state chips */
+  --ui-row-card-bg: var(--ui-surface-elevated);
+  --ui-row-card-border: var(--ui-divider);
+  --ui-pill-review-bg: #3CC4B4;
+  --ui-pill-review-fg: #062A27;
+  /* Dropdown menus: active / selected row is a light pill with dark text */
+  --ui-menu-active-bg: #E4E9F0;
+  --ui-menu-active-fg: #12171D;
+  --ui-menu-active-muted: #4A5565;
+  --ui-menu-active-border: #AEB7C4;
+  --ui-menu-border: var(--ui-divider-strong);
+  --ui-menu-shadow: 0 16px 40px rgba(0,0,0,0.5);
+  --ui-option-selected-bg: var(--ui-menu-active-bg);
+  --ui-option-selected-fg: var(--ui-menu-active-fg);
+  --ui-option-hover-bg: rgba(255,255,255,0.06);
+  /* Checkbox lists in menus (Columns, Add filter): checked rows are a raised slate row */
+  --ui-row-checked: #232C39;
+  --ui-row-locked: #2A3038;
+  --ui-row-locked-check: #6B7585;
+  --ui-tab-accent: var(--ui-tab-active);
+  --ui-tab-accent-text: var(--ui-tab-active);
+  --ui-tab-glow: 0 8px 14px -8px var(--ui-tab-active);
+
+  /* Link / accent text must stay readable on dark cards */
+  --brand-teal: #7D9CC4;
+  --brand-teal-600: #A9BEDA;
+
+  /* Login / password screens (components/auth) */
+  --tl-card: var(--ui-surface-elevated);
+  --tl-field-bg: var(--color-primary-800);
+  --tl-ink: var(--color-primary-50);
+  --tl-ink-on: var(--color-primary-950);
+  --tl-placeholder: var(--color-primary-300);
+
+  --brand-navy: var(--color-secondary-500);
+  --brand-navy-700: var(--color-secondary-600);
+  --brand-navy-600: var(--color-secondary-400);
+  --brand-teal-100: var(--color-secondary-800);
+  --brand-orange-100: color-mix(in srgb, var(--color-accent-600) 25%, var(--color-secondary-800));
+
+  --bg-subtle: #222A35;
+  --bg-sunken: #161C23;
+  --bg-inverse: var(--color-primary-50);
+
+  --border-subtle: #252E3A;
+  --border-strong: var(--color-primary-500);
+
+  --fg-default: #E6E9EE;
+  --fg-muted: #D2D7E0;
+  --fg-subtle: var(--color-primary-200);
+  --fg-faint: var(--color-primary-300);
+
+  --status-success-bg: color-mix(in srgb, var(--color-success-dark) 70%, var(--color-primary-950));
+  --status-success-fg: var(--color-success-light);
+  --status-warning-bg: color-mix(in srgb, var(--color-warning-dark) 70%, var(--color-primary-950));
+  --status-warning-fg: var(--color-warning-light);
+  --status-danger-bg: color-mix(in srgb, var(--color-error-dark) 70%, var(--color-primary-950));
+  --status-danger-fg: var(--color-error-light);
+  --status-info-bg: color-mix(in srgb, var(--color-info-dark) 70%, var(--color-primary-950));
+  --status-info-fg: var(--color-info-light);
+
+  --phase-1-bg: color-mix(in srgb, var(--phase-1) 30%, var(--color-secondary-800));
+  --phase-2-bg: color-mix(in srgb, var(--phase-2) 30%, var(--color-secondary-800));
+  --phase-3-bg: color-mix(in srgb, var(--phase-3) 30%, var(--color-secondary-800));
+  --phase-4-bg: color-mix(in srgb, var(--phase-4) 30%, var(--color-secondary-800));
+  --phase-5-bg: color-mix(in srgb, var(--phase-5) 30%, var(--color-secondary-800));
+  --phase-6-bg: color-mix(in srgb, var(--phase-6) 30%, var(--color-secondary-800));
+  --phase-done-bg: color-mix(in srgb, var(--phase-done) 30%, var(--color-secondary-800));
+
+  /* Tailwind slate / neutral, flipped: light shades become dark surfaces, dark shades become light text. */
+  --color-slate-50: #1F252D;  --color-neutral-50: #1F252D;
+  --color-slate-100: #2A323D; --color-neutral-100: #2A323D;
+  --color-slate-200: #343D4B; --color-neutral-200: #343D4B;
+  --color-slate-300: #495669; --color-neutral-300: #495669;
+  --color-slate-400: #7888A1; --color-neutral-400: #7888A1;
+  --color-slate-500: #96A3B6; --color-neutral-500: #96A3B6;
+  --color-slate-600: #B4BDCB; --color-neutral-600: #B4BDCB;
+  --color-slate-700: #D2D7E0; --color-neutral-700: #D2D7E0;
+  --color-slate-800: #E4E8EE; --color-neutral-800: #E4E8EE;
+  --color-slate-900: #F0F2F5; --color-neutral-900: #F0F2F5;
+  --color-slate-950: #FFFFFF; --color-neutral-950: #FFFFFF;
+
+  /* Pale Tailwind tints used for notices (blue / amber / teal): dark fill, light text. */
+  --color-blue-50: #172B45;  --color-blue-100: #1E3A5F;  --color-blue-700: #9CC3F5;  --color-blue-900: #DCEBFC;
+  --color-amber-50: #3A2A0B; --color-amber-200: #6B4A10; --color-amber-800: #F7D58E; --color-amber-900: #FCE7B8;
+  --color-teal-700: #8FD6CF; --color-teal-800: #B8E8E3;
+}
+
+/* Login field icons are dark SVG files — lighten them on the dark card. */
+.dark .tl-login-field img { filter: invert(1) brightness(1.4); }
+
+/* Tab bars (.tab-item) in dark: light-blue active tab with a soft glowing underline, muted inactive tabs. */
+.dark .tab-item { color: var(--ui-text-secondary); }
+.dark .tab-item:hover { color: var(--ui-heading); }
+.dark .tab-item.active { color: var(--ui-tab-active); border-bottom-color: var(--ui-tab-active); box-shadow: var(--ui-tab-glow); }
+
+/* Form fields in dark: a slightly sunken well with a visible border (matches the search box). */
+.dark .form-input { background-color: var(--bg-sunken); border-color: var(--ui-divider-strong); }
+.dark .form-input::placeholder { color: var(--ui-text-secondary); }
+.dark .form-input:disabled { background-color: var(--bg-subtle); color: var(--ui-text-secondary); }
+.dark .form-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239AA6B6' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); }
+
+/* Dropdown-style fields in dark (Region pickers, Company, State…): rounded well, roomier padding,
+   light value text and chevron — Figma dark reference (Sales Team › Region). */
+.dark .form-select,
+.dark .ui-select-trigger.form-input {
+  border-radius: 10px;
+  padding-left: 14px;
+  padding-right: 38px;
+  border-color: var(--ui-control-border);
+  color: var(--ui-heading);
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+.dark .form-select:hover,
+.dark .ui-select-trigger.form-input:hover { border-color: #5A6779; }
+.dark .ui-select-trigger.form-input .ui-select-chevron { color: var(--ui-body); }

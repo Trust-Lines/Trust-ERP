@@ -18,7 +18,7 @@ export function LeadSummary({
   onCreate: () => void;
 }) {
   return (
-    <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs space-y-4">
+    <div className="lg:col-span-3 bg-ui-surface-elevated border border-slate-200/80 rounded-2xl p-5 shadow-2xs space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-bold text-slate-900">Lead summary</h3>
         <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">

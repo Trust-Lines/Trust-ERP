@@ -95,7 +95,7 @@ export function CustomerLinkCard({ intakeId, initialCustomer, delivered = false 
             </p>
             <div style={{ display: 'flex', gap: 8, marginBottom: hits.length ? 8 : 0 }}>
               <div style={{ position: 'relative', flex: 1 }}>
-                <Search size={14} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-primary-400" />
+                <Search size={14} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-primary-400 dark:text-primary-300" />
                 <Input type="search" className="pl-8" placeholder="Search customers…"
                   value={query} onChange={e => runSearch(e.target.value)} aria-label="Search customers to link" />
               </div>
@@ -108,9 +108,9 @@ export function CustomerLinkCard({ intakeId, initialCustomer, delivered = false 
               <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 6, overflow: 'hidden' }}>
                 {hits.map(h => (
                   <Button key={h.id} variant="ghost" onClick={() => linkExisting(h)} disabled={busy}
-                    className="h-auto w-full justify-start rounded-none border-b border-ui-divider px-3 py-2 text-[13px] font-normal text-primary-800">
+                    className="h-auto w-full justify-start rounded-none border-b border-ui-divider px-3 py-2 text-[13px] font-normal text-primary-800 dark:text-primary-50">
                     <span className="font-semibold">{h.name}</span>
-                    {h.industry && <span className="text-primary-500"> · {h.industry}</span>}
+                    {h.industry && <span className="text-primary-500 dark:text-primary-200"> · {h.industry}</span>}
                   </Button>
                 ))}
               </div>

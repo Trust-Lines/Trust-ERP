@@ -29,20 +29,29 @@ type FeedbackOptions = {
   duration?: number
 }
 
+// Status tones swap bg/fg in .dark (app/globals.css), so the tiles follow automatically.
 const TONE: Record<Tone, { icon: React.ComponentType<{ className?: string }>; tile: string }> = {
   success: { icon: CircleCheckIcon, tile: "bg-[var(--status-t9-bg)] text-[var(--status-t9-fg)]" },
   info:    { icon: InfoIcon,        tile: "bg-[var(--status-t2-bg)] text-[var(--status-t2-fg)]" },
-  error:   { icon: CircleXIcon,     tile: "bg-error-light text-error-normal" },
+  error:   { icon: CircleXIcon,     tile: "bg-error-light text-error-normal dark:bg-error-dark dark:text-error-light" },
 }
 
-function FeedbackToast({ id, tone, title, description, action }: FeedbackOptions & { id: string | number; tone: Tone; title: React.ReactNode }) {
+type FeedbackToastCardProps = FeedbackOptions & {
+  tone: Tone
+  title: React.ReactNode
+  onDismiss?: () => void
+  className?: string
+}
+
+/** The toast card itself. feedback.* renders it inside sonner; /dev/ui renders it inline as a preview. */
+function FeedbackToastCard({ tone, title, description, action, onDismiss, className }: FeedbackToastCardProps) {
   const { icon: Icon, tile } = TONE[tone]
-  const linkClass = "inline-flex items-center gap-1 font-semibold text-[var(--color-secondary-700)] hover:underline underline-offset-2"
+  const linkClass = "inline-flex items-center gap-1 font-semibold text-[var(--color-secondary-700)] dark:text-[var(--color-secondary-200)] hover:underline underline-offset-2"
 
   return (
     <div
       role={tone === "error" ? "alert" : "status"}
-      className="flex w-[min(400px,calc(100vw-2rem))] items-start gap-3 rounded-[8px] border border-ui-divider bg-white p-4 font-[family-name:var(--font-ui)] text-[13px] leading-[1.4] shadow-03"
+      className={`flex w-[min(400px,calc(100vw-2rem))] items-start gap-3 rounded-[8px] border border-ui-divider bg-ui-surface-elevated p-4 font-[family-name:var(--font-ui)] text-[13px] leading-[1.4] shadow-03 ${className ?? ""}`}
     >
       <span aria-hidden className={`grid size-7 shrink-0 place-items-center rounded-md ${tile}`}>
         <Icon className="size-4" />
@@ -53,11 +62,11 @@ function FeedbackToast({ id, tone, title, description, action }: FeedbackOptions
         {action && (
           <div className="pt-0.5">
             {action.href ? (
-              <Link href={action.href} onClick={() => toast.dismiss(id)} className={linkClass}>
+              <Link href={action.href} onClick={onDismiss} className={linkClass}>
                 {action.label} <ArrowRightIcon className="size-3.5" aria-hidden />
               </Link>
             ) : (
-              <button type="button" onClick={() => { toast.dismiss(id); action.onClick?.() }} className={linkClass}>
+              <button type="button" onClick={() => { onDismiss?.(); action.onClick?.() }} className={linkClass}>
                 {action.label}
               </button>
             )}
@@ -66,9 +75,9 @@ function FeedbackToast({ id, tone, title, description, action }: FeedbackOptions
       </div>
       <button
         type="button"
-        onClick={() => toast.dismiss(id)}
+        onClick={onDismiss}
         aria-label="Dismiss"
-        className="-mr-1 -mt-1 grid size-6 shrink-0 place-items-center rounded text-ui-body hover:bg-primary-50"
+        className="-mr-1 -mt-1 grid size-6 shrink-0 place-items-center rounded text-ui-body hover:bg-primary-50 dark:hover:bg-primary-700"
       >
         <XIcon className="size-4" />
       </button>
@@ -77,7 +86,7 @@ function FeedbackToast({ id, tone, title, description, action }: FeedbackOptions
 }
 
 function show(tone: Tone, title: React.ReactNode, options: FeedbackOptions = {}) {
-  return toast.custom(id => <FeedbackToast id={id} tone={tone} title={title} {...options} />, {
+  return toast.custom(id => <FeedbackToastCard tone={tone} title={title} {...options} onDismiss={() => toast.dismiss(id)} />, {
     duration: options.duration ?? (options.action ? 8000 : 4000),
   })
 }
@@ -88,5 +97,5 @@ const feedback = {
   error: (title: React.ReactNode, options?: FeedbackOptions) => show("error", title, options),
 }
 
-export { feedback }
-export type { FeedbackOptions, FeedbackAction }
+export { feedback, FeedbackToastCard }
+export type { FeedbackOptions, FeedbackAction, FeedbackToastCardProps }

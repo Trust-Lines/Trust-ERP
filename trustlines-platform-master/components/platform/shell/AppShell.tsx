@@ -44,7 +44,7 @@ export function AppShell({
     // height, leaving a big empty band of its background under short lists (2026-09-23 fix).
     // No overflow-hidden/h-screen here either — the page now scrolls normally (the body), with
     // the sidebar and TopBar staying in view via `sticky`, not via clipping+internal scroll.
-    <div className="flex w-full items-start bg-white text-neutral-900">
+    <div className="flex w-full items-start bg-ui-surface-elevated text-neutral-900">
       {/* Collapsible Claude-style Sidebar */}
       <Sidebar
         userRole={userRole}
@@ -65,7 +65,7 @@ export function AppShell({
         />
 
         {/* Main Content Area — sized to its own content now, not forced to viewport height */}
-        <main className="bg-[#F8FAFC]">
+        <main className="bg-[var(--bg-subtle)]">
           <div
             className={fullWidth ? 'main-inner main-inner--full p-4 sm:p-6' : 'main-inner w-full'}
             style={{

@@ -62,7 +62,7 @@ const cell: React.CSSProperties = {
 const headCell: React.CSSProperties = {
   padding: '7px 12px', fontSize: 10.5, fontWeight: 600, letterSpacing: '0.03em',
   textTransform: 'uppercase', color: 'var(--fg-subtle)', textAlign: 'left',
-  borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap', background: 'var(--bg-subtle)',
+  borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap', background: 'var(--ui-table-head-bg, var(--bg-subtle))',
   position: 'sticky', top: 0, zIndex: 3,
 };
 const resizeHandle: React.CSSProperties = {
@@ -227,17 +227,17 @@ export function LeadsTable({
                     onClick={() => onToggleGroup(meta.key)}
                     style={{
                       padding: '9px 12px', cursor: 'pointer',
-                      background: isDropTarget ? 'color-mix(in srgb, var(--brand-teal) 16%, transparent)' : 'var(--bg-subtle)',
+                      background: isDropTarget ? 'color-mix(in srgb, var(--brand-teal) 16%, transparent)' : 'var(--ui-group-row-bg, var(--bg-subtle))',
                       borderBottom: isDropTarget ? '1px solid var(--brand-teal)' : '1px solid var(--border-default)',
                       borderTop: '1px solid var(--border-default)',
                       transition: 'background 120ms',
                     }}
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, position: 'sticky', left: 12 }}>
-                      {isCollapsed ? <ChevronRight size={15} color="var(--fg-subtle)" /> : <ChevronDown size={15} color="var(--fg-subtle)" />}
+                      {isCollapsed ? <ChevronRight size={15} color="var(--ui-group-count, var(--fg-subtle))" /> : <ChevronDown size={15} color="var(--ui-group-count, var(--fg-subtle))" />}
                       {/* CRM keeps its stage names; colour + icon come from the mapped lead tag. */}
                       <StatusBadge group="lead_stage" status={OPPORTUNITY_STATUS_TAG[meta.key] ?? meta.key} label={meta.label} size="lg" />
-                      <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--fg-subtle)' }}>
+                      <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ui-group-count, var(--fg-subtle))' }}>
                         {rows.length}
                       </span>
                     </span>

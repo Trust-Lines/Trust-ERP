@@ -40,7 +40,7 @@ export function AddVendorModal({
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: '#fff', borderRadius: 10, width: 460, maxWidth: '94vw', boxShadow: '0 24px 64px rgba(0,0,0,0.35)' }}>
+      <div style={{ background: 'var(--bg-surface)', borderRadius: 10, width: 460, maxWidth: '94vw', boxShadow: '0 24px 64px rgba(0,0,0,0.35)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
           <div style={{ fontSize: 16, fontWeight: 700 }}>Add New Vendor</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={18} color="#666" /></button>
@@ -71,7 +71,7 @@ export function AddVendorModal({
             Leave empty to auto-generate from vendor name
           </div>
 
-          <div style={{ marginTop: 16, padding: '12px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8 }}>
+          <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--status-info-bg)', border: '1px solid #bfdbfe', borderRadius: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 4 }}>About PF Codes</div>
             <div style={{ fontSize: 12, color: '#2563eb', lineHeight: 1.5 }}>
               When you assign this vendor to project items, PF codes are generated automatically as{' '}
@@ -82,7 +82,7 @@ export function AddVendorModal({
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '14px 20px', borderTop: '1px solid var(--border-subtle)' }}>
-          <button onClick={onClose} style={{ padding: '8px 18px', borderRadius: 6, border: '1px solid var(--border-default)', background: '#fff', cursor: 'pointer', fontSize: 13 }}>
+          <button onClick={onClose} style={{ padding: '8px 18px', borderRadius: 6, border: '1px solid var(--border-default)', background: 'var(--bg-surface)', cursor: 'pointer', fontSize: 13 }}>
             Cancel
           </button>
           <button onClick={create} disabled={saving || !name.trim()} style={{

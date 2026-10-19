@@ -229,7 +229,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 // Inline-edit cell: reads like plain text until hovered/focused, then shows the field border.
-const cellClass = 'h-7 border-transparent bg-transparent text-[13px] text-primary-800 hover:border-ui-divider focus-visible:border-primary-700 focus-visible:bg-primary-50';
+const cellClass = 'h-7 border-transparent bg-transparent text-[13px] text-primary-800 dark:text-primary-50 hover:border-ui-divider focus-visible:border-primary-700 focus-visible:bg-primary-50';
 
 function Inp({ value, onSave, type = 'text', ph, label }: { value: string | number; onSave: (v: string) => void; type?: string; ph?: string; label: string }) {
   const [val, setVal] = useState(String(value ?? ''));
@@ -252,7 +252,7 @@ function Sel({ value, onChange, opts, label, renderOption }: {
   return (
     <Select
       aria-label={label}
-      className="h-7 text-[13px] text-primary-800"
+      className="h-7 text-[13px] text-primary-800 dark:text-primary-50"
       value={value}
       onValueChange={v => onChange(v ?? '')}
       options={opts.map(([v, l]) => ({ value: v, label: l }))}

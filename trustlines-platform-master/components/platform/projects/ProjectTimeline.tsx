@@ -111,7 +111,7 @@ function StepRow({ step }: { step: StepDisplay }) {
           {def.requiresVersionSelect && record?.version_approved != null && (
             <span style={{
               fontSize: 10, fontWeight: 700,
-              background: '#E2EBFC', color: '#1740B0',
+              background: 'var(--status-info-bg)', color: 'var(--status-info-fg)',
               padding: '1px 5px', borderRadius: 3,
             }}>v{record.version_approved}</span>
           )}

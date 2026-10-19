@@ -27,7 +27,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TagInput } from '@/components/ui/tag-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { feedback } from '@/components/ui/feedback-toast';
+import { feedback, FeedbackToastCard } from '@/components/ui/feedback-toast';
+import { ErrorState, LoadingState, RestrictedState } from '@/components/ui/feedback-states';
+import { LockIcon, RotateCcwIcon } from 'lucide-react';
 import { FilesEmptyState } from '@/components/platform/shared/FilesEmptyState';
 
 const OPTIONS = [
@@ -486,12 +488,63 @@ export function UiShowcase() {
           </div>
         </Panel>
 
-        <Panel title="Feedback patterns · Empty state / first use">
-          <div className="rounded-[8px] border border-ui-divider">
-            <FilesEmptyState onUpload={() => feedback.info('Upload clicked (demo)')} hint="PDF, DWG, DXF and images" />
-          </div>
+        <Panel title="Feedback patterns — light / dark">
+          {(['', 'dark'] as const).map(mode => (
+            <div
+              key={mode || 'light'}
+              className={`${mode} mb-4 grid gap-4 rounded-card p-4 lg:grid-cols-3 ${mode ? 'bg-primary-950' : 'bg-ui-surface'}`}
+            >
+              <div className="space-y-3">
+                <Label>Toast / transient feedback</Label>
+                <FeedbackToastCard className="w-full" tone="success" title="Changes saved" description="Northstar · CRM rollout is up to date." action={{ label: 'View project', href: '/projects' }} onDismiss={() => { }} />
+                <FeedbackToastCard className="w-full" tone="info" title="Project moved to Trash" description="PRJ-2048 can be restored for 30 days." action={{ label: 'Undo move', onClick: () => { } }} onDismiss={() => { }} />
+                <FeedbackToastCard className="w-full" tone="error" title="Upload interrupted" description="proposal-v3.pdf could not be uploaded." action={{ label: 'Retry upload', onClick: () => { } }} onDismiss={() => { }} />
+              </div>
+
+              <div className="space-y-3">
+                <Label>Empty state / first use</Label>
+                <div className="rounded-[8px] border border-ui-divider bg-ui-surface-elevated">
+                  <FilesEmptyState onUpload={() => feedback.info('Upload clicked (demo)')} hint="PDF, DWG, DXF and images" />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label>Error card / recoverable failure</Label>
+                <ErrorState
+                  label="Connection issue"
+                  title="We couldn't load the activity"
+                  description="Your project is safe. Check your connection, then try loading the activity again."
+                  meta={['Last synced 16 Oct 2026, 09:40', 'Reference: ACT-503']}
+                  actions={<>
+                    <Button><RotateCcwIcon />Try again</Button>
+                    <Button variant="secondary" className={modalSecondaryButtonClass}>Contact support</Button>
+                  </>}
+                />
+              </div>
+
+              <div className="space-y-3 lg:col-span-1">
+                <Label>Loading skeleton</Label>
+                <LoadingState title="Loading project details" description="Preserve the final layout while data is loading." caption="Fetching the latest project data…" />
+              </div>
+
+              <div className="space-y-3 lg:col-span-2">
+                <Label>Restricted / access required</Label>
+                <RestrictedState
+                  title="This document is private"
+                  description="Only Finance and project owners can view the Northstar statement of work. Request access from Maya Chen to continue."
+                  owner={<><Avatar size="xs" name="Maya Chen" /> Maya Chen · Project owner</>}
+                  actions={<>
+                    <Button><LockIcon />Request access</Button>
+                    <Button variant="secondary" className={modalSecondaryButtonClass}>Back to project</Button>
+                  </>}
+                />
+              </div>
+            </div>
+          ))}
         </Panel>
       </div>
     </TooltipProvider>
   );
 }
+
+

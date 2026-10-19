@@ -140,7 +140,7 @@ export function ContactManagerClient({ canEdit }: { canEdit: boolean }) {
         <div
           style={{
             minWidth: 170, maxWidth: 320, padding: '5px 8px', fontSize: 13,
-            border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', background: 'white',
+            border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-surface)',
           }}
         >
           <TagMultiSelect values={sourceFilters} options={sourceOptions} onChange={setSourceFilters} placeholder="All sources" />

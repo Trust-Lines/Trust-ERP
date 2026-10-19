@@ -45,6 +45,7 @@ import {
 } from 'lucide-react';
 import type { UserRole } from '@/types/database';
 import { permCan } from '@/lib/permissions/catalog';
+import { ThemeSwitch } from '@/components/platform/shared/ThemeSync';
 
 interface NavItem {
   label: string;
@@ -188,12 +189,12 @@ function NavLink({
       title={collapsed ? item.label : undefined}
       className={`group flex items-center h-8.5 w-full rounded-xl px-2.5 text-xs font-medium transition-all duration-150 mb-0.5 select-none ${
         active
-          ? 'bg-white text-slate-900 shadow-xs font-bold'
+          ? 'bg-white text-[#0F172A] shadow-xs font-bold'
           : 'text-white/85 hover:text-white hover:bg-white/15'
       }`}
     >
       <div className="flex items-center gap-2.5 w-full min-w-0">
-        <span className={`flex items-center justify-center shrink-0 w-5 h-5 ${active ? 'text-slate-900' : 'text-white/80 group-hover:text-white'}`}>
+        <span className={`flex items-center justify-center shrink-0 w-5 h-5 ${active ? 'text-[#0F172A]' : 'text-white/80 group-hover:text-white'}`}>
           <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
         </span>
         <span
@@ -299,11 +300,11 @@ function NavGroup({
                 href={item.href}
                 className={`flex items-center gap-2 h-7.5 px-2 rounded-lg text-[12px] transition-colors ${
                   active
-                    ? 'bg-white text-slate-900 font-bold shadow-xs'
+                    ? 'bg-white text-[#0F172A] font-bold shadow-xs'
                     : 'text-white/80 hover:text-white hover:bg-white/10'
                 }`}
               >
-                <Icon size={13} strokeWidth={1.8} className={`shrink-0 ${active ? 'text-slate-900' : 'text-white/70'}`} />
+                <Icon size={13} strokeWidth={1.8} className={`shrink-0 ${active ? 'text-[#0F172A]' : 'text-white/70'}`} />
                 <span className="truncate">{item.label}</span>
               </Link>
             );
@@ -399,7 +400,7 @@ export function Sidebar({
       // with empty content-area background), so the sidebar has to pin itself instead.
       className="sticky top-0 h-screen flex flex-col text-white select-none overflow-hidden shrink-0 z-20"
       style={{
-        backgroundColor: 'var(--brand-navy)',
+        backgroundColor: 'var(--color-primary-800)',
         borderRight: '1px solid rgba(255, 255, 255, 0.08)',
         width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
         transition: `width ${DURATION}ms ${EASE}`,
@@ -501,6 +502,11 @@ export function Sidebar({
               </span>
             </div>
 
+            <div className="px-2.5 pt-1.5 pb-2 mb-1 border-b border-white/10">
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/50">Theme</p>
+              <ThemeSwitch tone="onDark" className="w-full" />
+            </div>
+
             <Link
               href="/settings"
               onClick={() => setMenuOpen(false)}
@@ -549,7 +555,7 @@ export function Sidebar({
           aria-expanded={menuOpen}
           title={collapsed ? `${userName} (${roleDisplay})` : undefined}
         >
-          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-slate-800 text-xs font-bold shadow-xs">
+          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-[#1E293B] text-xs font-bold shadow-xs">
             {initials}
           </div>
           <div

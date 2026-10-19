@@ -377,7 +377,7 @@ export function ContactImportClient() {
               <strong>{outcome.created}</strong> new Contacts · <strong>{outcome.merged}</strong> merged into existing · <strong>{outcome.skipped}</strong> skipped · <strong>{outcome.contacts}</strong> people added{outcome.needs > 0 && <> · <strong>{outcome.needs}</strong> project needs / potentials created</>}{outcome.photos > 0 && <> · <strong>{outcome.photos}</strong> photos added</>}{outcome.photosFailed > 0 && <span style={{ color: '#b91c1c' }}> · {outcome.photosFailed} photos failed</span>}
             </div>
             {outcome.unlinked > 0 && (
-              <div style={{ marginTop: 10, fontSize: 13, color: '#a16207' }}>
+              <div style={{ marginTop: 10, fontSize: 13, color: 'var(--status-warning-fg)' }}>
                 <strong>{outcome.unlinked} Contacts were not linked to {campaignName || 'the event'}</strong> (they won&apos;t show under the event filter or &quot;Shows attended&quot; yet). Apply migration 125 in Supabase, then import again — already-imported Contacts will show as matches to merge.
               </div>
             )}
@@ -492,9 +492,9 @@ export function ContactImportClient() {
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 13.5 }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => { setFilter('new'); setShown(PAGE); }}><strong>{counts.fresh}</strong>&nbsp;new</button>
                 <button className="btn btn-ghost btn-sm" style={{ color: '#0a7a3d' }} onClick={() => { setFilter('strong'); setShown(PAGE); }}><strong>{counts.strong}</strong>&nbsp;already in Contacts (merge by default)</button>
-                <button className="btn btn-ghost btn-sm" style={{ color: '#a16207' }} onClick={() => { setFilter('possible'); setShown(PAGE); }}><strong>{counts.possible}</strong>&nbsp;look similar — your call</button>
+                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-warning-fg)' }} onClick={() => { setFilter('possible'); setShown(PAGE); }}><strong>{counts.possible}</strong>&nbsp;look similar — your call</button>
                 <span style={{ marginLeft: 'auto' }}>
-                  {counts.undecided > 0 ? <strong style={{ color: '#a16207' }}>{counts.undecided} still need a decision</strong> : <strong style={{ color: '#0a7a3d' }}>All decided</strong>}
+                  {counts.undecided > 0 ? <strong style={{ color: 'var(--status-warning-fg)' }}>{counts.undecided} still need a decision</strong> : <strong style={{ color: '#0a7a3d' }}>All decided</strong>}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -542,7 +542,7 @@ export function ContactImportClient() {
                         {[...new Set(g.people.flatMap(p => p.sources.map(s => s.split(' · ')[0])))].join(', ')}
                         {g.mergedRows > 0 && ` · ${g.mergedRows} repeated row${g.mergedRows > 1 ? 's' : ''} combined`}
                       </div>
-                      {g.warnings.map((w, i) => <div key={i} style={{ ...muted, color: '#a16207', display: 'flex', gap: 4, marginTop: 3 }}><AlertTriangle size={12} style={{ flexShrink: 0, marginTop: 2 }} />{w}</div>)}
+                      {g.warnings.map((w, i) => <div key={i} style={{ ...muted, color: 'var(--status-warning-fg)', display: 'flex', gap: 4, marginTop: 3 }}><AlertTriangle size={12} style={{ flexShrink: 0, marginTop: 2 }} />{w}</div>)}
                     </div>
                     {m.length > 0 && target && (
                       <div style={{ background: 'var(--bg-subtle, #f6f6f4)', borderRadius: 8, padding: 10 }}>
@@ -574,7 +574,7 @@ export function ContactImportClient() {
                               <div style={muted}>Everything already on this Contact stays exactly as it is.</div>
                               {adds.length > 0 && <div style={{ color: '#0a7a3d' }}>+ Fills empty fields: {adds.join(' · ')}</div>}
                               {newPeople.length > 0 && <div style={{ color: '#0a7a3d' }}>+ Adds {newPeople.length === 1 ? 'a person' : 'people'}: {newPeople.join(', ')}</div>}
-                              {keeps.length > 0 && <div style={{ color: '#a16207' }}>Different in your file — your existing value stays, the file's value goes into the Activity note: {keeps.join(' · ')}</div>}
+                              {keeps.length > 0 && <div style={{ color: 'var(--status-warning-fg)' }}>Different in your file — your existing value stays, the file's value goes into the Activity note: {keeps.join(' · ')}</div>}
                               <div style={muted}>+ An Activity note with the imported info is added.</div>
                             </div>
                           );
@@ -590,7 +590,7 @@ export function ContactImportClient() {
                         {label}
                       </label>
                     ))}
-                    {d.action === null && <span style={{ color: '#a16207', fontWeight: 600 }}>Choose one</span>}
+                    {d.action === null && <span style={{ color: 'var(--status-warning-fg)', fontWeight: 600 }}>Choose one</span>}
                     <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       {st?.state === 'running' && <Loader2 size={14} className="spin" />}
                       {st && st.state !== 'running' && (

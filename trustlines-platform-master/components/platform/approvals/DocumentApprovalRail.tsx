@@ -80,7 +80,7 @@ export function DocumentApprovalRail({
           <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
               <div style={{ width: 26, height: 26, borderRadius: '50%', background: badge[0], border: `2px solid ${badge[1]}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
-              {i < stages.length - 1 && <div style={{ width: 2, flex: 1, minHeight: 20, background: '#e5e7eb', margin: '4px 0' }} />}
+              {i < stages.length - 1 && <div style={{ width: 2, flex: 1, minHeight: 20, background: 'var(--bg-sunken)', margin: '4px 0' }} />}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12, fontWeight: 700 }}>{i + 1}. {st.label}</div>

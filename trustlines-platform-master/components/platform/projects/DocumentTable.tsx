@@ -141,7 +141,7 @@ function OverflowMenu({ doc, onRefresh }: { doc: DocumentRow; onRefresh: () => v
       {open && (
         <div style={{
           position: 'absolute', right: 0, top: '100%', zIndex: 50,
-          background: 'white', border: '1px solid var(--border-default)',
+          background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
           borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
           minWidth: 200, padding: '4px 0',
         }}>
@@ -204,7 +204,7 @@ export function DocumentTable({ documents, userRole, projectId, projectCode, dro
           {canUpload && (
             <button
               onClick={() => setShowUpload(true)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 6, border: '1px solid var(--border-default)', background: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--fg-default)', fontFamily: 'var(--font-ui)' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 6, border: '1px solid var(--border-default)', background: 'var(--bg-surface)', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--fg-default)', fontFamily: 'var(--font-ui)' }}
             >
               <Upload size={12} /> Upload
             </button>

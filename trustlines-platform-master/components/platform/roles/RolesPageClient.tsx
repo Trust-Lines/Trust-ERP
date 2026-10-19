@@ -175,7 +175,7 @@ function PermissionEditor({
               <button
                 onClick={() => setGroup(keys, !allOn)}
                 disabled={false}
-                style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border-default)', background: '#fff', color: 'var(--brand-teal)', cursor: 'pointer' }}>
+                style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--brand-teal)', cursor: 'pointer' }}>
                 {allOn ? 'Clear all' : 'Enable all'}
               </button>
             </div>

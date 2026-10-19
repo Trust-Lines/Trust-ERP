@@ -33,7 +33,7 @@ export function LoginShell({ logo, children }: { logo: React.ReactNode; children
         .tl-login-stage > * { position: absolute; }
         .tl-login-rot { flex: none; transform: rotate(-123.73deg) scaleY(0.95) skewX(-18.49deg); position: relative; }
         .tl-login-logo { position: relative; flex: none; }
-        .tl-login-card { position: relative; width: 424px; max-width: 100%; min-height: 483px; border-radius: 16px; background: #fff; box-shadow: 0 20px 60px rgba(0,0,0,.35); padding: 61px 21px 21px; box-sizing: border-box; }
+        .tl-login-card { position: relative; width: 424px; max-width: 100%; min-height: 483px; border-radius: 16px; background: var(--tl-card, #fff); box-shadow: 0 20px 60px rgba(0,0,0,.35); padding: 61px 21px 21px; box-sizing: border-box; }
         @media (min-width: 901px) { .tl-login-logo, .tl-login-card { zoom: var(--tl-zoom, 1); } }
         @media (max-width: 900px) {
           .tl-login { flex-direction: column; justify-content: center; }

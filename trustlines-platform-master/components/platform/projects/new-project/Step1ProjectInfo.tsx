@@ -92,7 +92,7 @@ export function Step1ProjectInfo({
       </div>
 
       {showNewClientForm && (
-        <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 8, padding: 14, marginBottom: 8 }}>
+        <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', borderRadius: 8, padding: 14, marginBottom: 8 }}>
           <div className="form-grid-2" style={{ marginBottom: 10 }}>
             <div>
               <label className="form-label required">Region name</label>
@@ -131,8 +131,8 @@ export function Step1ProjectInfo({
       </div>
 
       {/* Find Location (US) Section */}
-      <div style={{ paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>Find location (US)</h3>
+      <div style={{ paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg-default)', marginBottom: 12 }}>Find location (US)</h3>
         <div className="form-grid-2">
           <div className="form-group" style={{ marginBottom: 0 }}>
             <FieldLabel required>State</FieldLabel>
