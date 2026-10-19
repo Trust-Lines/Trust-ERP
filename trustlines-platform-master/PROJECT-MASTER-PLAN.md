@@ -1321,6 +1321,7 @@ Eksik küçük detaylarda mevcut mimariye ve bu dosyaya uygun en güvenli karar 
 
 ```text
 Project architecture:
+- Requests redesign typography tokens and the Design status chip now match the approved UI specification (2026-10-19).
 - Main Next.js / Supabase platform exists.
 - Auth and permissions exist.
 - Dropbox document system exists.
@@ -1594,6 +1595,7 @@ Project architecture:
 > Claude `devam et` komutunda ilk tamamlanmamış görevden başlamalıdır.
 
 ```text
+[x] Requests redesign polish: 32px/600 heading, 13px/600 breadcrumb label, and T4 Design chip styling. (2026-10-19)
 [x] 1. Audit all current uses of clients and client_companies.  (DONE — AUDIT_PHASE0_CLIENTS.md)
 [x] 2. Produce a safe rename / compatibility map.               (DONE — AUDIT_PHASE0_CLIENTS.md §3–4)
 --- Phase 1 — Customer Management V1 ---
@@ -2152,6 +2154,13 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-10-19 (Requests redesign typography + Design chip) — NO migration, NO API change
+- Matched the Requests title and "Tlines NE / Operations" breadcrumb typography to the approved Instrument Sans
+  specification and updated the Design status chip to the specified T4 background, spacing, gap, and 4px radius.
+- Changed files: components/platform/approvals/ApprovalsPageClient.tsx, PROJECT-MASTER-PLAN.md.
+- Verified: targeted ESLint passes; 43/43 test files (578 passed, 9 skipped); production build passes.
+  Full-repository lint remains blocked only by four pre-existing `no-undef` errors in `_probe078b.mjs`.
+
 2026-10-15 (Split large files — same look, same behaviour) — NO migration, NO API change
 - Pure front-end refactor: five oversized components were cut into smaller files. State, fetch calls and API URLs stay
   in each main component; the new files only render. No UI text, styling or route changed.

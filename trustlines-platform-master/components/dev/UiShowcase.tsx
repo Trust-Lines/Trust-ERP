@@ -17,7 +17,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { KpiCard, KpiCardRow } from '@/components/ui/kpi-card';
-import { ConfirmModal, Modal, ModalClose, ModalContent, ModalTrigger } from '@/components/ui/modal';
+import { ConfirmModal, Modal, ModalClose, ModalContent, ModalTrigger, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { Pagination } from '@/components/ui/pagination';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select } from '@/components/ui/select';
@@ -27,6 +27,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TagInput } from '@/components/ui/tag-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { feedback } from '@/components/ui/feedback-toast';
+import { FilesEmptyState } from '@/components/platform/shared/FilesEmptyState';
 
 const OPTIONS = [
   { value: '1', label: 'Option 1' },
@@ -389,25 +391,45 @@ export function UiShowcase() {
             <Modal>
               <ModalTrigger render={<Button />}>Form modal (md)</ModalTrigger>
               <ModalContent
-                title="Invite a designer"
-                description="They get an email invite and the designer role."
+                title="Create a project"
+                description="Turn an approved opportunity into a shared workspace."
                 footer={<>
-                  <ModalClose render={<Button variant="secondary" />}>Cancel</ModalClose>
-                  <ModalClose render={<Button />}>Send invite</ModalClose>
+                  <ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Cancel</ModalClose>
+                  <ModalClose render={<Button />}>Create project</ModalClose>
                 </>}
               >
                 <div className="space-y-3">
-                  <div><label htmlFor="m-name" className="mb-1 block text-caption font-medium text-primary-700">Full name</label><Input id="m-name" placeholder="e.g. Sara Khaled" /></div>
-                  <div><label htmlFor="m-email" className="mb-1 block text-caption font-medium text-primary-700">Email</label><Input id="m-email" type="email" placeholder="sara@…" /></div>
-                  <div><label htmlFor="m-office" className="mb-1 block text-caption font-medium text-primary-700">Office</label><Select id="m-office" options={[{ value: 'tr', label: 'Trust Lines Türkiye' }, { value: 'sy', label: 'Syria Office' }]} placeholder="Select office" /></div>
+                  <div><label htmlFor="m-name" className="mb-1 block text-caption font-medium text-ui-body">Project name *</label><Input id="m-name" defaultValue="Northstar · CRM rollout" /></div>
+                  <div><label htmlFor="m-client" className="mb-1 block text-caption font-medium text-ui-body">Client *</label><Select id="m-client" options={[{ value: 'northstar', label: 'Northstar Labs' }]} placeholder="Select client" /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label htmlFor="m-owner" className="mb-1 block text-caption font-medium text-ui-body">Owner</label><Select id="m-owner" options={[{ value: 'maya', label: 'Maya Chen' }]} placeholder="Select owner" /></div>
+                    <div><label htmlFor="m-due" className="mb-1 block text-caption font-medium text-ui-body">Due date</label><Input id="m-due" type="date" /></div>
+                  </div>
+                  <p className="text-caption text-ui-text-secondary">The client contact will not be notified until you invite them.</p>
                 </div>
               </ModalContent>
             </Modal>
 
             <Modal>
               <ModalTrigger render={<Button variant="secondary" />}>Info modal (sm)</ModalTrigger>
-              <ModalContent size="sm" title="Project code" footer={<ModalClose render={<Button />}>Got it</ModalClose>}>
-                Codes are generated from company + region + a running number, e.g. STW 460.
+              <ModalContent
+                size="sm"
+                title="Your project is ready"
+                description="Everything your team needs is in one place."
+                footer={<>
+                  <ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Not now</ModalClose>
+                  <ModalClose render={<Button />}>Open project</ModalClose>
+                </>}
+              >
+                <div className="space-y-4">
+                  <StatusBadge group="project_stage" status="completed" label="Project created" size="sm" />
+                  <p>Northstar · CRM rollout is ready. We&apos;ve carried over your client, owner and approved scope.</p>
+                  <ul className="space-y-2.5 pl-2">
+                    {['Invite your delivery team', 'Confirm milestones and due dates', 'Upload the signed statement of work'].map(step => (
+                      <li key={step} className="flex items-center gap-2.5"><CircleCheckIcon className="size-4 shrink-0" aria-hidden />{step}</li>
+                    ))}
+                  </ul>
+                </div>
               </ModalContent>
             </Modal>
 
@@ -432,13 +454,42 @@ export function UiShowcase() {
             <ConfirmModal
               trigger={<Button variant="destructive"><Trash2Icon />Destructive confirm</Button>}
               tone="destructive"
-              title="Delete permanently?"
-              description="This removes the record for good. It cannot be undone."
-              confirmLabel="Delete forever"
-              onConfirm={() => new Promise<void>(r => setTimeout(() => { setConfirmResult('Deleted after 1s save (demo)'); r(); }, 1000))}
-            />
+              title="Delete this project?"
+              description="Review what will move to Trash before continuing."
+              warning="This removes the project from active work. Team members will lose access."
+              confirmLabel="Move to Trash"
+              onConfirm={() => new Promise<void>(r => setTimeout(() => { setConfirmResult('Moved to Trash after 1s save (demo)'); r(); }, 1000))}
+            >
+              <div className="space-y-1.5">
+                <p className="font-semibold">Northstar · CRM rollout</p>
+                <p className="text-ui-text-secondary">PRJ-2048 · Northstar Labs</p>
+                <p>12 tasks, 4 documents and 8 comments will move with this project.</p>
+              </div>
+              <p className="text-ui-text-secondary">You can restore it from Trash for 30 days. After 15 Nov 2026, it will be permanently deleted.</p>
+            </ConfirmModal>
           </div>
           {confirmResult && <p role="status" className="mt-3 text-meta text-success-dark">Last confirm: {confirmResult}</p>}
+        </Panel>
+
+        <Panel title="Feedback patterns · Toast">
+          <p className="mb-3 text-meta text-primary-500">Toasts appear bottom-right. Success links to the record, info offers Undo, error offers Retry.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => feedback.success('Changes saved', { description: 'Northstar · CRM rollout is up to date.', action: { label: 'View project', href: '/projects' } })}>
+              Success toast
+            </Button>
+            <Button variant="secondary" onClick={() => feedback.info('Project moved to Trash', { description: 'PRJ-2048 can be restored for 30 days.', action: { label: 'Undo move', onClick: () => feedback.success('Project restored') } })}>
+              Info toast (Undo)
+            </Button>
+            <Button variant="secondary" onClick={() => feedback.error('Upload interrupted', { description: 'proposal-v3.pdf could not be uploaded.', action: { label: 'Retry upload', onClick: () => feedback.success('Uploaded') } })}>
+              Error toast (Retry)
+            </Button>
+          </div>
+        </Panel>
+
+        <Panel title="Feedback patterns · Empty state / first use">
+          <div className="rounded-[8px] border border-ui-divider">
+            <FilesEmptyState onUpload={() => feedback.info('Upload clicked (demo)')} hint="PDF, DWG, DXF and images" />
+          </div>
         </Panel>
       </div>
     </TooltipProvider>

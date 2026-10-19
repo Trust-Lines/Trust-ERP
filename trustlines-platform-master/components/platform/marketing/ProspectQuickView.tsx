@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { X, Paperclip, Send, Loader2, Image as ImageIcon, Trash2, Pencil, Check } from 'lucide-react';
+import { X, Paperclip, Send, Loader2, Image as ImageIcon, Trash2, Pencil, Check, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProspectDetailClient } from './ProspectDetailClient';
 import { compressImage, MAX_UPLOAD_BYTES } from '@/lib/client/compressImage';
 import { uploadImageDirect } from '@/lib/client/directDropboxUpload';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface ContactNote {
   id: string; prospect_contact_id: string; author_name: string | null; author_id?: string | null;
@@ -182,7 +183,7 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'grid', gap: 10, alignContent: 'start' }}>
             {notes.length === 0 && !loading && (
-              <div style={{ fontSize: 12.5, color: 'var(--fg-subtle)', textAlign: 'center', marginTop: 24 }}>No activity yet.</div>
+              <EmptyState size="sm" className="mt-6 justify-center" icon={<Activity />} title="No activity yet." />
             )}
             {notes.map(n => (
               <div key={n.id} style={{ background: 'var(--bg-surface)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border-subtle)' }}>

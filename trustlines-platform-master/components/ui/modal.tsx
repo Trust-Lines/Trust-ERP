@@ -4,7 +4,7 @@ import * as React from "react"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
 import { cva, type VariantProps } from "class-variance-authority"
-import { XIcon } from "lucide-react"
+import { CircleXIcon, XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -16,8 +16,10 @@ import { Button } from "@/components/ui/button"
 const backdropClass =
   "fixed inset-0 z-50 bg-primary-950/40 transition-opacity duration-150 data-starting-style:opacity-0 data-ending-style:opacity-0"
 
+// Dialog patterns (Figma "Dialog patterns": information / form / delete confirmation):
+// 8px radius, no header rule, 20px heading, inset divider above the footer.
 const popupVariants = cva(
-  "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-3rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-modal border border-ui-divider bg-ui-surface-elevated text-primary-800 shadow-04 outline-none transition-[scale,opacity] duration-150 data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
+  "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-3rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-[8px] border border-ui-divider bg-ui-surface-elevated font-[family-name:var(--font-ui)] text-[13px] leading-[1.5] text-ui-body shadow-04 outline-none transition-[scale,opacity] duration-150 data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
   {
     variants: {
       size: {
@@ -29,6 +31,15 @@ const popupVariants = cva(
     defaultVariants: { size: "md" },
   }
 )
+
+const titleClass = "text-[20px] font-semibold leading-[1.3] text-ui-heading"
+const descriptionClass = "text-[13px] text-ui-text-secondary"
+const footerClass = "mx-5 flex flex-wrap items-center justify-end gap-2 border-t border-ui-divider py-4"
+
+/** Light-outline "Cancel" / "Not now" button used in dialog footers. */
+const modalSecondaryButtonClass = "border-ui-divider bg-white text-ui-body hover:border-primary-200 hover:bg-primary-50 hover:text-ui-body"
+/** Soft destructive confirm ("Move to Trash"): light red fill, dark red text. */
+const modalDangerButtonClass = "bg-error-light text-error-dark hover:bg-error-light hover:brightness-95"
 
 const Modal = DialogPrimitive.Root
 const ModalTrigger = DialogPrimitive.Trigger
@@ -50,19 +61,19 @@ function ModalContent({ title, description, footer, showClose = true, size, clas
     <DialogPrimitive.Portal>
       <DialogPrimitive.Backdrop className={backdropClass} />
       <DialogPrimitive.Popup data-slot="modal" className={cn(popupVariants({ size }), className)}>
-        <div className="flex items-start gap-3 border-b border-ui-divider px-5 py-4">
-          <div className="min-w-0 flex-1 space-y-0.5">
-            <DialogPrimitive.Title className="text-body-lg font-semibold text-primary-950">{title}</DialogPrimitive.Title>
-            {description && <DialogPrimitive.Description className="text-meta text-primary-500">{description}</DialogPrimitive.Description>}
+        <div className="flex items-start gap-3 px-5 pt-5 pb-3">
+          <div className="min-w-0 flex-1 space-y-1">
+            <DialogPrimitive.Title className={titleClass}>{title}</DialogPrimitive.Title>
+            {description && <DialogPrimitive.Description className={descriptionClass}>{description}</DialogPrimitive.Description>}
           </div>
           {showClose && (
-            <DialogPrimitive.Close render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-mr-1.5 -mt-0.5" />}>
+            <DialogPrimitive.Close render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-mr-1.5 text-ui-body" />}>
               <XIcon />
             </DialogPrimitive.Close>
           )}
         </div>
-        {children && <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 text-body-sm">{children}</div>}
-        {footer && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-ui-divider px-5 py-3.5">{footer}</div>}
+        {children && <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-2 pb-5">{children}</div>}
+        {footer && <div className={footerClass}>{footer}</div>}
       </DialogPrimitive.Popup>
     </DialogPrimitive.Portal>
   )
@@ -77,8 +88,12 @@ type ConfirmModalProps = {
   description?: React.ReactNode
   confirmLabel?: string
   cancelLabel?: string
-  /** "destructive" = red confirm button, for delete / purge / revoke. */
+  /** "destructive" = soft red confirm button, for delete / purge / revoke. */
   tone?: "default" | "destructive"
+  /** Red banner stating the impact, e.g. "Team members will lose access." */
+  warning?: React.ReactNode
+  /** Record details shown under the banner (name, what moves with it, recovery window). */
+  children?: React.ReactNode
   /** May be async; the confirm button shows a spinner until it settles, then the dialog closes. Throw to keep it open. */
   onConfirm: () => void | Promise<void>
 }
@@ -96,6 +111,8 @@ function ConfirmModal({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   tone = "default",
+  warning,
+  children,
   onConfirm,
 }: ConfirmModalProps) {
   const [openState, setOpenState] = React.useState(false)
@@ -124,13 +141,36 @@ function ConfirmModal({
       <AlertDialogPrimitive.Portal>
         <AlertDialogPrimitive.Backdrop className={backdropClass} />
         <AlertDialogPrimitive.Popup data-slot="confirm-modal" className={popupVariants({ size: "sm" })}>
-          <div className="space-y-1.5 px-5 pt-5 pb-4">
-            <AlertDialogPrimitive.Title className="text-body-lg font-semibold text-primary-950">{title}</AlertDialogPrimitive.Title>
-            {description && <AlertDialogPrimitive.Description className="text-body-sm text-primary-500">{description}</AlertDialogPrimitive.Description>}
+          <div className="flex items-start gap-3 px-5 pt-5 pb-3">
+            <div className="min-w-0 flex-1 space-y-1">
+              <AlertDialogPrimitive.Title className={titleClass}>{title}</AlertDialogPrimitive.Title>
+              {description && <AlertDialogPrimitive.Description className={descriptionClass}>{description}</AlertDialogPrimitive.Description>}
+            </div>
+            <AlertDialogPrimitive.Close
+              render={<Button variant="ghost" size="icon-sm" aria-label="Close" disabled={busy} className="-mr-1.5 text-ui-body" />}
+            >
+              <XIcon />
+            </AlertDialogPrimitive.Close>
           </div>
-          <div className="flex justify-end gap-2 px-5 pb-5">
-            <AlertDialogPrimitive.Close render={<Button variant="secondary" disabled={busy} />}>{cancelLabel}</AlertDialogPrimitive.Close>
-            <Button variant={tone === "destructive" ? "destructive" : "primary"} loading={busy} onClick={confirm}>
+          {(warning || children) && (
+            <div className="space-y-4 px-5 pt-2 pb-5">
+              {warning && (
+                <div role="alert" className="flex items-start gap-2.5 rounded-md bg-error-light px-3 py-3 text-error-dark">
+                  <CircleXIcon className="mt-px size-4 shrink-0" aria-hidden />
+                  <div>{warning}</div>
+                </div>
+              )}
+              {children}
+            </div>
+          )}
+          <div className={footerClass}>
+            <AlertDialogPrimitive.Close render={<Button variant="secondary" disabled={busy} className={modalSecondaryButtonClass} />}>{cancelLabel}</AlertDialogPrimitive.Close>
+            <Button
+              variant="primary"
+              loading={busy}
+              onClick={confirm}
+              className={tone === "destructive" ? modalDangerButtonClass : undefined}
+            >
               {confirmLabel}
             </Button>
           </div>
@@ -140,5 +180,5 @@ function ConfirmModal({
   )
 }
 
-export { Modal, ModalTrigger, ModalClose, ModalContent, ConfirmModal }
+export { Modal, ModalTrigger, ModalClose, ModalContent, ConfirmModal, modalSecondaryButtonClass, modalDangerButtonClass }
 export type { ModalContentProps, ConfirmModalProps }

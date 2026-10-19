@@ -9,6 +9,8 @@ import {
   isDateColumn, isMoneyColumn, BOARD_CSS,
   type PSection, type PItem, type ColumnKey,
 } from '@/lib/excel/projectsExcelExport';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Factory } from 'lucide-react';
 
 const COLS = DEFAULT_VISIBLE_COLUMNS;
 const BORDER = `1px solid ${BOARD_CSS.border}`;
@@ -33,10 +35,11 @@ export function OperationalBoard({ sections }: { sections: PSection[] }) {
 
   if (!nonEmpty.length) {
     return (
-      <div style={{ padding: '56px 24px', textAlign: 'center', color: 'var(--fg-subtle)' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg-muted)' }}>No production rows yet</div>
-        <div style={{ fontSize: 12, marginTop: 4 }}>Projects with production items will appear here grouped by region.</div>
-      </div>
+      <EmptyState
+        icon={<Factory />}
+        title="No production rows yet"
+        description="Projects with production items will appear here grouped by region."
+      />
     );
   }
 

@@ -16,6 +16,7 @@ import { SourceSelect } from './SourceSelect';
 import { TagMultiSelect } from './TagMultiSelect';
 import type { LeadEntityType, ProjectType, ScopeType, LeadTiming } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
+import { feedback } from '@/components/ui/feedback-toast';
 
 const STEPS = ['Source', 'Company', 'Contact', 'Project Need', 'Timing', 'Classification'] as const;
 const CONTACT_METHODS = ['Email', 'Phone', 'WhatsApp', 'Other'];
@@ -238,7 +239,7 @@ export function LeadCaptureWizard() {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) { setSaving(false); toast.error(body.error ?? 'Failed to save lead'); return; }
-    toast.success(`"${displayName}" saved to Contacts`);
+    feedback.success('Lead saved', { description: `${displayName} was added to Contacts.` });
     if (Array.isArray(body.duplicates) && body.duplicates.length) {
       toast.warning(`Possible duplicate of "${body.duplicates[0].display_name}" — review after saving.`);
     }

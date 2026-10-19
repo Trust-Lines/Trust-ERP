@@ -1,7 +1,9 @@
 'use client';
 
+import { Activity } from 'lucide-react';
 import { useState } from 'react';
 import type { AuditRow } from './ProjectDetailClient';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface Props {
   events: AuditRow[];
@@ -80,9 +82,7 @@ export function AuditTrail({ events, userRole, userId }: Props) {
 
       <div style={{ padding: '4px 0' }}>
         {visible.length === 0 ? (
-          <div style={{ padding: '28px 18px', textAlign: 'center', fontSize: 13, color: 'var(--fg-faint)' }}>
-            No activity yet
-          </div>
+          <EmptyState size="sm" className="justify-center px-4 py-7" icon={<Activity />} title="No activity yet." />
         ) : (
           visible.map(ev => {
             const cfg   = getCfg(ev.action);

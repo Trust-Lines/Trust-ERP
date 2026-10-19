@@ -8,6 +8,8 @@ import { FileUploadZone } from './FileUploadZone';
 import type { DocumentRow } from './ProjectDetailClient';
 import { StatusBadge as TagBadge } from '@/components/ui/status-badge';
 import { DOC_STATUS_TAG } from '@/lib/status/tags';
+import { FilesEmptyState } from '@/components/platform/shared/FilesEmptyState';
+import { feedback } from '@/components/ui/feedback-toast';
 
 interface Props {
   documents:       DocumentRow[];
@@ -77,7 +79,12 @@ function ViewBtn({ docId }: { docId: string }) {
       if (!res.ok) throw new Error();
       const { link } = await res.json() as { link: string };
       window.open(link, '_blank');
-    } catch { alert('Could not open file'); }
+    } catch {
+      feedback.error('Could not open file', {
+        description: 'The Dropbox link could not be created.',
+        action: { label: 'Try again', onClick: () => void open() },
+      });
+    }
     finally { setLoading(false); }
   }
   return (
@@ -205,9 +212,7 @@ export function DocumentTable({ documents, userRole, projectId, projectCode, dro
         </div>
 
         {visible.length === 0 && pfCount === 0 ? (
-          <div className="card-body" style={{ textAlign: 'center', padding: '32px 18px', color: 'var(--fg-faint)', fontSize: 13 }}>
-            No documents uploaded yet
-          </div>
+          <FilesEmptyState onUpload={canUpload ? () => setShowUpload(true) : undefined} hint="PDF, DWG, DXF and images" />
         ) : (
           <div>
             {allGroups.map(({ group, docs }) => (

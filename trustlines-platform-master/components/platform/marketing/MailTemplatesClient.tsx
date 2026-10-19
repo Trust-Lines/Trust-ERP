@@ -4,6 +4,8 @@ import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Mail, Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react';
 import { MERGE_FIELDS, renderTemplate, type MergeContact } from '@/lib/marketing/mailTemplates';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 
 export interface MailTemplateRow {
   id: string;
@@ -186,10 +188,14 @@ export function MailTemplatesClient({ initialTemplates, loadError, canEdit }: Pr
           </div>
         </div></div>
       ) : templates.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
-          <Mail size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
-          <div>No templates yet.{canEdit && ' Click "New Template" to create the first one.'}</div>
-        </div></div>
+        <div className="card">
+          <EmptyState
+            icon={<Mail />}
+            title="No templates yet"
+            description="Save emails you send often so the team can reuse them."
+            action={canEdit && <Button onClick={startNew}><Plus /> Create first template</Button>}
+          />
+        </div>
       ) : (
         <div style={{ display: 'grid', gap: 10 }}>
           {templates.map(t => (

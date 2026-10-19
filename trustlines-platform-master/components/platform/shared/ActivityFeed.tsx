@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { MessageSquare, Loader2, Send } from 'lucide-react';
+import { MessageSquare, Loader2, Send, Activity } from 'lucide-react';
 import { Avatar } from '@/components/platform/shared/Avatar';
 import { formatDate } from '@/lib/formatDate';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface ActivityRow {
   id: string;
@@ -78,7 +79,7 @@ export function ActivityFeed({ apiBasePath }: { apiBasePath: string }) {
         {!loaded ? (
           <div style={{ color: 'var(--fg-subtle)', fontSize: 13 }}><Loader2 className="spin" size={13} /> Loading…</div>
         ) : items.length === 0 ? (
-          <div style={{ color: 'var(--fg-faint)', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>No activity yet.</div>
+          <EmptyState size="sm" className="justify-center py-4" icon={<Activity />} title="No activity yet." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {items.map(a => (

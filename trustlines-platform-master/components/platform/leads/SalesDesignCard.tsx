@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useMemo, useState } from 'react';
-import { Palette, Plus, ChevronDown, ExternalLink, UserPlus, Mail, FileText } from 'lucide-react';
+import { Palette, Plus, ChevronDown, ExternalLink, UserPlus, Mail, FileText, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export interface DesignerOption { id: string; full_name: string; office: string | null }
 
@@ -250,7 +251,7 @@ export function SalesDesignCard({ initialJobs, initialVersions, designers: initi
                       )}
 
                       <div style={{ fontSize: 12, color: 'var(--fg-subtle)', margin: '8px 0 6px' }}>Versions</div>
-                      {jv.length === 0 && <div style={{ fontSize: 12, color: 'var(--fg-faint)', marginBottom: 8 }}>No versions yet.</div>}
+                      {jv.length === 0 && <EmptyState size="sm" className="mb-2" icon={<Layers />} title="No versions yet." />}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {jv.map(v => (
                           <div key={v.id} style={{ border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '8px 10px' }}>

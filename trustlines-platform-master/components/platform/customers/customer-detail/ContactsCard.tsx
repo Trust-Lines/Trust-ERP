@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Star, ShieldCheck, Pencil, Trash2, Plus } from 'lucide-react';
+import { Star, ShieldCheck, Pencil, Trash2, Plus, Users } from 'lucide-react';
 import { Select } from '@/components/platform/shared/Select';
 import { ROLE_TYPES, type Contact } from './types';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export function ContactsCard({ contacts, canEdit, onSave, onDelete }: {
   contacts: Contact[];
@@ -33,7 +34,7 @@ export function ContactsCard({ contacts, canEdit, onSave, onDelete }: {
           </div>
         )}
         {contacts.length === 0 && !addingContact ? (
-          <div style={{ color: 'var(--fg-subtle)', fontSize: 13, padding: '8px 0' }}>No contacts yet.</div>
+          <EmptyState size="sm" icon={<Users />} title="No contacts yet." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {contacts.map(ct => editContactId === ct.id && canEdit ? (

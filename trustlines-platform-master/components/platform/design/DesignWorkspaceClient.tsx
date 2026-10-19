@@ -1,12 +1,14 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { Palette, ExternalLink, ChevronDown, CalendarClock, Paperclip, Box, Upload, FileText, FolderOpen, Send, UserPlus, Users, User, Plug, Info, RefreshCw } from 'lucide-react';
+import { Palette, ExternalLink, ChevronDown, CalendarClock, Paperclip, Box, Upload, FileText, FolderOpen, Send, UserPlus, Users, User, Plug, Info, RefreshCw, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import { Pill } from '@/components/platform/shared/Pill';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
 import type { LeadBrief, IntakeFile, DesignFile, ProjectMeta } from '@/app/(platform)/design/page';
 import { Select } from '@/components/platform/shared/Select';
+import { feedback } from '@/components/ui/feedback-toast';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface Props {
   jobs: SalesDesignJob[];
@@ -93,7 +95,13 @@ export function DesignWorkspaceClient({
       fd.append('file', file);
       const res = await fetch(`/api/design-jobs/${jobId}/versions/${versionId}/files`, { method: 'POST', body: fd });
       const b = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(b.error ?? 'Upload failed'); return; }
+      if (!res.ok) {
+        feedback.error('Upload interrupted', {
+          description: `${file.name} could not be uploaded.${b.error ? ` ${b.error}` : ''}`,
+          action: { label: 'Retry upload', onClick: () => void uploadDesignFile(jobId, versionId, file) },
+        });
+        return;
+      }
       setDesignFiles(p => ({ ...p, [versionId]: [...(p[versionId] ?? []), b.file] }));
       toast.success(`${b.file.file_name} uploaded — Sales can see it now`);
     } finally { setBusy(false); }
@@ -261,7 +269,7 @@ export function DesignWorkspaceClient({
                 />
 
                 <div style={{ fontSize: 12, color: 'var(--fg-subtle)', margin: '8px 0 6px' }}>Versions</div>
-                {jv.length === 0 && <div style={{ fontSize: 12, color: 'var(--fg-faint)', marginBottom: 8 }}>No versions yet — add your first draft below.</div>}
+                {jv.length === 0 && <EmptyState size="sm" className="mb-2" icon={<Layers />} title="No versions yet." description="Add your first draft below." />}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {jv.map(v => {
                     const files = designFiles[v.id] ?? [];
@@ -367,12 +375,15 @@ export function DesignWorkspaceClient({
       {schemaError ? (
         <div className="card"><div className="card-body" style={{ fontSize: 13, color: 'var(--status-danger)', background: 'var(--status-danger-bg)', border: '1px solid var(--status-danger)', borderRadius: 6 }}>{schemaError}</div></div>
       ) : jobs.length === 0 && unassigned.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
-          <Palette size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
-          <div>{isManager
-            ? 'No design jobs yet. One is created when a lead reaches “Working on it Trust”.'
-            : 'Nothing assigned to you yet. Sales will assign you a design job.'}</div>
-        </div></div>
+        <div className="card">
+          <EmptyState
+            icon={<Palette />}
+            title={isManager ? 'No design jobs yet' : 'Nothing assigned to you yet'}
+            description={isManager
+              ? 'A design job is created when a lead reaches “Working on it Trust”.'
+              : 'Sales will assign you a design job.'}
+          />
+        </div>
       ) : (
         <>
           {isManager && workload.length > 0 && (

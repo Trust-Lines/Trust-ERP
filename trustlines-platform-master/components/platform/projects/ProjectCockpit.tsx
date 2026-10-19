@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertCircle, ArrowRight, CheckCircle2, Circle, Clock } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, Circle, Clock, Layers } from 'lucide-react';
 import { PHASE_LABELS, TYPE_SUB_PHASE_LABELS, type LifecyclePhase, type TypeSubPhase } from '@/lib/lifecycle/projectLifecycle';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface RailStage { phase: LifecyclePhase; label: string; state: 'done' | 'active' | 'upcoming' }
 interface Blocker { code: string; message: string; count?: number }
@@ -129,7 +130,7 @@ export function ProjectCockpit({
         <div className="card" style={{ padding: 16 }}>
           <h2 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 12px' }}>Types</h2>
           {perType.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>No types defined yet.</p>
+            <EmptyState size="sm" className="py-0" icon={<Layers />} title="No types defined yet." />
           ) : (
             <div style={{ display: 'grid', gap: 6 }}>
               {perType.map(t => (

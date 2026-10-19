@@ -1,7 +1,7 @@
 'use client';
 
 import type { Dispatch, SetStateAction } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, ClipboardList } from 'lucide-react';
 import { PROJECT_TYPE_LABEL, SCOPE_TYPE_LABEL, OPPORTUNITY_STAGE_LABEL } from '@/lib/marketing/classification';
 import { NeedClassificationPill } from './shared';
 import { NeedForm } from './NeedForm';
@@ -10,6 +10,7 @@ import {
   DONE_POTENTIAL_STATUSES,
   type Need, type OpportunityRow, type Potential, type Prospect, type ProspectLocation, type Tab,
 } from './types';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export function NeedsTab({
   prospect, needs, opportunities, potentials, locations, canEdit,
@@ -52,9 +53,7 @@ export function NeedsTab({
         </div>
       )}
       {needs.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 32, color: 'var(--fg-subtle)' }}>
-          No project needs yet.
-        </div></div>
+        <div className="card"><EmptyState size="sm" className="justify-center px-4 py-8" icon={<ClipboardList />} title="No project needs yet." /></div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
           {needs.map(n => {

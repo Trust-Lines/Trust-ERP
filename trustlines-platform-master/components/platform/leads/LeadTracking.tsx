@@ -5,6 +5,7 @@ import { Check, Circle, FileText } from 'lucide-react';
 import { STAGE_ORDER, STAGE_LABELS, getStageIndex } from '@/lib/workflow/machine';
 import { PHASE1_STEPS } from '@/lib/workflow/steps';
 import type { ProjectStage } from '@/types/database';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface StepRow { phase: string; step_key: string; cat_group: string | null; status: string }
 interface Tracking {
@@ -88,7 +89,7 @@ export function LeadTracking({ intakeId }: { intakeId: string }) {
 
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Documents</div>
         {docEntries.length === 0 ? (
-          <div style={{ fontSize: 13, color: 'var(--fg-faint)' }}>No documents uploaded yet.</div>
+          <EmptyState size="sm" icon={<FileText />} title="No files here yet." />
         ) : (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {docEntries.map(([type, n]) => (

@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { UserPlus } from 'lucide-react';
 import { Avatar } from '@/components/platform/shared/Avatar';
 import { Select } from '@/components/platform/shared/Select';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 
 export interface SalesRepRow {
   id: string;
@@ -149,9 +151,12 @@ export function SalesTeamClient({ reps, regionClients, nextNumber }: Props) {
       <div className="card">
         <div className="card-body flush">
           {reps.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
-              No sales reps yet. Invite your first one above.
-            </div>
+            <EmptyState
+              icon={<UserPlus />}
+              title="No sales reps yet"
+              description="Invite reps so leads can be assigned to them by region."
+              action={<Button onClick={() => setShowInvite(true)}><UserPlus /> Invite first rep</Button>}
+            />
           ) : (
             <table className="tbl">
               <thead>

@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, CheckCircle2, Circle, CalendarClock } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, CheckCircle2, Circle, CalendarClock, FilePen, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 import { Pill } from '@/components/platform/shared/Pill';
 import type { ChangeRequest, SiteReadiness, SiteReadinessItem } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface Contact { id: string; name: string }
 interface TimelineEvent { kind: string; at: string; title: string; detail?: string }
@@ -118,7 +119,7 @@ export function FinalizationClient({
         <div className="card-body">
           {addingCr && canEdit && <div style={{ marginBottom: 12 }}><CrForm contacts={contacts} onSave={createCr} onCancel={() => setAddingCr(false)} /></div>}
           {crs.length === 0 && !addingCr ? (
-            <div style={{ color: 'var(--fg-subtle)', fontSize: 13, padding: '8px 0' }}>No change requests yet.</div>
+            <EmptyState size="sm" icon={<FilePen />} title="No change requests yet." />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {crs.map(cr => (
@@ -184,7 +185,7 @@ export function FinalizationClient({
         <div className="card-head"><div className="form-section-title">Communication timeline</div></div>
         <div className="card-body">
           {timeline.length === 0 ? (
-            <div style={{ color: 'var(--fg-subtle)', fontSize: 13 }}>Nothing recorded yet. Meetings, follow-ups, change requests and stage changes show up here.</div>
+            <EmptyState size="sm" icon={<Activity />} title="Nothing recorded yet." description="Meetings, follow-ups, change requests and stage changes show up here." />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {timeline.map((e, i) => (

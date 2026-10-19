@@ -1,5 +1,6 @@
 'use client';
 
+import { StickyNote } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -20,6 +21,7 @@ import { permCan } from '@/lib/permissions/catalog';
 import { can } from '@/lib/permissions/can';
 import type { ProjectStage, ProjectPhase } from '@/types/database';
 import type { StepRecord } from '@/lib/workflow/steps';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export interface ProfileSnippet { id: string; full_name: string }
 
@@ -193,7 +195,7 @@ function InternalNotesCard({ projectId, userId, initialNotes }: {
       )}
 
       {notesList.length === 0 && !showInput ? (
-        <div className="card-body" style={{ fontSize: 13, color: 'var(--fg-faint)' }}>No notes yet</div>
+        <div className="card-body"><EmptyState size="sm" className="py-0" icon={<StickyNote />} title="No notes yet." /></div>
       ) : (
         notesList.slice(0, 5).map((note, i) => (
           <div key={note.id} style={{

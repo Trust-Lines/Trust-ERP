@@ -1,10 +1,11 @@
 'use client';
 
-import { Pencil } from 'lucide-react';
+import { Pencil, ClipboardList } from 'lucide-react';
 import { SOURCE_LABEL } from '@/lib/marketing/classification';
 import { Field, NeedClassificationPill } from './shared';
 import { ProfileForm } from './ProfileForm';
 import type { Contact, Need, Prospect, ProspectLocation } from './types';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export function OverviewTab({
   prospect, primaryContact, primaryLocation, showsAttended, needs, canEdit,
@@ -78,7 +79,7 @@ export function OverviewTab({
         </div>
         <div className="card-body" style={{ fontSize: 12.5, color: 'var(--fg-subtle)' }}>
           {needs.length === 0 ? (
-            <span>No project needs captured yet. A Lead may have zero, one, or many — each classified independently.</span>
+            <EmptyState size="sm" className="py-0" icon={<ClipboardList />} title="No project needs captured yet." description="A Lead may have zero, one, or many — each classified independently." />
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {needs.map(n => (

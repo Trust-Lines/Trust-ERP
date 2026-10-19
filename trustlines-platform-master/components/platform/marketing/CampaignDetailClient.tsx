@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Copy, Check, Download, Pencil, Play, Pause, Lock } from 'lucide-react';
+import { Copy, Check, Download, Pencil, Play, Pause, Lock, Inbox } from 'lucide-react';
 import { Pill } from '@/components/platform/shared/Pill';
 import { SOURCE_LABEL } from '@/lib/marketing/classification';
 import { SURVEY_TEMPLATE_LABELS, type SurveyTemplate } from '@/lib/marketing/surveyTemplates';
 import type { RecentSubmissionRow } from '@/lib/marketing/campaigns';
 import type { CampaignStatus, CampaignType, LeadSource } from '@/types/database';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export interface CampaignDetail {
   id: string;
@@ -214,9 +215,7 @@ export function CampaignDetailClient({ campaign, ownerName, canEdit, stats, rece
 
       <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--fg-subtle)', marginBottom: 8 }}>Recent submissions</div>
       {recentSubmissions.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '24px', color: 'var(--fg-subtle)', fontSize: 13 }}>
-          No submissions yet.
-        </div></div>
+        <div className="card"><EmptyState size="sm" className="justify-center px-4 py-6" icon={<Inbox />} title="No submissions yet." /></div>
       ) : (
         <div className="card" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, MessageSquare, FolderOpen, PenTool, Flag, Circle } from 'lucide-react';
+import { Check, MessageSquare, FolderOpen, PenTool, Flag, Circle, Activity } from 'lucide-react';
 import { PROGRESS_STEPS, stageStep, type DealProgress, type TimelineEvent } from '@/lib/sales/dealProgress';
 import type { OpportunityStage } from '@/types/database';
+import { EmptyState } from '@/components/ui/empty-state';
 
 const fmtDate = (iso: string | null | undefined) => {
   if (!iso) return '—';
@@ -123,7 +124,7 @@ export function DealProgressPanel({ stage, progress }: { stage: OpportunityStage
           What happened · newest first
         </div>
         {progress.events.length === 0 ? (
-          <div style={{ fontSize: 13.5, color: 'var(--fg-faint)' }}>Nothing recorded yet.</div>
+          <EmptyState size="sm" icon={<Activity />} title="Nothing recorded yet." />
         ) : (
           <div style={{ display: 'grid' }}>
             {events.map((e, i) => {

@@ -1,11 +1,13 @@
 'use client';
 
+import { Users, StickyNote, GitCommitHorizontal } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { Avatar } from '@/components/platform/shared/Avatar';
 import { PermissionShield } from '@/components/platform/shared/PermissionShield';
 import type { ProfileSnippet, NoteRow, StageTransitionRow } from './ProjectDetailClient';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface FullProject {
   id: string;
@@ -51,9 +53,7 @@ function TeamCard({ team }: { team: DerivedTeamPerson[] }) {
   if (team.length === 0) {
     return (
       <RailCard title="Team">
-        <div style={{ fontSize: 12, color: 'var(--fg-faint)' }}>
-          No one yet — people appear automatically once a PM is set or a member&apos;s skill matches a project type.
-        </div>
+        <EmptyState size="sm" className="py-0" icon={<Users />} title="No one yet." description="People appear automatically once a PM is set or a member's skill matches a project type." />
       </RailCard>
     );
   }
@@ -124,7 +124,7 @@ function InternalNotesCard({ projectId, userId, initialNotes }: {
   return (
     <RailCard title="Internal Notes">
       {notes.length === 0 && !showInput && (
-        <div style={{ fontSize: 12, color: 'var(--fg-faint)', marginBottom: 8 }}>No notes yet</div>
+        <EmptyState size="sm" className="mb-2 py-0" icon={<StickyNote />} title="No notes yet." />
       )}
 
       {notes.slice(0, 5).map(note => (
@@ -190,7 +190,7 @@ function StageTimelineCard({ stageHistory }: { stageHistory: StageTransitionRow[
   return (
     <RailCard title="Timeline">
       {rows.length === 0 ? (
-        <div style={{ fontSize: 12, color: 'var(--fg-faint)' }}>No stage transitions yet</div>
+        <EmptyState size="sm" className="py-0" icon={<GitCommitHorizontal />} title="No stage transitions yet." />
       ) : (
         <div style={{ position: 'relative', paddingLeft: 18 }}>
           <div style={{

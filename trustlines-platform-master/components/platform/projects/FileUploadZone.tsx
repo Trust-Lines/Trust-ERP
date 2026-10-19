@@ -8,6 +8,7 @@ import type { DocType } from '@/types/database';
 import { PROD_DOC_TYPES, PROD_TYPES } from '@/lib/dropbox/paths';
 import type { ProdType } from '@/lib/dropbox/paths';
 import { Select } from '@/components/platform/shared/Select';
+import { feedback } from '@/components/ui/feedback-toast';
 
 interface FileUploadZoneProps {
   projectId:       string;
@@ -122,7 +123,10 @@ export function FileUploadZone({
       onSuccess();
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Upload failed');
+      feedback.error('Upload interrupted', {
+        description: `${file.name} could not be uploaded.${err instanceof Error && err.message ? ` ${err.message}` : ''}`,
+        action: { label: 'Retry upload', onClick: () => void handleUpload() },
+      });
     } finally { setUploading(false); }
   }
 

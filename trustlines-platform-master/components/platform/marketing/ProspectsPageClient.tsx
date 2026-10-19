@@ -6,6 +6,7 @@ import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, Che
 import { toast } from 'sonner';
 import { SOURCE_LABEL } from '@/lib/marketing/classification';
 import { REGIONS } from '@/lib/regions';
+import { feedback } from '@/components/ui/feedback-toast';
 
 // Local to this filter only — REGIONS.label ("T-Lines North East") is the shared,
 // company-wide label used across Sales/Projects/PM too; Marketing asked for the short
@@ -406,7 +407,24 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     if (!res.ok) { const body = await res.json().catch(() => ({})); toast.error(body.error ?? 'Could not delete'); return; }
     setProspects(prev => prev.filter(x => x.id !== p.id));
     setTotal(t => Math.max(0, t - 1));
-    toast.success('Deleted');
+    feedback.info('Lead moved to Trash', {
+      description: `${p.display_name} and its needs and opportunities can be restored.`,
+      action: { label: 'Undo move', onClick: () => void restoreProspect(p) },
+    });
+  }
+
+  async function restoreProspect(p: ProspectRow) {
+    const res = await fetch(`/api/marketing/prospects/${p.id}/restore`, { method: 'POST' }).catch(() => null);
+    if (!res || !res.ok) {
+      feedback.error('Could not restore', {
+        description: `${p.display_name} is still in Trash.`,
+        action: { label: 'Try again', onClick: () => void restoreProspect(p) },
+      });
+      return;
+    }
+    setProspects(prev => (prev.some(x => x.id === p.id) ? prev : [p, ...prev]));
+    setTotal(t => t + 1);
+    feedback.success('Lead restored', { description: p.display_name });
   }
 
   if (loadError) {

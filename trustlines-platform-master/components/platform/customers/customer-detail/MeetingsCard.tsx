@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, CalendarDays } from 'lucide-react';
 import { Select } from '@/components/platform/shared/Select';
 import { MEETING_TYPES, cap, type Meeting } from './types';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export function MeetingsCard({ meetings, canEdit, onSave, onSetStatus, onDelete }: {
   meetings: Meeting[];
@@ -31,7 +32,7 @@ export function MeetingsCard({ meetings, canEdit, onSave, onSetStatus, onDelete 
           <div style={{ marginBottom: 12 }}><MeetingForm onSave={save} onCancel={() => setAddingMeeting(false)} /></div>
         )}
         {meetings.length === 0 && !addingMeeting ? (
-          <div style={{ color: 'var(--fg-subtle)', fontSize: 13, padding: '8px 0' }}>No meetings logged yet.</div>
+          <EmptyState size="sm" icon={<CalendarDays />} title="No meetings logged yet." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {meetings.map(m => (

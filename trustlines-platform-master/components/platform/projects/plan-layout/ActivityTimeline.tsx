@@ -1,6 +1,7 @@
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Activity } from 'lucide-react';
 import type { AuditRow } from '../ProjectDetailClient';
 import { formatAction } from './shared';
+import { EmptyState } from '@/components/ui/empty-state';
 
 /** Right column "Activity Timeline" card — the 10 most recent audit events. */
 export function ActivityTimeline({ auditEvents }: { auditEvents: AuditRow[] }) {
@@ -11,7 +12,7 @@ export function ActivityTimeline({ auditEvents }: { auditEvents: AuditRow[] }) {
           </div>
           <div style={{ padding: '12px 16px', maxHeight: 340, overflowY: 'auto' }}>
             {auditEvents.length === 0 ? (
-              <div style={{ fontSize: 12, color: 'var(--fg-faint)', textAlign: 'center', padding: '20px 0' }}>No activity yet</div>
+              <EmptyState size="sm" className="justify-center py-5" icon={<Activity />} title="No activity yet." />
             ) : (
               auditEvents.slice(0, 10).map((event, i) => (
                 <div

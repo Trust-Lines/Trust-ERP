@@ -1,9 +1,11 @@
 'use client';
 
+import { TrendingUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { SalesDashboardData } from '@/lib/sales/dashboardData';
 import type { ClosingRow, RegionRow, SilentDeal, StageBucket } from '@/lib/sales/dashboardMetrics';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // Sales dashboard, built around the questions a sales team actually asks:
 //   what needs doing today · where do open deals sit · which ones have gone quiet · how is each
@@ -257,7 +259,7 @@ function ClosingsChart({ rows, undated }: { rows: ClosingRow[]; undated: number 
     });
   };
 
-  if (!rows.length) return <div className="sd-sub">No closed deals with a recorded close date yet.</div>;
+  if (!rows.length) return <EmptyState size="sm" icon={<TrendingUp />} title="No closed deals with a recorded close date yet." />;
 
   return (
     <div>

@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Trash2, FileText, Wallet } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, FileText, Wallet, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Supplier, SupplierInvoice, SupplierPayment } from '@/types/database';
 import type { CurrencyTotals } from '@/lib/suppliers/config';
 import { CURRENCIES, PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '@/lib/suppliers/config';
 import { Select } from '@/components/platform/shared/Select';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface Props {
   supplier: Supplier;
@@ -45,7 +46,7 @@ export function SupplierDetailClient({ supplier, initialInvoices, initialPayment
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginBottom: 20 }}>
         {activeCurrencies.length === 0 && (
-          <div className="card" style={{ padding: 16, color: 'var(--fg-subtle)', fontSize: 13 }}>No invoices or payments yet.</div>
+          <div className="card"><EmptyState size="sm" className="px-4 py-4" icon={<Receipt />} title="No invoices or payments yet." /></div>
         )}
         {activeCurrencies.map(c => (
           <div key={c} className="card" style={{ padding: 16 }}>
