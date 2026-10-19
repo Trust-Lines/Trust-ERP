@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, MoreHorizontal, Plus } from 'lucide-react';
+import { ChevronDown, MoreHorizontal, Plus, Building2, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { Pill } from '@/components/platform/shared/Pill';
 import type { UserRole } from '@/types/database';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 
 async function auditLog(action: string, resource: string, newValue?: unknown) {
   await fetch('/api/audit', {
@@ -234,7 +236,14 @@ export function ClientsPageClient({ initialClients, userRole, canEdit }: Props) 
       )}
 
       {clients.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>No clients yet.{isOps && ' Click "Add client" to create the first one.'}</div></div>
+        <div className="card">
+          <EmptyState
+            icon={<Building2 />}
+            title="No clients yet"
+            description="Clients group the services and projects you deliver for each company."
+            action={isOps && <Button onClick={() => setShowAddClient(true)}><Plus /> Add first client</Button>}
+          />
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {clients.map(client => {
@@ -271,7 +280,7 @@ export function ClientsPageClient({ initialClients, userRole, canEdit }: Props) 
                 {isOpen && (
                   <div style={{ padding: '8px 18px 16px' }}>
                     {client.companies.length === 0 && (
-                      <div style={{ fontSize: 13, color: 'var(--fg-faint)', padding: '8px 0 4px 4px' }}>No services yet — add Store Maker, Premium Fitout, T Shop, Design &amp; Build…</div>
+                      <EmptyState size="sm" className="pl-1" icon={<Briefcase />} title="No services yet." description="Add Store Maker, Premium Fitout, T Shop, Design & Build…" />
                     )}
                     {client.companies.map((company, ci) => (
                       <div key={company.id}>

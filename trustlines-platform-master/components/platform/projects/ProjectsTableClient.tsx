@@ -2,13 +2,16 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2, Loader2 } from 'lucide-react';
+import { Trash2, Loader2, FolderKanban, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { StageBadge } from '@/components/platform/shared/StageBadge';
 import { Avatar } from '@/components/platform/shared/Avatar';
 import { PermissionShield } from '@/components/platform/shared/PermissionShield';
 import type { ProjectStage } from '@/types/database';
 import type { ProjectRow } from '@/app/(platform)/projects/page';
+import { EmptyState } from '@/components/ui/empty-state';
+import { buttonVariants } from '@/components/ui/button';
+import Link from 'next/link';
 
 interface Props {
   projects: ProjectRow[];
@@ -58,12 +61,14 @@ export function ProjectsTableClient({ projects, userRole, today }: Props) {
   if (!projects.length) {
     return (
       <div className="card">
-        <div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
-          No projects yet.{' '}
-          {userRole === 'ops_manager' && (
-            <a href="/projects/new" style={{ color: 'var(--brand-teal)' }}>Create the first one →</a>
+        <EmptyState
+          icon={<FolderKanban />}
+          title="No projects yet"
+          description="Projects keep the team, files and delivery stages for a job in one place."
+          action={userRole === 'ops_manager' && (
+            <Link href="/projects/new" className={buttonVariants()}><Plus /> Create first project</Link>
           )}
-        </div>
+        />
       </div>
     );
   }

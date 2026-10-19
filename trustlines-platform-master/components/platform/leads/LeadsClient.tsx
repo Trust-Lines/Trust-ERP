@@ -37,6 +37,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { feedback } from '@/components/ui/feedback-toast';
 
 type ViewMode = 'list' | 'board' | 'calendar';
 
@@ -259,7 +260,10 @@ export function LeadsClient({
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived }),
     }).catch(() => null);
     if (!res || !res.ok) { toast.error('Could not archive'); router.refresh(); }
-    else toast.success(archived ? 'Archived' : 'Unarchived');
+    else feedback.info(archived ? 'Lead archived' : 'Lead unarchived', {
+      description: lead.name,
+      action: { label: 'Undo', onClick: () => void archiveLead(lead, !archived) },
+    });
   }
 
   async function trashLead(lead: Lead) {
@@ -267,8 +271,24 @@ export function LeadsClient({
     if (!window.confirm('Move "' + lead.name + '" to trash? It stays there for 30 days.')) return;
     setLeads(prev => prev.filter(l => l.id !== lead.id));
     const res = await fetch('/api/leads/' + lead.id + '/trash', { method: 'POST' }).catch(() => null);
-    if (!res || !res.ok) { toast.error('Could not move to trash'); router.refresh(); }
-    else toast.success('Moved to trash');
+    if (!res || !res.ok) { toast.error('Could not move to trash'); router.refresh(); return; }
+    feedback.info('Lead moved to Trash', {
+      description: `${lead.name} can be restored for 30 days.`,
+      action: { label: 'Undo move', onClick: () => void restoreLead(lead) },
+    });
+  }
+
+  async function restoreLead(lead: Lead) {
+    const res = await fetch('/api/leads/' + lead.id + '/restore', { method: 'POST' }).catch(() => null);
+    if (!res || !res.ok) {
+      feedback.error('Could not restore', {
+        description: `${lead.name} is still in Trash.`,
+        action: { label: 'Try again', onClick: () => void restoreLead(lead) },
+      });
+      return;
+    }
+    setLeads(prev => (prev.some(l => l.id === lead.id) ? prev : [lead, ...prev]));
+    feedback.success('Lead restored', { description: lead.name });
   }
 
   // Column visibility (Columns menu) — remembered per browser.

@@ -3,6 +3,7 @@
 import type { RefObject } from 'react';
 import { FileText, Paperclip, Trash2 } from 'lucide-react';
 import type { ProspectFile } from './types';
+import { FilesEmptyState } from '@/components/platform/shared/FilesEmptyState';
 
 export function FilesTab({ files, canEdit, fileInputRef, uploadingFile, onUpload, onView, onDelete }: {
   files: ProspectFile[];
@@ -24,10 +25,13 @@ export function FilesTab({ files, canEdit, fileInputRef, uploadingFile, onUpload
         </div>
       )}
       {files.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 32, color: 'var(--fg-subtle)' }}>
-          <FileText size={24} style={{ opacity: 0.4, marginBottom: 8 }} />
-          <div>No files yet.</div>
-        </div></div>
+        <div className="card">
+          <FilesEmptyState
+            description="Keep briefs, photos and proposals for this lead together in one place."
+            uploadLabel="Attach first file"
+            onUpload={canEdit && !uploadingFile ? () => fileInputRef.current?.click() : undefined}
+          />
+        </div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
           {files.map(f => (

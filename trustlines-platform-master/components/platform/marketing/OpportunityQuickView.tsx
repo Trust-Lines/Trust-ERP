@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { X, Loader2, ExternalLink, Paperclip, Send, Image as ImageIcon, Trash2, Link2, Upload, FileText, ChevronDown } from 'lucide-react';
+import { X, Loader2, ExternalLink, Paperclip, Send, Image as ImageIcon, Trash2, Link2, Upload, FileText, ChevronDown, Activity } from 'lucide-react';
 import { TaskList } from '@/components/platform/shared/TaskList';
 import { DealProgressPanel } from '@/components/platform/shared/DealProgressPanel';
 import { MarkdownLite } from '@/components/platform/shared/MarkdownLite';
@@ -13,11 +13,13 @@ import { TagMultiSelect } from './TagMultiSelect';
 import { compressImage, MAX_UPLOAD_BYTES } from '@/lib/client/compressImage';
 import { uploadImageDirect } from '@/lib/client/directDropboxUpload';
 import { ContactSearchSelect } from './ContactSearchSelect';
+import { EmptyState } from '@/components/ui/empty-state';
 import { hashColor } from '@/lib/marketing/pillColor';
 import { normalizeIndustry, INDUSTRY_COLOR } from '@/lib/marketing/industry';
 import { OPPORTUNITY_STAGE_LABEL, TIMING_LABEL } from '@/lib/marketing/classification';
 import { REGIONS } from '@/lib/regions';
 import type { OpportunityStage, PotentialStatus, LeadTiming } from '@/types/database';
+import { feedback } from '@/components/ui/feedback-toast';
 
 type Deal = Record<string, unknown>;
 interface ProspectInfo { display_name: string; industry: string | null; brand_name: string | null }
@@ -199,7 +201,13 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
       form.set('file', f);
       const res = await fetch(`${apiBase}/files`, { method: 'POST', body: form });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(body.error ?? 'Could not upload'); return; }
+      if (!res.ok) {
+        feedback.error('Upload interrupted', {
+          description: `${f.name} could not be uploaded.${body.error ? ` ${body.error}` : ''}`,
+          action: { label: 'Retry upload', onClick: () => void uploadFile(f) },
+        });
+        return;
+      }
       setFiles(prev => [body.file, ...prev]);
     } finally { setUploadingFile(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
   }
@@ -490,7 +498,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                   </div>
                 ))}
                 {!files.length && !project?.dropbox_root_path && (
-                  <div style={{ fontSize: 13.5, color: 'var(--fg-faint)', padding: '6px 0' }}>No files yet.</div>
+                  <EmptyState size="sm" icon={<FileText />} title="No files here yet." />
                 )}
                 {canEdit && (
                   <div style={{ marginTop: 8, padding: files.length || project?.dropbox_root_path ? '0 4px 4px' : 0 }}>
@@ -520,7 +528,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'grid', gap: 10, alignContent: 'start' }}>
             {activityNotes.length === 0 && loaded && (
-              <div style={{ fontSize: 13.5, color: 'var(--fg-subtle)', textAlign: 'center', marginTop: 24 }}>No activity yet.</div>
+              <EmptyState size="sm" className="mt-6 justify-center" icon={<Activity />} title="No activity yet." />
             )}
             {activityNotes.map(n => (
               <div key={n.id} style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '11px 13px', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>

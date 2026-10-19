@@ -1,9 +1,10 @@
 'use client';
 
 import type { Dispatch, SetStateAction } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, MapPin } from 'lucide-react';
 import { LocationForm } from './LocationForm';
 import { locationLabel, type ProspectLocation } from './types';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export function LocationsTab({
   locations, canEdit, addingLocation, setAddingLocation, editingLocationId, setEditingLocationId,
@@ -32,9 +33,7 @@ export function LocationsTab({
         </div>
       )}
       {locations.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 32, color: 'var(--fg-subtle)' }}>
-          No locations yet.
-        </div></div>
+        <div className="card"><EmptyState size="sm" className="justify-center px-4 py-8" icon={<MapPin />} title="No locations yet." /></div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
           {locations.map(l => {

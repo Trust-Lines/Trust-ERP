@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Star, Pencil, Trash2, Plus } from 'lucide-react';
+import { Star, Pencil, Trash2, Plus, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { Select } from '@/components/platform/shared/Select';
 import { ADDRESS_TYPES, type Address } from './types';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export function AddressesCard({ addresses, canEdit, onSave, onDelete }: {
   addresses: Address[];
@@ -32,7 +33,7 @@ export function AddressesCard({ addresses, canEdit, onSave, onDelete }: {
           <div style={{ marginBottom: 12 }}><AddressForm onSave={p => save(p)} onCancel={() => setAddingAddress(false)} /></div>
         )}
         {addresses.length === 0 && !addingAddress ? (
-          <div style={{ color: 'var(--fg-subtle)', fontSize: 13, padding: '8px 0' }}>No addresses yet.</div>
+          <EmptyState size="sm" icon={<MapPin />} title="No addresses yet." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {addresses.map(a => editAddressId === a.id && canEdit ? (

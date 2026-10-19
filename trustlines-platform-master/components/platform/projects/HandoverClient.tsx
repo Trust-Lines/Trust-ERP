@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, Circle, Contact, X, Plus, ClipboardCheck } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Circle, Contact, X, Plus, ClipboardCheck, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import type { HandoverChecklistItem, ProjectHandover } from '@/types/database';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface Summary {
   tlines_pm: string | null; trustlines_pm: string | null; ops_manager: string | null; pm_supervisor: string | null;
@@ -172,7 +173,7 @@ export function HandoverClient(props: Props) {
 
               <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 6 }}>Attached to this project</div>
               {attached.length === 0 ? (
-                <div style={{ fontSize: 13, color: 'var(--fg-faint)', marginBottom: 12 }}>No contacts attached yet.</div>
+                <EmptyState size="sm" className="mb-3" icon={<Users />} title="No contacts attached yet." />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
                   {attached.map(a => {

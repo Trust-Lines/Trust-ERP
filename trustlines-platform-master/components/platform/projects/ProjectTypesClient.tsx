@@ -7,6 +7,7 @@ import { ArrowLeft, Layers, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { STATUS_CHAIN } from '@/lib/production/board';
 import { Select } from '@/components/platform/shared/Select';
+import { EmptyState } from '@/components/ui/empty-state';
 
 const STATUSES = [...STATUS_CHAIN, 'HOLD_T', 'HOLD_PM', 'ASSEMBLY'];
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
@@ -69,9 +70,8 @@ export function ProjectTypesClient({ projectId, projectCode, projectName, canEdi
       )}
 
       {rows.length === 0 ? (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--fg-subtle)' }}>
-          <Layers size={28} style={{ opacity: 0.4 }} />
-          <p style={{ margin: '12px 0 0', fontSize: 14 }}>No types on this project yet. Types are seeded from the project&apos;s categories on the production board.</p>
+        <div className="card">
+          <EmptyState size="sm" className="justify-center px-4 py-8" icon={<Layers />} title="No types on this project yet." description="Types are seeded from the project's categories on the production board." />
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 12 }}>

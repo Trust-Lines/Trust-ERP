@@ -1,9 +1,10 @@
 'use client';
 
 import type { Dispatch, SetStateAction } from 'react';
-import { Star, Pencil, Trash2 } from 'lucide-react';
+import { Star, Pencil, Trash2, Users } from 'lucide-react';
 import { ContactForm } from './ContactForm';
 import type { Contact } from './types';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export function ContactsTab({
   contacts, canEdit, addingContact, setAddingContact, editingContactId, setEditingContactId,
@@ -32,9 +33,7 @@ export function ContactsTab({
         </div>
       )}
       {contacts.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 32, color: 'var(--fg-subtle)' }}>
-          No contacts yet.
-        </div></div>
+        <div className="card"><EmptyState size="sm" className="justify-center px-4 py-8" icon={<Users />} title="No contacts yet." /></div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
           {contacts.map(c => {

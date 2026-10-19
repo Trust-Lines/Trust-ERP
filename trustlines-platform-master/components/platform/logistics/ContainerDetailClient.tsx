@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Search, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Search, ExternalLink, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { CONTAINER_STATUSES } from '@/lib/logistics/containers';
 import { Select } from '@/components/platform/shared/Select';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface Container {
   id: string; container_no: string | null; booking_no: string | null; carrier: string | null; vessel_name: string | null;
@@ -201,7 +202,7 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
             </div>
           )}
           {items.length === 0 ? (
-            <div style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>No items loaded yet.</div>
+            <EmptyState size="sm" icon={<Package />} title="No items loaded yet." />
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead><tr style={{ textAlign: 'left', color: 'var(--fg-subtle)', fontSize: 11, textTransform: 'uppercase' }}>

@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronRight, Shield } from 'lucide-react';
 import { Select } from '@/components/platform/shared/Select';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export interface AuditEntry {
   id: string;
@@ -245,9 +246,7 @@ export function AuditLogClient({ logs }: { logs: AuditEntry[] }) {
 
       {filtered.length === 0 ? (
         <div className="card">
-          <div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-faint)', fontSize: 13 }}>
-            No audit entries found.
-          </div>
+          <EmptyState icon={<Shield />} title="No audit entries found" description="Try a different search or filter." />
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>

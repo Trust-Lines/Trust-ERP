@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { feedback } from '@/components/ui/feedback-toast';
 
 export interface ApprovalActionBarProps {
   approvalId:   string;
@@ -53,7 +54,10 @@ export function ApprovalActionBar({
       }
       const json = await res.json() as { signatureApplied?: boolean; nextVersionOpened?: number | null };
       if (action === 'approve') {
-        toast.success(json.signatureApplied ? 'Approved — signature stamped on PDF ✍️' : 'Approved');
+        feedback.success('Approved', {
+          description: json.signatureApplied ? 'Your signature was stamped on the PDF.' : `Version ${versionNum} is approved.`,
+          action: { label: 'View project', href: `/projects/${projectId}` },
+        });
         if (json.signatureApplied) onPdfSigned?.();
         onSynced?.();
       } else if (json.nextVersionOpened != null) {

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Users } from 'lucide-react';
 import { Avatar } from '@/components/platform/shared/Avatar';
 import {
   COMPANY_SIDES, OFFICES, DEPARTMENTS, SKILLS,
@@ -13,6 +13,7 @@ import {
 import { REGIONS } from '@/lib/regions';
 import type { UserRole } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface ProfileRow {
   id: string;
@@ -677,7 +678,7 @@ function Section({ title, count, children }: { title: string; count: number; chi
       </div>
       <div className="card-body flush">
         {count === 0
-          ? <div style={{ padding: '20px 18px', fontSize: 13, color: 'var(--fg-faint)', textAlign: 'center' }}>No members yet</div>
+          ? <EmptyState size="sm" className="justify-center px-4 py-5" icon={<Users />} title="No members yet." />
           : children}
       </div>
     </div>

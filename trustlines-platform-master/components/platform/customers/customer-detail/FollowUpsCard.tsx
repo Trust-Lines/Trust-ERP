@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Trash2, Plus, CheckCircle2, Circle, CalendarClock } from 'lucide-react';
 import { Select } from '@/components/platform/shared/Select';
 import { todayISO, type Assignee, type FollowUp } from './types';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export function FollowUpsCard({ followUps, assignees, canEdit, onSave, onSetStatus, onDelete }: {
   followUps: FollowUp[];
@@ -33,7 +34,7 @@ export function FollowUpsCard({ followUps, assignees, canEdit, onSave, onSetStat
           <div style={{ marginBottom: 12 }}><FollowUpForm assignees={assignees} onSave={save} onCancel={() => setAddingFollowUp(false)} /></div>
         )}
         {followUps.length === 0 && !addingFollowUp ? (
-          <div style={{ color: 'var(--fg-subtle)', fontSize: 13, padding: '8px 0' }}>No follow-ups yet.</div>
+          <EmptyState size="sm" icon={<CalendarClock />} title="No follow-ups yet." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {followUps.map(f => {

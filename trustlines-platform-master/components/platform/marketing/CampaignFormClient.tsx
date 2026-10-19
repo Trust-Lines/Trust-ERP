@@ -7,6 +7,7 @@ import { US_STATES } from '@/lib/usStates';
 import { LocationSearch } from '@/components/platform/projects/LocationSearch';
 import { SURVEY_TEMPLATES, SURVEY_TEMPLATE_LABELS, type SurveyTemplate } from '@/lib/marketing/surveyTemplates';
 import { Select } from '@/components/platform/shared/Select';
+import { feedback } from '@/components/ui/feedback-toast';
 
 function TextField({ label, required, hint, value, ...props }: { label: string; required?: boolean; hint?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   const id = useId();
@@ -107,7 +108,9 @@ export function CampaignFormClient({ mode, campaignId, initial }: Props) {
         return;
       }
 
-      toast.success(mode === 'create' ? 'Campaign created' : 'Campaign updated');
+      feedback.success(mode === 'create' ? 'Campaign created' : 'Changes saved', {
+        description: mode === 'create' ? undefined : 'The campaign is up to date.',
+      });
       router.push(`/marketing/campaigns/${body.campaign.id}`);
       router.refresh();
     } catch (e) {

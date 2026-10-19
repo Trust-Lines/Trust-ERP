@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Search, Loader2, ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react';
+import { Search, Loader2, ChevronLeft, ChevronRight, FileSpreadsheet, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProspectQuickView } from './ProspectQuickView';
 import { Select } from '@/components/platform/shared/Select';
 import { TagMultiSelect } from './TagMultiSelect';
 import { REGIONS } from '@/lib/regions';
 import { exportContactsWorkbook, type ContactExportRow } from '@/lib/excel/contactsExcelExport';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // Deliberately NOT the query-builder Contacts page (2026-09-23's restriction — no browsing
 // without a criterion, campaign/survey/project-status filters). This is the one exception to
@@ -157,9 +158,13 @@ export function ContactManagerClient({ canEdit }: { canEdit: boolean }) {
       </div>
 
       {total === 0 && !loading ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
-          <div>{hasFilters ? 'No contact matches your filters.' : 'No contacts yet.'}</div>
-        </div></div>
+        <div className="card">
+          <EmptyState
+            icon={<Users />}
+            title={hasFilters ? 'No contact matches your filters' : 'No contacts yet'}
+            description={hasFilters ? 'Try fewer filters or a different search.' : 'Contacts appear here as leads are captured or imported.'}
+          />
+        </div>
       ) : (
         <>
           <div className="card" style={{ overflowX: 'auto' }}>

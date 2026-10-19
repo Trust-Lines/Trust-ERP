@@ -1,5 +1,7 @@
+import { FolderKanban } from 'lucide-react';
 import Link from 'next/link';
 import type { ProjectRow } from './types';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export function ProjectHistoryCard({ projects }: { projects: ProjectRow[] }) {
   return (
@@ -7,9 +9,7 @@ export function ProjectHistoryCard({ projects }: { projects: ProjectRow[] }) {
       <div className="card-head"><div className="form-section-title">Project history ({projects.length})</div></div>
       <div className="card-body" style={{ padding: projects.length ? 0 : undefined }}>
         {projects.length === 0 ? (
-          <div style={{ color: 'var(--fg-subtle)', fontSize: 13 }}>
-            No linked projects yet. Link this customer to a lead — on delivery the project appears here.
-          </div>
+          <EmptyState size="sm" icon={<FolderKanban />} title="No linked projects yet." description="Link this customer to a lead — on delivery the project appears here." />
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <tbody>

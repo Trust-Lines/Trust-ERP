@@ -14,6 +14,8 @@ import {
 } from '@/lib/workflow/steps';
 import type { ProjectCategory } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
+import { EmptyState } from '@/components/ui/empty-state';
+import { feedback } from '@/components/ui/feedback-toast';
 
 export interface DocSummary {
   id: string;
@@ -217,7 +219,10 @@ export function DropboxSyncBtn({
       setResults(null);
       setOpen(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Sync failed');
+      feedback.error('Sync failed', {
+        description: `${f.name} could not be linked.${err instanceof Error && err.message ? ` ${err.message}` : ''}`,
+        action: { label: 'Retry sync', onClick: () => void linkFile(f, version) },
+      });
     } finally { setSyncing(null); }
   }
 
@@ -298,9 +303,7 @@ export function DropboxSyncBtn({
           )}
 
           {!scanning && results !== null && results.length === 0 && (
-            <div style={{ padding: '14px 12px', fontSize: 12, color: 'var(--fg-faint)', textAlign: 'center' }}>
-              No files found in Dropbox
-            </div>
+            <EmptyState size="sm" className="justify-center px-3" title="No files found in Dropbox." />
           )}
 
           {!scanning && results && results.length > 0 && results.map(group => (

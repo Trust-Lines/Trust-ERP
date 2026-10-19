@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { FileText, ExternalLink, Loader2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // Same stage → label/progress mapping the old company-wide dashboard used for its project list
 // (now removed) — kept identical so the same stage always shows the same wording and bar fill
@@ -111,7 +112,7 @@ export function ProjectQuickView({ projectId, onClose }: { projectId: string | n
                   <Loader2 className="size-4 animate-spin" /> Loading files…
                 </div>
               ) : documents.length === 0 ? (
-                <p className="py-4 text-sm text-muted-foreground">No files uploaded yet.</p>
+                <EmptyState size="sm" icon={<FileText />} title="No files here yet." />
               ) : (
                 <ul className="divide-y divide-neutral-100 rounded-lg border border-neutral-100">
                   {documents.map(doc => (

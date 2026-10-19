@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Toaster } from 'sonner';
+import { feedback } from '@/components/ui/feedback-toast';
 
 interface Review {
   title: string | null;
@@ -48,8 +50,14 @@ export function ReviewClient({ token }: { token: string }) {
         body: JSON.stringify({ action, name, email, comment }),
       });
       const b = await res.json().catch(() => ({}));
-      if (!res.ok) { alert(b.error ?? 'Something went wrong.'); return; }
-      if (action === 'comment') { setComment(''); alert('Thank you — your comment was sent.'); }
+      if (!res.ok) {
+        feedback.error('Something went wrong', {
+          description: b.error ?? 'Your response was not sent.',
+          action: { label: 'Try again', onClick: () => void act(action) },
+        });
+        return;
+      }
+      if (action === 'comment') { setComment(''); feedback.success('Comment sent', { description: 'Thank you — the team will see it shortly.' }); }
       else setDone(b.decision);
     } finally { setBusy(false); }
   }
@@ -63,6 +71,7 @@ export function ReviewClient({ token }: { token: string }) {
 
   return (
     <div style={box}>
+      <Toaster position="bottom-center" />
       <div style={card}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #eee', background: '#0f2e2b', color: '#fff' }}>
           <div style={{ fontSize: 13, opacity: .8 }}>Trust-Lines · Customer review</div>

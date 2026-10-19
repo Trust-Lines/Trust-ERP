@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, GripVertical, ArrowUp, ArrowDown, ImagePlus, X, Loader2, AlertTriangle } from 'lucide-react';
+import { Plus, GripVertical, ArrowUp, ArrowDown, ImagePlus, X, Loader2, AlertTriangle, Layers } from 'lucide-react';
 import type { WorkTypeRow } from '@/lib/web-cms/workTypes';
 import { WorkTypeTile } from './WorkTypeTile';
 import { uploadToImageKit } from './imagekitClient';
 import { MediaPicker } from './MediaPicker';
+import { feedback } from '@/components/ui/feedback-toast';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface Props {
   initial: WorkTypeRow[];
@@ -55,7 +57,10 @@ export function WorkTypesClient({ initial, canEdit, siteUrl, loadError }: Props)
       const url = await uploadToImageKit(file, FOLDER);
       if (t) await patch(t, { icon_url: url }); else setNewIcon(url);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Upload failed');
+      feedback.error('Upload interrupted', {
+        description: `${file.name} could not be uploaded.${e instanceof Error && e.message ? ` ${e.message}` : ''}`,
+        action: { label: 'Retry upload', onClick: () => void uploadIcon(t, file) },
+      });
     } finally { setUploadingId(null); }
   }
 
@@ -158,7 +163,7 @@ export function WorkTypesClient({ initial, canEdit, siteUrl, loadError }: Props)
                 )}
               </div>
             ))}
-            {types.length === 0 && <div style={{ color: 'var(--fg-subtle)', fontSize: 13, padding: 12 }}>No types yet.</div>}
+            {types.length === 0 && <EmptyState size="sm" className="p-3" icon={<Layers />} title="No types yet." />}
           </div>
         </div></div>
 

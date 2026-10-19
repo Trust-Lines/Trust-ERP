@@ -10,6 +10,8 @@ import { StagePill, type StageTone } from '@/components/platform/shared/StagePil
 import type { OpportunityStage, ProjectType, ScopeType } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
+import { feedback } from '@/components/ui/feedback-toast';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export interface SalesOpportunityRow {
   id: string;
@@ -87,7 +89,10 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
     if (!res.ok) { toast.error(body.error ?? 'Failed to accept'); return; }
     updateRow(id, { stage: body.opportunity.stage, project_id: body.opportunity.project_id });
     setAcceptingId(null);
-    toast.success(body.alreadyAccepted ? 'Already accepted' : `Project ${body.project?.code ?? ''} created`);
+    feedback.success(body.alreadyAccepted ? 'Already accepted' : 'Project created', {
+      description: body.project?.code ? `${body.project.code} is ready for the delivery team.` : undefined,
+      action: body.project?.id ? { label: 'View project', href: `/projects/${body.project.id}` } : undefined,
+    });
   }
 
   async function doReturn(id: string, reason: string) {
@@ -167,10 +172,13 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
       </div>
 
       {opportunities.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
-          <Inbox size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
-          <div>No Opportunity handoffs yet. They appear here once Marketing hands one off.</div>
-        </div></div>
+        <div className="card">
+          <EmptyState
+            icon={<Inbox />}
+            title="No handoffs yet"
+            description="Opportunities appear here once Marketing hands one off to Sales."
+          />
+        </div>
       ) : (
         <div style={{ display: 'grid', gap: 10 }}>
           {opportunities.map(o => (

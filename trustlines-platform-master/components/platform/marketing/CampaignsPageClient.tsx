@@ -3,11 +3,13 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, Megaphone, AlertTriangle, Copy, Check, Trash2 } from 'lucide-react';
+import { Search, Megaphone, AlertTriangle, Copy, Check, Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Pill } from '@/components/platform/shared/Pill';
 import type { CampaignStatus, CampaignType } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
+import { EmptyState } from '@/components/ui/empty-state';
+import { buttonVariants } from '@/components/ui/button';
 
 export interface CampaignRow {
   id: string;
@@ -142,10 +144,16 @@ export function CampaignsPageClient({ initialCampaigns, canEdit, canSeeAll, load
       </div>
 
       {campaigns.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
-          <Megaphone size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
-          <div>No campaigns yet.{canEdit && ' Click "New Campaign" to create the first one.'}</div>
-        </div></div>
+        <div className="card">
+          <EmptyState
+            icon={<Megaphone />}
+            title="No campaigns yet"
+            description="Campaigns collect submissions from a shared form link."
+            action={canEdit && (
+              <Link href="/marketing/campaigns/new" className={buttonVariants()}><Plus /> Create first campaign</Link>
+            )}
+          />
+        </div>
       ) : filtered.length === 0 ? (
         <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '32px 24px', color: 'var(--fg-subtle)' }}>
           No campaigns match your filters.

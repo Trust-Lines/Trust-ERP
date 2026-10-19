@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Building2 } from 'lucide-react';
+import { Search, Building2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Pill } from '@/components/platform/shared/Pill';
 import { Select } from '@/components/platform/shared/Select';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 
 export interface CustomerRow {
   id: string;
@@ -87,10 +89,14 @@ export function CustomersPageClient({ initialCustomers, canEdit }: Props) {
       </div>
 
       {customers.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
-          <Building2 size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
-          <div>No customers yet.{canEdit && ' Click “New customer” to add the first one.'}</div>
-        </div></div>
+        <div className="card">
+          <EmptyState
+            icon={<Building2 />}
+            title="No customers yet"
+            description="Keep each customer's contacts, addresses, meetings and projects together."
+            action={canEdit && <Button onClick={() => setShowForm(true)}><Plus /> Add first customer</Button>}
+          />
+        </div>
       ) : filtered.length === 0 ? (
         <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '32px 24px', color: 'var(--fg-subtle)' }}>
           No customers match “{query}”.

@@ -1,9 +1,11 @@
 'use client';
 
-import { FilePlus2, Pencil } from 'lucide-react';
+import { FilePlus2, Pencil, ListChecks } from 'lucide-react';
 import type { DocumentRow } from '../ProjectDetailClient';
 import { DropboxSyncBtn } from '../ProjectWorkflow';
 import { DocStatusBadge, DropboxIcon, type ILVer } from './shared';
+import { feedback } from '@/components/ui/feedback-toast';
+import { EmptyState } from '@/components/ui/empty-state';
 
 /** Left column: Dropbox sync, Item List → pricing shortcuts, version pills and the file list. */
 export function VersionsPanel({
@@ -75,9 +77,7 @@ export function VersionsPanel({
               Open Item List for Pricing
             </div>
             {ilVersions.length === 0 ? (
-              <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginBottom: 6 }}>
-                No Item List versions found.<br />Create an Item List first.
-              </div>
+              <EmptyState size="sm" className="mb-1.5" icon={<ListChecks />} title="No Item List versions found." description="Create an Item List first." />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {ilVersions.map(ver => (
@@ -88,7 +88,7 @@ export function VersionsPanel({
                     </div>
                     <button
                       onClick={() => {
-                        if (!ver.form_data?.length) { alert('No saved data for this version. Please regenerate the Item List first.'); return; }
+                        if (!ver.form_data?.length) { feedback.info('No saved data for this version', { description: 'Regenerate the Item List first, then open it for pricing.' }); return; }
                         onOpenForPricing(ver.form_data);
                       }}
                       style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, padding: '4px 10px', background: 'var(--status-danger)', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer' }}

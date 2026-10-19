@@ -3,6 +3,7 @@
 import { History } from 'lucide-react';
 import { HistoricalProjectForm } from './HistoricalProjectForm';
 import type { HistoricalProject } from './types';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export function HistoryTab({ canEdit, addingHistoricalProject, setAddingHistoricalProject, historicalProjectsLoaded, historicalProjects, onSave }: {
   canEdit?: boolean;
@@ -27,10 +28,7 @@ export function HistoryTab({ canEdit, addingHistoricalProject, setAddingHistoric
       {!historicalProjectsLoaded ? (
         <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 32, color: 'var(--fg-subtle)' }}>Loading…</div></div>
       ) : historicalProjects.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 32, color: 'var(--fg-subtle)' }}>
-          <History size={24} style={{ opacity: 0.4, marginBottom: 8 }} />
-          <div>No past projects logged yet.</div>
-        </div></div>
+        <div className="card"><EmptyState size="sm" className="justify-center px-4 py-8" icon={<History />} title="No past projects logged yet." /></div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
           {historicalProjects.map(p => (

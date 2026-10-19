@@ -22,6 +22,7 @@ import { OpportunitiesTab } from './prospect-detail/OpportunitiesTab';
 import { ActivitiesTab } from './prospect-detail/ActivitiesTab';
 import { FilesTab } from './prospect-detail/FilesTab';
 import { HistoryTab } from './prospect-detail/HistoryTab';
+import { feedback } from '@/components/ui/feedback-toast';
 
 interface Props {
   initialProspect: Prospect;
@@ -279,7 +280,13 @@ export function ProspectDetailClient({
       form.set('file', file);
       const res = await fetch(`/api/marketing/prospects/${prospect.id}/files`, { method: 'POST', body: form });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(body.error ?? 'Upload failed'); return; }
+      if (!res.ok) {
+        feedback.error('Upload interrupted', {
+          description: `${file.name} could not be uploaded.${body.error ? ` ${body.error}` : ''}`,
+          action: { label: 'Retry upload', onClick: () => void uploadFile(file) },
+        });
+        return;
+      }
       setFiles(prev => [body.file, ...prev]);
       toast.success('File attached');
     } finally {

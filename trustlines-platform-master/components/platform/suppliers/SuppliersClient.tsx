@@ -6,6 +6,8 @@ import { Search, Package, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import type { CurrencyTotals } from '@/lib/suppliers/config';
 import { CURRENCIES } from '@/lib/suppliers/config';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 
 export interface SupplierRow {
   id: string;
@@ -122,9 +124,17 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
       </div>
 
       {filtered.length === 0 ? (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--fg-subtle)' }}>
-          <Package size={28} style={{ opacity: 0.4 }} />
-          <p style={{ margin: '12px 0 0', fontSize: 14 }}>No suppliers yet.</p>
+        <div className="card">
+          {suppliers.length === 0 ? (
+            <EmptyState
+              icon={<Package />}
+              title="No suppliers yet"
+              description="Track vendor invoices and payments for each supplier."
+              action={canEdit && <Button onClick={() => setShowForm(true)}><Plus /> Add first supplier</Button>}
+            />
+          ) : (
+            <EmptyState icon={<Package />} title="No supplier matches your search" description="Try a different name." />
+          )}
         </div>
       ) : (
         <div className="card" style={{ overflow: 'hidden' }}>

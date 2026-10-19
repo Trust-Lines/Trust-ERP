@@ -5,6 +5,8 @@ import { ExternalLink, Loader2, Download } from 'lucide-react';
 import type { DocType, DocStatus } from '@/types/database';
 import { StatusBadge as TagBadge } from '@/components/ui/status-badge';
 import { DOC_STATUS_TAG } from '@/lib/status/tags';
+import { FilesEmptyState } from '@/components/platform/shared/FilesEmptyState';
+import { feedback } from '@/components/ui/feedback-toast';
 
 export interface DocumentRow {
   id: string;
@@ -74,7 +76,12 @@ function ActionBtn({ documentId }: { documentId: string }) {
       if (!res.ok) throw new Error('Cannot open');
       const { link } = await res.json() as { link: string };
       window.open(link, '_blank');
-    } catch { alert('Could not open file'); }
+    } catch {
+      feedback.error('Could not open file', {
+        description: 'The Dropbox link could not be created.',
+        action: { label: 'Try again', onClick: () => void handleView() },
+      });
+    }
     finally { setLoading(false); }
   }
 
@@ -169,9 +176,7 @@ export function DocumentsTable({ documents, userRole, onUpload }: DocumentsTable
       </div>
 
       {docsWithFile.length === 0 ? (
-        <div style={{ padding: '32px 18px', textAlign: 'center', fontSize: 13, color: 'var(--fg-faint)' }}>
-          No documents uploaded yet
-        </div>
+        <FilesEmptyState onUpload={canUpload ? onUpload : undefined} hint="PDF, DWG, DXF and images" />
       ) : (
         <div>
           {visibleGroups.map(group => {

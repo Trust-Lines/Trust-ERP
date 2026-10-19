@@ -2,13 +2,14 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { MoreHorizontal, ArrowUpDown, Plus } from 'lucide-react';
+import { MoreHorizontal, ArrowUpDown, Plus, FolderKanban } from 'lucide-react';
 import { StageBadge } from '@/components/platform/shared/StageBadge';
 import { Avatar } from '@/components/platform/shared/Avatar';
 import { Pill } from '@/components/platform/shared/Pill';
 import { PermissionShield } from '@/components/platform/shared/PermissionShield';
 import { CategoryList } from '@/components/platform/shared/CategoryChip';
 import type { ProjectStage, ProjectPhase, ProjectCategory, CurrencyType } from '@/types/database';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export interface ProjectRow {
   id: string;
@@ -88,14 +89,12 @@ export function ProjectsTable({ projects, userRole }: ProjectsTableProps) {
 
   if (projects.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--fg-faint)' }}>
-        <div style={{ fontSize: '32px', marginBottom: '12px' }}>📁</div>
-        <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--fg-subtle)', marginBottom: '6px' }}>
-          No projects yet
-        </div>
-        <div style={{ fontSize: '13px' }}>
-          Projects will appear here once created.
-        </div>
+      <div>
+        <EmptyState
+          icon={<FolderKanban />}
+          title="No projects yet"
+          description="Projects appear here once they are created from an accepted opportunity."
+        />
       </div>
     );
   }

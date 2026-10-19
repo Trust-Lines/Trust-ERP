@@ -26,6 +26,7 @@ import { Step4DropboxFolder } from './new-project/Step4DropboxFolder';
 import { Step5Integrations } from './new-project/Step5Integrations';
 import { Step6InitialTeam } from './new-project/Step6InitialTeam';
 import { SummaryPanel } from './new-project/SummaryPanel';
+import { feedback } from '@/components/ui/feedback-toast';
 
 export interface EditProjectData {
   id: string;
@@ -463,7 +464,7 @@ export function NewProjectForm({
         },
       } as never);
 
-      toast.success(`Project ${code} created.${dropboxMsg}`);
+      feedback.success('Project created', { description: `${code} is ready.${dropboxMsg}` });
       router.push(`/projects/${projectId}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Something went wrong');
@@ -518,7 +519,7 @@ export function NewProjectForm({
         }
       }
 
-      toast.success(`Project updated.${folderMsg}`);
+      feedback.success('Changes saved', { description: `The project is up to date.${folderMsg}` });
       router.push(`/projects/${editProject.id}`);
       router.refresh();
     } catch (err) {

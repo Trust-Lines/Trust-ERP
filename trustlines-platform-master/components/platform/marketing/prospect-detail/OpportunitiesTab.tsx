@@ -1,9 +1,11 @@
 'use client';
 
+import { Target } from 'lucide-react';
 import { TaskList } from '@/components/platform/shared/TaskList';
 import { ActivityFeed } from '@/components/platform/shared/ActivityFeed';
 import { OPPORTUNITY_STAGE_LABEL } from '@/lib/marketing/classification';
 import type { OpportunityRow } from './types';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export function OpportunitiesTab({
   opportunities, canEdit, assignees, expandedOppId, setExpandedOppId, handingOffId, onHandOff,
@@ -23,9 +25,7 @@ export function OpportunitiesTab({
         more than one, if it has more than one distinct project need.
       </p>
       {opportunities.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: 32, color: 'var(--fg-subtle)' }}>
-          No Opportunities yet.
-        </div></div>
+        <div className="card"><EmptyState size="sm" className="justify-center px-4 py-8" icon={<Target />} title="No opportunities yet." /></div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
           {opportunities.map(o => {
