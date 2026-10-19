@@ -88,7 +88,7 @@ function CroppedLogo({ src, code, className }: { src: string; code: string; clas
 
 function CardBody({ item }: { item: BoardCardItem }) {
   return (
-    <span className="min-w-0 flex-1 text-primary-800">
+    <span className="min-w-0 flex-1 text-primary-800 dark:text-primary-50">
       <span className="flex items-center justify-between gap-3">
         <span className="truncate text-[14px] font-bold">{item.title}</span>
         {item.dateLabel && <span className="shrink-0 text-[11px] font-medium opacity-70">{item.dateLabel}</span>}
@@ -155,14 +155,14 @@ function DateFilterBar({ from, to, onFrom, onTo, onClear }: {
   return (
     <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-ui-divider bg-ui-surface-elevated px-4 py-3">
       <span className="text-[12px] font-semibold uppercase tracking-wide text-ui-text-secondary">Date filter</span>
-      <label className="flex items-center gap-1.5 text-[13px] text-primary-700">
+      <label className="flex items-center gap-1.5 text-[13px] text-primary-700 dark:text-primary-100">
         From
         <input
           type="date" value={from} onChange={e => onFrom(e.target.value)}
           className="rounded-md border border-ui-input-border bg-ui-input-bg px-2 py-1 text-[13px]"
         />
       </label>
-      <label className="flex items-center gap-1.5 text-[13px] text-primary-700">
+      <label className="flex items-center gap-1.5 text-[13px] text-primary-700 dark:text-primary-100">
         To
         <input
           type="date" value={to} onChange={e => onTo(e.target.value)}

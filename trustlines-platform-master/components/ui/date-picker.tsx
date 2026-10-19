@@ -128,7 +128,7 @@ function DatePicker({
             </div>
             <div ref={gridRef} role="grid" aria-label={monthLabel} onKeyDown={onGridKeyDown} className="grid grid-cols-7 gap-0.5 text-center">
               {WEEKDAYS.map((w) => (
-                <span key={w} role="columnheader" className="py-1 text-[10px] font-semibold text-primary-400">{w}</span>
+                <span key={w} role="columnheader" className="py-1 text-[10px] font-semibold text-primary-400 dark:text-primary-300">{w}</span>
               ))}
               {days.map((d) => {
                 const inMonth = d.getMonth() === focused.getMonth()
@@ -147,7 +147,7 @@ function DatePicker({
                     className={cn(
                       "h-7 rounded-[4px] text-[11px] outline-none hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring",
                       !inMonth && "text-primary-300",
-                      sameDay(d, today) && !selected && "font-semibold text-accent-600",
+                      sameDay(d, today) && !selected && "font-semibold text-accent-600 dark:text-accent-200",
                       selected && "bg-primary-700 text-primary-50 hover:bg-primary-700"
                     )}
                   >

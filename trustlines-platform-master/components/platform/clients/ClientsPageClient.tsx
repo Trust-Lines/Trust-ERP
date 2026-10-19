@@ -120,7 +120,7 @@ function ContextMenu({ isActive, onEdit, onDeactivate, onReactivate, onDelete }:
       {open && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setOpen(false)} />
-          <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 20, background: 'white', border: '1px solid var(--border-subtle)', borderRadius: 6, boxShadow: 'var(--shadow-sm)', minWidth: 140, overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 20, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 6, boxShadow: 'var(--shadow-sm)', minWidth: 140, overflow: 'hidden' }}>
             {onEdit && menuBtn('Edit', onEdit)}
             {onEdit && <div style={{ height: 1, background: 'var(--border-subtle)', margin: '2px 0' }} />}
             {isActive

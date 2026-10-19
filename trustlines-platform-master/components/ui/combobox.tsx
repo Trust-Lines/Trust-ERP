@@ -64,7 +64,7 @@ function Combobox({
       <ComboboxPrimitive.Portal>
         <ComboboxPrimitive.Positioner className="z-[10050] outline-none" sideOffset={2}>
           <ComboboxPrimitive.Popup className={cn(popupBase, "w-(--anchor-width) max-w-(--available-width)")}>
-            <ComboboxPrimitive.Empty className="px-3 py-2 text-primary-400">{emptyText}</ComboboxPrimitive.Empty>
+            <ComboboxPrimitive.Empty className="px-3 py-2 text-primary-400 dark:text-primary-300">{emptyText}</ComboboxPrimitive.Empty>
             <ComboboxPrimitive.List className="max-h-[min(18rem,var(--available-height))] overflow-y-auto p-1.5 data-empty:p-0">
               {(o: ComboboxOption) => (
                 <ComboboxPrimitive.Item key={o.value} value={o} className={cn(optionBase, "justify-between")}>

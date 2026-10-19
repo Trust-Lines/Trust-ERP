@@ -244,8 +244,8 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
           onClick={e => e.stopPropagation()}
           style={{
             position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, width: pos.width, zIndex: 10060,
-            background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 10,
-            boxShadow: '0 12px 32px rgba(0,0,0,.18)', overflow: 'hidden', display: 'flex', flexDirection: 'column',
+            background: 'var(--bg-surface)', border: '1px solid var(--ui-menu-border, var(--border-subtle))', borderRadius: 10,
+            boxShadow: 'var(--ui-menu-shadow, 0 12px 32px rgba(0,0,0,.18))', overflow: 'hidden', display: 'flex', flexDirection: 'column',
             maxHeight: pos.maxH,
           }}
         >
@@ -289,14 +289,17 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
                     border: 'none', borderRadius: 6, padding: '7px 10px', fontSize: 13, cursor: it.disabled ? 'not-allowed' : 'pointer',
-                    background: isActive ? 'var(--bg-subtle)' : 'transparent',
-                    color: it.disabled ? 'var(--fg-faint)' : 'var(--fg-default)',
+                    // Dark theme: selected option is a light pill (--ui-option-* only exist in .dark).
+                    background: isSel
+                      ? `var(--ui-option-selected-bg, ${isActive ? 'var(--bg-subtle)' : 'transparent'})`
+                      : isActive ? 'var(--ui-option-hover-bg, var(--bg-subtle))' : 'transparent',
+                    color: it.disabled ? 'var(--fg-faint)' : isSel ? 'var(--ui-option-selected-fg, var(--fg-default))' : 'var(--fg-default)',
                     fontWeight: isSel ? 600 : 400,
                     transition: 'background 80ms',
                   }}
                 >
                   <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label || ' '}</span>
-                  {isSel && <Check size={14} style={{ color: 'var(--brand-teal)', flexShrink: 0 }} />}
+                  {isSel && <Check size={14} style={{ color: 'var(--ui-option-selected-fg, var(--brand-teal))', flexShrink: 0 }} />}
                 </button>
               );
             })}

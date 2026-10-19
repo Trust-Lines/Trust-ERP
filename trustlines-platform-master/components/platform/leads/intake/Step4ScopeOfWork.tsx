@@ -19,7 +19,7 @@ export function Step4ScopeOfWork({ form, setForm, onBack, onNext }: StepProps) {
             className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
               form.scope_of_work[trade]
                 ? 'border-blue-600 bg-blue-50/60 text-blue-900 font-bold'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                : 'border-slate-200 bg-ui-surface-elevated text-slate-700 hover:bg-slate-50'
             }`}
           >
             <Checkbox

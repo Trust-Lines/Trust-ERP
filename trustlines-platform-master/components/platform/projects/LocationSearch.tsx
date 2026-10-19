@@ -59,14 +59,14 @@ export function LocationSearch({ onSelect, placeholder, stateAbbr }: {
       </div>
 
       {open && (results.length > 0 || (!loading && q.trim().length >= 3)) && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 30, marginTop: 4, background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: 8, boxShadow: 'var(--shadow-md, 0 4px 16px rgba(0,0,0,.12))', maxHeight: 280, overflowY: 'auto' }}>
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 30, marginTop: 4, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 8, boxShadow: 'var(--shadow-md, 0 4px 16px rgba(0,0,0,.12))', maxHeight: 280, overflowY: 'auto' }}>
           {results.length === 0 ? (
             <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--fg-faint)' }}>No matches — keep typing or refine.</div>
           ) : results.map(r => (
             <button
               key={r.id} type="button"
               onClick={() => { onSelect(r); setQ(''); setResults([]); setOpen(false); }}
-              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 14px', border: 'none', borderBottom: '1px solid var(--border-subtle)', background: '#fff', cursor: 'pointer' }}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 14px', border: 'none', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', cursor: 'pointer' }}
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-subtle)'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#fff'; }}
             >

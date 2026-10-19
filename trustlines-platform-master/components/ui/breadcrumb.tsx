@@ -10,7 +10,7 @@ type BreadcrumbItem = { label: string; href?: string }
 function Breadcrumb({ items, className }: { items: BreadcrumbItem[]; className?: string }) {
   return (
     <nav aria-label="Breadcrumb" data-slot="breadcrumb" className={className}>
-      <ol className="flex flex-wrap items-center gap-1.5 text-[11px] leading-[1.5] text-primary-700">
+      <ol className="flex flex-wrap items-center gap-1.5 text-[11px] leading-[1.5] text-primary-700 dark:text-primary-100">
         {items.map((item, i) => {
           const last = i === items.length - 1
           return (
@@ -22,7 +22,7 @@ function Breadcrumb({ items, className }: { items: BreadcrumbItem[]; className?:
               ) : (
                 <Link
                   href={item.href}
-                  className="rounded-[2px] outline-none hover:text-primary-950 hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
+                  className="rounded-[2px] outline-none hover:text-primary-950 dark:hover:text-primary-50 hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
                 >
                   {item.label}
                 </Link>

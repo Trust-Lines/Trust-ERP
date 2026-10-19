@@ -50,7 +50,7 @@ const label12: React.CSSProperties = {
 const selectStyle: React.CSSProperties = {
   width: '100%', padding: '7px 10px',
   border: '1px solid var(--border-default)', borderRadius: 5,
-  fontSize: 13, background: 'white', color: 'var(--fg-default)', fontFamily: 'inherit',
+  fontSize: 13, background: 'var(--bg-surface)', color: 'var(--fg-default)', fontFamily: 'inherit',
 };
 
 export function FileUploadZone({
@@ -138,7 +138,7 @@ export function FileUploadZone({
     display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
   };
   const box: React.CSSProperties = {
-    background: 'white', borderRadius: 10, width: '100%', maxWidth: 480,
+    background: 'var(--bg-surface)', borderRadius: 10, width: '100%', maxWidth: 480,
     boxShadow: '0 24px 64px rgba(15,42,68,0.22)',
     fontFamily: 'var(--font-ui)',
     maxHeight: '90vh', overflowY: 'auto',
@@ -293,7 +293,7 @@ export function FileUploadZone({
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '14px 20px', borderTop: '1px solid var(--border-subtle)' }}>
             <button onClick={onClose} disabled={uploading}
-              style={{ padding: '7px 16px', borderRadius: 5, border: '1px solid var(--border-default)', background: 'white', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ padding: '7px 16px', borderRadius: 5, border: '1px solid var(--border-default)', background: 'var(--bg-surface)', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
               Cancel
             </button>
             <button onClick={handleUpload} disabled={uploading || !file || (needsProdType(docType) && !prodType)}

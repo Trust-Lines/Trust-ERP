@@ -61,7 +61,7 @@ export function TopBar({
     'Workspace';
 
   return (
-    <header className="topbar h-12 px-5 flex items-center justify-between border-b border-neutral-200/80 bg-white/95 backdrop-blur-sm sticky top-0 z-30 gap-4 select-none">
+    <header className="topbar h-12 px-5 flex items-center justify-between border-b border-neutral-200/80 bg-ui-surface-elevated/95 backdrop-blur-sm sticky top-0 z-30 gap-4 select-none">
       {/* ── Left Side: Current Page Title & Breadcrumbs ───────── */}
       <div className="flex items-center gap-3 shrink-0 min-w-0">
         {breadcrumbs.length > 0 ? (

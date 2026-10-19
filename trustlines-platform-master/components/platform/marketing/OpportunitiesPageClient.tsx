@@ -134,7 +134,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
 
   if (loadError) {
     return (
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-12 text-center text-slate-500 shadow-2xs">
+      <div className="bg-ui-surface-elevated border border-slate-200/80 rounded-2xl p-12 text-center text-slate-500 shadow-2xs">
         <AlertTriangle size={28} className="mx-auto text-amber-500 mb-2" />
         <div>Potentials aren&apos;t ready yet.</div>
       </div>
@@ -176,7 +176,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
             <Select
               value={regionFilter}
               onChange={e => setRegionFilter(e.target.value)}
-              className="appearance-none bg-white border border-slate-200/80 rounded-xl pl-3 pr-7 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs font-medium"
+              className="appearance-none bg-ui-surface-elevated border border-slate-200/80 rounded-xl pl-3 pr-7 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs font-medium"
             >
               <option value="all">All regions</option>
               {Object.entries(REGION_FILTER_LABEL).map(([code, label]) => <option key={code} value={code}>{label}</option>)}
@@ -192,14 +192,14 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
               placeholder="Search potentials"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              className="pl-7 pr-3 py-1.5 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs"
+              className="pl-7 pr-3 py-1.5 bg-ui-surface-elevated border border-slate-200/80 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs"
             />
           </div>
         </div>
       </div>
 
       {/* ── Dense flat table (single group — this page is Potential-only) ── */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-2xs overflow-hidden">
+      <div className="bg-ui-surface-elevated border border-slate-200/80 rounded-2xl shadow-2xs overflow-hidden">
         {filteredDeals.length === 0 ? (
           <div className="p-12 text-center text-slate-400 text-sm">No Potentials match your filters.</div>
         ) : (

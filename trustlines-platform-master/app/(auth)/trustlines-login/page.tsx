@@ -4,7 +4,7 @@ import { LoginShell } from '@/components/auth/LoginShell';
 import { DsbArt, DsbAltArt, ConceptualArchitectArt, TrustLinesLockup } from '@/components/auth/TrustLinesBranchButtons';
 
 // Design: Figma "Tlines-Websites" → "Desktop - 16" (Select branch, Trust-Lines). Assets live in /public/login.
-const INK = '#2c2c2c';
+const INK = 'var(--tl-ink, #2c2c2c)';
 
 // TODO: wire each branch's destination once the Trust-Lines flow is defined.
 const BRANCHES = [

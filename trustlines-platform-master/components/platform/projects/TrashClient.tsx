@@ -86,7 +86,7 @@ export function TrashClient({ projects }: { projects: TrashedProject[] }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div style={{
-            background: 'white', borderRadius: 10, padding: 28,
+            background: 'var(--bg-surface)', borderRadius: 10, padding: 28,
             maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
@@ -97,9 +97,9 @@ export function TrashClient({ projects }: { projects: TrashedProject[] }) {
               An active project already uses code <strong>{conflict.code}</strong>:
             </p>
             <div style={{
-              background: '#fef3c7', border: '1px solid #fde68a',
+              background: 'var(--status-warning-bg)', border: '1px solid #fde68a',
               borderRadius: 6, padding: '10px 14px', marginBottom: 18,
-              fontSize: 13, fontWeight: 600, color: '#92400e',
+              fontSize: 13, fontWeight: 600, color: 'var(--status-warning-fg)',
             }}>
               {conflict.existingName}
             </div>
@@ -119,7 +119,7 @@ export function TrashClient({ projects }: { projects: TrashedProject[] }) {
                   await permanentDelete(conflict.projectId, conflict.projectName);
                   setConflict(null);
                 }}
-                style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', fontWeight: 600, fontSize: 12, padding: '5px 12px', borderRadius: 6, cursor: 'pointer' }}
+                style={{ background: 'var(--status-danger-bg)', color: '#dc2626', border: '1px solid #fca5a5', fontWeight: 600, fontSize: 12, padding: '5px 12px', borderRadius: 6, cursor: 'pointer' }}
               >
                 Delete trashed version forever
               </button>
@@ -202,7 +202,7 @@ export function TrashClient({ projects }: { projects: TrashedProject[] }) {
                             display: 'inline-flex', alignItems: 'center', gap: 5,
                             padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
                             cursor: isLoading ? 'wait' : 'pointer',
-                            background: '#fee2e2', color: '#dc2626',
+                            background: 'var(--status-danger-bg)', color: '#dc2626',
                             border: '1px solid #fca5a5',
                           }}
                         >

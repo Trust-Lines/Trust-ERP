@@ -151,7 +151,7 @@ export function DocumentsTable({ documents, userRole, onUpload }: DocumentsTable
   const docsWithFile  = documents.filter(d => visibleGroups.flatMap(g => g.types).includes(d.doc_type));
 
   return (
-    <div style={{ background: 'white', border: '1px solid var(--border-subtle)', borderRadius: 8, marginTop: 16, overflow: 'hidden' }}>
+    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 8, marginTop: 16, overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderBottom: '1px solid var(--border-subtle)' }}>
         <div>
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--fg-faint)', marginBottom: 2 }}>
@@ -165,7 +165,7 @@ export function DocumentsTable({ documents, userRole, onUpload }: DocumentsTable
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '7px 14px', borderRadius: 6,
-              border: '1px solid var(--border-default)', background: 'white',
+              border: '1px solid var(--border-default)', background: 'var(--bg-surface)',
               fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--fg-default)',
               fontFamily: 'var(--font-ui)',
             }}

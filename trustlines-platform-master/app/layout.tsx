@@ -3,6 +3,8 @@ import { Inter, Instrument_Sans, Montserrat } from "next/font/google";
 import "./globals.css";
 import { AmountsMasker } from "@/components/platform/shared/AmountsMasker";
 import { AuthLinkRedirect } from "@/components/auth/AuthLinkRedirect";
+import { ThemeSync } from "@/components/platform/shared/ThemeSync";
+import { THEME_HEAD_SCRIPT } from "@/lib/theme/theme";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -40,6 +42,8 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/* Light / dark theme — set the `dark` class before first paint so the page never flashes. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_HEAD_SCRIPT }} />
         {/* "Hide amounts" — flag the page before first paint so real figures never flash (see AmountsMasker). */}
         <script
           dangerouslySetInnerHTML={{
@@ -48,6 +52,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full">
+        <ThemeSync />
         <AmountsMasker />
         <AuthLinkRedirect />
         {children}

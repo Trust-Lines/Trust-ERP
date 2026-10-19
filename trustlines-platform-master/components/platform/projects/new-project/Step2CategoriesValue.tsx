@@ -66,7 +66,7 @@ export function Step2CategoriesValue({
           ) : (
             <div
               onClick={() => setShowCustomInput(true)}
-              style={{ padding: '8px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 13, border: '1.5px dashed #cbd5e1', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              style={{ padding: '8px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 13, border: '1.5px dashed var(--border-default)', color: 'var(--fg-subtle)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
             >
               <Plus size={13} /> Add category
             </div>
@@ -75,8 +75,8 @@ export function Step2CategoriesValue({
       </div>
 
       {selectedCats.length > 0 && (
-        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
-          <h4 style={{ fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 12 }}>Category Estimated Values</h4>
+        <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', borderRadius: 8, padding: 16 }}>
+          <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg-muted)', marginBottom: 12 }}>Category Estimated Values</h4>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
             {selectedCats.map(cat => (
               <div key={cat} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -103,8 +103,8 @@ export function Step2CategoriesValue({
           </Select>
         </div>
         <div className="form-group" style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Total Deal Value</span>
-          <span style={{ fontSize: 22, fontWeight: 700, color: '#0f172a' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase' }}>Total Deal Value</span>
+          <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg-default)' }}>
             {watchedCurrency} {calculatedTotal.toLocaleString('en-US')}
           </span>
         </div>

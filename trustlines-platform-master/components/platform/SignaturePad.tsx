@@ -167,12 +167,12 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: '#fff', borderRadius: 10, padding: '20px 24px', width: 500, maxWidth: '95vw', boxShadow: '0 24px 64px rgba(0,0,0,0.35)' }}>
+      <div style={{ background: 'var(--bg-surface)', borderRadius: 10, padding: '20px 24px', width: 500, maxWidth: '95vw', boxShadow: '0 24px 64px rgba(0,0,0,0.35)' }}>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700 }}>Your Signature</div>
-            <div style={{ fontSize: 11, color: '#888', marginTop: 1 }}>Saved once — stamped on PDFs when you approve</div>
+            <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1 }}>Saved once — stamped on PDFs when you approve</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={16} color="#666" /></button>
         </div>
@@ -182,7 +182,7 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
             <div style={{ fontSize: 10, fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap' }}>Current:</div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={existingBase64} alt="signature" style={{ height: 34, maxWidth: 180, objectFit: 'contain' }} />
-            <div style={{ fontSize: 10, color: '#888' }}>Drawing a new one will replace this</div>
+            <div style={{ fontSize: 10, color: 'var(--fg-faint)' }}>Drawing a new one will replace this</div>
           </div>
         )}
 
@@ -202,7 +202,7 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
 
         {mode === 'draw' && (
           <div>
-            <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>Draw your signature below (mouse or touch):</div>
+            <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginBottom: 6 }}>Draw your signature below (mouse or touch):</div>
             <div style={{
               border: '1.5px solid #d0d0d0', borderRadius: 5, overflow: 'hidden',
               backgroundImage: 'linear-gradient(45deg,#f0f0f0 25%,transparent 25%),linear-gradient(-45deg,#f0f0f0 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#f0f0f0 75%),linear-gradient(-45deg,transparent 75%,#f0f0f0 75%)',
@@ -218,7 +218,7 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
                 style={{ width: '100%', height: 140, cursor: 'crosshair', display: 'block', touchAction: 'none' }}
               />
             </div>
-            <button onClick={clearCanvas} style={{ marginTop: 5, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#888', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <button onClick={clearCanvas} style={{ marginTop: 5, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--fg-faint)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <Trash2 size={11} /> Clear
             </button>
           </div>
@@ -226,7 +226,7 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
 
         {mode === 'upload' && (
           <div>
-            <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginBottom: 8 }}>
               Take a photo of your signature — AI will automatically remove the background. First use may take a moment to load.
             </div>
 
@@ -237,7 +237,7 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
                 cursor: 'pointer', background: '#fafafa', marginBottom: 10,
               }}>
                 <Upload size={24} color="#aaa" />
-                <span style={{ fontSize: 12, color: '#888', marginTop: 8 }}>Click to upload signature photo</span>
+                <span style={{ fontSize: 12, color: 'var(--fg-faint)', marginTop: 8 }}>Click to upload signature photo</span>
                 <span style={{ fontSize: 10, color: '#bbb', marginTop: 3 }}>PNG, JPG, HEIC — white or light background works best</span>
                 <input type="file" accept="image/*" onChange={handleUpload} style={{ display: 'none' }} />
               </label>
@@ -247,7 +247,7 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
               <div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#888', marginBottom: 4 }}>Original</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--fg-faint)', marginBottom: 4 }}>Original</div>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={rawUpload} alt="original" style={{ width: '100%', maxHeight: 100, objectFit: 'contain', border: '1px solid #e5e7eb', borderRadius: 4, background: '#f9f9f9', padding: 4 }} />
                   </div>
@@ -263,7 +263,7 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
                       {processing
                         ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                             <Loader2 size={18} style={{ animation: 'spin 1s linear infinite', color: '#1a6b6b' }} />
-                            <span style={{ fontSize: 9, color: '#888' }}>AI removing background…</span>
+                            <span style={{ fontSize: 9, color: 'var(--fg-faint)' }}>AI removing background…</span>
                           </div>
                         : processed
                           // eslint-disable-next-line @next/next/no-img-element
@@ -274,7 +274,7 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
                   </div>
                 </div>
 
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 4, fontSize: 11, color: '#888', cursor: 'pointer', textDecoration: 'underline' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 4, fontSize: 11, color: 'var(--fg-faint)', cursor: 'pointer', textDecoration: 'underline' }}>
                   <Upload size={11} /> Upload a different image
                   <input type="file" accept="image/*" onChange={e => { setRawUpload(null); setProcessed(null); handleUpload(e); }} style={{ display: 'none' }} />
                 </label>
@@ -284,7 +284,7 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
         )}
 
         <div style={{ display: 'flex', gap: 8, marginTop: 18, justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ padding: '7px 18px', borderRadius: 5, border: '1px solid #d0d0d0', background: '#fff', cursor: 'pointer', fontSize: 13 }}>
+          <button onClick={onClose} style={{ padding: '7px 18px', borderRadius: 5, border: '1px solid var(--border-default)', background: 'var(--bg-surface)', cursor: 'pointer', fontSize: 13 }}>
             Cancel
           </button>
           <button onClick={save} disabled={saving || processing} style={{

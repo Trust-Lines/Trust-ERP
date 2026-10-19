@@ -143,17 +143,17 @@ export function IntakeForm({ intakeId, assignees }: Props) {
         <div>
           <Link
             href="/leads"
-            className="text-xs font-semibold text-primary-500 hover:text-primary-800 transition-colors flex items-center gap-1 mb-1"
+            className="text-xs font-semibold text-primary-500 dark:text-primary-200 hover:text-primary-800 transition-colors flex items-center gap-1 mb-1"
           >
             ← Leads
           </Link>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-primary-800 tracking-tight">New lead</h1>
-            <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-primary-100 text-primary-600 border border-ui-divider">
+            <h1 className="text-2xl font-bold text-primary-800 dark:text-primary-50 tracking-tight">New lead</h1>
+            <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-primary-100 dark:bg-primary-700 text-primary-600 dark:text-primary-200 border border-ui-divider">
               {savedAt ? 'Draft saved' : 'Not saved yet'}
             </span>
           </div>
-          <p className="text-xs text-primary-500 font-normal mt-0.5">Meeting / Intake form</p>
+          <p className="text-xs text-primary-500 dark:text-primary-200 font-normal mt-0.5">Meeting / Intake form</p>
         </div>
 
         <div className="flex items-center gap-2.5">

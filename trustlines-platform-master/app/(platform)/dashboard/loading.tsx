@@ -23,7 +23,7 @@ export default function DashboardLoading() {
             <Skeleton className="h-28 w-full rounded-none" />
             <div className="space-y-3.5 p-3.5">
               {Array.from({ length: 5 }, (_, r) => (
-                <div key={r} className="space-y-2 rounded-control bg-primary-50 p-3.5">
+                <div key={r} className="space-y-2 rounded-control bg-primary-50 dark:bg-primary-800 p-3.5">
                   <Skeleton className="h-3 w-40" />
                   <Skeleton className="h-2.5 w-28" />
                 </div>

@@ -12,19 +12,19 @@ const buttonVariantsBase = cva(
     variants: {
       variant: {
         primary:
-          "bg-primary-950 text-primary-50 hover:bg-primary-700 active:bg-primary-700 disabled:bg-grey-100 disabled:text-grey-200",
+          "bg-primary-950 text-primary-50 hover:bg-primary-700 active:bg-primary-700 disabled:bg-grey-100 disabled:text-grey-200 dark:bg-primary-50 dark:text-primary-950 dark:hover:bg-primary-100 dark:active:bg-primary-100",
         secondary:
-          "border-primary-950 bg-transparent text-primary-950 hover:border-primary-700 hover:text-primary-700 active:border-primary-700 active:text-primary-700 disabled:border-grey-200 disabled:text-grey-200",
+          "border-primary-950 bg-transparent text-primary-950 hover:border-primary-700 hover:text-primary-700 active:border-primary-700 active:text-primary-700 disabled:border-grey-200 disabled:text-grey-200 dark:border-primary-200 dark:text-primary-50 dark:hover:border-primary-100 dark:hover:text-primary-100",
         outline:
-          "border-primary-700 bg-transparent text-primary-700 hover:bg-primary-50 disabled:border-grey-200 disabled:text-grey-200",
+          "border-primary-700 bg-transparent text-primary-700 hover:bg-primary-50 disabled:border-grey-200 disabled:text-grey-200 dark:border-[var(--ui-control-border)] dark:bg-[var(--ui-surface-elevated)] dark:text-[var(--ui-heading)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.35)] dark:hover:bg-white/5 dark:disabled:border-primary-600 dark:disabled:text-primary-500",
         ghost:
-          "bg-transparent text-primary-700 hover:bg-ui-hover-bg disabled:text-grey-200",
+          "bg-transparent text-primary-700 hover:bg-ui-hover-bg disabled:text-grey-200 dark:text-primary-100 dark:hover:bg-white/5 dark:disabled:text-primary-500",
         destructive:
           "bg-error-normal text-primary-50 hover:bg-error-dark disabled:bg-grey-100 disabled:text-grey-200",
         link: "h-auto! border-0 p-0! text-ui-link underline-offset-4 hover:underline",
         // Legacy shadcn name, kept so existing callers keep working.
         default:
-          "bg-primary-950 text-primary-50 hover:bg-primary-700 disabled:bg-grey-100 disabled:text-grey-200",
+          "bg-primary-950 text-primary-50 hover:bg-primary-700 disabled:bg-grey-100 disabled:text-grey-200 dark:bg-primary-50 dark:text-primary-950 dark:hover:bg-primary-100",
       },
       size: {
         sm: "h-8 gap-1.5 rounded-[4px] px-3 text-[13px] [&_svg:not([class*='size-'])]:size-4",

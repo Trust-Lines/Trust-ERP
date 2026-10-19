@@ -124,8 +124,8 @@ export function ModuleGrid({
               href={mod.href}
               className={`relative rounded-3xl p-6 min-h-[172px] flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 group hover:-translate-y-1 hover:shadow-lg ${
                 isSelected
-                  ? 'bg-[#F8FAFC] border-2 border-[#3B82F6] shadow-sm'
-                  : 'bg-white border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:border-slate-300'
+                  ? 'bg-[var(--bg-subtle)] border-2 border-[#3B82F6] shadow-sm'
+                  : 'bg-ui-surface-elevated border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:border-slate-300'
               }`}
             >
               {/* Bookmark Ribbon on Active Card */}
@@ -163,7 +163,7 @@ export function ModuleGrid({
 
       {/* Empty Search State */}
       {filteredModules.length === 0 && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center shadow-xs">
+        <div className="bg-ui-surface-elevated border border-slate-200 rounded-3xl p-12 text-center shadow-xs">
           <Search size={32} className="mx-auto text-slate-300 mb-2" />
           <h3 className="text-sm font-bold text-slate-800">No modules match &quot;{search}&quot;</h3>
           <p className="text-xs text-slate-500 mt-1">Try clearing your search query</p>

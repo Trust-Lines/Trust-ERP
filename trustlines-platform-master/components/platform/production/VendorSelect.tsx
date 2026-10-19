@@ -77,7 +77,7 @@ export function VendorSelect({
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
           width: '100%', maxWidth: width, fontSize: 11, padding: '4px 6px', borderRadius: 4,
-          border: '1px solid var(--border-default)', background: '#fff', cursor: 'pointer',
+          border: '1px solid var(--border-default)', background: 'var(--bg-surface)', cursor: 'pointer',
           color: hasValue ? 'var(--fg-default)' : 'var(--fg-faint)',
         }}
       >
@@ -93,7 +93,7 @@ export function VendorSelect({
             left: Math.min(rect.left, window.innerWidth - 252),
             top: openUp ? undefined : rect.bottom + 4,
             bottom: openUp ? (window.innerHeight - rect.top + 4) : undefined,
-            width: 244, background: '#fff', border: '1px solid var(--border-default)',
+            width: 244, background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
             borderRadius: 6, boxShadow: '0 12px 32px rgba(0,0,0,0.22)', overflow: 'hidden',
           }}
         >
@@ -127,7 +127,7 @@ export function VendorSelect({
             style={{
               display: 'flex', alignItems: 'center', gap: 6, width: '100%',
               padding: '9px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              background: '#f0fdfa', color: '#0f766e', border: 'none', borderTop: '1px solid var(--border-subtle)',
+              background: 'var(--brand-teal-100)', color: '#0f766e', border: 'none', borderTop: '1px solid var(--border-subtle)',
             }}
           >
             <Plus size={13} /> Add new vendor{query.trim() ? ` “${query.trim()}”` : ''}
@@ -142,7 +142,7 @@ export function VendorSelect({
 function Row({ label, deleting, onClick, onDelete }: { label: string; deleting?: boolean; onClick: () => void; onDelete?: () => void }) {
   return (
     <div
-      style={{ display: 'flex', alignItems: 'center', background: '#fff' }}
+      style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-surface)' }}
       onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; }}
       onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
     >

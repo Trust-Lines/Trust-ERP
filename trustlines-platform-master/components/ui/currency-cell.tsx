@@ -38,7 +38,7 @@ function CurrencyCell({ amount, currency = "USD", hidden = false, variant = "pil
         "tabular-nums whitespace-nowrap",
         variant === "pill"
           ? "inline-flex h-10 items-center rounded-[6px] bg-primary-700 px-3 text-[14px] font-semibold leading-[1.5] text-primary-50"
-          : "block text-right text-[13px] text-primary-800",
+          : "block text-right text-[13px] text-primary-800 dark:text-primary-50",
         className
       )}
     >

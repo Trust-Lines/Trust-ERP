@@ -413,8 +413,9 @@ export function ProspectDetailClient({
               onClick={() => setTab(t.key)}
               className="btn btn-ghost btn-sm"
               style={{
-                borderRadius: 0, borderBottom: active ? '2px solid var(--brand-navy)' : '2px solid transparent',
-                color: active ? 'var(--fg-default)' : 'var(--fg-subtle)', fontWeight: active ? 600 : 500,
+                borderRadius: 0, borderBottom: active ? '2px solid var(--ui-tab-accent, var(--brand-navy))' : '2px solid transparent',
+                boxShadow: active ? 'var(--ui-tab-glow, none)' : 'none',
+                color: active ? 'var(--ui-tab-accent-text, var(--fg-default))' : 'var(--fg-subtle)', fontWeight: active ? 600 : 500,
               }}
             >
               <Icon size={14} /> {t.label}

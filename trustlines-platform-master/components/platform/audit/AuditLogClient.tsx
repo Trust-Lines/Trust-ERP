@@ -35,7 +35,7 @@ function actionStyle(action: string): { bg: string; color: string; label: string
     return { bg: '#ede9fe', color: '#7c3aed', label: action };
   if (a.includes('login') || a.includes('auth') || a.includes('access'))
     return { bg: '#fef3c7', color: '#d97706', label: action };
-  return { bg: '#f3f4f6', color: '#6b7280', label: action };
+  return { bg: '#f3f4f6', color: 'var(--fg-subtle)', label: action };
 }
 
 function fmtAction(action: string): string {
@@ -65,8 +65,8 @@ function DiffView({ old_value, new_value }: { old_value: unknown; new_value: unk
           <div style={{ fontSize: 10, fontWeight: 700, color: '#dc2626', marginBottom: 3, textTransform: 'uppercase' }}>Before</div>
           <pre style={{
             margin: 0, padding: '8px 10px', borderRadius: 5,
-            background: '#fff5f5', border: '1px solid #fecaca',
-            fontSize: 11, color: '#7f1d1d', overflowX: 'auto',
+            background: 'var(--status-danger-bg)', border: '1px solid #fecaca',
+            fontSize: 11, color: 'var(--status-danger-fg)', overflowX: 'auto',
             whiteSpace: 'pre-wrap', wordBreak: 'break-all',
           }}>{oldStr}</pre>
         </div>
@@ -76,8 +76,8 @@ function DiffView({ old_value, new_value }: { old_value: unknown; new_value: unk
           <div style={{ fontSize: 10, fontWeight: 700, color: '#16a34a', marginBottom: 3, textTransform: 'uppercase' }}>After</div>
           <pre style={{
             margin: 0, padding: '8px 10px', borderRadius: 5,
-            background: '#f0fdf4', border: '1px solid #bbf7d0',
-            fontSize: 11, color: '#14532d', overflowX: 'auto',
+            background: 'var(--status-success-bg)', border: '1px solid #bbf7d0',
+            fontSize: 11, color: 'var(--status-success-fg)', overflowX: 'auto',
             whiteSpace: 'pre-wrap', wordBreak: 'break-all',
           }}>{newStr}</pre>
         </div>

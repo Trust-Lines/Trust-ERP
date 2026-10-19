@@ -6,8 +6,8 @@ import { createClient } from '@/lib/supabase/client';
 import { LoginShell } from '@/components/auth/LoginShell';
 
 // Design: Figma "Desktop - 11" (1440x1024 frame). Assets exported from Figma live in /public/login.
-const INK = '#2c2c2c';
-const PLACEHOLDER = '#a8a8a8';
+const INK = 'var(--tl-ink, #2c2c2c)';
+const PLACEHOLDER = 'var(--tl-placeholder, #a8a8a8)';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -68,7 +68,7 @@ export default function LoginPage() {
       }
     >
       <style>{`
-        .tl-login-field { display: flex; align-items: center; gap: 14px; height: 52px; padding: 0 11px; border: 1px solid ${PLACEHOLDER}; border-radius: 8px; box-sizing: border-box; background: #fff; }
+        .tl-login-field { display: flex; align-items: center; gap: 14px; height: 52px; padding: 0 11px; border: 1px solid ${PLACEHOLDER}; border-radius: 8px; box-sizing: border-box; background: var(--tl-field-bg, #fff); }
         .tl-login-field:focus-within { border-color: ${INK}; }
         .tl-login-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: 500 15px var(--font-brand); letter-spacing: 1.2px; color: ${INK}; }
         .tl-login-field input::placeholder { color: ${PLACEHOLDER}; }
@@ -97,7 +97,7 @@ export default function LoginPage() {
         </a>
 
         {error && (
-          <div role="alert" style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#b91c1c' }}>
+          <div role="alert" style={{ background: 'var(--status-danger-bg)', border: '1px solid var(--status-danger)', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--status-danger-fg)' }}>
             {error}
           </div>
         )}
@@ -105,7 +105,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          style={{ height: 52, marginTop: error ? 0 : 29, border: 0, borderRadius: 8, background: INK, color: '#fff', fontFamily: 'var(--font-brand)', fontSize: 18, fontWeight: 600, letterSpacing: '1.44px', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+          style={{ height: 52, marginTop: error ? 0 : 29, border: 0, borderRadius: 8, background: INK, color: 'var(--tl-ink-on, #fff)', fontFamily: 'var(--font-brand)', fontSize: 18, fontWeight: 600, letterSpacing: '1.44px', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
         >
           {loading ? 'Signing in…' : 'Sign in'}
         </button>

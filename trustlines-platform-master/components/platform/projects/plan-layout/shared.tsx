@@ -45,7 +45,7 @@ export function DocStatusBadge({ status }: { status: string }) {
 export const toolBtn: React.CSSProperties = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   width: 28, height: 28, borderRadius: 5, border: '1px solid var(--border-default)',
-  background: 'white', cursor: 'pointer', color: 'var(--fg-muted)',
+  background: 'var(--bg-surface)', cursor: 'pointer', color: 'var(--fg-muted)',
 };
 
 export function getApprovalStages(docType: string, catGroup?: string | null) {

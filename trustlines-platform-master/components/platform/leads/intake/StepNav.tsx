@@ -5,7 +5,7 @@ import { WIZARD_STEPS } from './types';
 
 export function StepNav({ activeStep, onSelect }: { activeStep: number; onSelect: (step: number) => void }) {
   return (
-    <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-2xl p-3 shadow-2xs space-y-1">
+    <div className="lg:col-span-3 bg-ui-surface-elevated border border-slate-200/80 rounded-2xl p-3 shadow-2xs space-y-1">
       {WIZARD_STEPS.map((s) => {
         const isActive = activeStep === s.step;
         const isDone = activeStep > s.step;

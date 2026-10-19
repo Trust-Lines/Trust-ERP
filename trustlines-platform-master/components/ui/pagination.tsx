@@ -41,7 +41,7 @@ function Pagination({ page, pageCount, onPageChange, className }: PaginationProp
         disabled={disabled}
         onClick={() => onPageChange(target)}
         aria-label={dir < 0 ? "Previous page" : "Next page"}
-        className={cn(box, "bg-primary-700 text-primary-50 hover:bg-primary-950 disabled:bg-grey-100 disabled:text-grey-200")}
+        className={cn(box, "bg-primary-700 text-primary-50 hover:bg-primary-950 dark:bg-primary-100 dark:text-primary-950 dark:hover:bg-primary-50 disabled:bg-grey-100 disabled:text-grey-200 dark:disabled:bg-primary-700 dark:disabled:text-primary-500")}
       >
         <Icon className="size-4" />
       </button>
@@ -54,7 +54,7 @@ function Pagination({ page, pageCount, onPageChange, className }: PaginationProp
         {pageList(page, pageCount).map((p, i) => (
           <li key={p === "gap" ? `gap-${i}` : p}>
             {p === "gap" ? (
-              <span aria-hidden className={cn(box, "border border-primary-700 bg-primary-50 text-primary-700")}>..</span>
+              <span aria-hidden className={cn(box, "border border-primary-700 dark:border-primary-500 bg-primary-50 dark:bg-primary-800 text-primary-700 dark:text-primary-100")}>..</span>
             ) : (
               <button
                 type="button"
@@ -65,7 +65,7 @@ function Pagination({ page, pageCount, onPageChange, className }: PaginationProp
                   box,
                   p === page
                     ? "bg-accent-500 text-[15px] font-semibold text-primary-50"
-                    : "border border-primary-700 bg-primary-50 text-primary-700 hover:bg-primary-100"
+                    : "border border-primary-700 dark:border-primary-500 bg-primary-50 dark:bg-primary-800 text-primary-700 dark:text-primary-100 hover:bg-primary-100 dark:hover:bg-primary-700"
                 )}
               >
                 {p}

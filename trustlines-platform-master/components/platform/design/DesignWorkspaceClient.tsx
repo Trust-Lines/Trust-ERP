@@ -62,6 +62,14 @@ const cap = (s: string) => s.replace(/_/g, ' ');
 function StatusPill({ status }: { status: string }) {
   const good = ['approved_by_sales', 'completed', 'approved'].includes(status);
   const warn = ['revision_requested', 'rejected', 'cancelled', 'awaiting_assignment'].includes(status);
+  const review = !good && !warn && /review|presented|submitted/.test(status);
+  if (review) {
+    return (
+      <span className="pill" style={{ background: 'var(--ui-pill-review-bg, var(--status-t5-bg))', color: 'var(--ui-pill-review-fg, var(--status-t5-fg))', textTransform: 'capitalize' }}>
+        {cap(status)}
+      </span>
+    );
+  }
   return <Pill variant={good ? 'success' : warn ? 'warning' : 'neutral'}><span style={{ textTransform: 'capitalize' }}>{cap(status)}</span></Pill>;
 }
 
@@ -216,7 +224,7 @@ export function DesignWorkspaceClient({
     const anchor = anchorId(job);
 
     return (
-      <div key={job.id} style={{ border: '1px solid var(--border-subtle)', borderRadius: 8 }}>
+      <div key={job.id} style={{ border: '1px solid var(--ui-row-card-border, var(--border-subtle))', borderRadius: 8, background: 'var(--ui-row-card-bg, transparent)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', cursor: 'pointer' }} onClick={() => toggle(job.id)}>
           <ChevronDown size={15} style={{ color: 'var(--fg-subtle)', transform: open ? 'none' : 'rotate(-90deg)', transition: 'transform 150ms' }} />
           <div style={{ flex: 1 }}>
@@ -556,7 +564,7 @@ function CustomerBrief({ brief, files, busy, onOpen }: {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {list.map(f => (
                   <button key={f.id} className="btn btn-ghost btn-sm" disabled={busy}
-                    style={{ border: '1px solid var(--border-subtle)', fontSize: 12, background: 'white' }}
+                    style={{ border: '1px solid var(--border-subtle)', fontSize: 12, background: 'var(--bg-surface)' }}
                     onClick={() => onOpen(f.id)}>
                     <FileText size={12} /> {f.file_name}
                   </button>

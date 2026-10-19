@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Download, DatabaseBackup, ShieldAlert, EyeOff, KeyRound } from 'lucide-react';
+import { Download, DatabaseBackup, ShieldAlert, EyeOff, KeyRound, Palette } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { readHideAmounts, writeHideAmounts } from '@/lib/privacy/hideAmounts';
 import { toast } from 'sonner';
+import { ThemeSwitch } from '@/components/platform/shared/ThemeSync';
 
 const MIN_PASSWORD = 8;
 
@@ -126,6 +127,23 @@ export function SettingsClient({ isGeneralManager, email }: { isGeneralManager: 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <ChangePasswordCard email={email} />
+
+      <div className="card">
+        <div className="card-body" style={{ padding: 20 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Palette size={18} /> Appearance
+          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Theme</div>
+              <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: '4px 0 0', maxWidth: 640 }}>
+                Light, dark, or follow your device setting. Applies to this browser only.
+              </p>
+            </div>
+            <ThemeSwitch />
+          </div>
+        </div>
+      </div>
 
       <div className="card">
         <div className="card-body" style={{ padding: 20 }}>

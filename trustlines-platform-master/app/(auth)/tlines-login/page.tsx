@@ -4,7 +4,7 @@ import { LoginShell } from '@/components/auth/LoginShell';
 import { StoreMakerArt, DesignBuildArt, PremiumFitoutsArt } from '@/components/auth/BranchButtons';
 
 // Design: Figma "Tlines-Websites" → "Desktop - 15" (Select branch). Assets live in /public/login.
-const INK = '#2c2c2c';
+const INK = 'var(--tl-ink, #2c2c2c)';
 
 // TEMP: every branch goes to the dashboard until per-branch routing is defined.
 const BRANCHES = [

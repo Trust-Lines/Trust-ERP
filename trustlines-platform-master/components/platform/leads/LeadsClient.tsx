@@ -86,7 +86,7 @@ export function LeadsClient({
   const router = useRouter();
 
   useEffect(() => {
-    fetch('/api/sales/run-reminders', { method: 'POST' }).catch(() => {});
+    fetch('/api/sales/run-reminders', { method: 'POST' }).catch(() => { });
   }, []);
 
   const [mine, setMine] = useState(false);
@@ -103,12 +103,12 @@ export function LeadsClient({
 
   useEffect(() => { setLeads(initialLeads); }, [initialLeads]);
 
-  const [view, setView]             = useState<ViewMode>('list');
-  const [search, setSearch]         = useState('');
-  const [fPriority, setFPriority]   = useState('');
-  const [fAssignee, setFAssignee]   = useState('');
-  const [fRegion, setFRegion]       = useState('');
-  const [sortBy, setSortBy]         = useState('created_desc');
+  const [view, setView] = useState<ViewMode>('list');
+  const [search, setSearch] = useState('');
+  const [fPriority, setFPriority] = useState('');
+  const [fAssignee, setFAssignee] = useState('');
+  const [fRegion, setFRegion] = useState('');
+  const [sortBy, setSortBy] = useState('created_desc');
 
   const assigneeName = (id?: string | null) => assignees.find(a => a.id === id)?.full_name;
   const marketingAssigneeName = (id?: string | null) => marketingAssignees.find(a => a.id === id)?.full_name;
@@ -338,9 +338,9 @@ export function LeadsClient({
     out = [...out].sort((a, b) => {
       // Compare real instants — mixed ISO offsets (Z vs +00:00) don't sort correctly as strings.
       const ta = Date.parse(a.date_created) || 0, tb = Date.parse(b.date_created) || 0;
-      if (sortBy === 'created_asc')  return ta - tb;
-      if (sortBy === 'deal_desc')    return (b.deal_size ?? 0) - (a.deal_size ?? 0);
-      if (sortBy === 'priority')     return rank[a.priority] - rank[b.priority];
+      if (sortBy === 'created_asc') return ta - tb;
+      if (sortBy === 'deal_desc') return (b.deal_size ?? 0) - (a.deal_size ?? 0);
+      if (sortBy === 'priority') return rank[a.priority] - rank[b.priority];
       return tb - ta;
     });
     return out;
@@ -367,8 +367,8 @@ export function LeadsClient({
       {/* ── 1. Header Section ─────────────────────────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-primary-800 tracking-tight">CRM</h1>
-          <p className="text-xs text-primary-500 font-normal mt-0.5">
+          <h1 className="text-2xl font-bold text-primary-800 dark:text-primary-50 tracking-tight">CRM</h1>
+          <p className="text-xs text-primary-500 dark:text-primary-200 font-normal mt-0.5">
             {leads.length} records · {formatMoney(pipelineValue)} open pipeline
           </p>
         </div>
@@ -389,23 +389,23 @@ export function LeadsClient({
       <div className="bg-ui-surface-elevated border border-ui-divider rounded-2xl p-4 sm:p-5 shadow-2xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-ui-divider">
         {/* Opportunities */}
         <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-info-light text-info-normal flex items-center justify-center shrink-0">
+          <div className="w-13 h-13 rounded-2xl bg-info-light dark:bg-info-dark/45 text-info-normal flex items-center justify-center shrink-0">
             <Briefcase size={22} strokeWidth={1.8} />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium text-primary-500">All records</span>
-            <span className="text-2xl font-bold text-primary-800 leading-tight mt-0.5">{leads.length}</span>
+            <span className="text-xs font-medium text-primary-500 dark:text-primary-200">All records</span>
+            <span className="text-2xl font-bold text-primary-800 dark:text-primary-50 leading-tight mt-0.5">{leads.length}</span>
           </div>
         </div>
 
         {/* Pipeline value */}
         <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-success-light text-success-dark flex items-center justify-center shrink-0">
+          <div className="w-13 h-13 rounded-2xl bg-success-light dark:bg-success-dark/45 text-success-dark dark:text-success-light flex items-center justify-center shrink-0">
             <DollarSign size={22} strokeWidth={2.2} />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium text-primary-500">Pipeline value</span>
-            <span className="text-2xl font-bold text-primary-800 leading-tight mt-0.5">
+            <span className="text-xs font-medium text-primary-500 dark:text-primary-200">Pipeline value</span>
+            <span className="text-2xl font-bold text-primary-800 dark:text-primary-50 leading-tight mt-0.5">
               {formatMoney(pipelineValue)}
             </span>
           </div>
@@ -413,23 +413,23 @@ export function LeadsClient({
 
         {/* Proposal sent */}
         <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-accent-50 text-accent-600 flex items-center justify-center shrink-0">
+          <div className="w-13 h-13 rounded-2xl bg-accent-50 dark:bg-accent-800/45 text-accent-600 dark:text-accent-200 flex items-center justify-center shrink-0">
             <Send size={20} strokeWidth={2} />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium text-primary-500">Proposal sent</span>
-            <span className="text-2xl font-bold text-primary-800 leading-tight mt-0.5">{proposalSentCount}</span>
+            <span className="text-xs font-medium text-primary-500 dark:text-primary-200">Proposal sent</span>
+            <span className="text-2xl font-bold text-primary-800 dark:text-primary-50 leading-tight mt-0.5">{proposalSentCount}</span>
           </div>
         </div>
 
         {/* Deals closed */}
         <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-success-light text-success-dark flex items-center justify-center shrink-0">
+          <div className="w-13 h-13 rounded-2xl bg-success-light dark:bg-success-dark/45 text-success-dark dark:text-success-light flex items-center justify-center shrink-0">
             <CheckCircle2 size={22} strokeWidth={2} />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium text-primary-500">Deals closed</span>
-            <span className="text-2xl font-bold text-primary-800 leading-tight mt-0.5">{dealsClosedCount}</span>
+            <span className="text-xs font-medium text-primary-500 dark:text-primary-200">Deals closed</span>
+            <span className="text-2xl font-bold text-primary-800 dark:text-primary-50 leading-tight mt-0.5">{dealsClosedCount}</span>
           </div>
         </div>
       </div>
@@ -450,15 +450,18 @@ export function LeadsClient({
           size="sm"
           aria-pressed={mine}
           onClick={() => setMine(m => !m)}
-          className="aria-pressed:bg-ui-selected-bg aria-pressed:text-primary-950"
+          className="aria-pressed:bg-ui-selected-bg aria-pressed:text-primary-950 dark:h-9 dark:rounded-lg dark:border dark:border-[var(--ui-control-border)] dark:bg-[var(--ui-surface-elevated)] dark:px-3 dark:text-[var(--ui-body)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.35)] dark:aria-pressed:border-[var(--ui-menu-active-border)] dark:aria-pressed:bg-[var(--ui-menu-active-bg)] dark:aria-pressed:text-[var(--ui-menu-active-fg)]"
         >
           <User size={14} />
-          <span>Assigned to me · {myCount}</span>
+          <span>Assigned to me ·</span>
+          <span className="dark:grid dark:min-w-5 dark:place-items-center dark:rounded-full dark:px-1.5 dark:text-[12px] dark:leading-5 dark:bg-[#2C3542] dark:text-[var(--ui-heading)] dark:group-aria-pressed/button:bg-[#C9D0DA] dark:group-aria-pressed/button:text-[var(--ui-menu-active-fg)]">
+            {myCount}
+          </span>
         </Button>
       </div>
 
       {truncatedAt && (
-        <div className="rounded-xl border border-warning-normal bg-warning-light px-4 py-2.5 text-xs text-warning-dark">
+        <div className="rounded-xl border border-warning-normal bg-warning-light dark:bg-warning-dark/45 px-4 py-2.5 text-xs text-warning-dark dark:text-warning-light">
           Showing the newest <b>{truncatedAt}</b> records — there are more. Counts, totals and search only cover what&apos;s loaded.
         </div>
       )}
@@ -467,7 +470,7 @@ export function LeadsClient({
       <div className="flex items-center gap-3 flex-wrap text-xs">
         {/* Search input */}
         <div className="relative flex-1 min-w-[240px] max-w-sm">
-          <Search size={14} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-primary-400" />
+          <Search size={14} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-primary-400 dark:text-primary-300" />
           <Input
             type="search"
             aria-label="Search records"
@@ -530,6 +533,7 @@ export function LeadsClient({
               variant="outline"
               size="sm"
               aria-expanded={colsOpen}
+              className="dark:h-9 dark:rounded-lg dark:px-3"
               onClick={e => { e.stopPropagation(); setColsOpen(o => !o); }}
             >
               <Columns3 size={13} />
@@ -541,7 +545,7 @@ export function LeadsClient({
                 <div className="fixed inset-0 z-20" onClick={() => setColsOpen(false)} />
                 <div className="absolute right-0 top-full mt-1.5 z-30 w-52 max-h-80 overflow-auto bg-ui-surface-elevated border border-ui-divider rounded-xl shadow-lg p-1.5">
                   {LEAD_COLUMNS.map((c, i) => (
-                    <label key={c} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs ${i === 0 ? 'text-primary-400' : 'text-primary-700 hover:bg-primary-50 cursor-pointer'}`}>
+                    <label key={c} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs ${i === 0 ? 'text-primary-400 dark:text-primary-300' : 'text-primary-700 dark:text-primary-100 hover:bg-primary-50 dark:hover:bg-primary-700 cursor-pointer'}`}>
                       <Checkbox disabled={i === 0} checked={i === 0 || !hiddenCols.has(c)} onCheckedChange={() => toggleCol(c)} />
                       {c}
                     </label>
@@ -565,7 +569,7 @@ export function LeadsClient({
           </Button>
         )}
 
-        <span className="text-xs text-primary-400 font-medium ml-auto">
+        <span className="text-xs text-primary-400 dark:text-primary-300 font-medium ml-auto">
           {visibleLeads.length} shown
         </span>
       </div>
@@ -612,15 +616,15 @@ export function LeadsClient({
         {/* ── Right Side: Pipeline Stages Sidebar ───────────────────── */}
         <div className="hidden xl:block w-64 shrink-0 bg-ui-surface-elevated border border-ui-divider rounded-2xl p-4.5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-primary-800 uppercase tracking-wider">
+            <h3 className="text-xs font-bold text-primary-800 dark:text-primary-50 uppercase tracking-wider">
               Pipeline stages
             </h3>
-            <div className="flex items-center gap-3 text-[11px] text-primary-400">
-              <Link href="/settings" className={buttonVariants({ variant: 'ghost', size: 'xs', className: 'text-primary-400 hover:text-primary-700' })}>
+            <div className="flex items-center gap-3 text-[11px] text-primary-400 dark:text-primary-300">
+              <Link href="/settings" className={buttonVariants({ variant: 'ghost', size: 'xs', className: 'text-primary-400 dark:text-primary-300 hover:text-primary-700' })}>
                 <Settings size={13} />
                 <span>Set</span>
               </Link>
-              <Link href="/leads/trash" className={buttonVariants({ variant: 'ghost', size: 'xs', className: 'text-primary-400 hover:text-primary-700' })}>
+              <Link href="/leads/trash" className={buttonVariants({ variant: 'ghost', size: 'xs', className: 'text-primary-400 dark:text-primary-300 hover:text-primary-700' })}>
                 <Trash2 size={13} />
                 <span>Trash</span>
               </Link>
@@ -639,17 +643,16 @@ export function LeadsClient({
                 <div
                   key={s.key}
                   onClick={() => setSelectedStage(prev => prev === s.key ? null : s.key)}
-                  className={`flex items-center justify-between gap-3 text-xs py-1 px-1.5 rounded-lg transition-colors cursor-pointer ${
-                    isFiltered ? 'bg-ui-selected-bg font-bold' : 'hover:bg-primary-50'
-                  }`}
+                  className={`flex items-center justify-between gap-3 text-xs py-1 px-1.5 rounded-lg transition-colors cursor-pointer ${isFiltered ? 'bg-ui-selected-bg font-bold' : 'hover:bg-primary-50 dark:hover:bg-primary-700'
+                    }`}
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: stageColor }} />
-                    <span className="truncate text-primary-700 font-medium text-[12px]">{s.label}</span>
+                    <span className="truncate text-primary-700 dark:text-primary-100 font-medium text-[12px]">{s.label}</span>
                   </div>
 
                   <div className="flex items-center gap-2.5 shrink-0">
-                    <div className="w-14 h-1.5 bg-primary-100 rounded-full overflow-hidden">
+                    <div className="w-14 h-1.5 bg-primary-100 dark:bg-primary-700 rounded-full overflow-hidden">
                       {count > 0 && (
                         <div
                           className="h-full rounded-full"
@@ -657,7 +660,7 @@ export function LeadsClient({
                         />
                       )}
                     </div>
-                    <span className="text-primary-800 font-bold text-xs w-4 text-right">{count}</span>
+                    <span className="text-primary-800 dark:text-primary-50 font-bold text-xs w-4 text-right">{count}</span>
                   </div>
                 </div>
               );

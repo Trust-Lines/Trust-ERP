@@ -485,14 +485,14 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
       </div>
 
       {!canCreatePf && (
-        <div style={{ margin: '0 14px 12px', padding: '10px 14px', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Drafts OK — signing locked until these are approved</div>
-          <div style={{ fontSize: 11, color: '#b45309', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ margin: '0 14px 12px', padding: '10px 14px', background: 'var(--status-warning-bg)', border: '1px solid #fcd34d', borderRadius: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--status-warning-fg)' }}>Drafts OK — signing locked until these are approved</div>
+          <div style={{ fontSize: 11, color: 'var(--status-warning-fg)', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {pendingPrereqs.map(p => (
-              <span key={p.type} style={{ padding: '2px 8px', borderRadius: 99, background: '#fef3c7', fontWeight: 600 }}>{p.label}</span>
+              <span key={p.type} style={{ padding: '2px 8px', borderRadius: 99, background: 'var(--status-warning-bg)', fontWeight: 600 }}>{p.label}</span>
             ))}
           </div>
-          <div style={{ fontSize: 10.5, color: '#a16207', marginTop: 5 }}>You can generate &amp; preview the PF draft now. The signature chain opens once the {categoryLabel} Plan Layout, Item List, Item Price List, Book and PO are approved (V0).</div>
+          <div style={{ fontSize: 10.5, color: 'var(--status-warning-fg)', marginTop: 5 }}>You can generate &amp; preview the PF draft now. The signature chain opens once the {categoryLabel} Plan Layout, Item List, Item Price List, Book and PO are approved (V0).</div>
         </div>
       )}
 
@@ -591,7 +591,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                <iframe key={`${selectedDoc.id}-${pfCacheBust}`} src={proxyUrl} title={selectedDoc.file_name} style={{ flex: 1, minWidth: 0, height: 660, border: '1px solid var(--border-subtle)', borderRadius: 8, background: '#e8eaed' }} />
+                <iframe key={`${selectedDoc.id}-${pfCacheBust}`} src={proxyUrl} title={selectedDoc.file_name} style={{ flex: 1, minWidth: 0, height: 660, border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--bg-sunken)' }} />
                 <div style={{ width: 234, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 8, overflow: 'hidden' }}>
                   <div style={{ padding: '10px 12px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -619,12 +619,12 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                       );
                     })}
                     {pfStatus === 'ASSEMBLY' && (
-                      <button onClick={() => setShowAssembly(true)} style={{ width: '100%', marginTop: 6, padding: '7px 9px', borderRadius: 6, border: '1px solid #1a6b6b', background: '#f0fdfa', color: '#1a6b6b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                      <button onClick={() => setShowAssembly(true)} style={{ width: '100%', marginTop: 6, padding: '7px 9px', borderRadius: 6, border: '1px solid #1a6b6b', background: 'var(--brand-teal-100)', color: '#1a6b6b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                         🔗 Open assembly relationships
                       </button>
                     )}
                     {pfStatus === 'RECEIVED' && (
-                      <button onClick={() => toast.info('QC step — coming soon')} style={{ width: '100%', marginTop: 6, padding: '7px 9px', borderRadius: 6, border: '1px solid #d97706', background: '#fffbeb', color: '#b45309', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                      <button onClick={() => toast.info('QC step — coming soon')} style={{ width: '100%', marginTop: 6, padding: '7px 9px', borderRadius: 6, border: '1px solid #d97706', background: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                         ✅ QC (quality check)
                       </button>
                     )}
@@ -636,7 +636,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                     <div style={{ fontSize: 10, color: 'var(--fg-faint)', marginTop: 1 }}>Approved after General Manager · Accountant optional</div>
                   </div>
                   {userSig === null && canCreatePf && (
-                    <div style={{ fontSize: 10, color: '#b45309', background: '#fffbeb', padding: '6px 10px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: 10, color: 'var(--status-warning-fg)', background: 'var(--status-warning-bg)', padding: '6px 10px', borderBottom: '1px solid var(--border-subtle)' }}>
                       ✍️ You&apos;ll draw your signature before approving.
                     </div>
                   )}
@@ -659,7 +659,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                       <div style={{ fontSize: 11, color: 'var(--fg-faint)', lineHeight: 1.6 }}>
                         🔒 Signing opens once these are approved:
                         <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                          {pendingPrereqs.map(p => <span key={p.type} style={{ padding: '2px 7px', borderRadius: 99, background: '#fef3c7', color: '#b45309', fontWeight: 600 }}>{p.label}</span>)}
+                          {pendingPrereqs.map(p => <span key={p.type} style={{ padding: '2px 7px', borderRadius: 99, background: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)', fontWeight: 600 }}>{p.label}</span>)}
                         </div>
                       </div>
                     )}
@@ -672,7 +672,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
             <span style={{ color: 'var(--fg-muted)', fontWeight: 600 }}>Type</span>
-            <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 99, background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 99, background: 'var(--status-danger-bg)', color: '#b91c1c', border: '1px solid #fca5a5' }}>
               {activeType || catGroup.toUpperCase()}
             </span>
             <span style={{ fontSize: 10, color: 'var(--fg-faint)' }}>from the Item List section · drives the PF number</span>
@@ -681,7 +681,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
             {vendorTypes.length > 1 && (
               <button onClick={generateAllTypes} disabled={generating} title="Generate one PF per TYPE section" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 7,
-                border: '1px solid #1a2b4b', background: '#fff', color: '#1a2b4b', fontSize: 13, fontWeight: 700,
+                border: '1px solid #1a2b4b', background: 'var(--bg-surface)', color: '#1a2b4b', fontSize: 13, fontWeight: 700,
                 cursor: generating ? 'default' : 'pointer',
               }}>
                 {generating ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <FileText size={13} />}
@@ -760,7 +760,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
 
       {etdOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => !statusBusy && setEtdOpen(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, width: 'min(360px, 94vw)', padding: 18 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-surface)', borderRadius: 12, width: 'min(360px, 94vw)', padding: 18 }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Mark as ORDERED</div>
             <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 12 }}>STD is set to today. Pick the <b>Estimated Delivery Date (ETD)</b> — required.</div>
             <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)' }}>Estimated Delivery Date</label>

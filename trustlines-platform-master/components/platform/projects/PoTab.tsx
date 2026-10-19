@@ -152,10 +152,10 @@ export function PoTab({ projectId, userId, userRole, userPerms, catGroup, catego
                       border: '1px solid #dc2626', fontSize: 11, fontWeight: 700, cursor: 'pointer',
                       background: onHold ? '#dc2626' : '#fff', color: onHold ? '#fff' : '#dc2626',
                     }}><Pause size={11} /> {onHold ? 'ON HOLD / T' : 'HOLD / T'}</button>
-                    <button onClick={() => holdT(true)} disabled={holding || !onHold} style={{ flex: 1, padding: '7px 8px', borderRadius: 7, border: '1px solid var(--border-default)', background: '#fff', fontSize: 11, fontWeight: 600, cursor: onHold ? 'pointer' : 'not-allowed', opacity: onHold ? 1 : 0.5 }}>Release</button>
+                    <button onClick={() => holdT(true)} disabled={holding || !onHold} style={{ flex: 1, padding: '7px 8px', borderRadius: 7, border: '1px solid var(--border-default)', background: 'var(--bg-surface)', fontSize: 11, fontWeight: 600, cursor: onHold ? 'pointer' : 'not-allowed', opacity: onHold ? 1 : 0.5 }}>Release</button>
                   </div>
                   {onHold && holdNote && (
-                    <div style={{ marginTop: 2, padding: '6px 8px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, fontSize: 10, color: '#b91c1c' }}>
+                    <div style={{ marginTop: 2, padding: '6px 8px', background: 'var(--status-danger-bg)', border: '1px solid #fecaca', borderRadius: 6, fontSize: 10, color: '#b91c1c' }}>
                       <span style={{ fontWeight: 700 }}>Hold reason:</span> {holdNote}
                     </div>
                   )}
@@ -192,7 +192,7 @@ export function PoTab({ projectId, userId, userRole, userPerms, catGroup, catego
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <iframe key={`${selectedDoc.id}-${cacheBust}`} src={proxyUrl} title={selectedDoc.file_name} style={{ flex: 1, minWidth: 0, height: 660, border: '1px solid var(--border-subtle)', borderRadius: 8, background: '#e8eaed' }} />
+                  <iframe key={`${selectedDoc.id}-${cacheBust}`} src={proxyUrl} title={selectedDoc.file_name} style={{ flex: 1, minWidth: 0, height: 660, border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--bg-sunken)' }} />
                   <div style={{ width: 230, flexShrink: 0, border: '1px solid var(--border-subtle)', borderRadius: 8, overflow: 'hidden' }}>
                     <div style={{ padding: '10px 12px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
                       <div style={{ fontSize: 12, fontWeight: 700 }}>Document Approval</div>
