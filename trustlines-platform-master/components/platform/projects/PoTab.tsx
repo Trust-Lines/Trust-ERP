@@ -168,7 +168,7 @@ export function PoTab({ projectId, userId, userRole, userPerms, catGroup, catego
               {poDocs.map(d => {
                 const v = d.dropbox_version ?? d.version; const code = d.file_name.split(' - PO')[0]; const active = d.id === selectedDocId;
                 return (
-                  <button key={d.id} onClick={() => setSelectedDocId(d.id)} style={{ width: '100%', textAlign: 'left', display: 'block', padding: '8px 10px', marginBottom: 5, borderRadius: 7, cursor: 'pointer', border: `1px solid ${active ? 'var(--brand-teal, #1a6b6b)' : 'var(--border-subtle)'}`, background: active ? '#f0fdfa' : '#fff' }}>
+                  <button key={d.id} onClick={() => setSelectedDocId(d.id)} style={{ width: '100%', textAlign: 'left', display: 'block', padding: '8px 10px', marginBottom: 5, borderRadius: 7, cursor: 'pointer', border: `1px solid ${active ? 'var(--brand-teal, #1a6b6b)' : 'var(--border-subtle)'}`, background: active ? 'color-mix(in srgb, var(--brand-teal) 10%, var(--bg-surface))' : 'var(--bg-surface)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                       <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{code}</span>
                       <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--brand-teal, #1a6b6b)', flexShrink: 0 }}>V{v}</span>

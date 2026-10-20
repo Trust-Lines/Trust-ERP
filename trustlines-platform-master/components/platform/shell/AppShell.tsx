@@ -59,7 +59,9 @@ export function AppShell({
         <TopBar
           breadcrumbs={breadcrumbs}
           userRole={userRole}
+          userPerms={userPerms}
           userName={userName}
+          userEmail={userEmail}
           notificationCount={notificationCount}
           logoSrc={logoSrc}
         />

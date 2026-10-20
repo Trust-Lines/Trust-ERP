@@ -123,7 +123,7 @@ export function Step1ProjectInfo({
           readOnly={autoCodeMode}
           value={watchedCode ?? ''}
           placeholder="-- -- --"
-          style={{ fontFamily: 'var(--font-mono, monospace)', letterSpacing: '0.04em', maxWidth: 260, background: autoCodeMode ? '#f8fafc' : '#fff' }}
+          style={{ fontFamily: 'var(--font-mono, monospace)', letterSpacing: '0.04em', maxWidth: 260, background: autoCodeMode ? 'var(--bg-subtle)' : 'var(--bg-surface)' }}
           {...register('project_code')}
         />
         <span className="form-hint">Pick a Region and Company to generate automatically, or leave empty to type manually.</span>

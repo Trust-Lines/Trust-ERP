@@ -204,7 +204,7 @@ function StageTimelineCard({ stageHistory }: { stageHistory: StageTransitionRow[
                 <div style={{
                   position: 'absolute', left: -14, top: 3,
                   width: 8, height: 8, borderRadius: '50%',
-                  background: 'var(--brand-teal)', border: '2px solid var(--bg-default)',
+                  background: 'var(--brand-teal)', border: '2px solid var(--bg-surface)',
                 }} />
                 <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-default)', lineHeight: 1.3 }}>
                   {info.num} · {info.label}

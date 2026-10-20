@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { ThemeToggleButton } from '@/components/auth/ThemeToggleButton';
 
 // Design: Figma "TRUST-LINES ERP" → "Desktop login" (1440x900) and "Mobile login" (390 wide),
 // light + dark. Colours are the 2026 palette tokens (Figma "Basic UI Colors"). Assets: /public/login.
@@ -65,6 +66,8 @@ export default function LoginPage() {
 
   return (
     <main className="relative flex min-h-screen w-full flex-col overflow-hidden bg-primary-100 font-ui lg:flex-row lg:bg-white dark:bg-primary-600 lg:dark:bg-secondary-800">
+      <ThemeToggleButton />
+
       {/* Decorative backdrop (876 x 900 at the 1440 x 900 reference size) */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 hidden w-[60.83%] lg:block">
         <Image src="/login/backdrop.svg" alt="" fill priority className="object-cover object-left dark:hidden" />

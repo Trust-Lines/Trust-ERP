@@ -163,7 +163,7 @@ function DropdownInput({ value, onChange, onBlur, placeholder, optionsKey, style
     : null;
 
   const borderCol = dark ? 'rgba(255,255,255,0.25)' : 'var(--border-subtle)';
-  const bgCol     = dark ? 'rgba(255,255,255,0.12)' : 'var(--bg-default)';
+  const bgCol     = dark ? 'rgba(255,255,255,0.12)' : 'var(--bg-surface)';
   const textCol   = dark ? '#fff' : 'var(--fg-default)';
 
   return (
@@ -509,12 +509,12 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
     } finally { setGenerating(false); }
   }
 
-  const inp: React.CSSProperties    = { padding: '3px 6px', fontSize: 12, border: '1px solid var(--border-subtle)', borderRadius: 4, background: 'var(--bg-default)', color: 'var(--fg-default)', outline: 'none', width: '100%' };
+  const inp: React.CSSProperties    = { padding: '3px 6px', fontSize: 12, border: '1px solid var(--border-subtle)', borderRadius: 4, background: 'var(--bg-surface)', color: 'var(--fg-default)', outline: 'none', width: '100%' };
   const numInp: React.CSSProperties = { ...inp, textAlign: 'right', width: 70 };
   const thCell: React.CSSProperties = { padding: '5px 6px', fontSize: 10, fontWeight: 700, color: 'var(--fg-subtle)', textAlign: 'center', whiteSpace: 'nowrap' };
 
   return (
-    <div style={{ background: 'var(--bg-default)', borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
+    <div style={{ background: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoFile} />
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', borderRadius: '8px 8px 0 0' }}>

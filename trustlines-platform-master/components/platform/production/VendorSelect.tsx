@@ -127,7 +127,7 @@ export function VendorSelect({
             style={{
               display: 'flex', alignItems: 'center', gap: 6, width: '100%',
               padding: '9px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              background: 'var(--brand-teal-100)', color: '#0f766e', border: 'none', borderTop: '1px solid var(--border-subtle)',
+              background: 'var(--brand-teal-100)', color: 'var(--brand-teal)', border: 'none', borderTop: '1px solid var(--border-subtle)',
             }}
           >
             <Plus size={13} /> Add new vendor{query.trim() ? ` “${query.trim()}”` : ''}

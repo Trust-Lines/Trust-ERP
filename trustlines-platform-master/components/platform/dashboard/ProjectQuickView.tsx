@@ -133,7 +133,7 @@ export function ProjectQuickView({ projectId, onClose }: { projectId: string | n
 
               <Link
                 href={`/projects/${project.id}`}
-                className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-[#2c2c2c] hover:underline"
+                className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--fg-default)] hover:underline"
               >
                 Open full project <ExternalLink className="size-3.5" />
               </Link>

@@ -145,7 +145,7 @@ export function VersionsPanel({
                     padding: '9px 14px',
                     borderBottom: '1px solid var(--border-subtle)',
                     borderLeft: `3px solid ${isSelected ? 'var(--status-info)' : 'transparent'}`,
-                    background: isSelected ? 'var(--status-info-bg)' : 'white',
+                    background: isSelected ? 'var(--status-info-bg)' : 'var(--bg-surface)',
                     cursor: 'pointer', transition: 'all 80ms',
                   }}
                 >

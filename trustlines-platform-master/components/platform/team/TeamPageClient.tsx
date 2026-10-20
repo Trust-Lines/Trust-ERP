@@ -189,7 +189,7 @@ function InviteModal({
                   flex: 1, padding: '9px 10px', borderRadius: 6, cursor: 'pointer',
                   fontSize: 12.5, fontWeight: 600,
                   border: `1.5px solid ${type === t ? 'var(--brand-teal)' : 'var(--border-default)'}`,
-                  background: type === t ? 'var(--brand-teal-100)' : 'white',
+                  background: type === t ? 'var(--brand-teal-100)' : 'var(--bg-surface)',
                   color: type === t ? 'var(--brand-teal)' : 'var(--fg-muted)',
                 }}
               >
@@ -244,7 +244,7 @@ function InviteModal({
                 <strong>T-Lines PM</strong> — choose the region this PM manages, or make them the global <strong>Project Management Supervisor</strong> who oversees every region.
               </div>
 
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', border: `1px solid ${isGeneralPm ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, borderRadius: 8, marginBottom: 12, cursor: 'pointer', background: isGeneralPm ? 'var(--brand-teal-100)' : 'white' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', border: `1px solid ${isGeneralPm ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, borderRadius: 8, marginBottom: 12, cursor: 'pointer', background: isGeneralPm ? 'var(--brand-teal-100)' : 'var(--bg-surface)' }}>
                 <input type="checkbox" checked={isGeneralPm} onChange={e => { setIsGeneralPm(e.target.checked); if (e.target.checked) setSelectedClientId(''); }} style={{ marginTop: 2 }} />
                 <span style={{ fontSize: 12.5 }}>
                   <b>General PM — Project Management Supervisor</b>
@@ -438,7 +438,7 @@ function EditModal({
                   {SKILLS.map(s => {
                     const on = skills.includes(s);
                     return (
-                      <label key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${on ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, background: on ? 'var(--brand-teal-100)' : 'white' }}>
+                      <label key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${on ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, background: on ? 'var(--brand-teal-100)' : 'var(--bg-surface)' }}>
                         <input type="checkbox" checked={on} onChange={() => toggle(skills, setSkills, s)} style={{ margin: 0 }} />
                         {SKILL_LABELS[s]}
                       </label>
@@ -453,7 +453,7 @@ function EditModal({
                   {clients.map(c => {
                     const on = regionIds.includes(c.id);
                     return (
-                      <label key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${on ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, background: on ? 'var(--brand-teal-100)' : 'white' }}>
+                      <label key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${on ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, background: on ? 'var(--brand-teal-100)' : 'var(--bg-surface)' }}>
                         <input type="checkbox" checked={on} onChange={() => toggle(regionIds, setRegionIds, c.id)} style={{ margin: 0 }} />
                         {c.name}
                       </label>
@@ -468,7 +468,7 @@ function EditModal({
                   {REGIONS.map(r => {
                     const on = assignedRegions.includes(r.code);
                     return (
-                      <label key={r.code} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${on ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, background: on ? 'var(--brand-teal-100)' : 'white' }}>
+                      <label key={r.code} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${on ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, background: on ? 'var(--brand-teal-100)' : 'var(--bg-surface)' }}>
                         <input type="checkbox" checked={on} onChange={() => toggle(assignedRegions, setAssignedRegions, r.code)} style={{ margin: 0 }} />
                         {r.label}
                       </label>
@@ -490,7 +490,7 @@ function EditModal({
                       const on = serviceIds.includes(s.id);
                       const region = clients.find(c => c.id === s.client_id);
                       return (
-                        <label key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${on ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, background: on ? 'var(--brand-teal-100)' : 'white' }}>
+                        <label key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${on ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, background: on ? 'var(--brand-teal-100)' : 'var(--bg-surface)' }}>
                           <input type="checkbox" checked={on} onChange={() => toggle(serviceIds, setServiceIds, s.id)} style={{ margin: 0 }} />
                           {s.name}{region?.code ? ` · ${region.code}` : ''}
                         </label>
@@ -504,7 +504,7 @@ function EditModal({
 
           {isClientPm && (
             <div className="form-group">
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 12px', border: `1px solid ${isGeneralPm ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, borderRadius: 8, marginBottom: 10, cursor: 'pointer', background: isGeneralPm ? 'var(--brand-teal-100)' : 'white' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 12px', border: `1px solid ${isGeneralPm ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, borderRadius: 8, marginBottom: 10, cursor: 'pointer', background: isGeneralPm ? 'var(--brand-teal-100)' : 'var(--bg-surface)' }}>
                 <input type="checkbox" checked={isGeneralPm} onChange={e => { setIsGeneralPm(e.target.checked); if (e.target.checked) setPmClientId(''); }} style={{ marginTop: 2 }} />
                 <span style={{ fontSize: 12.5 }}><b>General PM — Project Management Supervisor</b><div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1 }}>Oversees all regions; signs the PO supervisor box.</div></span>
               </label>

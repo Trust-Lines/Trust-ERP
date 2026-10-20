@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Sparkles, X, Send } from 'lucide-react';
+import { Bot, X, Send } from 'lucide-react';
 
 interface Msg { role: 'user' | 'assistant'; content: string }
 
@@ -71,8 +71,16 @@ const I18N: Record<Lang, {
   },
 };
 
+/** Window event the top-bar "Trust Lines AI" button fires to open this panel. */
+export const OPEN_AI_EVENT = 'tl:open-ai';
+
 export function TrustLinesAI() {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(OPEN_AI_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_AI_EVENT, onOpen);
+  }, []);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -107,47 +115,32 @@ export function TrustLinesAI() {
 
   return (
     <>
-      {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          title="Trust Lines AI"
-          style={{
-            position: 'fixed', right: 22, bottom: 22, zIndex: 60,
-            width: 54, height: 54, borderRadius: '50%', border: 'none', cursor: 'pointer',
-            background: 'linear-gradient(135deg, var(--brand-teal, #0d9488), #0f766e)',
-            color: '#fff', boxShadow: '0 6px 22px rgba(13,148,136,0.45)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <Sparkles size={24} />
-        </button>
-      )}
-
+      {/* Opened from the top-bar "Trust Lines AI" button (OPEN_AI_EVENT). */}
       {open && (
         <div
           style={{
             position: 'fixed', right: 22, bottom: 22, zIndex: 60,
             width: 'min(400px, calc(100vw - 32px))', height: 'min(580px, calc(100vh - 100px))',
             display: 'flex', flexDirection: 'column',
-            background: 'var(--bg-elevated, #fff)', borderRadius: 16,
+            background: 'var(--bg-surface, #fff)', borderRadius: 16,
             border: '1px solid var(--border-subtle, #e5e7eb)',
             boxShadow: '0 18px 50px rgba(0,0,0,0.22)', overflow: 'hidden',
           }}
         >
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10, padding: '13px 15px',
-            background: 'linear-gradient(135deg, var(--brand-teal, #0d9488), #0f766e)', color: '#fff',
+            background: 'var(--color-secondary-700, #2B3D55)', color: '#fff',
           }}>
-            <Sparkles size={18} />
+            <Bot size={22} strokeWidth={1.75} />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.1 }}>Trust Lines AI</div>
-              <div style={{ fontSize: 11, opacity: 0.85 }}>{t.subtitle}</div>
+              <div style={{ fontSize: 11, marginTop: 2, color: 'var(--color-primary-200, #B4BDCB)' }}>{t.subtitle}</div>
             </div>
-            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.18)', borderRadius: 7, padding: 2, marginRight: 4 }}>
+            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.10)', borderRadius: 8, padding: 2, marginRight: 4 }}>
               {(['tr', 'en'] as Lang[]).map(l => (
-                <button key={l} onClick={() => setLang(l)} style={{
-                  fontSize: 10.5, fontWeight: 700, padding: '3px 7px', borderRadius: 5, border: 'none', cursor: 'pointer',
-                  background: lang === l ? '#fff' : 'transparent', color: lang === l ? 'var(--brand-teal, #0d9488)' : '#fff',
+                <button key={l} onClick={() => setLang(l)} aria-pressed={lang === l} style={{
+                  fontSize: 10.5, fontWeight: 700, padding: '4px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                  background: lang === l ? '#fff' : 'transparent', color: lang === l ? 'var(--color-secondary-800, #1A2533)' : 'var(--color-primary-200, #B4BDCB)',
                 }}>{l.toUpperCase()}</button>
               ))}
             </div>
@@ -159,14 +152,14 @@ export function TrustLinesAI() {
           <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             {messages.length === 0 && (
               <div style={{ margin: 'auto 0', textAlign: 'center', color: 'var(--fg-subtle, #6b7280)' }}>
-                <Sparkles size={26} style={{ opacity: 0.5, marginBottom: 8 }} />
+                <Bot size={80} strokeWidth={1.5} style={{ opacity: 0.5, display: 'block', margin: '0 auto 12px' }} />
                 <div style={{ fontSize: 13, marginBottom: 14 }}>{t.empty}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {t.suggestions.map(s => (
                     <button key={s} onClick={() => send(s)} style={{
                       fontSize: 12.5, textAlign: 'left', padding: '8px 11px', borderRadius: 9,
                       border: '1px solid var(--border-subtle, #e5e7eb)', background: 'var(--bg-subtle, #f9fafb)',
-                      color: 'var(--fg, #111827)', cursor: 'pointer',
+                      color: 'var(--fg-default, #111827)', cursor: 'pointer',
                     }}>{s}</button>
                   ))}
                 </div>
@@ -177,7 +170,7 @@ export function TrustLinesAI() {
                 <div style={{
                   fontSize: 13, lineHeight: 1.5, padding: '9px 12px', borderRadius: 12,
                   background: m.role === 'user' ? 'var(--brand-teal, #0d9488)' : 'var(--bg-subtle, #f3f4f6)',
-                  color: m.role === 'user' ? '#fff' : 'var(--fg, #111827)',
+                  color: m.role === 'user' ? '#fff' : 'var(--fg-default, #111827)',
                   borderBottomRightRadius: m.role === 'user' ? 3 : 12,
                   borderBottomLeftRadius: m.role === 'user' ? 12 : 3,
                 }}>
@@ -203,7 +196,7 @@ export function TrustLinesAI() {
               disabled={loading}
               style={{
                 flex: 1, fontSize: 13, padding: '9px 12px', borderRadius: 10,
-                border: '1px solid var(--border-subtle, #e5e7eb)', background: 'var(--bg, #fff)', color: 'var(--fg, #111827)', outline: 'none',
+                border: '1px solid var(--border-subtle, #e5e7eb)', background: 'var(--bg-surface, #fff)', color: 'var(--fg-default, #111827)', outline: 'none',
               }}
             />
             <button onClick={() => send(input)} disabled={loading || !input.trim()} style={{

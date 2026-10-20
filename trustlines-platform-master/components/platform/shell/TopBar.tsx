@@ -3,9 +3,14 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, ChevronRight } from 'lucide-react';
+import { Bell, Bot } from 'lucide-react';
 import type { UserRole } from '@/types/database';
+import { OPEN_AI_EVENT } from '@/components/platform/ai/TrustLinesAI';
+import { UserMenu } from './UserMenu';
+import { PageSearch } from './PageSearch';
+import { buildNavSections, roleLabel } from './Sidebar';
 
+// Design: Figma "TRUST-LINES ERP" → "Shell (Task 11)" → "Global top bar" (101:12543), light + dark.
 interface BreadcrumbItem {
   label: string;
   href?: string;
@@ -14,7 +19,9 @@ interface BreadcrumbItem {
 interface TopBarProps {
   breadcrumbs?: BreadcrumbItem[];
   userRole?: UserRole;
+  userPerms?: Record<string, boolean>;
   userName?: string;
+  userEmail?: string;
   notificationCount?: number;
   logoSrc?: string;
 }
@@ -50,9 +57,14 @@ const ROUTE_TITLES: Record<string, string> = {
 
 export function TopBar({
   breadcrumbs = [],
+  userRole,
+  userPerms,
+  userName = '',
+  userEmail = '',
   notificationCount = 0,
 }: TopBarProps) {
   const pathname = usePathname();
+  const sections = React.useMemo(() => (userRole ? buildNavSections(userRole, userPerms) : []), [userRole, userPerms]);
 
   // Find matched page title if no custom breadcrumbs provided
   const currentTitle =
@@ -61,22 +73,23 @@ export function TopBar({
     'Workspace';
 
   return (
-    <header className="topbar h-12 px-5 flex items-center justify-between border-b border-neutral-200/80 bg-ui-surface-elevated/95 backdrop-blur-sm sticky top-0 z-30 gap-4 select-none">
-      {/* ── Left Side: Current Page Title & Breadcrumbs ───────── */}
-      <div className="flex items-center gap-3 shrink-0 min-w-0">
+    <header data-shell="topbar" className="sticky top-0 z-30 flex h-20 select-none items-center justify-between gap-4 border-b border-primary-100 bg-white px-8 font-ui dark:border-primary-600 dark:bg-primary-950">
+      {/* ── Left: page search, then current page title & breadcrumbs ── */}
+      <div className="flex min-w-0 shrink items-center gap-6">
+        <PageSearch sections={sections} />
         {breadcrumbs.length > 0 ? (
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-neutral-500">
+          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-xs leading-[1.4] text-primary-400 dark:text-primary-200">
             {breadcrumbs.map((crumb, idx) => {
               const isLast = idx === breadcrumbs.length - 1;
               return (
                 <React.Fragment key={crumb.label}>
-                  {idx > 0 && <ChevronRight size={12} className="text-neutral-400" />}
+                  {idx > 0 && <span aria-hidden="true">/</span>}
                   {crumb.href && !isLast ? (
-                    <Link href={crumb.href} className="hover:text-neutral-900 transition-colors">
+                    <Link href={crumb.href} className="truncate hover:text-secondary-700 dark:hover:text-primary-50">
                       {crumb.label}
                     </Link>
                   ) : (
-                    <span className={isLast ? 'font-bold text-neutral-900 text-sm' : ''}>
+                    <span className={isLast ? 'truncate text-[13px] font-medium text-primary-500 dark:text-primary-100' : 'truncate'}>
                       {crumb.label}
                     </span>
                   )}
@@ -85,27 +98,38 @@ export function TopBar({
             })}
           </nav>
         ) : (
-          <div className="flex items-center gap-2">
-            <h1 className="text-sm font-bold text-neutral-900 tracking-tight">
-              {currentTitle}
-            </h1>
-          </div>
+          <h1 className="truncate text-[13px] font-medium leading-[1.4] text-primary-500 dark:text-primary-100">
+            {currentTitle}
+          </h1>
         )}
       </div>
 
-      {/* ── Right Side: Notifications Bell ─────────────────────── */}
-      <div className="flex items-center gap-2 shrink-0">
+      {/* ── Right: notifications & account ─────────────────────── */}
+      <div className="flex shrink-0 items-center gap-5">
         <Link
           href="/notifications"
-          className="relative p-2 rounded-xl text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100/80 transition-colors"
+          className="relative grid h-[37px] w-[41px] place-items-center rounded-md text-secondary-700 transition-colors hover:text-primary-500 dark:text-primary-50 dark:hover:text-primary-200"
           title="Notifications"
-          aria-label="Notifications"
+          aria-label={notificationCount > 0 ? `Notifications (${notificationCount} unread)` : 'Notifications'}
         >
-          <Bell size={18} strokeWidth={1.8} />
+          <Bell className="h-[27px] w-[27px]" strokeWidth={1.5} />
           {notificationCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+            <span className="absolute top-0.5 left-[23px] flex h-3 min-w-3 items-center justify-center rounded-[3px] bg-accent-400 px-0.5 text-[11px] leading-none text-white">
+              {notificationCount > 9 ? '9+' : notificationCount}
+            </span>
           )}
         </Link>
+
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event(OPEN_AI_EVENT))}
+          className="flex h-9 cursor-pointer items-center gap-2 rounded-md bg-secondary-700 px-3 text-[13px] font-semibold text-white transition-colors hover:bg-secondary-700/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-700 dark:bg-secondary-50 dark:text-primary-950 dark:hover:bg-secondary-50/90 dark:focus-visible:outline-primary-50"
+        >
+          <Bot className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+          Trust Lines AI
+        </button>
+
+        <UserMenu userName={userName} userEmail={userEmail} roleDisplay={userRole ? roleLabel(userRole) : ''} variant="topbar" />
       </div>
     </header>
   );

@@ -4,11 +4,8 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Home,
-  ChevronDown,
-  ChevronRight,
   LayoutDashboard,
   FolderKanban,
   CheckSquare,
@@ -16,7 +13,6 @@ import {
   ClipboardCheck,
   ClipboardList,
   Gauge,
-  MonitorPlay,
   Truck,
   Building2,
   Contact,
@@ -38,15 +34,21 @@ import {
   Megaphone,
   Inbox,
   QrCode,
-  LogOut,
-  Shield,
   Mail,
   UserSearch,
+  PanelLeftClose,
+  PanelLeftOpen,
+  DraftingCompass,
+  BriefcaseBusiness,
+  Wrench,
 } from 'lucide-react';
 import type { UserRole } from '@/types/database';
 import { permCan } from '@/lib/permissions/catalog';
-import { ThemeSwitch } from '@/components/platform/shared/ThemeSync';
+import { DEFAULT_LOGO } from '@/lib/regionLogo';
+import { UserMenu } from './UserMenu';
 
+// Design: Figma "TRUST-LINES ERP" → "Shell (Task 11)" (112:15713): 72px icon rail + 232px panel
+// that lists the selected group's pages; collapsing hides the panel. Light + dark.
 interface NavItem {
   label: string;
   href: string;
@@ -144,6 +146,10 @@ const MARKETING_NAV: NavItem[] = [
   { label: 'Trash',               href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing' },
 ];
 
+export function roleLabel(role: string) {
+  return ROLE_LABELS[role] || role.replace(/_/g, ' ');
+}
+
 interface SidebarProps {
   userRole: UserRole;
   userPerms?: Record<string, boolean>;
@@ -152,218 +158,36 @@ interface SidebarProps {
   logoSrc?: string;
 }
 
-const EASE = 'cubic-bezier(0.165, 0.85, 0.45, 1)';
-const DURATION = 240;
-const EXPANDED_WIDTH = 230;
-const COLLAPSED_WIDTH = 52;
-
-// ── Panel Icon (from claude-sidebar) ───────────────────────────────────────
-function PanelIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-      <path d="M16.5 4A1.5 1.5 0 0 1 18 5.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 2 14.5v-9A1.5 1.5 0 0 1 3.5 4zM7 15h9.5a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5H7zM3.5 5a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5H6V5z" />
-    </svg>
-  );
-}
-
-function NavLink({
-  item,
-  perms,
-  pathname,
-  collapsed,
-  bypassPerm = false,
-}: {
-  item: NavItem;
-  perms: Record<string, boolean> | undefined;
-  pathname: string;
-  collapsed: boolean;
-  bypassPerm?: boolean;
-}) {
-  if (!bypassPerm && !permCan(perms, item.perm)) return null;
-  const Icon = item.icon;
-  const active = pathname === item.href || (!item.exact && pathname?.startsWith(`${item.href}/`));
-
-  return (
-    <Link
-      href={item.href}
-      title={collapsed ? item.label : undefined}
-      className={`group flex items-center h-8.5 w-full rounded-xl px-2.5 text-xs font-medium transition-all duration-150 mb-0.5 select-none ${
-        active
-          ? 'bg-white text-[#0F172A] shadow-xs font-bold'
-          : 'text-white/85 hover:text-white hover:bg-white/15'
-      }`}
-    >
-      <div className="flex items-center gap-2.5 w-full min-w-0">
-        <span className={`flex items-center justify-center shrink-0 w-5 h-5 ${active ? 'text-[#0F172A]' : 'text-white/80 group-hover:text-white'}`}>
-          <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
-        </span>
-        <span
-          className="truncate flex-1 text-left"
-          style={{
-            opacity: collapsed ? 0 : 1,
-            transition: `opacity 150ms ${EASE}`,
-            display: collapsed ? 'none' : 'block',
-          }}
-        >
-          {item.label}
-        </span>
-      </div>
-    </Link>
-  );
-}
-
-function NavGroup({
-  title,
-  icon: GroupIcon,
-  items,
-  perms,
-  pathname,
-  collapsed,
-  bypassPerm = false,
-  defaultOpen = false,
-  activeOverride,
-}: {
+type IconType = React.ComponentType<{ className?: string; strokeWidth?: number }>;
+export interface NavSection {
+  key: string;
   title: string;
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+  icon: IconType;
   items: NavItem[];
-  perms: Record<string, boolean> | undefined;
-  pathname: string;
-  collapsed: boolean;
-  bypassPerm?: boolean;
-  defaultOpen?: boolean;
   activeOverride?: string;
-}) {
-  const visible = bypassPerm ? items : items.filter(item => permCan(perms, item.perm));
-
-  const matchedHref = visible
-    .filter(i => pathname === i.href || (!i.exact && pathname?.startsWith(`${i.href}/`)))
-    .reduce((best, i) => (i.href.length > best.length ? i.href : best), '');
-  const activeHref = (activeOverride && visible.some(i => i.href === activeOverride)) ? activeOverride : matchedHref;
-  const isActiveGroup = !!activeHref;
-
-  const storageKey = `sidebar_open_${title}`;
-  const [open, setOpen] = useState(() => isActiveGroup || defaultOpen);
-
-  useEffect(() => {
-    if (isActiveGroup) { setOpen(true); return; }
-    try {
-      const stored = window.localStorage.getItem(storageKey);
-      if (stored !== null) setOpen(stored === '1');
-    } catch { }
-  }, [isActiveGroup]);
-
-  function toggle() {
-    setOpen(prev => {
-      const next = !prev;
-      try { window.localStorage.setItem(storageKey, next ? '1' : '0'); } catch { }
-      return next;
-    });
-  }
-
-  if (visible.length === 0) return null;
-
-  if (collapsed) {
-    const firstItem = visible[0];
-    return (
-      <NavLink
-        item={{ ...firstItem, label: title, icon: GroupIcon }}
-        perms={perms}
-        pathname={pathname}
-        collapsed={true}
-        bypassPerm={bypassPerm}
-      />
-    );
-  }
-
-  return (
-    <div className="mb-0.5">
-      <button
-        onClick={toggle}
-        className="flex items-center h-8 w-full rounded-xl px-2.5 text-xs font-semibold text-white/85 hover:text-white hover:bg-white/10 transition-colors select-none text-left cursor-pointer"
-        aria-expanded={open}
-      >
-        <GroupIcon size={15} strokeWidth={1.8} className="shrink-0 mr-2 text-white/80" />
-        <span className="flex-1 truncate">{title}</span>
-        <span className="text-[10px] text-white/60 font-mono mr-1.5">{visible.length}</span>
-        {open ? <ChevronDown size={13} className="text-white/60" /> : <ChevronRight size={13} className="text-white/60" />}
-      </button>
-
-      {open && (
-        <div className="ml-4.5 pl-2.5 border-l border-white/20 mt-0.5 space-y-0.5">
-          {visible.map(item => {
-            const Icon = item.icon;
-            const active = item.href === activeHref;
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-2 h-7.5 px-2 rounded-lg text-[12px] transition-colors ${
-                  active
-                    ? 'bg-white text-[#0F172A] font-bold shadow-xs'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Icon size={13} strokeWidth={1.8} className={`shrink-0 ${active ? 'text-[#0F172A]' : 'text-white/70'}`} />
-                <span className="truncate">{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
 }
 
-export function Sidebar({
-  userRole,
-  userPerms,
-  userName,
-  userEmail,
-  logoSrc,
-}: SidebarProps) {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const quickDealActive = pathname === '/leads' && searchParams?.get('view') === 'quick_deal';
+const COLLAPSE_KEY = 'trustlines_sidebar_collapsed';
+const RAIL_ICON = 'h-6 w-6';
+const RAIL_ITEM_BASE = 'flex w-full items-center justify-center rounded-md px-2.5 transition-colors';
+const RAIL_IDLE = 'h-[30px] text-[#787881] hover:bg-primary-50 hover:text-secondary-700 dark:hover:bg-primary-800 dark:hover:text-primary-50';
+const RAIL_ACTIVE = 'h-12 bg-secondary-700 text-white dark:bg-secondary-50 dark:text-primary-950';
+const DIVIDER = 'h-px w-full bg-primary-100 dark:bg-primary-600';
 
-  const [collapsed, setCollapsed] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+function isOn(pathname: string, item: NavItem) {
+  return pathname === item.href || (!item.exact && !!pathname?.startsWith(`${item.href}/`));
+}
 
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem('trustlines_sidebar_collapsed');
-      if (stored !== null) setCollapsed(stored === '1');
-    } catch { }
-  }, []);
+/** Longest matching href in a section (so /leads/new beats /leads), or the override. */
+function activeHrefIn(section: NavSection, pathname: string) {
+  if (section.activeOverride && section.items.some(i => i.href === section.activeOverride)) return section.activeOverride;
+  return section.items
+    .filter(i => isOn(pathname, i))
+    .reduce((best, i) => (i.href.length > best.length ? i.href : best), '');
+}
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  function toggleCollapse() {
-    setCollapsed(prev => {
-      const next = !prev;
-      try { window.localStorage.setItem('trustlines_sidebar_collapsed', next ? '1' : '0'); } catch { }
-      return next;
-    });
-  }
-
-  const initials = (userName || 'U')
-    .split(' ')
-    .map(n => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-
-  const roleDisplay = ROLE_LABELS[userRole] || userRole.replace(/_/g, ' ');
-
+/** Groups and pages this user may open — shared by the sidebar and the top-bar page search. */
+export function buildNavSections(userRole: UserRole, userPerms: Record<string, boolean> | undefined, quickDealActive = false): NavSection[] {
   const isInternal = userRole !== 'tlines_pm';
   const SALES_ADMIN_ROLES = ['sales_marketing_manager', 'ops_manager', 'general_manager'];
   const isSalesAdmin = SALES_ADMIN_ROLES.includes(userRole);
@@ -393,191 +217,190 @@ export function Sidebar({
     { label: 'Trash', href: '/leads/trash', icon: Trash2, perm: 'page.leads' },
   ];
 
+  // Marketing and Sales lists are shown to their teams without per-item permission checks
+  // (bypassPerm in the previous layout); every other group filters by permission.
+  const allowed = (items: NavItem[]) => items.filter(i => permCan(userPerms, i.perm));
+  const sections: NavSection[] = [
+    { key: 'dashboard', title: 'Dashboard', icon: LayoutDashboard, items: allowed([DASHBOARD_ITEM]) },
+    ...(isMarketing ? [{ key: 'marketing', title: 'Marketing', icon: Megaphone, items: marketingNav }] : []),
+    ...(isSales ? [{ key: 'sales', title: 'Sales', icon: Target, items: salesNav, activeOverride: quickDealActive ? '/leads/new' : undefined }] : []),
+    { key: 'design', title: 'Design', icon: DraftingCompass, items: allowed([DESIGN_ITEM]) },
+    { key: 'projects', title: 'Projects', icon: BriefcaseBusiness, items: allowed(PROJECTS_NAV) },
+    ...(isInternal ? [{ key: 'operations', title: 'Operations', icon: Factory, items: allowed(OPERATIONS_NAV) }] : []),
+    ...(isInternal ? [{ key: 'admin', title: 'Admin', icon: Wrench, items: allowed(ADMIN_NAV) }] : []),
+  ].filter(s => s.items.length > 0);
+  return sections;
+}
+
+export function Sidebar({
+  userRole,
+  userPerms,
+  userName,
+  userEmail,
+  logoSrc,
+}: SidebarProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const quickDealActive = pathname === '/leads' && searchParams?.get('view') === 'quick_deal';
+
+  const [collapsed, setCollapsed] = useState(false);
+  const [browsing, setBrowsing] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(COLLAPSE_KEY);
+      if (stored !== null) setCollapsed(stored === '1');
+    } catch { }
+  }, []);
+
+  // A rail click previews another group; navigating anywhere snaps back to the page's own group.
+  useEffect(() => { setBrowsing(null); }, [pathname]);
+
+  function setCollapsedPersisted(next: boolean) {
+    setCollapsed(next);
+    try { window.localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0'); } catch { }
+  }
+
+  const roleDisplay = roleLabel(userRole);
+
+  const sections = buildNavSections(userRole, userPerms, quickDealActive);
+
+  // The page's own group: the one holding the longest matching href.
+  const pageSectionKey = sections
+    .map(s => ({ key: s.key, len: activeHrefIn(s, pathname).length }))
+    .filter(s => s.len > 0)
+    .sort((a, b) => b.len - a.len)[0]?.key ?? null;
+  const shownKey = browsing ?? pageSectionKey ?? sections[0]?.key ?? null;
+  const shown = sections.find(s => s.key === shownKey);
+  const shownActiveHref = shown && shown.key === pageSectionKey ? activeHrefIn(shown, pathname) : '';
+  const canSettings = permCan(userPerms, 'page.settings');
+
   return (
     <aside
       // sticky, not the old fixed-shell/overflow-hidden trick — AppShell's outer container no
       // longer clips to h-screen (2026-09-23, so short pages don't force-fill the viewport
       // with empty content-area background), so the sidebar has to pin itself instead.
-      className="sticky top-0 h-screen flex flex-col text-white select-none overflow-hidden shrink-0 z-20"
-      style={{
-        backgroundColor: 'var(--color-primary-800)',
-        borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-        width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
-        transition: `width ${DURATION}ms ${EASE}`,
-      }}
+      className="sticky top-0 z-20 flex h-screen shrink-0 select-none font-ui"
     >
-      {/* ── Header: Logo + Claude Panel Toggle Button ─────────── */}
-      <div
-        className="relative h-12 flex items-center justify-between px-3 shrink-0"
-        style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}
+      {/* ── Icon rail ─────────────────────────────────────────── */}
+      <nav
+        aria-label="Workspace groups"
+        className="flex h-full w-[72px] flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r border-primary-100 bg-white px-3 pt-[30px] pb-5 scrollbar-none dark:border-primary-600 dark:bg-primary-950"
       >
-        <div
-          className="flex items-center gap-2 overflow-hidden min-w-0"
-          style={{
-            opacity: collapsed ? 0 : 1,
-            transition: `opacity 150ms ${EASE}`,
-            pointerEvents: collapsed ? 'none' : 'auto',
-          }}
-        >
-          {logoSrc ? (
-            <Image
-              src={logoSrc}
-              alt="Trust-Lines"
-              width={110}
-              height={28}
-              className="max-h-6 w-auto object-contain brightness-0 invert"
-              priority
-              unoptimized
-            />
-          ) : (
-            <span className="text-xs font-bold tracking-tight text-white flex items-center gap-1.5">
-              <span className="h-5 w-5 rounded bg-black/25 text-white flex items-center justify-center text-[10px] font-black">TL</span>
-              Trust-Lines
-            </span>
-          )}
+        <div className="flex w-full flex-col items-center gap-10">
+          <button
+            type="button"
+            onClick={() => setCollapsedPersisted(!collapsed)}
+            aria-label={collapsed ? 'Open sidebar' : 'Close sidebar'}
+            title={collapsed ? 'Open sidebar' : 'Close sidebar'}
+            className="grid h-6 w-6 cursor-pointer place-items-center rounded text-secondary-700 hover:text-primary-500 dark:text-primary-50 dark:hover:text-primary-200"
+          >
+            {collapsed ? <PanelLeftOpen className={RAIL_ICON} strokeWidth={1.5} /> : <PanelLeftClose className={RAIL_ICON} strokeWidth={1.5} />}
+          </button>
+
+          <div className="flex w-full flex-col items-center gap-[30px]">
+            <div className="flex h-4 w-full items-center"><div className={DIVIDER} /></div>
+            {sections.map(s => {
+              const Icon = s.icon;
+              const active = s.key === shownKey;
+              const cls = `${RAIL_ITEM_BASE} ${active ? RAIL_ACTIVE : RAIL_IDLE}`;
+              // A single-page group (Dashboard, Design) goes straight to its page.
+              if (s.items.length === 1) {
+                return (
+                  <Link key={s.key} href={s.items[0].href} title={s.title} aria-label={s.title} aria-current={s.key === pageSectionKey ? 'page' : undefined} className={cls}>
+                    <Icon className={RAIL_ICON} strokeWidth={1.5} />
+                  </Link>
+                );
+              }
+              return (
+                <button
+                  key={s.key}
+                  type="button"
+                  title={s.title}
+                  aria-label={s.title}
+                  aria-pressed={active}
+                  onClick={() => { setBrowsing(s.key); if (collapsed) setCollapsedPersisted(false); }}
+                  className={`${cls} cursor-pointer`}
+                >
+                  <Icon className={RAIL_ICON} strokeWidth={1.5} />
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Panel Collapse Toggle Button (Claude-Style) */}
-        <button
-          type="button"
-          aria-label={collapsed ? 'Open sidebar' : 'Close sidebar'}
-          title={collapsed ? 'Open sidebar' : 'Close sidebar'}
-          onClick={toggleCollapse}
-          className="grid h-7 w-7 cursor-pointer place-items-center rounded-lg text-white/80 hover:text-white hover:bg-white/15 transition-colors shrink-0"
-        >
-          <PanelIcon />
-        </button>
-      </div>
-
-      {/* ── Navigation List ───────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-0.5 scrollbar-none">
-        <NavLink item={DASHBOARD_ITEM} perms={userPerms} pathname={pathname} collapsed={collapsed} />
-
-        {isMarketing && (
-          <NavGroup
-            title="Marketing" icon={Megaphone}
-            items={marketingNav}
-            perms={userPerms} pathname={pathname} bypassPerm defaultOpen
-            collapsed={collapsed}
-          />
-        )}
-
-        {isSales && (
-          <NavGroup
-            title="Sales" icon={Target} items={salesNav} perms={userPerms} pathname={pathname} bypassPerm defaultOpen
-            collapsed={collapsed}
-            activeOverride={quickDealActive ? '/leads/new' : undefined}
-          />
-        )}
-
-        <NavGroup title="Design" icon={Palette} items={[DESIGN_ITEM]} perms={userPerms} pathname={pathname} collapsed={collapsed} />
-        <NavGroup title="Projects" icon={ClipboardList} items={PROJECTS_NAV} perms={userPerms} pathname={pathname} collapsed={collapsed} />
-
-        {isInternal && (
-          <NavGroup title="Operations" icon={Factory} items={OPERATIONS_NAV} perms={userPerms} pathname={pathname} collapsed={collapsed} />
-        )}
-        {isInternal && (
-          <NavGroup title="Admin" icon={ShieldCheck} items={ADMIN_NAV} perms={userPerms} pathname={pathname} collapsed={collapsed} />
-        )}
-      </div>
-
-      {/* ── Footer: User Profile & Menu ──────────────────────── */}
-      <div
-        className="relative p-2 mt-auto shrink-0"
-        ref={menuRef}
-        style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}
-      >
-        {/* User popover menu */}
-        {menuOpen && (
-          <div
-            className={`bg-[#2D2D2D] text-white border border-white/15 rounded-2xl p-1.5 shadow-2xl z-50 animate-in fade-in-50 zoom-in-95 ${
-              collapsed ? 'fixed left-[58px] bottom-3 w-56' : 'absolute bottom-full mb-2 left-2 right-2'
-            }`}
-          >
-            <div className="px-3 py-2 border-b border-white/10 mb-1">
-              <p className="text-xs font-bold text-white truncate">{userName || 'User'}</p>
-              <p className="text-[10px] text-white/60 truncate">{userEmail}</p>
-              <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/10 text-teal-300">
-                {roleDisplay}
-              </span>
-            </div>
-
-            <div className="px-2.5 pt-1.5 pb-2 mb-1 border-b border-white/10">
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/50">Theme</p>
-              <ThemeSwitch tone="onDark" className="w-full" />
-            </div>
-
-            <Link
-              href="/settings"
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-white/85 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
-            >
-              <Settings size={14} className="text-white/70" />
-              <span>Settings</span>
+        <div className="flex w-full flex-col items-center gap-10 pt-10">
+          <div className={DIVIDER} />
+          <div className="flex flex-col items-center gap-[30px]">
+            <Link href="/notifications" title="Notifications" aria-label="Notifications" className="text-[#787881] hover:text-secondary-700 dark:hover:text-primary-50">
+              <Bell className={RAIL_ICON} strokeWidth={1.5} />
             </Link>
-
-            <Link
-              href="/audit"
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-white/85 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
-            >
-              <Shield size={14} className="text-white/70" />
-              <span>Audit &amp; Security</span>
-            </Link>
-
-            <div className="h-px bg-white/10 my-1" />
-
-            <form action="/api/auth/signout" method="POST">
-              <button
-                type="submit"
-                onClick={() => {
-                  try {
-                    for (let i = localStorage.length - 1; i >= 0; i--) {
-                      const k = localStorage.key(i);
-                      if (k && k.startsWith('docgen_')) localStorage.removeItem(k);
-                    }
-                  } catch { }
-                }}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/15 rounded-xl transition-colors text-left cursor-pointer"
-              >
-                <LogOut size={14} className="text-rose-400" />
-                <span>Sign out</span>
-              </button>
-            </form>
+            {canSettings && (
+              <Link href="/settings" title="Settings" aria-label="Settings" className="text-[#787881] hover:text-secondary-700 dark:hover:text-primary-50">
+                <Settings className={RAIL_ICON} strokeWidth={1.5} />
+              </Link>
+            )}
           </div>
-        )}
+          <div className={DIVIDER} />
+          <UserMenu userName={userName} userEmail={userEmail} roleDisplay={roleDisplay} variant="rail" />
+        </div>
+      </nav>
 
-        {/* Trigger button row */}
-        <button
-          type="button"
-          onClick={() => setMenuOpen(prev => !prev)}
-          className="w-full flex items-center gap-2.5 p-1.5 rounded-xl bg-black/15 border border-white/10 hover:bg-black/25 transition-colors overflow-hidden text-left cursor-pointer group"
-          aria-expanded={menuOpen}
-          title={collapsed ? `${userName} (${roleDisplay})` : undefined}
-        >
-          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-[#1E293B] text-xs font-bold shadow-xs">
-            {initials}
+      {/* ── Group panel ───────────────────────────────────────── */}
+      {!collapsed && (
+        <div className="flex h-full w-[232px] flex-col justify-between overflow-y-auto overflow-x-hidden border-r border-primary-100 bg-white px-4 pt-6 pb-5 scrollbar-none dark:border-primary-600 dark:bg-primary-950">
+          <div className="flex w-full flex-col gap-[52px]">
+            <BrandLogo logoSrc={logoSrc} />
+
+            {shown && (
+              <div className="flex w-full flex-col gap-2.5">
+                <p className="flex h-6 items-start pl-2.5 text-xs font-medium leading-4 text-primary-300 dark:text-primary-400">{shown.title}</p>
+                {shown.items.map(item => {
+                  const Icon = item.icon;
+                  const active = item.href === shownActiveHref;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? 'page' : undefined}
+                      className={`flex h-[30px] w-full items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors ${
+                        active
+                          ? 'bg-secondary-700 font-semibold text-primary-50 dark:bg-secondary-50 dark:text-primary-950'
+                          : 'text-[#787881] hover:bg-primary-50 hover:text-secondary-700 dark:hover:bg-primary-800 dark:hover:text-primary-50'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          <div
-            className="flex flex-1 flex-col min-w-0"
-            style={{
-              opacity: collapsed ? 0 : 1,
-              transition: `opacity 150ms ${EASE}`,
-              display: collapsed ? 'none' : 'flex',
-            }}
-          >
-            <span className="truncate text-xs font-bold text-white leading-tight">
-              {userName}
-            </span>
-            <span className="truncate text-[10px] text-white/70 leading-tight mt-0.5">
-              {roleDisplay}
-            </span>
-          </div>
-          {!collapsed && (
-            <ChevronDown size={13} className={`text-white/60 transition-transform duration-150 ${menuOpen ? 'rotate-180 text-white' : ''}`} />
-          )}
-        </button>
-      </div>
+
+          <p className="flex items-start gap-2 pt-6 text-[11px] leading-[1.4] text-primary-400 dark:text-primary-200">
+            <ShieldCheck className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+            <span className="min-w-0 truncate">{roleDisplay}</span>
+          </p>
+        </div>
+      )}
     </aside>
+  );
+}
+
+/** T Holding mark for the default workspace; region workspaces keep their own logo. */
+function BrandLogo({ logoSrc }: { logoSrc?: string }) {
+  if (!logoSrc || logoSrc === DEFAULT_LOGO) {
+    return (
+      <div className="flex h-[54px] w-full items-center pl-[3px]">
+        <Image src="/login/t-holding-logo.svg" alt="T Holding" width={130} height={54} priority className="h-[54px] w-auto dark:hidden" />
+        <Image src="/login/t-holding-logo-dark.svg" alt="T Holding" width={130} height={54} priority className="hidden h-[54px] w-auto dark:block" />
+      </div>
+    );
+  }
+  return (
+    <div className="flex h-[54px] w-full items-center pl-[3px]">
+      <Image src={logoSrc} alt="Workspace logo" width={130} height={54} priority unoptimized className="max-h-[54px] w-auto object-contain dark:brightness-0 dark:invert" />
+    </div>
   );
 }

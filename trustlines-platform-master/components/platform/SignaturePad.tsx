@@ -178,21 +178,21 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
         </div>
 
         {existingBase64 && (
-          <div style={{ marginBottom: 12, padding: '8px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap' }}>Current:</div>
+          <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--status-success-bg)', border: '1px solid color-mix(in srgb, var(--status-success) 35%, transparent)', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--status-success-fg)', whiteSpace: 'nowrap' }}>Current:</div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={existingBase64} alt="signature" style={{ height: 34, maxWidth: 180, objectFit: 'contain' }} />
             <div style={{ fontSize: 10, color: 'var(--fg-faint)' }}>Drawing a new one will replace this</div>
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: '#f3f4f6', borderRadius: 6, padding: 3 }}>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--bg-sunken)', borderRadius: 6, padding: 3 }}>
           {(['draw', 'upload'] as const).map(m => (
             <button key={m} onClick={() => setMode(m)} style={{
               flex: 1, padding: '6px 0', borderRadius: 4, border: 'none', cursor: 'pointer',
               fontSize: 12, fontWeight: 600,
-              background: mode === m ? '#fff' : 'none',
-              color:      mode === m ? '#111' : '#888',
+              background: mode === m ? 'var(--bg-surface)' : 'none',
+              color:      mode === m ? 'var(--fg-default)' : 'var(--fg-faint)',
               boxShadow:  mode === m ? '0 1px 4px rgba(0,0,0,.12)' : 'none',
             }}>
               {m === 'draw' ? '✏️ Draw' : '📷 Upload Photo'}
@@ -234,7 +234,7 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
               <label style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 border: '1.5px dashed #d0d0d0', borderRadius: 6, padding: '24px 16px',
-                cursor: 'pointer', background: '#fafafa', marginBottom: 10,
+                cursor: 'pointer', background: 'var(--bg-subtle)', marginBottom: 10,
               }}>
                 <Upload size={24} color="#aaa" />
                 <span style={{ fontSize: 12, color: 'var(--fg-faint)', marginTop: 8 }}>Click to upload signature photo</span>
@@ -263,7 +263,7 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
                       {processing
                         ? <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                             <Loader2 size={18} style={{ animation: 'spin 1s linear infinite', color: '#1a6b6b' }} />
-                            <span style={{ fontSize: 9, color: 'var(--fg-faint)' }}>AI removing background…</span>
+                            <span style={{ fontSize: 9, color: '#6b7280' }}>AI removing background…</span>
                           </div>
                         : processed
                           // eslint-disable-next-line @next/next/no-img-element

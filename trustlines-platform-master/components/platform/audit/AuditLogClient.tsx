@@ -21,21 +21,22 @@ export interface AuditEntry {
 
 function actionStyle(action: string): { bg: string; color: string; label: string } {
   const a = action.toLowerCase();
+  // Theme tokens, so chips stay readable in light and dark mode.
   if (a.includes('creat') || a.includes('add') || a.includes('insert'))
-    return { bg: '#dcfce7', color: '#16a34a', label: action };
+    return { bg: 'var(--status-success-bg)', color: 'var(--status-success-fg)', label: action };
   if (a.includes('delet') || a.includes('remov') || a.includes('trash'))
-    return { bg: '#fee2e2', color: '#dc2626', label: action };
+    return { bg: 'var(--status-danger-bg)', color: 'var(--status-danger-fg)', label: action };
   if (a.includes('updat') || a.includes('edit') || a.includes('chang'))
-    return { bg: '#dbeafe', color: '#2563eb', label: action };
+    return { bg: 'var(--status-info-bg)', color: 'var(--status-info-fg)', label: action };
   if (a.includes('approv') || a.includes('sign') || a.includes('complet'))
-    return { bg: '#d1fae5', color: '#065f46', label: action };
+    return { bg: 'var(--status-success-bg)', color: 'var(--status-success-fg)', label: action };
   if (a.includes('reject') || a.includes('fail') || a.includes('error'))
-    return { bg: '#fee2e2', color: '#dc2626', label: action };
+    return { bg: 'var(--status-danger-bg)', color: 'var(--status-danger-fg)', label: action };
   if (a.includes('stage') || a.includes('advanc'))
-    return { bg: '#ede9fe', color: '#7c3aed', label: action };
+    return { bg: 'color-mix(in srgb, #7c3aed 16%, var(--bg-surface))', color: 'color-mix(in srgb, #7c3aed 65%, var(--fg-default))', label: action };
   if (a.includes('login') || a.includes('auth') || a.includes('access'))
-    return { bg: '#fef3c7', color: '#d97706', label: action };
-  return { bg: '#f3f4f6', color: 'var(--fg-subtle)', label: action };
+    return { bg: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)', label: action };
+  return { bg: 'var(--bg-sunken)', color: 'var(--fg-subtle)', label: action };
 }
 
 function fmtAction(action: string): string {
@@ -62,10 +63,10 @@ function DiffView({ old_value, new_value }: { old_value: unknown; new_value: unk
     <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
       {oldStr && (
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#dc2626', marginBottom: 3, textTransform: 'uppercase' }}>Before</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--status-danger)', marginBottom: 3, textTransform: 'uppercase' }}>Before</div>
           <pre style={{
             margin: 0, padding: '8px 10px', borderRadius: 5,
-            background: 'var(--status-danger-bg)', border: '1px solid #fecaca',
+            background: 'var(--status-danger-bg)', border: '1px solid color-mix(in srgb, var(--status-danger) 35%, transparent)',
             fontSize: 11, color: 'var(--status-danger-fg)', overflowX: 'auto',
             whiteSpace: 'pre-wrap', wordBreak: 'break-all',
           }}>{oldStr}</pre>
@@ -73,10 +74,10 @@ function DiffView({ old_value, new_value }: { old_value: unknown; new_value: unk
       )}
       {newStr && (
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#16a34a', marginBottom: 3, textTransform: 'uppercase' }}>After</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--status-success)', marginBottom: 3, textTransform: 'uppercase' }}>After</div>
           <pre style={{
             margin: 0, padding: '8px 10px', borderRadius: 5,
-            background: 'var(--status-success-bg)', border: '1px solid #bbf7d0',
+            background: 'var(--status-success-bg)', border: '1px solid color-mix(in srgb, var(--status-success) 35%, transparent)',
             fontSize: 11, color: 'var(--status-success-fg)', overflowX: 'auto',
             whiteSpace: 'pre-wrap', wordBreak: 'break-all',
           }}>{newStr}</pre>
@@ -96,7 +97,7 @@ function LogRow({ entry }: { entry: AuditEntry }) {
       <tr
         style={{
           borderBottom: '1px solid var(--border-subtle)',
-          background: expanded ? 'var(--bg-subtle)' : 'white',
+          background: expanded ? 'var(--bg-subtle)' : 'var(--bg-surface)',
           cursor: hasDiff ? 'pointer' : 'default',
         }}
         onClick={() => hasDiff && setExpanded(e => !e)}
