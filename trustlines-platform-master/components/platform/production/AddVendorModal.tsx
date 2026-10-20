@@ -71,9 +71,9 @@ export function AddVendorModal({
             Leave empty to auto-generate from vendor name
           </div>
 
-          <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--status-info-bg)', border: '1px solid #bfdbfe', borderRadius: 8 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 4 }}>About PF Codes</div>
-            <div style={{ fontSize: 12, color: '#2563eb', lineHeight: 1.5 }}>
+          <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--status-info-bg)', border: '1px solid color-mix(in srgb, var(--status-info) 35%, transparent)', borderRadius: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--status-info-fg)', marginBottom: 4 }}>About PF Codes</div>
+            <div style={{ fontSize: 12, color: 'var(--status-info-fg)', lineHeight: 1.5 }}>
               When you assign this vendor to project items, PF codes are generated automatically as{' '}
               <code style={{ fontFamily: 'monospace', fontWeight: 700 }}>{preview}-[PROJECT_NO]-[TYPE][NUM]</code>{' '}
               (e.g. <code style={{ fontFamily: 'monospace', fontWeight: 700 }}>{preview}-7899-M01</code>).

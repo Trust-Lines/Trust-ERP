@@ -67,11 +67,11 @@ export function AssemblyModal({ projectId, catGroup, currentPfCode, onClose, onS
   }
 
   const itemRow = (it: ItemRef, i: number, sel: Set<number>, setter: (s: Set<number>) => void) => (
-    <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 8px', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer', background: sel.has(i) ? '#f0fdfa' : '#fff' }}>
+    <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 8px', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer', background: sel.has(i) ? 'color-mix(in srgb, var(--brand-teal) 10%, var(--bg-surface))' : 'var(--bg-surface)' }}>
       <input type="checkbox" checked={sel.has(i)} onChange={() => toggle(sel, i, setter)} style={{ marginTop: 2 }} />
       <span style={{ fontSize: 11 }}>
         {it.code && <b style={{ fontFamily: 'monospace', marginRight: 6 }}>{it.code}</b>}
-        <span style={{ color: '#1f3864' }}>{it.description}</span>
+        <span style={{ color: 'var(--fg-default)' }}>{it.description}</span>
       </span>
     </label>
   );
@@ -102,7 +102,7 @@ export function AssemblyModal({ projectId, catGroup, currentPfCode, onClose, onS
                 </div>
               </div>
 
-              <div style={{ alignSelf: 'center', fontSize: 22, color: '#1a6b6b', fontWeight: 800 }}>→</div>
+              <div style={{ alignSelf: 'center', fontSize: 22, color: 'var(--brand-teal)', fontWeight: 800 }}>→</div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', marginBottom: 6 }}>ONTO THIS PF</div>

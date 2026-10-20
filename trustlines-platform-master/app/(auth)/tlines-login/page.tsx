@@ -1,10 +1,8 @@
 'use client';
 
-import { LoginShell } from '@/components/auth/LoginShell';
+import Image from 'next/image';
+import { BranchSelectLogin } from '@/components/auth/BranchSelectLogin';
 import { StoreMakerArt, DesignBuildArt, PremiumFitoutsArt } from '@/components/auth/BranchButtons';
-
-// Design: Figma "Tlines-Websites" → "Desktop - 15" (Select branch). Assets live in /public/login.
-const INK = 'var(--tl-ink, #2c2c2c)';
 
 // TEMP: every branch goes to the dashboard until per-branch routing is defined.
 const BRANCHES = [
@@ -15,27 +13,20 @@ const BRANCHES = [
 
 export default function TLinesLoginPage() {
   return (
-    <LoginShell
+    <BranchSelectLogin
+      branches={BRANCHES}
       logo={
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/login/tlines-logo.png" alt="TLines Creativity Group" style={{ display: 'block', width: 255, height: 153, objectFit: 'cover' }} />
+        // Figma 123-24546 "Group 364": 225.6px wide at x=164 of 1440. Only a white logo exists;
+        // light mode darkens it until a light-mode asset is supplied.
+        <Image
+          src="/login/tlines-logo.svg"
+          alt="TLines Creativity Group"
+          width={225.587}
+          height={132.87}
+          priority
+          className="h-auto w-[175px] brightness-0 lg:mr-[4vw] lg:w-[226px] dark:brightness-100"
+        />
       }
-    >
-      <style>{`
-        .tl-branch { display: block; container-type: inline-size; border-radius: 11px; transition: transform 150ms, box-shadow 150ms; }
-        .tl-branch:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,.25); }
-        .tl-branch:focus-visible { outline: 2px solid ${INK}; outline-offset: 3px; }
-      `}</style>
-      <h1 style={{ margin: 0, textAlign: 'center', fontSize: 22, fontWeight: 600, letterSpacing: '6.16px', textTransform: 'uppercase', color: INK, lineHeight: '38px' }}>
-        Select branch
-      </h1>
-      <nav aria-label="Select branch" style={{ margin: '43px -6px 0', display: 'flex', flexDirection: 'column', gap: 15 }}>
-        {BRANCHES.map(b => (
-          <a key={b.name} href={b.href} className="tl-branch" aria-label={b.name}>
-            <b.Art />
-          </a>
-        ))}
-      </nav>
-    </LoginShell>
+    />
   );
 }

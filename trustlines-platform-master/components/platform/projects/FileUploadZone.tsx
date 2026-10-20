@@ -199,7 +199,7 @@ export function FileUploadZone({
                       style={{
                         padding: '5px 12px', borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                         border: `1.5px solid ${dropboxVersion === v ? 'var(--brand-navy)' : 'var(--border-default)'}`,
-                        background: dropboxVersion === v ? 'var(--brand-navy)' : 'white',
+                        background: dropboxVersion === v ? 'var(--brand-navy)' : 'var(--bg-surface)',
                         color: dropboxVersion === v ? 'white' : 'var(--fg-default)',
                       }}
                     >
@@ -212,7 +212,7 @@ export function FileUploadZone({
                     style={{
                       padding: '5px 12px', borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                       border: `1.5px dashed ${dropboxVersion === nextVersion ? 'var(--brand-teal)' : 'var(--border-default)'}`,
-                      background: dropboxVersion === nextVersion ? 'var(--brand-teal-100)' : 'white',
+                      background: dropboxVersion === nextVersion ? 'var(--brand-teal-100)' : 'var(--bg-surface)',
                       color: dropboxVersion === nextVersion ? 'var(--brand-teal-600)' : 'var(--fg-subtle)',
                     }}
                   >

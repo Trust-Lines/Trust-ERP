@@ -95,7 +95,7 @@ export function ModuleGrid({
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2">
         <div>
           <h1
-            className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#0F172A]"
+            className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--fg-default)]"
             style={{ fontFamily: 'var(--font-serif, "Georgia", "Cambria", serif)' }}
           >
             {greeting}, {firstName}

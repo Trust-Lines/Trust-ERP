@@ -134,7 +134,7 @@ function FolderGrid({
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '10px 14px', borderRadius: 6,
             border: `1.5px solid ${f.path === selected ? 'var(--brand-teal)' : 'var(--border-default)'}`,
-            background: f.path === selected ? 'var(--brand-teal-100)' : 'white',
+            background: f.path === selected ? 'var(--brand-teal-100)' : 'var(--bg-surface)',
             cursor: 'pointer', fontSize: 13, fontWeight: 500,
             color: f.path === selected ? 'var(--brand-teal)' : 'var(--fg-default)',
             textAlign: 'left',

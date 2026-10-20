@@ -311,7 +311,7 @@ export function DropboxSyncBtn({
               <div style={{
                 padding: '5px 12px 3px',
                 fontSize: 9, fontWeight: 800, textTransform: 'uppercase',
-                letterSpacing: '0.1em', color: '#1a6b6b',
+                letterSpacing: '0.1em', color: 'var(--brand-teal)',
                 background: 'var(--brand-teal-100)',
                 borderTop: '1px solid var(--border-subtle)',
               }}>
@@ -328,7 +328,7 @@ export function DropboxSyncBtn({
                       display: 'flex', alignItems: 'center', gap: 8,
                       padding: '6px 12px',
                       borderBottom: '1px solid var(--border-subtle)',
-                      background: alreadyLinked ? '#f0faf4' : 'white',
+                      background: alreadyLinked ? 'color-mix(in srgb, var(--status-success) 8%, var(--bg-surface))' : 'var(--bg-surface)',
                     }}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -364,7 +364,7 @@ export function DropboxSyncBtn({
                           display: 'inline-flex', alignItems: 'center', gap: 3,
                           padding: '3px 8px', borderRadius: 4,
                           fontSize: 10, fontWeight: 600, cursor: isSyncing ? 'wait' : 'pointer',
-                          background: 'var(--brand-teal-100)', color: '#1a6b6b',
+                          background: 'var(--brand-teal-100)', color: 'var(--brand-teal)',
                           border: '1px solid #9ecfcf', flexShrink: 0,
                         }}
                       >
@@ -418,7 +418,7 @@ function StepRow({
         background: (isDone || isApproved) ? 'rgba(22,163,74,0.025)'
           : isWaiting  ? 'rgba(245,158,11,0.04)'
           : isRejected ? 'rgba(220,38,38,0.03)'
-          : 'white',
+          : 'var(--bg-surface)',
         transition: 'background 120ms',
       }}
     >
@@ -730,7 +730,7 @@ export function ProjectWorkflow({
                       style={{
                         width: '100%', display: 'flex', alignItems: 'center', gap: 8,
                         padding: '8px 14px',
-                        background: isOpen ? bg : 'white',
+                        background: isOpen ? bg : 'var(--bg-surface)',
                         border: 'none', cursor: 'pointer', textAlign: 'left',
                         borderBottom: isOpen ? `1.5px solid ${border}` : 'none',
                         borderRadius: isOpen ? '5px 5px 0 0' : 5,

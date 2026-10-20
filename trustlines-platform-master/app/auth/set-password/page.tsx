@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { LoginShell } from '@/components/auth/LoginShell';
 import { AuthAlert, AuthHeading, AuthStyles, LoginLogo } from '@/components/auth/AuthParts';
+import { ThemeToggleButton } from '@/components/auth/ThemeToggleButton';
 
 // Reached from the e-mail link of an invitation OR a password reset. Same look as the login screen.
 type Step = 'loading' | 'form' | 'done' | 'error';
@@ -113,6 +114,7 @@ export default function SetPasswordPage() {
   return (
     <LoginShell logo={<LoginLogo />}>
       <AuthStyles />
+      <ThemeToggleButton />
 
       {step === 'loading' && <AuthHeading title="One moment" subtitle="Verifying your link…" />}
 

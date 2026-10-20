@@ -924,7 +924,7 @@ export function ApprovalsPageClient() {
           <span
             className="text-[13px] font-semibold leading-[1.4]"
             style={{
-              color: 'var(--Basic-UI-Colors-Body-text, #5E6F87)',
+              color: 'var(--fg-subtle, #5E6F87)',
               fontFamily: 'var(--font-instrument-sans), "Instrument Sans", sans-serif',
             }}
           >
@@ -941,7 +941,7 @@ export function ApprovalsPageClient() {
               <h1
                 className="text-[32px] font-semibold"
                 style={{
-                  color: 'var(--Basic-UI-Colors-Primary-heading, #5E6F87)',
+                  color: 'var(--fg-subtle, #5E6F87)',
                   fontFamily: 'var(--font-instrument-sans), "Instrument Sans", sans-serif',
                   lineHeight: 'normal',
                 }}

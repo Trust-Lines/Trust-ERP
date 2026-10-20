@@ -518,7 +518,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
             return (
               <button key={t} onClick={() => { setActiveType(t); setShowEditor(true); setSelectedDocId(null); }} style={{
                 padding: '4px 11px', borderRadius: 99, border: `1px solid ${active ? 'var(--brand-teal, #1a6b6b)' : 'var(--border-default)'}`,
-                background: active ? '#f0fdfa' : '#fff', color: active ? 'var(--brand-teal, #1a6b6b)' : 'var(--fg-muted)',
+                background: active ? 'color-mix(in srgb, var(--brand-teal) 10%, var(--bg-surface))' : 'var(--bg-surface)', color: active ? 'var(--brand-teal, #1a6b6b)' : 'var(--fg-muted)',
                 fontSize: 11, fontWeight: active ? 700 : 500, cursor: 'pointer', whiteSpace: 'nowrap',
               }}>{t}</button>
             );
@@ -555,7 +555,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                   <div key={d.id} onClick={() => { setSelectedDocId(d.id); setShowEditor(false); }} style={{
                     position: 'relative', width: '100%', textAlign: 'left', display: 'block', padding: '8px 10px', marginBottom: 5, borderRadius: 7, cursor: 'pointer',
                     border: `1px solid ${active ? 'var(--brand-teal, #1a6b6b)' : 'var(--border-subtle)'}`,
-                    background: active ? '#f0fdfa' : '#fff', boxShadow: active ? '0 1px 4px rgba(26,107,107,.18)' : 'none',
+                    background: active ? 'color-mix(in srgb, var(--brand-teal) 10%, var(--bg-surface))' : 'var(--bg-surface)', boxShadow: active ? '0 1px 4px rgba(26,107,107,.18)' : 'none',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                       <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{code}</span>
@@ -608,7 +608,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                             width: '100%', textAlign: 'left', display: 'block',
                             padding: '6px 9px', marginBottom: 3, borderRadius: 5, cursor: statusBusy ? 'default' : 'pointer',
                             border: `1px solid ${active ? '#111' : 'var(--border-subtle)'}`,
-                            background: active && css ? css.bg : '#fff', color: active && css ? css.fg : 'var(--fg-default)',
+                            background: active && css ? css.bg : 'var(--bg-surface)', color: active && css ? css.fg : 'var(--fg-default)',
                           }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ fontSize: 9, fontWeight: 800, opacity: 0.55, width: 14, flexShrink: 0 }}>{i + 1}</span>
@@ -619,7 +619,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                       );
                     })}
                     {pfStatus === 'ASSEMBLY' && (
-                      <button onClick={() => setShowAssembly(true)} style={{ width: '100%', marginTop: 6, padding: '7px 9px', borderRadius: 6, border: '1px solid #1a6b6b', background: 'var(--brand-teal-100)', color: '#1a6b6b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                      <button onClick={() => setShowAssembly(true)} style={{ width: '100%', marginTop: 6, padding: '7px 9px', borderRadius: 6, border: '1px solid var(--brand-teal)', background: 'var(--brand-teal-100)', color: 'var(--brand-teal)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                         🔗 Open assembly relationships
                       </button>
                     )}
@@ -681,7 +681,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
             {vendorTypes.length > 1 && (
               <button onClick={generateAllTypes} disabled={generating} title="Generate one PF per TYPE section" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 7,
-                border: '1px solid #1a2b4b', background: 'var(--bg-surface)', color: '#1a2b4b', fontSize: 13, fontWeight: 700,
+                border: '1px solid var(--border-strong)', background: 'var(--bg-surface)', color: 'var(--fg-default)', fontSize: 13, fontWeight: 700,
                 cursor: generating ? 'default' : 'pointer',
               }}>
                 {generating ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <FileText size={13} />}
@@ -730,7 +730,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                                   </button>
                                 </td>
                                 <td style={pfTd}><input value={it.itemCode} onChange={e => updItem(si, ci, sbi, gi, ii, { itemCode: e.target.value })} style={pfInput} placeholder="Code" /></td>
-                                <td style={pfTd}><input value={it.description} onChange={e => updItem(si, ci, sbi, gi, ii, { description: e.target.value })} style={{ ...pfInput, color: '#1f3864', fontWeight: 600 }} placeholder="Description" /></td>
+                                <td style={pfTd}><input value={it.description} onChange={e => updItem(si, ci, sbi, gi, ii, { description: e.target.value })} style={{ ...pfInput, color: 'var(--fg-default)', fontWeight: 600 }} placeholder="Description" /></td>
                                 <td style={pfTd}><input type="number" min={0} value={it.quantity || ''} onChange={e => updItem(si, ci, sbi, gi, ii, { quantity: parseInt(e.target.value) || 0 })} style={{ ...pfInput, textAlign: 'center' }} /></td>
                                 <td style={pfTd}><input type="number" min={0} value={it.unitPrice ?? ''} onChange={e => updItem(si, ci, sbi, gi, ii, { unitPrice: e.target.value === '' ? null : parseFloat(e.target.value) })} style={{ ...pfInput, textAlign: 'right' }} placeholder="0.00" /></td>
                                 <td style={{ ...pfTd, textAlign: 'center' }}><button onClick={() => removeItem(si, ci, sbi, gi, ii)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: 2 }}><X size={12} /></button></td>
@@ -812,4 +812,4 @@ function pfTh(width?: number): React.CSSProperties {
   return { padding: '6px 8px', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, color: 'var(--fg-subtle)', textAlign: 'left', width, whiteSpace: 'nowrap' };
 }
 const pfTd: React.CSSProperties = { padding: '3px 6px' };
-const pfInput: React.CSSProperties = { width: '100%', boxSizing: 'border-box', fontSize: 11, padding: '4px 6px', border: '1px solid var(--border-subtle)', borderRadius: 4, background: 'var(--bg-default)', outline: 'none' };
+const pfInput: React.CSSProperties = { width: '100%', boxSizing: 'border-box', fontSize: 11, padding: '4px 6px', border: '1px solid var(--border-subtle)', borderRadius: 4, background: 'var(--bg-surface)', outline: 'none' };

@@ -37,7 +37,7 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
       onClick={e => { e.stopPropagation(); if (!disabled) onChange(!checked); }}
       style={{
         width: 38, height: 22, borderRadius: 11, flexShrink: 0,
-        background: checked ? 'var(--brand-teal)' : '#d1d5db',
+        background: checked ? 'var(--brand-teal)' : 'var(--border-strong)',
         cursor: disabled ? 'default' : 'pointer',
         position: 'relative', transition: 'background 150ms',
         opacity: disabled ? 0.45 : 1,
@@ -155,7 +155,7 @@ function PermissionEditor({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {isSystem && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 12, color: '#1e40af' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px', background: 'var(--status-info-bg)', border: '1px solid color-mix(in srgb, var(--status-info) 35%, transparent)', borderRadius: 8, fontSize: 12, color: 'var(--status-info-fg)' }}>
           🛡️ System role — defaults shown. You can still tailor its permissions; changes are saved.
         </div>
       )}
@@ -185,7 +185,7 @@ function PermissionEditor({
                 return (
                   <div key={p.key} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                    padding: '10px 14px', background: on ? '#f0fdfa' : '#fff',
+                    padding: '10px 14px', background: on ? 'color-mix(in srgb, var(--brand-teal) 8%, var(--bg-surface))' : 'var(--bg-surface)',
                     borderBottom: idx < group.perms.length - 1 ? '1px solid var(--border-subtle)' : 'none',
                   }}>
                     <div style={{ minWidth: 0 }}>

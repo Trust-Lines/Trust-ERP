@@ -491,10 +491,10 @@ export function ContactImportClient() {
             <div className="card-body" style={{ padding: 14, display: 'grid', gap: 10 }}>
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 13.5 }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => { setFilter('new'); setShown(PAGE); }}><strong>{counts.fresh}</strong>&nbsp;new</button>
-                <button className="btn btn-ghost btn-sm" style={{ color: '#0a7a3d' }} onClick={() => { setFilter('strong'); setShown(PAGE); }}><strong>{counts.strong}</strong>&nbsp;already in Contacts (merge by default)</button>
+                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-success-fg)' }} onClick={() => { setFilter('strong'); setShown(PAGE); }}><strong>{counts.strong}</strong>&nbsp;already in Contacts (merge by default)</button>
                 <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-warning-fg)' }} onClick={() => { setFilter('possible'); setShown(PAGE); }}><strong>{counts.possible}</strong>&nbsp;look similar — your call</button>
                 <span style={{ marginLeft: 'auto' }}>
-                  {counts.undecided > 0 ? <strong style={{ color: 'var(--status-warning-fg)' }}>{counts.undecided} still need a decision</strong> : <strong style={{ color: '#0a7a3d' }}>All decided</strong>}
+                  {counts.undecided > 0 ? <strong style={{ color: 'var(--status-warning-fg)' }}>{counts.undecided} still need a decision</strong> : <strong style={{ color: 'var(--status-success-fg)' }}>All decided</strong>}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -572,8 +572,8 @@ export function ContactImportClient() {
                             <div style={{ marginTop: 8, borderTop: '1px dashed var(--border-default)', paddingTop: 6, fontSize: 12.5 }}>
                               <div style={{ fontWeight: 700 }}>If you merge</div>
                               <div style={muted}>Everything already on this Contact stays exactly as it is.</div>
-                              {adds.length > 0 && <div style={{ color: '#0a7a3d' }}>+ Fills empty fields: {adds.join(' · ')}</div>}
-                              {newPeople.length > 0 && <div style={{ color: '#0a7a3d' }}>+ Adds {newPeople.length === 1 ? 'a person' : 'people'}: {newPeople.join(', ')}</div>}
+                              {adds.length > 0 && <div style={{ color: 'var(--status-success-fg)' }}>+ Fills empty fields: {adds.join(' · ')}</div>}
+                              {newPeople.length > 0 && <div style={{ color: 'var(--status-success-fg)' }}>+ Adds {newPeople.length === 1 ? 'a person' : 'people'}: {newPeople.join(', ')}</div>}
                               {keeps.length > 0 && <div style={{ color: 'var(--status-warning-fg)' }}>Different in your file — your existing value stays, the file's value goes into the Activity note: {keeps.join(' · ')}</div>}
                               <div style={muted}>+ An Activity note with the imported info is added.</div>
                             </div>
