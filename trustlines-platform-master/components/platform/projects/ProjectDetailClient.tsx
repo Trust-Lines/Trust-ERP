@@ -92,13 +92,13 @@ interface FullProject {
   client: { id: string; name: string; code: string | null } | null;
   client_franchise: { id: string; code: string; name: string } | null;
   client_company: { id: string; name: string } | null;
-  ops_manager:   ProfileSnippet | null;
+  ops_manager: ProfileSnippet | null;
   trustlines_pm: ProfileSnippet | null;
-  tlines_pm:     ProfileSnippet | null;
-  prod_pm_ms:    ProfileSnippet | null;
-  prod_pm_ci:    ProfileSnippet | null;
-  qc_inspector:  ProfileSnippet | null;
-  tlines_pm_id:  string | null;
+  tlines_pm: ProfileSnippet | null;
+  prod_pm_ms: ProfileSnippet | null;
+  prod_pm_ci: ProfileSnippet | null;
+  qc_inspector: ProfileSnippet | null;
+  tlines_pm_id: string | null;
   updated_at: string;
 }
 
@@ -133,15 +133,15 @@ function InternalNotesCard({ projectId, userId, initialNotes }: {
   const supabase = createClient();
   const [notesList, setNotesList] = useState<NoteRow[]>(initialNotes);
   const [showInput, setShowInput] = useState(false);
-  const [text, setText]           = useState('');
-  const [saving, setSaving]       = useState(false);
+  const [text, setText] = useState('');
+  const [saving, setSaving] = useState(false);
 
   function relTime(d: string) {
     const diff = Date.now() - new Date(d).getTime();
-    const h    = Math.floor(diff / 3600000);
+    const h = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
-    if (h < 1)   return 'just now';
-    if (h < 24)  return `${h}h ago`;
+    if (h < 1) return 'just now';
+    if (h < 24) return `${h}h ago`;
     if (days < 30) return `${days}d ago`;
     return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
@@ -230,7 +230,7 @@ function FinanceCard({ project, documents, userRole }: {
     v != null ? `${S}${v.toLocaleString('en-US', { minimumFractionDigits: 0 })}` : '—';
 
   const hasPOSigned = documents.some(d => d.doc_type === 'po_bo' && d.status === 'signed');
-  const hasPFSigned = documents.some(d => d.doc_type === 'pf'    && d.status === 'signed');
+  const hasPFSigned = documents.some(d => d.doc_type === 'pf' && d.status === 'signed');
 
   return (
     <div className="card" style={{ marginBottom: 14 }}>
@@ -303,8 +303,8 @@ function DatesCard({ project, stageHistory }: {
     const diff = Date.now() - new Date(d).getTime();
     const h = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
-    if (h < 1)    return 'just now';
-    if (h < 24)   return `${h}h ago`;
+    if (h < 1) return 'just now';
+    if (h < 24) return `${h}h ago`;
     if (days < 30) return `${days}d ago`;
     return fmtDate(d);
   }
@@ -319,19 +319,21 @@ function DatesCard({ project, stageHistory }: {
       </div>
       <div className="card-body" style={{ padding: 0 }}>
         {[
-          { label: 'Closed deal',    value: fmtDate(project.closed_deal_date) },
-          { label: 'PO signed',      value: poSignedTransition ? fmtDate(poSignedTransition.created_at) : '—' },
-          { label: 'Est. delivery',  value: (
-            <span style={{ color: isOverdue ? 'var(--status-danger)' : undefined, fontWeight: isOverdue ? 600 : undefined }}>
-              {fmtDate(project.est_delivery_date)}
-              {project.hard_deadline && (
-                <span className="pill" style={{ background: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)', marginLeft: 6, fontSize: 9 }}>
-                  HARD DEADLINE
-                </span>
-              )}
-            </span>
-          )},
-          { label: 'Last updated',   value: relTime(project.updated_at) },
+          { label: 'Closed deal', value: fmtDate(project.closed_deal_date) },
+          { label: 'PO signed', value: poSignedTransition ? fmtDate(poSignedTransition.created_at) : '—' },
+          {
+            label: 'Est. delivery', value: (
+              <span style={{ color: isOverdue ? 'var(--status-danger)' : undefined, fontWeight: isOverdue ? 600 : undefined }}>
+                {fmtDate(project.est_delivery_date)}
+                {project.hard_deadline && (
+                  <span className="pill" style={{ background: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)', marginLeft: 6, fontSize: 9 }}>
+                    HARD DEADLINE
+                  </span>
+                )}
+              </span>
+            )
+          },
+          { label: 'Last updated', value: relTime(project.updated_at) },
         ].map(({ label, value }, i, arr) => (
           <div
             key={label}
@@ -375,20 +377,20 @@ export function ProjectDetailClient({
   topSlot,
   hidePhaseRail,
 }: Props) {
-  const router       = useRouter();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase     = createClient();
+  const supabase = createClient();
 
   const TAB_SLUG_MAP: Record<string, string> = {
-    plan_layout:           'Plan Layout',
-    design_proposal:       'Design Proposal',
-    construction_drawing:  'Construction Drawing',
+    plan_layout: 'Plan Layout',
+    design_proposal: 'Design Proposal',
+    construction_drawing: 'Construction Drawing',
   };
   const initialTab = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(
     initialTab && TAB_SLUG_MAP[initialTab] ? TAB_SLUG_MAP[initialTab] : 'Overview',
   );
-  const [deleting, setDeleting]   = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [workflowUpload, setWorkflowUpload] = useState<{
     stepKey: string; phase: string; catGroup: string | null; docType?: string;
   } | null>(null);
@@ -403,7 +405,7 @@ export function ProjectDetailClient({
     if (!project.closed_deal_date) return;
     const alreadyDone = steps.some(
       s => s.phase === 'phase1' && s.step_key === 'closed_deal' &&
-           (s.status === 'done' || s.status === 'approved'),
+        (s.status === 'done' || s.status === 'approved'),
     );
     if (alreadyDone) return;
 
@@ -411,17 +413,17 @@ export function ProjectDetailClient({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        phase:        'phase1',
-        step_key:     'closed_deal',
-        cat_group:    null,
-        status:       'done',
+        phase: 'phase1',
+        step_key: 'closed_deal',
+        cat_group: null,
+        status: 'done',
         completed_by: userId,
         completed_at: new Date(project.closed_deal_date).toISOString(),
       }),
     })
       .then(r => r.ok ? router.refresh() : null)
       .catch(() => null);
-   
+
   }, []);
 
   useEffect(() => {
@@ -434,18 +436,18 @@ export function ProjectDetailClient({
       .then(r => r.json() as Promise<{ synced?: number }>)
       .then(({ synced }) => { if (synced && synced > 0) router.refresh(); })
       .catch(() => null);
-   
+
   }, []);
 
   useEffect(() => {
     const channel = supabase
       .channel(`project-${project.id}`)
-      .on('postgres_changes', { event: '*',      schema: 'public', table: 'projects',           filter: `id=eq.${project.id}` },         () => router.refresh())
-      .on('postgres_changes', { event: '*',      schema: 'public', table: 'documents',          filter: `project_id=eq.${project.id}` }, () => router.refresh())
-      .on('postgres_changes', { event: '*',      schema: 'public', table: 'document_approvals', filter: `project_id=eq.${project.id}` }, () => router.refresh())
-      .on('postgres_changes', { event: '*',      schema: 'public', table: 'document_versions',  filter: `project_id=eq.${project.id}` }, () => router.refresh())
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_log',          filter: `project_id=eq.${project.id}` }, () => router.refresh())
-      .on('postgres_changes', { event: '*',      schema: 'public', table: 'project_steps',      filter: `project_id=eq.${project.id}` }, () => router.refresh())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects', filter: `id=eq.${project.id}` }, () => router.refresh())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'documents', filter: `project_id=eq.${project.id}` }, () => router.refresh())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'document_approvals', filter: `project_id=eq.${project.id}` }, () => router.refresh())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'document_versions', filter: `project_id=eq.${project.id}` }, () => router.refresh())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_log', filter: `project_id=eq.${project.id}` }, () => router.refresh())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_steps', filter: `project_id=eq.${project.id}` }, () => router.refresh())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [project.id, supabase, router]);
@@ -461,7 +463,7 @@ export function ProjectDetailClient({
     if (!window.confirm(`Move "${project.name}" to trash? It will be permanently deleted after 30 days.`)) return;
     setDeleting(true);
     try {
-      const res  = await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
       const json = await res.json() as { error?: string };
       if (!res.ok) { toast.error(json.error ?? 'Failed'); return; }
       toast.success('Project moved to trash');
@@ -471,9 +473,9 @@ export function ProjectDetailClient({
 
   const dynamicTabs = project.categories ?? [];
   const TAB_PERM: Record<string, string> = {
-    'Overview':             'view.tab_overview',
-    'Plan Layout':          'view.tab_plan_layout',
-    'Design Proposal':      'view.tab_design_proposal',
+    'Overview': 'view.tab_overview',
+    'Plan Layout': 'view.tab_plan_layout',
+    'Design Proposal': 'view.tab_design_proposal',
     'Construction Drawing': 'view.tab_construction',
   };
   const tabPermKey = (tab: string) => TAB_PERM[tab] ?? `view.tab_${tab.toLowerCase()}`;

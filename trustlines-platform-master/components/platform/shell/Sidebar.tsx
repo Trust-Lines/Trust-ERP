@@ -41,7 +41,12 @@ import {
   DraftingCompass,
   BriefcaseBusiness,
   Wrench,
+  Landmark,
+  CreditCard,
+  PieChart,
+  Wallet,
 } from 'lucide-react';
+import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip';
 import type { UserRole } from '@/types/database';
 import { permCan } from '@/lib/permissions/catalog';
 import { DEFAULT_LOGO } from '@/lib/regionLogo';
@@ -92,25 +97,37 @@ const DESIGN_ITEM: NavItem = { label: 'Design', href: '/design', icon: Palette, 
 // list was one extra page too many ("fazladan sayfa lazım değil, yeterli sayfada lazım"). The
 // "waiting on me / blocked" summary (item-plan/list/PO/PF status for pm_millwork/pm_ceiling) now
 // lives at the TOP of this same /projects page instead of a second destination.
-const PROJECTS_NAV: NavItem[] = [
-  { label: 'PM',        href: '/pm',        icon: ClipboardList, perm: 'page.projects' },
-  { label: 'Supply',    href: '/projects',  icon: FolderKanban,  perm: 'page.projects' },
-  { label: 'Approvals', href: '/approvals', icon: CheckSquare,   perm: 'page.approvals' },
+// 2026-10-21 (Figma "All Pages"): the old "Projects" group is now "Supply" and its /projects
+// item is labelled "Projects"; Clients, Suppliers and QC moved here from Operations (Expenses
+// went to Finance).
+// `internal` marks the items that came from Operations — they stay hidden from external
+// (tlines_pm) users exactly as before, when the whole Operations group was internal-only.
+const SUPPLY_NAV: (NavItem & { internal?: boolean })[] = [
+  { label: 'Projects',  href: '/projects',  icon: FolderKanban,   perm: 'page.projects' },
+  { label: 'PM',        href: '/pm',        icon: ClipboardList,  perm: 'page.projects' },
+  { label: 'Clients',   href: '/clients',   icon: Building2,      perm: 'page.clients',   internal: true },
+  { label: 'Suppliers', href: '/suppliers', icon: Package,        perm: 'page.suppliers', internal: true },
+  { label: 'QC',        href: '/qc',        icon: ClipboardCheck, perm: 'page.qc',        internal: true },
+  { label: 'Approvals', href: '/approvals', icon: CheckSquare,    perm: 'page.approvals' },
+];
+
+// Invoices, Payments and Budgets are placeholder pages for now, gated like Expenses.
+const FINANCE_NAV: NavItem[] = [
+  { label: 'Invoices', href: '/invoices', icon: Landmark,   perm: 'page.expenses' },
+  { label: 'Payments', href: '/payments', icon: CreditCard, perm: 'page.expenses' },
+  { label: 'Expenses', href: '/expenses', icon: Receipt,    perm: 'page.expenses' },
+  { label: 'Budgets',  href: '/budgets',  icon: PieChart,   perm: 'page.expenses' },
 ];
 
 const OPERATIONS_NAV: NavItem[] = [
-  { label: 'Clients',    href: '/clients',    icon: Building2,        perm: 'page.clients' },
   { label: 'Production', href: '/production', icon: Factory,          perm: 'page.production' },
-  { label: 'QC',         href: '/qc',         icon: ClipboardCheck,   perm: 'page.qc' },
   { label: 'Logistics',  href: '/logistics',  icon: Truck,            perm: 'page.logistics' },
-  { label: 'Suppliers',  href: '/suppliers',  icon: Package,          perm: 'page.suppliers' },
-  { label: 'Expenses',   href: '/expenses',   icon: Receipt,          perm: 'page.expenses' },
   { label: 'Management', href: '/management', icon: Gauge,            perm: 'page.management' },
 ];
 
 const ADMIN_NAV: NavItem[] = [
   { label: 'Team',                href: '/team',           icon: Users,        perm: 'page.team' },
-  { label: 'Roles & Permissions', href: '/roles',          icon: ShieldCheck,  perm: 'page.roles' },
+  { label: 'Roles & permissions', href: '/roles',          icon: ShieldCheck,  perm: 'page.roles' },
   { label: 'Trash',               href: '/projects/trash', icon: Trash2,       perm: 'page.trash' },
   { label: 'Dropbox Wizard',      href: '/dropbox-wizard', icon: FolderSearch, perm: 'page.dropbox_wizard' },
   { label: 'Audit Log',           href: '/audit',          icon: ScrollText,   perm: 'page.audit' },
@@ -121,7 +138,7 @@ const CRM_BOARD_NAV: NavItem[] = [
   { label: 'CRM Board', href: '/leads', icon: Target, perm: 'page.leads', exact: true },
 ];
 const SALES_NAV: NavItem[] = [
-  { label: 'Quick Deal (Sales)', href: '/leads/new',      icon: FilePlus,   perm: 'page.leads' },
+  { label: 'Quick Deals',        href: '/leads/new',      icon: FilePlus,   perm: 'page.leads' },
   { label: 'Tasks',              href: '/sales-tasks',    icon: ListChecks, perm: 'page.leads' },
   { label: 'Handoffs',           href: '/sales-projects', icon: Inbox,      perm: 'page.leads' },
 ];
@@ -225,8 +242,9 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
     ...(isMarketing ? [{ key: 'marketing', title: 'Marketing', icon: Megaphone, items: marketingNav }] : []),
     ...(isSales ? [{ key: 'sales', title: 'Sales', icon: Target, items: salesNav, activeOverride: quickDealActive ? '/leads/new' : undefined }] : []),
     { key: 'design', title: 'Design', icon: DraftingCompass, items: allowed([DESIGN_ITEM]) },
-    { key: 'projects', title: 'Projects', icon: BriefcaseBusiness, items: allowed(PROJECTS_NAV) },
+    { key: 'supply', title: 'Supply', icon: BriefcaseBusiness, items: allowed(SUPPLY_NAV.filter(i => isInternal || !i.internal)) },
     ...(isInternal ? [{ key: 'operations', title: 'Operations', icon: Factory, items: allowed(OPERATIONS_NAV) }] : []),
+    ...(isInternal ? [{ key: 'finance', title: 'Finance', icon: Wallet, items: allowed(FINANCE_NAV) }] : []),
     ...(isInternal ? [{ key: 'admin', title: 'Admin', icon: Wrench, items: allowed(ADMIN_NAV) }] : []),
   ].filter(s => s.items.length > 0);
   return sections;
@@ -288,15 +306,19 @@ export function Sidebar({
         className="flex h-full w-[72px] flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r border-primary-100 bg-white px-3 pt-[30px] pb-5 scrollbar-none dark:border-primary-600 dark:bg-primary-950"
       >
         <div className="flex w-full flex-col items-center gap-10">
-          <button
-            type="button"
-            onClick={() => setCollapsedPersisted(!collapsed)}
-            aria-label={collapsed ? 'Open sidebar' : 'Close sidebar'}
-            title={collapsed ? 'Open sidebar' : 'Close sidebar'}
-            className="grid h-6 w-6 cursor-pointer place-items-center rounded text-secondary-700 hover:text-primary-500 dark:text-primary-50 dark:hover:text-primary-200"
+          <RailTip
+            label={collapsed ? 'Open sidebar' : 'Close sidebar'}
+            render={
+              <button
+                type="button"
+                onClick={() => setCollapsedPersisted(!collapsed)}
+                aria-label={collapsed ? 'Open sidebar' : 'Close sidebar'}
+                className="grid h-6 w-6 cursor-pointer place-items-center rounded text-secondary-700 hover:text-primary-500 dark:text-primary-50 dark:hover:text-primary-200"
+              />
+            }
           >
             {collapsed ? <PanelLeftOpen className={RAIL_ICON} strokeWidth={1.5} /> : <PanelLeftClose className={RAIL_ICON} strokeWidth={1.5} />}
-          </button>
+          </RailTip>
 
           <div className="flex w-full flex-col items-center gap-[30px]">
             <div className="flex h-4 w-full items-center"><div className={DIVIDER} /></div>
@@ -307,23 +329,31 @@ export function Sidebar({
               // A single-page group (Dashboard, Design) goes straight to its page.
               if (s.items.length === 1) {
                 return (
-                  <Link key={s.key} href={s.items[0].href} title={s.title} aria-label={s.title} aria-current={s.key === pageSectionKey ? 'page' : undefined} className={cls}>
+                  <RailTip
+                    key={s.key}
+                    label={s.title}
+                    render={<Link href={s.items[0].href} aria-label={s.title} aria-current={s.key === pageSectionKey ? 'page' : undefined} className={cls} />}
+                  >
                     <Icon className={RAIL_ICON} strokeWidth={1.5} />
-                  </Link>
+                  </RailTip>
                 );
               }
               return (
-                <button
+                <RailTip
                   key={s.key}
-                  type="button"
-                  title={s.title}
-                  aria-label={s.title}
-                  aria-pressed={active}
-                  onClick={() => { setBrowsing(s.key); if (collapsed) setCollapsedPersisted(false); }}
-                  className={`${cls} cursor-pointer`}
+                  label={s.title}
+                  render={
+                    <button
+                      type="button"
+                      aria-label={s.title}
+                      aria-pressed={active}
+                      onClick={() => { setBrowsing(s.key); if (collapsed) setCollapsedPersisted(false); }}
+                      className={`${cls} cursor-pointer`}
+                    />
+                  }
                 >
                   <Icon className={RAIL_ICON} strokeWidth={1.5} />
-                </button>
+                </RailTip>
               );
             })}
           </div>
@@ -332,13 +362,13 @@ export function Sidebar({
         <div className="flex w-full flex-col items-center gap-10 pt-10">
           <div className={DIVIDER} />
           <div className="flex flex-col items-center gap-[30px]">
-            <Link href="/notifications" title="Notifications" aria-label="Notifications" className="text-[#787881] hover:text-secondary-700 dark:hover:text-primary-50">
+            <RailTip label="Notifications" render={<Link href="/notifications" aria-label="Notifications" className="text-[#787881] hover:text-secondary-700 dark:hover:text-primary-50" />}>
               <Bell className={RAIL_ICON} strokeWidth={1.5} />
-            </Link>
+            </RailTip>
             {canSettings && (
-              <Link href="/settings" title="Settings" aria-label="Settings" className="text-[#787881] hover:text-secondary-700 dark:hover:text-primary-50">
+              <RailTip label="Settings" render={<Link href="/settings" aria-label="Settings" className="text-[#787881] hover:text-secondary-700 dark:hover:text-primary-50" />}>
                 <Settings className={RAIL_ICON} strokeWidth={1.5} />
-              </Link>
+              </RailTip>
             )}
           </div>
           <div className={DIVIDER} />
@@ -385,6 +415,26 @@ export function Sidebar({
         </div>
       )}
     </aside>
+  );
+}
+
+/**
+ * Rail hover label (Figma "Hover title"): 30px pill to the right of the icon — primary-50 fill,
+ * primary-100 1px border, 6px radius, 13px/500 body-text label. Portalled so the rail's
+ * overflow clipping doesn't cut it off.
+ */
+function RailTip({ label, render, children }: { label: string; render: React.ReactElement; children: React.ReactNode }) {
+  return (
+    <TooltipPrimitive.Root>
+      <TooltipPrimitive.Trigger delay={150} render={render}>{children}</TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Positioner side="right" sideOffset={12} className="isolate z-50">
+          <TooltipPrimitive.Popup className="flex h-[30px] items-center whitespace-nowrap rounded-md border border-primary-100 bg-primary-50 px-2.5 font-ui text-[13px] font-medium leading-none text-primary-500 transition-opacity duration-100 data-starting-style:opacity-0 data-ending-style:opacity-0 dark:border-primary-600 dark:bg-primary-800 dark:text-primary-50">
+            {label}
+          </TooltipPrimitive.Popup>
+        </TooltipPrimitive.Positioner>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
   );
 }
 
