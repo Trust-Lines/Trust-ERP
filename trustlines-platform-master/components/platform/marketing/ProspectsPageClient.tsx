@@ -2,8 +2,9 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Filter, Download, Copy, Send, FileSpreadsheet, Upload } from 'lucide-react';
+import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Filter, Download, Copy, Send, FolderInput, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { SOURCE_LABEL } from '@/lib/marketing/classification';
 import { REGIONS } from '@/lib/regions';
 import { feedback } from '@/components/ui/feedback-toast';
@@ -106,6 +107,28 @@ function QueryPill({ label, active, onClick }: { label: string; active: boolean;
     >
       {label}
     </button>
+  );
+}
+
+// Figma Contacts (TASK 52) styling, shared by the toolbar and table below.
+const HEADING_TEXT = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const OUTLINE_BTN = 'inline-flex h-10 items-center justify-center gap-3 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent px-4 text-[13px] font-semibold text-[var(--color-secondary-700)] no-underline hover:bg-ui-hover-bg disabled:opacity-50 dark:border-ui-heading dark:text-ui-heading [&_svg]:size-4';
+const PRIMARY_BTN = 'inline-flex h-10 items-center justify-center gap-3 rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-6 text-[13px] font-semibold text-white no-underline hover:bg-[var(--color-secondary-700)]/90 disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950 dark:hover:bg-primary-100 [&_svg]:size-4';
+const FILTER_STYLE: React.CSSProperties = {
+  height: 40, fontSize: 12, borderRadius: 4, border: '1px solid var(--color-secondary-700)', background: 'var(--ui-input-bg)',
+};
+const TH_CLS = 'h-[46px] whitespace-nowrap px-2.5 text-[12px] font-semibold leading-[1.4] text-ui-body first:pl-[18px]';
+const TD_CLS = 'px-2.5 py-2 text-[13px] text-ui-body first:pl-[18px]';
+
+function initials(name: string): string {
+  return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
+}
+
+function OwnerAvatar({ name }: { name: string | null }) {
+  return (
+    <span aria-hidden className="grid size-[26px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold leading-[1.4] text-ui-body">
+      {name ? initials(name) : '—'}
+    </span>
   );
 }
 
@@ -374,7 +397,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
 
   function SortableTh({ label, sortKeyName }: { label: string; sortKeyName: string }) {
     return (
-      <th style={{ padding: '10px 12px', fontWeight: 600 }}>
+      <th className={TH_CLS}>
         <button
           onClick={() => toggleSort(sortKeyName)}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', font: 'inherit', padding: 0, textTransform: 'inherit', letterSpacing: 'inherit' }}
@@ -444,31 +467,34 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
 
   return (
     <>
-      <MarketingPipelineNav
-        current="prospects"
-        prospectCount={total} potentialCount={potentialTotal} opportunityCount={opportunityTotal}
-      />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Contacts</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
+        <div className="flex flex-col gap-[5px] leading-[1.35]">
+          <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Marketing / Contacts</p>
+          <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Contacts</h1>
+          <p className="m-0 text-[13px] text-ui-body">
             {queryRequired && !hasAnyQuery
               ? 'Build a query below to see a list — the full Contacts table isn’t browsable here.'
               : `${total.toLocaleString('en-US')} contact${total !== 1 ? 's' : ''} — Marketing-owned`}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 10 }}>
           {canImport && (
-            <Link href="/marketing/import" className="btn btn-ghost" title="Add contacts from any Excel / CSV file, with duplicate checking">
-              <Upload size={14} style={{ marginRight: 5 }} /> Import from Excel
+            <Link href="/marketing/import" className={OUTLINE_BTN} title="Add contacts from any Excel / CSV file, with duplicate checking">
+              <Upload /> Import from Excel
             </Link>
           )}
           {canEdit && (
-            <Link href="/marketing/prospects/new" className="btn btn-primary" title="Not a confirmed deal yet — no project is created until evidence is attached or Sales accepts">
+            <Link href="/marketing/prospects/new" className={PRIMARY_BTN} title="Not a confirmed deal yet — no project is created until evidence is attached or Sales accepts">
               + Capture New Contact
             </Link>
           )}
         </div>
+      </div>
+      <div style={{ marginBottom: 18 }}>
+        <MarketingPipelineNav
+          current="prospects"
+          prospectCount={total} potentialCount={potentialTotal} opportunityCount={opportunityTotal}
+        />
       </div>
 
       {/* Quick queries — press a button to run a named query for the fixed, small set of
@@ -503,23 +529,24 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
         />
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', minWidth: 220, flex: '1 1 220px', maxWidth: 360 }}>
-          <Search size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)' }} />
+      <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', minWidth: 220, flex: '1 1 220px', maxWidth: 380 }}>
+          <Search size={16} className="text-ui-text-secondary" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
           <input
-            className="form-input" style={{ paddingLeft: 32, fontSize: 13 }}
-            placeholder="Search Contacts…" value={query} onChange={e => setQuery(e.target.value)}
+            className="form-input"
+            style={{ height: 40, paddingLeft: 34, fontSize: 13, borderRadius: 6, borderColor: 'var(--ui-input-border)', background: 'var(--ui-input-bg)' }}
+            placeholder="Search contacts…" value={query} onChange={e => setQuery(e.target.value)}
             aria-label="Search Contacts"
           />
         </div>
-        <Select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by status">
+        <Select className="form-input" style={{ ...FILTER_STYLE, maxWidth: 170 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by status">
           <option value="">All classifications</option>
           <option value="captured">No project yet</option>
           <option value="potential">Potential</option>
           <option value="opportunity_candidate">Opportunity Candidate</option>
           <option value="disqualified">Disqualified</option>
         </Select>
-        <Select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={regionFilter} onChange={e => setRegionFilter(e.target.value)} aria-label="Filter by region">
+        <Select className="form-input" style={{ ...FILTER_STYLE, maxWidth: 170 }} value={regionFilter} onChange={e => setRegionFilter(e.target.value)} aria-label="Filter by region">
           <option value="">All regions</option>
           {REGIONS.map(r => <option key={r.code} value={r.code}>{REGION_FILTER_LABEL[r.code] ?? r.label}</option>)}
         </Select>
@@ -531,8 +558,8 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
             together instead of being stuck with just one. */}
         <div
           style={{
-            minWidth: 160, maxWidth: 320, padding: '5px 8px', fontSize: 13,
-            border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-surface)',
+            ...FILTER_STYLE, height: 'auto', minHeight: 40, display: 'flex', alignItems: 'center',
+            minWidth: 160, maxWidth: 320, padding: '5px 11px',
           }}
         >
           <TagMultiSelect values={sourceFilters} options={sourceOptions} onChange={setSourceFilters} placeholder="All sources" />
@@ -541,7 +568,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
             (lib/marketing/prospectCompleteness.ts) from contact/location/source fields — the
             API filters on it after enrichment rather than in SQL, see app/api/marketing/
             prospects/route.ts's `completeness === 'missing'` branch. */}
-        <Select className="form-input" style={{ maxWidth: 170, fontSize: 13 }} value={completenessFilter} onChange={e => setCompletenessFilter(e.target.value)} aria-label="Filter by info completeness">
+        <Select className="form-input" style={{ ...FILTER_STYLE, maxWidth: 170 }} value={completenessFilter} onChange={e => setCompletenessFilter(e.target.value)} aria-label="Filter by info completeness">
           <option value="">All info levels</option>
           <option value="missing">Missing info</option>
         </Select>
@@ -557,44 +584,56 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
           </button>
         )}
         {loading && <Loader2 size={15} style={{ color: 'var(--fg-subtle)', animation: 'spin 1s linear infinite' }} />}
-        {hasFilters && total > 0 && (
-          <span style={{ display: 'flex', gap: 6, marginLeft: 'auto', alignItems: 'center', flexWrap: 'wrap' }}>
-            {templates.length > 0 && (
-              <Select
-                className="form-input" style={{ maxWidth: 190, fontSize: 13 }}
-                value={templateId} onChange={e => setTemplateId(e.target.value)} aria-label="Mail template"
-                title="Pick a template to merge into the CSV or to send"
-              >
-                <option value="">No template (plain export)</option>
-                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </Select>
-            )}
-            <button className="btn btn-ghost btn-sm" disabled={exporting} onClick={() => exportContacts('copy')} title="Copy every matching contact's email, comma-separated">
-              <Copy size={13} style={{ marginRight: 5 }} /> Copy emails
-            </button>
-            <button
-              className="btn btn-ghost btn-sm" disabled={exporting}
-              onClick={() => exportContacts('excel')}
-              title="Download every field for every matching contact as a formatted Excel file"
-            >
-              <FileSpreadsheet size={13} style={{ marginRight: 5 }} /> Export to Excel
-            </button>
-            {templateId && (
+        <span style={{ display: 'flex', gap: 10, marginLeft: 'auto', alignItems: 'center', flexWrap: 'wrap' }}>
+          {hasFilters && total > 0 && (
+            <>
+              {templates.length > 0 && (
+                <Select
+                  className="form-input"
+                  style={{ ...FILTER_STYLE, maxWidth: 200, height: 40, borderRadius: 6, fontSize: 13, fontWeight: 600 }}
+                  value={templateId} onChange={e => setTemplateId(e.target.value)} aria-label="Mail template"
+                  title="Pick a template to merge into the CSV or to send"
+                >
+                  <option value="">Template Picker</option>
+                  {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </Select>
+              )}
+              <button className={OUTLINE_BTN} disabled={exporting} onClick={() => exportContacts('copy')} title="Copy every matching contact's email, comma-separated">
+                <Copy /> Copy emails
+              </button>
+              {templateId && (
+                <button
+                  className={OUTLINE_BTN} disabled={exporting}
+                  onClick={() => exportContacts('merge-csv')}
+                  title="Download name, email, subject and merged body for every matching contact — for a mail-merge tool"
+                >
+                  <Download /> Download merge CSV
+                </button>
+              )}
+              {templateId && (
+                <button className={OUTLINE_BTN} disabled={sending} onClick={sendWithTemplate} title="Send this template to every matching contact">
+                  <Send /> {sending ? 'Sending…' : `Send to ${total}`}
+                </button>
+              )}
               <button
-                className="btn btn-ghost btn-sm" disabled={exporting}
-                onClick={() => exportContacts('merge-csv')}
-                title="Download name, email, subject and merged body for every matching contact — for a mail-merge tool"
+                className={PRIMARY_BTN} disabled={exporting}
+                onClick={() => exportContacts('excel')}
+                title="Download every field for every matching contact as a formatted Excel file"
               >
-                <Download size={13} style={{ marginRight: 5 }} /> Download merge CSV
+                <FolderInput /> Export File
               </button>
-            )}
-            {templateId && (
-              <button className="btn btn-primary btn-sm" disabled={sending} onClick={sendWithTemplate} title="Send this template to every matching contact">
-                <Send size={13} style={{ marginRight: 5 }} /> {sending ? 'Sending…' : `Send to ${total}`}
-              </button>
-            )}
-          </span>
-        )}
+            </>
+          )}
+          <Link
+            href="/marketing/prospects/trash"
+            aria-label="Trash"
+            title="Deleted contacts (Trash)"
+            className="inline-flex size-10 items-center justify-center rounded-[6px] hover:brightness-95 [&_svg]:size-4"
+            style={{ background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' }}
+          >
+            <Trash2 aria-hidden />
+          </Link>
+        </span>
       </div>
 
       {total === 0 ? (
@@ -615,20 +654,20 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
         </div></div>
       ) : (
         <>
-          <div className="card" style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 900 }}>
+          <div className="overflow-x-auto rounded-control border border-ui-divider bg-ui-page-bg">
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
               <thead>
-                <tr style={{ textAlign: 'left', color: 'var(--fg-subtle)', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                  <th style={{ padding: '10px 12px', fontWeight: 600 }}>Name</th>
+                <tr className="border-b border-ui-divider bg-ui-surface text-left">
+                  <th className={TH_CLS}>Name</th>
                   <SortableTh label="01 - State" sortKeyName="state" />
                   <SortableTh label="13 - Source" sortKeyName="source" />
                   <SortableTh label="08 - Business Type" sortKeyName="business_type" />
-                  <th style={{ padding: '10px 12px', fontWeight: 600 }}>Assignee</th>
-                  <th style={{ padding: '10px 12px', fontWeight: 600 }}>Due date</th>
+                  <th className={TH_CLS}>Assignee</th>
+                  <th className={TH_CLS}>Due date</th>
                   <SortableTh label="Date created" sortKeyName="created_at" />
                   <SortableTh label="Information" sortKeyName="information" />
                   <SortableTh label="Whatsapp" sortKeyName="whatsapp" />
-                  {canEdit && <th style={{ padding: '10px 12px', fontWeight: 600 }}></th>}
+                  {canEdit && <th className={TH_CLS}></th>}
                 </tr>
               </thead>
               <tbody style={{ opacity: loading ? 0.5 : 1 }}>
@@ -636,11 +675,9 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                   <Fragment key={p.id}>
                   <tr
                     onClick={() => setQuickViewId(p.id)}
-                    style={{ borderTop: '1px solid var(--border-subtle)', cursor: 'pointer' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    className="h-16 cursor-pointer border-t border-ui-divider hover:bg-ui-surface"
                   >
-                    <td style={{ padding: '10px 12px' }}>
+                    <td className={TD_CLS}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         {/* Companies always expand to their contact person(s), like ClickUp's
                             Company → Person rows — even with just one, the primary contact's
@@ -655,16 +692,16 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                           </button>
                         ) : <span style={{ width: 13 }} />}
                         <EntityIcon type={p.entity_type} />
-                        <span style={{ fontWeight: 600 }}>{p.display_name}</span>
+                        <span className={cn('text-[13px] font-semibold', HEADING_TEXT)}>{p.display_name}</span>
                         {p.other_contacts.length > 0 && (
-                          <span style={{ fontSize: 10.5, color: 'var(--fg-faint)' }}>+{p.other_contacts.length}</span>
+                          <span className="text-[11px] text-ui-text-secondary">+{p.other_contacts.length}</span>
                         )}
                         {(p.tags ?? []).map(t => <TagPill key={t.name} label={t.name} bg={t.color} />)}
                       </div>
-                      {p.brand_name && <div style={{ fontSize: 11, color: 'var(--fg-subtle)', marginLeft: 20 }}>{p.brand_name}</div>}
+                      {p.brand_name && <div className="mt-1 ml-[39px] text-[11px] text-ui-text-secondary">{p.brand_name}</div>}
                     </td>
-                    <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>{p.state ?? '—'}</td>
-                    <td style={{ padding: '10px 12px' }}>
+                    <td className={TD_CLS}>{p.state ?? '—'}</td>
+                    <td className={TD_CLS}>
                       {canEdit ? (
                         <SourceSelect
                           value={p.source_raw_label || (p.source_label ? (SOURCE_LABEL[p.source_label as keyof typeof SOURCE_LABEL] ?? p.source_label) : null)}
@@ -677,7 +714,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: '10px 12px' }}>
+                    <td className={TD_CLS}>
                       {canEdit ? (
                         <TagMultiSelect values={p.business_types ?? []} options={businessTypeOptions} onChange={v => updateBusinessTypes(p, v)} placeholder="Add…" />
                       ) : (p.business_types ?? []).length === 0 ? <span style={{ color: 'var(--fg-subtle)' }}>—</span> : (
@@ -686,34 +723,37 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                         </div>
                       )}
                     </td>
-                    <td style={{ padding: '10px 12px' }} onClick={e => e.stopPropagation()}>
-                      {canEdit ? (
-                        <Select
-                          value={p.assigned_marketing_user_id ?? ''}
-                          onChange={e => updateAssignee(p, e.target.value)}
-                          className="form-input"
-                          style={{ fontSize: 12, padding: '4px 6px', border: '1px solid transparent', background: 'transparent', cursor: 'pointer', maxWidth: 150 }}
-                          onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
-                          onMouseLeave={e => (e.currentTarget.style.borderColor = 'transparent')}
-                        >
-                          <option value="">— Unassigned —</option>
-                          {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-                        </Select>
-                      ) : (
-                        <span style={{ color: 'var(--fg-subtle)' }}>{p.owner_name ?? '—'}</span>
-                      )}
+                    <td className={TD_CLS} onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-2">
+                        <OwnerAvatar name={canEdit ? (assignees.find(a => a.id === p.assigned_marketing_user_id)?.full_name ?? null) : p.owner_name} />
+                        {canEdit ? (
+                          <Select
+                            value={p.assigned_marketing_user_id ?? ''}
+                            onChange={e => updateAssignee(p, e.target.value)}
+                            className="form-input"
+                            style={{ fontSize: 13, padding: '4px 6px', border: '1px solid transparent', background: 'transparent', cursor: 'pointer', maxWidth: 150 }}
+                            onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
+                            onMouseLeave={e => (e.currentTarget.style.borderColor = 'transparent')}
+                          >
+                            <option value="">— Unassigned —</option>
+                            {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
+                          </Select>
+                        ) : (
+                          <span>{p.owner_name ?? '—'}</span>
+                        )}
+                      </div>
                     </td>
-                    <td style={{ padding: '10px 12px' }}>
+                    <td className={TD_CLS}>
                       {p.target_contact_date ? (
                         <span style={{ color: p.target_contact_date < todayIso ? 'var(--status-danger)' : 'var(--fg-subtle)' }}>
                           {new Date(p.target_contact_date).toLocaleDateString('en-US')}
                         </span>
                       ) : <span style={{ color: 'var(--fg-subtle)' }}>—</span>}
                     </td>
-                    <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>
+                    <td className={TD_CLS}>
                       {new Date(p.effective_created_at ?? p.external_created_at ?? p.created_at).toLocaleDateString('en-US')}
                     </td>
-                    <td style={{ padding: '10px 12px' }}>
+                    <td className={TD_CLS}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{ width: 60, height: 5, borderRadius: 3, background: 'var(--bg-sunken)', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${p.completeness_percent}%`, background: p.completeness_percent >= 80 ? 'var(--status-success)' : p.completeness_percent >= 40 ? 'var(--status-warning)' : 'var(--status-danger)' }} />
@@ -721,7 +761,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                         <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{p.completeness_percent}%</span>
                       </div>
                     </td>
-                    <td style={{ padding: '10px 12px' }} onClick={e => e.stopPropagation()}>
+                    <td className={TD_CLS} onClick={e => e.stopPropagation()}>
                       <input
                         type="checkbox" checked={p.whatsapp} disabled={!canEdit || !p.primary_contact_id}
                         onChange={() => toggleWhatsapp(p)}
@@ -729,7 +769,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                       />
                     </td>
                     {canEdit && (
-                      <td style={{ padding: '10px 12px' }}>
+                      <td className={TD_CLS}>
                         <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }} onClick={e => trashProspect(e, p)} title="Delete">
                           <Trash2 size={13} />
                         </button>

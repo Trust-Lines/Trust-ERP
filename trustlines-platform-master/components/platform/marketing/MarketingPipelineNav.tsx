@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Users, Clock, ArrowRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Props {
   current: 'prospects' | 'potentials' | 'opportunities';
@@ -14,8 +14,8 @@ interface Props {
 // (marketing_pr is hard-blocked from /marketing/opportunities, see that page's role gate),
 // and this component only ever renders on the Contacts page. Contacts → Potentials only.
 const SEGMENTS = [
-  { key: 'prospects' as const, href: '/marketing/prospects', label: 'Contacts', icon: Users },
-  { key: 'potentials' as const, href: '/marketing/opportunities', label: 'Potentials', icon: Clock },
+  { key: 'prospects' as const, href: '/marketing/prospects', label: 'Contacts' },
+  { key: 'potentials' as const, href: '/marketing/opportunities', label: 'Potentials' },
 ];
 
 function countFor(key: Props['current'], p: Props): string {
@@ -23,34 +23,31 @@ function countFor(key: Props['current'], p: Props): string {
   return n === null ? '' : String(n);
 }
 
+// Figma Contacts (TASK 52) "Saved views": underline tabs, 48px tall, 3px active border.
 export function MarketingPipelineNav(props: Props) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 16, flexWrap: 'wrap' }}>
-      {SEGMENTS.map((s, i) => {
-        const Icon = s.icon;
+    <nav aria-label="Marketing pipeline" className="flex h-12 items-stretch gap-8 border-b border-ui-divider">
+      {SEGMENTS.map(s => {
         const isCurrent = s.key === props.current;
         const count = countFor(s.key, props);
         const inner = (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 7,
-            background: isCurrent ? 'var(--bg-subtle)' : 'transparent',
-            color: isCurrent ? 'var(--brand-navy)' : 'var(--fg-muted)',
-            fontWeight: isCurrent ? 700 : 500, fontSize: 12.5,
-          }}>
-            <Icon size={13} />
-            <span>{s.label}</span>
-            {count !== '' && <span style={{ fontSize: 11, opacity: 0.75 }}>({count})</span>}
-          </div>
+          <>
+            {s.label}
+            {count !== '' && <span className="text-[11px] opacity-75">({count})</span>}
+          </>
         );
-        return (
-          <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {isCurrent ? inner : (
-              <Link href={s.href} style={{ textDecoration: 'none' }}>{inner}</Link>
-            )}
-            {i < SEGMENTS.length - 1 && <ArrowRight size={12} style={{ color: 'var(--fg-subtle)' }} />}
-          </div>
+        const cls = cn(
+          'flex items-center gap-1.5 border-b-[3px] text-[13px] leading-[1.4] no-underline',
+          isCurrent
+            ? 'border-[var(--color-secondary-700)] font-semibold text-[var(--color-secondary-700)] dark:border-ui-heading dark:text-ui-heading'
+            : 'border-transparent text-ui-text-secondary hover:text-ui-body',
+        );
+        return isCurrent ? (
+          <span key={s.key} aria-current="page" className={cls}>{inner}</span>
+        ) : (
+          <Link key={s.key} href={s.href} className={cls}>{inner}</Link>
         );
       })}
-    </div>
+    </nav>
   );
 }
