@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowLeft, ArrowRight, Check, Paperclip, Link2, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, FolderOpen, Info, Paperclip, Upload, X } from 'lucide-react';
 import {
   ENTITY_TYPES, ENTITY_TYPE_LABEL, PROJECT_TYPES, PROJECT_TYPE_LABEL,
   SCOPE_TYPES, SCOPE_TYPE_LABEL, TIMINGS, TIMING_LABEL, LEAD_CLASSIFICATION_LABEL,
@@ -17,8 +17,10 @@ import { TagMultiSelect } from './TagMultiSelect';
 import type { LeadEntityType, ProjectType, ScopeType, LeadTiming } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
 import { feedback } from '@/components/ui/feedback-toast';
+// Shared wizard look (progress row, cards, chips, summary panel) with the New Project wizard.
+import { NEW_PROJECT_STYLES } from '@/components/platform/projects/new-project/styles';
 
-const STEPS = ['Source', 'Company', 'Contact', 'Project Need', 'Timing', 'Classification'] as const;
+const STEPS = ['Source', 'Company', 'Contact', 'Project Need', 'Classification'] as const;
 const CONTACT_METHODS = ['Email', 'Phone', 'WhatsApp', 'Other'];
 
 interface FormState {
@@ -102,6 +104,40 @@ function TextAreaField({ label, required, ...props }: { label: string; required?
     </div>
   );
 }
+const DIAL_CODES = ['+1', '+90', '+966', '+971', '+44', '+49'];
+
+/** Dial-code prefix + number (Figma "Phone Number"); stored as one string, e.g. "+1 555 123 4567". */
+function PhoneField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const id = useId();
+  const match = value.match(/^(\+\d{1,4})\s*(.*)$/);
+  const code = match && DIAL_CODES.includes(match[1]) ? match[1] : '+1';
+  const number = match && DIAL_CODES.includes(match[1]) ? match[2] : value;
+  const compose = (c: string, n: string) => onChange(n.trim() ? `${c} ${n}` : '');
+  return (
+    <div>
+      <label htmlFor={id} className="form-label" style={{ fontSize: 12 }}>{label}</label>
+      <div className="np-phone">
+        <Select
+          aria-label={`${label} country code`}
+          className="np-phone-code"
+          value={code}
+          onChange={e => compose(e.target.value, number)}
+        >
+          {DIAL_CODES.map(c => <option key={c} value={c}>{c}</option>)}
+        </Select>
+        <input
+          id={id}
+          type="tel"
+          className="np-phone-number"
+          placeholder="___ ___ ____"
+          value={number}
+          onChange={e => compose(code, e.target.value)}
+        />
+      </div>
+    </div>
+  );
+}
+
 function CheckboxField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   const id = useId();
   return (
@@ -111,18 +147,15 @@ function CheckboxField({ label, checked, onChange }: { label: string; checked: b
   );
 }
 
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+// Same chip as the New Project wizard's category buttons (Figma "Capture New Contact").
+function Chip({ active, onClick, children, wide }: { active: boolean; onClick: () => void; children: React.ReactNode; wide?: boolean }) {
   return (
     <button
       type="button" onClick={onClick} aria-pressed={active}
-      className="pill"
-      style={{
-        cursor: 'pointer', border: `1px solid ${active ? 'var(--brand-navy)' : 'var(--border-default)'}`,
-        background: active ? 'var(--brand-navy)' : 'white', color: active ? 'white' : 'var(--fg-default)',
-        fontSize: 12, padding: '6px 12px',
-      }}
+      className={`np-cat-chip${active ? ' selected' : ''}`}
+      style={wide ? { minWidth: 172 } : undefined}
     >
-      {active && <Check size={12} />} {children}
+      {active && <Check size={16} aria-hidden />} {children}
     </button>
   );
 }
@@ -266,42 +299,70 @@ export function LeadCaptureWizard() {
     router.push(`/marketing/prospects/${body.prospect.id}?tab=needs`);
   }
 
+  const stepTitle = step === 2 && isPerson ? 'Alternate Contact (Optional)' : STEPS[step];
+  const previewName = (isPerson ? f.personName : f.organizationName).trim();
+  const previewRows: { key: string; value: string }[] = [
+    { key: 'Lead Type', value: f.entityType ? ENTITY_TYPE_LABEL[f.entityType] : '' },
+    { key: 'Name', value: previewName },
+    { key: 'State', value: f.state.trim() },
+    { key: 'Source', value: f.sourceRaw.trim() },
+    { key: 'Business Type', value: f.industry.trim() },
+    { key: 'Region', value: REGIONS.find(r => r.code === f.region)?.label ?? '' },
+    { key: 'Due Date', value: f.targetContactDate || f.deadline },
+  ];
+
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 24, flexWrap: 'wrap' }}>
-        {STEPS.map((label, i) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+    <div className="new-project-wrapper">
+      <style>{NEW_PROJECT_STYLES}</style>
+
+      <div className="np-body" style={{ gap: 18 }}>
+        <div className="np-top-header-left">
+          <h1 className="np-title">Capture New Contact</h1>
+          <p className="np-subtitle">
+            Nothing here creates a project, reserves a project number, or touches Dropbox — that happens only once Sales accepts an Opportunity handoff.
+          </p>
+        </div>
+
+        <div className="np-progress" aria-label="Form progress">
+          {STEPS.map((label, i) => (
             <div
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999,
-                fontSize: 12, fontWeight: i === step ? 700 : 500,
-                background: i === step ? 'var(--brand-navy)' : i < step ? 'var(--status-success-bg)' : 'var(--bg-subtle)',
-                color: i === step ? 'white' : i < step ? 'var(--status-success-fg)' : 'var(--fg-subtle)',
-              }}
+              key={label}
+              aria-current={i === step ? 'step' : undefined}
+              className={`np-progress-step${i === step ? ' active' : ''}${i < step ? ' completed' : ''}`}
+              style={{ cursor: 'default' }}
             >
-              {i < step ? <Check size={12} /> : <span>{i + 1}</span>} {label}
+              <span className="np-progress-marker">{i < step ? <Check size={13} strokeWidth={3} /> : i + 1}</span>
+              <span>{i === 2 && isPerson ? 'Alternate Contact (Optional)' : label}</span>
             </div>
-            {i < STEPS.length - 1 && <div style={{ width: 16, height: 1, background: 'var(--border-subtle)' }} />}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      <div className="card">
-        <div className="card-body">
+      <div className="np-main-grid">
+      <div className="np-card step-content-card">
+        <div>
+          <div className="step-card-header">
+            <h2 className="np-card-title">{stepTitle}</h2>
+          </div>
+
           {step === 0 && (
-            <div>
-              <div className="form-section-title" style={{ marginBottom: 12 }}>Lead type</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }} role="group" aria-label="Lead type">
-                {ENTITY_TYPES.map(t => (
-                  <Chip key={t} active={f.entityType === t} onClick={() => set('entityType', t)}>{ENTITY_TYPE_LABEL[t]}</Chip>
-                ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 32, maxWidth: 353 }}>
+              <div>
+                <span className="form-label">Lead Type</span>
+                <div className="np-cat-row" role="group" aria-label="Lead type">
+                  {ENTITY_TYPES.map(t => (
+                    <Chip key={t} wide active={f.entityType === t} onClick={() => set('entityType', t)}>{ENTITY_TYPE_LABEL[t]}</Chip>
+                  ))}
+                </div>
               </div>
-              <div className="form-section-title" style={{ marginBottom: 8 }}>How did we meet this lead?</div>
-              <div style={{ marginBottom: 20 }}>
-                <SourceSelect value={f.sourceRaw || null} options={sourceOptions} onChange={v => set('sourceRaw', v)} placeholder="Select or type a source…" />
+              <div>
+                <span className="form-label">Where did we meet this lead?</span>
+                <SourceSelect value={f.sourceRaw || null} options={sourceOptions} onChange={v => set('sourceRaw', v)} placeholder="Select" />
               </div>
-              <div className="form-section-title" style={{ marginBottom: 8 }}>Tags</div>
-              <TagMultiSelect values={f.tags} options={tagOptions} onChange={v => set('tags', v)} placeholder="Add tag…" />
+              <div>
+                <span className="form-label">Tags</span>
+                <TagMultiSelect values={f.tags} options={tagOptions} onChange={v => set('tags', v)} placeholder="Add tag…" />
+              </div>
             </div>
           )}
 
@@ -339,7 +400,7 @@ export function LeadCaptureWizard() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                 <TextField label="Email" type="email" value={f.personEmail} onChange={e => set('personEmail', e.target.value)} />
-                <TextField label="Phone" value={f.personPhone} onChange={e => set('personPhone', e.target.value)} />
+                <PhoneField label="Phone" value={f.personPhone} onChange={v => set('personPhone', v)} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
                 <TextField label="Country" value={f.country} onChange={e => set('country', e.target.value)} />
@@ -352,16 +413,13 @@ export function LeadCaptureWizard() {
 
           {step === 2 && !isPerson && (
             <div>
-              <div className="form-section-title" style={{ marginBottom: 12 }}>Contact</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                <TextField label="Name" value={f.contactName} onChange={e => set('contactName', e.target.value)} autoFocus />
-                <TextField label="Job title" value={f.contactTitle} onChange={e => set('contactTitle', e.target.value)} />
+              <div className="form-grid-2">
+                <TextField label="Full Name" value={f.contactName} onChange={e => set('contactName', e.target.value)} autoFocus />
+                <TextField label="Occupation/role" value={f.contactTitle} onChange={e => set('contactTitle', e.target.value)} />
+                <TextField label="Email Address" type="email" value={f.contactEmail} onChange={e => set('contactEmail', e.target.value)} />
+                <PhoneField label="Phone Number" value={f.contactPhone} onChange={v => set('contactPhone', v)} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                <TextField label="Email" type="email" value={f.contactEmail} onChange={e => set('contactEmail', e.target.value)} />
-                <TextField label="Phone" value={f.contactPhone} onChange={e => set('contactPhone', e.target.value)} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10, alignItems: 'end' }}>
+              <div className="form-grid-2" style={{ alignItems: 'end' }}>
                 <SelectField
                   label="Preferred contact method" value={f.preferredContactMethod}
                   onChange={e => set('preferredContactMethod', e.target.value)}
@@ -378,20 +436,13 @@ export function LeadCaptureWizard() {
           )}
 
           {step === 2 && isPerson && (
-            <div>
-              <div className="form-section-title" style={{ marginBottom: 4 }}>Additional contact (optional)</div>
-              <p style={{ fontSize: 11.5, color: 'var(--fg-subtle)', margin: '0 0 12px' }}>
-                {f.personName || 'This person'} is already the primary contact — captured in the previous step, not asked again here.
-                Add someone else connected to this Lead only if relevant.
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                <TextField label="Name" value={f.contactName} onChange={e => set('contactName', e.target.value)} />
-                <TextField label="Job title" value={f.contactTitle} onChange={e => set('contactTitle', e.target.value)} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                <TextField label="Email" type="email" value={f.contactEmail} onChange={e => set('contactEmail', e.target.value)} />
-                <TextField label="Phone" value={f.contactPhone} onChange={e => set('contactPhone', e.target.value)} />
-              </div>
+            // Figma "Alternate Contact (Optional)": someone else connected to this Lead — the
+            // person from the previous step is already the primary contact.
+            <div className="form-grid-2">
+              <TextField label="Full Name" value={f.contactName} onChange={e => set('contactName', e.target.value)} />
+              <TextField label="Occupation/role" value={f.contactTitle} onChange={e => set('contactTitle', e.target.value)} />
+              <TextField label="Email Address" type="email" value={f.contactEmail} onChange={e => set('contactEmail', e.target.value)} />
+              <PhoneField label="Phone Number" value={f.contactPhone} onChange={v => set('contactPhone', v)} />
             </div>
           )}
 
@@ -438,94 +489,114 @@ export function LeadCaptureWizard() {
           )}
 
           {step === 4 && (
-            <div>
-              <div className="form-section-title" style={{ marginBottom: 12 }}>Timing</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }} role="group" aria-label="Timing">
-                {TIMINGS.map(t => (
-                  <Chip key={t} active={f.timing === t} onClick={() => set('timing', t)}>{TIMING_LABEL[t]}</Chip>
-                ))}
-              </div>
-              {f.timing === 'contact_later' && (
-                <div style={{ maxWidth: 240 }}>
-                  <TextField label="Target contact date" required type="date" value={f.targetContactDate} onChange={e => set('targetContactDate', e.target.value)} />
+            // Figma "Classification": Timing + evidence on one step. The classification itself is
+            // computed from the answers (badge + reasons in Contact Preview) — no manual override.
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              <div>
+                <span className="form-label required">Timing</span>
+                <div className="np-cat-row" role="group" aria-label="Timing">
+                  {TIMINGS.map(t => (
+                    <Chip key={t} active={f.timing === t} onClick={() => set('timing', t)}>{TIMING_LABEL[t]}</Chip>
+                  ))}
                 </div>
+                {f.timing === 'contact_later' && (
+                  <div style={{ maxWidth: 240, marginTop: 16 }}>
+                    <TextField label="Target contact date" required type="date" value={f.targetContactDate} onChange={e => set('targetContactDate', e.target.value)} />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <span className="form-label">Evidence (Optional)</span>
+                <div className="np-evidence">
+                  <div className="np-evidence-drop">
+                    <span className="np-quick-symbol"><FolderOpen size={32} strokeWidth={1.5} aria-hidden /></span>
+                    <p className="np-quick-title">Attach Layout File (Optional)</p>
+                    {layoutFile ? (
+                      <div className="np-evidence-file">
+                        <Paperclip size={14} aria-hidden />
+                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{layoutFile.name}</span>
+                        <button type="button" onClick={() => setLayoutFile(null)} className="btn btn-ghost btn-sm" aria-label="Remove file"><X size={13} /></button>
+                      </div>
+                    ) : (
+                      <label className="btn-primary-navy" style={{ padding: '8px 12px' }}>
+                        <Upload size={16} aria-hidden /> Upload first file
+                        <input type="file" hidden onChange={e => setLayoutFile(e.target.files?.[0] ?? null)} />
+                      </label>
+                    )}
+                    <p className="np-quick-sub" style={{ fontSize: 12 }}>
+                      A layout or drawing they sent — this is what makes it an Opportunity instead of a Potential.
+                    </p>
+                  </div>
+                  <TextField
+                    label="Matterport tour or reference link (Optional)"
+                    placeholder="https://..."
+                    value={matterportUrl}
+                    onChange={e => setMatterportUrl(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {f.timing && (
+                <p className="np-subtitle" style={{ fontSize: 12 }}>
+                  <strong>Next action:</strong> {suggestion.recommendedNextAction} · <strong>Follow up:</strong> {suggestion.recommendedFollowUpDate}
+                </p>
               )}
             </div>
           )}
+        </div>
 
-          {step === 5 && (
-            <div>
-              <div className="form-section-title" style={{ marginBottom: 8 }}>Evidence (optional)</div>
-              <p style={{ fontSize: 11.5, color: 'var(--fg-subtle)', margin: '0 0 10px' }}>
-                If they sent a layout, or you have a Matterport tour or reference link — attach it here.
-                This is the ONLY thing that makes it an Opportunity instead of a Potential.
-              </p>
-              <div className="card" style={{ marginBottom: 16 }}>
-                <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {layoutFile ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-                      <Paperclip size={14} color="var(--brand-teal)" />
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{layoutFile.name}</span>
-                      <button type="button" onClick={() => setLayoutFile(null)} className="btn btn-ghost btn-sm" aria-label="Remove file"><X size={13} /></button>
-                    </div>
-                  ) : (
-                    <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', alignSelf: 'flex-start' }}>
-                      <Paperclip size={13} /> Attach layout file
-                      <input type="file" hidden onChange={e => setLayoutFile(e.target.files?.[0] ?? null)} />
-                    </label>
-                  )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Link2 size={14} color="var(--fg-subtle)" style={{ flexShrink: 0 }} />
-                    <input className="form-input" placeholder="Matterport tour or reference link (https://…)"
-                      value={matterportUrl} onChange={e => setMatterportUrl(e.target.value)} style={{ fontSize: 13 }} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="form-section-title" style={{ marginBottom: 12 }}>Classification preview</div>
-              <div className="card" style={{ background: 'var(--bg-subtle)', marginBottom: 16 }}>
-                <div className="card-body">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <span className="pill" style={{ background: 'var(--brand-navy)', color: 'white', fontSize: 13, padding: '5px 12px' }}>
-                      {LEAD_CLASSIFICATION_LABEL[suggestion.classification]}
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>suggested classification</span>
-                  </div>
-                  <div style={{ fontSize: 12.5, marginBottom: 8 }}>
-                    <strong>Reasons:</strong>
-                    <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-                      {suggestion.reasons.map(r => <li key={r}>{r}</li>)}
-                    </ul>
-                  </div>
-                  <div style={{ fontSize: 12.5 }}><strong>Recommended next action:</strong> {suggestion.recommendedNextAction}</div>
-                  <div style={{ fontSize: 12.5 }}><strong>Recommended follow-up date:</strong> {suggestion.recommendedFollowUpDate}</div>
-                </div>
-              </div>
-
-              <p style={{ fontSize: 11.5, color: 'var(--fg-subtle)', margin: 0 }}>
-                This is computed automatically from your answers — there is no manual override. If a
-                Lead qualifies as an Opportunity Candidate, an Opportunity is created for it automatically;
-                the classification is recalculated any time the underlying answers change (e.g. from the
-                Lead&apos;s detail page).
-              </p>
-            </div>
-          )}
+        <div className="step-footer-actions">
+          <button
+            type="button"
+            className="btn-outline-custom muted"
+            onClick={() => step === 0 ? router.push('/marketing/prospects') : setStep(s => s - 1)}
+          >
+            {step === 0 ? 'Cancel' : <><ArrowLeft size={14} aria-hidden /> Back</>}
+          </button>
+          <div className="step-footer-right">
+            {step < STEPS.length - 1 ? (
+              <button type="button" className="btn-primary-navy" disabled={!canProceed} onClick={() => setStep(s => s + 1)}>
+                Next <ArrowRight size={14} aria-hidden />
+              </button>
+            ) : (
+              <button type="button" className="btn-primary-navy" disabled={saving || !canProceed} onClick={submit}>
+                {saving ? 'Saving…' : 'Save to contacts'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
-        <button className="btn btn-ghost" onClick={() => step === 0 ? router.push('/marketing/prospects') : setStep(s => s - 1)}>
-          <ArrowLeft size={14} /> {step === 0 ? 'Cancel' : 'Back'}
-        </button>
-        {step < STEPS.length - 1 ? (
-          <button className="btn btn-primary" disabled={!canProceed} onClick={() => setStep(s => s + 1)}>
-            Next <ArrowRight size={14} />
-          </button>
-        ) : (
-          <button className="btn btn-primary" disabled={saving} onClick={submit}>
-            {saving ? 'Saving…' : 'Save to Contacts'}
-          </button>
-        )}
+      <aside className="summary-sidebar-card" aria-label="Contact preview">
+        <div className="summary-head">
+          <h3 className="np-card-title">Contact Preview</h3>
+          {/* Suggested classification (computed from the answers, recalculated live). */}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span
+              className="np-status-badge"
+              style={{ background: 'var(--color-secondary-700)', color: '#fff', padding: '2px 12px' }}
+            >
+              {f.entityType ? LEAD_CLASSIFICATION_LABEL[suggestion.classification] : '-'}
+            </span>
+            {f.entityType && (
+              <span
+                title={suggestion.reasons.join('\n')}
+                aria-label={`Why: ${suggestion.reasons.join('; ')}`}
+                style={{ display: 'inline-flex', color: 'var(--color-secondary-700)' }}
+              >
+                <Info size={18} aria-hidden />
+              </span>
+            )}
+          </span>
+        </div>
+        {previewRows.map(r => (
+          <div key={r.key} className="summary-row">
+            <span className="summary-row-key">{r.key}</span>
+            <span className="summary-row-val">{r.value || '-'}</span>
+          </div>
+        ))}
+      </aside>
       </div>
     </div>
   );

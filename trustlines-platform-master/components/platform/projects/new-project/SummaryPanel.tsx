@@ -1,6 +1,6 @@
 'use client';
 
-import { Info } from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
 
 export function SummaryPanel({
   watchedCode, regionName, companyName, selectedCats, watchedCurrency, calculatedTotal, clientType,
@@ -16,73 +16,37 @@ export function SummaryPanel({
   completedRequiredCount: number;
   totalRequiredCount: number;
 }) {
+  const rows: { key: string; value: string | undefined; mono?: boolean }[] = [
+    { key: 'Project Number', value: watchedCode, mono: true },
+    { key: 'Region', value: regionName },
+    { key: 'Company', value: companyName },
+    { key: 'Categories', value: selectedCats.join(', ') },
+    { key: 'Total Deal Value', value: calculatedTotal > 0 ? `${watchedCurrency} ${calculatedTotal.toLocaleString('en-US')}` : undefined },
+    { key: 'Dropbox Folder', value: undefined },
+    { key: 'Status', value: 'Under Working' },
+    { key: 'Client type', value: clientType || 'Individuals' },
+  ];
+
   return (
-    <div className="summary-sidebar-card">
+    <aside className="summary-sidebar-card" aria-label="Project summary">
       <div className="summary-head">
-        <h3 className="summary-title">Project summary</h3>
-        <span className="np-status-badge">Not saved yet</span>
+        <h3 className="np-card-title">Project Summary</h3>
+        <span className="np-status-badge">
+          <TriangleAlert size={16} aria-hidden /> Not Saved yet!
+        </span>
       </div>
 
-      <div className="summary-list">
-        <div className="summary-row">
-          <span className="summary-row-key">Project number</span>
-          <span className="summary-row-val">{watchedCode || 'Pending'}</span>
+      {rows.map(r => (
+        <div key={r.key} className="summary-row">
+          <span className="summary-row-key">{r.key}</span>
+          <span className={`summary-row-val${r.mono && r.value ? ' summary-row-val-mono' : ''}`}>{r.value || '-'}</span>
         </div>
+      ))}
 
-        <div className="summary-row">
-          <span className="summary-row-key">Region</span>
-          <span className="summary-row-val">{regionName || 'Not selected'}</span>
-        </div>
-
-        <div className="summary-row">
-          <span className="summary-row-key">Company</span>
-          <span className="summary-row-val">{companyName || 'Not selected'}</span>
-        </div>
-
-        <div className="summary-row">
-          <span className="summary-row-key">Categories</span>
-          <span className="summary-row-val">{selectedCats.length > 0 ? selectedCats.join(', ') : 'None'}</span>
-        </div>
-
-        <div className="summary-row">
-          <span className="summary-row-key">Total deal value</span>
-          <span className="summary-row-val">{watchedCurrency} {calculatedTotal.toLocaleString('en-US')}</span>
-        </div>
-
-        <div className="summary-row">
-          <span className="summary-row-key">Dropbox folder</span>
-          <span className="summary-row-val summary-row-val-mono">—</span>
-        </div>
-
-        <div className="summary-row">
-          <span className="summary-row-key">Status</span>
-          <span className="summary-row-val">Under Working</span>
-        </div>
-
-        <div className="summary-row">
-          <span className="summary-row-key">Client type</span>
-          <span className="summary-row-val">{clientType || 'Individuals'}</span>
-        </div>
+      <div className="summary-row">
+        <span className="summary-row-key">Required fields</span>
+        <span className="summary-row-val">{completedRequiredCount} of {totalRequiredCount}</span>
       </div>
-
-      <div className="summary-footer-box">
-        <div className="summary-info-text">
-          <Info size={14} style={{ flexShrink: 0 }} />
-          <span>Select Region, Company and location to continue</span>
-        </div>
-
-        <div>
-          <div className="progress-label-row">
-            <span>{completedRequiredCount} of {totalRequiredCount} required fields</span>
-          </div>
-          <div className="progress-bar-bg">
-            <div
-              className="progress-bar-fill"
-              style={{ width: `${(completedRequiredCount / totalRequiredCount) * 100}%` }}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+    </aside>
   );
 }

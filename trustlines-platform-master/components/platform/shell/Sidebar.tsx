@@ -62,7 +62,7 @@ interface NavItem {
   exact?: boolean;
 }
 
-const ROLE_LABELS: Record<string, string> = {
+export const ROLE_LABELS: Record<string, string> = {
   ops_manager: 'Ops Manager',
   pm_millwork: 'PM · Millwork',
   pm_ceiling: 'PM · Ceiling',

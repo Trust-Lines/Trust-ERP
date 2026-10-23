@@ -1,10 +1,10 @@
 import Link from 'next/link';
+import { ChevronRight, Plus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ProjectsTableClient } from '@/components/platform/projects/ProjectsTableClient';
 import { loadPortfolio } from '@/lib/workspace/portfolio';
 import { PHASE_LABELS } from '@/lib/lifecycle/projectLifecycle';
-import { PortfolioList } from '@/components/platform/workspace/PortfolioClient';
 import { toRows } from '@/lib/workspace/rows';
 import type { UserRole } from '@/types/database';
 
@@ -84,56 +84,55 @@ export default async function ProjectsPage() {
   }));
 
   const today = new Date().toISOString().split('T')[0];
-  const activeCount  = projects.filter(p => p.current_stage !== 'delivered').length;
-  const overdueCount = projects.filter(
-    p => p.est_delivery_date && p.est_delivery_date < today && p.current_stage !== 'delivered',
-  ).length;
+
+  // Saved views ("All / Waiting on me / Blocked") filter the one table below; the hint is the
+  // next action or blocker, shown as the row's sub-line (Figma "Projects · Desktop").
+  const viewNotes: Record<string, ProjectViewNote> = {};
+  for (const r of waitingOnMe) viewNotes[r.projectId] = { view: 'waiting', hint: r.myActions[0]?.action ?? null };
+  for (const r of blockedRows) viewNotes[r.projectId] = { view: 'blocked', hint: r.blockers[0]?.message ?? null };
+
+  const canCreate = userRole === 'ops_manager' || userRole === 'general_manager';
 
   return (
     <div className="main-inner">
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 'var(--fw-bold)', color: 'var(--fg-default)', margin: '0 0 4px' }}>
+      <nav aria-label="Breadcrumb" className="mb-[18px] flex items-center gap-2 text-[12px] leading-[1.4]">
+        <span className="text-ui-text-secondary">Supply</span>
+        <ChevronRight aria-hidden className="size-3 text-ui-text-secondary" />
+        <span className="text-ui-body">Projects</span>
+      </nav>
+      <div className="mb-[18px] flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col gap-[6px]">
+          <h1 className="m-0 text-[30px] font-semibold leading-normal text-[var(--color-secondary-700)] dark:text-ui-heading">
             Projects
           </h1>
-          <p className="page-head-sub">
-            {activeCount} active
-            {overdueCount > 0 && (
-              <span style={{ color: 'var(--status-danger)', marginLeft: 6 }}>
-                · {overdueCount} overdue
-              </span>
-            )}
+          <p className="m-0 text-[14px] leading-[1.4] text-ui-text-secondary">
+            Track delivery, ownership and next steps across every project.
           </p>
         </div>
-        {(userRole === 'ops_manager' || userRole === 'general_manager') && (
-          <Link href="/projects/new" className="btn btn-primary">
-            + New project
+        {canCreate && (
+          <Link
+            href="/projects/new"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-[6px] border border-ui-btn-accent bg-ui-btn-accent px-[14px] text-[13px] font-semibold text-ui-btn-accent-fg no-underline hover:brightness-95"
+          >
+            <Plus aria-hidden className="size-4" /> New project
           </Link>
         )}
       </div>
 
-      {waitingOnMe.length > 0 && (
-        <section style={{ marginBottom: 22 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-            <h2 style={{ fontSize: 13, fontWeight: 600, margin: 0, color: 'var(--brand-orange)' }}>Waiting on me</h2>
-            <span style={{ fontSize: 11.5, color: 'var(--fg-faint)' }}>Your next step — item plan / list / PO / PF, or a handover</span>
-          </div>
-          <PortfolioList rows={waitingOnMe} emptyLabel="" />
-        </section>
-      )}
-      {blockedRows.length > 0 && (
-        <section style={{ marginBottom: 22 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-            <h2 style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>Blocked</h2>
-            <span style={{ fontSize: 11.5, color: 'var(--fg-faint)' }}>Someone else's step, but not moving</span>
-          </div>
-          <PortfolioList rows={blockedRows} emptyLabel="" />
-        </section>
-      )}
-
-      <ProjectsTableClient projects={projects} userRole={userRole} today={today} />
+      <ProjectsTableClient
+        projects={projects}
+        userRole={userRole}
+        today={today}
+        viewNotes={viewNotes}
+        canCreate={canCreate}
+      />
     </div>
   );
+}
+
+export interface ProjectViewNote {
+  view: 'waiting' | 'blocked';
+  hint: string | null;
 }
 
 export interface ProjectRow {

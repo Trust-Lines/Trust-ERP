@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2, RotateCcw, AlertTriangle, Loader2 } from 'lucide-react';
+import { Trash2, RotateCcw, Search, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
-import { StageBadge } from '@/components/platform/shared/StageBadge';
-import type { ProjectStage } from '@/types/database';
+import { cn } from '@/lib/utils';
 
 interface TrashedProject {
   id: string;
@@ -16,6 +15,7 @@ interface TrashedProject {
   deleted_at: string;
   deal_value: number | null;
   currency: string;
+  deleted_by: string | null;
 }
 
 interface ConflictState {
@@ -25,101 +25,137 @@ interface ConflictState {
   code: string;
 }
 
-function daysLeft(deletedAt: string): number {
-  const deleted = new Date(deletedAt).getTime();
-  return Math.max(0, 30 - Math.floor((Date.now() - deleted) / 86400000));
+// Figma "Supply / Project / Trash" (node 210:21274) — same layout as the Contacts trash.
+const HEADING_TEXT = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const RESTORE_BTN = 'inline-flex shrink-0 items-center gap-[7px] rounded-[6px] border border-ui-divider bg-ui-input-bg px-2.5 py-[7px] text-[13px] font-medium text-ui-body hover:bg-ui-hover-bg disabled:opacity-50 [&_svg]:size-4';
+const DELETE_BTN = 'inline-flex shrink-0 items-center rounded-[6px] border-0 px-2.5 py-[7px] text-[13px] font-medium hover:brightness-95 disabled:opacity-50';
+const DELETE_STYLE: React.CSSProperties = { background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' };
+const TH_CLS = 'whitespace-nowrap px-2.5 py-2.5 text-left text-[12px] font-medium text-ui-text-secondary first:pl-3 last:pr-3';
+const TD_CLS = 'px-2.5 py-3.5 align-middle text-[12px] leading-[1.45] text-ui-body first:pl-3 last:pr-3';
+const CHECKBOX_CLS = 'size-4 cursor-pointer accent-[var(--color-secondary-700)]';
+
+const DATE_TIME = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+const DATE_ONLY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+function daysLeft(deletedAt: string, purgeDays: number): number {
+  return Math.max(0, purgeDays - Math.floor((Date.now() - new Date(deletedAt).getTime()) / 86_400_000));
 }
 
-export function TrashClient({ projects }: { projects: TrashedProject[] }) {
+function autoDeleteDate(deletedAt: string, left: number, purgeDays: number): string {
+  if (left <= 0) return 'Due for removal';
+  return DATE_ONLY.format(new Date(new Date(deletedAt).getTime() + purgeDays * 86_400_000));
+}
+
+export function TrashClient({ projects, purgeDays }: { projects: TrashedProject[]; purgeDays: number }) {
   const router = useRouter();
-  const [loadingId, setLoadingId]   = useState<string | null>(null);
-  const [conflict, setConflict]     = useState<ConflictState | null>(null);
+  const [query, setQuery]       = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy]         = useState(false);
+  const [conflict, setConflict] = useState<ConflictState | null>(null);
 
-  async function restore(id: string, name: string) {
-    setLoadingId(id);
-    try {
-      const res  = await fetch(`/api/projects/${id}/restore`, { method: 'POST' });
-      const json = await res.json() as { success?: boolean; conflict?: boolean; existingName?: string; code?: string; error?: string };
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return projects;
+    return projects.filter(p =>
+      [p.name, p.code, p.deleted_by ?? '', ...(p.categories ?? [])].some(v => v.toLowerCase().includes(q)),
+    );
+  }, [projects, query]);
 
-      if (res.status === 409 && json.conflict) {
-        setConflict({ projectId: id, projectName: name, existingName: json.existingName!, code: json.code! });
-        return;
-      }
-      if (!res.ok) throw new Error(json.error ?? 'Failed');
-      toast.success('Project restored');
-      router.refresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to restore');
-    } finally { setLoadingId(null); }
+  const selectedItems = visible.filter(p => selected.has(p.id));
+  const allSelected = visible.length > 0 && selectedItems.length === visible.length;
+
+  function toggle(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   }
 
-  async function permanentDelete(id: string, name: string) {
-    if (!window.confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
-    setLoadingId(id);
-    try {
-      const res  = await fetch(`/api/projects/${id}/permanent-delete`, { method: 'DELETE' });
-      const json = await res.json() as { error?: string };
-      if (!res.ok) throw new Error(json.error ?? 'Failed');
-      toast.success('Project permanently deleted');
-      router.refresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed');
-    } finally { setLoadingId(null); }
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(visible.map(p => p.id)));
+  }
+
+  // Runs the existing per-project endpoints one by one — they carry their own authorization and
+  // audit logging. A restore that hits a code conflict (409) opens the conflict dialog instead.
+  async function run(targets: TrashedProject[], kind: 'restore' | 'purge') {
+    if (targets.length === 0) return;
+    if (kind === 'purge') {
+      const label = targets.length === 1 ? `"${targets[0].name}"` : `${targets.length} projects`;
+      if (!window.confirm(`Permanently delete ${label}? This cannot be undone.`)) return;
+    }
+    setBusy(true);
+    let failed = 0;
+    let lastError = '';
+    let conflictHit: ConflictState | null = null;
+    for (const p of targets) {
+      const res = await fetch(
+        kind === 'restore' ? `/api/projects/${p.id}/restore` : `/api/projects/${p.id}/permanent-delete`,
+        { method: kind === 'restore' ? 'POST' : 'DELETE' },
+      ).catch(() => null);
+      if (res?.ok) continue;
+      failed++;
+      const body = res ? await res.json().catch(() => ({})) as { conflict?: boolean; existingName?: string; code?: string; error?: string } : {};
+      if (kind === 'restore' && res?.status === 409 && body.conflict && !conflictHit) {
+        conflictHit = { projectId: p.id, projectName: p.name, existingName: body.existingName ?? '', code: body.code ?? p.code };
+      } else {
+        lastError = body.error ?? '';
+      }
+    }
+    setBusy(false);
+    setSelected(new Set());
+    const done = targets.length - failed;
+    if (done > 0) toast.success(`${kind === 'restore' ? 'Restored' : 'Permanently deleted'} ${done} project${done === 1 ? '' : 's'}`);
+    if (conflictHit) setConflict(conflictHit);
+    else if (failed > 0) toast.error(lastError || `Could not ${kind === 'restore' ? 'restore' : 'delete'} ${failed} project${failed === 1 ? '' : 's'}`);
+    router.refresh();
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <Trash2 size={20} color="var(--fg-muted)" />
-        <div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--fg-default)' }}>Trash</h1>
-          <p style={{ margin: 0, fontSize: 12, color: 'var(--fg-faint)', marginTop: 2 }}>
-            Deleted projects stay here for 30 days, then are removed automatically.
-          </p>
-        </div>
+    <div className="flex flex-col gap-[30px]">
+      <div className="flex flex-col gap-[5px] leading-[1.35]">
+        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Supply / Projects / Trash</p>
+        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Trash</h1>
+        <p className="m-0 text-[13px] text-ui-body">
+          Deleted items remain here for {purgeDays} days. Restoring a project also restores its related tasks and files.
+        </p>
+      </div>
+
+      <div className="flex items-start gap-2.5 rounded-[6px] p-3" style={{ background: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)' }} role="note">
+        <TriangleAlert size={16} className="shrink-0" aria-hidden />
+        <p className="m-0 flex-1 text-[12px] leading-[1.45]">
+          Permanent deletion cannot be undone. Items are automatically removed on the dates below; only Ops and General Managers can delete them sooner.
+        </p>
       </div>
 
       {conflict && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
-          background: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <div style={{
-            background: 'var(--bg-surface)', borderRadius: 10, padding: 28,
-            maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <AlertTriangle size={20} color="#d97706" />
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-default)' }}>Code conflict</span>
+        <div role="dialog" aria-modal="true" aria-labelledby="trash-conflict-title" className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
+          <div className="flex w-[90%] max-w-[420px] flex-col gap-3.5 rounded-[10px] border border-ui-divider bg-ui-surface-elevated p-7 shadow-xl">
+            <div className="flex items-center gap-2.5">
+              <TriangleAlert size={20} style={{ color: 'var(--status-warning-fg)' }} aria-hidden />
+              <span id="trash-conflict-title" className={cn('text-[15px] font-semibold', HEADING_TEXT)}>Code conflict</span>
             </div>
-            <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: '0 0 8px' }}>
+            <p className="m-0 text-[13px] text-ui-body">
               An active project already uses code <strong>{conflict.code}</strong>:
             </p>
-            <div style={{
-              background: 'var(--status-warning-bg)', border: '1px solid #fde68a',
-              borderRadius: 6, padding: '10px 14px', marginBottom: 18,
-              fontSize: 13, fontWeight: 600, color: 'var(--status-warning-fg)',
-            }}>
+            <div className="rounded-[6px] px-3.5 py-2.5 text-[13px] font-semibold" style={{ background: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)' }}>
               {conflict.existingName}
             </div>
-            <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: '0 0 18px' }}>
-              You can permanently delete the trashed version, or go update the active project's code first.
+            <p className="m-0 text-[13px] text-ui-body">
+              You can permanently delete the trashed version, or go update the active project&apos;s code first.
             </p>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <div className="flex justify-end gap-2.5">
+              <button type="button" className={RESTORE_BTN} onClick={() => setConflict(null)}>Cancel</button>
               <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => setConflict(null)}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-sm"
+                type="button"
+                className={DELETE_BTN}
+                style={DELETE_STYLE}
+                disabled={busy}
                 onClick={async () => {
-                  await permanentDelete(conflict.projectId, conflict.projectName);
+                  const target = projects.find(p => p.id === conflict.projectId);
                   setConflict(null);
+                  if (target) await run([target], 'purge');
                 }}
-                style={{ background: 'var(--status-danger-bg)', color: '#dc2626', border: '1px solid #fca5a5', fontWeight: 600, fontSize: 12, padding: '5px 12px', borderRadius: 6, cursor: 'pointer' }}
               >
                 Delete trashed version forever
               </button>
@@ -128,96 +164,93 @@ export function TrashClient({ projects }: { projects: TrashedProject[] }) {
         </div>
       )}
 
-      {projects.length === 0 ? (
-        <div className="card" style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <Trash2 size={32} color="var(--fg-faint)" style={{ marginBottom: 12 }} />
-          <div style={{ fontSize: 14, color: 'var(--fg-subtle)', fontWeight: 500 }}>Trash is empty</div>
-          <div style={{ fontSize: 12, color: 'var(--fg-faint)', marginTop: 4 }}>Deleted projects will appear here.</div>
+      <div className="flex flex-col gap-5 rounded-[10px] border border-ui-divider bg-ui-surface-elevated p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="relative w-full max-w-[380px]">
+            <Search size={16} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" aria-hidden />
+            <input
+              className="form-input"
+              style={{ height: 40, paddingLeft: 34, fontSize: 13, borderRadius: 6, borderColor: 'var(--ui-input-border)', background: 'var(--ui-input-bg)' }}
+              placeholder="Search deleted items…" value={query} onChange={e => setQuery(e.target.value)}
+              aria-label="Search deleted items"
+            />
+          </div>
+          {selectedItems.length > 0 && (
+            <div className="flex items-center gap-2.5">
+              <span className="text-[12px] leading-[1.45] text-ui-text-secondary">{selectedItems.length} selected</span>
+              <button type="button" className={RESTORE_BTN} disabled={busy} onClick={() => run(selectedItems, 'restore')}>
+                <RotateCcw aria-hidden /> Restore selected
+              </button>
+              <button type="button" className={DELETE_BTN} style={DELETE_STYLE} disabled={busy} onClick={() => run(selectedItems, 'purge')}>
+                Delete permanently
+              </button>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                {['PROJECT', 'STAGE', 'CATEGORIES', 'DELETED', 'EXPIRES IN', ''].map(h => (
-                  <th key={h} style={{
-                    padding: '9px 14px', textAlign: 'left',
-                    fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
-                    letterSpacing: '0.06em', color: 'var(--fg-faint)',
-                    background: 'var(--bg-subtle)',
-                  }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {projects.map(p => {
-                const days      = daysLeft(p.deleted_at);
-                const isLoading = loadingId === p.id;
-                return (
-                  <tr key={p.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <td style={{ padding: '10px 14px' }}>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg-default)' }}>{p.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--fg-faint)' }}>{p.code}</div>
-                    </td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <StageBadge stage={p.current_stage as ProjectStage} />
-                    </td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--fg-subtle)' }}>
-                      {(p.categories ?? []).join(', ') || '—'}
-                    </td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--fg-subtle)' }}>
-                      {new Date(p.deleted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        fontSize: 11, fontWeight: 600,
-                        color: days <= 3 ? '#dc2626' : days <= 7 ? '#d97706' : 'var(--fg-subtle)',
-                      }}>
-                        {days <= 3 && <AlertTriangle size={11} />}
-                        {days}d left
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                        <button
-                          onClick={() => restore(p.id, p.name)}
-                          disabled={isLoading}
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 5,
-                            padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
-                            cursor: isLoading ? 'wait' : 'pointer',
-                            background: 'var(--brand-teal-100)', color: 'var(--brand-teal-600)',
-                            border: '1px solid #9ecfcf',
-                          }}
-                        >
-                          {isLoading ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <RotateCcw size={11} />}
-                          Restore
-                        </button>
 
-                        <button
-                          onClick={() => permanentDelete(p.id, p.name)}
-                          disabled={isLoading}
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 5,
-                            padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
-                            cursor: isLoading ? 'wait' : 'pointer',
-                            background: 'var(--status-danger-bg)', color: '#dc2626',
-                            border: '1px solid #fca5a5',
-                          }}
-                        >
-                          <Trash2 size={11} />
-                          Delete forever
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+        {visible.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-6 py-10 text-center text-[13px] text-ui-text-secondary">
+            <Trash2 size={28} className="opacity-40" aria-hidden />
+            {query.trim() ? 'No deleted items match your search.' : 'Trash is empty. Deleted projects will appear here.'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[960px] border-collapse" style={{ opacity: busy ? 0.6 : 1 }}>
+              <thead>
+                <tr className="bg-ui-surface">
+                  <th className={cn(TH_CLS, 'w-9')}>
+                    <input type="checkbox" className={CHECKBOX_CLS} checked={allSelected} onChange={toggleAll} aria-label="Select all" />
+                  </th>
+                  <th className={TH_CLS}>Item</th>
+                  <th className={cn(TH_CLS, 'w-[150px]')}>Deleted by</th>
+                  <th className={cn(TH_CLS, 'w-[190px]')}>Deleted at</th>
+                  <th className={cn(TH_CLS, 'w-[150px]')}>Auto-delete date</th>
+                  <th className={cn(TH_CLS, 'w-[260px]')}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map(p => {
+                  const isSelected = selected.has(p.id);
+                  const left = daysLeft(p.deleted_at, purgeDays);
+                  const subtitle = ['Project', p.code, (p.categories ?? []).join(', ')].filter(Boolean).join(' · ');
+                  return (
+                    <tr key={p.id} className={cn('border-b border-ui-divider', isSelected ? 'bg-ui-selected-bg' : 'bg-ui-surface-elevated')}>
+                      <td className={TD_CLS}>
+                        <input type="checkbox" className={CHECKBOX_CLS} checked={isSelected} onChange={() => toggle(p.id)} aria-label={`Select ${p.name}`} />
+                      </td>
+                      <td className={TD_CLS}>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[13px] font-medium text-ui-body">{p.name}</span>
+                          <span className="text-[11px] text-ui-text-secondary">{subtitle}</span>
+                        </div>
+                      </td>
+                      <td className={TD_CLS}>{p.deleted_by ?? '—'}</td>
+                      <td className={TD_CLS}>{DATE_TIME.format(new Date(p.deleted_at))}</td>
+                      <td className={TD_CLS}>
+                        <span style={left <= 5 ? { color: 'var(--status-t10-fg)' } : undefined}>{autoDeleteDate(p.deleted_at, left, purgeDays)}</span>
+                      </td>
+                      <td className={TD_CLS}>
+                        <div className="flex items-center gap-2.5">
+                          <button type="button" className={RESTORE_BTN} disabled={busy} onClick={() => run([p], 'restore')}>
+                            <RotateCcw aria-hidden /> Restore
+                          </button>
+                          <button type="button" className={DELETE_BTN} style={DELETE_STYLE} disabled={busy} onClick={() => run([p], 'purge')}>
+                            Delete forever
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <p className="m-0 text-[12px] leading-[1.45] text-ui-text-secondary">
+          {projects.length} deleted item{projects.length === 1 ? '' : 's'} · Restored items return to their original location and retain their history.
+        </p>
+      </div>
     </div>
   );
 }

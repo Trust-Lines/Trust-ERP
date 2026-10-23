@@ -33,8 +33,18 @@ export default async function PlatformLayout({
   const userName = profile?.full_name ?? user.email ?? 'User';
   const userEmail = profile?.email ?? user.email ?? '';
   const userRole = profile?.role ?? 'ops_manager';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userPerms = await getRolePermissions(createAdminClient() as any, userRole);
+  // Unread badge on the top-bar bell: head-only count (no rows transferred), scoped to the user by
+  // the "own_notifications" RLS policy and the explicit user_id filter. Runs alongside the perms load.
+  const [userPerms, unreadRes] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getRolePermissions(createAdminClient() as any, userRole),
+    supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false),
+  ]);
+  const notificationCount = unreadRes.count ?? 0;
 
   let logoSrc = DEFAULT_LOGO;
   if (userRole === 'sales_marketing_manager') {
@@ -60,6 +70,7 @@ export default async function PlatformLayout({
         userName={userName}
         userEmail={userEmail}
         logoSrc={logoSrc}
+        notificationCount={notificationCount}
       >
         {children}
       </AppShell>

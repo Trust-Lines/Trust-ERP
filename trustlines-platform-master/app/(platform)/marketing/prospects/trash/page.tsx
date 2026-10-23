@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -46,6 +45,7 @@ export default async function ProspectsTrashPage() {
       display_name: r.display_name as string,
       entity_type: r.entity_type as string,
       deleted_at: deletedAt,
+      deleted_by: null,
       daysLeft: Math.max(0, PURGE_DAYS - ageDays),
     };
   });
@@ -73,8 +73,37 @@ export default async function ProspectsTrashPage() {
     : { data: [] as { id: string; display_name: string; deleted_at: string | null }[] };
   const parentById = new Map(((parents ?? []) as { id: string; display_name: string; deleted_at: string | null }[]).map(p => [p.id, p]));
 
-  const needRowsOut: NeedTrashRow[] = needRows
-    .filter(n => { const parent = parentById.get(n.prospect_id); return parent && !parent.deleted_at; })
+  const visibleNeeds = needRows.filter(n => { const parent = parentById.get(n.prospect_id); return parent && !parent.deleted_at; });
+
+  // There is no deleted_by column — "Deleted by" comes from the latest trash audit entry.
+  const resources = [
+    ...rows.map(r => `prospect:${r.id}`),
+    ...visibleNeeds.map(n => `prospect_need:${n.id}`),
+  ];
+  const deletedByResource = new Map<string, string>();
+  if (resources.length) {
+    const { data: logs } = await admin.from('audit_log')
+      .select('actor_id, resource, created_at')
+      .in('action', ['prospect.trashed', 'need.trashed'])
+      .in('resource', resources)
+      .order('created_at', { ascending: false });
+    const latest = new Map<string, string>();
+    for (const l of (logs ?? []) as { actor_id: string | null; resource: string }[]) {
+      if (l.actor_id && !latest.has(l.resource)) latest.set(l.resource, l.actor_id);
+    }
+    const actorIds = [...new Set(latest.values())];
+    const { data: actors } = actorIds.length
+      ? await admin.from('profiles').select('id, full_name').in('id', actorIds)
+      : { data: [] as { id: string; full_name: string | null }[] };
+    const nameById = new Map(((actors ?? []) as { id: string; full_name: string | null }[]).map(a => [a.id, a.full_name ?? '']));
+    for (const [resource, actorId] of latest) {
+      const name = nameById.get(actorId);
+      if (name) deletedByResource.set(resource, name);
+    }
+  }
+  for (const r of rows) r.deleted_by = deletedByResource.get(`prospect:${r.id}`) ?? null;
+
+  const needRowsOut: NeedTrashRow[] = visibleNeeds
     .map(n => {
       const ageDays = Math.floor((now - new Date(n.deleted_at).getTime()) / 86_400_000);
       return {
@@ -84,24 +113,14 @@ export default async function ProspectsTrashPage() {
         title: n.title,
         classification: n.classification,
         deleted_at: n.deleted_at,
+        deleted_by: deletedByResource.get(`prospect_need:${n.id}`) ?? null,
         daysLeft: Math.max(0, PURGE_DAYS - ageDays),
       };
     });
 
   return (
     <div className="main-inner">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-        <Link href="/marketing/prospects" className="btn btn-ghost btn-sm" style={{ color: 'var(--fg-subtle)' }}>← Contacts</Link>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: 0 }}>Marketing Trash</h1>
-          <p className="page-head-sub" style={{ margin: '2px 0 0' }}>
-            Deleted Contacts and Needs (Potentials/Opportunities) are kept for {PURGE_DAYS} days, then permanently removed.
-            Restoring a Contact brings back its Needs and Potentials too.
-          </p>
-        </div>
-      </div>
-
-      <ProspectsTrashClient rows={rows} needRows={needRowsOut} canPurge={MARKETING_MANAGE_ROLES.includes(userRole)} />
+      <ProspectsTrashClient rows={rows} needRows={needRowsOut} canPurge={MARKETING_MANAGE_ROLES.includes(userRole)} purgeDays={PURGE_DAYS} />
     </div>
   );
 }

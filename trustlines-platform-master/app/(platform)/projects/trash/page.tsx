@@ -30,13 +30,41 @@ export default async function TrashPage() {
     .gte('deleted_at', cutoff)
     .order('deleted_at', { ascending: false });
 
+  const trashed = (rows ?? []) as {
+    id: string; code: string; name: string;
+    current_stage: string; categories: string[];
+    deleted_at: string; deal_value: number | null; currency: string;
+  }[];
+
+  // projects has no deleted_by column — "Deleted by" comes from the project.deleted audit entry
+  // that DELETE /api/projects/[id] already writes (latest one per project wins).
+  const deletedBy = new Map<string, string>();
+  if (trashed.length > 0) {
+    const { data: audits } = await admin
+      .from('audit_log')
+      .select('project_id, actor_id, created_at')
+      .eq('action', 'project.deleted')
+      .in('project_id', trashed.map(p => p.id))
+      .order('created_at', { ascending: false });
+    const latest = new Map<string, string>();
+    for (const a of (audits ?? []) as { project_id: string; actor_id: string | null }[]) {
+      if (a.actor_id && !latest.has(a.project_id)) latest.set(a.project_id, a.actor_id);
+    }
+    const actorIds = [...new Set(latest.values())];
+    if (actorIds.length > 0) {
+      const { data: actors } = await admin.from('profiles').select('id, full_name').in('id', actorIds);
+      const names = new Map(((actors ?? []) as { id: string; full_name: string | null }[]).map(p => [p.id, p.full_name ?? '']));
+      for (const [projectId, actorId] of latest) {
+        const name = names.get(actorId);
+        if (name) deletedBy.set(projectId, name);
+      }
+    }
+  }
+
   return (
     <TrashClient
-      projects={(rows ?? []) as {
-        id: string; code: string; name: string;
-        current_stage: string; categories: string[];
-        deleted_at: string; deal_value: number | null; currency: string;
-      }[]}
+      projects={trashed.map(p => ({ ...p, deleted_by: deletedBy.get(p.id) ?? null }))}
+      purgeDays={30}
     />
   );
 }

@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NewProjectForm } from '@/components/platform/projects/NewProjectForm';
@@ -39,15 +38,7 @@ export default async function NewProjectPage() {
 
   return (
     <div className="main-inner">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-        <Link href="/projects" className="btn btn-ghost btn-sm" style={{ color: 'var(--fg-subtle)' }}>
-          ← Back
-        </Link>
-        <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 'var(--fw-bold)', color: 'var(--fg-default)', margin: 0 }}>
-          New project
-        </h1>
-      </div>
-
+      {/* Heading + Cancel live inside NewProjectForm (Figma Project Detail). */}
       <NewProjectForm
         currentUserId={user.id}
         userRole={userRole}

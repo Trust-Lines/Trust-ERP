@@ -10,6 +10,13 @@ import type { UserRole } from '@/types/database';
 
 const MANAGEMENT_ROLES = ['ops_manager', 'general_manager'];
 
+// Figma "ops_manager" (node 174:27458) surface + Status Chip (48:500) styles.
+const SURFACE = 'flex min-w-0 flex-col gap-5 rounded-[10px] border border-ui-divider bg-ui-surface-elevated p-6';
+const SURFACE_TITLE = 'm-0 text-[17px] font-semibold leading-[normal] text-ui-heading';
+const SURFACE_SUBTITLE = 'm-0 text-[12px] leading-[1.45] text-ui-text-secondary';
+const SURFACE_ROW = 'flex items-center gap-2.5 py-2 text-[13px] leading-[1.4] text-ui-body';
+const CHIP = 'inline-flex items-center rounded-[4px] py-[3px] pl-2 pr-2.5 text-[12px] font-medium leading-4 whitespace-nowrap';
+
 export default async function ManagementPage() {
   await requirePage('page.management');
 
@@ -56,9 +63,11 @@ export default async function ManagementPage() {
 
   return (
     <div className="main-inner">
-      <div style={{ marginBottom: 18 }}>
-        <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Management Workspace</h1>
-        <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
+      {/* Page heading — Figma "ops_manager" 174:27573 */}
+      <div className="mb-[30px] flex flex-col gap-[5px] leading-[1.35]">
+        <p className="text-[11px] font-semibold text-ui-nav-active">Operations / Management</p>
+        <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">Management</h1>
+        <p className="m-0 text-[13px] text-ui-body">
           {entries.length} active projects · {blocked.length} blocked
         </p>
       </div>
@@ -70,25 +79,21 @@ export default async function ManagementPage() {
         <Stat label="Overdue follow-ups" value={totals.overdue} warn />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16, marginBottom: 22 }}>
-        <section className="card">
-          <div className="card-head">
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Company blockers</span>
-            <span style={{ fontSize: 11.5, color: 'var(--fg-faint)' }}>How many projects each one holds up</span>
+      {/* Two side-by-side surfaces — Figma "Pattern surface" 177:29581 / 177:29619 */}
+      <div className="mb-[30px] grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <section className={SURFACE}>
+          <div className="flex flex-col gap-1">
+            <h2 className={SURFACE_TITLE}>Company blockers</h2>
+            <p className={SURFACE_SUBTITLE}>How many projects each one holds up</p>
           </div>
           {rollup.length === 0 ? (
-            <div className="card-body">
-              <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>Nothing is blocked company-wide.</p>
-            </div>
+            <p className="m-0 text-[13px] text-ui-text-secondary">Nothing is blocked company-wide.</p>
           ) : (
-            <div className="card-body flush">
+            <div>
               {rollup.map((b, i) => (
-                <div key={b.code} style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '8px 18px',
-                  borderTop: i === 0 ? undefined : '1px solid var(--border-subtle)',
-                }}>
-                  <span style={{ fontSize: 12.5, flex: 1 }}>{b.message}</span>
-                  <span className="pill" style={{ background: 'var(--bg-sunken)', color: 'var(--fg-subtle)' }}>
+                <div key={b.code} className={i === 0 ? SURFACE_ROW : `${SURFACE_ROW} border-t border-ui-divider`}>
+                  <span className="flex-1">{b.message}</span>
+                  <span className={CHIP} style={{ background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}>
                     {b.projects} {b.projects === 1 ? 'project' : 'projects'}
                   </span>
                 </div>
@@ -97,30 +102,25 @@ export default async function ManagementPage() {
           )}
         </section>
 
-        <section className="card">
-          <div className="card-head">
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Workload</span>
-            <span style={{ fontSize: 11.5, color: 'var(--fg-faint)' }}>Projects per PM</span>
+        <section className={SURFACE}>
+          <div className="flex flex-col gap-1">
+            <h2 className={SURFACE_TITLE}>Workload</h2>
+            <p className={SURFACE_SUBTITLE}>Projects per PM</p>
           </div>
           {load.length === 0 ? (
-            <div className="card-body">
-              <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>No PMs are assigned yet.</p>
-            </div>
+            <p className="m-0 text-[13px] text-ui-text-secondary">No PMs are assigned yet.</p>
           ) : (
-            <div className="card-body flush">
+            <div>
               {load.map((w, i) => (
-                <div key={w.userId} style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '8px 18px',
-                  borderTop: i === 0 ? undefined : '1px solid var(--border-subtle)',
-                }}>
+                <div key={w.userId} className={i === 0 ? SURFACE_ROW : `${SURFACE_ROW} border-t border-ui-divider`}>
                   <Avatar name={names[w.userId] ?? '?'} size="sm" />
-                  <span style={{ fontSize: 12.5, flex: 1 }}>{names[w.userId] ?? w.userId}</span>
+                  <span className="flex-1">{names[w.userId] ?? w.userId}</span>
                   {w.blocked > 0 && (
-                    <span className="pill" style={{ background: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)' }}>
+                    <span className={CHIP} style={{ background: 'var(--status-t7-bg)', color: 'var(--status-t7-fg)' }}>
                       {w.blocked} blocked
                     </span>
                   )}
-                  <span style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>{w.projects}</span>
+                  <span className="text-[13px] font-semibold tabular-nums">{w.projects}</span>
                 </div>
               ))}
             </div>
