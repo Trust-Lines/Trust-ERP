@@ -20,12 +20,13 @@ export const STAGES_FULL: StageInfo[] = [
 
 interface StageBadgeProps {
   stage: ProjectStage;
+  className?: string;
 }
 
 /** Project stage: colour + icon from lib/status/tags.ts (PROJECT_STAGE_TAG); number + label stay the app's own stage names. */
-export function StageBadge({ stage }: StageBadgeProps) {
+export function StageBadge({ stage, className }: StageBadgeProps) {
   const tag = PROJECT_STAGE_TAG[stage];
   const info = STAGES_FULL.find(s => s.stage === stage);
   if (!tag || !info) return null;
-  return <StatusBadge group="project_stage" status={tag} label={`${info.number}. ${info.label}`} />;
+  return <StatusBadge group="project_stage" status={tag} label={`${info.number}. ${info.label}`} className={className} />;
 }

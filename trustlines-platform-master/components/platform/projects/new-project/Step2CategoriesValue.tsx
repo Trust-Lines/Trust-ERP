@@ -7,6 +7,8 @@ import {
 } from './helpers';
 import type { FormHandles } from './formTypes';
 
+const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', EUR: '€', TRY: '₺' };
+
 export function Step2CategoriesValue({
   form, extraCats, selectedCats, onToggleCat,
   showCustomInput, setShowCustomInput, customCatInput, setCustomCatInput, onAddCustomCat,
@@ -29,63 +31,59 @@ export function Step2CategoriesValue({
   const { register } = form;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <FieldLabel required>Select Project Categories</FieldLabel>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
-        {[...DEFAULT_CATEGORIES, ...extraCats].map(cat => {
-          const selected = selectedCats.includes(cat);
-          return (
-            <div
-              key={cat}
-              onClick={() => onToggleCat(cat)}
-              style={{
-                padding: '8px 16px', borderRadius: 20, cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                border: `1.5px solid ${selected ? '#2563eb' : '#cbd5e1'}`,
-                background: selected ? '#eff6ff' : '#ffffff',
-                color: selected ? '#2563eb' : '#475569',
-                display: 'inline-flex', alignItems: 'center', gap: 6
-              }}
-            >
-              {selected && <Check size={12} strokeWidth={3} />}
-              {cat}
-            </div>
-          );
-        })}
-        {SHOW_CUSTOM_CATEGORY && (
-          showCustomInput ? (
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <input
-                className="form-input" style={{ width: 140, fontSize: 12, padding: '4px 8px' }}
-                placeholder="Category name" value={customCatInput}
-                onChange={e => setCustomCatInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onAddCustomCat(); } }}
-                autoFocus
-              />
-              <button type="button" className="btn btn-primary btn-sm" onClick={onAddCustomCat}>Add</button>
-            </div>
-          ) : (
-            <div
-              onClick={() => setShowCustomInput(true)}
-              style={{ padding: '8px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 13, border: '1.5px dashed var(--border-default)', color: 'var(--fg-subtle)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-            >
-              <Plus size={13} /> Add category
-            </div>
-          )
-        )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+      <div>
+        <FieldLabel required>Project Categories</FieldLabel>
+        <div className="np-cat-row">
+          {[...DEFAULT_CATEGORIES, ...extraCats].map(cat => {
+            const selected = selectedCats.includes(cat);
+            return (
+              <button
+                key={cat}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => onToggleCat(cat)}
+                className={`np-cat-chip${selected ? ' selected' : ''}`}
+              >
+                {selected && <Check size={16} aria-hidden />}
+                {cat}
+              </button>
+            );
+          })}
+          {SHOW_CUSTOM_CATEGORY && (
+            showCustomInput ? (
+              <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
+                <input
+                  className="form-input" style={{ width: 160 }}
+                  placeholder="Category name" value={customCatInput}
+                  onChange={e => setCustomCatInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onAddCustomCat(); } }}
+                  autoFocus
+                />
+                <button type="button" className="np-cat-chip selected" onClick={onAddCustomCat}>Add</button>
+              </div>
+            ) : (
+              <button type="button" className="np-cat-chip dashed" onClick={() => setShowCustomInput(true)}>
+                <Plus size={16} aria-hidden /> Add
+              </button>
+            )
+          )}
+        </div>
       </div>
 
       {selectedCats.length > 0 && (
-        <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', borderRadius: 8, padding: 16 }}>
-          <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg-muted)', marginBottom: 12 }}>Category Estimated Values</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+        <div>
+          <FieldLabel required>Category Estimated Values</FieldLabel>
+          <div className="form-grid-2" style={{ marginBottom: 0 }}>
             {selectedCats.map(cat => (
-              <div key={cat} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 500, minWidth: 100 }}>{cat}</span>
+              <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 13, fontWeight: 500, minWidth: 100, color: 'var(--color-secondary-700)' }}>{cat}</span>
                 <input
-                  className="form-input" type="text" inputMode="decimal" placeholder="Est. Value"
+                  className="form-input" type="text" inputMode="decimal" placeholder="Est. value"
+                  aria-label={`${cat} estimated value`}
                   value={formatThousands(catValues[cat] ?? '')}
                   onChange={e => setCatValues(v => ({ ...v, [cat]: sanitizeAmount(e.target.value) }))}
-                  style={{ flex: 1, fontSize: 13 }}
+                  style={{ flex: 1 }}
                 />
               </div>
             ))}
@@ -93,20 +91,24 @@ export function Step2CategoriesValue({
         </div>
       )}
 
-      <div className="form-grid-2" style={{ marginTop: 12 }}>
-        <div className="form-group">
+      <div className="np-value-row">
+        <div style={{ width: 292, maxWidth: '100%' }}>
           <FieldLabel>Currency</FieldLabel>
           <Select className="form-input form-select" {...register('currency')}>
-            <option value="USD">USD — US Dollar</option>
-            <option value="EUR">EUR — Euro</option>
-            <option value="TRY">TRY — Turkish Lira</option>
+            <option value="USD">$ (USD)</option>
+            <option value="EUR">€ (EUR)</option>
+            <option value="TRY">₺ (TRY)</option>
           </Select>
         </div>
-        <div className="form-group" style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase' }}>Total Deal Value</span>
-          <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg-default)' }}>
-            {watchedCurrency} {calculatedTotal.toLocaleString('en-US')}
-          </span>
+        <div style={{ width: 385, maxWidth: '100%' }}>
+          <FieldLabel>Total Value</FieldLabel>
+          <input
+            className="form-input"
+            readOnly
+            aria-label="Total deal value, sum of the category values"
+            title="Sum of the category estimated values"
+            value={`${CURRENCY_SYMBOL[watchedCurrency] ?? watchedCurrency} ${calculatedTotal.toLocaleString('en-US')}`}
+          />
         </div>
       </div>
     </div>

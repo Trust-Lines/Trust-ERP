@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { newProjectSchema, type NewProjectFormValues } from '@/lib/validations/project';
 import { DropboxProjectBrowser, type DropboxProjectSelection } from './DropboxProjectBrowser';
@@ -77,6 +77,9 @@ export function NewProjectForm({
   const isEdit = !!editProject;
 
   const [activeStep, setActiveStep] = useState<number>(1);
+  // Quick Creation is open on step 1 and folds to its title row on later steps (Figma).
+  const [quickOpen, setQuickOpen] = useState(true);
+  useEffect(() => { setQuickOpen(activeStep === 1); }, [activeStep]);
 
   // Quick extract state
   const [emailText, setEmailText] = useState('');
@@ -654,6 +657,10 @@ export function NewProjectForm({
     setValue('name', num ? `${num} - ${loc}` : loc, { shouldValidate: true });
   }
 
+  function cancel() {
+    router.push(isEdit ? `/projects/${editProject!.id}` : '/projects');
+  }
+
   const formHandles: FormHandles = { register, setValue, watch, errors };
 
   return (
@@ -661,44 +668,27 @@ export function NewProjectForm({
       <style>{NEW_PROJECT_STYLES}</style>
 
       <form onSubmit={onSubmit} className="new-project-wrapper">
-        {/* Top Header Bar */}
+        {/* Page heading (Figma Project Detail) */}
         <div className="np-top-header">
           <div className="np-top-header-left">
-            <h1 className="np-title">{isEdit ? `Edit project ${editProject?.project_code}` : 'New project'}</h1>
-            <span className="np-status-badge">Not saved yet</span>
-          </div>
-          <div className="np-top-header-right">
-            <button
-              type="button"
-              className="btn-outline-custom"
-              onClick={() => router.push(isEdit ? `/projects/${editProject!.id}` : '/projects')}
-            >
-              Cancel
-            </button>
-            {!isEdit && (
-              <button type="button" className="btn-outline-custom" disabled={isBusy}>
-                Save draft
-              </button>
-            )}
-            <button
-              type="submit"
-              className="btn btn-primary-navy"
-              disabled={isBusy || !!dropboxConflict}
-            >
+            <h1 className="np-title">{isEdit ? `Edit Project ${editProject?.project_code}` : 'New Project'}</h1>
+            <p className="np-subtitle">
               {isEdit
-                ? (isSubmitting ? 'Saving...' : 'Save changes')
-                : (isCheckingDropbox ? 'Checking Dropbox...' : isSubmitting ? 'Creating...' : 'Create project')}
-            </button>
-            <div className="np-user-badge">
-              <span className="np-user-avatar">{roleLabel.slice(0, 2).toUpperCase()}</span>
-              <span>{roleLabel}</span>
-            </div>
+                ? `${roleLabel} · Changes apply once you save on the last step or with Save & exit.`
+                : `${roleLabel} · Creating the project reserves its project number and sets up its Dropbox folders.`}
+            </p>
           </div>
+          <button type="button" className="np-cancel-btn" onClick={cancel}>
+            <Trash2 size={16} aria-hidden />
+            Cancel
+          </button>
         </div>
 
         {/* "Start faster" Bar */}
         {!isEdit && (
           <StartFasterBar
+            open={quickOpen}
+            onToggleOpen={() => setQuickOpen(o => !o)}
             emailText={emailText}
             setEmailText={setEmailText}
             isExtracting={isExtracting}
@@ -731,24 +721,15 @@ export function NewProjectForm({
           </div>
         )}
 
-        {/* 3-Column Dashboard Grid */}
-        <div className="np-dashboard-grid">
-          {/* Left Column: Stepper Sidebar */}
+        {/* Form progress, then the active step card + Project Summary */}
+        <div className="np-body">
           <StepperSidebar activeStep={activeStep} step1Complete={hasRegion && hasLocation} onSelect={setActiveStep} />
 
-          {/* Middle Column: Active Step Content Card */}
-          <div className="step-content-card">
+          <div className="np-main-grid">
+          <div className="np-card step-content-card">
             <div>
               <div className="step-card-header">
-                <h2 className="step-card-title">{WIZARD_STEPS[activeStep - 1].title}</h2>
-                <p className="step-card-subtitle">
-                  {activeStep === 1 && 'Tell us the basics so we can set up your project.'}
-                  {activeStep === 2 && 'Select scope categories and enter estimated deal values.'}
-                  {activeStep === 3 && 'Set the closed deal date and estimated delivery date.'}
-                  {activeStep === 4 && 'Configure Dropbox folder structure and client classification.'}
-                  {activeStep === 5 && 'Link ClickUp task and QuickBooks reference if available.'}
-                  {activeStep === 6 && 'Assign responsible project managers and QC inspectors.'}
-                </p>
+                <h2 className="np-card-title">{WIZARD_STEPS[activeStep - 1].title}</h2>
               </div>
 
               {activeStep === 1 && (
@@ -814,42 +795,51 @@ export function NewProjectForm({
 
             {/* Card Footer Step Navigation */}
             <div className="step-footer-actions">
-              {activeStep > 1 && (
+              {activeStep > 1 ? (
                 <button
                   type="button"
-                  className="btn-outline-custom"
+                  className="btn-outline-custom muted"
                   onClick={() => setActiveStep(s => s - 1)}
                 >
-                  ← Back
-                </button>
-              )}
-              {activeStep < 6 ? (
-                <button
-                  type="button"
-                  className="btn btn-primary-navy"
-                  onClick={() => setActiveStep(s => s + 1)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                >
-                  <span>Continue to {WIZARD_STEPS[activeStep]?.title}</span>
-                  <ArrowRight size={14} />
+                  <ArrowLeft size={14} aria-hidden /> Back
                 </button>
               ) : (
-                <button
-                  type="submit"
-                  className="btn btn-primary-navy"
-                  disabled={isBusy || !!dropboxConflict}
-                >
-                  {isEdit ? 'Save changes' : 'Create project'}
+                <button type="button" className="btn-outline-custom muted" onClick={cancel}>
+                  Cancel
                 </button>
               )}
-              <button
-                type="button"
-                className="btn-outline-custom"
-                onClick={() => router.push('/projects')}
-                style={{ marginLeft: 'auto' }}
-              >
-                Save and exit
-              </button>
+              <div className="step-footer-right">
+                {isEdit ? (
+                  <button type="submit" className="btn-outline-custom" disabled={isBusy}>
+                    {isSubmitting ? 'Saving...' : 'Save & exit'}
+                  </button>
+                ) : (
+                  <button type="button" className="btn-outline-custom" onClick={() => router.push('/projects')}>
+                    Save &amp; exit
+                  </button>
+                )}
+                {activeStep < WIZARD_STEPS.length ? (
+                  <button
+                    type="button"
+                    className="btn-primary-navy"
+                    onClick={() => setActiveStep(s => s + 1)}
+                    title={`Continue to ${WIZARD_STEPS[activeStep]?.title}`}
+                  >
+                    <span>Next</span>
+                    <ArrowRight size={14} aria-hidden />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    className="btn-primary-navy"
+                    disabled={isBusy || !!dropboxConflict}
+                  >
+                    {isEdit
+                      ? (isSubmitting ? 'Saving...' : 'Save changes')
+                      : (isCheckingDropbox ? 'Checking Dropbox...' : isSubmitting ? 'Creating...' : 'Create project')}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -865,6 +855,7 @@ export function NewProjectForm({
             completedRequiredCount={completedRequiredCount}
             totalRequiredCount={totalRequiredCount}
           />
+          </div>
         </div>
       </form>
     </>
