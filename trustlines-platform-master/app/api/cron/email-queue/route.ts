@@ -4,7 +4,8 @@ import { runEmailQueue } from '@/lib/email/sender';
 
 export const maxDuration = 300;
 
-// Vercel cron (vercel.json, every 10 minutes): starts scheduled email campaigns and sends the
+// Every 10 minutes from .github/workflows/frequent-crons.yml (the Vercel plan only allows daily
+// crons; vercel.json runs it once a day as a fallback): starts scheduled email campaigns and sends the
 // next batch of each sending one, within every sender's daily limit.
 // Called with `Authorization: Bearer $CRON_SECRET`.
 export async function GET(req: NextRequest) {

@@ -83,7 +83,7 @@ LinkedIn logins last about 60 days. Unless LinkedIn has given the app refresh to
 ## How it runs
 
 - **`/api/cron/social-sync`**, nightly at 04:30 UTC: reads followers plus the latest 50 posts per account, with insights for the newest 25.
-- **`/api/cron/social-publish`**, every 15 minutes: publishes posts whose status is **Scheduled** and whose **Publish automatically at** time has passed. A post is locked while it publishes, so it can't go out twice.
+- **`/api/cron/social-publish`**, every 10 minutes from the GitHub Actions workflow `.github/workflows/frequent-crons.yml` (set the `ERP_URL` and `CRON_SECRET` repository secrets; the Vercel plan only allows daily crons, so `vercel.json` runs it once a day as a fallback): publishes posts whose status is **Scheduled** and whose **Publish automatically at** time has passed. A post is locked while it publishes, so it can't go out twice.
   - If a publish is cut off half-way, the post is marked **Failed** instead of being retried, because the platform may already have it.
   - The error is shown on the post. Saving the post again retries it at its time.
 - **Who can do what:**

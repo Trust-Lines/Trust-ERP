@@ -1,0 +1,47 @@
+# Runs the two jobs that must happen more often than once a day — the current Vercel plan only
+# allows daily crons (a sub-daily schedule in vercel.json makes the deployment fail):
+#   • /api/cron/email-queue    — sends the next batch of each email campaign, starts scheduled ones
+#   • /api/cron/social-publish — publishes social posts whose scheduled time has come
+# Vercel still runs both once a day as a fallback (vercel.json).
+#
+# Setup (GitHub → Settings → Secrets and variables → Actions):
+#   ERP_URL      the ERP's address, e.g. https://t-erp.vercel.app (no trailing slash)
+#   CRON_SECRET  the same value as the CRON_SECRET env var on Vercel
+# Until both are set, every run exits quietly without calling anything.
+name: Frequent ERP jobs
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # GitHub may start scheduled runs a few minutes late
+  workflow_dispatch: {}
+
+permissions: {}
+
+concurrency:
+  group: frequent-erp-jobs
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Call the ERP cron endpoints
+        env:
+          ERP_URL: ${{ secrets.ERP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$ERP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::notice::ERP_URL / CRON_SECRET secrets are not set — skipping."
+            exit 0
+          fi
+          status=0
+          for path in /api/cron/email-queue /api/cron/social-publish; do
+            code=$(curl -sS -o /tmp/out.json -w '%{http_code}' --max-time 300 \
+              -H "Authorization: Bearer $CRON_SECRET" "$ERP_URL$path") || code=000
+            echo "$path → HTTP $code"
+            head -c 600 /tmp/out.json; echo
+            # 503 = the feature's migration isn't applied yet: not a failure of this job.
+            if [ "$code" != "200" ] && [ "$code" != "503" ]; then status=1; fi
+          done
+          exit $status
