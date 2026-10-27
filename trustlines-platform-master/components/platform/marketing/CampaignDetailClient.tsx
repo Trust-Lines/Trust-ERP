@@ -11,6 +11,7 @@ import { SURVEY_TEMPLATE_LABELS, type SurveyTemplate } from '@/lib/marketing/sur
 import type { RecentSubmissionRow } from '@/lib/marketing/campaigns';
 import type { CampaignStatus, CampaignType, LeadSource } from '@/types/database';
 import { EmptyState } from '@/components/ui/empty-state';
+import { formatDateTime } from '@/lib/formatDate';
 
 export interface CampaignDetail {
   id: string;
@@ -230,7 +231,7 @@ export function CampaignDetailClient({ campaign, ownerName, canEdit, stats, rece
             <tbody>
               {recentSubmissions.map(s => (
                 <tr key={s.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                  <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>{new Date(s.submitted_at).toLocaleString()}</td>
+                  <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>{formatDateTime(s.submitted_at)}</td>
                   <td style={{ padding: '10px 12px' }}>{SUBMISSION_STATUS_LABEL[s.status] ?? s.status}</td>
                   <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>{s.normalized_email ?? '—'}</td>
                   <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>{s.normalized_phone ?? '—'}</td>

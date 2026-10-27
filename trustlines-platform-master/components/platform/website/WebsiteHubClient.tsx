@@ -142,7 +142,7 @@ export function WebsiteHubClient({
                 <div key={p.id} className="card" style={{ overflow: 'hidden', opacity: p.is_published ? 1 : .8 }}>
                   <div style={{ position: 'relative', aspectRatio: '16/10', background: 'var(--bg-sunken)' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={thumb(p.cover_image_url, 640)} alt={p.title} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    {p.cover_image_url && <img src={thumb(p.cover_image_url, 640)} alt={p.title} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
                     <Badge text={p.is_published ? 'Published' : 'Draft'} color={p.is_published ? '#16a34a' : '#475569'} />
                   </div>
                   <div className="card-body">
@@ -190,7 +190,7 @@ export function WebsiteHubClient({
                   <div key={p.id} className="card" style={{ overflow: 'hidden', opacity: p.is_published ? 1 : .8 }}>
                     <div style={{ position: 'relative', aspectRatio: '16/10', background: 'var(--bg-sunken)' }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={thumb(p.cover_image_url, 640)} alt={p.title} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      {p.cover_image_url && <img src={thumb(p.cover_image_url, 640)} alt={p.title} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
                       <Badge text={scheduled ? 'Scheduled' : p.is_published ? 'Published' : 'Draft'} color={scheduled ? '#d97706' : p.is_published ? '#16a34a' : '#475569'} />
                     </div>
                     <div className="card-body">

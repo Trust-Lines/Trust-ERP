@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { SettingsClient } from '@/components/platform/settings/SettingsClient';
+import { MARKETING_MANAGE_ROLES } from '@/lib/marketing/roles';
 import type { UserRole } from '@/types/database';
 
 export default async function SettingsPage() {
@@ -13,7 +14,10 @@ export default async function SettingsPage() {
       <div className="page-head">
         <h1>Settings</h1>
       </div>
-      <SettingsClient isGeneralManager={role === 'general_manager'} email={user!.email ?? ''} />
+      <SettingsClient
+        isGeneralManager={role === 'general_manager'}
+        canBackUpContacts={MARKETING_MANAGE_ROLES.includes(role)}
+        email={user!.email ?? ''} />
     </div>
   );
 }

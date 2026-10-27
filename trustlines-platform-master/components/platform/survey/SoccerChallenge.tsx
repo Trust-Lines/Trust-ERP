@@ -20,7 +20,7 @@ import { StepVictory } from "./soccer-challenge/StepVictory";
 import { FormActions } from "./soccer-challenge/FormActions";
 import { KickoffPopup } from "./soccer-challenge/KickoffPopup";
 
-export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaignSlug: string; consentTextVersion: string }) {
+export function SoccerChallenge({ campaignSlug, eventName, consentTextVersion }: { campaignSlug: string; eventName: string; consentTextVersion: string }) {
   const reduceMotion = useReducedMotion();
   const [step, setStep] = useState(0);
   const [team, setTeam] = useState("");
@@ -170,7 +170,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
 
   return (
     <main className="app-shell">
-      <ScoreHeader level={level} score={score} />
+      <ScoreHeader level={level} score={score} eventName={eventName} />
 
       <section className="survey-panel" ref={contentRef} aria-live="polite">
         <MatchProgress step={step} level={level} reduceMotion={reduceMotion} />
@@ -201,6 +201,7 @@ export function SoccerChallenge({ campaignSlug, consentTextVersion }: { campaign
 
             {step === 1 && (
               <StepMeetPlayer
+                eventName={eventName}
                 data={data}
                 update={update}
                 contactMethods={contactMethods}

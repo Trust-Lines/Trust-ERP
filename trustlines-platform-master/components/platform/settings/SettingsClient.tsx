@@ -78,7 +78,7 @@ function ChangePasswordCard({ email }: { email: string }) {
   );
 }
 
-export function SettingsClient({ isGeneralManager, email }: { isGeneralManager: boolean; email: string }) {
+export function SettingsClient({ isGeneralManager, canBackUpContacts, email }: { isGeneralManager: boolean; canBackUpContacts: boolean; email: string }) {
   const [downloading, setDownloading] = useState(false);
   const [backingUpContacts, setBackingUpContacts] = useState(false);
   async function backUpContacts() {
@@ -189,18 +189,26 @@ export function SettingsClient({ isGeneralManager, email }: { isGeneralManager: 
             the file bytes live in Dropbox. Full restore procedures are in <code>BACKUP_RESTORE.md</code>.
           </p>
 
-          {isGeneralManager ? (
+          {(isGeneralManager || canBackUpContacts) && (
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-              <button className="btn btn-primary" onClick={downloadBackup} disabled={downloading}>
-                <Download size={15} /> {downloading ? 'Preparing…' : 'Download backup (JSON)'}
-              </button>
-              <button className="btn btn-ghost" onClick={backUpContacts} disabled={backingUpContacts} title="Excel + JSON of every Contact (people, locations, needs, potentials, notes) into Dropbox — the same file the nightly job makes">
-                <DatabaseBackup size={15} /> {backingUpContacts ? 'Backing up Contacts…' : 'Back up all Contacts to Dropbox now'}
-              </button>
-              <span style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>Contacts are also backed up automatically every night to Dropbox → Marketing/_Backups/Contacts.</span>
+              {isGeneralManager && (
+                <button className="btn btn-primary" onClick={downloadBackup} disabled={downloading}>
+                  <Download size={15} /> {downloading ? 'Preparing…' : 'Download backup (JSON)'}
+                </button>
+              )}
+              {/* Same roles as POST /api/marketing/backup (MARKETING_MANAGE_ROLES). */}
+              {canBackUpContacts && (
+                <>
+                  <button className="btn btn-ghost" onClick={backUpContacts} disabled={backingUpContacts} title="Excel + JSON of every Contact (people, locations, needs, potentials, notes) into Dropbox — the same file the nightly job makes">
+                    <DatabaseBackup size={15} /> {backingUpContacts ? 'Backing up Contacts…' : 'Back up all Contacts to Dropbox now'}
+                  </button>
+                  <span style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>Contacts are also backed up automatically every night to Dropbox → Marketing/_Backups/Contacts.</span>
+                </>
+              )}
             </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--fg-subtle)' }}>
+          )}
+          {!isGeneralManager && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--fg-subtle)', marginTop: canBackUpContacts ? 12 : 0 }}>
               <ShieldAlert size={16} /> Only the General Manager can download the full data snapshot.
             </div>
           )}

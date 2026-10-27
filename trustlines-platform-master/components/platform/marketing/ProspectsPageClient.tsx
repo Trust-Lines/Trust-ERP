@@ -746,7 +746,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                     <td className={TD_CLS}>
                       {p.target_contact_date ? (
                         <span style={{ color: p.target_contact_date < todayIso ? 'var(--status-danger)' : 'var(--fg-subtle)' }}>
-                          {new Date(p.target_contact_date).toLocaleDateString('en-US')}
+                          {new Date(p.target_contact_date).toLocaleDateString('en-US', { timeZone: 'UTC' })}
                         </span>
                       ) : <span style={{ color: 'var(--fg-subtle)' }}>—</span>}
                     </td>

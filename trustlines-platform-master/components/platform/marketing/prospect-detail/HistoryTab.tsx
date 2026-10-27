@@ -39,7 +39,7 @@ export function HistoryTab({ canEdit, addingHistoricalProject, setAddingHistoric
               </div>
               <div style={{ fontSize: 11.5, color: 'var(--fg-subtle)', marginTop: 4 }}>
                 {p.region} · {p.service_line}{p.site_location ? ` · ${p.site_location}` : ''}
-                {p.actual_delivery_date ? ` · Completed ${new Date(p.actual_delivery_date).toLocaleDateString('en-US')}` : ''}
+                {p.actual_delivery_date ? ` · Completed ${new Date(p.actual_delivery_date).toLocaleDateString('en-US', { timeZone: 'UTC' })}` : ''}
               </div>
             </div></div>
           ))}
