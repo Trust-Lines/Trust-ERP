@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     q: f.q ?? '', status: f.status ?? '', region: f.region ?? '', sources: f.sources ?? [],
     completeness: f.completeness ?? '', includeArchived: f.includeArchived ?? false,
     campaignId: f.campaignId ?? '', surveyOnly: f.surveyOnly ?? false, projectStatus: f.projectStatus ?? '',
+    followUpOverdue: f.followUpOverdue ?? false,
   };
   // Same "no bare browsing" rule as the list/export routes — a bulk send with zero criteria
   // would be exactly the unrestricted blast this whole feature exists to prevent.

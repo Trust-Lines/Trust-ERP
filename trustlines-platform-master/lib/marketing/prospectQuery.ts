@@ -23,6 +23,8 @@ export interface ProspectQueryParams {
   campaignId: string;
   surveyOnly: boolean;
   projectStatus: string; // '' | 'active' | 'finished' | 'none'
+  // Target contact date is in the past — the follow-up was due and nobody has moved it on.
+  followUpOverdue: boolean;
 }
 
 export function parseProspectQueryParams(url: URL): ProspectQueryParams {
@@ -36,11 +38,12 @@ export function parseProspectQueryParams(url: URL): ProspectQueryParams {
     campaignId: (url.searchParams.get('campaignId') ?? '').trim(),
     surveyOnly: url.searchParams.get('surveyOnly') === '1',
     projectStatus: (url.searchParams.get('projectStatus') ?? '').trim(),
+    followUpOverdue: url.searchParams.get('followUp') === 'overdue',
   };
 }
 
 export function hasAnyCriterion(p: ProspectQueryParams): boolean {
-  return !!(p.q || p.status || p.region || p.sources.length > 0 || p.completeness || p.campaignId || p.surveyOnly || p.projectStatus);
+  return !!(p.q || p.status || p.region || p.sources.length > 0 || p.completeness || p.campaignId || p.surveyOnly || p.projectStatus || p.followUpOverdue);
 }
 
 const intersect = (a: string[] | null, b: string[]) => (a === null ? b : a.filter(x => new Set(b).has(x)));
@@ -167,6 +170,8 @@ export function applyProspectFilters(query: any, ctx: ProspectFilterContext): an
   // become unfindable once Contacts stopped being browsable without a query). .in(), not .eq()
   // — multiple sources OR together (2026-09-28).
   if (p.sources.length > 0) query = query.in('source_raw_label', p.sources);
+  // UTC date, same "today" the reminders cron uses for potentials.
+  if (p.followUpOverdue) query = query.lt('target_contact_date', new Date().toISOString().slice(0, 10));
   if (includeIds !== null) query = query.in('id', includeIds);
   if (excludeIds.length > 0) query = query.not('id', 'in', `(${excludeIds.join(',')})`);
   if (p.q) query = query.or(buildSearchFilter(p.q, searchIds));

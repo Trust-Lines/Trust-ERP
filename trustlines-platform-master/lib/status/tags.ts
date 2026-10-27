@@ -122,6 +122,18 @@ export const STATUS_TAGS = {
       { key: 'withdrawn',    label: 'Withdrawn',    tone: 't0',  icon: Undo2 },
     ],
   },
+  social_post: {
+    title: 'Social Media Post',
+    tags: [
+      { key: 'idea',      label: 'Idea',      tone: 't0',  icon: CircleDashed },
+      { key: 'draft',     label: 'Draft',     tone: 't4',  icon: SquarePen },
+      { key: 'scheduled', label: 'Scheduled', tone: 't2',  icon: CalendarClock },
+      { key: 'publishing', label: 'Publishing', tone: 't1', icon: Send },
+      { key: 'published', label: 'Published', tone: 't9',  icon: CircleCheck },
+      { key: 'failed',    label: 'Failed',    tone: 't10', icon: CircleX },
+      { key: 'cancelled', label: 'Cancelled', tone: 't10', icon: CircleOff },
+    ],
+  },
 } as const satisfies Record<string, { title: string; tags: readonly StatusTag[] }>;
 
 export type StatusGroup = keyof typeof STATUS_TAGS;

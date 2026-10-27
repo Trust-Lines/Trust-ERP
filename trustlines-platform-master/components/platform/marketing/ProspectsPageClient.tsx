@@ -157,6 +157,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
   // through a survey", "who currently has / had / never had a project".
   const [campaignFilter, setCampaignFilter] = useState('');
   const [surveyOnlyFilter, setSurveyOnlyFilter] = useState(false);
+  const [followUpOverdueFilter, setFollowUpOverdueFilter] = useState(false);
   const [projectStatusFilter, setProjectStatusFilter] = useState('');
   const [exporting, setExporting] = useState(false);
   const [sending, setSending] = useState(false);
@@ -259,7 +260,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     });
   }
 
-  const hasAnyQuery = !!(query.trim() || statusFilter || regionFilter || sourceFilters.length > 0 || completenessFilter || campaignFilter || surveyOnlyFilter || projectStatusFilter);
+  const hasAnyQuery = !!(query.trim() || statusFilter || regionFilter || sourceFilters.length > 0 || completenessFilter || campaignFilter || surveyOnlyFilter || projectStatusFilter || followUpOverdueFilter);
 
   function buildParams(extra: Record<string, string>) {
     const params = new URLSearchParams(extra);
@@ -271,6 +272,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     if (campaignFilter) params.set('campaignId', campaignFilter);
     if (surveyOnlyFilter) params.set('surveyOnly', '1');
     if (projectStatusFilter) params.set('projectStatus', projectStatusFilter);
+    if (followUpOverdueFilter) params.set('followUp', 'overdue');
     return params;
   }
 
@@ -357,6 +359,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
         sources: sourceFilters.length > 0 ? sourceFilters : undefined, completeness: completenessFilter || undefined,
         campaignId: campaignFilter || undefined, surveyOnly: surveyOnlyFilter || undefined,
         projectStatus: projectStatusFilter || undefined,
+        followUpOverdue: followUpOverdueFilter || undefined,
       };
       const res = await fetch('/api/marketing/prospects/bulk-send', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -382,7 +385,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     const t = setTimeout(() => { load(1); }, 300);
     return () => clearTimeout(t);
 
-  }, [query, statusFilter, regionFilter, sourceFilters, completenessFilter, campaignFilter, surveyOnlyFilter, projectStatusFilter, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortKey : null, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortDir : null]);
+  }, [query, statusFilter, regionFilter, sourceFilters, completenessFilter, campaignFilter, surveyOnlyFilter, projectStatusFilter, followUpOverdueFilter, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortKey : null, sortKey && SERVER_SORT_KEYS.has(sortKey) ? sortDir : null]);
 
   function toggleSort(key: string) {
     if (sortKey === key) { setSortDir(d => (d === 'asc' ? 'desc' : 'asc')); return; }
@@ -515,6 +518,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
           </Select>
         )}
         <QueryPill label="From a survey" active={surveyOnlyFilter} onClick={() => setSurveyOnlyFilter(v => !v)} />
+        <QueryPill label="Follow-up overdue" active={followUpOverdueFilter} onClick={() => setFollowUpOverdueFilter(v => !v)} />
         <QueryPill
           label="Has an active project" active={projectStatusFilter === 'active'}
           onClick={() => setProjectStatusFilter(prev => (prev === 'active' ? '' : 'active'))}
@@ -577,7 +581,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
             className="btn btn-ghost btn-sm"
             onClick={() => {
               setQuery(''); setStatusFilter(''); setRegionFilter(''); setSourceFilters([]); setCompletenessFilter('');
-              setCampaignFilter(''); setSurveyOnlyFilter(false); setProjectStatusFilter('');
+              setCampaignFilter(''); setSurveyOnlyFilter(false); setProjectStatusFilter(''); setFollowUpOverdueFilter(false);
             }}
           >
             Clear filters

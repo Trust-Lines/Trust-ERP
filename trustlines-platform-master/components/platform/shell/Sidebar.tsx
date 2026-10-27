@@ -45,6 +45,8 @@ import {
   CreditCard,
   PieChart,
   Wallet,
+  Share2,
+  CalendarDays,
 } from 'lucide-react';
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip';
 import type { UserRole } from '@/types/database';
@@ -159,6 +161,9 @@ const MARKETING_NAV: NavItem[] = [
   { label: 'Contact Manager',     href: '/marketing/contact-manager', icon: UserSearch,  perm: 'page.marketing' },
   { label: 'Mail Templates',      href: '/marketing/mail-templates', icon: Mail,        perm: 'page.marketing' },
   { label: 'Campaigns & Surveys', href: '/marketing/campaigns',     icon: QrCode,       perm: 'page.marketing_campaigns' },
+  // Marketing & PR workspace (migration 127): social media tracking + the team calendar.
+  { label: 'Social Media',        href: '/marketing/social',        icon: Share2,       perm: 'page.marketing' },
+  { label: 'Calendar',            href: '/marketing/calendar',      icon: CalendarDays, perm: 'page.marketing' },
   { label: 'Website (Store Maker)', href: '/marketing/website',     icon: Globe,        perm: 'page.marketing' },
   { label: 'Trash',               href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing' },
 ];
