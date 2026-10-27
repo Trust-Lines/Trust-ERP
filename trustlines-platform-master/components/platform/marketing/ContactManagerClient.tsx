@@ -70,7 +70,12 @@ export function ContactManagerClient({ canEdit }: { canEdit: boolean }) {
       const params = buildParams({ page: String(nextPage), pageSize: String(PAGE_SIZE) });
       const res = await fetch(`/api/marketing/prospects?${params.toString()}`);
       const body = await res.json().catch(() => null);
-      setRows(body?.prospects ?? []);
+      // Keep the current page on a failed load — an empty list would read as "no contacts".
+      if (!res.ok || !body) {
+        toast.error(body?.error ?? 'Could not load contacts — please try again.');
+        return;
+      }
+      setRows(body.prospects ?? []);
       setTotal(body?.total ?? 0);
       setPage(nextPage);
     } finally {

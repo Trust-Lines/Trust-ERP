@@ -35,10 +35,11 @@ export function NeedDocumentsSection({ need, canEdit, prospectId, onNeedChange, 
   const load = useCallback(async () => {
     try {
       const res = await fetch(`/api/marketing/prospects/${prospectId}/needs/${need.id}/documents`);
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(body.error ?? 'Could not load documents'); return; }
       setDocs(body.documents ?? []);
       setProjectCode(body.projectCode ?? null);
-    } catch { }
+    } catch { toast.error('Could not load documents'); }
     finally { setLoaded(true); }
   }, [prospectId, need.id]);
 
