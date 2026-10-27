@@ -19,11 +19,21 @@ export type CampaignOption = Pick<MarketingCampaign, 'id' | 'name' | 'start_date
 /** Thrown when a migration-127 table is missing, so the page can say so instead of crashing. */
 export class PrWorkspaceNotReady extends Error {}
 
+/**
+ * Table missing = migration 127 not applied. Postgres says 42P01; PostgREST answers first with
+ * PGRST205 "Could not find the table … in the schema cache".
+ */
+export function isMissingTable(error: { message: string; code?: string }): boolean {
+  return error.code === '42P01' || error.code === 'PGRST205' || /does not exist|schema cache/i.test(error.message);
+}
+
 function check<T>(res: { data: T | null; error: { message: string; code?: string } | null }, where: string): T {
   if (res.error) {
+    if (isMissingTable(res.error)) {
+      console.warn(`[pr-workspace] ${where}: table missing — apply migration 127`);
+      throw new PrWorkspaceNotReady(where);
+    }
     console.error(`[pr-workspace] ${where}:`, res.error.message);
-    // 42P01 = undefined_table (migration 127 not applied yet).
-    if (res.error.code === '42P01' || /does not exist/i.test(res.error.message)) throw new PrWorkspaceNotReady(where);
     throw new Error(`Could not load ${where}`);
   }
   return (res.data ?? []) as T;
@@ -81,6 +91,6 @@ export function dbError(where: string, error: { message: string; code?: string }
   console.error(`[pr-workspace] ${where}:`, error.message);
   if (error.code === '23505') return NextResponse.json({ error: 'That already exists' }, { status: 409 });
   if (error.code === '23503') return NextResponse.json({ error: 'The selected account or campaign no longer exists' }, { status: 400 });
-  if (error.code === '42P01') return NextResponse.json({ error: 'This feature is not set up yet (migration 127).' }, { status: 503 });
+  if (isMissingTable(error)) return NextResponse.json({ error: 'This feature is not set up yet (migration 127).' }, { status: 503 });
   return NextResponse.json({ error: `Could not ${where}` }, { status: 500 });
 }
