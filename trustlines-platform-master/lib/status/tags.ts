@@ -134,6 +134,27 @@ export const STATUS_TAGS = {
       { key: 'cancelled', label: 'Cancelled', tone: 't10', icon: CircleOff },
     ],
   },
+  email_campaign: {
+    title: 'Email Campaign',
+    tags: [
+      { key: 'draft',     label: 'Draft',     tone: 't0',  icon: SquarePen },
+      { key: 'scheduled', label: 'Scheduled', tone: 't2',  icon: CalendarClock },
+      { key: 'sending',   label: 'Sending',   tone: 't1',  icon: Send },
+      { key: 'paused',    label: 'Paused',    tone: 't7',  icon: Pause },
+      { key: 'sent',      label: 'Sent',      tone: 't9',  icon: CheckCheck },
+      { key: 'cancelled', label: 'Cancelled', tone: 't10', icon: CircleOff },
+    ],
+  },
+  email_message: {
+    title: 'Email',
+    tags: [
+      { key: 'queued',  label: 'Queued',  tone: 't0',  icon: Hourglass },
+      { key: 'sending', label: 'Sending', tone: 't1',  icon: Send },
+      { key: 'sent',    label: 'Sent',    tone: 't9',  icon: CircleCheck },
+      { key: 'failed',  label: 'Failed',  tone: 't10', icon: CircleX },
+      { key: 'skipped', label: 'Skipped', tone: 't7',  icon: CircleOff },
+    ],
+  },
 } as const satisfies Record<string, { title: string; tags: readonly StatusTag[] }>;
 
 export type StatusGroup = keyof typeof STATUS_TAGS;

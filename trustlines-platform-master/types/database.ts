@@ -1240,6 +1240,93 @@ export interface MarketingCalendarEntry {
   deleted_at: string | null;
 }
 
+// ── Email from the ERP (migration 129) ──────────────────────────────────────────────────
+
+/** Each person's own mailbox login (Settings → Email sending). */
+export interface UserMailSettings {
+  user_id: string;
+  from_name: string;
+  from_email: string;
+  reply_to: string | null;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_secure: boolean;
+  smtp_user: string;
+  smtp_pass_enc?: string; // server-only, AES-256-GCM (APP_ENCRYPTION_KEY)
+  signature_html: string | null;
+  daily_limit: number;
+  verified_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type EmailCampaignStatus = 'draft' | 'scheduled' | 'sending' | 'paused' | 'sent' | 'cancelled';
+
+export interface EmailCampaign {
+  id: string;
+  name: string;
+  subject: string;
+  preheader: string | null;
+  body_html: string;
+  template_id: string | null;
+  sender_user_id: string | null;
+  audience: Record<string, unknown>; // Contacts query, see lib/email/sender.ts Audience
+  marketing_campaign_id: string | null;
+  status: EmailCampaignStatus;
+  scheduled_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  recipient_count: number;
+  last_error: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface EmailMessage {
+  id: string;
+  kind: 'campaign' | 'direct' | 'test';
+  campaign_id: string | null;
+  prospect_id: string | null;
+  sender_user_id: string | null;
+  to_email: string;
+  to_name: string | null;
+  subject: string;
+  body_html: string | null;
+  status: 'queued' | 'sending' | 'sent' | 'failed' | 'skipped';
+  error: string | null;
+  smtp_message_id: string | null;
+  token: string;
+  sent_at: string | null;
+  opened_at: string | null;
+  open_count: number;
+  clicked_at: string | null;
+  click_count: number;
+  unsubscribed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailEvent {
+  id: string;
+  message_id: string;
+  type: 'open' | 'click' | 'unsubscribe';
+  url: string | null;
+  user_agent: string | null;
+  created_at: string;
+}
+
+export interface EmailSuppression {
+  email: string; // lower-case
+  reason: 'unsubscribed' | 'bounced' | 'complaint' | 'manual';
+  campaign_id: string | null;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
 export type SurveySubmissionStatus = 'processed' | 'needs_review' | 'rejected_spam' | 'failed';
 
 export interface SurveySubmission {

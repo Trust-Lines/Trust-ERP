@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { readHideAmounts, writeHideAmounts } from '@/lib/privacy/hideAmounts';
 import { toast } from 'sonner';
 import { ThemeSwitch } from '@/components/platform/shared/ThemeSync';
+import { MailSettingsCard } from './MailSettingsCard';
 
 const MIN_PASSWORD = 8;
 
@@ -127,6 +128,8 @@ export function SettingsClient({ isGeneralManager, canBackUpContacts, email }: {
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <ChangePasswordCard email={email} />
+
+      <MailSettingsCard email={email} />
 
       <div className="card">
         <div className="card-body" style={{ padding: 20 }}>

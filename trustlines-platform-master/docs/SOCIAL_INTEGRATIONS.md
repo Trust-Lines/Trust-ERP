@@ -27,7 +27,7 @@ Both only add tables and columns.
 
 | Variable | What |
 |---|---|
-| `SOCIAL_TOKEN_KEY` | **Required for every platform.** 32 random bytes in base64 (`openssl rand -base64 32`). It encrypts the stored platform tokens. If it changes, every platform has to be connected again. |
+| `APP_ENCRYPTION_KEY` | **Required for every platform.** 32 random bytes in base64 (`openssl rand -base64 32`). It encrypts the stored platform tokens. If it changes, every platform has to be connected again. |
 | `META_APP_ID`, `META_APP_SECRET` | Meta app (Instagram + Facebook) |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google Cloud OAuth client (YouTube) |
 | `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` | LinkedIn app |
@@ -35,7 +35,7 @@ Both only add tables and columns.
 | `LINKEDIN_API_VERSION` | Optional, `YYYYMM`. Defaults to `202609`. LinkedIn supports each version for about a year, so move it forward when LinkedIn warns. |
 | `NEXT_PUBLIC_APP_URL` | Must be the real address of the ERP, because the redirect URIs below are built from it. |
 
-A platform only shows a **Connect** button once its variables and `SOCIAL_TOKEN_KEY` are set. Until then, the page lists what's missing to managers.
+A platform only shows a **Connect** button once its variables and `APP_ENCRYPTION_KEY` are set. Until then, the page lists what's missing to managers.
 
 ## 3. Redirect URIs to register
 
@@ -89,5 +89,5 @@ LinkedIn logins last about 60 days. Unless LinkedIn has given the app refresh to
 - **Who can do what:**
   - Only Marketing managers (`MARKETING_MANAGE_ROLES`) can connect or disconnect a platform.
   - Anyone in Marketing can sync, schedule and publish.
-- **Token storage:** tokens are encrypted with `SOCIAL_TOKEN_KEY` and never sent to the browser.
+- **Token storage:** tokens are encrypted with `APP_ENCRYPTION_KEY` and never sent to the browser.
 - **Disconnect:** wipes the tokens. The accounts keep their history and become manual.
