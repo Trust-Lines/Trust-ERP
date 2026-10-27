@@ -1138,6 +1138,75 @@ export interface MarketingCampaign {
   deleted_at: string | null;
 }
 
+// ── Marketing & PR workspace (migration 127) ────────────────────────────────────────────
+
+export type SocialPlatformType = 'instagram' | 'facebook' | 'linkedin' | 'x' | 'youtube' | 'tiktok' | 'other';
+export type SocialPostStatusType = 'idea' | 'draft' | 'scheduled' | 'published' | 'cancelled';
+export type MarketingCalendarKind = 'event' | 'press' | 'meeting' | 'deadline' | 'content' | 'other';
+
+export interface SocialAccount {
+  id: string;
+  platform: SocialPlatformType;
+  handle: string;
+  profile_url: string | null;
+  notes: string | null;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface SocialAccountStat {
+  id: string;
+  account_id: string;
+  recorded_on: string; // DATE
+  followers: number;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface SocialPost {
+  id: string;
+  account_id: string | null;
+  title: string;
+  caption: string | null;
+  status: SocialPostStatusType;
+  planned_on: string | null; // DATE
+  published_on: string | null; // DATE
+  post_url: string | null;
+  campaign_id: string | null;
+  impressions: number | null;
+  reach: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  saves: number | null;
+  clicks: number | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface MarketingCalendarEntry {
+  id: string;
+  title: string;
+  kind: MarketingCalendarKind;
+  starts_on: string; // DATE
+  ends_on: string | null; // DATE, null = one-day entry
+  start_time: string | null; // TIME
+  end_time: string | null; // TIME
+  location: string | null;
+  notes: string | null;
+  campaign_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
 export type SurveySubmissionStatus = 'processed' | 'needs_review' | 'rejected_spam' | 'failed';
 
 export interface SurveySubmission {
