@@ -1,5 +1,5 @@
 import { appBaseUrl } from '@/lib/env/appUrl';
-import { tokenKeyConfigured } from '@/lib/social/tokenCrypto';
+import { tokenKeyConfigured } from '@/lib/crypto/secrets';
 import type { Provider, ProviderId } from '@/lib/social/types';
 import { metaProvider } from './meta';
 import { youtubeProvider } from './youtube';
@@ -32,7 +32,7 @@ export function providerStatuses(): ProviderStatus[] {
     id: p.id,
     label: p.label,
     configured: providerConfigured(p),
-    missing: [...(tokenKeyConfigured() ? [] : ['SOCIAL_TOKEN_KEY']), ...p.envKeys.filter(k => !process.env[k]?.trim())],
+    missing: [...(tokenKeyConfigured() ? [] : ['APP_ENCRYPTION_KEY']), ...p.envKeys.filter(k => !process.env[k]?.trim())],
   }));
 }
 

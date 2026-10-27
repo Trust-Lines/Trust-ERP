@@ -1,7 +1,7 @@
 import { platformLabel, POST_METRICS } from '@/lib/marketing/prWorkspace';
 import { PlatformError, titleFromCaption } from '@/lib/social/http';
 import { providerById, providerForPlatform } from '@/lib/social/providers';
-import { decryptToken, encryptToken } from '@/lib/social/tokenCrypto';
+import { decryptToken, encryptToken } from '@/lib/crypto/secrets';
 import type { AccountRef, DiscoveredAccount, ProviderId, ProviderTokens, PublishInput } from '@/lib/social/types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

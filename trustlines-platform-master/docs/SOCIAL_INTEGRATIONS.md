@@ -27,7 +27,7 @@ Both only add tables and columns.
 
 | Variable | What |
 |---|---|
-| `SOCIAL_TOKEN_KEY` | **Required for every platform.** 32 random bytes in base64 (`openssl rand -base64 32`). It encrypts the stored platform tokens. If it changes, every platform has to be connected again. |
+| `APP_ENCRYPTION_KEY` | **Required for every platform.** 32 random bytes in base64 (`openssl rand -base64 32`). It encrypts the stored platform tokens. If it changes, every platform has to be connected again. |
 | `META_APP_ID`, `META_APP_SECRET` | Meta app (Instagram + Facebook) |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google Cloud OAuth client (YouTube) |
 | `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` | LinkedIn app |
@@ -35,7 +35,7 @@ Both only add tables and columns.
 | `LINKEDIN_API_VERSION` | Optional, `YYYYMM`. Defaults to `202609`. LinkedIn supports each version for about a year, so move it forward when LinkedIn warns. |
 | `NEXT_PUBLIC_APP_URL` | Must be the real address of the ERP, because the redirect URIs below are built from it. |
 
-A platform only shows a **Connect** button once its variables and `SOCIAL_TOKEN_KEY` are set. Until then, the page lists what's missing to managers.
+A platform only shows a **Connect** button once its variables and `APP_ENCRYPTION_KEY` are set. Until then, the page lists what's missing to managers.
 
 ## 3. Redirect URIs to register
 
@@ -83,11 +83,11 @@ LinkedIn logins last about 60 days. Unless LinkedIn has given the app refresh to
 ## How it runs
 
 - **`/api/cron/social-sync`**, nightly at 04:30 UTC: reads followers plus the latest 50 posts per account, with insights for the newest 25.
-- **`/api/cron/social-publish`**, every 15 minutes: publishes posts whose status is **Scheduled** and whose **Publish automatically at** time has passed. A post is locked while it publishes, so it can't go out twice.
+- **`/api/cron/social-publish`**, every 10 minutes from the GitHub Actions workflow `.github/workflows/frequent-crons.yml` (set the `ERP_URL` and `CRON_SECRET` repository secrets; the Vercel plan only allows daily crons, so `vercel.json` runs it once a day as a fallback): publishes posts whose status is **Scheduled** and whose **Publish automatically at** time has passed. A post is locked while it publishes, so it can't go out twice.
   - If a publish is cut off half-way, the post is marked **Failed** instead of being retried, because the platform may already have it.
   - The error is shown on the post. Saving the post again retries it at its time.
 - **Who can do what:**
   - Only Marketing managers (`MARKETING_MANAGE_ROLES`) can connect or disconnect a platform.
   - Anyone in Marketing can sync, schedule and publish.
-- **Token storage:** tokens are encrypted with `SOCIAL_TOKEN_KEY` and never sent to the browser.
+- **Token storage:** tokens are encrypted with `APP_ENCRYPTION_KEY` and never sent to the browser.
 - **Disconnect:** wipes the tokens. The accounts keep their history and become manual.

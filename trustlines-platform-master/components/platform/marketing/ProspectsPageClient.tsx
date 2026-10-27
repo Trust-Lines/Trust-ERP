@@ -367,7 +367,13 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) { toast.error(body.error ?? 'Could not send'); return; }
-      toast.success(`Sent to ${body.sent} contact${body.sent !== 1 ? 's' : ''}${body.failed ? ` — ${body.failed} failed` : ''}.`);
+      // Queued as an email campaign: the first batch is out, the rest follow every 10 minutes.
+      toast.success(
+        body.done
+          ? `Sent to ${body.sent} contact${body.sent !== 1 ? 's' : ''}${body.failed ? ` — ${body.failed} failed` : ''}.`
+          : `Sending to ${body.queued} contacts from your mailbox — ${body.sent} sent so far, the rest follow automatically.`,
+        { action: { label: 'Open report', onClick: () => window.location.assign(`/marketing/email/${body.campaignId}`) } },
+      );
     } finally {
       setSending(false);
     }

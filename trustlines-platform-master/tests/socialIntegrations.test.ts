@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { randomBytes } from 'node:crypto';
-import { decryptToken, encryptToken, tokenKeyConfigured } from '@/lib/social/tokenCrypto';
+import { decryptToken, encryptToken, tokenKeyConfigured } from '@/lib/crypto/secrets';
 import { titleFromCaption, toDay } from '@/lib/social/http';
 import { instagramImageUrl } from '@/lib/social/providers/meta';
 import { escapeLinkedInText } from '@/lib/social/providers/linkedin';
@@ -8,7 +8,7 @@ import { providerForPlatform, providerStatuses } from '@/lib/social/providers';
 import { parseSocialPost } from '@/lib/marketing/prWorkspace';
 
 const saved = { ...process.env };
-beforeEach(() => { process.env.SOCIAL_TOKEN_KEY = randomBytes(32).toString('base64'); });
+beforeEach(() => { process.env.APP_ENCRYPTION_KEY = randomBytes(32).toString('base64'); });
 afterEach(() => { process.env = { ...saved }; });
 
 describe('token encryption', () => {
@@ -27,12 +27,12 @@ describe('token encryption', () => {
     const [v, iv, tag, ct] = stored.split(':');
     const flipped = Buffer.from(ct, 'base64'); flipped[0] ^= 1;
     expect(() => decryptToken([v, iv, tag, flipped.toString('base64')].join(':'))).toThrow();
-    process.env.SOCIAL_TOKEN_KEY = randomBytes(32).toString('base64');
+    process.env.APP_ENCRYPTION_KEY = randomBytes(32).toString('base64');
     expect(() => decryptToken(stored)).toThrow();
   });
 
   it('is not configured without a 32-byte key', () => {
-    process.env.SOCIAL_TOKEN_KEY = 'short';
+    process.env.APP_ENCRYPTION_KEY = 'short';
     expect(tokenKeyConfigured()).toBe(false);
     expect(() => encryptToken('x')).toThrow(/32 bytes/);
   });

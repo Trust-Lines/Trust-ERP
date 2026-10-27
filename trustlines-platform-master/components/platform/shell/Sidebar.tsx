@@ -47,6 +47,7 @@ import {
   Wallet,
   Share2,
   CalendarDays,
+  MailOpen,
 } from 'lucide-react';
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip';
 import type { UserRole } from '@/types/database';
@@ -159,6 +160,7 @@ const MARKETING_NAV: NavItem[] = [
   // 2026-09-28: query-builder Contacts still requires a criterion — this is the one deliberate
   // exception, "type a name, see everyone" for whoever just needs to look a person up.
   { label: 'Contact Manager',     href: '/marketing/contact-manager', icon: UserSearch,  perm: 'page.marketing' },
+  { label: 'Email Campaigns',     href: '/marketing/email',         icon: MailOpen,     perm: 'page.marketing' },
   { label: 'Mail Templates',      href: '/marketing/mail-templates', icon: Mail,        perm: 'page.marketing' },
   { label: 'Campaigns & Surveys', href: '/marketing/campaigns',     icon: QrCode,       perm: 'page.marketing_campaigns' },
   // Marketing & PR workspace (migration 127): social media tracking + the team calendar.

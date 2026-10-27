@@ -1,16 +1,17 @@
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'node:crypto';
 
-// Platform tokens (Meta / Google / LinkedIn) are stored encrypted with AES-256-GCM. The key is
-// SOCIAL_TOKEN_KEY: 32 random bytes, base64 — e.g. `openssl rand -base64 32`. It only lives in
-// the environment, so a database dump alone never exposes a token that can post as the company.
+// Secrets the app has to store — social platform tokens, each person's SMTP password — are
+// encrypted with AES-256-GCM. The key is APP_ENCRYPTION_KEY (SOCIAL_TOKEN_KEY still accepted,
+// its first name): 32 random bytes, base64 — e.g. `openssl rand -base64 32`. It only lives in
+// the environment, so a database dump alone never exposes a token or a mailbox password.
 
 const PREFIX = 'v1';
 
 function key(): Buffer {
-  const raw = process.env.SOCIAL_TOKEN_KEY?.trim();
-  if (!raw) throw new Error('SOCIAL_TOKEN_KEY is not set');
+  const raw = (process.env.APP_ENCRYPTION_KEY || process.env.SOCIAL_TOKEN_KEY)?.trim();
+  if (!raw) throw new Error('APP_ENCRYPTION_KEY is not set');
   const k = Buffer.from(raw, 'base64');
-  if (k.length !== 32) throw new Error('SOCIAL_TOKEN_KEY must be 32 bytes, base64-encoded');
+  if (k.length !== 32) throw new Error('APP_ENCRYPTION_KEY must be 32 bytes, base64-encoded');
   return k;
 }
 
@@ -31,4 +32,9 @@ export function decryptToken(stored: string): string {
   const decipher = createDecipheriv('aes-256-gcm', key(), Buffer.from(iv, 'base64'));
   decipher.setAuthTag(Buffer.from(tag, 'base64'));
   return Buffer.concat([decipher.update(Buffer.from(ct, 'base64')), decipher.final()]).toString('utf8');
+}
+
+/** A separate key for one purpose (e.g. signing email click links), derived from the main key. */
+export function deriveSecret(purpose: string): string {
+  return createHmac('sha256', key()).update(`trustlines:${purpose}`).digest('base64url');
 }
