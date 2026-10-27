@@ -26,7 +26,9 @@ const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2,
 
 export function ExpensesClient({ initialExpenses, totals, canEdit, projects, suppliers, schemaError }: Props) {
   const router = useRouter();
-  const [expenses] = useState<TrustExpense[]>(initialExpenses);
+  // Read straight from props: router.refresh() after add / delete / mark-paid sends a
+  // fresh list, which a useState copy would ignore (list and totals would disagree).
+  const expenses: TrustExpense[] = initialExpenses;
   const [category, setCategory] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);

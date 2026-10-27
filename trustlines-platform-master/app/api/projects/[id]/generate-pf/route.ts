@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { requireUser } from '@/lib/supabase/server';
+import { requireProjectPermission } from '@/lib/permissions/projectAccess';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { ProductionFormDocument } from '@/lib/pdf/ProductionFormPdf';
 import type { PdfSection } from '@/lib/pdf/PriceListPdf';
@@ -19,9 +19,10 @@ const REGION_SHORT: Record<string, string> = {
 };
 
 export async function POST(req: NextRequest, { params }: Params) {
-  const { user, unauth } = await requireUser();
-  if (!user) return unauth;
   const { id: projectId } = await params;
+  // PF carries vendor cost data: tlines_pm must never receive it (AGENTS.md §2).
+  const { user, deny } = await requireProjectPermission(projectId, 'view.pf', { denyRoles: ['tlines_pm'] });
+  if (deny) return deny;
 
   const body = await req.json() as {
     catGroup:    string;

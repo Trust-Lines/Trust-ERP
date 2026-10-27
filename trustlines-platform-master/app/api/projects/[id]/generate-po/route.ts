@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { requireUser } from '@/lib/supabase/server';
+import { requireProjectPermission } from '@/lib/permissions/projectAccess';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { PurchaseOrderDocument } from '@/lib/pdf/PurchaseOrderPdf';
 import type { PdfSection } from '@/lib/pdf/PriceListPdf';
@@ -37,9 +37,9 @@ function applyMargin(sections: PdfSection[], m: number): PdfSection[] {
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
-  const { user, unauth } = await requireUser();
-  if (!user) return unauth;
   const { id: projectId } = await params;
+  const { user, deny } = await requireProjectPermission(projectId, 'view.po', { denyRoles: ['tlines_pm'] });
+  if (deny) return deny;
 
   const body = await req.json() as { catGroup: string; sections?: PdfSection[] };
   const { catGroup } = body;

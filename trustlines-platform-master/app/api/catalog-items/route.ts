@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { requireUser } from '@/lib/supabase/server';
+import { requireVendorAccess } from '@/lib/production/vendorAccess';
 
 type CatalogItem = {
   id: string;
@@ -14,15 +13,14 @@ type CatalogItem = {
 };
 
 export async function GET(req: NextRequest) {
-  const { user, unauth } = await requireUser();
-  if (!user) return unauth;
+  // Catalog lines carry vendor unit prices — same audience as the Item List generator.
+  const { admin, deny } = await requireVendorAccess('write');
+  if (deny) return deny;
 
   const q        = req.nextUrl.searchParams.get('q')?.trim() ?? '';
   const code     = req.nextUrl.searchParams.get('code')?.trim() ?? '';
   const category = req.nextUrl.searchParams.get('category') ?? null;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
 
   let query = admin
     .from('catalog_items')
@@ -41,8 +39,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { user, unauth } = await requireUser();
-  if (!user) return unauth;
+  const { user, admin, deny } = await requireVendorAccess('write');
+  if (deny) return deny;
 
   const body = await req.json() as {
     items: {
@@ -58,8 +56,6 @@ export async function POST(req: NextRequest) {
 
   if (!body.items?.length) return NextResponse.json({ ok: true });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
 
   const rows = body.items.map(i => ({
     item_code:        i.item_code ?? null,
