@@ -246,7 +246,10 @@ export function deriveLifecycle(input: LifecycleInput): LifecycleResult {
     ['SUPPLY_DEVELOPMENT',   hasLeftSales && handoverComplete && typesDefined],
     ['APPROVALS',            typesDefined && approvalsInFlight],
     ['PRODUCTION_LOGISTICS', itemsStarted.length > 0 || openContainers.length > 0],
-    ['DELIVERY_BUILD',       allItemsSent || !!deliveryPlan],
+    // Delivery & Build starts when production is finished ("Items are ready",
+    // PROJECT-MASTER-PLAN.md §4.8) or delivery is physically under way. A plan row
+    // that is only 'planning' / 'scheduled' must not skip Supply, PO and Production.
+    ['DELIVERY_BUILD',       allItemsSent || deliveryPlan?.status === 'in_progress' || deliveryDone],
     ['COMPLETED',            deliveryDone],
   ];
 

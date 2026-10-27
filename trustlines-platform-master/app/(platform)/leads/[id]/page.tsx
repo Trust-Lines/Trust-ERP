@@ -135,7 +135,11 @@ export default async function LeadIntakePage({ params }: { params: Promise<{ id:
         leadStatus={leadStatus ?? null}
         designFiles={designFiles}
       />
-      <IntakeForm intakeId={id} assignees={assignees} />
+      <IntakeForm
+        intakeId={id}
+        assignees={assignees}
+        leadName={intake.brand || intake.customer_name || null}
+      />
       <LeadTracking intakeId={id} />
       <LeadActivity intakeId={id} />
     </div>

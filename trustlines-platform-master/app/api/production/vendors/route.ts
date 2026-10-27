@@ -1,31 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireUser } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { requireVendorAccess } from '@/lib/production/vendorAccess';
 import { suggestVendorCode } from '@/lib/production/vendorCode';
 import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const { user, unauth } = await requireUser();
-  if (!user) return unauth;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
+  const { admin, deny } = await requireVendorAccess('read');
+  if (deny) return deny;
   const { data } = await admin.from('suppliers')
     .select('id, code, name').eq('is_active', true).order('code', { ascending: true });
   return NextResponse.json({ vendors: data ?? [] });
 }
 
 export async function POST(req: NextRequest) {
-  const { user, unauth } = await requireUser();
-  if (!user) return unauth;
+  const { user, admin, deny } = await requireVendorAccess('write');
+  if (deny) return deny;
 
   const { name, code } = await req.json() as { name?: string; code?: string };
   const cleanName = (name ?? '').trim();
   if (!cleanName) return NextResponse.json({ error: 'Vendor name is required' }, { status: 400 });
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
 
   let base = (code ?? '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!base) base = suggestVendorCode(cleanName);
@@ -46,7 +40,10 @@ export async function POST(req: NextRequest) {
     .insert({ name: cleanName, code: finalCode, is_active: true })
     .select('id, code, name').single() as { data: { id: string; code: string; name: string } | null; error: { message: string } | null };
 
-  if (error || !created) return NextResponse.json({ error: error?.message ?? 'Create failed' }, { status: 500 });
+  if (error || !created) {
+    if (error) console.error('[vendors POST]', error.message);
+    return NextResponse.json({ error: 'Could not create vendor' }, { status: 500 });
+  }
 
   await logAudit({ actorId: user.id, action: 'vendor.created', resource: `${created.code} — ${created.name}` });
 

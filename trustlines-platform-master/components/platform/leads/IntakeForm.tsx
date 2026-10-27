@@ -20,9 +20,12 @@ import { Button } from '@/components/ui/button';
 interface Props {
   intakeId: string;
   assignees: { id: string; full_name: string }[];
+  /** Set when editing a lead that already has a lead_intake row. */
+  leadName?: string | null;
 }
 
-export function IntakeForm({ intakeId, assignees }: Props) {
+export function IntakeForm({ intakeId, assignees, leadName }: Props) {
+  const isExisting = leadName !== undefined;
   const router = useRouter();
   const [activeStep, setActiveStep] = useState(1);
   const [form, setForm] = useState<FormState>(EMPTY);
@@ -99,7 +102,22 @@ export function IntakeForm({ intakeId, assignees }: Props) {
   const filledRequiredCount = [hasCompany, hasRegion, hasCustomer, hasAddress].filter(Boolean).length;
   const canCreate = filledRequiredCount === 4;
 
-  async function handleSave(showToast = true) {
+  // A step is ticked only when its required fields are valid; steps without
+  // required fields are ticked once the user has moved past them.
+  const [furthestStep, setFurthestStep] = useState(1);
+  const requiredByStep: Record<number, boolean> = {
+    1: hasCompany && hasRegion && hasAddress,
+    2: hasCustomer,
+  };
+  const isStepDone = (step: number) =>
+    step in requiredByStep ? requiredByStep[step] : furthestStep > step;
+  const goTo = (step: number) => {
+    setActiveStep(step);
+    setFurthestStep(s => Math.max(s, step));
+  };
+
+  // Returns true only when a lead_intake row actually exists after the call.
+  async function handleSave(showToast = true): Promise<boolean> {
     setSaving(true);
     try {
       const payload = {
@@ -107,29 +125,38 @@ export function IntakeForm({ intakeId, assignees }: Props) {
         deal_size: form.deal_size ? parseFloat(form.deal_size) : null,
         tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
       };
+      // The route creates the row on the first PATCH (PROJECT-MASTER-PLAN.md:2321).
       const res = await fetch(`/api/leads/${intakeId}/intake`, {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('Save failed');
+      const data = (await res.json().catch(() => ({}))) as { intake?: unknown; error?: string };
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      if (!data.intake) {
+        if (showToast) toast.info('Nothing to save yet — fill in some lead details first');
+        return false;
+      }
       setSavedAt(new Date());
       if (showToast) toast.success('Draft saved');
-    } catch {
-      toast.error('Could not save draft');
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error && e.message !== 'Save failed' ? `Could not save draft: ${e.message}` : 'Could not save draft');
+      return false;
     } finally {
       setSaving(false);
     }
   }
 
   async function handleCreateLead() {
-    await handleSave(false);
+    const ok = await handleSave(false);
+    if (!ok) return;
     toast.success('Lead created successfully');
     router.push('/leads');
   }
 
   // "Continue" saves the draft silently, then moves on; "Back" only moves.
-  const continueTo = (step: number) => { handleSave(false); setActiveStep(step); };
+  const continueTo = (step: number) => { handleSave(false); goTo(step); };
   const stepProps = (step: number) => ({
     form, setForm,
     onBack: () => setActiveStep(step - 1),
@@ -148,9 +175,11 @@ export function IntakeForm({ intakeId, assignees }: Props) {
             ← Leads
           </Link>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-primary-800 dark:text-primary-50 tracking-tight">New lead</h1>
+            <h1 className="text-2xl font-bold text-primary-800 dark:text-primary-50 tracking-tight">
+              {isExisting ? (leadName?.trim() || 'Edit lead') : 'New lead'}
+            </h1>
             <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-primary-100 dark:bg-primary-700 text-primary-600 dark:text-primary-200 border border-ui-divider">
-              {savedAt ? 'Draft saved' : 'Not saved yet'}
+              {savedAt ? (isExisting ? 'Saved' : 'Draft saved') : 'Not saved yet'}
             </span>
           </div>
           <p className="text-xs text-primary-500 dark:text-primary-200 font-normal mt-0.5">Meeting / Intake form</p>
@@ -169,7 +198,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
       {/* ── 3-Column Layout: Steps Sidebar + Main Form + Lead Summary ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ── 1. Left Column: 7-Step Navigation ────────────────────── */}
-        <StepNav activeStep={activeStep} onSelect={setActiveStep} />
+        <StepNav activeStep={activeStep} onSelect={goTo} isStepDone={isStepDone} />
 
         {/* ── 2. Center Column: Form Step Content ───────────────────── */}
         <div className="lg:col-span-6 bg-ui-surface-elevated border border-ui-divider rounded-2xl p-6 shadow-2xs space-y-6">

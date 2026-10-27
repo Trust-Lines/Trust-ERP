@@ -246,7 +246,15 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
                   {o.stage === 'proposal' && (
                     <button className="btn btn-secondary btn-sm" disabled={busyId === o.id} onClick={() => doNegotiate(o.id)}>Move to Negotiation</button>
                   )}
-                  <button className="btn btn-primary btn-sm" disabled={busyId === o.id} onClick={() => doCloseWon(o.id)}>Close Won</button>
+                  {/* The server refuses Close Won until the Opportunity is accepted and a Project exists (409). */}
+                  <button
+                    className="btn btn-primary btn-sm"
+                    disabled={busyId === o.id || !o.project_id}
+                    title={o.project_id ? undefined : 'Accept the Opportunity first — Close Won needs a Project'}
+                    onClick={() => doCloseWon(o.id)}
+                  >
+                    Close Won
+                  </button>
                   <button className="btn btn-ghost btn-sm" disabled={busyId === o.id} onClick={() => doCloseLost(o.id)}>Close Lost</button>
                 </div>
               )}

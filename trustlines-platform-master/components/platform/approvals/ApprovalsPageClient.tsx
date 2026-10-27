@@ -347,13 +347,19 @@ export function ApprovalsPageClient() {
   const [sortField, setSortField] = useState<'request' | 'owner' | 'status' | 'priority' | 'amount' | 'updated'>('updated');
   const [sortAsc, setSortAsc] = useState(false);
 
+  // Set when /api/approvals/mine fails, so an outage never looks like "no approvals".
+  const [loadError, setLoadError] = useState<string | null>(null);
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/approvals/mine');
-      const json = await res.json() as { approvals?: MyApproval[] };
+      const json = await res.json().catch(() => ({})) as { approvals?: MyApproval[]; error?: string };
+      if (!res.ok) throw new Error(json.error || 'Could not load your approvals.');
+      setLoadError(null);
       setItems(json.approvals ?? []);
-    } catch {
-      setItems([]);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Could not load your approvals.');
+      // Keep the last good list on a background refresh; only fall back to empty on first load.
+      setItems(prev => prev ?? []);
     }
   }, []);
 
@@ -661,7 +667,18 @@ export function ApprovalsPageClient() {
 
 
   // Shared by the desktop table and the mobile card list.
-  const noMatchState = (
+  const noMatchState = loadError ? (
+    <EmptyState
+      icon={<X />}
+      title="Approvals could not be loaded"
+      description={loadError}
+      action={
+        <Button variant="secondary" className={modalSecondaryButtonClass} onClick={() => void load()}>
+          Try again
+        </Button>
+      }
+    />
+  ) : (
     <EmptyState
       icon={<ListFilter />}
       title="No requests match"

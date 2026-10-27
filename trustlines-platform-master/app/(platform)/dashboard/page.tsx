@@ -88,15 +88,22 @@ export default async function DashboardPage() {
   const visibleRegions = REGIONS.filter(r => regionAllows(assignedRegions, r.code));
   const regionCodes = visibleRegions.map(r => r.code);
 
+  // Projects are read through the user's own RLS session — the same visibility as
+  // /projects and /projects/[id] — so the board never lists a project the user cannot
+  // open. tlines_pm additionally sees only projects they are assigned to.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let projectQuery = (supabase as any).from('projects')
+    .select('id, code, name, current_stage, region, site_location, est_delivery_date, closed_deal_date, created_at')
+    .in('region', regionCodes)
+    .is('deleted_at', null)
+    .neq('is_archived', true)
+    .eq('is_draft', false);
+  if (userRole === 'tlines_pm') projectQuery = projectQuery.eq('tlines_pm_id', user.id);
+
   const [{ data: projectRows }, { data: opportunityRows }] = regionCodes.length === 0
     ? [{ data: [] }, { data: [] }]
     : await Promise.all([
-        admin.from('projects')
-          .select('id, code, name, current_stage, region, site_location, est_delivery_date, closed_deal_date, created_at')
-          .in('region', regionCodes)
-          .is('deleted_at', null)
-          .neq('is_archived', true)
-          .eq('is_draft', false),
+        projectQuery,
         admin.from('opportunities')
           .select('id, title, stage, region, external_created_at, created_at, external_project_code')
           .in('region', regionCodes)
@@ -199,7 +206,7 @@ export default async function DashboardPage() {
   const canEditOpportunities = OPPORTUNITY_EDIT_ROLES.includes(userRole);
 
   // ── Active Projects / Approvals summary row ──────────────────────────────────────────
-  // Reuses the same `projects` this board already fetched (region-scoped) — no second query
+  // Reuses the same `projects` this board already fetched (region- and RLS-scoped) — no second query
   // for the count itself, same "active = not delivered" rule as the old dashboard.
   const today = new Date().toISOString().split('T')[0];
   const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();

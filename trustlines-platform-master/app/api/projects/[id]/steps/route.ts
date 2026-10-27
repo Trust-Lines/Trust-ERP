@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit/log';
+import { assertProjectAccess } from '@/lib/permissions/projectAccess';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function roleOf(admin: any, userId: string): Promise<string | null> {
+  const { data } = await admin.from('profiles').select('role').eq('id', userId).single();
+  return (data as { role?: string } | null)?.role ?? null;
+}
 
 export async function GET(
   _request: NextRequest,
@@ -12,13 +19,20 @@ export async function GET(
   if (!user) return unauth;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (createAdminClient() as any)
+  const admin = createAdminClient() as any;
+  const denied = await assertProjectAccess(id, user.id, await roleOf(admin, user.id));
+  if (denied) return denied;
+
+  const { data, error } = await admin
     .from('project_steps')
     .select('*')
     .eq('project_id', id)
     .order('created_at', { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[steps GET]', error.message);
+    return NextResponse.json({ error: 'Could not load steps' }, { status: 500 });
+  }
   return NextResponse.json({ steps: data ?? [] });
 }
 
@@ -32,6 +46,8 @@ export async function POST(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = createAdminClient() as any;
+  const denied = await assertProjectAccess(id, user.id, await roleOf(sb, user.id));
+  if (denied) return denied;
 
   const body = await request.json() as {
     phase: string;
@@ -46,6 +62,9 @@ export async function POST(
     approved_at?: string | null;
     notes?: string | null;
   };
+  if (!body?.phase || !body?.step_key || !body?.status) {
+    return NextResponse.json({ error: 'phase, step_key and status are required' }, { status: 400 });
+  }
 
   const { data: existing } = await sb
     .from('project_steps')
@@ -73,7 +92,10 @@ export async function POST(
       .eq('id', existing.id)
       .select()
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error('[steps POST]', error.message);
+      return NextResponse.json({ error: 'Could not save step' }, { status: 500 });
+    }
     result = data;
   } else {
     const { data, error } = await sb
@@ -94,7 +116,10 @@ export async function POST(
       })
       .select()
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error('[steps POST]', error.message);
+      return NextResponse.json({ error: 'Could not save step' }, { status: 500 });
+    }
     result = data;
   }
 

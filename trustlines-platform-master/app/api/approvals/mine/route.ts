@@ -30,6 +30,14 @@ function stageLabels(docType: string, catGroup: string | null, totalStages: numb
   return approvalStagesFor(docType, catGroup).map(s => s.label);
 }
 
+
+// Fail loudly: an empty list here would tell approvers "nothing to do" when the
+// query actually failed (AGENTS.md §3 fail closed).
+function queryFailed(where: string, message: string) {
+  console.error('[approvals/mine]', where, message);
+  return NextResponse.json({ error: 'Could not load your approvals. Please try again or contact support.' }, { status: 500 });
+}
+
 export async function GET() {
   const { user, unauth } = await requireUser();
   if (!user) return unauth;
@@ -41,7 +49,7 @@ export async function GET() {
   const myRole = profile?.role ?? '';
   const myPerms = await getRolePermissions(admin, myRole);
 
-  const { data: pending } = await admin
+  const { data: pending, error: pendingErr } = await admin
     .from('document_approvals')
     .select('id, stage, status, document_id, project_id, doc_type, version_num, created_at, assigned_to')
     .eq('status', 'pending')
@@ -51,17 +59,20 @@ export async function GET() {
         id: string; stage: number; status: string; document_id: string;
         project_id: string; doc_type: string | null; version_num: number | null; created_at: string; assigned_to: string | null;
       }[] | null;
+      error: { message: string } | null;
     };
+  if (pendingErr) return queryFailed('document_approvals', pendingErr.message);
 
   if (!pending?.length) return NextResponse.json({ approvals: [] });
 
   const allDocIds = [...new Set(pending.map(a => a.document_id))];
-  const { data: docsData } = await admin.from('documents')
+  const { data: docsData, error: docsErr } = await admin.from('documents')
     .select('id, file_name, doc_type, cat_group, version, dropbox_version, status')
     .in('id', allDocIds) as { data: {
       id: string; file_name: string; doc_type: string; cat_group: string | null;
       version: number; dropbox_version: number | null; status: string;
-    }[] | null };
+    }[] | null; error: { message: string } | null };
+  if (docsErr) return queryFailed('documents', docsErr.message);
   const docs = new Map((docsData ?? []).map(d => [d.id, d]));
 
   const approvals = pending.filter(a => {
@@ -77,15 +88,18 @@ export async function GET() {
   const docIds  = [...new Set(approvals.map(a => a.document_id))];
   const projIds = [...new Set(approvals.map(a => a.project_id))];
 
-  const { data: projsData } = await admin.from('projects')
-    .select('id, name, code').in('id', projIds) as { data: { id: string; name: string; code: string }[] | null };
+  const { data: projsData, error: projsErr } = await admin.from('projects')
+    .select('id, name, code').in('id', projIds) as { data: { id: string; name: string; code: string }[] | null; error: { message: string } | null };
+  if (projsErr) return queryFailed('projects', projsErr.message);
   const projs = new Map((projsData ?? []).map(p => [p.id, p]));
 
   const stageCounts = new Map<string, number>();
-  const { data: stageRows } = await admin
+  const { data: stageRows, error: stageErr } = await admin
     .from('document_approvals').select('document_id').in('document_id', docIds) as {
       data: { document_id: string }[] | null;
+      error: { message: string } | null;
     };
+  if (stageErr) return queryFailed('stage counts', stageErr.message);
   for (const r of stageRows ?? []) stageCounts.set(r.document_id, (stageCounts.get(r.document_id) ?? 0) + 1);
 
   const result: MyApproval[] = [];

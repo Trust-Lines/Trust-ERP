@@ -199,6 +199,8 @@ export interface Document {
   project_id: string;
   doc_type: DocType;
   version: number;
+  /** Dropbox-side version number; code falls back to `version` when null (migration 126). */
+  dropbox_version?: number | null;
   status: DocStatus;
   dropbox_path: string;
   dropbox_file_id: string | null;

@@ -3,7 +3,7 @@ import { requireRole } from '@/lib/permissions/requireApi';
 import { logAudit } from '@/lib/audit/log';
 import { emitEvent } from '@/lib/events';
 import { maybeEmitItemsReady } from '@/lib/events/triggers';
-import { CONTAINER_READ_ROLES, CONTAINER_WRITE_ROLES, CONTAINER_STATUSES, CONTAINER_IN_TRANSIT, CONTAINER_ARRIVAL_STATUSES } from '@/lib/logistics/containers';
+import { CONTAINER_READ_ROLES, CONTAINER_WRITE_ROLES, CONTAINER_STATUSES, CONTAINER_IN_TRANSIT, CONTAINER_ARRIVAL_STATUSES, containerDateError } from '@/lib/logistics/containers';
 
 type Params = { params: Promise<{ id: string }> };
 const COLS = 'id, container_no, booking_no, carrier, vessel_name, voyage_no, origin_port, destination_port, departure_date, estimated_arrival_date, actual_arrival_date, customs_clearance_date, warehouse_arrival_date, status, seal_no, tracking_url, notes, delivery_destination, job_site_address, created_at, updated_at';
@@ -56,6 +56,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
   if ('delivery_destination' in patch && !['warehouse', 'direct_job_site'].includes(String(patch.delivery_destination))) {
     return NextResponse.json({ error: 'Invalid delivery destination' }, { status: 400 });
+  }
+  // Only validate when the user is editing dates, so an older row with bad dates can
+  // still have its status / notes updated. Compare against the stored row.
+  if (['departure_date', 'estimated_arrival_date', 'actual_arrival_date'].some(k => k in patch)) {
+    const { data: current } = await admin.from('containers')
+      .select('departure_date, estimated_arrival_date, actual_arrival_date')
+      .eq('id', id).is('deleted_at', null).maybeSingle();
+    const dateErr = containerDateError({ ...(current ?? {}), ...patch });
+    if (dateErr) return NextResponse.json({ error: dateErr }, { status: 400 });
   }
   if (patch.status === 'DEPARTED' && !('departure_date' in patch)) patch.departure_date = new Date().toISOString().slice(0, 10);
   if (patch.status === 'ARRIVED_PORT' && !('actual_arrival_date' in patch)) patch.actual_arrival_date = new Date().toISOString().slice(0, 10);

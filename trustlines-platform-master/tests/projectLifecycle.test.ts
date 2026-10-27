@@ -158,6 +158,16 @@ describe('deriveLifecycle — phase', () => {
     expect(codes(input)).toContain('delivery_plan_missing');
   });
 
+  it.each(['planning', 'scheduled'])('a %s delivery plan alone does not jump to DELIVERY_BUILD', status => {
+    const r = deriveLifecycle(base({
+      project: { is_draft: false, delivered_to_trust_at: null, current_stage: 'finalization' },
+      handover: { status: 'complete' },
+      deliveryPlan: { status, customer_accepted: false },
+    }));
+    expect(r.phase).not.toBe('DELIVERY_BUILD');
+    expect(r.phase).toBe('PM_FINALIZATION');
+  });
+
   it('a partially sent project is still PRODUCTION_LOGISTICS', () => {
     const r = deriveLifecycle(base({
       project: { is_draft: false, delivered_to_trust_at: null, current_stage: 'production' },
