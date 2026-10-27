@@ -18,9 +18,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (Object.keys(patch).length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
 
   const { data: current, error: readError } = await admin.from('social_posts')
-    .select('id, published_on, planned_on').eq('id', id).is('deleted_at', null).maybeSingle();
+    .select('id, published_on, planned_on, status').eq('id', id).is('deleted_at', null).maybeSingle();
   if (readError) return dbError('save the post', readError);
   if (!current) return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+  if (current.status === 'publishing') return NextResponse.json({ error: 'This post is being published right now — try again in a minute' }, { status: 409 });
   // Marking a post published without a date: use its planned date, else today.
   if (patch.status === 'published' && !('published_on' in patch) && !current.published_on) {
     patch.published_on = patch.planned_on ?? current.planned_on ?? new Date().toISOString().slice(0, 10);

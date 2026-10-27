@@ -1141,7 +1141,9 @@ export interface MarketingCampaign {
 // ── Marketing & PR workspace (migration 127) ────────────────────────────────────────────
 
 export type SocialPlatformType = 'instagram' | 'facebook' | 'linkedin' | 'x' | 'youtube' | 'tiktok' | 'other';
-export type SocialPostStatusType = 'idea' | 'draft' | 'scheduled' | 'published' | 'cancelled';
+// 'publishing' and 'failed' are set by the automatic publisher (migration 128), never by hand.
+export type SocialPostStatusType = 'idea' | 'draft' | 'scheduled' | 'publishing' | 'published' | 'failed' | 'cancelled';
+export type SocialProviderType = 'meta' | 'google' | 'linkedin';
 export type MarketingCalendarKind = 'event' | 'press' | 'meeting' | 'deadline' | 'content' | 'other';
 
 export interface SocialAccount {
@@ -1151,10 +1153,33 @@ export interface SocialAccount {
   profile_url: string | null;
   notes: string | null;
   is_active: boolean;
+  // Migration 128: set when the account is linked to its platform.
+  connection_id: string | null;
+  external_id: string | null;
+  external_token_enc?: string | null; // server-only, never selected for the browser
+  avatar_url: string | null;
+  last_synced_at: string | null;
+  sync_error: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+}
+
+export interface SocialConnection {
+  id: string;
+  provider: SocialProviderType;
+  external_user_id: string | null;
+  external_user_name: string | null;
+  access_token_enc?: string; // server-only
+  refresh_token_enc?: string | null; // server-only
+  token_expires_at: string | null;
+  scopes: string[];
+  connected_by: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+  revoked_at: string | null;
 }
 
 export interface SocialAccountStat {
@@ -1184,6 +1209,14 @@ export interface SocialPost {
   saves: number | null;
   clicks: number | null;
   notes: string | null;
+  // Migration 128.
+  source: 'manual' | 'synced' | 'erp';
+  external_id: string | null;
+  media_url: string | null;
+  media_type: 'image' | 'video' | 'text' | null;
+  scheduled_at: string | null; // exact time the automatic publisher posts it
+  publish_error: string | null;
+  last_synced_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

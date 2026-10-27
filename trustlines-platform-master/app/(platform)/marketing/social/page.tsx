@@ -4,12 +4,15 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePage } from '@/lib/permissions/requirePage';
 import { MARKETING_MANAGE_ROLES, MARKETING_READ_ROLES, MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
 import { loadCampaignOptions, loadSocialData, PrWorkspaceNotReady } from '@/lib/marketing/prWorkspaceServer';
+import { providerStatuses } from '@/lib/social/providers';
 import { SocialMediaClient } from '@/components/platform/marketing/pr/SocialMediaClient';
 import type { UserRole } from '@/types/database';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SocialMediaPage({ searchParams }: { searchParams: Promise<{ post?: string }> }) {
+type Search = { post?: string; tab?: string; connected?: string; accounts?: string; synced?: string; connectError?: string };
+
+export default async function SocialMediaPage({ searchParams }: { searchParams: Promise<Search> }) {
   await requirePage('page.marketing');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -28,15 +31,16 @@ export default async function SocialMediaPage({ searchParams }: { searchParams: 
     [initial, campaigns] = await Promise.all([loadSocialData(admin), loadCampaignOptions(admin)]);
   } catch (e) {
     loadError = e instanceof PrWorkspaceNotReady
-      ? 'The social media tables aren’t set up yet — migration 127 needs to be applied.'
+      ? 'The social media tables aren’t set up yet — migrations 127 and 128 need to be applied.'
       : 'Social media data could not be loaded. Please refresh the page.';
   }
 
-  const { post } = await searchParams;
+  const { post, tab, connected, accounts, synced, connectError } = await searchParams;
   return (
     <div className="main-inner">
       <SocialMediaClient
-        initial={initial} campaigns={campaigns} loadError={loadError} openPostId={post ?? null}
+        initial={initial} campaigns={campaigns} providers={providerStatuses()} loadError={loadError} openPostId={post ?? null}
+        flash={{ tab, connected, accounts, synced, connectError }}
         canEdit={MARKETING_WRITE_ROLES.includes(userRole)} isManager={MARKETING_MANAGE_ROLES.includes(userRole)} userId={user.id}
       />
     </div>

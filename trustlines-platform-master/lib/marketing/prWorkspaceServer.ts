@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { MARKETING_MANAGE_ROLES } from '@/lib/marketing/roles';
-import { CALENDAR_COLS, SOCIAL_ACCOUNT_COLS, SOCIAL_POST_COLS } from '@/lib/marketing/prWorkspace';
-import type { MarketingCalendarEntry, MarketingCampaign, SocialAccount, SocialAccountStat, SocialPost } from '@/types/database';
+import { CALENDAR_COLS, SOCIAL_ACCOUNT_COLS, SOCIAL_CONNECTION_COLS, SOCIAL_POST_COLS } from '@/lib/marketing/prWorkspace';
+import type { MarketingCalendarEntry, MarketingCampaign, SocialAccount, SocialAccountStat, SocialConnection, SocialPost } from '@/types/database';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -10,7 +10,8 @@ import type { MarketingCalendarEntry, MarketingCampaign, SocialAccount, SocialAc
 // service-role client: the callers have already checked the role (MARKETING_READ_ROLES).
 
 // Row shapes as selected by the *_COLS lists (soft-deleted rows are never returned).
-export type SocialAccountRow = Omit<SocialAccount, 'deleted_at'>;
+export type SocialAccountRow = Omit<SocialAccount, 'deleted_at' | 'external_token_enc'>;
+export type SocialConnectionRow = Pick<SocialConnection, 'id' | 'provider' | 'external_user_name' | 'token_expires_at' | 'connected_by' | 'last_error' | 'created_at'>;
 export type FollowerStatRow = Pick<SocialAccountStat, 'id' | 'account_id' | 'recorded_on' | 'followers'>;
 export type SocialPostRow = Omit<SocialPost, 'deleted_at'>;
 export type CalendarEntryRow = Omit<MarketingCalendarEntry, 'deleted_at'>;
@@ -47,17 +48,19 @@ export async function loadCampaignOptions(admin: any): Promise<CampaignOption[]>
 }
 
 export async function loadSocialData(admin: any) {
-  const [accounts, posts, stats] = await Promise.all([
+  const [accounts, posts, stats, connections] = await Promise.all([
     admin.from('social_accounts').select(SOCIAL_ACCOUNT_COLS).is('deleted_at', null).order('platform').order('handle'),
     admin.from('social_posts').select(SOCIAL_POST_COLS).is('deleted_at', null)
       .order('planned_on', { ascending: false, nullsFirst: true }).order('created_at', { ascending: false }).limit(1000),
     admin.from('social_account_stats').select('id, account_id, recorded_on, followers')
       .order('recorded_on', { ascending: false }).limit(5000),
+    admin.from('social_connections').select(SOCIAL_CONNECTION_COLS).is('revoked_at', null).order('created_at'),
   ]);
   return {
     accounts: check<SocialAccountRow[]>(accounts, 'social accounts'),
     posts: check<SocialPostRow[]>(posts, 'social posts'),
     stats: check<FollowerStatRow[]>(stats, 'follower history'),
+    connections: check<SocialConnectionRow[]>(connections, 'connections'),
   };
 }
 

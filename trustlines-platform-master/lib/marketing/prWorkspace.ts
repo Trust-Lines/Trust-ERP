@@ -28,8 +28,10 @@ export type CalendarKind = (typeof CALENDAR_KINDS)[number]['value'];
 export const POST_METRICS = ['impressions', 'reach', 'likes', 'comments', 'shares', 'saves', 'clicks'] as const;
 export type PostMetric = (typeof POST_METRICS)[number];
 
-export const SOCIAL_ACCOUNT_COLS = 'id, platform, handle, profile_url, notes, is_active, created_by, created_at, updated_at';
-export const SOCIAL_POST_COLS = `id, account_id, title, caption, status, planned_on, published_on, post_url, campaign_id, ${POST_METRICS.join(', ')}, notes, created_by, created_at, updated_at`;
+// Never add external_token_enc here — these lists go to the browser.
+export const SOCIAL_ACCOUNT_COLS = 'id, platform, handle, profile_url, notes, is_active, connection_id, external_id, avatar_url, last_synced_at, sync_error, created_by, created_at, updated_at';
+export const SOCIAL_POST_COLS = `id, account_id, title, caption, status, planned_on, published_on, post_url, campaign_id, ${POST_METRICS.join(', ')}, notes, source, external_id, media_url, media_type, scheduled_at, publish_error, last_synced_at, created_by, created_at, updated_at`;
+export const SOCIAL_CONNECTION_COLS = 'id, provider, external_user_name, token_expires_at, connected_by, last_error, created_at';
 export const CALENDAR_COLS = 'id, title, kind, starts_on, ends_on, start_time, end_time, location, notes, campaign_id, created_by, created_at, updated_at';
 
 export const platformLabel = (p: string) => SOCIAL_PLATFORMS.find(x => x.value === p)?.label ?? p;
@@ -142,7 +144,12 @@ export interface SocialPostInput {
   shares: number | null;
   saves: number | null;
   clicks: number | null;
+  media_url: string | null;
+  media_type: 'image' | 'video' | 'text' | null;
+  scheduled_at: string | null;
 }
+
+export const MEDIA_TYPES = ['image', 'video', 'text'] as const;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function optionalId(v: unknown, label: string): Result<string | null> {
@@ -151,7 +158,7 @@ function optionalId(v: unknown, label: string): Result<string | null> {
   return UUID_RE.test(s) ? { value: s } : { error: `${label} is not valid` };
 }
 
-const POST_KEYS = ['account_id', 'title', 'caption', 'status', 'planned_on', 'published_on', 'post_url', 'campaign_id', 'notes', ...POST_METRICS] as const;
+const POST_KEYS = ['account_id', 'title', 'caption', 'status', 'planned_on', 'published_on', 'post_url', 'campaign_id', 'notes', 'media_url', 'media_type', 'scheduled_at', ...POST_METRICS] as const;
 
 export function parseSocialPost(raw: unknown, partial = false): Result<Partial<SocialPostInput>> {
   const b = (raw ?? {}) as Raw;
@@ -170,10 +177,18 @@ export function parseSocialPost(raw: unknown, partial = false): Result<Partial<S
       const r = optionalDate(b[k], k === 'planned_on' ? 'Planned date' : 'Published date');
       if ('error' in r) return r;
       out[k] = r.value;
-    } else if (k === 'post_url') {
-      const r = optionalUrl(b.post_url, 'Post link');
+    } else if (k === 'post_url' || k === 'media_url') {
+      const r = optionalUrl(b[k], k === 'post_url' ? 'Post link' : 'Media link');
       if ('error' in r) return r;
-      out.post_url = r.value;
+      out[k] = r.value;
+    } else if (k === 'media_type') {
+      const m = str(b.media_type);
+      if (m && !MEDIA_TYPES.includes(m as never)) return { error: 'Pick image, video or text' };
+      out.media_type = (m || null) as SocialPostInput['media_type'];
+    } else if (k === 'scheduled_at') {
+      const s = str(b.scheduled_at);
+      if (s && Number.isNaN(Date.parse(s))) return { error: 'Publish time is not valid' };
+      out.scheduled_at = s ? new Date(s).toISOString() : null;
     } else if (k === 'account_id' || k === 'campaign_id') {
       const r = optionalId(b[k], k === 'account_id' ? 'Account' : 'Campaign');
       if ('error' in r) return r;

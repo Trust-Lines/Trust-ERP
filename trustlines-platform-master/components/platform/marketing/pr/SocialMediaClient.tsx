@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { AtSign, CalendarClock, ExternalLink, Heart, LineChart, Pencil, Plus, Search, Send, Share2, Trash2, Users } from 'lucide-react';
+import { AtSign, CalendarClock, CircleAlert, ExternalLink, Heart, LineChart, Link2, Pencil, Plus, RefreshCw, Rocket, Search, Send, Share2, Trash2, Unplug, Users } from 'lucide-react';
+import { ImageField } from '@/components/platform/website/ImageField';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
@@ -17,51 +18,102 @@ import {
   POST_METRICS, SOCIAL_PLATFORMS, SOCIAL_POST_STATUSES, engagementOf, engagementRate, followerGrowth, platformLabel,
   type PostMetric,
 } from '@/lib/marketing/prWorkspace';
-import type { CampaignOption, FollowerStatRow, SocialAccountRow, SocialPostRow } from '@/lib/marketing/prWorkspaceServer';
+import type { CampaignOption, FollowerStatRow, SocialAccountRow, SocialConnectionRow, SocialPostRow } from '@/lib/marketing/prWorkspaceServer';
+import type { ProviderStatus } from '@/lib/social/providers';
 import { Field, PANEL, PageHeading, PlatformMark, TD_CLS, TH_CLS, fmtDay, fmtNumber, localToday, sendJson } from './shared';
 
-interface SocialData { accounts: SocialAccountRow[]; posts: SocialPostRow[]; stats: FollowerStatRow[] }
+interface SocialData { accounts: SocialAccountRow[]; posts: SocialPostRow[]; stats: FollowerStatRow[]; connections: SocialConnectionRow[] }
 
 interface Props {
   initial: SocialData | null;
   campaigns: CampaignOption[];
+  providers: ProviderStatus[];
   canEdit: boolean;
   isManager: boolean;
   userId: string;
-  /** Set when the page couldn't load (e.g. migration 127 not applied). */
+  /** Set when the page couldn't load (e.g. migrations 127–128 not applied). */
   loadError: string | null;
   /** ?post=<id> — opens that post (the Calendar links here). */
   openPostId?: string | null;
+  /** Back from a "Connect" round trip: ?connected=… / ?connectError=…, and ?tab=accounts. */
+  flash?: { connected?: string; accounts?: string; synced?: string; connectError?: string; tab?: string };
 }
 
 const STATUS_OPTIONS = SOCIAL_POST_STATUSES.map(s => ({ value: s, label: s[0].toUpperCase() + s.slice(1) }));
+// Read-only states set by the publisher — shown in filters, never offered in the editor.
+const FILTER_STATUS_OPTIONS = [...STATUS_OPTIONS, { value: 'publishing', label: 'Publishing' }, { value: 'failed', label: 'Failed' }];
+const MEDIA_OPTIONS = [{ value: 'image', label: 'Image' }, { value: 'video', label: 'Video' }, { value: 'text', label: 'Text only' }];
+const PROVIDER_PLATFORMS: Record<string, string[]> = { meta: ['instagram', 'facebook'], google: ['youtube'], linkedin: ['linkedin'] };
+
+const DATE_TIME = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+const fmtWhen = (iso: string | null) => (iso ? DATE_TIME.format(new Date(iso)) : '—');
+
+/** ISO timestamp → value for <input type="datetime-local"> in the viewer's time zone. */
+function toLocalInput(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** Mirrors the server's publish rules so the editor can say up front what will happen. */
+function publishHint(account: SocialAccountRow | undefined, form: PostForm): { ok: boolean; text: string } | null {
+  if (!account) return null;
+  if (!account.connection_id) return { ok: false, text: 'This account isn’t connected, so the post won’t be published automatically. Connect it on the Accounts tab.' };
+  if (account.platform === 'youtube') return { ok: false, text: 'YouTube videos are uploaded in YouTube Studio; their results sync here.' };
+  if (account.platform === 'instagram' && (form.media_type === 'text' || !form.media_url)) return { ok: false, text: 'Instagram needs an image or a video before it can be published.' };
+  if (account.platform === 'linkedin' && form.media_type === 'video') return { ok: false, text: 'Video posts to LinkedIn aren’t supported yet.' };
+  if (!form.caption.trim() && !form.media_url) return { ok: false, text: 'Add a caption or media to publish.' };
+  return { ok: true, text: `Ready to publish to ${platformLabel(account.platform)} · ${account.handle}.` };
+}
 const METRIC_LABEL: Record<PostMetric, string> = {
   impressions: 'Impressions', reach: 'Reach', likes: 'Likes', comments: 'Comments', shares: 'Shares', saves: 'Saves', clicks: 'Link clicks',
 };
 
 type Tab = 'posts' | 'accounts';
-type PostForm = Record<'account_id' | 'title' | 'caption' | 'status' | 'planned_on' | 'published_on' | 'post_url' | 'campaign_id' | 'notes' | PostMetric, string>;
+type PostForm = Record<'account_id' | 'title' | 'caption' | 'status' | 'planned_on' | 'published_on' | 'post_url' | 'campaign_id' | 'notes'
+  | 'media_url' | 'media_type' | 'scheduled_at' | PostMetric, string>;
 type AccountForm = { platform: string; handle: string; profile_url: string; notes: string; is_active: boolean };
+type PostEdit = { id: string | null; form: PostForm; row: SocialPostRow | null };
 
 const emptyPost = (date = ''): PostForm => ({
   account_id: '', title: '', caption: '', status: date ? 'scheduled' : 'idea', planned_on: date, published_on: '', post_url: '',
-  campaign_id: '', notes: '', impressions: '', reach: '', likes: '', comments: '', shares: '', saves: '', clicks: '',
+  campaign_id: '', notes: '', media_url: '', media_type: 'image', scheduled_at: '',
+  impressions: '', reach: '', likes: '', comments: '', shares: '', saves: '', clicks: '',
 });
 const toPostForm = (p: SocialPostRow): PostForm => ({
-  account_id: p.account_id ?? '', title: p.title, caption: p.caption ?? '', status: p.status, planned_on: p.planned_on ?? '',
-  published_on: p.published_on ?? '', post_url: p.post_url ?? '', campaign_id: p.campaign_id ?? '', notes: p.notes ?? '',
+  account_id: p.account_id ?? '', title: p.title, caption: p.caption ?? '',
+  // A failed publish reopens as "scheduled" so saving it retries at the chosen time.
+  status: p.status === 'failed' || p.status === 'publishing' ? 'scheduled' : p.status,
+  planned_on: p.planned_on ?? '', published_on: p.published_on ?? '', post_url: p.post_url ?? '', campaign_id: p.campaign_id ?? '', notes: p.notes ?? '',
+  media_url: p.media_url ?? '', media_type: p.media_type ?? (p.media_url ? 'image' : 'text'), scheduled_at: toLocalInput(p.scheduled_at),
   ...Object.fromEntries(POST_METRICS.map(m => [m, p[m] === null ? '' : String(p[m])])) as Record<PostMetric, string>,
 });
 
-export function SocialMediaClient({ initial, campaigns, canEdit, isManager, userId, loadError, openPostId }: Props) {
-  const [data, setData] = useState<SocialData>(initial ?? { accounts: [], posts: [], stats: [] });
-  const [tab, setTab] = useState<Tab>('posts');
+/** The JSON the posts API expects: the local publish time becomes an ISO timestamp. */
+function postBody(form: PostForm) {
+  const scheduled = form.status === 'scheduled' && form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null;
+  return {
+    ...form,
+    scheduled_at: scheduled,
+    // Keep the calendar day in step with the publish time.
+    planned_on: form.planned_on || (form.scheduled_at ? form.scheduled_at.slice(0, 10) : ''),
+    media_url: form.media_type === 'text' ? '' : form.media_url,
+  };
+}
+
+export function SocialMediaClient({ initial, campaigns, providers, canEdit, isManager, userId, loadError, openPostId, flash }: Props) {
+  const [data, setData] = useState<SocialData>(initial ?? { accounts: [], posts: [], stats: [], connections: [] });
+  const [tab, setTab] = useState<Tab>(flash?.tab === 'accounts' ? 'accounts' : 'posts');
+  const [syncing, setSyncing] = useState<string | null>(null); // 'all' or an account id
+  const [publishing, setPublishing] = useState(false);
+  const [toDisconnect, setToDisconnect] = useState<SocialConnectionRow | null>(null);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [accountFilter, setAccountFilter] = useState('');
   const [today, setToday] = useState<string | null>(null);
 
-  const [postEdit, setPostEdit] = useState<{ id: string | null; form: PostForm } | null>(null);
+  const [postEdit, setPostEdit] = useState<PostEdit | null>(null);
   const [accountEdit, setAccountEdit] = useState<{ id: string | null; form: AccountForm } | null>(null);
   const [followersFor, setFollowersFor] = useState<SocialAccountRow | null>(null);
   const [toDelete, setToDelete] = useState<{ kind: 'post' | 'account'; id: string; label: string } | null>(null);
@@ -69,12 +121,23 @@ export function SocialMediaClient({ initial, campaigns, canEdit, isManager, user
   // "Today" is the viewer's own day, so it is read after mount (the server renders in UTC).
   useEffect(() => { setToday(localToday()); }, []);
 
+  const openPost = (p: SocialPostRow) => setPostEdit({ id: p.id, form: toPostForm(p), row: p });
+
   useEffect(() => {
     if (!openPostId) return;
     const p = data.posts.find(x => x.id === openPostId);
-    if (p) setPostEdit({ id: p.id, form: toPostForm(p) });
+    if (p) openPost(p);
     // Only on first load — the Calendar opens one post per visit.
   }, [openPostId]);
+
+  // Result of a "Connect" round trip, shown once; then the query string is cleaned up.
+  useEffect(() => {
+    if (!flash?.connected && !flash?.connectError) return;
+    if (flash.connectError) toast.error(flash.connectError, { duration: 10_000 });
+    else toast.success(`${flash.connected} connected — ${flash.accounts ?? 0} account(s) linked, ${flash.synced ?? 0} synced`);
+    window.history.replaceState(null, '', '/marketing/social');
+    // Once per round trip — the values come from the URL the platform redirected back to.
+  }, [flash?.connected, flash?.connectError]);
 
   async function reload() {
     try {
@@ -128,19 +191,73 @@ export function SocialMediaClient({ initial, campaigns, canEdit, isManager, user
   const campaignOptions = [{ value: '', label: 'No campaign' }, ...campaigns.map(c => ({ value: c.id, label: c.name }))];
   const mayDelete = (createdBy: string | null) => canEdit && (isManager || createdBy === userId);
 
-  async function savePost() {
-    if (!postEdit) return;
+  async function savePost(): Promise<string | null> {
+    if (!postEdit) return null;
     const { id, form } = postEdit;
-    if (!form.title.trim()) { toast.error('Title is required'); return; }
+    if (!form.title.trim()) { toast.error('Title is required'); return null; }
+    if (form.status === 'scheduled' && form.scheduled_at && new Date(form.scheduled_at).getTime() < Date.now() - 60_000) {
+      toast.error('The publish time is in the past — pick a later time or use “Publish now”.');
+      return null;
+    }
     try {
-      await sendJson(id ? `/api/marketing/social/posts/${id}` : '/api/marketing/social/posts', id ? 'PATCH' : 'POST', form);
+      const res = await sendJson<{ post: SocialPostRow }>(id ? `/api/marketing/social/posts/${id}` : '/api/marketing/social/posts', id ? 'PATCH' : 'POST', postBody(form));
       toast.success(id ? 'Post saved' : 'Post added');
       setPostEdit(null);
       await reload();
+      return res.post.id;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not save the post');
+      return null;
     }
   }
+
+  // Saves the editor first (so what goes out is what's on screen), then publishes.
+  async function publishNow() {
+    if (!postEdit) return;
+    setPublishing(true);
+    try {
+      const id = await savePost();
+      if (!id) return;
+      const res = await sendJson<{ post_url: string | null }>(`/api/marketing/social/posts/${id}/publish`, 'POST');
+      toast.success('Published', res.post_url ? { action: { label: 'Open', onClick: () => window.open(res.post_url!, '_blank', 'noopener') } } : undefined);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not publish', { duration: 10_000 });
+    } finally {
+      setPublishing(false);
+      await reload();
+    }
+  }
+
+  async function syncNow(accountId?: string) {
+    setSyncing(accountId ?? 'all');
+    try {
+      const { results } = await sendJson<{ results: { ok: boolean; handle: string; error?: string }[] }>('/api/marketing/social/sync', 'POST', accountId ? { accountId } : {});
+      const failed = results.filter(r => !r.ok);
+      if (!results.length) toast.info('No connected account to sync yet');
+      else if (failed.length) toast.error(`${failed.length} of ${results.length} could not sync: ${failed[0].handle} — ${failed[0].error}`, { duration: 10_000 });
+      else toast.success(`Synced ${results.length} account${results.length === 1 ? '' : 's'}`);
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not sync');
+    } finally {
+      setSyncing(null);
+    }
+  }
+
+  async function disconnect() {
+    if (!toDisconnect) return;
+    try {
+      await sendJson(`/api/marketing/social/connections/${toDisconnect.id}`, 'DELETE');
+      toast.success('Disconnected — the accounts and their history stay, as manual accounts');
+      setToDisconnect(null);
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not disconnect');
+      throw e;
+    }
+  }
+
+  const connectedCount = data.accounts.filter(a => a.connection_id).length;
 
   async function saveAccount() {
     if (!accountEdit) return;
@@ -183,13 +300,18 @@ export function SocialMediaClient({ initial, campaigns, canEdit, isManager, user
       <PageHeading
         trail="Marketing / Social Media"
         title="Social Media"
-        subtitle="Plan posts, record their results and track follower growth. Numbers are entered by the team from each platform’s insights."
+        subtitle={connectedCount
+          ? 'Plan and publish posts, and follow how they perform. Connected accounts sync every night — or press “Sync now”.'
+          : 'Plan and publish posts, and follow how they perform. Connect your accounts on the Accounts tab to sync results automatically.'}
         actions={canEdit && (
           <>
-            <Button variant="secondary" onClick={() => setAccountEdit({ id: null, form: { platform: '', handle: '', profile_url: '', notes: '', is_active: true } })}>
-              <AtSign /> Add account
+            {connectedCount > 0 && (
+              <Button variant="secondary" loading={syncing === 'all'} disabled={!!syncing} onClick={() => syncNow()}><RefreshCw /> Sync now</Button>
+            )}
+            <Button variant="secondary" onClick={() => { setTab('accounts'); setAccountEdit({ id: null, form: { platform: '', handle: '', profile_url: '', notes: '', is_active: true } }); }}>
+              <AtSign /> Add manual account
             </Button>
-            <Button onClick={() => setPostEdit({ id: null, form: emptyPost() })}><Plus /> New post</Button>
+            <Button onClick={() => setPostEdit({ id: null, form: emptyPost(), row: null })}><Plus /> New post</Button>
           </>
         )}
       />
@@ -232,7 +354,7 @@ export function SocialMediaClient({ initial, campaigns, canEdit, isManager, user
               <Input className="h-10 pl-8 text-[13px]" placeholder="Search posts…" value={query} onChange={e => setQuery(e.target.value)} aria-label="Search posts" />
             </div>
             <Select className="h-10 w-[160px] text-[13px]" aria-label="Filter by status" value={statusFilter}
-              options={[{ value: '', label: 'All statuses' }, ...STATUS_OPTIONS]} onValueChange={v => setStatusFilter(v ?? '')} />
+              options={[{ value: '', label: 'All statuses' }, ...FILTER_STATUS_OPTIONS]} onValueChange={v => setStatusFilter(v ?? '')} />
             <Select className="h-10 w-[220px] text-[13px]" aria-label="Filter by account" value={accountFilter}
               options={[{ value: '', label: 'All accounts' }, ...data.accounts.map(a => ({ value: a.id, label: `${platformLabel(a.platform)} · ${a.handle}` }))]}
               onValueChange={v => setAccountFilter(v ?? '')} />
@@ -243,7 +365,7 @@ export function SocialMediaClient({ initial, campaigns, canEdit, isManager, user
               icon={<Share2 />}
               title={data.posts.length ? 'No post matches your filters' : 'No posts yet'}
               description={data.posts.length ? 'Clear the search or pick another status.' : 'Add a post idea, schedule it, then record its results once it is live.'}
-              action={canEdit && !data.posts.length ? <Button onClick={() => setPostEdit({ id: null, form: emptyPost() })}><Plus /> New post</Button> : undefined}
+              action={canEdit && !data.posts.length ? <Button onClick={() => setPostEdit({ id: null, form: emptyPost(), row: null })}><Plus /> New post</Button> : undefined}
             />
           ) : (
             <div className="overflow-x-auto">
@@ -265,7 +387,7 @@ export function SocialMediaClient({ initial, campaigns, canEdit, isManager, user
                       <tr key={p.id} className="border-b border-ui-divider last:border-b-0">
                         <td className={TD_CLS}>
                           <button type="button" className="block max-w-[320px] cursor-pointer truncate border-0 bg-transparent p-0 text-left text-[13px] font-semibold text-ui-heading hover:underline"
-                            onClick={() => setPostEdit({ id: p.id, form: toPostForm(p) })}>
+                            onClick={() => openPost(p)}>
                             {p.title}
                           </button>
                           <span className="block max-w-[320px] truncate text-ui-text-secondary">
@@ -275,9 +397,18 @@ export function SocialMediaClient({ initial, campaigns, canEdit, isManager, user
                         <td className={TD_CLS}>
                           {account ? <span className="inline-flex items-center gap-2"><PlatformMark platform={account.platform} size={20} />{account.handle}</span> : <span className="text-ui-text-secondary">—</span>}
                         </td>
-                        <td className={TD_CLS}><StatusBadge group="social_post" status={p.status} size="sm" /></td>
+                        <td className={TD_CLS}>
+                          <span className="inline-flex flex-col gap-0.5" title={p.publish_error ?? undefined}>
+                            <StatusBadge group="social_post" status={p.status} size="sm" />
+                            {p.status === 'failed' && p.publish_error && <span className="max-w-[180px] truncate text-[11px] text-error-dark">{p.publish_error}</span>}
+                            {p.source === 'synced' && <span className="text-[11px] text-ui-text-secondary">From the platform</span>}
+                          </span>
+                        </td>
                         <td className={cn(TD_CLS, 'whitespace-nowrap')}>
-                          {p.published_on ? fmtDay(p.published_on) : p.planned_on ? <>Planned {fmtDay(p.planned_on)}</> : '—'}
+                          {p.published_on ? fmtDay(p.published_on)
+                            // Local time only after mount (`today` is set then) — the server renders in UTC.
+                            : p.status === 'scheduled' && p.scheduled_at && today ? <>Auto {fmtWhen(p.scheduled_at)}</>
+                              : p.planned_on ? <>Planned {fmtDay(p.planned_on)}</> : '—'}
                         </td>
                         <td className={cn(TD_CLS, 'text-right tabular-nums')}>{fmtNumber(p.impressions ?? p.reach)}</td>
                         <td className={cn(TD_CLS, 'text-right tabular-nums')}>{hasResults ? fmtNumber(engagementOf(p)) : '—'}</td>
@@ -288,7 +419,7 @@ export function SocialMediaClient({ initial, campaigns, canEdit, isManager, user
                               className="inline-grid size-7 place-items-center rounded-[4px] text-ui-body hover:bg-ui-hover-bg"><ExternalLink size={14} /></a>
                           )}
                           {canEdit && (
-                            <Button variant="ghost" size="icon-sm" aria-label={`Edit "${p.title}"`} onClick={() => setPostEdit({ id: p.id, form: toPostForm(p) })}><Pencil /></Button>
+                            <Button variant="ghost" size="icon-sm" aria-label={`Edit "${p.title}"`} onClick={() => openPost(p)}><Pencil /></Button>
                           )}
                           {mayDelete(p.created_by) && (
                             <Button variant="ghost" size="icon-sm" aria-label={`Delete "${p.title}"`} onClick={() => setToDelete({ kind: 'post', id: p.id, label: p.title })}>
@@ -304,15 +435,67 @@ export function SocialMediaClient({ initial, campaigns, canEdit, isManager, user
             </div>
           )}
         </div>
-      ) : data.accounts.length === 0 ? (
+      ) : (
+        <div className="flex flex-col gap-6">
+        <section className={cn(PANEL, 'flex flex-col gap-4 p-6')} aria-labelledby="connections-heading">
+          <div>
+            <h2 id="connections-heading" className="m-0 text-[15px] font-semibold text-ui-heading">Connected platforms</h2>
+            <p className="m-0 text-[12px] text-ui-text-secondary">
+              A Marketing manager signs in once; the ERP then reads followers and post results every night and publishes scheduled posts.
+              Access can be removed here at any time.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            {providers.map(p => {
+              const conn = data.connections.find(c => c.provider === p.id);
+              const linked = data.accounts.filter(a => a.connection_id && a.connection_id === conn?.id);
+              return (
+                <div key={p.id} className="flex flex-col gap-3 rounded-[8px] border border-ui-divider p-4">
+                  <div className="flex items-center gap-2">
+                    {PROVIDER_PLATFORMS[p.id].map(pl => <PlatformMark key={pl} platform={pl} size={22} />)}
+                    <span className="text-[13px] font-semibold text-ui-heading">{p.label}</span>
+                  </div>
+                  {conn ? (
+                    <div className="text-[12px] text-ui-body">
+                      Connected{conn.external_user_name ? ` as ${conn.external_user_name}` : ''} · {linked.length} account{linked.length === 1 ? '' : 's'}
+                      {conn.token_expires_at && p.id === 'linkedin' && (
+                        <span className="block text-[11px] text-ui-text-secondary">Login valid until {fmtDay(conn.token_expires_at.slice(0, 10))}</span>
+                      )}
+                    </div>
+                  ) : p.configured ? (
+                    <div className="text-[12px] text-ui-text-secondary">Not connected</div>
+                  ) : (
+                    <div className="text-[12px] text-ui-text-secondary">
+                      Not set up on the server yet{isManager && p.missing.length ? ` — missing ${p.missing.join(', ')}` : ''}.
+                    </div>
+                  )}
+                  {isManager && p.configured && (
+                    <div className="flex flex-wrap gap-2">
+                      {/* A full page navigation: the platform's consent screen can't open in a fetch. */}
+                      <a href={`/api/marketing/social/connect/${p.id}`} className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
+                        <Link2 className="size-4" /> {conn ? 'Reconnect' : 'Connect'}
+                      </a>
+                      {conn && (
+                        <Button size="sm" variant="ghost" onClick={() => setToDisconnect(conn)}><Unplug /> Disconnect</Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {!isManager && <p className="m-0 text-[11px] text-ui-text-secondary">Only a Marketing manager can connect or disconnect platforms.</p>}
+        </section>
+
+        {data.accounts.length === 0 ? (
         <div className={cn(PANEL, 'p-6')}>
           <EmptyState
             icon={<AtSign />} title="No accounts yet"
-            description="Add the company’s Instagram, LinkedIn and other accounts to start tracking followers."
-            action={canEdit ? <Button onClick={() => setAccountEdit({ id: null, form: { platform: '', handle: '', profile_url: '', notes: '', is_active: true } })}><Plus /> Add account</Button> : undefined}
+            description="Connect a platform above, or add an account by hand to track it manually."
+            action={canEdit ? <Button variant="secondary" onClick={() => setAccountEdit({ id: null, form: { platform: '', handle: '', profile_url: '', notes: '', is_active: true } })}><Plus /> Add manual account</Button> : undefined}
           />
         </div>
-      ) : (
+        ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {data.accounts.map(a => {
             const history = statsByAccount.get(a.id) ?? [];
@@ -349,13 +532,24 @@ export function SocialMediaClient({ initial, campaigns, canEdit, isManager, user
                   </div>
                 </dl>
                 <div className="text-[11px] text-ui-text-secondary">
-                  {history.length
-                    ? `Last counted ${fmtDay(history.reduce((d, s) => (s.recorded_on > d ? s.recorded_on : d), ''))}`
-                    : 'No follower count recorded yet'}
+                  {a.connection_id
+                    ? (a.last_synced_at && today ? `Connected · synced ${fmtWhen(a.last_synced_at)}` : 'Connected · not synced yet')
+                    : history.length
+                      ? `Manual · last counted ${fmtDay(history.reduce((d, s) => (s.recorded_on > d ? s.recorded_on : d), ''))}`
+                      : 'Manual · no follower count recorded yet'}
                 </div>
+                {a.connection_id && a.sync_error && (
+                  <div role="alert" className="flex items-start gap-1.5 rounded-[6px] bg-error-light px-2.5 py-2 text-[11px] text-error-dark">
+                    <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden /> <span className="min-w-0 break-words">{a.sync_error}</span>
+                  </div>
+                )}
                 {canEdit && (
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => setFollowersFor(a)}><LineChart /> Record followers</Button>
+                    {a.connection_id ? (
+                      <Button size="sm" variant="secondary" loading={syncing === a.id} disabled={!!syncing} onClick={() => syncNow(a.id)}><RefreshCw /> Sync</Button>
+                    ) : (
+                      <Button size="sm" variant="secondary" onClick={() => setFollowersFor(a)}><LineChart /> Record followers</Button>
+                    )}
                     <Button size="icon-sm" variant="ghost" aria-label={`Edit ${a.handle}`}
                       onClick={() => setAccountEdit({ id: a.id, form: { platform: a.platform, handle: a.handle, profile_url: a.profile_url ?? '', notes: a.notes ?? '', is_active: a.is_active } })}>
                       <Pencil />
@@ -371,6 +565,8 @@ export function SocialMediaClient({ initial, campaigns, canEdit, isManager, user
             );
           })}
         </div>
+        )}
+        </div>
       )}
 
       {/* ── Post dialog ── */}
@@ -380,15 +576,25 @@ export function SocialMediaClient({ initial, campaigns, canEdit, isManager, user
             size="lg"
             title={postEdit.id ? 'Edit post' : 'New post'}
             description="Results can be added later, once the post is live."
-            footer={canEdit && (
-              <>
-                <ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Cancel</ModalClose>
-                <Button onClick={savePost}>{postEdit.id ? 'Save post' : 'Add post'}</Button>
-              </>
-            )}
+            footer={canEdit && (() => {
+              const account = postEdit.form.account_id ? accountById.get(postEdit.form.account_id) : undefined;
+              const live = !!postEdit.row?.external_id;
+              const canPublishNow = !live && postEdit.form.status !== 'published' && postEdit.form.status !== 'cancelled' && !!publishHint(account, postEdit.form)?.ok;
+              return (
+                <>
+                  {canPublishNow && (
+                    <Button variant="secondary" className="mr-auto" loading={publishing} onClick={publishNow}><Rocket /> Publish now</Button>
+                  )}
+                  <ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Cancel</ModalClose>
+                  <Button disabled={publishing} onClick={() => { void savePost(); }}>{postEdit.id ? 'Save post' : 'Add post'}</Button>
+                </>
+              );
+            })()}
           >
             <PostFields
-              form={postEdit.form} disabled={!canEdit} accountOptions={accountOptions} campaignOptions={campaignOptions}
+              form={postEdit.form} row={postEdit.row} disabled={!canEdit || postEdit.row?.status === 'publishing'}
+              account={postEdit.form.account_id ? accountById.get(postEdit.form.account_id) : undefined}
+              accountOptions={accountOptions} campaignOptions={campaignOptions} today={today}
               onChange={patch => setPostEdit(p => (p ? { ...p, form: { ...p.form, ...patch } } : p))}
             />
           </ModalContent>
@@ -452,18 +658,47 @@ export function SocialMediaClient({ initial, campaigns, canEdit, isManager, user
         warning={toDelete?.kind === 'account' ? 'Its posts and follower history are kept, but the account no longer appears here.' : undefined}
         onConfirm={confirmDelete}
       />
+
+      <ConfirmModal
+        open={!!toDisconnect} onOpenChange={o => { if (!o) setToDisconnect(null); }}
+        title="Disconnect this platform?"
+        description={toDisconnect ? providers.find(p => p.id === toDisconnect.provider)?.label : undefined}
+        tone="destructive" confirmLabel="Disconnect"
+        warning="The ERP stops syncing and can no longer publish. Scheduled posts for these accounts will fail until you reconnect."
+        onConfirm={disconnect}
+      >
+        <p className="m-0 text-[12px]">The accounts, their follower history and their posts stay here as manual accounts.</p>
+      </ConfirmModal>
     </div>
   );
 }
 
-function PostFields({ form, disabled, accountOptions, campaignOptions, onChange }: {
-  form: PostForm; disabled: boolean;
+function PostFields({ form, row, account, disabled, accountOptions, campaignOptions, today, onChange }: {
+  form: PostForm; row: SocialPostRow | null; account: SocialAccountRow | undefined; disabled: boolean;
   accountOptions: { value: string; label: string }[]; campaignOptions: { value: string; label: string }[];
+  today: string | null;
   onChange: (patch: Partial<PostForm>) => void;
 }) {
   const showResults = form.status === 'published' || POST_METRICS.some(m => form[m] !== '');
+  const live = !!row?.external_id;
+  const hint = live ? null : publishHint(account, form);
+  const autoPublish = form.status === 'scheduled' && !!hint?.ok;
   return (
     <fieldset disabled={disabled} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0">
+      {row?.status === 'publishing' && (
+        <div role="status" className="rounded-[6px] bg-info-light px-3 py-2 text-[12px] text-info-dark">This post is being published right now.</div>
+      )}
+      {row?.status === 'failed' && row.publish_error && (
+        <div role="alert" className="flex items-start gap-2 rounded-[6px] bg-error-light px-3 py-2 text-[12px] text-error-dark">
+          <CircleAlert className="mt-px size-4 shrink-0" aria-hidden />
+          <span>Publishing failed: {row.publish_error}. Fix it and save to retry at the chosen time, or use “Publish now”.</span>
+        </div>
+      )}
+      {live && (
+        <div role="note" className="rounded-[6px] bg-success-light px-3 py-2 text-[12px] text-success-dark">
+          This post is live on the platform{row?.source === 'synced' ? ' (imported from it)' : ''}. Its results update automatically every night.
+        </div>
+      )}
       <Field label="Title" htmlFor="post-title">
         <Input id="post-title" placeholder="e.g. NACS booth recap" value={form.title} onChange={e => onChange({ title: e.target.value })} />
       </Field>
@@ -481,9 +716,42 @@ function PostFields({ form, disabled, accountOptions, campaignOptions, onChange 
           <Input id="post-published" type="date" value={form.published_on} onChange={e => onChange({ published_on: e.target.value })} />
         </Field>
       </div>
-      <Field label="Caption" htmlFor="post-caption">
+      <Field label="Caption" htmlFor="post-caption" hint={account?.platform === 'instagram' ? 'Hashtags and @mentions go in the caption.' : undefined}>
         <Textarea id="post-caption" rows={4} value={form.caption} onChange={e => onChange({ caption: e.target.value })} />
       </Field>
+
+      {!live && (
+        <div className="flex flex-col gap-3 rounded-[8px] border border-ui-divider p-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <div className="text-[13px] font-semibold text-ui-heading">Media</div>
+              <div className="text-[11px] text-ui-text-secondary">What gets posted with the caption.</div>
+            </div>
+            <Select className="w-[140px]" aria-label="Media type" value={form.media_type} options={MEDIA_OPTIONS} onValueChange={v => onChange({ media_type: v ?? 'image' })} disabled={disabled} />
+          </div>
+          {form.media_type === 'image' && (
+            <ImageField value={form.media_url} onChange={u => onChange({ media_url: u })} folder="/social/posts" disabled={disabled} height={200} label="Post image" />
+          )}
+          {form.media_type === 'video' && (
+            <Field label="Video link" htmlFor="post-video" hint="A public MP4 link (e.g. from ImageKit or Dropbox “direct download”). Instagram publishes it as a Reel.">
+              <Input id="post-video" type="url" placeholder="https://…/video.mp4" value={form.media_url} onChange={e => onChange({ media_url: e.target.value })} />
+            </Field>
+          )}
+        </div>
+      )}
+
+      {!live && form.status === 'scheduled' && (
+        <div className="flex flex-col gap-2 rounded-[8px] border border-ui-divider p-4">
+          <Field label="Publish automatically at" htmlFor="post-when"
+            hint={autoPublish ? 'Your local time. The post goes out within 15 minutes of this time.' : undefined}>
+            <Input id="post-when" type="datetime-local" className="max-w-[260px]" value={form.scheduled_at}
+              min={today ? `${today}T00:00` : undefined} disabled={disabled || !hint?.ok}
+              onChange={e => onChange({ scheduled_at: e.target.value, planned_on: e.target.value.slice(0, 10) })} />
+          </Field>
+          {hint && <p className={cn('m-0 text-[11px]', hint.ok ? 'text-success-dark' : 'text-ui-text-secondary')}>{hint.text}</p>}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Campaign">
           <Select aria-label="Campaign" value={form.campaign_id} options={campaignOptions} onValueChange={v => onChange({ campaign_id: v ?? '' })} disabled={disabled} />
