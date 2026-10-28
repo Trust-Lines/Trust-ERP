@@ -56,7 +56,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const assignees = (assigneeRows ?? []) as { id: string; full_name: string }[];
 
   return (
-    <div className="main-inner">
+    <div style={{ padding: 28 }}>
       <CustomerDetailClient
         initialCustomer={customer}
         initialContacts={contacts ?? []}

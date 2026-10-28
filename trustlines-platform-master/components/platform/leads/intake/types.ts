@@ -55,6 +55,8 @@ export interface StepProps {
   setForm: SetForm;
   onBack: () => void;
   onNext: () => void;
+  /** Save the draft without moving (the footer's "Save as draft"). */
+  onSaveDraft?: () => void;
 }
 
 export const EMPTY: FormState = {
@@ -85,12 +87,13 @@ export const EMPTY: FormState = {
   checklist: [],
 };
 
+// Figma "New lead" (node 290:36781): six steps — the areas / client-request notes live on
+// Project setup instead of a step of their own.
 export const WIZARD_STEPS = [
   { step: 1, title: 'Project setup', subtitle: 'Company, region & site' },
   { step: 2, title: 'Customer', subtitle: 'Customer & contact info' },
   { step: 3, title: 'Lead details', subtitle: 'Priority, source & follow-up' },
   { step: 4, title: 'Scope of work', subtitle: 'Shelving, millwork, images' },
-  { step: 5, title: 'Additional notes', subtitle: 'Areas & client requests' },
-  { step: 6, title: 'Dimensions & media', subtitle: 'Plans, photos & 360 link' },
-  { step: 7, title: 'Checklist', subtitle: 'Subtasks & next steps' },
+  { step: 5, title: 'Dimensions & media', subtitle: 'Plans, photos & 360 link' },
+  { step: 6, title: 'Checklist', subtitle: 'Subtasks & next steps' },
 ];

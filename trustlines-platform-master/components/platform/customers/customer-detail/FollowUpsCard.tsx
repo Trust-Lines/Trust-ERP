@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Trash2, Plus, CheckCircle2, Circle, CalendarClock } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 import { Select } from '@/components/platform/shared/Select';
 import { todayISO, type Assignee, type FollowUp } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
+import { cn } from '@/lib/utils';
+import { AddButton, DetailCard, FORM_BOX, IconAction, RowList } from './ui';
 
 export function FollowUpsCard({ followUps, assignees, canEdit, onSave, onSetStatus, onDelete }: {
   followUps: FollowUp[];
@@ -23,48 +25,55 @@ export function FollowUpsCard({ followUps, assignees, canEdit, onSave, onSetStat
     return ok;
   }
 
+  const openCount = followUps.filter(f => f.status === 'open').length;
   return (
-    <div className="card" style={{ marginBottom: 20 }}>
-      <div className="card-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div className="form-section-title">Follow-ups ({followUps.filter(f => f.status === 'open').length} open)</div>
-        {canEdit && !addingFollowUp && <button className="btn btn-ghost btn-sm" onClick={() => setAddingFollowUp(true)}><Plus size={13} /> Add follow-up</button>}
-      </div>
-      <div className="card-body">
-        {addingFollowUp && canEdit && (
-          <div style={{ marginBottom: 12 }}><FollowUpForm assignees={assignees} onSave={save} onCancel={() => setAddingFollowUp(false)} /></div>
-        )}
-        {followUps.length === 0 && !addingFollowUp ? (
-          <EmptyState size="sm" icon={<CalendarClock />} title="No follow-ups yet." />
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {followUps.map(f => {
-              const overdue = f.status === 'open' && f.due_date < todayISO();
-              return (
-                <div key={f.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', border: '1px solid var(--border-subtle)', borderRadius: 6, opacity: f.status === 'open' ? 1 : 0.6 }}>
-                  {canEdit && (
-                    <button className="btn btn-ghost btn-sm" style={{ padding: 2 }} aria-label={f.status === 'done' ? 'Reopen follow-up' : 'Mark done'}
-                      onClick={() => onSetStatus(f.id, f.status === 'done' ? 'open' : 'done')}>
-                      {f.status === 'done'
-                        ? <CheckCircle2 size={16} style={{ color: 'var(--status-success-fg, #15803d)' }} />
-                        : <Circle size={16} style={{ color: 'var(--fg-faint)' }} />}
-                    </button>
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, textDecoration: f.status === 'done' ? 'line-through' : 'none' }}>{f.note}</div>
-                    <div style={{ fontSize: 12, color: overdue ? '#b91c1c' : 'var(--fg-subtle)', marginTop: 2, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      <CalendarClock size={11} /> {f.due_date}{overdue ? ' · overdue' : ''}
-                      {nameOf(f.assignee_id) && <span style={{ color: 'var(--fg-subtle)' }}> · {nameOf(f.assignee_id)}</span>}
-                    </div>
+    <DetailCard
+      title={`Follow-ups (${openCount})`}
+      action={canEdit && !addingFollowUp ? <AddButton label="Add Follow-up" onClick={() => setAddingFollowUp(true)} /> : undefined}
+    >
+      {addingFollowUp && canEdit && (
+        <FollowUpForm assignees={assignees} onSave={save} onCancel={() => setAddingFollowUp(false)} />
+      )}
+      {followUps.length === 0 && !addingFollowUp ? (
+        <EmptyState size="sm" icon={<CalendarDays />} title="No follow-ups yet." />
+      ) : followUps.length > 0 && (
+        <RowList>
+          {followUps.map(f => {
+            const done = f.status === 'done';
+            const overdue = f.status === 'open' && f.due_date < todayISO();
+            const who = nameOf(f.assignee_id);
+            return (
+              <div key={f.id} className={cn('flex items-center justify-between gap-3 py-2.5', f.status === 'cancelled' && 'opacity-60')}>
+                <div className="flex min-w-0 items-center">
+                  <span className="flex w-9 shrink-0 items-center px-2.5">
+                    <input
+                      type="checkbox" checked={done} disabled={!canEdit || f.status === 'cancelled'}
+                      onChange={() => onSetStatus(f.id, done ? 'open' : 'done')}
+                      aria-label={done ? `Reopen: ${f.note}` : `Mark done: ${f.note}`}
+                      className="size-4 cursor-pointer rounded-[3px] accent-[var(--color-secondary-700)] disabled:cursor-default"
+                    />
+                  </span>
+                  <div className="flex min-w-0 flex-col gap-0.5 pr-2.5">
+                    <p className={cn('m-0 truncate text-[12px] font-medium text-ui-body', done && 'line-through text-ui-text-disabled')} title={f.note}>{f.note}</p>
+                    <p className={cn('m-0 inline-flex items-center gap-1 text-[11px] leading-[1.4]', overdue ? 'text-error-normal' : 'text-ui-text-secondary')}>
+                      <CalendarDays size={12} aria-hidden /> {formatDue(f.due_date)}{overdue ? ' · overdue' : ''}{who ? ` · ${who}` : ''}
+                    </p>
                   </div>
-                  {canEdit && <button className="btn btn-ghost btn-sm" style={{ padding: '3px 6px', color: '#dc2626' }} onClick={() => onDelete(f.id)} aria-label="Remove follow-up"><Trash2 size={13} /></button>}
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
+                {canEdit && <IconAction kind="delete" label="Remove follow-up" onClick={() => onDelete(f.id)} />}
+              </div>
+            );
+          })}
+        </RowList>
+      )}
+    </DetailCard>
   );
+}
+
+// Figma shows day/month/year (27/10/2026); the stored value is an ISO date.
+function formatDue(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return y && m && d ? `${Number(d)}/${Number(m)}/${y}` : iso;
 }
 
 function FollowUpForm({ assignees, onSave, onCancel }: {
@@ -83,8 +92,8 @@ function FollowUpForm({ assignees, onSave, onCancel }: {
   }
 
   return (
-    <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '12px 14px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px 180px', gap: 8, marginBottom: 10 }}>
+    <div className={FORM_BOX}>
+      <div className="mb-2.5 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_150px_180px]">
         <div><label className="form-label required" style={{ fontSize: 11 }}>Follow-up</label>
           <input className="form-input" style={{ fontSize: 13 }} placeholder="e.g. Call about layout approval" value={note} onChange={e => setNote(e.target.value)} autoFocus /></div>
         <div><label className="form-label required" style={{ fontSize: 11 }}>Due date</label>

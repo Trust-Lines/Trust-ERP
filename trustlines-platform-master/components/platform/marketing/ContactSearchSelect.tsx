@@ -8,11 +8,16 @@ interface ContactResult { id: string; name: string; prospectId: string; companyN
 // Unlike a plain <select>, this searches ALL Contacts platform-wide (not just the ones
 // already linked to the current record) — lets a Potential get re-linked to the real
 // person once found, instead of staying stuck on a placeholder.
-export function ContactSearchSelect({ value, valueLabel, onChange, disabled }: {
+export function ContactSearchSelect({ value, valueLabel, onChange, disabled, placeholder = '— Search contacts…', buttonStyle, placeholderStyle }: {
   value: string;
   valueLabel: string;
   onChange: (contactId: string | null, contactName?: string) => void;
   disabled?: boolean;
+  placeholder?: string;
+  /** Restyle the trigger (e.g. as a bordered form input). */
+  buttonStyle?: React.CSSProperties;
+  /** Extra trigger style while nothing is picked. */
+  placeholderStyle?: React.CSSProperties;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -63,12 +68,14 @@ export function ContactSearchSelect({ value, valueLabel, onChange, disabled }: {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
           border: 'none', background: 'transparent', padding: '3px 4px', cursor: disabled ? 'default' : 'pointer',
           fontSize: 13, fontWeight: 600, color: value ? 'var(--fg-default)' : 'var(--fg-faint)', textAlign: 'left',
+          ...buttonStyle,
+          ...(!value && placeholderStyle),
         }}
       >
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value ? valueLabel : '— Search contacts…'}</span>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value ? valueLabel : placeholder}</span>
         {value && !disabled && (
-          <span role="button" onClick={e => { e.stopPropagation(); onChange(null); }} style={{ color: 'var(--fg-faint)', display: 'flex', marginLeft: 4 }}>
-            <X size={12} />
+          <span role="button" aria-label="Clear contact" onClick={e => { e.stopPropagation(); onChange(null); }} style={{ color: buttonStyle ? 'inherit' : 'var(--fg-faint)', display: 'flex', marginLeft: 4 }}>
+            <X size={buttonStyle ? 16 : 12} />
           </span>
         )}
       </button>

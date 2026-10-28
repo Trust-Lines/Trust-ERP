@@ -5,21 +5,22 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Plus,
-  List,
-  LayoutGrid,
-  Calendar,
+  Rows3,
+  Columns3,
+  CalendarDays,
   Trash2,
-  Settings,
-  Briefcase,
-  DollarSign,
+  BriefcaseBusiness,
+  CircleDollarSign,
   Send,
-  CheckCircle2,
+  CircleCheck,
   Search,
   ChevronDown,
   User,
   Archive,
   ArchiveRestore,
-  Columns3,
+  ArrowDownUp,
+  Columns2,
+  type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { LeadsTable, LEAD_COLUMNS, DEFAULT_HIDDEN_COLUMNS } from './LeadsTable';
@@ -29,17 +30,26 @@ import { LeadQuickView } from './LeadQuickView';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { formatMoney } from '@/lib/sales/format';
 import { STATUS_META, type Lead, type OpportunityStatus } from './types';
-import { opportunityTagTone } from '@/lib/status/tags';
 import { STATUS_TO_STAGE } from '@/lib/marketing/opportunityRows';
 import { REGIONS } from '@/lib/regions';
-import { Button, buttonVariants } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { feedback } from '@/components/ui/feedback-toast';
+import { StatCard } from '@/components/platform/shared/StatCard';
+import { cn } from '@/lib/utils';
 
 type ViewMode = 'list' | 'board' | 'calendar';
+
+// Figma "CRM Board" (node 280:25017).
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+// 36px filter control: input border, white field, 13px medium label.
+const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-3 pr-2 text-[13px] font-medium leading-normal text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading [&_svg]:size-3.5';
+const VIEW_TABS: { key: ViewMode; label: string; icon: LucideIcon }[] = [
+  { key: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { key: 'board', label: 'Board', icon: Columns3 },
+  { key: 'list', label: 'List', icon: Rows3 },
+];
+const NEW_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface Props {
   initialLeads: Lead[];
@@ -55,21 +65,6 @@ interface Props {
   /** Pre-select a pipeline stage (links from the Sales dashboard). */
   initialStage?: OpportunityStatus;
 }
-
-const ALL_PIPELINE_STAGES: { key: OpportunityStatus; label: string; color: string; barColor: string }[] = [
-  { key: 'potential', label: 'Potential', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
-  { key: 'in_target_list', label: 'In Target List', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
-  { key: 'new_opportunity', label: 'New Opportunity', color: 'var(--color-info-normal)', barColor: 'var(--color-info-normal)' },
-  { key: 'ready_to_start', label: 'READY TO START', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
-  { key: 'modification_request', label: 'MODIFICATION REQUEST', color: 'var(--color-warning-normal)', barColor: 'var(--color-warning-normal)' },
-  { key: 'working_on_it_trust', label: 'Working on it Trust', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
-  { key: 'design_proposal_sent', label: 'Design Proposal SENT', color: 'var(--color-accent-600)', barColor: 'var(--color-accent-600)' },
-  { key: 'waiting_from_op', label: 'Waiting from OP', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
-  { key: 'contract_stage', label: 'Contract Stage', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
-  { key: 'waiting', label: 'WAITING', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
-  { key: 'deal_closed', label: 'DEAL CLOSED', color: 'var(--color-success-normal)', barColor: 'var(--color-success-normal)' },
-  { key: 'deal_missed', label: 'DEAL MISSED', color: 'var(--color-primary-300)', barColor: 'var(--color-primary-300)' },
-];
 
 export function LeadsClient({
   initialLeads,
@@ -296,7 +291,7 @@ export function LeadsClient({
   const [colsOpen, setColsOpen] = useState(false);
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('leadsTable.hiddenCols.v1');
+      const raw = localStorage.getItem('leadsTable.hiddenCols.v2');
       if (raw) setHiddenCols(new Set(JSON.parse(raw) as string[]));
     } catch { /* storage unavailable — keep defaults */ }
   }, []);
@@ -304,7 +299,7 @@ export function LeadsClient({
     setHiddenCols(prev => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name); else next.add(name);
-      try { localStorage.setItem('leadsTable.hiddenCols.v1', JSON.stringify([...next])); } catch { /* ignore */ }
+      try { localStorage.setItem('leadsTable.hiddenCols.v2', JSON.stringify([...next])); } catch { /* ignore */ }
       return next;
     });
   }
@@ -360,104 +355,55 @@ export function LeadsClient({
   const proposalSentCount = useMemo(() => (counts['design_proposal_sent'] ?? 0) + (counts['modification_request'] ?? 0), [counts]);
   const dealsClosedCount = useMemo(() => counts['deal_closed'] ?? 0, [counts]);
 
-  const maxStageCount = Math.max(...Object.values(counts), 1);
+  // KPI chip: how many of each card's records were created in the last 7 days.
+  const newCounts = useMemo(() => {
+    const since = Date.now() - NEW_WINDOW_MS;
+    const recent = leads.filter(l => (Date.parse(l.date_created) || 0) >= since);
+    const open = (l: Lead) => l.opportunity_status !== 'deal_closed' && l.opportunity_status !== 'deal_missed';
+    return {
+      all: recent.length,
+      pipeline: recent.filter(open).length,
+      proposal: recent.filter(l => l.opportunity_status === 'design_proposal_sent' || l.opportunity_status === 'modification_request').length,
+      closed: recent.filter(l => l.opportunity_status === 'deal_closed').length,
+    };
+  }, [leads]);
+  const newChip = (n: number) => (n > 0 ? `+${n} New` : undefined);
 
   return (
-    <div className="w-full space-y-5 pb-12">
-      {/* ── 1. Header Section ─────────────────────────────────────── */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-primary-800 dark:text-primary-50 tracking-tight">CRM</h1>
-          <p className="text-xs text-primary-500 dark:text-primary-200 font-normal mt-0.5">
+    <div className="flex w-full flex-col gap-[30px] pb-12">
+      {/* ── Page heading ──────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col gap-[5px] leading-[1.35]">
+          <p className="text-[11px] font-semibold text-ui-nav-active">Sales / CRM Board</p>
+          <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>CRM Board</h1>
+          <p className="text-[13px] text-ui-body">
             {leads.length} records · {formatMoney(pipelineValue)} open pipeline
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <Link href="/leads/new" className={buttonVariants({ variant: 'primary', size: 'sm' })}>
-            <Plus strokeWidth={2.5} />
-            <span>Opportunity</span>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/leads/new"
+            className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] pl-3 pr-5 text-[13px] font-medium leading-[1.35] text-[var(--color-secondary-700)] no-underline transition-colors hover:bg-ui-hover-bg dark:border-ui-heading dark:text-ui-heading [&_svg]:size-4"
+          >
+            <Plus aria-hidden />
+            Opportunity
           </Link>
-
-          <Link href="/leads/new?view=quick_deal" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
-            <span>Quick Deal</span>
+          <Link
+            href="/leads/new?view=quick_deal"
+            className="inline-flex h-9 items-center rounded-[6px] bg-ui-btn-accent px-8 text-[13px] font-medium leading-[1.35] text-ui-btn-accent-fg no-underline transition-opacity hover:opacity-90"
+          >
+            Quick Deal
           </Link>
         </div>
       </div>
 
-      {/* ── 2. Top 4 KPI Metrics Card (Unified 4-column card) ─────── */}
-      <div className="bg-ui-surface-elevated border border-ui-divider rounded-2xl p-4 sm:p-5 shadow-2xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-ui-divider">
-        {/* Opportunities */}
-        <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-info-light dark:bg-info-dark/45 text-info-normal flex items-center justify-center shrink-0">
-            <Briefcase size={22} strokeWidth={1.8} />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium text-primary-500 dark:text-primary-200">All records</span>
-            <span className="text-2xl font-bold text-primary-800 dark:text-primary-50 leading-tight mt-0.5">{leads.length}</span>
-          </div>
-        </div>
-
-        {/* Pipeline value */}
-        <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-success-light dark:bg-success-dark/45 text-success-dark dark:text-success-light flex items-center justify-center shrink-0">
-            <DollarSign size={22} strokeWidth={2.2} />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium text-primary-500 dark:text-primary-200">Pipeline value</span>
-            <span className="text-2xl font-bold text-primary-800 dark:text-primary-50 leading-tight mt-0.5">
-              {formatMoney(pipelineValue)}
-            </span>
-          </div>
-        </div>
-
-        {/* Proposal sent */}
-        <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-accent-50 dark:bg-accent-800/45 text-accent-600 dark:text-accent-200 flex items-center justify-center shrink-0">
-            <Send size={20} strokeWidth={2} />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium text-primary-500 dark:text-primary-200">Proposal sent</span>
-            <span className="text-2xl font-bold text-primary-800 dark:text-primary-50 leading-tight mt-0.5">{proposalSentCount}</span>
-          </div>
-        </div>
-
-        {/* Deals closed */}
-        <div className="flex items-center gap-4 px-3 sm:px-4 py-2 sm:py-1">
-          <div className="w-13 h-13 rounded-2xl bg-success-light dark:bg-success-dark/45 text-success-dark dark:text-success-light flex items-center justify-center shrink-0">
-            <CheckCircle2 size={22} strokeWidth={2} />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium text-primary-500 dark:text-primary-200">Deals closed</span>
-            <span className="text-2xl font-bold text-primary-800 dark:text-primary-50 leading-tight mt-0.5">{dealsClosedCount}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 3. View Tabs Strip ────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-1">
-        <Tabs value={view} onValueChange={v => setView(v as ViewMode)}>
-          <TabsList aria-label="View">
-            <TabsTrigger value="list" className="gap-1.5"><List size={14} />List</TabsTrigger>
-            <TabsTrigger value="board" className="gap-1.5"><LayoutGrid size={14} />Board</TabsTrigger>
-            <TabsTrigger value="calendar" className="gap-1.5"><Calendar size={14} />Calendar</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {/* A filter toggle, not a view — so a pressed button, not a tab. */}
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-pressed={mine}
-          onClick={() => setMine(m => !m)}
-          className="aria-pressed:bg-ui-selected-bg aria-pressed:text-primary-950 dark:h-9 dark:rounded-lg dark:border dark:border-[var(--ui-control-border)] dark:bg-[var(--ui-surface-elevated)] dark:px-3 dark:text-[var(--ui-body)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.35)] dark:aria-pressed:border-[var(--ui-menu-active-border)] dark:aria-pressed:bg-[var(--ui-menu-active-bg)] dark:aria-pressed:text-[var(--ui-menu-active-fg)]"
-        >
-          <User size={14} />
-          <span>Assigned to me ·</span>
-          <span className="dark:grid dark:min-w-5 dark:place-items-center dark:rounded-full dark:px-1.5 dark:text-[12px] dark:leading-5 dark:bg-[#2C3542] dark:text-[var(--ui-heading)] dark:group-aria-pressed/button:bg-[#C9D0DA] dark:group-aria-pressed/button:text-[var(--ui-menu-active-fg)]">
-            {myCount}
-          </span>
-        </Button>
+      {/* ── KPI cards ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon={BriefcaseBusiness} label="All Records" value={leads.length} chip={newChip(newCounts.all)} />
+        <StatCard icon={CircleDollarSign} label="Pipeline Value" value={formatMoney(pipelineValue)} chip={newChip(newCounts.pipeline)} />
+        <StatCard icon={Send} label="Proposal Sent" value={proposalSentCount} chip={newChip(newCounts.proposal)} />
+        <StatCard icon={CircleCheck} label="Deals Closed" value={dealsClosedCount} chip={newChip(newCounts.closed)} />
       </div>
 
       {truncatedAt && (
@@ -466,207 +412,194 @@ export function LeadsClient({
         </div>
       )}
 
-      {/* ── 4. Search & Filter Bar ─────────────────────────────────── */}
-      <div className="flex items-center gap-3 flex-wrap text-xs">
-        {/* Search input */}
-        <div className="relative flex-1 min-w-[240px] max-w-sm">
-          <Search size={14} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-primary-400 dark:text-primary-300" />
-          <Input
-            type="search"
-            aria-label="Search records"
-            placeholder="Search customer, brand, project #..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-8"
+      {/* ── Toolbar: search + filters | sort, columns | views ─────── */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative w-[285px] max-w-full">
+            <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" />
+            <input
+              type="search"
+              aria-label="Search records"
+              placeholder="Search contacts…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="h-9 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-2.5 text-[13px] leading-[1.45] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
+            />
+          </div>
+
+          <Select
+            aria-label="Priority"
+            className={FILTER_CLS}
+            value={fPriority}
+            onValueChange={v => setFPriority(v ?? '')}
+            options={[
+              { value: '', label: 'Priority' },
+              { value: 'high', label: 'High' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'low', label: 'Low' },
+            ]}
           />
+
+          <Select
+            aria-label="Assignee"
+            className={FILTER_CLS}
+            value={fAssignee}
+            onValueChange={v => setFAssignee(v ?? '')}
+            options={[
+              { value: '', label: 'Assignee' },
+              { value: '__none__', label: 'Unassigned' },
+              ...assignees.map(a => ({ value: a.id, label: a.full_name })),
+            ]}
+          />
+
+          <Select
+            aria-label="Region"
+            className={FILTER_CLS}
+            value={fRegion}
+            onValueChange={v => setFRegion(v ?? '')}
+            options={[{ value: '', label: 'Regions' }, ...REGIONS.map(r => ({ value: r.code, label: r.label }))]}
+          />
+
+          {/* A filter toggle, not a view — so a pressed button. */}
+          <button
+            type="button"
+            aria-pressed={mine}
+            onClick={() => setMine(m => !m)}
+            className={cn(FILTER_CLS, 'pr-3 aria-pressed:border-[var(--color-secondary-700)] aria-pressed:bg-ui-selected-bg dark:aria-pressed:border-ui-heading')}
+          >
+            <User aria-hidden />
+            Mine · {myCount}
+          </button>
+
+          {archivedCount > 0 && (
+            <button
+              type="button"
+              aria-pressed={showArchived}
+              onClick={() => setShowArchived(a => !a)}
+              className={cn(FILTER_CLS, 'pr-3 aria-pressed:bg-ui-selected-bg')}
+            >
+              <Archive aria-hidden />
+              {showArchived ? 'Hide' : 'Show'} archived · {archivedCount}
+            </button>
+          )}
+
+          {selectedStage && (
+            <button type="button" onClick={() => setSelectedStage(null)} className="text-[13px] font-medium text-ui-link hover:underline">
+              Clear “{STATUS_META[selectedStage].label}” filter
+            </button>
+          )}
         </div>
 
-        <Select
-          aria-label="Priority"
-          className="w-auto min-w-32"
-          value={fPriority}
-          onValueChange={v => setFPriority(v ?? '')}
-          options={[
-            { value: '', label: 'All priorities' },
-            { value: 'high', label: 'High' },
-            { value: 'medium', label: 'Medium' },
-            { value: 'low', label: 'Low' },
-          ]}
-        />
+        <div className="flex flex-wrap items-center justify-end gap-4">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <ArrowDownUp aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-[1] size-3.5 -translate-y-1/2 text-[var(--color-secondary-700)] dark:text-ui-heading" />
+              <Select
+                aria-label="Sort"
+                className={cn(FILTER_CLS, 'gap-2 pl-[34px]')}
+                value={sortBy}
+                onValueChange={v => setSortBy(v ?? 'created_desc')}
+                options={[
+                  { value: 'created_desc', label: 'Newest' },
+                  { value: 'created_asc', label: 'Oldest' },
+                  { value: 'deal_desc', label: 'Deal size' },
+                  { value: 'priority', label: 'Priority' },
+                ]}
+              />
+            </div>
 
-        <Select
-          aria-label="Assignee"
-          className="w-auto min-w-32"
-          value={fAssignee}
-          onValueChange={v => setFAssignee(v ?? '')}
-          options={[
-            { value: '', label: 'All assignees' },
-            { value: '__none__', label: 'Unassigned' },
-            ...assignees.map(a => ({ value: a.id, label: a.full_name })),
-          ]}
-        />
-
-        <Select
-          aria-label="Region"
-          className="w-auto min-w-32"
-          value={fRegion}
-          onValueChange={v => setFRegion(v ?? '')}
-          options={[{ value: '', label: 'All regions' }, ...REGIONS.map(r => ({ value: r.code, label: r.label }))]}
-        />
-
-        <Select
-          aria-label="Sort"
-          className="w-auto min-w-32"
-          value={sortBy}
-          onValueChange={v => setSortBy(v ?? 'created_desc')}
-          options={[
-            { value: 'created_desc', label: 'Newest first' },
-            { value: 'created_asc', label: 'Oldest first' },
-            { value: 'deal_desc', label: 'Deal size (high→low)' },
-            { value: 'priority', label: 'Priority' },
-          ]}
-        />
-
-        {view === 'list' && (
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="sm"
-              aria-expanded={colsOpen}
-              className="dark:h-9 dark:rounded-lg dark:px-3"
-              onClick={e => { e.stopPropagation(); setColsOpen(o => !o); }}
-            >
-              <Columns3 size={13} />
-              <span>Columns</span>
-              <ChevronDown size={13} />
-            </Button>
-            {colsOpen && (
-              <>
-                <div className="fixed inset-0 z-20" onClick={() => setColsOpen(false)} />
-                <div className="absolute right-0 top-full mt-1.5 z-30 w-52 max-h-80 overflow-auto bg-ui-surface-elevated border border-ui-divider rounded-xl shadow-lg p-1.5">
-                  {LEAD_COLUMNS.map((c, i) => (
-                    <label key={c} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs ${i === 0 ? 'text-primary-400 dark:text-primary-300' : 'text-primary-700 dark:text-primary-100 hover:bg-primary-50 dark:hover:bg-primary-700 cursor-pointer'}`}>
-                      <Checkbox disabled={i === 0} checked={i === 0 || !hiddenCols.has(c)} onCheckedChange={() => toggleCol(c)} />
-                      {c}
-                    </label>
-                  ))}
-                </div>
-              </>
+            {view === 'list' && (
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-expanded={colsOpen}
+                  className={cn(FILTER_CLS, 'gap-2 px-3')}
+                  onClick={e => { e.stopPropagation(); setColsOpen(o => !o); }}
+                >
+                  <Columns2 aria-hidden />
+                  Columns
+                  <ChevronDown aria-hidden />
+                </button>
+                {colsOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setColsOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1.5 z-30 w-52 max-h-80 overflow-auto bg-ui-surface-elevated border border-ui-divider rounded-xl shadow-lg p-1.5">
+                      {LEAD_COLUMNS.map((c, i) => (
+                        <label key={c} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs ${i === 0 ? 'text-primary-400 dark:text-primary-300' : 'text-primary-700 dark:text-primary-100 hover:bg-primary-50 dark:hover:bg-primary-700 cursor-pointer'}`}>
+                          <Checkbox disabled={i === 0} checked={i === 0 || !hiddenCols.has(c)} onCheckedChange={() => toggleCol(c)} />
+                          {c}
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             )}
+
+            <Link href="/leads/trash" aria-label="Trash" title="Trash" className={cn(FILTER_CLS, 'px-2.5 no-underline')}>
+              <Trash2 aria-hidden />
+            </Link>
           </div>
-        )}
 
-        {archivedCount > 0 && (
-          <Button variant="outline" size="sm" aria-pressed={showArchived} onClick={() => setShowArchived(a => !a)}>
-            <Archive size={13} />
-            {showArchived ? 'Hide' : 'Show'} archived · {archivedCount}
-          </Button>
-        )}
+          <span aria-hidden className="h-9 w-px bg-ui-divider" />
 
-        {selectedStage && (
-          <Button variant="link" size="sm" onClick={() => setSelectedStage(null)}>
-            Clear stage filter
-          </Button>
-        )}
-
-        <span className="text-xs text-primary-400 dark:text-primary-300 font-medium ml-auto">
-          {visibleLeads.length} shown
-        </span>
+          <div role="group" aria-label="View" className="flex items-center gap-2">
+            {VIEW_TABS.map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={view === key}
+                onClick={() => setView(key)}
+                className={cn(
+                  'inline-flex h-9 items-center justify-center gap-2 rounded-[6px] border px-8 text-[13px] font-semibold leading-[1.4] transition-colors [&_svg]:size-3.5',
+                  view === key
+                    ? 'border-[var(--color-secondary-700)] bg-transparent text-[var(--color-secondary-700)] dark:border-ui-heading dark:text-ui-heading'
+                    : 'border-ui-divider bg-ui-surface-elevated text-ui-body hover:bg-ui-hover-bg',
+                )}
+              >
+                <Icon aria-hidden />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* ── 5. Main 2-Column Section (Table Area + Pipeline Stages Sidebar) ── */}
-      <div className="flex items-start gap-5">
-        {/* Left Side: Opportunities Table / Board View */}
-        <div className={view === 'list' ? 'flex-1 min-w-0' : 'flex-1 min-w-0 bg-ui-surface-elevated border border-ui-divider rounded-2xl shadow-2xs overflow-hidden'}>
-          {view === 'list' && (
-            <LeadsTable
-              leads={visibleLeads}
-              assignees={assignees}
-              marketingAssignees={marketingAssignees}
-              collapsed={collapsed}
-              hiddenColumns={hiddenCols}
-              resetKey={[search, fPriority, fAssignee, fRegion, sortBy, mine, showArchived, selectedStage].join('|')}
-              onToggleGroup={toggleGroup}
-              onStatusChange={handleStatusChange}
-              onPriorityChange={handlePriorityChange}
-              onIndustryChange={handleIndustryChange}
-              onToDoChange={handleToDoChange}
-              onRequestChange={handleRequestChange}
-              onProjectTypeRawChange={handleProjectTypeRawChange}
-              onSourceRawChange={handleSourceRawChange}
-              onTargetedChange={handleTargetedChange}
-              onPaymentChange={handlePaymentChange}
-              onDealSizeChange={handleDealSizeChange}
-              onDepositChange={handleDepositChange}
-              onAssigneeChange={handleAssigneeChange}
-              onContextMenu={openMenu}
-              onOpen={handleOpen}
-            />
-          )}
+      {/* ── Records ───────────────────────────────────────────────── */}
+      <div className={view === 'list' ? 'min-w-0' : 'min-w-0 bg-ui-surface-elevated border border-ui-divider rounded-2xl shadow-2xs overflow-hidden'}>
+        {view === 'list' && (
+          <LeadsTable
+            leads={visibleLeads}
+            assignees={assignees}
+            marketingAssignees={marketingAssignees}
+            collapsed={collapsed}
+            hiddenColumns={hiddenCols}
+            resetKey={[search, fPriority, fAssignee, fRegion, sortBy, mine, showArchived, selectedStage].join('|')}
+            onToggleGroup={toggleGroup}
+            onStatusChange={handleStatusChange}
+            onPriorityChange={handlePriorityChange}
+            onIndustryChange={handleIndustryChange}
+            onToDoChange={handleToDoChange}
+            onRequestChange={handleRequestChange}
+            onProjectTypeRawChange={handleProjectTypeRawChange}
+            onSourceRawChange={handleSourceRawChange}
+            onTargetedChange={handleTargetedChange}
+            onPaymentChange={handlePaymentChange}
+            onDealSizeChange={handleDealSizeChange}
+            onDepositChange={handleDepositChange}
+            onAssigneeChange={handleAssigneeChange}
+            onContextMenu={openMenu}
+            onOpen={handleOpen}
+          />
+        )}
 
-          {view === 'board' && (
-            <LeadsBoard leads={visibleLeads} onStatusChange={handleStatusChange} onContextMenu={openMenu} onOpen={handleOpen} />
-          )}
+        {view === 'board' && (
+          <LeadsBoard leads={visibleLeads} onStatusChange={handleStatusChange} onContextMenu={openMenu} onOpen={handleOpen} />
+        )}
 
-          {view === 'calendar' && (
-            <LeadsCalendar leads={visibleLeads} />
-          )}
-        </div>
-
-        {/* ── Right Side: Pipeline Stages Sidebar ───────────────────── */}
-        <div className="hidden xl:block w-64 shrink-0 bg-ui-surface-elevated border border-ui-divider rounded-2xl p-4.5 shadow-2xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-primary-800 dark:text-primary-50 uppercase tracking-wider">
-              Pipeline stages
-            </h3>
-            <div className="flex items-center gap-3 text-[11px] text-primary-400 dark:text-primary-300">
-              <Link href="/settings" className={buttonVariants({ variant: 'ghost', size: 'xs', className: 'text-primary-400 dark:text-primary-300 hover:text-primary-700' })}>
-                <Settings size={13} />
-                <span>Set</span>
-              </Link>
-              <Link href="/leads/trash" className={buttonVariants({ variant: 'ghost', size: 'xs', className: 'text-primary-400 dark:text-primary-300 hover:text-primary-700' })}>
-                <Trash2 size={13} />
-                <span>Trash</span>
-              </Link>
-            </div>
-          </div>
-
-          {/* Stage list with progress bar & counts */}
-          <div className="space-y-2.5">
-            {ALL_PIPELINE_STAGES.filter(st => (counts[st.key] ?? 0) > 0 || selectedStage === st.key).map((s) => {
-              const count = counts[s.key] ?? 0;
-              const stageColor = `var(--status-${opportunityTagTone(s.key)}-fg)`;
-              const isFiltered = selectedStage === s.key;
-              const pct = count > 0 ? Math.min(100, Math.round((count / maxStageCount) * 100)) : 0;
-
-              return (
-                <div
-                  key={s.key}
-                  onClick={() => setSelectedStage(prev => prev === s.key ? null : s.key)}
-                  className={`flex items-center justify-between gap-3 text-xs py-1 px-1.5 rounded-lg transition-colors cursor-pointer ${isFiltered ? 'bg-ui-selected-bg font-bold' : 'hover:bg-primary-50 dark:hover:bg-primary-700'
-                    }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: stageColor }} />
-                    <span className="truncate text-primary-700 dark:text-primary-100 font-medium text-[12px]">{s.label}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <div className="w-14 h-1.5 bg-primary-100 dark:bg-primary-700 rounded-full overflow-hidden">
-                      {count > 0 && (
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${pct}%`, backgroundColor: stageColor }}
-                        />
-                      )}
-                    </div>
-                    <span className="text-primary-800 dark:text-primary-50 font-bold text-xs w-4 text-right">{count}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        {view === 'calendar' && (
+          <LeadsCalendar leads={visibleLeads} />
+        )}
       </div>
 
       {/* Quick View Drawers */}

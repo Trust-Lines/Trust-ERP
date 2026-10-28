@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import { X, Plus } from 'lucide-react';
 import { hashColor, readableTextColor } from '@/lib/marketing/pillColor';
 
-export function TagMultiSelect({ values, options, onChange, placeholder = 'Add…' }: {
+export function TagMultiSelect({ values, options, onChange, placeholder = 'Add…', variant }: {
   values: string[];
   options: string[];
   onChange: (next: string[]) => void;
   placeholder?: string;
+  variant?: 'chip';
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -52,12 +53,23 @@ export function TagMultiSelect({ values, options, onChange, placeholder = 'Add�
           </span>
         );
       })}
-      <button
-        onClick={() => setOpen(s => !s)}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 3, border: '1px dashed var(--border-subtle)', borderRadius: 4, padding: '2px 7px', background: 'none', cursor: 'pointer', fontSize: 10.5, color: 'var(--fg-faint)' }}
-      >
-        <Plus size={11} /> {values.length === 0 ? placeholder : ''}
-      </button>
+      {variant === 'chip' ? (
+        // Figma "Add tag" status chip (node 309:12454): dashed T0 border, always labelled.
+        <button
+          type="button"
+          onClick={() => setOpen(s => !s)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 22, border: '1px dashed var(--status-t0-bg)', borderRadius: 4, padding: '3px 10px 3px 8px', background: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500, lineHeight: '16px', color: 'var(--status-t0-fg)' }}
+        >
+          <Plus size={16} /> {placeholder}
+        </button>
+      ) : (
+        <button
+          onClick={() => setOpen(s => !s)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 3, border: '1px dashed var(--border-subtle)', borderRadius: 4, padding: '2px 7px', background: 'none', cursor: 'pointer', fontSize: 10.5, color: 'var(--fg-faint)' }}
+        >
+          <Plus size={11} /> {values.length === 0 ? placeholder : ''}
+        </button>
+      )}
 
       {open && (
         <div style={{

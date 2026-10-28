@@ -79,7 +79,7 @@ export default async function SalesTasksPage() {
   }
 
   return (
-    <div style={{ padding: '24px 32px' }}>
+    <div style={{ padding: 28 }}>
       <TasksClient tasks={tasks} assignees={assignees} currentUserId={user.id} />
     </div>
   );

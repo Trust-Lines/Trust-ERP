@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Filter, Download, Copy, Send, FolderInput, Upload } from 'lucide-react';
+import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Loader2, ArrowUp, ArrowDown, Ban, Filter, Download, Copy, Send, FolderInput, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { SOURCE_LABEL } from '@/lib/marketing/classification';
@@ -97,13 +97,13 @@ function QueryPill({ label, active, onClick }: { label: string; active: boolean;
     <button
       type="button"
       onClick={onClick}
-      style={{
-        fontSize: 12.5, fontWeight: 600, padding: '5px 12px', borderRadius: 999, whiteSpace: 'nowrap',
-        border: active ? '1px solid var(--brand-teal-600, #0d9488)' : '1px solid var(--border-subtle)',
-        background: active ? 'var(--brand-teal-600, #0d9488)' : 'var(--bg-surface)',
-        color: active ? '#fff' : 'var(--fg-default)',
-        cursor: 'pointer', transition: 'background 120ms, color 120ms, border-color 120ms',
-      }}
+      aria-pressed={active}
+      className={cn(
+        'inline-flex h-8 cursor-pointer items-center whitespace-nowrap rounded-[6px] border px-3 text-[12px] font-semibold',
+        active
+          ? 'border-[var(--color-secondary-700)] bg-[var(--color-secondary-700)] text-white dark:border-ui-heading dark:bg-ui-heading dark:text-primary-950'
+          : 'border-ui-input-border bg-ui-input-bg text-[var(--color-secondary-700)] hover:bg-ui-hover-bg dark:text-ui-heading',
+      )}
     >
       {label}
     </button>
@@ -119,6 +119,34 @@ const FILTER_STYLE: React.CSSProperties = {
 };
 const TH_CLS = 'h-[46px] whitespace-nowrap px-2.5 text-[12px] font-semibold leading-[1.4] text-ui-body first:pl-[18px]';
 const TD_CLS = 'px-2.5 py-2 text-[13px] text-ui-body first:pl-[18px]';
+// Shared with the Potentials tab (OpportunitiesPageClient) so both tabs read the same.
+const SUB_TD_CLS = 'px-2.5 py-2 text-[12px] text-ui-text-secondary';
+const PAGE_BTN = 'inline-flex h-[34px] items-center justify-center gap-1 rounded-[6px] border border-ui-input-border bg-ui-input-bg px-[14px] text-[13px] font-semibold text-[var(--color-secondary-700)] disabled:opacity-50 dark:text-ui-heading [&_svg]:size-3.5';
+const DATE_TIME = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+const DATE_ONLY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+function NotAssignedChip() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-[4px] py-[3px] pl-2 pr-2.5 text-[12px] font-medium"
+      style={{ background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}
+    >
+      <Ban size={14} aria-hidden /> Not Assigned
+    </span>
+  );
+}
+
+function CompletenessBar({ percent }: { percent: number }) {
+  const tone = percent >= 80 ? 't6' : percent >= 40 ? 't7' : 't10';
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="h-[5px] w-[60px] overflow-hidden rounded-[3px] bg-ui-surface">
+        <div className="h-full" style={{ width: `${percent}%`, background: `var(--status-${tone}-fg)` }} />
+      </div>
+      <span className="text-[11px] text-ui-text-secondary">{percent}%</span>
+    </div>
+  );
+}
 
 function initials(name: string): string {
   return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
@@ -399,17 +427,20 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     setSortDir('desc');
   }
 
+  // Same as the Potentials tab: only the active sort column shows an arrow.
   function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
-    if (!active) return <ArrowUpDown size={11} style={{ opacity: 0.35 }} />;
-    return dir === 'asc' ? <ArrowUp size={11} /> : <ArrowDown size={11} />;
+    if (!active) return null;
+    return dir === 'asc' ? <ArrowUp size={12} aria-hidden /> : <ArrowDown size={12} aria-hidden />;
   }
 
   function SortableTh({ label, sortKeyName }: { label: string; sortKeyName: string }) {
     return (
-      <th className={TH_CLS}>
+      <th className={TH_CLS} aria-sort={sortKey === sortKeyName ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}>
         <button
+          type="button"
+          title={`Sort by ${label}`}
           onClick={() => toggleSort(sortKeyName)}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', font: 'inherit', padding: 0, textTransform: 'inherit', letterSpacing: 'inherit' }}
+          className="inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 font-[inherit] text-[inherit]"
         >
           {label}
           <SortIcon active={sortKey === sortKeyName} dir={sortDir} />
@@ -461,10 +492,10 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
 
   if (loadError) {
     return (
-      <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
-        <AlertTriangle size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
+      <div className="rounded-[8px] border border-ui-divider bg-ui-surface-elevated p-12 text-center text-[13px] text-ui-text-secondary">
+        <AlertTriangle size={28} className="mx-auto mb-2" style={{ color: 'var(--status-t7-fg)' }} />
         <div>Contacts isn&apos;t ready yet. Migrations 072/073 need to be applied.</div>
-      </div></div>
+      </div>
     );
   }
 
@@ -511,12 +542,10 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
           are 50+ real ones (2026-09-28), a row of that many buttons was the opposite of easy
           to use, so that one stayed a searchable Select instead. */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--fg-subtle)' }}>
-          Quick queries
-        </span>
+        <span className="text-[12px] font-medium text-ui-body">Quick queries</span>
         {campaigns.length > 0 && (
           <Select
-            className="form-input" style={{ maxWidth: 220, fontSize: 13 }}
+            className="form-input" style={{ ...FILTER_STYLE, height: 32, maxWidth: 220 }}
             value={campaignFilter} onChange={e => setCampaignFilter(e.target.value)} aria-label="Filter by campaign/event"
           >
             <option value="">Campaign / event…</option>
@@ -647,24 +676,24 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
       </div>
 
       {total === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
+        <div className="flex flex-col items-center gap-2 rounded-[6px] border border-ui-divider bg-ui-page-bg px-6 py-12 text-center text-[13px] text-ui-text-secondary">
           {queryRequired && !hasAnyQuery ? (
             <>
-              <Filter size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
+              <Filter size={28} className="opacity-40" aria-hidden />
               <div>Pick a campaign, survey, project status, or search above to pull a contact list.</div>
             </>
           ) : (
             <>
-              <Users size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
+              <Users size={28} className="opacity-40" aria-hidden />
               <div>
                 {hasFilters ? 'No contacts match your filters.' : <>No contacts yet.{canEdit && ' Click "Capture New Contact" to add the first one.'}</>}
               </div>
             </>
           )}
-        </div></div>
+        </div>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-control border border-ui-divider bg-ui-page-bg">
+          <div className="overflow-x-auto rounded-[6px] border border-ui-divider bg-ui-page-bg">
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
               <thead>
                 <tr className="border-b border-ui-divider bg-ui-surface text-left">
@@ -677,32 +706,38 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                   <SortableTh label="Date created" sortKeyName="created_at" />
                   <SortableTh label="Information" sortKeyName="information" />
                   <SortableTh label="Whatsapp" sortKeyName="whatsapp" />
-                  {canEdit && <th className={TH_CLS}></th>}
+                  {canEdit && <th className={TH_CLS}><span className="sr-only">Actions</span></th>}
                 </tr>
               </thead>
               <tbody style={{ opacity: loading ? 0.5 : 1 }}>
-                {displayProspects.map(p => (
+                {displayProspects.map(p => {
+                  const source = p.source_raw_label || (p.source_label ? (SOURCE_LABEL[p.source_label as keyof typeof SOURCE_LABEL] ?? p.source_label) : null);
+                  const assigneeName = canEdit ? (assignees.find(a => a.id === p.assigned_marketing_user_id)?.full_name ?? null) : p.owner_name;
+                  return (
                   <Fragment key={p.id}>
                   <tr
                     onClick={() => setQuickViewId(p.id)}
                     className="h-16 cursor-pointer border-t border-ui-divider hover:bg-ui-surface"
                   >
                     <td className={TD_CLS}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {/* Companies always expand to their contact person(s), like ClickUp's
                             Company → Person rows — even with just one, the primary contact's
                             name is otherwise never shown anywhere on the collapsed row. */}
                         {(p.entity_type === 'organization' ? !!p.primary_contact || p.other_contacts.length > 0 : p.other_contacts.length > 0) ? (
                           <button
+                            type="button"
                             onClick={e => { e.stopPropagation(); toggleExpand(p.id); }}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0, display: 'flex', transform: expandedIds.has(p.id) ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform .1s' }}
+                            className="flex cursor-pointer border-0 bg-transparent p-0 text-ui-text-secondary transition-transform"
+                            style={{ transform: expandedIds.has(p.id) ? 'rotate(0deg)' : 'rotate(-90deg)' }}
                             aria-label={expandedIds.has(p.id) ? 'Collapse' : 'Expand'}
+                            aria-expanded={expandedIds.has(p.id)}
                           >
                             <ChevronDown size={13} />
                           </button>
                         ) : <span style={{ width: 13 }} />}
                         <EntityIcon type={p.entity_type} />
-                        <span className={cn('text-[13px] font-semibold', HEADING_TEXT)}>{p.display_name}</span>
+                        <span className={cn('text-[12px] font-medium', HEADING_TEXT)}>{p.display_name}</span>
                         {p.other_contacts.length > 0 && (
                           <span className="text-[11px] text-ui-text-secondary">+{p.other_contacts.length}</span>
                         )}
@@ -713,94 +748,93 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                     <td className={TD_CLS}>{p.state ?? '—'}</td>
                     <td className={TD_CLS}>
                       {canEdit ? (
-                        <SourceSelect
-                          value={p.source_raw_label || (p.source_label ? (SOURCE_LABEL[p.source_label as keyof typeof SOURCE_LABEL] ?? p.source_label) : null)}
-                          options={sourceOptions}
-                          onChange={v => updateSource(p, v)}
-                        />
+                        <SourceSelect value={source} options={sourceOptions} onChange={v => updateSource(p, v)} />
                       ) : (
-                        <span style={{ color: 'var(--fg-subtle)' }}>
-                          {p.source_raw_label || (p.source_label ? (SOURCE_LABEL[p.source_label as keyof typeof SOURCE_LABEL] ?? p.source_label) : '—')}
-                        </span>
+                        <span>{source ?? '—'}</span>
                       )}
                     </td>
                     <td className={TD_CLS}>
                       {canEdit ? (
                         <TagMultiSelect values={p.business_types ?? []} options={businessTypeOptions} onChange={v => updateBusinessTypes(p, v)} placeholder="Add…" />
-                      ) : (p.business_types ?? []).length === 0 ? <span style={{ color: 'var(--fg-subtle)' }}>—</span> : (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                      ) : (p.business_types ?? []).length === 0 ? <span>—</span> : (
+                        <div className="flex flex-wrap gap-[3px]">
                           {(p.business_types ?? []).map(bt => <TagPill key={bt} label={bt} bg={hashColor(bt)} />)}
                         </div>
                       )}
                     </td>
                     <td className={TD_CLS} onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center gap-2">
-                        <OwnerAvatar name={canEdit ? (assignees.find(a => a.id === p.assigned_marketing_user_id)?.full_name ?? null) : p.owner_name} />
-                        {canEdit ? (
+                      {canEdit ? (
+                        <div className="flex items-center gap-2">
+                          {assigneeName && <OwnerAvatar name={assigneeName} />}
                           <Select
                             value={p.assigned_marketing_user_id ?? ''}
                             onChange={e => updateAssignee(p, e.target.value)}
-                            className="form-input"
-                            style={{ fontSize: 13, padding: '4px 6px', border: '1px solid transparent', background: 'transparent', cursor: 'pointer', maxWidth: 150 }}
-                            onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
-                            onMouseLeave={e => (e.currentTarget.style.borderColor = 'transparent')}
+                            aria-label="Assignee"
+                            className="max-w-[150px] cursor-pointer rounded-[4px] border border-transparent bg-transparent py-1 pl-1 pr-5 text-[13px] text-ui-body hover:border-ui-input-border"
                           >
-                            <option value="">— Unassigned —</option>
+                            <option value="">Not Assigned</option>
                             {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
                           </Select>
-                        ) : (
-                          <span>{p.owner_name ?? '—'}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className={TD_CLS}>
-                      {p.target_contact_date ? (
-                        <span style={{ color: p.target_contact_date < todayIso ? 'var(--status-danger)' : 'var(--fg-subtle)' }}>
-                          {new Date(p.target_contact_date).toLocaleDateString('en-US', { timeZone: 'UTC' })}
-                        </span>
-                      ) : <span style={{ color: 'var(--fg-subtle)' }}>—</span>}
-                    </td>
-                    <td className={TD_CLS}>
-                      {new Date(p.effective_created_at ?? p.external_created_at ?? p.created_at).toLocaleDateString('en-US')}
-                    </td>
-                    <td className={TD_CLS}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ width: 60, height: 5, borderRadius: 3, background: 'var(--bg-sunken)', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${p.completeness_percent}%`, background: p.completeness_percent >= 80 ? 'var(--status-success)' : p.completeness_percent >= 40 ? 'var(--status-warning)' : 'var(--status-danger)' }} />
                         </div>
-                        <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{p.completeness_percent}%</span>
-                      </div>
+                      ) : assigneeName ? (
+                        <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                          <OwnerAvatar name={assigneeName} />
+                          {assigneeName}
+                        </span>
+                      ) : (
+                        <NotAssignedChip />
+                      )}
+                    </td>
+                    <td className={cn(TD_CLS, 'whitespace-nowrap')}>
+                      {p.target_contact_date ? (
+                        <span style={p.target_contact_date < todayIso ? { color: 'var(--status-t10-fg)' } : undefined}>
+                          {DATE_ONLY.format(new Date(p.target_contact_date))}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td className={cn(TD_CLS, 'whitespace-nowrap')}>
+                      {DATE_TIME.format(new Date(p.effective_created_at ?? p.external_created_at ?? p.created_at))}
+                    </td>
+                    <td className={TD_CLS}>
+                      <CompletenessBar percent={p.completeness_percent} />
                     </td>
                     <td className={TD_CLS} onClick={e => e.stopPropagation()}>
                       <input
                         type="checkbox" checked={p.whatsapp} disabled={!canEdit || !p.primary_contact_id}
                         onChange={() => toggleWhatsapp(p)}
-                        style={{ accentColor: p.whatsapp ? 'var(--status-success)' : undefined, cursor: canEdit && p.primary_contact_id ? 'pointer' : 'default', width: 15, height: 15 }}
+                        aria-label={`WhatsApp for ${p.display_name}`}
+                        className="size-4 accent-[var(--color-secondary-700)]"
+                        style={{ cursor: canEdit && p.primary_contact_id ? 'pointer' : 'default' }}
                       />
                     </td>
                     {canEdit && (
                       <td className={TD_CLS}>
-                        <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }} onClick={e => trashProspect(e, p)} title="Delete">
-                          <Trash2 size={13} />
+                        <button
+                          type="button"
+                          onClick={e => trashProspect(e, p)}
+                          title="Delete"
+                          aria-label={`Delete ${p.display_name}`}
+                          className="inline-flex size-8 cursor-pointer items-center justify-center rounded-[6px] border-0 hover:brightness-95"
+                          style={{ background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' }}
+                        >
+                          <Trash2 size={14} aria-hidden />
                         </button>
                       </td>
                     )}
                   </tr>
                   {expandedIds.has(p.id) && p.entity_type === 'organization' && p.primary_contact && (
-                    <tr style={{ borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
-                      <td style={{ padding: '8px 12px 8px 41px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <User size={13} style={{ color: 'var(--brand-orange-600)', flexShrink: 0 }} />
-                          <span style={{ fontSize: 12.5 }}>{p.primary_contact}</span>
+                    <tr className="border-t border-ui-divider bg-ui-surface">
+                      <td className="py-2 pl-[41px] pr-2.5">
+                        <div className="flex items-center gap-1.5 text-[12px] text-ui-body">
+                          <User size={13} className="shrink-0 text-ui-text-secondary" aria-hidden />
+                          {p.primary_contact}
                         </div>
                       </td>
-                      <td style={{ padding: '8px 12px', color: 'var(--fg-faint)', fontSize: 12 }}>{p.state ?? '—'}</td>
-                      <td style={{ padding: '8px 12px', color: 'var(--fg-faint)', fontSize: 12 }}>
-                        {p.source_raw_label || (p.source_label ? (SOURCE_LABEL[p.source_label as keyof typeof SOURCE_LABEL] ?? p.source_label) : '—')}
-                      </td>
-                      <td style={{ padding: '8px 12px' }}>
-                        {(p.business_types ?? []).length === 0 ? <span style={{ color: 'var(--fg-faint)', fontSize: 12 }}>—</span> : (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                      <td className={SUB_TD_CLS}>{p.state ?? '—'}</td>
+                      <td className={SUB_TD_CLS}>{source ?? '—'}</td>
+                      <td className={SUB_TD_CLS}>
+                        {(p.business_types ?? []).length === 0 ? '—' : (
+                          <div className="flex flex-wrap gap-[3px]">
                             {(p.business_types ?? []).map(bt => <TagPill key={bt} label={bt} bg={hashColor(bt)} />)}
                           </div>
                         )}
@@ -808,39 +842,32 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                       <td />
                       <td />
                       <td />
-                      <td style={{ padding: '8px 12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <div style={{ width: 60, height: 5, borderRadius: 3, background: 'var(--bg-sunken)', overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${p.completeness_percent}%`, background: p.completeness_percent >= 80 ? 'var(--status-success)' : p.completeness_percent >= 40 ? 'var(--status-warning)' : 'var(--status-danger)' }} />
-                          </div>
-                          <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{p.completeness_percent}%</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '8px 12px' }}>
+                      <td className={SUB_TD_CLS}><CompletenessBar percent={p.completeness_percent} /></td>
+                      <td className={SUB_TD_CLS}>
                         <input
                           type="checkbox" checked={p.whatsapp} disabled={!canEdit || !p.primary_contact_id}
                           onChange={() => toggleWhatsapp(p)}
-                          style={{ accentColor: p.whatsapp ? 'var(--status-success)' : undefined, cursor: canEdit && p.primary_contact_id ? 'pointer' : 'default', width: 15, height: 15 }}
+                          aria-label={`WhatsApp for ${p.primary_contact}`}
+                          className="size-4 accent-[var(--color-secondary-700)]"
+                          style={{ cursor: canEdit && p.primary_contact_id ? 'pointer' : 'default' }}
                         />
                       </td>
                       {canEdit && <td />}
                     </tr>
                   )}
                   {expandedIds.has(p.id) && p.other_contacts.map(oc => (
-                    <tr key={oc.id} style={{ borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
-                      <td style={{ padding: '8px 12px 8px 41px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <User size={13} style={{ color: 'var(--brand-orange-600)', flexShrink: 0 }} />
-                          <span style={{ fontSize: 12.5 }}>{oc.name}</span>
+                    <tr key={oc.id} className="border-t border-ui-divider bg-ui-surface">
+                      <td className="py-2 pl-[41px] pr-2.5">
+                        <div className="flex items-center gap-1.5 text-[12px] text-ui-body">
+                          <User size={13} className="shrink-0 text-ui-text-secondary" aria-hidden />
+                          {oc.name}
                         </div>
                       </td>
-                      <td style={{ padding: '8px 12px', color: 'var(--fg-faint)', fontSize: 12 }}>{p.state ?? '—'}</td>
-                      <td style={{ padding: '8px 12px', color: 'var(--fg-faint)', fontSize: 12 }}>
-                        {p.source_raw_label || (p.source_label ? (SOURCE_LABEL[p.source_label as keyof typeof SOURCE_LABEL] ?? p.source_label) : '—')}
-                      </td>
-                      <td style={{ padding: '8px 12px' }}>
-                        {(p.business_types ?? []).length === 0 ? <span style={{ color: 'var(--fg-faint)', fontSize: 12 }}>—</span> : (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                      <td className={SUB_TD_CLS}>{p.state ?? '—'}</td>
+                      <td className={SUB_TD_CLS}>{source ?? '—'}</td>
+                      <td className={SUB_TD_CLS}>
+                        {(p.business_types ?? []).length === 0 ? '—' : (
+                          <div className="flex flex-wrap gap-[3px]">
                             {(p.business_types ?? []).map(bt => <TagPill key={bt} label={bt} bg={hashColor(bt)} />)}
                           </div>
                         )}
@@ -848,39 +875,35 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                       <td />
                       <td />
                       <td />
-                      <td style={{ padding: '8px 12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <div style={{ width: 60, height: 5, borderRadius: 3, background: 'var(--bg-sunken)', overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${oc.completeness_percent}%`, background: oc.completeness_percent >= 80 ? 'var(--status-success)' : oc.completeness_percent >= 40 ? 'var(--status-warning)' : 'var(--status-danger)' }} />
-                          </div>
-                          <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{oc.completeness_percent}%</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '8px 12px' }}>
+                      <td className={SUB_TD_CLS}><CompletenessBar percent={oc.completeness_percent} /></td>
+                      <td className={SUB_TD_CLS}>
                         <input
                           type="checkbox" checked={oc.whatsapp} disabled={!canEdit}
                           onChange={() => toggleContactWhatsapp(p, oc.id, oc.whatsapp)}
-                          style={{ accentColor: oc.whatsapp ? 'var(--status-success)' : undefined, cursor: canEdit ? 'pointer' : 'default', width: 15, height: 15 }}
+                          aria-label={`WhatsApp for ${oc.name}`}
+                          className="size-4 accent-[var(--color-secondary-700)]"
+                          style={{ cursor: canEdit ? 'pointer' : 'default' }}
                         />
                       </td>
                       {canEdit && <td />}
                     </tr>
                   ))}
                   </Fragment>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, fontSize: 12.5, color: 'var(--fg-subtle)' }}>
-            <span>Showing {from.toLocaleString('en-US')}–{to.toLocaleString('en-US')} of {total.toLocaleString('en-US')}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button className="btn btn-ghost btn-sm" disabled={page <= 1 || loading} onClick={() => load(page - 1)}>
-                <ChevronLeft size={14} /> Prev
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[12px] text-ui-text-secondary">
+            <span>Showing {from.toLocaleString('en-US')}–{to.toLocaleString('en-US')} of {total.toLocaleString('en-US')} contacts</span>
+            <div className="flex items-center gap-3">
+              <button type="button" className={PAGE_BTN} disabled={page <= 1 || loading} onClick={() => load(page - 1)}>
+                <ChevronLeft aria-hidden /> Previous
               </button>
-              <span>Page {page} of {totalPages}</span>
-              <button className="btn btn-ghost btn-sm" disabled={page >= totalPages || loading} onClick={() => load(page + 1)}>
-                Next <ChevronRight size={14} />
+              <span className="text-ui-body">Page {page} of {totalPages}</span>
+              <button type="button" className={PAGE_BTN} disabled={page >= totalPages || loading} onClick={() => load(page + 1)}>
+                Next <ChevronRight aria-hidden />
               </button>
             </div>
           </div>

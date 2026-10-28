@@ -1,13 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import {
-  Search,
-  ChevronDown,
-  AlertTriangle,
+  Search, AlertTriangle, ArrowDown, ArrowUp, Ban, ChevronDown, ChevronUp, ChevronsUp, FolderInput,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { OpportunityQuickView } from './OpportunityQuickView';
+import { MarketingPipelineNav } from './MarketingPipelineNav';
 import type { OpportunityStage, ProjectType, LeadEntityType } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
 
@@ -64,21 +63,37 @@ interface Props {
   assignees: { id: string; full_name: string }[];
 }
 
+const DATE_TIME = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
-  } catch {
-    return '—';
-  }
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '—' : DATE_TIME.format(d);
 }
 
-const PRIORITY_COLOR: Record<string, string> = { high: '#ef4444', medium: '#f59e0b', low: '#94a3b8' };
+// Figma "Potentials" (node 245:26036) — same tabs, toolbar and table styling as Contacts.
+const HEADING_TEXT = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const PRIMARY_BTN = 'inline-flex h-10 items-center justify-center gap-3 rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-6 text-[13px] font-semibold text-white no-underline hover:bg-[var(--color-secondary-700)]/90 disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950 [&_svg]:size-4';
+const FILTER_STYLE: React.CSSProperties = {
+  height: 40, fontSize: 12, borderRadius: 4, border: '1px solid var(--color-secondary-700)', background: 'var(--ui-input-bg)',
+};
+const TH_CLS = 'h-[46px] whitespace-nowrap px-2.5 text-left text-[12px] font-semibold leading-[1.4] text-ui-body';
+const TD_CLS = 'px-2.5 py-2 text-[13px] text-ui-body';
+const CHECKBOX_CLS = 'size-4 cursor-pointer accent-[var(--color-secondary-700)]';
+
+const PRIORITY: Record<DealRow['priority'], { label: string; Icon: typeof ChevronsUp; color: string }> = {
+  high: { label: 'High', Icon: ChevronsUp, color: 'var(--status-t10-fg)' },
+  medium: { label: 'Medium', Icon: ChevronUp, color: 'var(--status-t7-fg)' },
+  low: { label: 'Low', Icon: ChevronDown, color: 'var(--ui-text-secondary)' },
+};
 const REGION_FILTER_LABEL: Record<string, string> = {
   TLINES_NE: 'TLINES NE', TLINES_SE: 'TLINES SE', TLINES_NW: 'TLINES NW', CVW: 'TLINES WEST',
 };
+
+function csvCell(v: string | number | null | undefined): string {
+  const s = v == null ? '' : String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
 
 // 🔴 2026-09-17: this page is Marketing's Potentials-only work queue now — once a Potential
 // is handed off, it's Sales's business (/leads, which already merges it in). Every row on
@@ -87,6 +102,9 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
   const [deals, setDeals] = useState(initialDeals);
   const [query, setQuery] = useState('');
   const [regionFilter, setRegionFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState('');
+  const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<{ id: string; kind: 'opportunity' | 'potential' } | null>(null);
   const [savingAssignee, setSavingAssignee] = useState<string | null>(null);
 
@@ -110,19 +128,53 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
     }
   }
 
-  const regionFilteredDeals = useMemo(
-    () => (regionFilter === 'all' || !regionFilter ? deals : deals.filter(d => d.region === regionFilter)),
-    [deals, regionFilter],
+  const sources = useMemo(
+    () => [...new Set(deals.map(d => d.source_raw_label).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b)),
+    [deals],
   );
 
   const filteredDeals = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return regionFilteredDeals;
-    return regionFilteredDeals.filter(d =>
-      (d.title || '').toLowerCase().includes(q)
-      || (d.lead_display_name || '').toLowerCase().includes(q)
-      || (d.brand || '').toLowerCase().includes(q));
-  }, [regionFilteredDeals, query]);
+    const rows = deals
+      .filter(d => regionFilter === 'all' || !regionFilter || d.region === regionFilter)
+      .filter(d => !sourceFilter || d.source_raw_label === sourceFilter)
+      .filter(d => !q
+        || (d.title || '').toLowerCase().includes(q)
+        || (d.lead_display_name || '').toLowerCase().includes(q)
+        || (d.brand || '').toLowerCase().includes(q));
+    if (!nameSort) return rows;
+    const dir = nameSort === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => dir * (a.title || a.lead_display_name || '').localeCompare(b.title || b.lead_display_name || ''));
+  }, [deals, regionFilter, sourceFilter, query, nameSort]);
+
+  const selectedRows = filteredDeals.filter(d => selected.has(d.id));
+  const allSelected = filteredDeals.length > 0 && selectedRows.length === filteredDeals.length;
+
+  function toggle(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  // Client-side CSV of the columns shown on screen — selected rows if any, else the filtered list.
+  function exportFile() {
+    const rows = selectedRows.length > 0 ? selectedRows : filteredDeals;
+    const header = ['Name', 'Brand', 'Project no.', 'Priority', 'Assignee', 'Request', 'Location', 'Source', 'Date'];
+    const lines = [header.join(',')].concat(rows.map(d => [
+      d.title || d.lead_display_name, d.brand, d.external_project_code, PRIORITY[d.priority]?.label,
+      d.owner_name ?? 'Not Assigned', d.request_raw, d.formatted_address || d.state, d.source_raw_label,
+      formatDate(d.due_date || d.created_at),
+    ].map(csvCell).join(',')));
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `potentials-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const getInitials = (name: string) =>
     (name || '?')
@@ -134,139 +186,160 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
 
   if (loadError) {
     return (
-      <div className="bg-ui-surface-elevated border border-slate-200/80 rounded-2xl p-12 text-center text-slate-500 shadow-2xs">
-        <AlertTriangle size={28} className="mx-auto text-amber-500 mb-2" />
+      <div className="rounded-[8px] border border-ui-divider bg-ui-surface-elevated p-12 text-center text-[13px] text-ui-text-secondary">
+        <AlertTriangle size={28} className="mx-auto mb-2" style={{ color: 'var(--status-t7-fg)' }} />
         <div>Potentials aren&apos;t ready yet.</div>
       </div>
     );
   }
 
   return (
-    <div className="w-full space-y-5 pb-12">
-      {/* ── Top Header ────────────────────────────────────────────── */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Potentials</h1>
-        <p className="text-xs text-slate-500 font-normal mt-0.5">
-          {filteredDeals.length} records — click a row to open it, contacts still working toward real evidence for a Sales hand-off
+    <div className="w-full pb-12">
+      <div className="mb-[18px] flex flex-col gap-[5px] leading-[1.35]">
+        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Marketing / Contacts / Potentials</p>
+        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Potentials</h1>
+        <p className="m-0 text-[13px] text-ui-body">
+          {filteredDeals.length} record{filteredDeals.length === 1 ? '' : 's'} — click a row to open it, contacts still working toward real evidence for a Sales hand-off
         </p>
       </div>
 
-      {/* ── Navigation Tabs Strip & Filters Bar ───────────────────── */}
-      <div className="flex items-center justify-between flex-wrap gap-4 border-b border-slate-200/80 pb-3">
-        <div className="flex items-center gap-6">
-          <Link
-            href="/marketing/prospects"
-            className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors pb-1"
-          >
-            <span>Contacts</span>
-            <span className="text-slate-400 font-normal">{prospectTotal ?? 0}</span>
-          </Link>
-
-          <button
-            className="flex items-center gap-2 text-xs font-bold text-blue-600 border-b-2 border-blue-600 pb-1 cursor-pointer -mb-[13px]"
-          >
-            <span>Potentials</span>
-            <span className="text-blue-600 font-bold">{filteredDeals.length}</span>
-          </button>
-        </div>
-
-        {/* Right Filter Controls */}
-        <div className="flex items-center gap-3 text-xs">
-          <div className="relative">
-            <Select
-              value={regionFilter}
-              onChange={e => setRegionFilter(e.target.value)}
-              className="appearance-none bg-ui-surface-elevated border border-slate-200/80 rounded-xl pl-3 pr-7 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs font-medium"
-            >
-              <option value="all">All regions</option>
-              {Object.entries(REGION_FILTER_LABEL).map(([code, label]) => <option key={code} value={code}>{label}</option>)}
-            </Select>
-            <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          </div>
-
-          {/* Search */}
-          <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search potentials"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              className="pl-7 pr-3 py-1.5 bg-ui-surface-elevated border border-slate-200/80 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs"
-            />
-          </div>
-        </div>
+      <div style={{ marginBottom: 18 }}>
+        <MarketingPipelineNav
+          current="potentials"
+          prospectCount={prospectTotal} potentialCount={deals.length} opportunityCount={null}
+        />
       </div>
 
-      {/* ── Dense flat table (single group — this page is Potential-only) ── */}
-      <div className="bg-ui-surface-elevated border border-slate-200/80 rounded-2xl shadow-2xs overflow-hidden">
+      <div className="mb-[18px] flex flex-wrap items-center gap-2.5">
+        <div className="relative min-w-[220px] max-w-[380px] flex-[1_1_220px]">
+          <Search size={16} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" aria-hidden />
+          <input
+            className="form-input"
+            style={{ height: 40, paddingLeft: 34, fontSize: 13, borderRadius: 6, borderColor: 'var(--ui-input-border)', background: 'var(--ui-input-bg)' }}
+            placeholder="Search potentials…" value={query} onChange={e => setQuery(e.target.value)}
+            aria-label="Search potentials"
+          />
+        </div>
+        <Select className="form-input" style={{ ...FILTER_STYLE, maxWidth: 170 }} value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} aria-label="Filter by source">
+          <option value="">All Sources</option>
+          {sources.map(s => <option key={s} value={s}>{s}</option>)}
+        </Select>
+        <Select className="form-input" style={{ ...FILTER_STYLE, maxWidth: 170 }} value={regionFilter} onChange={e => setRegionFilter(e.target.value)} aria-label="Filter by region">
+          <option value="all">All regions</option>
+          {Object.entries(REGION_FILTER_LABEL).map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+        </Select>
+        <span className="ml-auto flex items-center gap-2.5">
+          {selectedRows.length > 0 && (
+            <span className="text-[12px] text-ui-text-secondary">{selectedRows.length} selected</span>
+          )}
+          <button
+            type="button" className={PRIMARY_BTN} disabled={filteredDeals.length === 0} onClick={exportFile}
+            title={selectedRows.length > 0 ? 'Download the selected Potentials as CSV' : 'Download every Potential in this list as CSV'}
+          >
+            <FolderInput aria-hidden /> Export File
+          </button>
+        </span>
+      </div>
+
+      <div className="overflow-x-auto rounded-[6px] border border-ui-divider bg-ui-page-bg">
         {filteredDeals.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 text-sm">No Potentials match your filters.</div>
+          <div className="p-12 text-center text-[13px] text-ui-text-secondary">No Potentials match your filters.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs" style={{ minWidth: 1100 }}>
-              <thead>
-                <tr className="text-[10.5px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
-                  <th className="text-left font-semibold px-4 py-2">Name</th>
-                  <th className="text-left font-semibold px-3 py-2">Brand</th>
-                  <th className="text-left font-semibold px-3 py-2">Project #</th>
-                  <th className="text-left font-semibold px-3 py-2">Priority</th>
-                  <th className="text-left font-semibold px-3 py-2">Assignee</th>
-                  <th className="text-left font-semibold px-3 py-2">Request</th>
-                  <th className="text-left font-semibold px-3 py-2">Location</th>
-                  <th className="text-left font-semibold px-3 py-2">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDeals.map(d => (
+          <table className="w-full border-collapse" style={{ minWidth: 1100 }}>
+            <thead>
+              <tr className="border-b border-ui-divider bg-ui-surface">
+                <th className={cn(TH_CLS, 'w-9 pl-[18px]')}>
+                  <input
+                    type="checkbox" className={CHECKBOX_CLS} checked={allSelected} aria-label="Select all"
+                    onChange={() => setSelected(allSelected ? new Set() : new Set(filteredDeals.map(d => d.id)))}
+                  />
+                </th>
+                <th className={TH_CLS}>
+                  <button
+                    type="button"
+                    onClick={() => setNameSort(s => (s === 'asc' ? 'desc' : s === 'desc' ? null : 'asc'))}
+                    className="inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 font-[inherit] text-[inherit]"
+                    aria-label="Sort by name"
+                  >
+                    Name
+                    {nameSort === 'asc' ? <ArrowUp size={12} aria-hidden /> : nameSort === 'desc' ? <ArrowDown size={12} aria-hidden /> : null}
+                  </button>
+                </th>
+                <th className={TH_CLS}>Brand</th>
+                <th className={TH_CLS}>Project no.</th>
+                <th className={TH_CLS}>Priority</th>
+                <th className={TH_CLS}>Assignee</th>
+                <th className={TH_CLS}>Request</th>
+                <th className={TH_CLS}>Location</th>
+                <th className={TH_CLS}>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredDeals.map(d => {
+                const p = PRIORITY[d.priority];
+                const isSelected = selected.has(d.id);
+                return (
                   <tr
                     key={d.id}
                     onClick={() => setOpen({ id: d.id, kind: d.kind })}
-                    className="border-b border-slate-50 last:border-b-0 hover:bg-slate-50/60 cursor-pointer transition-colors"
+                    className={cn('h-16 cursor-pointer border-t border-ui-divider hover:bg-ui-surface', isSelected && 'bg-ui-selected-bg')}
                   >
-                    <td className="px-4 py-2 max-w-[240px]">
-                      <span className="font-semibold text-slate-900 truncate block">
+                    <td className={cn(TD_CLS, 'pl-[18px]')} onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox" className={CHECKBOX_CLS} checked={isSelected} onChange={() => toggle(d.id)}
+                        aria-label={`Select ${d.title || d.lead_display_name}`}
+                      />
+                    </td>
+                    <td className={cn(TD_CLS, 'max-w-[260px]')}>
+                      <span className={cn('block truncate text-[12px] font-medium', HEADING_TEXT)}>
                         {d.title || d.lead_display_name || 'Untitled'}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-slate-600">{d.brand || '—'}</td>
-                    <td className="px-3 py-2 text-slate-600">{d.external_project_code || '—'}</td>
-                    <td className="px-3 py-2">
-                      <span className="inline-flex items-center gap-1.5 text-slate-600">
-                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: PRIORITY_COLOR[d.priority] ?? '#cbd5e1' }} />
-                        {d.priority ? d.priority[0].toUpperCase() + d.priority.slice(1) : 'Not set'}
-                      </span>
+                    <td className={TD_CLS}>{d.brand || '—'}</td>
+                    <td className={TD_CLS}>{d.external_project_code || '—'}</td>
+                    <td className={TD_CLS}>
+                      {p ? (
+                        <span className="inline-flex items-center gap-1.5" style={{ color: p.color }}>
+                          <p.Icon size={14} aria-hidden /> {p.label}
+                        </span>
+                      ) : 'Not set'}
                     </td>
-                    <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
+                    <td className={TD_CLS} onClick={e => e.stopPropagation()}>
                       {canEdit ? (
                         <Select
                           value={d.assigned_to ?? ''}
                           disabled={savingAssignee === d.id}
                           onChange={e => changeAssignee(d, e.target.value)}
-                          className="appearance-none bg-transparent border border-transparent hover:border-slate-200/80 rounded-lg pl-1 pr-5 py-1 text-xs text-slate-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 max-w-[160px]"
+                          aria-label="Assignee"
+                          className="max-w-[170px] cursor-pointer rounded-[4px] border border-transparent bg-transparent py-1 pl-1 pr-5 text-[13px] text-ui-body hover:border-ui-input-border"
                         >
-                          <option value="">— Unassigned —</option>
+                          <option value="">Not Assigned</option>
                           {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
                         </Select>
                       ) : d.owner_name ? (
-                        <span className="inline-flex items-center gap-1.5 text-slate-700">
-                          <span className="h-5 w-5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
+                        <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                          <span aria-hidden className="grid size-[26px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold text-ui-body">
                             {getInitials(d.owner_name)}
                           </span>
                           {d.owner_name}
                         </span>
-                      ) : <span className="text-slate-400">—</span>}
+                      ) : (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-[4px] py-[3px] pl-2 pr-2.5 text-[12px] font-medium"
+                          style={{ background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}
+                        >
+                          <Ban size={14} aria-hidden /> Not Assigned
+                        </span>
+                      )}
                     </td>
-                    <td className="px-3 py-2 text-slate-600 max-w-[160px] truncate">{d.request_raw || '—'}</td>
-                    <td className="px-3 py-2 text-slate-600 max-w-[200px] truncate">{d.formatted_address || d.state || '—'}</td>
-                    <td className="px-3 py-2 text-slate-500 whitespace-nowrap">
-                      {formatDate(d.due_date || d.created_at)}
-                    </td>
+                    <td className={cn(TD_CLS, 'max-w-[160px] truncate')}>{d.request_raw || '—'}</td>
+                    <td className={cn(TD_CLS, 'max-w-[220px] truncate')}>{d.formatted_address || d.state || '—'}</td>
+                    <td className={cn(TD_CLS, 'whitespace-nowrap')}>{formatDate(d.due_date || d.created_at)}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
 

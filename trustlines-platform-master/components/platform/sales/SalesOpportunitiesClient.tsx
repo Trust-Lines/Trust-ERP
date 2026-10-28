@@ -1,17 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlertTriangle, Inbox } from 'lucide-react';
+import { AlertTriangle, Inbox, Plus, Search } from 'lucide-react';
 import { REGIONS, SERVICE_LINES } from '@/lib/regions';
 import { OPPORTUNITY_STAGE_LABEL, PROJECT_TYPE_LABEL } from '@/lib/marketing/classification';
-import { StagePill, type StageTone } from '@/components/platform/shared/StagePill';
 import type { OpportunityStage, ProjectType, ScopeType } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
+import { Select as FilterSelect } from '@/components/ui/select';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { feedback } from '@/components/ui/feedback-toast';
 import { EmptyState } from '@/components/ui/empty-state';
+import { cn } from '@/lib/utils';
 
 export interface SalesOpportunityRow {
   id: string;
@@ -56,16 +59,37 @@ interface Props {
   assignees?: { id: string; full_name: string }[];
 }
 
-const STAGE_TONE: Record<OpportunityStage, StageTone> = {
-  new: 'neutral', marketing_qualification: 'neutral', qualified_for_sales: 1,
-  sales_handoff: 1, sales_accepted: 2, discovery: 3, sales_design: 4,
-  proposal: 5, negotiation: 6, working_on_it_trust: 4,
-  closed_won: 'done', closed_lost: 'neutral', on_hold: 'neutral',
+// Each Opportunity stage borrows the tone + icon of the closest lead-stage status tag
+// (lib/status/tags.ts); the label stays the Opportunity stage name.
+const STAGE_TAG: Record<OpportunityStage, string> = {
+  new: 'new_lead', marketing_qualification: 'qualification', qualified_for_sales: 'qualified',
+  sales_handoff: 'qualified', sales_accepted: 'contacted', discovery: 'discovery', sales_design: 'proposal_preparation',
+  working_on_it_trust: 'proposal_preparation', proposal: 'proposal_sent', negotiation: 'negotiation',
+  closed_won: 'won', closed_lost: 'lost', on_hold: 'decision_pending',
 };
 const CLOSABLE_STAGES: OpportunityStage[] = ['sales_accepted', 'discovery', 'sales_design', 'proposal', 'negotiation'];
+const CLOSED_STAGES: OpportunityStage[] = ['closed_won', 'closed_lost'];
 function OpportunityStagePill({ stage }: { stage: OpportunityStage }) {
-  return <StagePill tone={STAGE_TONE[stage]}>{OPPORTUNITY_STAGE_LABEL[stage]}</StagePill>;
+  return (
+    <StatusBadge
+      group="lead_stage" status={STAGE_TAG[stage]} label={OPPORTUNITY_STAGE_LABEL[stage]}
+      className="h-auto gap-1 py-[3px] pl-2 pr-2.5 text-[12px] leading-4 [&_svg]:size-3.5"
+    />
+  );
 }
+
+// Figma "Opportunity handoffs" (node 299:8256).
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-3 pr-2 text-[13px] font-medium leading-normal text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading [&_svg]:size-3.5';
+// 40px row action. Tones follow the Figma Close Lost (T10) / Close Won (T9) buttons; disabled = T0.
+const ACTION_BASE = 'inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-[6px] border px-8 text-[13px] font-medium no-underline transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:border-[var(--status-t0-fg)] disabled:bg-[var(--status-t0-bg)] disabled:text-[var(--status-t0-fg)] disabled:opacity-100';
+// Literal class strings — Tailwind can't see classes built at runtime.
+const ACTION_WON = cn(ACTION_BASE, 'border-[var(--status-t9-fg)] bg-[var(--status-t9-bg)] text-[var(--status-t9-fg)]');
+const ACTION_LOST = cn(ACTION_BASE, 'border-[var(--status-t10-fg)] bg-[var(--status-t10-bg)] text-[var(--status-t10-fg)]');
+const ACTION_NEUTRAL = cn(ACTION_BASE, 'border-[var(--ui-input-border)] bg-ui-input-bg text-[var(--color-secondary-700)] dark:text-ui-heading');
+const ACTION_PRIMARY = cn(ACTION_BASE, 'border-transparent bg-[var(--color-secondary-700)] text-white dark:bg-primary-50 dark:text-primary-950');
+
+type StageFilter = '' | 'open' | 'closed';
 
 export function SalesOpportunitiesClient({ initialOpportunities, loadError, assignees = [] }: Props) {
   const router = useRouter();
@@ -74,6 +98,18 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [returningId, setReturningId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [stageFilter, setStageFilter] = useState<StageFilter>('');
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return opportunities.filter(o => {
+      const closed = CLOSED_STAGES.includes(o.stage);
+      if (stageFilter === 'open' && closed) return false;
+      if (stageFilter === 'closed' && !closed) return false;
+      return !q || `${o.title} ${o.lead_display_name} ${o.owner_name ?? ''}`.toLowerCase().includes(q);
+    });
+  }, [opportunities, query, stageFilter]);
 
   function updateRow(id: string, patch: Partial<SalesOpportunityRow>) {
     setOpportunities(prev => prev.map(o => (o.id === id ? { ...o, ...patch } : o)));
@@ -163,105 +199,148 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
   }
 
   return (
-    <>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Opportunity Handoffs</h1>
-        <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
-          {opportunities.length} opportunit{opportunities.length !== 1 ? 'ies' : 'y'} handed off from Marketing or already yours
-        </p>
+    <div className="flex flex-col gap-[30px]">
+      {/* ── Page heading ── */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col gap-[5px] leading-[1.35]">
+          <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Sales / Handoffs</p>
+          <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Opportunity Handoffs</h1>
+          <p className="m-0 text-[13px] text-ui-body">
+            {opportunities.length} opportunit{opportunities.length !== 1 ? 'ies' : 'y'} handed off from Marketing or already yours
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/leads"
+            className={cn('inline-flex h-9 items-center rounded-[6px] border border-[var(--color-secondary-700)] px-5 text-[13px] font-medium leading-[1.35] no-underline transition-colors hover:bg-ui-hover-bg dark:border-ui-heading', HEADING)}
+          >
+            Opportunity List
+          </Link>
+          <Link
+            href="/leads/new?view=quick_deal"
+            className="inline-flex h-9 items-center gap-2 rounded-[6px] bg-ui-btn-accent px-8 text-[13px] font-medium leading-[1.35] text-ui-btn-accent-fg no-underline transition-opacity hover:opacity-90"
+          >
+            <Plus size={16} aria-hidden />
+            Add to handoffs
+          </Link>
+        </div>
       </div>
 
-      {opportunities.length === 0 ? (
-        <div className="card">
-          <EmptyState
-            icon={<Inbox />}
-            title="No handoffs yet"
-            description="Opportunities appear here once Marketing hands one off to Sales."
+      {/* ── Search + filter ── */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="relative w-[285px] max-w-full">
+          <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" />
+          <input
+            type="search" aria-label="Search handoffs" placeholder="Search handoffs…"
+            value={query} onChange={e => setQuery(e.target.value)}
+            className="h-9 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-2.5 text-[13px] leading-[1.45] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
           />
         </div>
-      ) : (
-        <div style={{ display: 'grid', gap: 10 }}>
-          {opportunities.map(o => (
-            <div key={o.id} className="card"><div className="card-body">
-              <div
-                role="button" tabIndex={0} title="See how this deal has progressed"
-                onClick={() => setOpenId(o.id)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenId(o.id); } }}
-                style={{ cursor: 'pointer' }}
-              >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{o.title}</div>
-                <OpportunityStagePill stage={o.stage} />
-                <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, color: 'var(--brand-teal-600)' }}>View progress →</span>
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 8 }}>
-                Lead: {o.lead_display_name} {o.deadline && `· Deadline: ${o.deadline}`} {o.owner_name && `· Owner: ${o.owner_name}`}
-              </div>
-              {o.project_types.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                  {o.project_types.map(t => <span key={t} className="pill" style={{ background: 'var(--bg-subtle)', fontSize: 10.5 }}>{PROJECT_TYPE_LABEL[t]}</span>)}
-                </div>
-              )}
-              {o.return_reason && o.stage === 'marketing_qualification' && (
-                <div style={{ fontSize: 12, color: 'var(--status-warning-fg, #92400e)', marginBottom: 8 }}>Returned: {o.return_reason}</div>
-              )}
-              {o.closed_reason && o.stage === 'closed_lost' && (
-                <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 8 }}>Lost reason: {o.closed_reason}</div>
-              )}
-              </div>
+        <FilterSelect
+          aria-label="Stage"
+          className={FILTER_CLS}
+          value={stageFilter}
+          onValueChange={v => setStageFilter((v ?? '') as StageFilter)}
+          options={[
+            { value: '', label: 'All handoffs' },
+            { value: 'open', label: 'Open' },
+            { value: 'closed', label: 'Won & Lost' },
+          ]}
+        />
+      </div>
 
-              {o.stage === 'sales_handoff' && acceptingId !== o.id && returningId !== o.id && (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn btn-primary btn-sm" onClick={() => setAcceptingId(o.id)}>Accept</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setReturningId(o.id)}>Return to Marketing</button>
-                </div>
-              )}
-              {o.stage === 'sales_handoff' && acceptingId === o.id && (
-                <AcceptForm busy={busyId === o.id} onSave={form => doAccept(o.id, form)} onCancel={() => setAcceptingId(null)} />
-              )}
-              {o.stage === 'sales_handoff' && returningId === o.id && (
-                <ReturnForm busy={busyId === o.id} onSave={reason => doReturn(o.id, reason)} onCancel={() => setReturningId(null)} />
-              )}
-              {CLOSABLE_STAGES.includes(o.stage) && (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {o.stage === 'sales_accepted' && (
-                    <button className="btn btn-secondary btn-sm" disabled={busyId === o.id} onClick={() => doStartDesign(o.id)}>Start Design</button>
-                  )}
-                  {(o.stage === 'discovery' || o.stage === 'sales_design' || o.stage === 'proposal') && (
-                    <>
-                      {o.design_job && (
-                        <span style={{
-                          fontSize: 11.5, padding: '5px 8px', borderRadius: 6, alignSelf: 'center',
-                          background: o.design_job.status === 'revision_requested' ? 'var(--status-warning-bg, #fef3c7)' : 'var(--bg-subtle)',
-                          color: o.design_job.status === 'revision_requested' ? 'var(--status-warning-fg, #92400e)' : 'var(--fg-subtle)',
-                        }}>
-                          {DESIGN_STATUS_LABEL[o.design_job.status] ?? o.design_job.status}
-                          {o.design_job.designerName && ` · ${o.design_job.designerName}`}
-                          {' · updated '}{daysAgo(o.design_job.updatedAt)}
-                        </span>
+      {/* ── Handoff list ── */}
+      <div className="rounded-[8px] bg-ui-surface p-5">
+        {visible.length === 0 ? (
+          <div className="rounded-[6px] bg-ui-surface-elevated">
+            {opportunities.length === 0 ? (
+              <EmptyState icon={<Inbox />} title="No handoffs yet" description="Opportunities appear here once Marketing hands one off to Sales." />
+            ) : (
+              <EmptyState icon={<Search />} title="No matching handoffs" description="Try another search or filter." />
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {visible.map(o => {
+              const busy = busyId === o.id;
+              return (
+                <div key={o.id} className="rounded-[6px] bg-ui-surface-elevated px-5 py-3">
+                  <div className="flex flex-wrap items-center gap-3.5">
+                    <div
+                      role="button" tabIndex={0} title="See how this deal has progressed"
+                      onClick={() => setOpenId(o.id)}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenId(o.id); } }}
+                      className="flex min-w-[240px] flex-1 cursor-pointer flex-col items-start gap-[3px] rounded-[4px] outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring"
+                    >
+                      <p className="m-0 text-[13px] font-semibold leading-[1.4] text-ui-body">{o.title}</p>
+                      <p className="m-0 text-[11px] leading-[1.4] text-ui-text-secondary">
+                        Lead: {o.lead_display_name}
+                        {o.deadline && ` · Deadline: ${o.deadline}`}
+                        {o.owner_name && ` · Owner: ${o.owner_name}`}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <OpportunityStagePill stage={o.stage} />
+                        {o.project_types.map(t => (
+                          <span key={t} className="rounded-[4px] bg-[var(--status-t0-bg)] px-2 py-[3px] text-[12px] font-medium leading-4 text-[var(--status-t0-fg)]">{PROJECT_TYPE_LABEL[t]}</span>
+                        ))}
+                      </div>
+                      {o.return_reason && o.stage === 'marketing_qualification' && (
+                        <p className="m-0 text-[11px] text-[var(--status-warning-fg)]">Returned: {o.return_reason}</p>
                       )}
-                      <a href="/design" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>Open Design Job →</a>
-                    </>
+                      {o.closed_reason && o.stage === 'closed_lost' && (
+                        <p className="m-0 text-[11px] text-ui-text-secondary">Lost reason: {o.closed_reason}</p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-end gap-3.5">
+                      {o.stage === 'sales_handoff' && acceptingId !== o.id && returningId !== o.id && (
+                        <>
+                          <button type="button" className={ACTION_NEUTRAL} onClick={() => setReturningId(o.id)}>Return to Marketing</button>
+                          <button type="button" className={ACTION_PRIMARY} onClick={() => setAcceptingId(o.id)}>Accept</button>
+                        </>
+                      )}
+                      {CLOSABLE_STAGES.includes(o.stage) && (
+                        <>
+                          {(o.stage === 'discovery' || o.stage === 'sales_design' || o.stage === 'proposal') && o.design_job && (
+                            <span className={cn(
+                              'rounded-[4px] px-2 py-[3px] text-[12px] font-medium leading-4',
+                              o.design_job.status === 'revision_requested'
+                                ? 'bg-[var(--status-t7-bg)] text-[var(--status-t7-fg)]'
+                                : 'bg-[var(--status-t0-bg)] text-[var(--status-t0-fg)]',
+                            )}>
+                              {DESIGN_STATUS_LABEL[o.design_job.status] ?? o.design_job.status}
+                              {o.design_job.designerName && ` · ${o.design_job.designerName}`}
+                              {' · updated '}{daysAgo(o.design_job.updatedAt)}
+                            </span>
+                          )}
+                          {o.stage === 'sales_accepted' && (
+                            <button type="button" className={ACTION_NEUTRAL} disabled={busy} onClick={() => doStartDesign(o.id)}>Start Design</button>
+                          )}
+                          {(o.stage === 'discovery' || o.stage === 'sales_design' || o.stage === 'proposal') && (
+                            <Link href="/design" className={ACTION_NEUTRAL}>Open Design Job</Link>
+                          )}
+                          {o.stage === 'proposal' && (
+                            <button type="button" className={ACTION_NEUTRAL} disabled={busy} onClick={() => doNegotiate(o.id)}>Move to Negotiation</button>
+                          )}
+                          <button type="button" className={ACTION_LOST} disabled={busy} onClick={() => doCloseLost(o.id)}>Close Lost</button>
+                          <button type="button" className={ACTION_WON} disabled={busy} onClick={() => doCloseWon(o.id)}>Close Won</button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {o.stage === 'sales_handoff' && acceptingId === o.id && (
+                    <AcceptForm busy={busy} onSave={form => doAccept(o.id, form)} onCancel={() => setAcceptingId(null)} />
                   )}
-                  {o.stage === 'proposal' && (
-                    <button className="btn btn-secondary btn-sm" disabled={busyId === o.id} onClick={() => doNegotiate(o.id)}>Move to Negotiation</button>
+                  {o.stage === 'sales_handoff' && returningId === o.id && (
+                    <ReturnForm busy={busy} onSave={reason => doReturn(o.id, reason)} onCancel={() => setReturningId(null)} />
                   )}
-                  {/* The server refuses Close Won until the Opportunity is accepted and a Project exists (409). */}
-                  <button
-                    className="btn btn-primary btn-sm"
-                    disabled={busyId === o.id || !o.project_id}
-                    title={o.project_id ? undefined : 'Accept the Opportunity first — Close Won needs a Project'}
-                    onClick={() => doCloseWon(o.id)}
-                  >
-                    Close Won
-                  </button>
-                  <button className="btn btn-ghost btn-sm" disabled={busyId === o.id} onClick={() => doCloseLost(o.id)}>Close Lost</button>
                 </div>
-              )}
-            </div></div>
-          ))}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {openId && (
         <OpportunityQuickView
@@ -270,7 +349,7 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
           onClose={() => { setOpenId(null); router.refresh(); }}
         />
       )}
-    </>
+    </div>
   );
 }
 

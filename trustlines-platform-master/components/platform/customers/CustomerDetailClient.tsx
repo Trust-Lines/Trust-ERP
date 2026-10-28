@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { HEADING } from './customer-detail/ui';
 import type { Address, Assignee, Contact, Customer, FollowUp, Meeting, ProjectRow } from './customer-detail/types';
 import { DetailsCard } from './customer-detail/DetailsCard';
 import { ContactsCard } from './customer-detail/ContactsCard';
@@ -160,37 +162,61 @@ export function CustomerDetailClient({
     toast.success('Contact removed');
   }
 
-  return (
-    <>
-      <Link href="/customers" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--fg-subtle)', marginBottom: 16, textDecoration: 'none' }}>
-        <ArrowLeft size={14} /> All customers
-      </Link>
+  const statusTone = STATUS_TONE[customer.status] ?? 't0';
+  const subtitle = [customer.code, customer.industry].filter(Boolean).join(' · ');
 
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>{customer.name}</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--fg-subtle)' }}>
-            {customer.code && <span style={{ fontFamily: 'var(--font-mono)' }}>{customer.code}</span>}
-            {customer.industry && <span>· {customer.industry}</span>}
-            <span className="pill" style={{ fontSize: 10, textTransform: 'capitalize' }}>{customer.status}</span>
+  // Figma "Customer detail" (node 304:2563): heading, then a 3-card row
+  // (Details · Follow-ups · Project History) over a 3-card row (Contacts · Addresses · Meetings).
+  return (
+    <div className="mx-auto flex w-full max-w-[1416px] flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-[5px]">
+          <Link href="/customers" className="w-fit text-[11px] font-semibold text-ui-nav-active no-underline hover:underline">
+            Customers
+          </Link>
+          <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>{customer.name}</h1>
+          <div className="flex items-center gap-[5px] text-[13px] leading-[1.35] text-ui-body">
+            {subtitle && <><span>{subtitle}</span><span aria-hidden>·</span></>}
+            <span
+              className="inline-flex h-5 items-center rounded-[4px] border px-2 text-[12px] font-medium uppercase leading-4"
+              style={{ background: `var(--status-${statusTone}-bg)`, color: `var(--status-${statusTone}-fg)`, borderColor: `var(--status-${statusTone}-fg)` }}
+            >
+              {customer.status}
+            </span>
           </div>
         </div>
-        {canEdit && !editing && (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}><Pencil size={13} /> Edit</button>
-            <button className="btn btn-ghost btn-sm" style={{ color: '#dc2626' }} onClick={deleteCustomer}><Trash2 size={13} /> Delete</button>
+        {canEdit && (
+          <div className="flex items-center gap-4">
+            <button
+              type="button" onClick={deleteCustomer}
+              className="inline-flex h-10 items-center gap-2 rounded-[6px] border border-[var(--status-t10-bg)] bg-[var(--status-t10-bg)] pl-3.5 pr-6 text-[13px] font-medium text-[var(--status-t10-fg)] transition-opacity hover:opacity-85"
+            >
+              <Trash2 size={16} aria-hidden /> Delete
+            </button>
+            <button
+              type="button" onClick={() => setEditing(true)} disabled={editing}
+              className="inline-flex h-10 items-center gap-2 rounded-[6px] border-0 bg-[var(--color-secondary-700)] pl-[34px] pr-11 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60 dark:bg-primary-50 dark:text-primary-950"
+            >
+              <Pencil size={16} aria-hidden /> Edit
+            </button>
           </div>
         )}
       </div>
 
-      <DetailsCard customer={customer} editing={editing} onSave={saveCustomer} onCancel={() => setEditing(false)} />
-      <ContactsCard contacts={contacts} canEdit={canEdit} onSave={saveContact} onDelete={deleteContact} />
-      <AddressesCard addresses={addresses} canEdit={canEdit} onSave={saveAddress} onDelete={deleteAddress} />
-      <FollowUpsCard followUps={followUps} assignees={assignees} canEdit={canEdit}
-        onSave={saveFollowUp} onSetStatus={setFollowUpStatus} onDelete={deleteFollowUp} />
-      <MeetingsCard meetings={meetings} canEdit={canEdit}
-        onSave={saveMeeting} onSetStatus={setMeetingStatus} onDelete={deleteMeeting} />
-      <ProjectHistoryCard projects={projects} />
-    </>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-[325fr_578fr_465fr]">
+        <DetailsCard customer={customer} editing={editing} onSave={saveCustomer} onCancel={() => setEditing(false)} />
+        <FollowUpsCard followUps={followUps} assignees={assignees} canEdit={canEdit}
+          onSave={saveFollowUp} onSetStatus={setFollowUpStatus} onDelete={deleteFollowUp} />
+        <ProjectHistoryCard projects={projects} />
+      </div>
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2 xl:grid-cols-3">
+        <ContactsCard contacts={contacts} canEdit={canEdit} onSave={saveContact} onDelete={deleteContact} />
+        <AddressesCard addresses={addresses} canEdit={canEdit} onSave={saveAddress} onDelete={deleteAddress} />
+        <MeetingsCard meetings={meetings} canEdit={canEdit}
+          onSave={saveMeeting} onSetStatus={setMeetingStatus} onDelete={deleteMeeting} />
+      </div>
+    </div>
   );
 }
+
+const STATUS_TONE: Record<string, string> = { active: 't9', prospect: 't2', inactive: 't0' };

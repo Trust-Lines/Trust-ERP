@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, Megaphone, AlertTriangle, Copy, Check, Trash2, Plus } from 'lucide-react';
+import { Search, Megaphone, AlertTriangle, Copy, Check, Trash2, Plus, ArrowDown, ArrowUp, MoreHorizontal, Pencil, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { Pill } from '@/components/platform/shared/Pill';
+import { cn } from '@/lib/utils';
+import { US_STATES } from '@/lib/usStates';
 import type { CampaignStatus, CampaignType } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -39,16 +40,46 @@ interface Props {
 }
 
 const CAMPAIGN_TYPE_LABEL: Record<CampaignType, string> = { trade_fair: 'Trade Fair', event: 'Event' };
-const STATUS_VARIANT: Record<CampaignStatus, 'neutral' | 'success' | 'warning' | 'danger'> = {
-  draft: 'neutral', active: 'success', paused: 'warning', closed: 'danger',
-};
 const STATUS_LABEL: Record<CampaignStatus, string> = { draft: 'Draft', active: 'Active', paused: 'Paused', closed: 'Closed' };
+// Solid status chip (Figma "ACTIVE" = All Colors/Success/Success_Normal): fixed palette colors,
+// white text — theme-independent so the chip stays readable in dark mode.
+const STATUS_BG: Record<CampaignStatus, string> = {
+  draft: 'var(--color-grey-500)',
+  active: 'var(--color-success-normal)',
+  paused: 'var(--color-warning-normal)',
+  closed: 'var(--color-error-normal)',
+};
+
+// Figma "Campaigns & Surveys" (node 276:19068) — same toolbar/table styling as Contacts & Potentials.
+const HEADING_TEXT = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const PRIMARY_BTN = 'inline-flex h-10 items-center justify-center gap-3 rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-6 text-[13px] font-semibold text-white no-underline hover:bg-[var(--color-secondary-700)]/90 disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950 [&_svg]:size-4';
+const FILTER_STYLE: React.CSSProperties = {
+  height: 40, fontSize: 12, borderRadius: 4, border: '1px solid var(--color-secondary-700)', background: 'var(--ui-input-bg)',
+};
+const TH_CLS = 'h-[46px] whitespace-nowrap px-2.5 text-left text-[12px] font-semibold leading-[1.4] text-ui-body';
+const TD_CLS = 'px-2.5 py-2 text-[13px] text-ui-body';
+const CHECKBOX_CLS = 'size-4 cursor-pointer accent-[var(--color-secondary-700)]';
+const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-3.5';
+
+const DATE_UPPER = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+function formatDate(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso.length === 10 ? `${iso}T00:00:00` : iso);
+  return Number.isNaN(d.getTime()) ? '—' : DATE_UPPER.format(d).toUpperCase();
+}
+
+const STATE_NAME = new Map(US_STATES.map(s => [s.abbr, s.name]));
+function cityState(c: CampaignRow): string {
+  const state = c.state ? (STATE_NAME.has(c.state) ? `${STATE_NAME.get(c.state)} (${c.state})` : c.state) : '';
+  return [c.city, state].filter(Boolean).join(', ') || '—';
+}
 
 function CopyLinkButton({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
-      className="btn btn-ghost btn-sm"
+      type="button"
+      className="inline-flex cursor-pointer items-center border-0 bg-transparent p-0.5 text-ui-body hover:text-[var(--color-secondary-700)]"
       onClick={async (e) => {
         e.stopPropagation();
         try {
@@ -58,9 +89,10 @@ function CopyLinkButton({ url }: { url: string }) {
           setTimeout(() => setCopied(false), 1500);
         } catch { toast.error('Could not copy link'); }
       }}
-      title={url}
+      title={`Copy public survey link — ${url}`}
+      aria-label="Copy public survey link"
     >
-      {copied ? <Check size={13} /> : <Copy size={13} />}
+      {copied ? <Check size={16} aria-hidden /> : <Copy size={16} aria-hidden />}
     </button>
   );
 }
@@ -71,21 +103,47 @@ export function CampaignsPageClient({ initialCampaigns, canEdit, canSeeAll, load
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  async function trashCampaign(e: React.MouseEvent, c: CampaignRow) {
-    e.stopPropagation();
-    if (!window.confirm(`Delete "${c.name}"? Its public survey link stops working immediately. It stays in the database (recoverable), but disappears everywhere in the UI.`)) return;
-    const res = await fetch(`/api/marketing/campaigns/${c.id}/trash`, { method: 'POST' });
-    if (!res.ok) { const body = await res.json().catch(() => ({})); toast.error(body.error ?? 'Could not delete'); return; }
-    setCampaigns(prev => prev.filter(x => x.id !== c.id));
-    toast.success('Deleted');
+  useEffect(() => {
+    if (!menuId) return;
+    function onDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuId(null);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [menuId]);
+
+  // Runs the existing per-campaign trash endpoint one by one — it carries its own auth + audit log.
+  async function trashCampaigns(targets: CampaignRow[]) {
+    if (targets.length === 0) return;
+    const label = targets.length === 1 ? `"${targets[0].name}"` : `${targets.length} campaigns`;
+    if (!window.confirm(`Delete ${label}? Public survey links stop working immediately. They stay in the database (recoverable), but disappear everywhere in the UI.`)) return;
+    setBusy(true);
+    const removed: string[] = [];
+    let lastError = '';
+    for (const c of targets) {
+      const res = await fetch(`/api/marketing/campaigns/${c.id}/trash`, { method: 'POST' }).catch(() => null);
+      if (res?.ok) removed.push(c.id);
+      else lastError = res ? ((await res.json().catch(() => ({}))).error ?? '') : '';
+    }
+    setBusy(false);
+    setCampaigns(prev => prev.filter(x => !removed.includes(x.id)));
+    setSelected(new Set());
+    if (removed.length) toast.success(`Deleted ${removed.length} campaign${removed.length === 1 ? '' : 's'}`);
+    if (removed.length < targets.length) toast.error(lastError || 'Could not delete some campaigns');
   }
 
   // Active campaigns always lead, regardless of sort/search — they're the ones someone might
-  // actually need to act on right now (draft/paused/closed are reference/history).
+  // actually need to act on right now (draft/paused/closed are reference/history). A name sort,
+  // when picked, overrides that.
   const STATUS_RANK: Record<CampaignStatus, number> = { active: 0, draft: 1, paused: 2, closed: 3 };
   const filtered = useMemo(() => {
-    return campaigns
+    const rows = campaigns
       .filter(c => {
         if (statusFilter && c.status !== statusFilter) return false;
         if (typeFilter && c.campaign_type !== typeFilter) return false;
@@ -96,55 +154,84 @@ export function CampaignsPageClient({ initialCampaigns, canEdit, canSeeAll, load
           || (c.city ?? '').toLowerCase().includes(q)
           || (c.state ?? '').toLowerCase().includes(q)
           || (c.owner_name ?? '').toLowerCase().includes(q);
-      })
-      .sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status]
-        || (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-  }, [campaigns, query, statusFilter, typeFilter]);
+      });
+    if (nameSort) {
+      const dir = nameSort === 'asc' ? 1 : -1;
+      return rows.sort((a, b) => dir * a.name.localeCompare(b.name));
+    }
+    return rows.sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status]
+      || (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+  }, [campaigns, query, statusFilter, typeFilter, nameSort]);
+
+  const selectedRows = filtered.filter(c => selected.has(c.id));
+  const allSelected = filtered.length > 0 && selectedRows.length === filtered.length;
+
+  function toggle(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   if (loadError) {
     return (
-      <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
-        <AlertTriangle size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
+      <div className="rounded-[8px] border border-ui-divider bg-ui-surface-elevated p-12 text-center text-[13px] text-ui-text-secondary">
+        <AlertTriangle size={28} className="mx-auto mb-2" style={{ color: 'var(--status-t7-fg)' }} />
         <div>Campaigns & Surveys isn&apos;t ready yet. Migration 086 needs to be applied.</div>
-      </div></div>
+      </div>
     );
   }
 
   return (
-    <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Campaigns & Surveys</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
-            {campaigns.length} campaign{campaigns.length !== 1 ? 's' : ''}{canSeeAll ? '' : ' — yours'}
-          </p>
-        </div>
-        {canEdit && (
-          <Link href="/marketing/campaigns/new" className="btn btn-primary">+ New Campaign</Link>
-        )}
+    <div className="w-full pb-12">
+      <div className="mb-[18px] flex flex-col gap-[5px] leading-[1.35]">
+        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Marketing / Campaigns &amp; Surveys</p>
+        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Campaigns &amp; Surveys</h1>
+        <p className="m-0 text-[13px] text-ui-body">
+          {campaigns.length} campaign{campaigns.length !== 1 ? 's' : ''}{canSeeAll ? '' : ' — yours'} · each one has its own public survey link and QR code.
+        </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', maxWidth: 320, flex: 1 }}>
-          <Search size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)' }} />
+      <div className="mb-[18px] flex flex-wrap items-center gap-2.5">
+        <div className="relative min-w-[220px] max-w-[380px] flex-[1_1_220px]">
+          <Search size={16} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" aria-hidden />
           <input
-            className="form-input" style={{ paddingLeft: 32, fontSize: 13 }}
+            className="form-input"
+            style={{ height: 40, paddingLeft: 34, fontSize: 13, borderRadius: 6, borderColor: 'var(--ui-input-border)', background: 'var(--ui-input-bg)' }}
             placeholder="Search campaigns…" value={query} onChange={e => setQuery(e.target.value)}
             aria-label="Search campaigns"
           />
         </div>
-        <Select className="form-input" style={{ maxWidth: 160, fontSize: 13 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by status">
-          <option value="">All statuses</option>
+        <Select className="form-input" style={{ ...FILTER_STYLE, maxWidth: 140 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter by status">
+          <option value="">All Statuses</option>
           {(['draft', 'active', 'paused', 'closed'] as CampaignStatus[]).map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
         </Select>
-        <Select className="form-input" style={{ maxWidth: 160, fontSize: 13 }} value={typeFilter} onChange={e => setTypeFilter(e.target.value)} aria-label="Filter by type">
-          <option value="">All types</option>
+        <Select className="form-input" style={{ ...FILTER_STYLE, maxWidth: 140 }} value={typeFilter} onChange={e => setTypeFilter(e.target.value)} aria-label="Filter by type">
+          <option value="">All Types</option>
           {(['trade_fair', 'event'] as CampaignType[]).map(t => <option key={t} value={t}>{CAMPAIGN_TYPE_LABEL[t]}</option>)}
         </Select>
+        <span className="ml-auto flex items-center gap-2.5">
+          {canEdit && selectedRows.length > 0 && (
+            <>
+              <span className="text-[12px] text-ui-text-secondary">{selectedRows.length} selected</span>
+              <button
+                type="button" disabled={busy} onClick={() => trashCampaigns(selectedRows)}
+                className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[6px] border-0 px-4 text-[13px] font-medium hover:brightness-95 disabled:opacity-50 [&_svg]:size-4"
+                style={{ background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' }}
+              >
+                <Trash2 aria-hidden /> Delete selected
+              </button>
+            </>
+          )}
+          {canEdit && (
+            <Link href="/marketing/campaigns/new" className={PRIMARY_BTN}><Plus aria-hidden /> New Campaign</Link>
+          )}
+        </span>
       </div>
 
       {campaigns.length === 0 ? (
-        <div className="card">
+        <div className="rounded-[6px] border border-ui-divider bg-ui-page-bg">
           <EmptyState
             icon={<Megaphone />}
             title="No campaigns yet"
@@ -155,62 +242,112 @@ export function CampaignsPageClient({ initialCampaigns, canEdit, canSeeAll, load
           />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '32px 24px', color: 'var(--fg-subtle)' }}>
+        <div className="rounded-[6px] border border-ui-divider bg-ui-page-bg p-12 text-center text-[13px] text-ui-text-secondary">
           No campaigns match your filters.
-        </div></div>
+        </div>
       ) : (
-        <div className="card" style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 1100 }}>
+        <div className="overflow-x-auto rounded-[6px] border border-ui-divider bg-ui-page-bg">
+          <table className="w-full border-collapse" style={{ minWidth: 1100, opacity: busy ? 0.6 : 1 }}>
             <thead>
-              <tr style={{ textAlign: 'left', color: 'var(--fg-subtle)', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                <th style={{ padding: '10px 12px', fontWeight: 600 }}>Campaign</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600 }}>Type</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600 }}>City / State</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600 }}>Dates</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600 }}>Status</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600 }}>Submissions</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600 }}>Created</th>
-                <th style={{ padding: '10px 12px', fontWeight: 600 }}>Public Link</th>
-                {canEdit && <th style={{ padding: '10px 12px', fontWeight: 600 }}></th>}
+              <tr className="border-b border-ui-divider bg-ui-surface">
+                <th className={cn(TH_CLS, 'w-9 pl-[18px]')}>
+                  <input
+                    type="checkbox" className={CHECKBOX_CLS} checked={allSelected} aria-label="Select all"
+                    onChange={() => setSelected(allSelected ? new Set() : new Set(filtered.map(c => c.id)))}
+                  />
+                </th>
+                <th className={TH_CLS} aria-sort={nameSort ? (nameSort === 'asc' ? 'ascending' : 'descending') : undefined}>
+                  <button
+                    type="button"
+                    onClick={() => setNameSort(s => (s === 'asc' ? 'desc' : s === 'desc' ? null : 'asc'))}
+                    className="inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 font-[inherit] text-[inherit]"
+                    title="Sort by campaign name"
+                  >
+                    Campaign
+                    {nameSort === 'asc' ? <ArrowUp size={12} aria-hidden /> : nameSort === 'desc' ? <ArrowDown size={12} aria-hidden /> : null}
+                  </button>
+                </th>
+                <th className={TH_CLS}>Status</th>
+                <th className={TH_CLS}>Type</th>
+                <th className={TH_CLS}>City/State</th>
+                <th className={TH_CLS}>Start Date</th>
+                <th className={TH_CLS}>End Date</th>
+                <th className={cn(TH_CLS, 'text-center')}>Submissions</th>
+                <th className={TH_CLS}>Created</th>
+                <th className={cn(TH_CLS, 'w-12 pr-[18px]')}><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(c => (
-                <tr
-                  key={c.id}
-                  onClick={() => router.push(`/marketing/campaigns/${c.id}`)}
-                  style={{ borderTop: '1px solid var(--border-subtle)', cursor: 'pointer' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <td style={{ padding: '10px 12px' }}>
-                    <div style={{ fontWeight: 600 }}>{c.name}</div>
-                    {c.code && <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{c.code}</div>}
-                  </td>
-                  <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>{CAMPAIGN_TYPE_LABEL[c.campaign_type]}</td>
-                  <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>
-                    {[c.city, c.state].filter(Boolean).join(', ') || '—'}
-                  </td>
-                  <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>
-                    {c.start_date ? `${c.start_date}${c.end_date ? ` → ${c.end_date}` : ''}` : '—'}
-                  </td>
-                  <td style={{ padding: '10px 12px' }}><Pill variant={STATUS_VARIANT[c.status]}>{STATUS_LABEL[c.status]}</Pill></td>
-                  <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>{c.submission_count}</td>
-                  <td style={{ padding: '10px 12px', color: 'var(--fg-subtle)' }}>{new Date(c.created_at).toLocaleDateString('en-US')}</td>
-                  <td style={{ padding: '10px 12px' }}><CopyLinkButton url={c.publicUrl} /></td>
-                  {canEdit && (
-                    <td style={{ padding: '10px 12px' }}>
-                      <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }} onClick={e => trashCampaign(e, c)} title="Delete">
-                        <Trash2 size={13} />
-                      </button>
+              {filtered.map(c => {
+                const isSelected = selected.has(c.id);
+                return (
+                  <tr
+                    key={c.id}
+                    onClick={() => router.push(`/marketing/campaigns/${c.id}`)}
+                    className={cn('h-16 cursor-pointer border-t border-ui-divider hover:bg-ui-surface', isSelected && 'bg-ui-selected-bg')}
+                  >
+                    <td className={cn(TD_CLS, 'pl-[18px]')} onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" className={CHECKBOX_CLS} checked={isSelected} onChange={() => toggle(c.id)} aria-label={`Select ${c.name}`} />
                     </td>
-                  )}
-                </tr>
-              ))}
+                    <td className={cn(TD_CLS, 'max-w-[260px]')}>
+                      <div className="flex items-center gap-2">
+                        <span className={cn('truncate text-[13px] font-semibold', HEADING_TEXT)}>{c.name}</span>
+                        <CopyLinkButton url={c.publicUrl} />
+                      </div>
+                      {c.code && <div className="text-[11px] text-ui-text-secondary">{c.code}</div>}
+                    </td>
+                    <td className={TD_CLS}>
+                      <span
+                        className="inline-flex items-center rounded-[4px] px-2.5 py-[3px] text-[11px] font-medium uppercase leading-4"
+                        style={{ background: STATUS_BG[c.status], color: '#fff' }}
+                      >
+                        {STATUS_LABEL[c.status]}
+                      </span>
+                    </td>
+                    <td className={TD_CLS}>{CAMPAIGN_TYPE_LABEL[c.campaign_type]}</td>
+                    <td className={cn(TD_CLS, 'max-w-[200px] truncate')}>{cityState(c)}</td>
+                    <td className={cn(TD_CLS, 'whitespace-nowrap')}>{formatDate(c.start_date)}</td>
+                    <td className={cn(TD_CLS, 'whitespace-nowrap')}>{formatDate(c.end_date)}</td>
+                    <td className={cn(TD_CLS, 'text-center')}>{c.submission_count}</td>
+                    <td className={cn(TD_CLS, 'whitespace-nowrap')}>{formatDate(c.created_at)}</td>
+                    <td className={cn(TD_CLS, 'pr-[18px]')} onClick={e => e.stopPropagation()}>
+                      <div className="relative" ref={menuId === c.id ? menuRef : undefined}>
+                        <button
+                          type="button"
+                          aria-label={`Actions for ${c.name}`}
+                          aria-haspopup="menu"
+                          aria-expanded={menuId === c.id}
+                          onClick={() => setMenuId(id => (id === c.id ? null : c.id))}
+                          className="grid size-8 cursor-pointer place-items-center rounded-[6px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
+                        >
+                          <MoreHorizontal size={16} aria-hidden />
+                        </button>
+                        {menuId === c.id && (
+                          <div role="menu" className="absolute right-0 top-[calc(100%+4px)] z-20 flex min-w-[170px] flex-col gap-0.5 rounded-[6px] border border-ui-input-border bg-ui-page-bg p-1.5 shadow-md">
+                            <Link role="menuitem" href={`/marketing/campaigns/${c.id}`} className={MENU_ITEM}><ExternalLink aria-hidden /> Open</Link>
+                            {canEdit && c.status !== 'closed' && (
+                              <Link role="menuitem" href={`/marketing/campaigns/${c.id}/edit`} className={MENU_ITEM}><Pencil aria-hidden /> Edit</Link>
+                            )}
+                            {canEdit && (
+                              <button
+                                type="button" role="menuitem" className={MENU_ITEM}
+                                style={{ color: 'var(--status-t10-fg)' }}
+                                onClick={() => { setMenuId(null); void trashCampaigns([c]); }}
+                              >
+                                <Trash2 aria-hidden /> Delete
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
-    </>
+    </div>
   );
 }

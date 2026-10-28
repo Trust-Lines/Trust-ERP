@@ -74,7 +74,7 @@ export default async function SalesProjectsPage() {
   }));
 
   return (
-    <div style={{ padding: '24px 32px' }}>
+    <div style={{ padding: 28 }}>
       <SalesOpportunitiesClient initialOpportunities={opportunities} currentUserId={user.id} loadError={!!res.error} assignees={(assigneeRows ?? []) as { id: string; full_name: string }[]} />
     </div>
   );

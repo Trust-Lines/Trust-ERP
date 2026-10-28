@@ -1,37 +1,63 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { Select } from '@/components/platform/shared/Select';
+import { cn } from '@/lib/utils';
 import type { Customer } from './types';
+import { DetailCard, HEADING } from './ui';
 
 export function DetailsCard({ customer, editing, onSave, onCancel }: {
   customer: Customer; editing: boolean; onSave: (p: Partial<Customer>) => Promise<void>; onCancel: () => void;
 }) {
   return (
-    <div className="card" style={{ marginBottom: 20 }}>
-      <div className="card-head"><div className="form-section-title">Details</div></div>
-      <div className="card-body">
-        {editing
-          ? <CustomerEditForm customer={customer} onSave={onSave} onCancel={onCancel} />
-          : <DetailGrid customer={customer} />}
-      </div>
-    </div>
+    <DetailCard title="Details" muted>
+      <DetailList customer={customer} />
+      {editing && <EditDialog customer={customer} onSave={onSave} onCancel={onCancel} />}
+    </DetailCard>
   );
 }
 
-function DetailGrid({ customer }: { customer: Customer }) {
-  const rows: [string, string | null][] = [
-    ['Industry', customer.industry], ['Email', customer.email], ['Phone', customer.phone],
-    ['Website', customer.website], ['Tax ID', customer.tax_id], ['Notes', customer.notes],
+function DetailList({ customer }: { customer: Customer }) {
+  // Short single values read larger (14px); free-text ones (Tax ID, Notes) wrap at 13px.
+  const rows: [string, string | null, boolean][] = [
+    ['Industry', customer.industry, false], ['Email', customer.email, false], ['Phone', customer.phone, false],
+    ['Website', customer.website, false], ['Tax ID', customer.tax_id, true], ['Notes', customer.notes, true],
   ];
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', rowGap: 8, columnGap: 12, fontSize: 13 }}>
-      {rows.map(([k, v]) => (
-        <div key={k} style={{ display: 'contents' }}>
-          <div style={{ color: 'var(--fg-subtle)' }}>{k}</div>
-          <div>{v || <span style={{ color: 'var(--fg-faint)' }}>—</span>}</div>
+    <dl className="m-0 flex flex-col gap-4">
+      {rows.map(([k, v, small]) => (
+        <div key={k} className="flex min-w-0 flex-col">
+          <dt className="text-[12px] font-medium leading-4 text-ui-body">{k}</dt>
+          <dd className={cn('m-0 break-words', small ? 'text-[13px] leading-[1.4]' : 'text-[14px] font-medium leading-[1.5] tracking-[-0.308px]', v ? HEADING : 'text-ui-text-disabled')}>
+            {v || '—'}
+          </dd>
         </div>
       ))}
+    </dl>
+  );
+}
+
+function EditDialog({ customer, onSave, onCancel }: { customer: Customer; onSave: (p: Partial<Customer>) => Promise<void>; onCancel: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel]);
+  return (
+    <div className="fixed inset-0 z-[10000] grid place-items-center bg-black/45 p-4" onClick={onCancel}>
+      <div
+        role="dialog" aria-modal="true" aria-labelledby="edit-customer-title" onClick={e => e.stopPropagation()}
+        className="flex max-h-[90vh] w-full max-w-[680px] flex-col gap-4 overflow-y-auto rounded-card bg-ui-page-bg p-6 shadow-04"
+      >
+        <div className="flex items-center justify-between">
+          <h2 id="edit-customer-title" className={cn('m-0 text-[18px] font-semibold', HEADING)}>Edit customer</h2>
+          <button type="button" onClick={onCancel} aria-label="Close" className="grid size-8 place-items-center rounded-[6px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg">
+            <X size={16} />
+          </button>
+        </div>
+        <CustomerEditForm customer={customer} onSave={onSave} onCancel={onCancel} />
+      </div>
     </div>
   );
 }

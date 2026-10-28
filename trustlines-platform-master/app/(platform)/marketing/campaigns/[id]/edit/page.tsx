@@ -33,7 +33,7 @@ export default async function EditCampaignPage({ params }: { params: Promise<{ i
 
   return (
     <div className="main-inner">
-      <CampaignFormClient mode="edit" campaignId={id} initial={initial} />
+      <CampaignFormClient mode="edit" campaignId={id} status={campaign.status} initial={initial} />
     </div>
   );
 }

@@ -28,6 +28,8 @@ export default async function NewLeadFormPage() {
   const leadId = crypto.randomUUID();
 
   return (
-    <IntakeForm intakeId={leadId} assignees={assignees} />
+    <div style={{ padding: 28 }}>
+      <IntakeForm intakeId={leadId} assignees={assignees} />
+    </div>
   );
 }

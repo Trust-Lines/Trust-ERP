@@ -145,7 +145,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     .eq('is_active', true).order('full_name', { ascending: true });
 
   return (
-    <div style={{ padding: '24px 32px' }}>
+    <div style={{ padding: 28 }}>
       <LeadsClient
         initialLeads={allLeads} assignees={assignees} marketingAssignees={marketingAssignees ?? []}
         currentUserId={user.id} canManageNumber={canManageNumber} nextNumber={nextNumber}

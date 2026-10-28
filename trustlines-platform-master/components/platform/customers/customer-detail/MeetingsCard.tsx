@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Trash2, Plus, CalendarDays } from 'lucide-react';
+import { CalendarDays, ChevronDown } from 'lucide-react';
 import { Select } from '@/components/platform/shared/Select';
 import { MEETING_TYPES, cap, type Meeting } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
+import { cn } from '@/lib/utils';
+import { AddButton, DetailCard, FORM_BOX, IconAction, RowList } from './ui';
 
 export function MeetingsCard({ meetings, canEdit, onSave, onSetStatus, onDelete }: {
   meetings: Meeting[];
@@ -22,55 +24,73 @@ export function MeetingsCard({ meetings, canEdit, onSave, onSetStatus, onDelete 
   }
 
   return (
-    <div className="card" style={{ marginBottom: 20 }}>
-      <div className="card-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div className="form-section-title">Meetings ({meetings.length})</div>
-        {canEdit && !addingMeeting && <button className="btn btn-ghost btn-sm" onClick={() => setAddingMeeting(true)}><Plus size={13} /> Add meeting</button>}
-      </div>
-      <div className="card-body">
-        {addingMeeting && canEdit && (
-          <div style={{ marginBottom: 12 }}><MeetingForm onSave={save} onCancel={() => setAddingMeeting(false)} /></div>
-        )}
-        {meetings.length === 0 && !addingMeeting ? (
-          <EmptyState size="sm" icon={<CalendarDays />} title="No meetings logged yet." />
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {meetings.map(m => (
-              <div key={m.id} style={{ padding: '10px 12px', border: '1px solid var(--border-subtle)', borderRadius: 6, opacity: m.status === 'cancelled' ? 0.6 : 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>{m.title}</span>
-                  {m.meeting_type && <span className="pill" style={{ fontSize: 10, textTransform: 'capitalize' }}>{cap(m.meeting_type)}</span>}
-                  <span className="pill" style={{ fontSize: 10, textTransform: 'capitalize',
-                    background: m.status === 'completed' ? 'var(--status-success-bg)' : 'var(--bg-sunken)',
-                    color: m.status === 'completed' ? 'var(--status-success-fg)' : 'var(--fg-subtle)' }}>{m.status}</span>
-                  <div style={{ flex: 1 }} />
-                  {canEdit && (
-                    <>
-                      <Select className="form-input" style={{ fontSize: 12, width: 'auto', padding: '2px 6px' }} value={m.status}
-                        onChange={e => onSetStatus(m.id, e.target.value as Meeting['status'])} aria-label={`${m.title} status`}>
-                        <option value="scheduled">Scheduled</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                      </Select>
-                      <button className="btn btn-ghost btn-sm" style={{ padding: '3px 6px', color: '#dc2626' }} onClick={() => onDelete(m.id)} aria-label="Remove meeting"><Trash2 size={13} /></button>
-                    </>
+    <DetailCard
+      title={`Meetings (${meetings.length})`}
+      action={canEdit && !addingMeeting ? <AddButton label="Add Meeting" onClick={() => setAddingMeeting(true)} /> : undefined}
+    >
+      {addingMeeting && canEdit && <MeetingForm onSave={save} onCancel={() => setAddingMeeting(false)} />}
+      {meetings.length === 0 && !addingMeeting ? (
+        <EmptyState size="sm" icon={<CalendarDays />} title="No meetings logged yet." />
+      ) : meetings.length > 0 && (
+        <RowList>
+          {meetings.map(m => {
+            const tone = STATUS_TONE[m.status];
+            const when = new Date(m.meeting_at);
+            const whereWho = [m.attendees, m.location].filter(Boolean).join('  ·  ');
+            return (
+              <div key={m.id} className={cn('flex items-start gap-3 px-1 py-3', m.status === 'cancelled' && 'opacity-60')}>
+                <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="text-[13px] font-semibold leading-[1.4] text-ui-body">
+                      {m.title}{m.meeting_type ? ` - ${cap(m.meeting_type).replace(/\b\w/g, c => c.toUpperCase())}` : ''}
+                    </span>
+                    {canEdit ? (
+                      <label
+                        className="relative inline-flex h-[18px] cursor-pointer items-center gap-1 rounded-[4px] px-2.5 text-[11px] font-medium capitalize leading-4"
+                        style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}
+                      >
+                        {m.status}
+                        <ChevronDown size={14} aria-hidden />
+                        <select
+                          aria-label={`${m.title} status`}
+                          value={m.status}
+                          onChange={e => onSetStatus(m.id, e.target.value as Meeting['status'])}
+                          className="absolute inset-0 cursor-pointer opacity-0"
+                        >
+                          <option value="scheduled">Scheduled</option>
+                          <option value="completed">Completed</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </label>
+                    ) : (
+                      <span className="inline-flex h-[18px] items-center rounded-[4px] px-2.5 text-[11px] font-medium capitalize leading-4"
+                        style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}>
+                        {m.status}
+                      </span>
+                    )}
+                  </div>
+                  {whereWho && <p className="m-0 break-words text-[11px] leading-[1.4] text-ui-body">{whereWho}</p>}
+                  <p className="m-0 text-[11px] leading-[1.4] text-ui-text-secondary">
+                    {when.toLocaleDateString('en-US')} · {when.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  {m.notes && <p className="m-0 break-words text-[11px] leading-[1.4] text-ui-text-secondary">{m.notes}</p>}
+                  {m.outcome && (
+                    <p className="m-0 break-words text-[12px] leading-[1.4] text-ui-body">
+                      <span className="text-[13px] font-semibold">Outcome: </span>{m.outcome}
+                    </p>
                   )}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 3 }}>
-                  {new Date(m.meeting_at).toLocaleString()}
-                  {m.location && ` · ${m.location}`}
-                  {m.attendees && ` · ${m.attendees}`}
-                </div>
-                {m.notes && <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 4 }}>{m.notes}</div>}
-                {m.outcome && <div style={{ fontSize: 12, marginTop: 4 }}><strong>Outcome:</strong> {m.outcome}</div>}
+                {canEdit && <IconAction kind="delete" label="Remove meeting" onClick={() => onDelete(m.id)} />}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+            );
+          })}
+        </RowList>
+      )}
+    </DetailCard>
   );
 }
+
+const STATUS_TONE: Record<Meeting['status'], string> = { scheduled: 't0', completed: 't9', cancelled: 't10' };
 
 function MeetingForm({ onSave, onCancel }: { onSave: (p: Record<string, unknown>) => Promise<boolean>; onCancel: () => void }) {
   const [f, setF] = useState({
@@ -92,8 +112,8 @@ function MeetingForm({ onSave, onCancel }: { onSave: (p: Record<string, unknown>
   }
 
   return (
-    <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '12px 14px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 190px', gap: 8, marginBottom: 8 }}>
+    <div className={FORM_BOX}>
+      <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <div><label className="form-label required" style={{ fontSize: 11 }}>Title</label>
           <input className="form-input" style={{ fontSize: 13 }} placeholder="e.g. Site visit" value={f.title} onChange={set('title')} autoFocus /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Type</label>
@@ -103,7 +123,7 @@ function MeetingForm({ onSave, onCancel }: { onSave: (p: Record<string, unknown>
         <div><label className="form-label required" style={{ fontSize: 11 }}>Date & time</label>
           <input type="datetime-local" className="form-input" style={{ fontSize: 13 }} value={f.meeting_at} onChange={set('meeting_at')} /></div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 150px', gap: 8, marginBottom: 8 }}>
+      <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <div><label className="form-label" style={{ fontSize: 11 }}>Location</label><input className="form-input" style={{ fontSize: 13 }} value={f.location} onChange={set('location')} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Attendees</label><input className="form-input" style={{ fontSize: 13 }} placeholder="Names, comma separated" value={f.attendees} onChange={set('attendees')} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Status</label>

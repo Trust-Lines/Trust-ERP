@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Mail, Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react';
 import { MERGE_FIELDS, renderTemplate, type MergeContact } from '@/lib/marketing/mailTemplates';
+import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 
@@ -25,6 +26,15 @@ const SAMPLE_CONTACT: MergeContact = {
   brand_name: 'Acme', industry: 'Retail', region: 'TLINES_NE', state: 'GA',
   source_label: 'Trade Fair', main_email: 'contact@example.com',
 };
+
+// Figma "Mail Templates" editor (node 277:23745).
+const HEADING_TEXT = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const LABEL = 'mb-[7px] block text-[12px] font-medium leading-4 text-ui-body';
+const FIELD = { minHeight: 42, fontSize: 14, borderRadius: 6, borderColor: 'var(--ui-input-border)', background: 'var(--ui-input-bg)', color: 'var(--ui-body)' } as const;
+const NAVY_BTN = 'inline-flex h-9 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-8 text-[13px] font-medium text-white no-underline hover:brightness-110 disabled:cursor-default disabled:opacity-50 dark:bg-[var(--ui-tab-badge)] [&_svg]:size-4';
+const OUTLINE_BTN = 'inline-flex h-9 shrink-0 cursor-pointer items-center justify-center rounded-[6px] border border-ui-divider bg-ui-input-bg px-8 text-[13px] font-medium text-ui-body hover:bg-ui-hover-bg disabled:opacity-50';
+const ICON_BTN = 'grid size-8 cursor-pointer place-items-center rounded-[6px] border border-ui-input-border bg-ui-input-bg text-ui-body hover:brightness-95';
+const PREVIEW_BOX = 'rounded-[6px] border border-ui-input-border bg-transparent px-3 py-2.5 text-[14px] leading-[1.4] text-ui-body';
 
 interface Props {
   initialTemplates: MailTemplateRow[];
@@ -92,103 +102,132 @@ export function MailTemplatesClient({ initialTemplates, loadError, canEdit }: Pr
     }
   }
 
-  async function remove(t: MailTemplateRow) {
-    if (!confirm(`Delete "${t.name}"? This can't be undone.`)) return;
+  // Returns true once the template is gone, so the editor can close itself after deleting.
+  async function remove(t: MailTemplateRow): Promise<boolean> {
+    if (!confirm(`Delete "${t.name}"? This can't be undone.`)) return false;
     const res = await fetch(`/api/marketing/mail-templates/${t.id}`, { method: 'DELETE' });
-    if (!res.ok) { const b = await res.json().catch(() => ({})); toast.error(b.error ?? 'Could not delete'); return; }
+    if (!res.ok) { const b = await res.json().catch(() => ({})); toast.error(b.error ?? 'Could not delete'); return false; }
     setTemplates(prev => prev.filter(x => x.id !== t.id));
     toast.success('Deleted');
+    return true;
   }
 
   if (loadError) {
     return (
-      <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
-        <AlertTriangle size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
+      <div className="rounded-[8px] border border-ui-divider bg-ui-surface-elevated p-12 text-center text-[13px] text-ui-text-secondary">
+        <AlertTriangle size={28} className="mx-auto mb-2" style={{ color: 'var(--status-t7-fg)' }} />
         <div>Mail Templates isn&apos;t ready yet. Migration 117 needs to be applied.</div>
-      </div></div>
+      </div>
     );
   }
 
+  const previewSubject = editing ? renderTemplate(editing.subject, SAMPLE_CONTACT) : '';
+  // Preview only — rendered to plain text so a template author never has to trust
+  // dangerouslySetInnerHTML on their own still-being-edited markup.
+  const previewBody = editing
+    ? renderTemplate(editing.body, SAMPLE_CONTACT).replace(/<\s*br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n\n').replace(/<[^>]+>/g, ' ').replace(/[ \t]+/g, ' ').replace(/\n /g, '\n').trim()
+    : '';
+
   return (
-    <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Mail Templates</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col gap-[5px] leading-[1.35]">
+          <p className="m-0 text-[11px] font-semibold text-ui-nav-active">
+            Marketing / Mail Templates{editing ? (editing.id ? ' / Edit' : ' / New') : ''}
+          </p>
+          <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>
+            {editing ? (editing.id ? 'Edit Template' : 'New Template') : 'Mail Templates'}
+          </h1>
+          <p className="m-0 text-[13px] text-ui-body">
             Used from Contacts to download or send a query&apos;s results as one merged mailing.
           </p>
         </div>
         {canEdit && !editing && (
-          <button className="btn btn-primary" onClick={startNew}><Plus size={14} style={{ marginRight: 5 }} /> New Template</button>
+          <button type="button" className={NAVY_BTN} onClick={startNew}><Plus aria-hidden /> New Template</button>
+        )}
+        {canEdit && editing?.id && (
+          <button
+            type="button"
+            disabled={saving}
+            className="inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[6px] border-0 pl-[14px] pr-6 text-[13px] font-medium hover:brightness-95 disabled:opacity-50"
+            style={{ background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' }}
+            onClick={async () => {
+              const t = templates.find(x => x.id === editing.id);
+              if (t && await remove(t)) setEditing(null);
+            }}
+          >
+            <Trash2 size={16} aria-hidden /> Delete
+          </button>
         )}
       </div>
 
       {editing ? (
-        <div className="card"><div className="card-body" style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: 24 }}>
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Template name</label>
-            <input
-              className="form-input" style={{ marginBottom: 14, width: '100%' }}
-              value={editing.name} onChange={e => setEditing(x => (x ? { ...x, name: e.target.value } : x))}
-              placeholder="e.g. Trade fair follow-up"
-            />
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Subject</label>
-            <input
-              ref={subjectRef} className="form-input" style={{ marginBottom: 14, width: '100%' }}
-              value={editing.subject} onFocus={() => setLastFocused('subject')}
-              onChange={e => setEditing(x => (x ? { ...x, subject: e.target.value } : x))}
-              placeholder="e.g. Great meeting you at {{name}}"
-            />
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Body (HTML)</label>
-            <textarea
-              ref={bodyRef} className="form-input" style={{ width: '100%', minHeight: 320, fontFamily: 'monospace', fontSize: 12.5 }}
-              value={editing.body} onFocus={() => setLastFocused('body')}
-              onChange={e => setEditing(x => (x ? { ...x, body: e.target.value } : x))}
-              placeholder={'<p>Hi {{first_name}},</p>\n<p>Thanks for stopping by our {{company}} booth...</p>'}
-            />
-            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-              <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save template'}</button>
-              <button className="btn btn-ghost" disabled={saving} onClick={() => setEditing(null)}>Cancel</button>
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--fg-subtle)', marginBottom: 8 }}>
-              Merge fields — click to insert
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {MERGE_FIELDS.map(f => (
-                <button
-                  key={f.token} type="button" onClick={() => insertToken(f.token)}
-                  className="btn btn-ghost btn-sm" style={{ justifyContent: 'flex-start', textAlign: 'left' }}
-                  title={f.label}
-                >
-                  <code style={{ fontSize: 11.5 }}>{'{{' + f.token + '}}'}</code>
-                  <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--fg-subtle)' }}>{f.label}</span>
-                </button>
-              ))}
-            </div>
-
-            {(editing.subject || editing.body) && (
-              <div style={{ marginTop: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--fg-subtle)', marginBottom: 8 }}>
-                  Preview (sample data)
+        // Figma 277:23745: form on the left, live Mail Preview (sample data) on the right.
+        <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1fr)_528px]">
+          <div className="flex flex-col gap-8 rounded-[8px] border border-ui-divider bg-ui-page-bg p-5">
+            <div className="flex flex-col gap-8">
+              <label className="flex flex-col">
+                <span className={LABEL}>Template Name</span>
+                <input
+                  className="form-input" style={FIELD}
+                  value={editing.name} onChange={e => setEditing(x => (x ? { ...x, name: e.target.value } : x))}
+                  placeholder="e.g. Trade fair follow-up"
+                />
+              </label>
+              <label className="flex flex-col">
+                <span className={LABEL}>Subject</span>
+                <input
+                  ref={subjectRef} className="form-input" style={FIELD}
+                  value={editing.subject} onFocus={() => setLastFocused('subject')}
+                  onChange={e => setEditing(x => (x ? { ...x, subject: e.target.value } : x))}
+                  placeholder="e.g. Great meeting you at {{name}}"
+                />
+              </label>
+              <div className="flex flex-col">
+                <label htmlFor="mail-template-body" className={LABEL}>Body (HTML)</label>
+                <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label={`Merge fields — click to insert into the ${lastFocused === 'subject' ? 'subject' : 'body'}`}>
+                  {MERGE_FIELDS.map(f => (
+                    <button
+                      key={f.token} type="button" onClick={() => insertToken(f.token)}
+                      title={`${f.label} — inserts into the ${lastFocused === 'subject' ? 'subject' : 'body'}`}
+                      className="inline-flex h-7 cursor-pointer items-center rounded-[4px] border border-ui-input-border bg-ui-input-bg px-2.5 text-[11px] font-semibold tracking-[-0.02em] text-[var(--color-secondary-700)] hover:bg-ui-hover-bg dark:text-ui-heading"
+                    >
+                      {'{{' + f.token + '}}'}
+                    </button>
+                  ))}
                 </div>
-                <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 8, padding: 10, fontSize: 12.5 }}>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>{renderTemplate(editing.subject, SAMPLE_CONTACT)}</div>
-                  {/* Preview only — same source the sender would see, rendered to plain text so
-                      a template author never has to trust dangerouslySetInnerHTML on their own
-                      still-being-edited markup. */}
-                  <div style={{ whiteSpace: 'pre-wrap', color: 'var(--fg-subtle)' }}>
-                    {renderTemplate(editing.body, SAMPLE_CONTACT).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
-                  </div>
-                </div>
+                <textarea
+                  id="mail-template-body" ref={bodyRef} className="form-input"
+                  style={{ ...FIELD, minHeight: 220, fontFamily: 'var(--font-mono, monospace)', fontSize: 13, resize: 'vertical' }}
+                  value={editing.body} onFocus={() => setLastFocused('body')}
+                  onChange={e => setEditing(x => (x ? { ...x, body: e.target.value } : x))}
+                  placeholder={'<p>Hi {{first_name}},</p>\n<p>Thanks for stopping by our {{company}} booth...</p>'}
+                />
               </div>
-            )}
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <button type="button" className={OUTLINE_BTN} disabled={saving} onClick={() => setEditing(null)}>Cancel</button>
+              <button type="button" className={NAVY_BTN} disabled={saving} onClick={save}>
+                {saving ? 'Saving…' : editing.id ? 'Save Changes' : 'Create Template'}
+              </button>
+            </div>
           </div>
-        </div></div>
+
+          <aside className="flex flex-col gap-6 rounded-[8px] border border-ui-divider bg-ui-surface p-5" aria-label="Mail preview with sample data">
+            <div>
+              <h2 className={cn('m-0 text-[20px] font-semibold leading-[1.45]', HEADING_TEXT)}>Mail Preview</h2>
+              <p className="m-0 text-[11px] text-ui-text-secondary">Merge fields filled in with a sample Contact ({SAMPLE_CONTACT.person_name}, {SAMPLE_CONTACT.organization_name}).</p>
+            </div>
+            <div className={cn(PREVIEW_BOX, 'min-h-[42px] font-medium', !previewSubject && 'text-ui-text-secondary')}>
+              {previewSubject || 'Subject'}
+            </div>
+            <div className={cn(PREVIEW_BOX, 'min-h-[300px] flex-1 whitespace-pre-wrap', !previewBody && 'text-ui-text-secondary')}>
+              {previewBody || 'The email body appears here as you type.'}
+            </div>
+          </aside>
+        </div>
       ) : templates.length === 0 ? (
-        <div className="card">
+        <div className="rounded-[8px] border border-ui-divider bg-ui-page-bg">
           <EmptyState
             icon={<Mail />}
             title="No templates yet"
@@ -197,26 +236,29 @@ export function MailTemplatesClient({ initialTemplates, loadError, canEdit }: Pr
           />
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div className="overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg">
           {templates.map(t => (
-            <div key={t.id} className="card"><div className="card-body" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <Mail size={18} style={{ color: 'var(--brand-teal-600, #0d9488)', flexShrink: 0 }} />
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 13.5 }}>{t.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--fg-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {t.subject}
-                </div>
+            <div key={t.id} className="flex items-center gap-4 border-b border-ui-divider px-5 py-4 last:border-b-0">
+              <span className="grid size-9 shrink-0 place-items-center rounded-[6px] bg-ui-surface text-ui-body"><Mail size={16} aria-hidden /></span>
+              <div className="min-w-0 flex-1">
+                <div className={cn('text-[13px] font-semibold', HEADING_TEXT)}>{t.name}</div>
+                <div className="truncate text-[12px] text-ui-text-secondary">{t.subject}</div>
               </div>
               {canEdit && (
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => startEdit(t)}><Pencil size={13} /></button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => remove(t)}><Trash2 size={13} style={{ color: '#dc2626' }} /></button>
+                <div className="flex shrink-0 gap-2">
+                  <button type="button" className={ICON_BTN} onClick={() => startEdit(t)} aria-label={`Edit ${t.name}`} title="Edit"><Pencil size={14} aria-hidden /></button>
+                  <button
+                    type="button" className={ICON_BTN} onClick={() => remove(t)} aria-label={`Delete ${t.name}`} title="Delete"
+                    style={{ background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)', borderColor: 'transparent' }}
+                  >
+                    <Trash2 size={14} aria-hidden />
+                  </button>
                 </div>
               )}
-            </div></div>
+            </div>
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }
