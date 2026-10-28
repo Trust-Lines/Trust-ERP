@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { requirePage } from '@/lib/permissions/requirePage';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { IntakeForm } from '@/components/platform/leads/IntakeForm';
@@ -15,6 +16,8 @@ import type { SalesDesignVersion } from '@/types/database';
 import { buttonVariants } from '@/components/ui/button';
 
 export default async function LeadIntakePage({ params }: { params: Promise<{ id: string }> }) {
+  // Roles & Permissions switch (catalog.ts PAGE_LEGACY_ROLES keeps the old role list as default).
+  await requirePage('page.leads');
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
