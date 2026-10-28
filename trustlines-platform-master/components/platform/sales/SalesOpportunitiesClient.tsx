@@ -323,7 +323,10 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
                             <button type="button" className={ACTION_NEUTRAL} disabled={busy} onClick={() => doNegotiate(o.id)}>Move to Negotiation</button>
                           )}
                           <button type="button" className={ACTION_LOST} disabled={busy} onClick={() => doCloseLost(o.id)}>Close Lost</button>
-                          <button type="button" className={ACTION_WON} disabled={busy} onClick={() => doCloseWon(o.id)}>Close Won</button>
+                          {/* Close Won needs the Project that Accept creates (lib/marketing/salesHandoff.ts → 409) — QA DEF-17. */}
+                          <button type="button" className={ACTION_WON} disabled={busy || !o.project_id}
+                            title={o.project_id ? undefined : 'Accept the Opportunity first — Close Won needs a Project'}
+                            onClick={() => doCloseWon(o.id)}>Close Won</button>
                         </>
                       )}
                     </div>
