@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { findStatusTag } from '@/lib/status/tags';
 import { cn } from '@/lib/utils';
+import type { TaskQuickFilter } from '@/lib/sales/taskFilters';
 
 export interface TaskRow {
   id: string;
@@ -58,10 +59,6 @@ const taskApi = (t: TaskRow) =>
     ? `/api/marketing/opportunities/${t.lead_id}/tasks/${t.id}`
     : `/api/leads/${t.lead_id}/tasks/${t.id}`;
 const taskHref = (t: TaskRow) => (t.kind === 'opportunity' ? `/leads?open=${t.lead_id}` : `/leads/${t.lead_id}`);
-
-/** `/sales-tasks?filter=…` presets (the Sales dashboard links here). */
-export const TASK_QUICK_FILTERS = ['overdue', 'today', 'unassigned', 'mine'] as const;
-export type TaskQuickFilter = typeof TASK_QUICK_FILTERS[number];
 
 export function TasksClient({ tasks: initial, assignees, currentUserId, openDeals = [], initialFilter }: {
   tasks: TaskRow[];
