@@ -6,7 +6,7 @@ import { LeadCaptureWizard } from '@/components/platform/marketing/LeadCaptureWi
 import type { UserRole } from '@/types/database';
 
 export default async function CaptureLeadPage() {
-  await requirePage('page.marketing');
+  await requirePage('page.marketing_contacts');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profileData } = await supabase.from('profiles').select('role').eq('id', user!.id).single();

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requirePage } from '@/lib/permissions/requirePage';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { SalesTeamClient, type SalesRepRow, type RegionClient } from '@/components/platform/team/SalesTeamClient';
@@ -6,6 +7,8 @@ import { SALES_TEAM_ADMIN_ROLES } from '@/lib/sales/roles';
 import { fetchInChunks } from '@/lib/supabase/chunkedIn';
 
 export default async function SalesTeamPage() {
+  // Roles & Permissions switch (catalog.ts PAGE_LEGACY_ROLES keeps the old role list as default).
+  await requirePage('page.sales_team');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
