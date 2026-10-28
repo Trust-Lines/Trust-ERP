@@ -2,20 +2,21 @@ import { requirePage } from '@/lib/permissions/requirePage';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { loadPortfolio, blockerRollup, workload } from '@/lib/workspace/portfolio';
-import { PHASE_LABELS } from '@/lib/lifecycle/projectLifecycle';
-import { PortfolioList } from '@/components/platform/workspace/PortfolioClient';
+import { PHASE_LABELS, phaseRank } from '@/lib/lifecycle/projectLifecycle';
+import { ManagementHealthTable, type HealthRow } from '@/components/platform/workspace/ManagementHealthTable';
 import { toRows } from '@/lib/workspace/rows';
-import { Avatar } from '@/components/platform/shared/Avatar';
+import type { LifecyclePhase } from '@/lib/lifecycle/projectLifecycle';
 import type { UserRole } from '@/types/database';
 
 const MANAGEMENT_ROLES = ['ops_manager', 'general_manager'];
 
-// Figma "ops_manager" (node 174:27458) surface + Status Chip (48:500) styles.
+// Figma "ops_manager" (node 178:29671): heading, two "Pattern surface" cards with value bars
+// (178:30300), then the project table (178:29818). Only data this page already had is shown —
+// the frame's date range, "Create task" and revenue chart have no backing feature here.
 const SURFACE = 'flex min-w-0 flex-col gap-5 rounded-[10px] border border-ui-divider bg-ui-surface-elevated p-6';
 const SURFACE_TITLE = 'm-0 text-[17px] font-semibold leading-[normal] text-ui-heading';
 const SURFACE_SUBTITLE = 'm-0 text-[12px] leading-[1.45] text-ui-text-secondary';
-const SURFACE_ROW = 'flex items-center gap-2.5 py-2 text-[13px] leading-[1.4] text-ui-body';
-const CHIP = 'inline-flex items-center rounded-[4px] py-[3px] pl-2 pr-2.5 text-[12px] font-medium leading-4 whitespace-nowrap';
+const BAR_TONES = ['t1', 't2', 't6', 't8', 't4', 't5', 't7', 't3'];
 
 export default async function ManagementPage() {
   await requirePage('page.management');
@@ -30,10 +31,10 @@ export default async function ManagementPage() {
 
   if (!role || !MANAGEMENT_ROLES.includes(role)) {
     return (
-      <div className="main-inner">
-        <div className="card" style={{ padding: 16 }}>
-          <h1 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 4px' }}>Management Workspace</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
+      <div style={{ padding: 28 }}>
+        <div className="rounded-[10px] border border-ui-divider bg-ui-surface-elevated p-6">
+          <h1 className="m-0 mb-1 text-[17px] font-semibold text-ui-heading">Management Workspace</h1>
+          <p className="m-0 text-[13px] text-ui-body">
             This company-wide view is limited to the Ops Manager and the General Manager.
           </p>
         </div>
@@ -45,14 +46,29 @@ export default async function ManagementPage() {
   const rollup = blockerRollup(entries);
   const load = workload(entries);
 
+  // Names for every PM slot used by the workload card and the table's Owner column.
+  const pmIds = [...new Set(entries.flatMap(e => [e.project.trustlines_pm_id, e.project.tlines_pm_id, e.project.pm_supervisor_id]).filter(Boolean))] as string[];
   const names: Record<string, string> = {};
-  if (load.length) {
-    const { data } = await admin.from('profiles').select('id, full_name').in('id', load.map(w => w.userId));
+  if (pmIds.length) {
+    const { data } = await admin.from('profiles').select('id, full_name').in('id', pmIds);
     for (const p of (data ?? []) as { id: string; full_name: string }[]) names[p.id] = p.full_name;
   }
 
-  const rows = toRows(entries, PHASE_LABELS);
-  rows.sort((a, b) => b.blockers.length - a.blockers.length || (a.code ?? '').localeCompare(b.code ?? ''));
+  const ownerById = new Map(entries.map(e => {
+    const id = e.project.trustlines_pm_id ?? e.project.tlines_pm_id ?? e.project.pm_supervisor_id;
+    return [e.project.id, id ? (names[id] ?? null) : null] as const;
+  }));
+  const today = Date.parse(new Date().toISOString().slice(0, 10));
+
+  const rows: HealthRow[] = toRows(entries, PHASE_LABELS).map(r => {
+    const overdue = r.deadlines.filter(d => d.isOverdue).map(d => Math.max(0, Math.round((today - Date.parse(d.targetDate)) / 86400000)));
+    return {
+      ...r,
+      ownerName: ownerById.get(r.projectId) ?? null,
+      daysLate: r.deadlines.length === 0 ? null : overdue.length ? Math.max(...overdue) : 0,
+      phaseRank: phaseRank(r.phase as LifecyclePhase),
+    };
+  });
   const blocked = rows.filter(r => r.blockers.length > 0);
 
   const totals = entries.reduce((acc, e) => ({
@@ -61,45 +77,42 @@ export default async function ManagementPage() {
     overdue: acc.overdue + e.pending.overdueFollowUps,
   }), { approvals: 0, changeRequests: 0, overdue: 0 });
 
+  const maxLoad = Math.max(1, ...load.map(w => w.projects));
+
   return (
-    <div className="main-inner">
-      {/* Page heading — Figma "ops_manager" 174:27573 */}
-      <div className="mb-[30px] flex flex-col gap-[5px] leading-[1.35]">
-        <p className="text-[11px] font-semibold text-ui-nav-active">Operations / Management</p>
+    <div className="flex flex-col gap-[30px]" style={{ padding: 28 }}>
+      <div className="flex flex-col gap-[5px] leading-[1.35]">
+        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Operations / Management</p>
         <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">Management</h1>
         <p className="m-0 text-[13px] text-ui-body">
-          {entries.length} active projects · {blocked.length} blocked
+          Keep handoffs moving. Clear the blockers before they affect delivery. · {entries.length} active projects · {blocked.length} blocked
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Blocked projects" value={blocked.length} warn />
         <Stat label="Pending approvals" value={totals.approvals} />
         <Stat label="Open change requests" value={totals.changeRequests} />
         <Stat label="Overdue follow-ups" value={totals.overdue} warn />
       </div>
 
-      {/* Two side-by-side surfaces — Figma "Pattern surface" 177:29581 / 177:29619 */}
-      <div className="mb-[30px] grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <section className={SURFACE}>
           <div className="flex flex-col gap-1">
-            <h2 className={SURFACE_TITLE}>Company blockers</h2>
+            <h2 className={SURFACE_TITLE}>Company Blockers</h2>
             <p className={SURFACE_SUBTITLE}>How many projects each one holds up</p>
           </div>
+          <Summary value={`${blocked.length} Blocked`} note={`${rollup.length} blocker ${rollup.length === 1 ? 'type' : 'types'}`} />
           {rollup.length === 0 ? (
             <p className="m-0 text-[13px] text-ui-text-secondary">Nothing is blocked company-wide.</p>
           ) : (
-            <div>
+            <div className="flex flex-col gap-[22px]">
               {rollup.map((b, i) => (
-                <div key={b.code} className={i === 0 ? SURFACE_ROW : `${SURFACE_ROW} border-t border-ui-divider`}>
-                  <span className="flex-1">{b.message}</span>
-                  <span className={CHIP} style={{ background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}>
-                    {b.projects} {b.projects === 1 ? 'project' : 'projects'}
-                  </span>
-                </div>
+                <Bar key={b.code} label={b.message} value={b.projects} max={Math.max(1, entries.length)} tone={BAR_TONES[i % BAR_TONES.length]} />
               ))}
             </div>
           )}
+          <Footnote>Bar = share of the {entries.length} active projects</Footnote>
         </section>
 
         <section className={SURFACE}>
@@ -107,33 +120,33 @@ export default async function ManagementPage() {
             <h2 className={SURFACE_TITLE}>Workload</h2>
             <p className={SURFACE_SUBTITLE}>Projects per PM</p>
           </div>
+          <Summary value={`${load.length} ${load.length === 1 ? 'PM' : 'PMs'}`} note={`${entries.length} active projects`} />
           {load.length === 0 ? (
             <p className="m-0 text-[13px] text-ui-text-secondary">No PMs are assigned yet.</p>
           ) : (
-            <div>
+            <div className="flex flex-col gap-[22px]">
               {load.map((w, i) => (
-                <div key={w.userId} className={i === 0 ? SURFACE_ROW : `${SURFACE_ROW} border-t border-ui-divider`}>
-                  <Avatar name={names[w.userId] ?? '?'} size="sm" />
-                  <span className="flex-1">{names[w.userId] ?? w.userId}</span>
-                  {w.blocked > 0 && (
-                    <span className={CHIP} style={{ background: 'var(--status-t7-bg)', color: 'var(--status-t7-fg)' }}>
-                      {w.blocked} blocked
-                    </span>
-                  )}
-                  <span className="text-[13px] font-semibold tabular-nums">{w.projects}</span>
-                </div>
+                <Bar
+                  key={w.userId}
+                  label={names[w.userId] ?? w.userId}
+                  detail={w.blocked > 0 ? `${w.blocked} blocked` : undefined}
+                  value={w.projects}
+                  max={maxLoad}
+                  tone={BAR_TONES[i % BAR_TONES.length]}
+                />
               ))}
             </div>
           )}
+          <Footnote>Counts every PM slot (T-Lines PM, Trust Lines PM, supervisor) on active projects</Footnote>
         </section>
       </div>
 
-      <section>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-          <h2 style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>Project health</h2>
-          <span style={{ fontSize: 11.5, color: 'var(--fg-faint)' }}>Most blocked first</span>
+      <section className="flex flex-col gap-3">
+        <div className="flex items-baseline gap-2">
+          <h2 className={SURFACE_TITLE}>Project Health</h2>
+          <span className={SURFACE_SUBTITLE}>Blocked projects · most blocked first</span>
         </div>
-        <PortfolioList rows={blocked} emptyLabel="Every active project is on track." />
+        <ManagementHealthTable rows={blocked} emptyLabel="Every active project is on track." />
       </section>
     </div>
   );
@@ -141,11 +154,48 @@ export default async function ManagementPage() {
 
 function Stat({ label, value, warn }: { label: string; value: number; warn?: boolean }) {
   return (
-    <div className="card" style={{ padding: '10px 14px', display: 'flex', alignItems: 'baseline', gap: 8 }}>
-      <span style={{ fontSize: 20, fontWeight: 700, color: warn && value > 0 ? 'var(--brand-orange)' : 'var(--fg-default)' }}>
+    <div className="flex flex-col gap-1 rounded-[10px] border border-ui-divider bg-ui-surface-elevated px-5 py-4">
+      <span className={warn && value > 0 ? 'text-[26px] font-semibold leading-none text-error-normal' : 'text-[26px] font-semibold leading-none text-ui-heading'}>
         {value}
       </span>
-      <span style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>{label}</span>
+      <span className="text-[12px] leading-[1.45] text-ui-text-secondary">{label}</span>
+    </div>
+  );
+}
+
+function Summary({ value, note }: { value: string; note: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <p className="m-0 text-[26px] font-semibold leading-[normal] whitespace-nowrap text-ui-heading">{value}</p>
+      <p className="m-0 text-[12px] leading-[1.45] text-ui-text-secondary">{note}</p>
+    </div>
+  );
+}
+
+// Figma "Stage value": label (+ muted detail) and value over a 14px track.
+function Bar({ label, detail, value, max, tone }: { label: string; detail?: string; value: number; max: number; tone: string }) {
+  const pct = Math.min(100, Math.round((value / max) * 100));
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-start justify-between gap-3 text-[13px] text-ui-body">
+        <p className="m-0 min-w-0 truncate">
+          {label}
+          {detail && <span className="text-ui-text-disabled"> · {detail}</span>}
+        </p>
+        <p className="m-0 shrink-0 font-semibold tabular-nums">{value}</p>
+      </div>
+      <div className="relative h-3.5 w-full overflow-hidden rounded-[3px] bg-ui-surface" role="img" aria-label={`${label}: ${value} of ${max}`}>
+        <div className="absolute inset-y-0 left-0 rounded-[3px]" style={{ width: `${pct}%`, background: `var(--status-${tone}-bg)` }} />
+      </div>
+    </div>
+  );
+}
+
+function Footnote({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-auto flex flex-col gap-3">
+      <div className="h-px w-full bg-ui-divider" />
+      <p className="m-0 text-[12px] leading-[1.45] text-ui-text-secondary">{children}</p>
     </div>
   );
 }

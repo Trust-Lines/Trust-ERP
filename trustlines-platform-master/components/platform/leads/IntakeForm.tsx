@@ -6,8 +6,6 @@ import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
 import { composeProjectCode } from '@/lib/regions';
 import { US_STATES } from '@/lib/usStates';
-
-const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 import { EMPTY, type ChecklistItem, type DocRow, type FormState, type Notes, type Scope } from './intake/types';
 import { StepNav } from './intake/StepNav';
 import { Step1ProjectSetup } from './intake/Step1ProjectSetup';
@@ -17,6 +15,8 @@ import { Step4ScopeOfWork } from './intake/Step4ScopeOfWork';
 import { Step6DimensionsMedia } from './intake/Step6DimensionsMedia';
 import { Step7Checklist } from './intake/Step7Checklist';
 import { LeadSummary } from './intake/LeadSummary';
+
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 interface Props {
   intakeId: string;

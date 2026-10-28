@@ -24,7 +24,7 @@ export default async function CustomersPage() {
   const customers = res.error ? [] : (res.data ?? []);
 
   return (
-    <div className="main-inner">
+    <div style={{ padding: 28 }}>
       <CustomersPageClient initialCustomers={customers} canEdit={canEdit} />
     </div>
   );
