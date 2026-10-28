@@ -5,6 +5,20 @@ import { requireUserWithRole, loadDesignJobWithAccess } from '@/lib/sales/design
 type Params = { params: Promise<{ jobId: string }> };
 const VER_COLS = 'id, job_id, version_no, status, preview_link, notes, presented_at, customer_feedback, created_at';
 
+// Versions + their files — the Design panel reloads this after a Dropbox sync or upload.
+export async function GET(_req: NextRequest, { params }: Params) {
+  const { jobId } = await params;
+  const { user, role, admin, deny } = await requireUserWithRole();
+  if (deny) return deny;
+  const { deny: accessDeny } = await loadDesignJobWithAccess(admin, jobId, user.id, role);
+  if (accessDeny) return accessDeny;
+  const [{ data: versions }, { data: files }] = await Promise.all([
+    admin.from('sales_design_versions').select(VER_COLS).eq('job_id', jobId).order('version_no', { ascending: false }),
+    admin.from('sales_design_version_files').select('id, version_id, job_id, file_name, created_at').eq('job_id', jobId).order('created_at', { ascending: true }),
+  ]);
+  return NextResponse.json({ versions: versions ?? [], files: files ?? [] });
+}
+
 export async function POST(req: NextRequest, { params }: Params) {
   const { jobId } = await params;
   const { user, role, admin, deny } = await requireUserWithRole();

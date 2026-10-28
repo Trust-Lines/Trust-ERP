@@ -217,9 +217,14 @@ export async function createDesignFolders(
   const designRoot = designRootFromProjectRoot(projectRootPath);
   if (!designRoot) return { designRoot: null, alreadyExists: false, created: false };
 
+  return { designRoot, ...(await createDesignFoldersAt(designRoot)) };
+}
+
+/** Create the design folder tree (DESIGN_PROJECT_STRUCTURE) at any root — also used for jobs with no Project yet. */
+export async function createDesignFoldersAt(designRoot: string): Promise<{ alreadyExists: boolean; created: boolean }> {
   try {
     await getDropboxClient().filesGetMetadata({ path: designRoot });
-    return { designRoot, alreadyExists: true, created: false };
+    return { alreadyExists: true, created: false };
   } catch { }
 
   const parent = designRoot.split('/').slice(0, -1).join('/');
@@ -227,7 +232,12 @@ export async function createDesignFolders(
   const paths = [designRoot, ...DESIGN_PROJECT_STRUCTURE.map(s => `${designRoot}/${s}`)];
   await batchMkdir(paths);
 
-  return { designRoot, alreadyExists: false, created: true };
+  return { alreadyExists: false, created: true };
+}
+
+/** Create several folders at once (existing ones are fine). */
+export async function createFolders(paths: string[]): Promise<void> {
+  if (paths.length) await batchMkdir(paths);
 }
 
 export async function createTypeFolders(
