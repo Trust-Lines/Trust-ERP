@@ -40,7 +40,7 @@ export default async function WebsiteCmsPage({ searchParams }: { searchParams: P
   const setting = (key: string) => (settings.data ?? []).find((r: { key: string }) => r.key === key)?.value ?? {};
 
   return (
-    <div style={{ padding: '24px 32px' }}>
+    <div style={{ padding: 32 }}>
       <WebsiteHubClient
         projects={(projects.data ?? []) as WebProjectRow[]}
         posts={(posts.data ?? []) as WebPostRow[]}
