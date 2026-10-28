@@ -5,7 +5,21 @@ import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
 import { hashColor, readableTextColor } from '@/lib/marketing/pillColor';
 
-export function ColorSelect({ value, options, knownColors, onChange, placeholder = '—', allowCreate = true, searchable = true, clearable = true, renderPill }: {
+// Figma table tag (CRM Board 280:25017): 4px radius, 12px medium, tone bg + fg, chevron inside the tag.
+function TonePill({ tone, label, chevron }: { tone: string; label: string; chevron?: boolean }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4, padding: chevron ? '3px 8px 3px 10px' : '3px 10px', borderRadius: 4,
+      background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)`,
+      fontSize: 12, fontWeight: 500, lineHeight: '16px', whiteSpace: 'nowrap',
+    }}>
+      {label}
+      {chevron && <ChevronDown size={14} style={{ flexShrink: 0 }} />}
+    </span>
+  );
+}
+
+export function ColorSelect({ value, options, knownColors, onChange, placeholder = '—', allowCreate = true, searchable = true, clearable = true, renderPill, toneFor }: {
   value: string | null;
   options: string[];
   knownColors: Record<string, string>;
@@ -19,6 +33,8 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
   clearable?: boolean;
   /** Draw each value yourself (e.g. a <StatusBadge>) instead of the coloured pill. */
   renderPill?: (value: string) => ReactNode;
+  /** Draw values as Figma tags in a status tone (`t0`–`t10`, `info`, …) — `--status-<tone>-bg/fg`. */
+  toneFor?: (value: string) => string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -71,14 +87,14 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
           borderRadius: 6, padding: '2px 6px 2px 2px', background: 'transparent', cursor: 'pointer', minHeight: 22,
         }}
       >
-        {value && renderPill ? renderPill(value) : value ? (
+        {value && toneFor ? <TonePill tone={toneFor(value)} label={value} chevron /> : value && renderPill ? renderPill(value) : value ? (
           <span style={{ background: colorFor(value), color: readableTextColor(colorFor(value)), fontSize: 10.5, fontWeight: 600, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap' }}>
             {value}
           </span>
         ) : (
           <span style={{ fontSize: 11.5, color: 'var(--fg-faint)', padding: '0 4px' }}>{placeholder}</span>
         )}
-        <ChevronDown size={11} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />
+        {!(value && toneFor) && <ChevronDown size={11} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />}
       </button>
 
       {open && pos && createPortal(
@@ -125,7 +141,7 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                 >
-                  {renderPill ? renderPill(o) : (
+                  {toneFor ? <TonePill tone={toneFor(o)} label={o} /> : renderPill ? renderPill(o) : (
                     <span style={{ background: bg, color: readableTextColor(bg), fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 999 }}>
                       {o}
                     </span>

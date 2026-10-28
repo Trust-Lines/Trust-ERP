@@ -3,19 +3,22 @@
 import { useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
 import { US_STATES } from '@/lib/usStates';
 import { LocationSearch } from '@/components/platform/projects/LocationSearch';
 import { SURVEY_TEMPLATES, SURVEY_TEMPLATE_LABELS, type SurveyTemplate } from '@/lib/marketing/surveyTemplates';
 import { Select } from '@/components/platform/shared/Select';
 import { feedback } from '@/components/ui/feedback-toast';
+// Shared wizard look (cards, labels, inputs, preview panel) with the New Project / Capture Contact forms.
+import { NEW_PROJECT_STYLES } from '@/components/platform/projects/new-project/styles';
 
 function TextField({ label, required, hint, value, ...props }: { label: string; required?: boolean; hint?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   const id = useId();
   return (
     <div>
-      <label htmlFor={id} className={`form-label${required ? ' required' : ''}`} style={{ fontSize: 12 }}>{label}</label>
+      <label htmlFor={id} className={`form-label${required ? ' required' : ''}`}>{label}</label>
       <input id={id} className="form-input" autoComplete="off" value={value ?? ''} {...props} />
-      {hint && <div style={{ fontSize: 10.5, color: 'var(--fg-subtle)', marginTop: 2 }}>{hint}</div>}
+      {hint && <div className="form-hint">{hint}</div>}
     </div>
   );
 }
@@ -23,9 +26,9 @@ function TextAreaField({ label, hint, value, ...props }: { label: string; hint?:
   const id = useId();
   return (
     <div>
-      <label htmlFor={id} className="form-label" style={{ fontSize: 12 }}>{label}</label>
-      <textarea id={id} className="form-input" autoComplete="off" style={{ resize: 'vertical' }} rows={3} value={value ?? ''} {...props} />
-      {hint && <div style={{ fontSize: 10.5, color: 'var(--fg-subtle)', marginTop: 2 }}>{hint}</div>}
+      <label htmlFor={id} className="form-label">{label}</label>
+      <textarea id={id} className="form-input" autoComplete="off" style={{ resize: 'vertical', minHeight: 90 }} rows={4} value={value ?? ''} {...props} />
+      {hint && <div className="form-hint">{hint}</div>}
     </div>
   );
 }
@@ -54,16 +57,34 @@ export const EMPTY_CAMPAIGN_FORM: CampaignFormValues = {
   name: '', campaignType: 'trade_fair', state: '', city: '', startDate: '', endDate: '', description: '', surveyTemplate: 'general',
 };
 
+type CampaignStatus = 'draft' | 'active' | 'paused' | 'closed';
+const STATUS_BADGE: Record<CampaignStatus, { label: string; tone: string }> = {
+  draft: { label: 'DRAFT', tone: 't0' },
+  active: { label: 'ACTIVE', tone: 't6' },
+  paused: { label: 'PAUSED', tone: 't7' },
+  closed: { label: 'CLOSED', tone: 't10' },
+};
+
+const DATE_ONLY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+function displayDate(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? iso : DATE_ONLY.format(d);
+}
+
 interface Props {
   mode: 'create' | 'edit';
   campaignId?: string;
+  /** Current status in edit mode — drives the preview badge and the Make Inactive / Active button. */
+  status?: CampaignStatus;
   initial: CampaignFormValues;
 }
 
-export function CampaignFormClient({ mode, campaignId, initial }: Props) {
+export function CampaignFormClient({ mode, campaignId, status, initial }: Props) {
   const router = useRouter();
   const [form, setForm] = useState<CampaignFormValues>(initial);
   const [saving, setSaving] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   function set<K extends keyof CampaignFormValues>(key: K, value: CampaignFormValues[K]) {
     setForm(f => ({ ...f, [key]: value }));
@@ -120,98 +141,169 @@ export function CampaignFormClient({ mode, campaignId, initial }: Props) {
     }
   }
 
+  // Edit mode only — same endpoints the campaign detail page and list already use.
+  async function runAction(action: 'pause' | 'activate' | 'trash', confirmMessage: string) {
+    if (!campaignId || !window.confirm(confirmMessage)) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/marketing/campaigns/${campaignId}/${action}`, { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(body.error ?? 'Could not update campaign'); return; }
+      if (action === 'trash') {
+        feedback.info('Campaign moved to Trash', { description: form.name || undefined });
+        router.push('/marketing/campaigns');
+      } else {
+        toast.success(action === 'pause' ? 'Campaign made inactive' : 'Campaign activated');
+      }
+      router.refresh();
+    } catch {
+      toast.error('Could not update campaign');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const badge = STATUS_BADGE[status ?? 'draft'];
+  const cityState = [form.city.trim(), form.state].filter(Boolean).join(', ');
+  const previewRows: { key: string; value: string }[] = [
+    { key: 'Name', value: form.name.trim() },
+    { key: 'Type', value: CAMPAIGN_KIND_LABEL[form.campaignType] },
+    { key: 'City/State', value: cityState },
+    { key: 'Start Date', value: displayDate(form.startDate) },
+    { key: 'End Date', value: displayDate(form.endDate) },
+  ];
+
   return (
-    <div style={{ maxWidth: 640 }}>
-      <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>
-        {mode === 'create' ? 'New Campaign' : 'Edit Campaign'}
-      </h1>
-      <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: '0 0 20px' }}>
-        {mode === 'create'
-          ? 'The public survey link and QR code are generated automatically once this is created.'
-          : 'The public survey link never changes, even if you rename this campaign.'}
-      </p>
+    <div className="new-project-wrapper">
+      <style>{NEW_PROJECT_STYLES}</style>
 
-      <div className="card"><div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <TextField label="Campaign name" required value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Atlanta Build Expo 2026" />
-
-        <div>
-          <label className="form-label" style={{ fontSize: 12 }}>Type</label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {(['trade_fair', 'event'] as const).map(kind => (
-              <button
-                key={kind} type="button"
-                onClick={() => set('campaignType', kind)}
-                className="btn btn-sm"
-                style={{
-                  flex: 1,
-                  background: form.campaignType === kind ? 'var(--brand-navy, #1e3a5f)' : 'var(--bg-subtle)',
-                  color: form.campaignType === kind ? '#fff' : 'inherit',
-                  border: 'none',
-                }}
-              >
-                {CAMPAIGN_KIND_LABEL[kind]}
-              </button>
-            ))}
-          </div>
-          <div style={{ fontSize: 10.5, color: 'var(--fg-subtle)', marginTop: 2 }}>
-            Trade Fair — a booth at a show. Event — a standalone meeting/conference/other gathering.
-          </div>
+      <div className="np-top-header">
+        <div className="np-top-header-left">
+          <h1 className="np-title">{mode === 'create' ? 'New Campaign' : 'Edit Campaign'}</h1>
+          <p className="np-subtitle">
+            {mode === 'create'
+              ? 'The public survey link and QR code are generated automatically once this is created.'
+              : 'The public survey link never changes, even if you rename this campaign.'}
+          </p>
         </div>
-
-        <div>
-          <label className="form-label" style={{ fontSize: 12 }}>Location (US)</label>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-            <Select
-              className="form-input" autoComplete="off"
-              style={{ width: 150, flexShrink: 0 }}
-              value={form.state}
-              onChange={e => set('state', e.target.value)}
+        {mode === 'edit' && campaignId && (
+          <div className="flex flex-wrap items-center gap-4">
+            {status === 'paused' || status === 'draft' ? (
+              <button
+                type="button" className="np-cancel-btn" disabled={busy}
+                style={{ background: 'var(--status-t6-bg)', borderColor: 'var(--status-t6-bg)', color: 'var(--status-t6-fg)' }}
+                onClick={() => runAction('activate', 'Make this campaign active? The survey link will accept responses again.')}
+              >
+                <ToggleRight size={16} aria-hidden /> Make Active
+              </button>
+            ) : (
+              <button
+                type="button" className="np-cancel-btn" disabled={busy}
+                style={{ background: 'var(--status-t7-bg)', borderColor: 'var(--status-t7-bg)', color: 'var(--status-t7-fg)' }}
+                onClick={() => runAction('pause', 'Make this campaign inactive? The survey link stops accepting responses until it is made active again.')}
+              >
+                <ToggleLeft size={16} aria-hidden /> Make Inactive
+              </button>
+            )}
+            <button
+              type="button" className="np-cancel-btn" disabled={busy}
+              onClick={() => runAction('trash', `Move "${form.name || 'this campaign'}" to Trash? It can be restored from Trash.`)}
             >
-              <option value="">State…</option>
-              {US_STATES.map(s => <option key={s.abbr} value={s.abbr}>{s.abbr} — {s.name}</option>)}
-            </Select>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <LocationSearch
-                stateAbbr={form.state}
-                placeholder="City — e.g. Atlanta"
-                onSelect={r => set('city', r.city || r.label)}
-              />
+              <Trash2 size={16} aria-hidden /> Delete
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="np-main-grid">
+        <div className="np-card step-content-card" style={{ minHeight: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="form-grid-2" style={{ marginBottom: 0 }}>
+              <TextField label="Campaign Name" required value={form.name} onChange={e => set('name', e.target.value)} placeholder="Type.." />
+              <div>
+                <label className="form-label">Survey Page Template</label>
+                <Select
+                  className="form-input" autoComplete="off" aria-label="Survey page template"
+                  value={form.surveyTemplate}
+                  onChange={e => set('surveyTemplate', e.target.value as SurveyTemplate)}
+                >
+                  {SURVEY_TEMPLATES.map(t => <option key={t} value={t}>{SURVEY_TEMPLATE_LABELS[t]}</option>)}
+                </Select>
+              </div>
+
+              <div>
+                <label className="form-label">Type</label>
+                <Select
+                  className="form-input" aria-label="Campaign type"
+                  value={form.campaignType}
+                  onChange={e => set('campaignType', e.target.value as CampaignKind)}
+                >
+                  {(['trade_fair', 'event'] as const).map(kind => <option key={kind} value={kind}>{CAMPAIGN_KIND_LABEL[kind]}</option>)}
+                </Select>
+                <div className="form-hint">Trade Fair — a booth at a show. Event — a standalone meeting/conference/other gathering.</div>
+              </div>
+              <div>
+                <label className="form-label">Location (US)</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+                  <Select
+                    className="form-input" autoComplete="off" aria-label="State"
+                    style={{ width: 110, flexShrink: 0 }}
+                    value={form.state}
+                    onChange={e => set('state', e.target.value)}
+                  >
+                    <option value="">State</option>
+                    {US_STATES.map(s => <option key={s.abbr} value={s.abbr}>{s.abbr} — {s.name}</option>)}
+                  </Select>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <LocationSearch
+                      stateAbbr={form.state}
+                      placeholder="Select or Type.."
+                      onSelect={r => set('city', r.city || r.label)}
+                    />
+                  </div>
+                </div>
+                {form.city && <div className="form-hint">Selected: {cityState}</div>}
+              </div>
+
+              <TextField label="Start Date" type="date" value={form.startDate} onChange={e => set('startDate', e.target.value)} />
+              <TextField label="End Date" type="date" value={form.endDate} onChange={e => set('endDate', e.target.value)} />
+            </div>
+
+            <TextAreaField
+              label="Internal Description (Not Shown Publicly)" value={form.description} onChange={e => set('description', e.target.value)}
+              placeholder="Type here.."
+            />
+          </div>
+
+          <div className="step-footer-actions">
+            <button type="button" className="btn-outline-custom muted" disabled={saving} onClick={() => router.back()}>
+              Cancel
+            </button>
+            <div className="step-footer-right">
+              <button type="button" className="btn-primary-navy" disabled={saving} onClick={submit}>
+                {saving ? 'Saving…' : mode === 'create' ? 'Create Campaign' : 'Save Changes'}
+              </button>
             </div>
           </div>
-          {form.city && <div style={{ fontSize: 10.5, color: 'var(--fg-subtle)', marginTop: 4 }}>Selected: {form.city}{form.state ? `, ${form.state}` : ''}</div>}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <TextField label="Start date" type="date" value={form.startDate} onChange={e => set('startDate', e.target.value)} />
-          <TextField label="End date" type="date" value={form.endDate} onChange={e => set('endDate', e.target.value)} />
-        </div>
-
-        <div>
-          <label className="form-label" style={{ fontSize: 12 }}>Survey page template</label>
-          <Select
-            className="form-input" autoComplete="off"
-            value={form.surveyTemplate}
-            onChange={e => set('surveyTemplate', e.target.value as SurveyTemplate)}
-          >
-            {SURVEY_TEMPLATES.map(t => <option key={t} value={t}>{SURVEY_TEMPLATE_LABELS[t]}</option>)}
-          </Select>
-          <div style={{ fontSize: 10.5, color: 'var(--fg-subtle)', marginTop: 2 }}>
-            Which design the public link/QR code opens at /survey/{'{link}'}. You can change this later from Edit.
+        <aside className="summary-sidebar-card" aria-label="Campaign preview">
+          <div className="summary-head">
+            <h3 className="np-card-title">Campaign Preview</h3>
+            <span
+              className="np-status-badge"
+              style={{ background: `var(--status-${badge.tone}-fg)`, color: '#fff', padding: '2px 10px', fontSize: 11 }}
+            >
+              {badge.label}
+            </span>
           </div>
-        </div>
-
-        <TextAreaField
-          label="Internal description" value={form.description} onChange={e => set('description', e.target.value)}
-          placeholder="A reminder note about this campaign — not shown publicly"
-          hint="Internal only — for the Marketing team, never shown on the public survey page."
-        />
-      </div></div>
-
-      <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
-        <button className="btn btn-primary" disabled={saving} onClick={submit}>
-          {saving ? 'Saving…' : mode === 'create' ? 'Create Campaign' : 'Save Changes'}
-        </button>
-        <button className="btn btn-ghost" disabled={saving} onClick={() => router.back()}>Cancel</button>
+          {previewRows.map(r => (
+            <div key={r.key} className="summary-row">
+              <span className="summary-row-key">{r.key}</span>
+              <span className="summary-row-val">{r.value || '-'}</span>
+            </div>
+          ))}
+        </aside>
       </div>
     </div>
   );

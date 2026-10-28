@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Star, ShieldCheck, Pencil, Trash2, Plus, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { Select } from '@/components/platform/shared/Select';
-import { ROLE_TYPES, type Contact } from './types';
+import { ROLE_TYPES, cap, type Contact } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
+import { AddButton, ApproverChip, DetailCard, FORM_BOX, IconAction, PrimaryChip, RowList } from './ui';
 
 export function ContactsCard({ contacts, canEdit, onSave, onDelete }: {
   contacts: Contact[];
@@ -22,47 +23,42 @@ export function ContactsCard({ contacts, canEdit, onSave, onDelete }: {
   }
 
   return (
-    <div className="card" style={{ marginBottom: 20 }}>
-      <div className="card-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div className="form-section-title">Contacts ({contacts.length})</div>
-        {canEdit && !addingContact && <button className="btn btn-ghost btn-sm" onClick={() => setAddingContact(true)}><Plus size={13} /> Add contact</button>}
-      </div>
-      <div className="card-body">
-        {addingContact && canEdit && (
-          <div style={{ marginBottom: 12 }}>
-            <ContactForm onSave={p => save(p)} onCancel={() => setAddingContact(false)} />
-          </div>
-        )}
-        {contacts.length === 0 && !addingContact ? (
-          <EmptyState size="sm" icon={<Users />} title="No contacts yet." />
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {contacts.map(ct => editContactId === ct.id && canEdit ? (
-              <ContactForm key={ct.id} contact={ct} onSave={p => save(p, ct.id)} onCancel={() => setEditContactId(null)} />
-            ) : (
-              <div key={ct.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: '1px solid var(--border-subtle)', borderRadius: 6 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontWeight: 600, fontSize: 14 }}>{ct.name}</span>
-                    {ct.is_primary && <span title="Primary contact" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--status-warning-fg)' }}><Star size={11} fill="#f59e0b" stroke="#f59e0b" /> Primary</span>}
-                    {ct.is_authorized_approver && <span title="Authorized approver" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--brand-teal, #0d9488)' }}><ShieldCheck size={11} /> Approver</span>}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 2 }}>
-                    {[ct.title || ct.role_type, ct.email, ct.phone].filter(Boolean).join(' · ') || '—'}
-                  </div>
+    <DetailCard
+      title={`Contacts (${contacts.length})`}
+      action={canEdit && !addingContact ? <AddButton label="Add Contact" onClick={() => setAddingContact(true)} /> : undefined}
+    >
+      {addingContact && canEdit && <ContactForm onSave={p => save(p)} onCancel={() => setAddingContact(false)} />}
+      {contacts.length === 0 && !addingContact ? (
+        <EmptyState size="sm" icon={<Users />} title="No contacts yet." />
+      ) : contacts.length > 0 && (
+        <RowList>
+          {contacts.map(ct => editContactId === ct.id && canEdit ? (
+            <div key={ct.id} className="py-3">
+              <ContactForm contact={ct} onSave={p => save(p, ct.id)} onCancel={() => setEditContactId(null)} />
+            </div>
+          ) : (
+            <div key={ct.id} className="flex items-start gap-3 px-1 py-3">
+              <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="text-[13px] font-semibold leading-[1.4] text-ui-body">{ct.name}</span>
+                  {ct.is_primary && <PrimaryChip />}
+                  {ct.is_authorized_approver && <ApproverChip />}
                 </div>
-                {canEdit && (
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    <button className="btn btn-ghost btn-sm" style={{ padding: '3px 6px' }} onClick={() => setEditContactId(ct.id)} aria-label="Edit contact"><Pencil size={13} /></button>
-                    <button className="btn btn-ghost btn-sm" style={{ padding: '3px 6px', color: '#dc2626' }} onClick={() => onDelete(ct.id, ct.name)} aria-label="Remove contact"><Trash2 size={13} /></button>
-                  </div>
-                )}
+                <p className="m-0 break-words text-[11px] leading-[1.4] text-ui-text-secondary">
+                  {[ct.title || (ct.role_type ? cap(ct.role_type) : null), ct.email, ct.phone].filter(Boolean).join('  ·  ') || '—'}
+                </p>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+              {canEdit && (
+                <div className="flex shrink-0 items-center gap-2">
+                  <IconAction kind="delete" label={`Remove ${ct.name}`} onClick={() => onDelete(ct.id, ct.name)} />
+                  <IconAction kind="edit" label={`Edit ${ct.name}`} onClick={() => setEditContactId(ct.id)} />
+                </div>
+              )}
+            </div>
+          ))}
+        </RowList>
+      )}
+    </DetailCard>
   );
 }
 
@@ -87,8 +83,8 @@ function ContactForm({ contact, onSave, onCancel }: { contact?: Contact; onSave:
   }
 
   return (
-    <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '12px 14px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+    <div className={FORM_BOX}>
+      <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <div><label className="form-label required" style={{ fontSize: 11 }}>Name</label><input className="form-input" style={{ fontSize: 13 }} value={f.name} onChange={e => setF(p => ({ ...p, name: e.target.value }))} autoFocus /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Title</label><input className="form-input" style={{ fontSize: 13 }} placeholder="e.g. Owner" value={f.title} onChange={e => setF(p => ({ ...p, title: e.target.value }))} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Role</label>

@@ -228,6 +228,8 @@ export const NEW_PROJECT_STYLES = `
       }
       .dark .np-phone-code { color: var(--ui-heading); }
 
+      .np-cat-value-label { color: var(--color-secondary-700); }
+
       .np-value-row {
         display: flex;
         flex-wrap: wrap;
@@ -463,7 +465,10 @@ export const NEW_PROJECT_STYLES = `
         font-size: 12px;
       }
 
-      @media (max-width: 1100px) {
+      .new-project-wrapper .form-hint { display: block; }
+
+      /* Side summary needs ~760px for the form beside it (304px app sidebar + 365px panel). */
+      @media (max-width: 1400px) {
         .np-quick-grid,
         .np-main-grid { grid-template-columns: minmax(0, 1fr); }
       }
@@ -477,6 +482,8 @@ export const NEW_PROJECT_STYLES = `
       .dark .np-quick-toggle,
       .dark .np-cat-chip { color: var(--ui-heading); }
       .dark .np-cat-chip.selected { background: var(--ui-tab-badge); border-color: var(--ui-tab-badge); }
+      .dark .auto-badge { background: #2A3A52; color: var(--ui-tab-active); }
+      .dark .np-cat-value-label { color: var(--ui-heading); }
       .dark .btn-primary-navy { background: var(--ui-tab-badge); border-color: var(--ui-tab-badge) !important; }
       .dark .btn-outline-custom { background: transparent; border-color: var(--ui-divider-strong); color: var(--ui-heading); }
     `;

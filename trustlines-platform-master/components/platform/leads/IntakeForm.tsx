@@ -1,21 +1,22 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { Trash2 } from 'lucide-react';
 import { composeProjectCode } from '@/lib/regions';
+import { US_STATES } from '@/lib/usStates';
+
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 import { EMPTY, type ChecklistItem, type DocRow, type FormState, type Notes, type Scope } from './intake/types';
 import { StepNav } from './intake/StepNav';
 import { Step1ProjectSetup } from './intake/Step1ProjectSetup';
 import { Step2Customer } from './intake/Step2Customer';
 import { Step3LeadDetails } from './intake/Step3LeadDetails';
 import { Step4ScopeOfWork } from './intake/Step4ScopeOfWork';
-import { Step5AdditionalNotes } from './intake/Step5AdditionalNotes';
 import { Step6DimensionsMedia } from './intake/Step6DimensionsMedia';
 import { Step7Checklist } from './intake/Step7Checklist';
 import { LeadSummary } from './intake/LeadSummary';
-import { Button } from '@/components/ui/button';
 
 interface Props {
   intakeId: string;
@@ -28,6 +29,7 @@ export function IntakeForm({ intakeId, assignees }: Props) {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [documents, setDocuments] = useState<DocRow[]>([]);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [newChecklistText, setNewChecklistText] = useState('');
 
@@ -134,45 +136,98 @@ export function IntakeForm({ intakeId, assignees }: Props) {
     form, setForm,
     onBack: () => setActiveStep(step - 1),
     onNext: () => continueTo(step + 1),
+    onSaveDraft: () => handleSave(true),
   });
 
-  return (
-    <div className="w-full space-y-5 pb-16">
-      {/* ── Top Header ────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <Link
-            href="/leads"
-            className="text-xs font-semibold text-primary-500 dark:text-primary-200 hover:text-primary-800 transition-colors flex items-center gap-1 mb-1"
-          >
-            ← Leads
-          </Link>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-primary-800 dark:text-primary-50 tracking-tight">New lead</h1>
-            <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-primary-100 dark:bg-primary-700 text-primary-600 dark:text-primary-200 border border-ui-divider">
-              {savedAt ? 'Draft saved' : 'Not saved yet'}
-            </span>
-          </div>
-          <p className="text-xs text-primary-500 dark:text-primary-200 font-normal mt-0.5">Meeting / Intake form</p>
-        </div>
+  // Dimensions & media uploads: the intake row must exist first (a fresh /leads/new id has none),
+  // so the draft is saved once before the first file goes up.
+  const [uploading, setUploading] = useState<string[]>([]);
+  async function uploadDocs(files: File[]) {
+    if (!savedAt) await handleSave(false);
+    for (const file of files) {
+      if (file.size > MAX_UPLOAD_BYTES) { toast.error(`${file.name} is over 50 MB`); continue; }
+      setUploading(u => [...u, file.name]);
+      try {
+        const body = new FormData();
+        body.set('file', file);
+        body.set('category', file.type.startsWith('image/') ? 'photos' : 'plan_layout');
+        const res = await fetch(`/api/leads/${intakeId}/intake/upload`, { method: 'POST', body }).catch(() => null);
+        const json = res ? await res.json().catch(() => ({})) : {};
+        if (!res || !res.ok || !json.document) { toast.error(`${file.name}: ${json.error ?? 'Upload failed'}`); continue; }
+        setDocuments(d => [json.document as DocRow, ...d]);
+      } finally {
+        setUploading(u => u.filter(n => n !== file.name));
+      }
+    }
+  }
 
-        <div className="flex items-center gap-2.5">
-          <Button variant="secondary" onClick={() => router.push('/leads')}>
-            Cancel
-          </Button>
-          <Button onClick={() => handleSave(true)} loading={saving} disabled={saving}>
-            Save draft
-          </Button>
+  // Last step's "Save and Exit": creates the lead when the required fields are there; otherwise
+  // keeps it as a draft and says what's missing, so nothing typed is lost.
+  async function finish() {
+    if (canCreate) { await handleCreateLead(); return; }
+    await handleSave(false);
+    toast.info(`Saved as draft — still needed to create the lead: ${missing.join(', ')}`);
+    router.push('/leads');
+  }
+
+  // "Cancel" keeps what was typed (saved as a draft) and leaves the wizard.
+  async function cancel() {
+    await handleSave(false);
+    router.push('/leads');
+  }
+
+  async function deleteLead() {
+    // Nothing stored yet (a fresh /leads/new id) — just discard the form.
+    if (!savedAt) {
+      if (window.confirm('Discard this new lead? Nothing has been saved yet.')) router.push('/leads');
+      return;
+    }
+    if (!window.confirm('Delete this lead? It moves to Trash and can be restored for 30 days.')) return;
+    setDeleting(true);
+    const res = await fetch(`/api/leads/${intakeId}/trash`, { method: 'POST' }).catch(() => null);
+    setDeleting(false);
+    if (!res || !res.ok) { toast.error('Could not delete lead'); return; }
+    toast.success('Lead moved to Trash');
+    router.push('/leads');
+  }
+
+  const missing = [
+    !hasCompany && 'Company', !hasRegion && 'Region', !hasCustomer && 'Customer', !hasAddress && 'Address',
+  ].filter(Boolean) as string[];
+  const previewRows = [
+    { label: 'Name', value: form.customer_name || form.brand || null },
+    { label: 'State', value: US_STATES.find(s => s.abbr === form.state)?.name ?? (form.state || null) },
+    { label: 'Source', value: form.source || null },
+    { label: 'Business Type', value: form.industry || null },
+    { label: 'Assignee', value: assignees.find(a => a.id === form.assignee_id)?.full_name ?? null },
+    { label: 'Due Date', value: form.follow_up_date ? new Date(`${form.follow_up_date}T00:00:00`).toLocaleDateString('en-US') : null },
+  ];
+
+  // Figma "New lead" (node 290:36781): heading, six step tabs, form card + Lead Preview.
+  return (
+    <div className="mx-auto flex w-full max-w-[1416px] flex-col gap-6 pb-16">
+      <div className="flex flex-col gap-[18px]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-col gap-[5px] leading-[1.35]">
+            <h1 className="m-0 text-[28px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">New lead</h1>
+            <p className="m-0 text-[13px] text-ui-body">
+              Meeting / Intake form
+              <span className="text-ui-text-secondary"> · {saving ? 'Saving…' : savedAt ? 'Draft saved' : 'Not saved yet'}</span>
+            </p>
+          </div>
+          <button
+            type="button" onClick={deleteLead} disabled={deleting}
+            className="inline-flex h-10 items-center gap-2 rounded-[6px] border border-[var(--status-t10-bg)] bg-[var(--status-t10-bg)] pl-3.5 pr-6 text-[13px] font-medium text-[var(--status-t10-fg)] transition-opacity hover:opacity-85 disabled:opacity-60"
+          >
+            <Trash2 size={16} aria-hidden /> {deleting ? 'Deleting…' : 'Delete'}
+          </button>
         </div>
+        <StepNav activeStep={activeStep} onSelect={setActiveStep} />
       </div>
 
-      {/* ── 3-Column Layout: Steps Sidebar + Main Form + Lead Summary ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* ── 1. Left Column: 7-Step Navigation ────────────────────── */}
-        <StepNav activeStep={activeStep} onSelect={setActiveStep} />
-
-        {/* ── 2. Center Column: Form Step Content ───────────────────── */}
-        <div className="lg:col-span-6 bg-ui-surface-elevated border border-ui-divider rounded-2xl p-6 shadow-2xs space-y-6">
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[1027fr_365fr]">
+        {/* Same height as the Lead Preview at least, so the step footer sits at the card's bottom. */}
+        <div className="flex min-h-[502px] flex-col rounded-[8px] border border-ui-divider bg-ui-page-bg p-5">
           {activeStep === 1 && (
             <Step1ProjectSetup
               form={form}
@@ -180,39 +235,26 @@ export function IntakeForm({ intakeId, assignees }: Props) {
               generatedProjectCode={generatedProjectCode}
               formattedAddressPreview={formattedAddressPreview}
               onNext={() => continueTo(2)}
-              onSaveAndExit={() => { handleSave(true); router.push('/leads'); }}
+              onCancel={cancel}
             />
           )}
           {activeStep === 2 && <Step2Customer {...stepProps(2)} />}
           {activeStep === 3 && <Step3LeadDetails {...stepProps(3)} assignees={assignees} />}
           {activeStep === 4 && <Step4ScopeOfWork {...stepProps(4)} />}
-          {activeStep === 5 && <Step5AdditionalNotes {...stepProps(5)} />}
-          {activeStep === 6 && <Step6DimensionsMedia {...stepProps(6)} />}
-          {activeStep === 7 && (
+          {activeStep === 5 && <Step6DimensionsMedia {...stepProps(5)} documents={documents} uploading={uploading} onUpload={uploadDocs} />}
+          {activeStep === 6 && (
             <Step7Checklist
               form={form}
               setForm={setForm}
               newChecklistText={newChecklistText}
               setNewChecklistText={setNewChecklistText}
-              canCreate={canCreate}
-              onBack={() => setActiveStep(6)}
-              onCreate={handleCreateLead}
+              onBack={() => setActiveStep(5)}
+              onFinish={finish}
             />
           )}
         </div>
 
-        {/* ── 3. Right Column: Lead Summary Card ────────────────────── */}
-        <LeadSummary
-          savedAt={savedAt}
-          generatedProjectCode={generatedProjectCode}
-          filledRequiredCount={filledRequiredCount}
-          hasCompany={hasCompany}
-          hasRegion={hasRegion}
-          hasCustomer={hasCustomer}
-          hasAddress={hasAddress}
-          canCreate={canCreate}
-          onCreate={handleCreateLead}
-        />
+        <LeadSummary projectCode={form.region ? generatedProjectCode : null} rows={previewRows} missing={missing} />
       </div>
     </div>
   );

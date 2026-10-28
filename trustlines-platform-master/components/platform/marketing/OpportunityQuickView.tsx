@@ -3,7 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { X, Loader2, ExternalLink, Paperclip, Send, Image as ImageIcon, Trash2, Link2, Upload, FileText, ChevronDown, Activity } from 'lucide-react';
+import {
+  X, Loader2, ExternalLink, Paperclip, SendHorizontal, Image as ImageIcon, Trash2, Link2, FileText, FileSpreadsheet, ChevronDown, Activity,
+  SquareArrowOutUpRight, CloudUpload, CircleCheck, CircleX, CircleDashed, Hash, type LucideIcon,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { TaskList } from '@/components/platform/shared/TaskList';
 import { DealProgressPanel } from '@/components/platform/shared/DealProgressPanel';
 import { MarkdownLite } from '@/components/platform/shared/MarkdownLite';
@@ -35,6 +39,8 @@ interface NeedNote {
 }
 interface NeedFile { id: string; dropbox_path: string; file_name: string; uploaded_by: string | null; uploaded_by_name: string | null; created_at: string }
 interface Tag { name: string; color: string }
+// A file in flight (or one that failed) — finished uploads move into `files`.
+interface UploadItem { key: string; name: string; size: number; error?: string }
 
 const STAGE_OPTS: [string, string][] = Object.entries(OPPORTUNITY_STAGE_LABEL);
 const POTENTIAL_STATUS_LABEL: Record<PotentialStatus, string> = {
@@ -72,7 +78,8 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
   const [draftImage, setDraftImage] = useState<File | null>(null);
   const originalImageRef = useRef<File | null>(null);
   const [posting, setPosting] = useState(false);
-  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const [dragOver, setDragOver] = useState(false);
   const [tagOptions, setTagOptions] = useState<string[]>([]);
   const noteFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -195,21 +202,31 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
   }
 
   async function uploadFile(f: File) {
-    setUploadingFile(true);
+    const key = `${f.name}-${f.size}-${Date.now()}`;
+    // A retry replaces the failed row for the same file.
+    setUploads(prev => [...prev.filter(u => !(u.error && u.name === f.name)), { key, name: f.name, size: f.size }]);
+    const fail = (msg: string) => {
+      setUploads(prev => prev.map(u => (u.key === key ? { ...u, error: msg } : u)));
+      feedback.error('Upload interrupted', {
+        description: `${f.name} could not be uploaded. ${msg}`,
+        action: { label: 'Retry upload', onClick: () => void uploadFile(f) },
+      });
+    };
     try {
       const form = new FormData();
       form.set('file', f);
       const res = await fetch(`${apiBase}/files`, { method: 'POST', body: form });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        feedback.error('Upload interrupted', {
-          description: `${f.name} could not be uploaded.${body.error ? ` ${body.error}` : ''}`,
-          action: { label: 'Retry upload', onClick: () => void uploadFile(f) },
-        });
-        return;
-      }
+      if (!res.ok) { fail(body.error ?? (res.status === 413 ? 'File is too large' : 'Upload failed')); return; }
       setFiles(prev => [body.file, ...prev]);
-    } finally { setUploadingFile(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
+      setUploads(prev => prev.filter(u => u.key !== key));
+    } catch { fail('Network error'); }
+  }
+
+  function uploadMany(list: FileList | null) {
+    if (!list) return;
+    for (const f of Array.from(list)) void uploadFile(f);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   async function deleteFile(f: NeedFile) {
@@ -235,6 +252,15 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
   const businessTypes = (opp?.business_types as string[] | null) ?? [];
   const title = (opp?.title as string) || prospect?.display_name || (kind === 'potential' ? 'Potential' : 'Opportunity');
 
+  const statusLabel = kind === 'opportunity'
+    ? OPPORTUNITY_STAGE_LABEL[String(v('stage')) as OpportunityStage]
+    : POTENTIAL_STATUS_LABEL[(String(v('status') || 'identified')) as PotentialStatus];
+  const assigneeOpts: [string, string][] = [['', 'Unassigned'], ...assignees.map(a => [a.id, a.full_name] as [string, string])];
+  const failedCount = uploads.filter(u => u.error).length;
+  const inProgress = uploads.length - failedCount;
+  const fileRows = uploads.length + files.length;
+
+  // Figma "Lead detail" (node 305:10279): header, 2×2 field cards + Files, Activity on the right.
   return (
     <div
       onMouseDown={e => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
@@ -242,390 +268,440 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3vh 16px' }}
     >
       <div
+        role="dialog" aria-modal="true" aria-label={title}
         onClick={e => e.stopPropagation()}
-        style={{
-          background: 'var(--bg-surface)', borderRadius: 20, width: '96vw', maxWidth: 1680, height: '92vh',
-          boxShadow: '0 24px 64px rgba(15,42,68,.28), 0 4px 16px rgba(15,42,68,.12)', display: 'flex', overflow: 'hidden',
-        }}
+        className="qv-root flex h-[94vh] w-[96vw] max-w-[1616px] flex-col gap-6 overflow-hidden rounded-card bg-ui-page-bg p-8 shadow-04"
       >
-        <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
-          <div style={{
-            display: 'flex', alignItems: 'flex-start', gap: 16, padding: '26px 28px 22px',
-            borderBottom: '1px solid var(--border-subtle)',
-          }}>
-            <div style={{
-              width: 4, alignSelf: 'stretch', borderRadius: 4, flexShrink: 0,
-              background: kind === 'potential' ? 'var(--brand-teal)' : 'var(--brand-navy)',
-            }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {project?.code && (
-                <div style={{
-                  display: 'inline-flex', fontSize: 11.5, fontFamily: 'var(--font-mono)', fontWeight: 700,
-                  color: 'var(--fg-subtle)', letterSpacing: '0.03em', background: 'var(--bg-subtle)',
-                  padding: '2px 8px', borderRadius: 6, marginBottom: 8,
-                }}>
-                  {project.code}
-                </div>
-              )}
-              <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: 'var(--fg-default)', letterSpacing: '-0.015em', lineHeight: 1.15 }}>{title}</h2>
-              <div style={{ fontSize: 13.5, color: 'var(--fg-subtle)', marginTop: 5, fontWeight: 500 }}>
-                {prospect?.industry || '—'} · {prospect?.brand_name || '—'}
-              </div>
-              <div style={{ marginTop: 12 }}>
-                {canEdit ? (
-                  <TagMultiSelect
-                    values={tags.map(t => t.name)}
-                    options={tagOptions}
-                    placeholder="Add tag…"
-                    onChange={next => {
-                      const nextTags = next.map(name => tags.find(t => t.name === name) ?? { name, color: hashColor(name) });
-                      saveField('tags', nextTags);
-                    }}
-                  />
-                ) : tags.length > 0 ? (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {tags.map(t => (
-                      <span key={t.name} style={{ fontSize: 11.5, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: t.color || 'var(--bg-subtle)', color: readableOn(t.color) }}>
-                        {t.name}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-              {saving && <Loader2 size={14} className="qv-spin" style={{ color: 'var(--fg-faint)' }} />}
-              <Link href={`/marketing/prospects/${opp?.prospect_id}`} title="Contacts, locations & other Needs for this Lead"
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600,
-                  color: 'var(--fg-subtle)', textDecoration: 'none',
-                  background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: 8,
-                  transition: 'background .15s',
-                }}>
-                <ExternalLink size={12} /> Lead profile
-              </Link>
+        <style>{`
+          .qv-root{--qv-value:var(--color-secondary-700)}
+          .dark .qv-root{--qv-value:var(--ui-heading)}
+          .qv-spin{animation:qv-spin 1s linear infinite}
+          @keyframes qv-spin{to{transform:rotate(360deg)}}
+          .qv-input::placeholder{color:var(--ui-text-disabled);font-weight:500}
+          .qv-input:focus-visible{outline:2px solid var(--ui-focus-ring);outline-offset:1px}
+          .qv-indeterminate{animation:qv-slide 1.2s ease-in-out infinite}
+          @keyframes qv-slide{0%{left:-40%}100%{left:100%}}
+        `}</style>
+
+        {/* ── Header ─────────────────────────────────────────────── */}
+        <div className="flex shrink-0 items-center justify-between gap-6">
+          <div className="flex min-w-0 flex-col gap-[5px]">
+            <h2 className={cn('m-0 truncate text-[28px] font-semibold leading-[1.35]', HEADING)}>{title}</h2>
+            <div className="flex flex-wrap items-center gap-[5px]">
+              {project?.code && <Chip tone="t0" icon={Hash}>{project.code}</Chip>}
+              {opp && statusLabel && <Chip tone="t0" icon={CircleDashed}>{statusLabel}</Chip>}
+              {canEdit ? (
+                <TagMultiSelect
+                  variant="chip"
+                  values={tags.map(t => t.name)}
+                  options={tagOptions}
+                  placeholder="Add tag"
+                  onChange={next => {
+                    const nextTags = next.map(name => tags.find(t => t.name === name) ?? { name, color: hashColor(name) });
+                    saveField('tags', nextTags);
+                  }}
+                />
+              ) : tags.map(t => (
+                <span key={t.name} style={{ fontSize: 12, fontWeight: 500, padding: '3px 10px', borderRadius: 4, background: t.color || 'var(--status-t0-bg)', color: readableOn(t.color) }}>
+                  {t.name}
+                </span>
+              ))}
             </div>
           </div>
-
-          <style>{`
-            .qv-spin{animation:qv-spin 1s linear infinite}
-            @keyframes qv-spin{to{transform:rotate(360deg)}}
-            .qv-field{transition:background .12s,box-shadow .12s}
-            .qv-field:hover{background:var(--bg-surface);box-shadow:var(--shadow-xs)}
-          `}</style>
-
-          {!loaded ? (
-            <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-subtle)' }}><Loader2 size={18} className="qv-spin" /> Loading…</div>
-          ) : !opp ? (
-            <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-subtle)' }}>Couldn&apos;t load this {kind === 'potential' ? 'Potential' : 'Opportunity'}.</div>
-          ) : (
-            <div style={{ padding: '22px 28px 24px' }}>
-              {kind === 'opportunity' && (
-                <div style={{ marginBottom: 24 }}>
-                  <SectionLabel icon="◆">Start here</SectionLabel>
-                  <StillToFillIn missing={missingForDeal(opp)} stage={String(opp.stage)} />
-                  <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 14, padding: 10 }}>
-                    <TaskList apiBasePath={apiBase} assignees={assignees} />
-                  </div>
-                </div>
-              )}
-              {kind === 'opportunity' && (
-                <div style={{ marginBottom: 24 }}>
-                  <SectionLabel icon="◆">Progress</SectionLabel>
-                  <DealProgressPanel stage={String(opp.stage) as OpportunityStage} progress={progress} />
-                </div>
-              )}
-              {docNotes.length > 0 && (
-                <div style={{ marginBottom: 24 }}>
-                  <SectionLabel icon="◆">Documents</SectionLabel>
-                  <DocumentsList docs={docNotes} />
-                </div>
-              )}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 16, marginBottom: 16, alignItems: 'start' }}>
-                <Group title="Status & Ownership">
-                  {kind === 'opportunity' ? (
-                    <Row label="Stage"><Sel value={String(v('stage'))} onChange={changeStage} opts={STAGE_OPTS} /></Row>
-                  ) : (
-                    <Row label="Status">
-                      <Sel value={String(v('status') || 'identified')} onChange={x => saveField('status', x)} opts={POTENTIAL_STATUS_OPTS} />
-                    </Row>
-                  )}
-                  <Row label="Priority">
-                    <Sel value={String(v('priority') || 'medium')} onChange={x => saveField('priority', x)}
-                      opts={[['high', 'High'], ['medium', 'Medium'], ['low', 'Low']]} />
-                  </Row>
-                  {kind === 'opportunity' ? (
-                    <>
-                      <Row label="Marketing Owner">
-                        <Sel value={String(v('marketing_owner_id'))} onChange={x => saveField('marketing_owner_id', x || null)}
-                          opts={[['', 'Unassigned'], ...assignees.map(a => [a.id, a.full_name] as [string, string])]} />
-                      </Row>
-                      <Row label="Sales Owner">
-                        <Sel value={String(v('sales_owner_id'))} onChange={x => saveField('sales_owner_id', x || null)}
-                          opts={[['', 'Unassigned'], ...assignees.map(a => [a.id, a.full_name] as [string, string])]} />
-                      </Row>
-                    </>
-                  ) : (
-                    <Row label="Assignee">
-                      <Sel value={String(v('assigned_to'))} onChange={x => saveField('assigned_to', x || null)}
-                        opts={[['', 'Unassigned'], ...assignees.map(a => [a.id, a.full_name] as [string, string])]} />
-                    </Row>
-                  )}
-                  <Row label="Contact">
-                    <ContactSearchSelect
-                      value={String(v('primary_contact_id'))}
-                      valueLabel={contactLabel || contacts.find(c => c.id === v('primary_contact_id'))?.name || ''}
-                      disabled={!canEdit}
-                      onChange={(id, name) => {
-                        setContactLabel(name ?? '');
-                        saveField('primary_contact_id', id);
-                      }}
-                    />
-                  </Row>
-                  <Row label="Region">
-                    <Sel value={String(v('region'))} onChange={x => saveField('region', x || null)}
-                      opts={[['', '—'], ...REGIONS.map(r => [r.code, r.label] as [string, string])]}
-                      emphasize={!v('region')} />
-                    {!v('region') && <div style={{ fontSize: 12, color: 'var(--status-warning-fg)', marginTop: 2 }}>Set a region so your team can see this</div>}
-                  </Row>
-                  {need?.timing && (
-                    <Row label="Timing"><span style={ro}>{TIMING_LABEL[need.timing]}</span></Row>
-                  )}
-                  {Array.isArray(opp?.classification_reasons) && (opp!.classification_reasons as string[]).length > 0 && (
-                    <Row label="Why this stage">
-                      <span style={{ ...ro, fontSize: 12.5 }}>{(opp!.classification_reasons as string[]).join(' · ')}</span>
-                    </Row>
-                  )}
-                </Group>
-
-                <Group title="Value & Timeline">
-                  <Row label="Deal Size"><Inp type="number" value={v('estimated_value')} ph="e.g. 250000" onSave={x => saveField('estimated_value', x === '' ? null : Number(x))} /></Row>
-                  <Row label="Deposit"><Inp type="number" value={v('deposit')} ph="e.g. 5000" onSave={x => saveField('deposit', x === '' ? null : Number(x))} /></Row>
-                  <Row label="Payment"><Inp value={v('payment_raw')} ph="Payment terms…" onSave={x => saveField('payment_raw', x)} /></Row>
-                  <Row label="Targeted">
-                    <Sel value={String(!!opp?.targeted)} onChange={x => saveField('targeted', x === 'true')}
-                      opts={[['false', 'No'], ['true', 'Yes']]} />
-                  </Row>
-                  {kind === 'opportunity' ? (
-                    <>
-                      <Row label="Due date (Deadline)"><Inp type="date" value={v('deadline')} onSave={x => saveField('deadline', x || null)} /></Row>
-                      <Row label="Expected Close"><Inp type="date" value={v('expected_close_date')} onSave={x => saveField('expected_close_date', x || null)} /></Row>
-                      <Row label="Next Action"><Inp value={v('next_action')} ph="e.g. Send estimate" onSave={x => saveField('next_action', x)} /></Row>
-                      <Row label="Next Action Date"><Inp type="date" value={v('next_action_date')} onSave={x => saveField('next_action_date', x || null)} /></Row>
-                      <Row label="Date done"><Inp type="date" value={v('closed_at') ? String(v('closed_at')).slice(0, 10) : ''} onSave={x => saveField('closed_at', x || null)} /></Row>
-                    </>
-                  ) : (
-                    <>
-                      <Row label="Due date"><Inp type="date" value={v('due_date')} onSave={x => saveField('due_date', x || null)} /></Row>
-                      <Row label="Target Contact Date"><Inp type="date" value={v('target_contact_date')} onSave={x => saveField('target_contact_date', x || null)} /></Row>
-                      <Row label="Date done"><Inp type="date" value={v('date_done')} onSave={x => saveField('date_done', x || null)} /></Row>
-                    </>
-                  )}
-                  <Row label="Source"><Inp value={v('source_raw_label') || v('source_label')} ph="Source…" onSave={x => saveField('source_raw_label', x)} /></Row>
-                  <Row label="Notes">
-                    <Inp value={v(kind === 'opportunity' ? 'description' : 'notes')} ph="Notes…" onSave={x => saveField(kind === 'opportunity' ? 'description' : 'notes', x)} />
-                  </Row>
-                </Group>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 16, marginBottom: 20, alignItems: 'start' }}>
-                <Group title="Location & Business">
-                  <Row label="01-State"><Inp value={v('state')} ph="e.g. TX" onSave={x => saveField('state', x)} /></Row>
-                  <Row label="11-Location"><Inp value={v('formatted_address')} ph="Address…" onSave={x => saveField('formatted_address', x)} /></Row>
-                  <Row label="Brand"><Inp value={v('brand')} ph="Brand…" onSave={x => saveField('brand', x)} /></Row>
-                  <Row label="Industry">
-                    {(() => {
-                      const industry = normalizeIndustry(v('industry_raw') as string);
-                      const bg = industry ? INDUSTRY_COLOR[industry] : null;
-                      return (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {bg && (
-                            <span style={{ fontWeight: 700, fontSize: 12, padding: '3px 10px', borderRadius: 999, background: bg, color: readableOn(bg), flexShrink: 0 }}>
-                              {industry}
-                            </span>
-                          )}
-                          <Inp value={v('industry_raw')} ph="Industry…" onSave={x => saveField('industry_raw', x)} />
-                        </div>
-                      );
-                    })()}
-                  </Row>
-                  <Row label="Project Type"><Inp value={v('project_type_raw')} ph="Project type…" onSave={x => saveField('project_type_raw', x)} /></Row>
-                  <Row label="Business Type">
-                    <Inp value={businessTypes.join(', ')} ph="Comma-separated…" onSave={x => saveField('business_types', x.split(',').map(s => s.trim()).filter(Boolean))} />
-                  </Row>
-                </Group>
-
-                <Group title="ClickUp Reference" muted>
-                  <Row label="Direct Contact"><Inp value={v('direct_contact_raw')} ph="Name, phone, email…" onSave={x => saveField('direct_contact_raw', x)} /></Row>
-                  <Row label="Status OP"><Inp value={v('external_stage_label')} ph="Status OP…" onSave={x => saveField('external_stage_label', x)} /></Row>
-                  <Row label="Request"><Inp value={v('request_raw')} ph="Request…" onSave={x => saveField('request_raw', x)} /></Row>
-                  <Row label="To Do"><Inp value={v('to_do_raw')} ph="To do…" onSave={x => saveField('to_do_raw', x)} /></Row>
-                </Group>
-              </div>
-              {!!v('source_description_raw') && (
-                <div style={{ marginBottom: 24 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                    <FileText size={12} style={{ color: 'var(--fg-faint)' }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Description</span>
-                  </div>
-                  <div style={{ whiteSpace: 'pre-wrap', fontSize: 13.5, lineHeight: 1.6, color: 'var(--fg-default)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '12px 14px' }}>
-                    {String(v('source_description_raw'))}
-                  </div>
-                </div>
-              )}
-
-              <SectionLabel icon="◆">Files</SectionLabel>
-              <div style={{ marginBottom: 16, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 14, padding: files.length || project?.dropbox_root_path ? 6 : 12 }}>
-                {project?.dropbox_root_path && (
-                  <div style={{ marginBottom: 10 }}>
-                    <DropboxFileList rootPath={project.dropbox_root_path} rootLabel={project.code} />
-                  </div>
-                )}
-                {files.map(f => (
-                  <div key={f.id} className="qv-field" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 9 }}>
-                    <div style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--brand-teal-100)', color: 'var(--brand-teal-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <FileText size={13} />
-                    </div>
-                    <button onClick={() => viewFile(f)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-default)', fontSize: 13.5, fontWeight: 600, textAlign: 'left', flex: 1, minWidth: 0 }}>
-                      {f.file_name}
-                    </button>
-                    <span style={{ fontSize: 11.5, color: 'var(--fg-faint)' }}>{f.uploaded_by_name ?? ''}</span>
-                    {canEdit && (
-                      <button onClick={() => deleteFile(f)} title="Remove (temporary, dev-only)" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0, display: 'flex' }}>
-                        <Trash2 size={12} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {!files.length && !project?.dropbox_root_path && (
-                  <EmptyState size="sm" icon={<FileText />} title="No files here yet." />
-                )}
-                {canEdit && (
-                  <div style={{ marginTop: 8, padding: files.length || project?.dropbox_root_path ? '0 4px 4px' : 0 }}>
-                    <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); }} />
-                    <button className="btn btn-ghost btn-sm" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile}>
-                      {uploadingFile ? <Loader2 size={13} className="qv-spin" /> : <Upload size={13} />} Attach file
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div style={{ width: 368, flexShrink: 0, borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', background: 'var(--bg-subtle)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--brand-teal)' }} />
-              <div style={{ fontWeight: 800, fontSize: 14, letterSpacing: '-0.01em' }}>Activity</div>
-              {activityNotes.length > 0 && (
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg-faint)', background: 'var(--bg-subtle)', borderRadius: 999, padding: '1px 7px' }}>{activityNotes.length}</span>
-              )}
-            </div>
-            <button onClick={onClose} style={{ background: 'var(--bg-subtle)', border: 'none', borderRadius: 8, cursor: 'pointer', color: 'var(--fg-subtle)', padding: 6, display: 'flex' }} aria-label="Close">
-              <X size={16} />
+          <div className="flex shrink-0 items-center gap-2.5">
+            {saving && <Loader2 size={16} className="qv-spin text-ui-text-secondary" aria-label="Saving" />}
+            {opp?.prospect_id ? (
+              <Link
+                href={`/marketing/prospects/${opp.prospect_id}`}
+                title="Contacts, locations & other Needs for this Lead"
+                className={cn('inline-flex h-10 items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] pl-3.5 pr-6 text-[13px] font-medium no-underline transition-colors hover:bg-ui-hover-bg dark:border-ui-heading', HEADING)}
+              >
+                <SquareArrowOutUpRight size={16} aria-hidden />
+                Lead Profile
+              </Link>
+            ) : null}
+            <button
+              type="button" onClick={onClose} aria-label="Close"
+              className="grid size-10 place-items-center rounded-[6px] border border-ui-divider bg-transparent text-ui-body transition-colors hover:bg-ui-hover-bg"
+            >
+              <X size={18} />
             </button>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'grid', gap: 10, alignContent: 'start' }}>
-            {activityNotes.length === 0 && loaded && (
-              <EmptyState size="sm" className="mt-6 justify-center" icon={<Activity />} title="No activity yet." />
-            )}
-            {activityNotes.map(n => (
-              <div key={n.id} style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '11px 13px', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                    <div style={{
-                      width: 22, height: 22, borderRadius: 999, background: 'var(--brand-teal-100)', color: 'var(--brand-teal-600)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0,
-                    }}>
-                      {(n.author_name || '?').charAt(0).toUpperCase()}
-                    </div>
-                    <span style={{ fontWeight: 700, fontSize: 13.5 }}>{n.author_name || 'Unknown'}</span>
+        </div>
+
+        {/* ── Body ───────────────────────────────────────────────── */}
+        <div className="flex min-h-0 flex-1 gap-4">
+          <div className="min-w-0 flex-1 overflow-y-auto pr-1">
+            {!loaded ? (
+              <div className="flex items-center justify-center gap-2 p-12 text-[13px] text-ui-body"><Loader2 size={18} className="qv-spin" /> Loading…</div>
+            ) : !opp ? (
+              <div className="p-12 text-center text-[13px] text-ui-body">Couldn&apos;t load this {kind === 'potential' ? 'Potential' : 'Opportunity'}.</div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {kind === 'opportunity' && (
+                  <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+                    <Card title="Start here">
+                      <StillToFillIn missing={missingForDeal(opp)} stage={String(opp.stage)} />
+                      <TaskList apiBasePath={apiBase} assignees={assignees} />
+                    </Card>
+                    <Card title="Progress">
+                      <DealProgressPanel stage={String(opp.stage) as OpportunityStage} progress={progress} />
+                    </Card>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ color: 'var(--fg-faint)', fontSize: 11.5 }}>
-                      {n.source_created_at ? new Date(n.source_created_at).toLocaleDateString('en-US') : ''}
-                    </span>
-                    {canEdit && (
-                      <button onClick={() => deleteNote(n)} title="Delete (temporary, dev-only)" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0, display: 'flex' }}>
-                        <Trash2 size={12} />
-                      </button>
-                    )}
-                  </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  <Card title="Status & Ownership">
+                    <Fields>
+                      {kind === 'opportunity' ? (
+                        <Field label="Stage" span={2}><Sel value={String(v('stage'))} onChange={changeStage} opts={STAGE_OPTS} /></Field>
+                      ) : (
+                        <Field label="Status" span={2}>
+                          <Sel value={String(v('status') || 'identified')} onChange={x => saveField('status', x)} opts={POTENTIAL_STATUS_OPTS} />
+                        </Field>
+                      )}
+                      <Field label="Priority" span={2}>
+                        <Sel value={String(v('priority') || 'medium')} onChange={x => saveField('priority', x)}
+                          opts={[['high', 'High'], ['medium', 'Medium'], ['low', 'Low']]} />
+                      </Field>
+                      {kind === 'opportunity' ? (
+                        <>
+                          <Field label="Marketing Owner" span={2}>
+                            <Sel value={String(v('marketing_owner_id'))} onChange={x => saveField('marketing_owner_id', x || null)} opts={assigneeOpts} />
+                          </Field>
+                          <Field label="Sales Owner" span={2}>
+                            <Sel value={String(v('sales_owner_id'))} onChange={x => saveField('sales_owner_id', x || null)} opts={assigneeOpts} />
+                          </Field>
+                        </>
+                      ) : (
+                        <Field label="Assignee" span={2}>
+                          <Sel value={String(v('assigned_to'))} onChange={x => saveField('assigned_to', x || null)} opts={assigneeOpts} />
+                        </Field>
+                      )}
+                      <Field label="Contact" span={kind === 'opportunity' ? 4 : 6}>
+                        <ContactSearchSelect
+                          value={String(v('primary_contact_id'))}
+                          valueLabel={contactLabel || contacts.find(c => c.id === v('primary_contact_id'))?.name || ''}
+                          disabled={!canEdit}
+                          placeholder="Search contacts…"
+                          buttonStyle={{ ...fieldBox, cursor: canEdit ? 'pointer' : 'default' }}
+                          placeholderStyle={{ color: 'var(--ui-text-disabled)', fontWeight: 500 }}
+                          onChange={(id, name) => {
+                            setContactLabel(name ?? '');
+                            saveField('primary_contact_id', id);
+                          }}
+                        />
+                      </Field>
+                      {need?.timing && (
+                        <Field label="Timing" span={3}><ReadOnly>{TIMING_LABEL[need.timing]}</ReadOnly></Field>
+                      )}
+                      {Array.isArray(opp.classification_reasons) && (opp.classification_reasons as string[]).length > 0 && (
+                        <Field label="Why this stage" span={need?.timing ? 3 : 6}>
+                          <ReadOnly>{(opp.classification_reasons as string[]).join(' · ')}</ReadOnly>
+                        </Field>
+                      )}
+                    </Fields>
+                  </Card>
+
+                  <Card title="Value & Timeline">
+                    <Fields>
+                      <Field label="Deal Size" span={3}><Inp type="number" value={v('estimated_value')} ph="e.g 250000" onSave={x => saveField('estimated_value', x === '' ? null : Number(x))} /></Field>
+                      <Field label="Deposit" span={3}><Inp type="number" value={v('deposit')} ph="e.g 5000" onSave={x => saveField('deposit', x === '' ? null : Number(x))} /></Field>
+                      <Field label="Payment" span={4}><Inp value={v('payment_raw')} ph="Payment terms.." onSave={x => saveField('payment_raw', x)} /></Field>
+                      <Field label="Targeted" span={2}>
+                        <Sel value={String(!!opp.targeted)} onChange={x => saveField('targeted', x === 'true')} opts={[['false', 'No'], ['true', 'Yes']]} />
+                      </Field>
+                      {kind === 'opportunity' ? (
+                        <>
+                          <Field label="Due Date" span={2}><Inp type="date" value={v('deadline')} onSave={x => saveField('deadline', x || null)} /></Field>
+                          <Field label="Expected Close" span={2}><Inp type="date" value={v('expected_close_date')} onSave={x => saveField('expected_close_date', x || null)} /></Field>
+                          <Field label="Date done" span={2}><Inp type="date" value={v('closed_at') ? String(v('closed_at')).slice(0, 10) : ''} onSave={x => saveField('closed_at', x || null)} /></Field>
+                          <Field label="Next Action" span={3}><Inp value={v('next_action')} ph="e.g Send estimate" onSave={x => saveField('next_action', x)} /></Field>
+                          <Field label="Next Action Date" span={3}><Inp type="date" value={v('next_action_date')} onSave={x => saveField('next_action_date', x || null)} /></Field>
+                        </>
+                      ) : (
+                        <>
+                          <Field label="Due Date" span={2}><Inp type="date" value={v('due_date')} onSave={x => saveField('due_date', x || null)} /></Field>
+                          <Field label="Targeted contact date" span={2}><Inp type="date" value={v('target_contact_date')} onSave={x => saveField('target_contact_date', x || null)} /></Field>
+                          <Field label="Date done" span={2}><Inp type="date" value={v('date_done')} onSave={x => saveField('date_done', x || null)} /></Field>
+                        </>
+                      )}
+                      <Field label="Source" span={3}><Inp value={v('source_raw_label') || v('source_label')} ph="type.." onSave={x => saveField('source_raw_label', x)} /></Field>
+                      <Field label="Notes" span={3}>
+                        <Inp value={v(kind === 'opportunity' ? 'description' : 'notes')} ph="type.." onSave={x => saveField(kind === 'opportunity' ? 'description' : 'notes', x)} />
+                      </Field>
+                    </Fields>
+                  </Card>
+
+                  <Card title="Location & Business" className="self-start">
+                    <Fields>
+                      <Field label="01-State" span={2}><Inp value={v('state')} ph="e.g TX" onSave={x => saveField('state', x)} /></Field>
+                      <Field label="11-Location" span={2}><Inp value={v('formatted_address')} ph="address.." onSave={x => saveField('formatted_address', x)} /></Field>
+                      <Field label="Brand" span={2}><Inp value={v('brand')} ph="brand.." onSave={x => saveField('brand', x)} /></Field>
+                      <Field label="Industry" span={2}>
+                        {(() => {
+                          const industry = normalizeIndustry(v('industry_raw') as string);
+                          const bg = industry ? INDUSTRY_COLOR[industry] : null;
+                          return (
+                            <div className="flex w-full items-center gap-1.5">
+                              {bg && (
+                                <span style={{ fontWeight: 500, fontSize: 12, lineHeight: '16px', padding: '3px 8px', borderRadius: 4, background: bg, color: readableOn(bg), flexShrink: 0 }}>
+                                  {industry}
+                                </span>
+                              )}
+                              <Inp value={v('industry_raw')} ph="industry.." onSave={x => saveField('industry_raw', x)} />
+                            </div>
+                          );
+                        })()}
+                      </Field>
+                      <Field label="Project Type" span={2}><Inp value={v('project_type_raw')} ph="project type.." onSave={x => saveField('project_type_raw', x)} /></Field>
+                      <Field label="Business Type" span={2}>
+                        <Inp value={businessTypes.join(', ')} ph="comma separated.." onSave={x => saveField('business_types', x.split(',').map(s => s.trim()).filter(Boolean))} />
+                      </Field>
+                      <Field label="Region" span={2}>
+                        <Sel value={String(v('region'))} onChange={x => saveField('region', x || null)}
+                          opts={[['', '—'], ...REGIONS.map(r => [r.code, r.label] as [string, string])]}
+                          emphasize={!v('region')} />
+                        {!v('region') && <div className="text-[12px] text-[var(--status-warning-fg)]">Set a region so your team can see this</div>}
+                      </Field>
+                    </Fields>
+                  </Card>
+
+                  <Card title="Clickup Reference" muted className="self-start">
+                    <Fields>
+                      <Field label="Direct Contact" span={3}><Inp muted value={v('direct_contact_raw')} ph="Name, phone, email.." onSave={x => saveField('direct_contact_raw', x)} /></Field>
+                      <Field label="Status OP" span={3}><Inp muted value={v('external_stage_label')} ph="status OP.." onSave={x => saveField('external_stage_label', x)} /></Field>
+                      <Field label="Requests" span={3}><Inp muted value={v('request_raw')} ph="Requests.." onSave={x => saveField('request_raw', x)} /></Field>
+                      <Field label="To do" span={3}><Inp muted value={v('to_do_raw')} ph="To do.." onSave={x => saveField('to_do_raw', x)} /></Field>
+                    </Fields>
+                  </Card>
                 </div>
-                {n.body && n.body !== n.link_url && <div style={{ whiteSpace: 'pre-wrap', fontSize: 13.5, lineHeight: 1.5, color: 'var(--fg-default)', paddingLeft: 29 }}>{n.body}</div>}
-                {n.link_url && (
-                  <a href={n.link_url} target="_blank" rel="noopener noreferrer"
-                    style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', border: '1px solid var(--border-subtle)', borderRadius: 8, padding: '8px 10px', background: 'var(--bg-subtle)' }}>
-                    {n.link_thumbnail_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={n.link_thumbnail_url} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
-                    ) : (
-                      <div style={{ width: 40, height: 40, borderRadius: 6, background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <Link2 size={16} style={{ color: 'var(--fg-faint)' }} />
+
+                {docNotes.length > 0 && (
+                  <Card title="Documents"><DocumentsList docs={docNotes} /></Card>
+                )}
+                {!!v('source_description_raw') && (
+                  <Card title="Description">
+                    <div className="whitespace-pre-wrap text-[13px] leading-[1.6] text-ui-body">{String(v('source_description_raw'))}</div>
+                  </Card>
+                )}
+
+                {/* ── Files ── */}
+                <Card title="Files">
+                  <div className="flex flex-col gap-7 lg:flex-row">
+                    <div className="flex shrink-0 flex-col self-stretch rounded-[10px] border border-ui-divider bg-ui-page-bg p-6 lg:w-[280px]">
+                      <div
+                        onDragOver={e => { if (!canEdit) return; e.preventDefault(); setDragOver(true); }}
+                        onDragLeave={() => setDragOver(false)}
+                        onDrop={e => { if (!canEdit) return; e.preventDefault(); setDragOver(false); uploadMany(e.dataTransfer.files); }}
+                        className={cn(
+                          'flex min-h-[220px] flex-1 flex-col items-center justify-center gap-3 rounded-[8px] border border-dashed p-6 text-center transition-colors',
+                          dragOver ? 'border-[var(--color-secondary-700)] bg-ui-selected-bg' : 'border-[var(--ui-input-border)] bg-ui-input-bg',
+                        )}
+                      >
+                        <CloudUpload size={32} strokeWidth={1.5} className="text-ui-body" aria-hidden />
+                        <p className="m-0 text-[14px] font-semibold leading-[1.45] text-ui-body">
+                          {canEdit ? 'Drag files here to upload' : 'Read-only'}
+                        </p>
+                        {canEdit && (
+                          <>
+                            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={e => uploadMany(e.target.files)} />
+                            <button
+                              type="button" onClick={() => fileInputRef.current?.click()}
+                              className="rounded-[6px] border border-ui-divider bg-ui-input-bg px-3.5 py-2.5 text-[13px] font-medium text-ui-body transition-colors hover:bg-ui-hover-bg"
+                            >
+                              Browse files
+                            </button>
+                          </>
+                        )}
                       </div>
-                    )}
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-default)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.link_title || n.link_url}</div>
-                      <div style={{ fontSize: 11.5, color: 'var(--fg-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.link_url}</div>
                     </div>
-                  </a>
-                )}
-                {n.image_path && (
-                  imageLinks[n.image_path] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={imageLinks[n.image_path]}
-                      alt=""
-                      onClick={() => setLightbox(imageLinks[n.image_path!])}
-                      style={{ marginTop: 6, maxWidth: 140, maxHeight: 140, borderRadius: 6, cursor: 'zoom-in', display: 'block', border: '1px solid var(--border-subtle)' }}
-                    />
-                  ) : (
-                    <div style={{ marginTop: 6, width: 140, height: 90, borderRadius: 6, background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-faint)' }}>
-                      <ImageIcon size={16} />
+
+                    <div className="flex h-[356px] min-w-0 flex-1 flex-col gap-5 overflow-hidden rounded-[10px] border border-ui-divider bg-ui-page-bg p-6">
+                      <div className="flex items-start justify-between gap-3 leading-[1.45]">
+                        <p className="m-0 text-[13px] font-semibold text-ui-body">Uploads · {fileRows} file{fileRows === 1 ? '' : 's'}</p>
+                        {inProgress > 0 && <p className="m-0 text-[12px] text-ui-text-secondary">{inProgress} in progress</p>}
+                      </div>
+                      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                        {fileRows === 0 && (
+                          <EmptyState size="sm" icon={<FileText />} title="No files here yet." />
+                        )}
+                        {uploads.map(u => (
+                          <FileRowShell key={u.key}>
+                            {u.error ? (
+                              <div className="flex items-center gap-3">
+                                <CircleX size={22} strokeWidth={1.5} className="shrink-0 text-error-normal" aria-hidden />
+                                <div className="flex min-w-0 flex-1 flex-col gap-1 leading-[1.45]">
+                                  <span className="truncate text-[13px] font-medium text-ui-body">{u.name}</span>
+                                  <span className="text-[12px] text-error-normal">{formatBytes(u.size)} · {u.error}</span>
+                                </div>
+                                <button
+                                  type="button" onClick={() => setUploads(prev => prev.filter(x => x.key !== u.key))}
+                                  className="shrink-0 rounded-[6px] border border-error-normal bg-transparent px-2.5 py-[7px] text-[13px] font-medium text-error-normal transition-colors hover:bg-error-light dark:hover:bg-error-dark/30"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-2.5">
+                                <div className="flex items-start gap-3">
+                                  <FileIcon name={u.name} />
+                                  <div className="flex min-w-0 flex-1 flex-col gap-[3px] leading-[1.45]">
+                                    <span className="truncate text-[13px] font-medium text-ui-body">{u.name}</span>
+                                    <span className="text-[12px] text-ui-text-secondary">{formatBytes(u.size)}</span>
+                                  </div>
+                                </div>
+                                <div className="relative h-1.5 w-full overflow-hidden rounded-[3px] bg-ui-hover-bg">
+                                  <div className="qv-indeterminate absolute top-0 h-1.5 w-[40%] rounded-[3px] bg-[var(--color-secondary-700)] dark:bg-ui-heading" />
+                                </div>
+                                <span className="text-[12px] leading-[1.45] text-ui-text-secondary">Uploading…</span>
+                              </div>
+                            )}
+                          </FileRowShell>
+                        ))}
+                        {files.map(f => (
+                          <FileRowShell key={f.id}>
+                            <div className="flex items-center gap-3">
+                              <FileIcon name={f.file_name} />
+                              <div className="flex min-w-0 flex-1 flex-col gap-1 leading-[1.45]">
+                                <button type="button" onClick={() => viewFile(f)} title="Open file"
+                                  className="truncate border-0 bg-transparent p-0 text-left text-[13px] font-medium text-ui-body hover:underline">
+                                  {f.file_name}
+                                </button>
+                                <span className="text-[12px] text-ui-text-secondary">
+                                  {[f.uploaded_by_name, f.created_at ? new Date(f.created_at).toLocaleDateString('en-US') : null].filter(Boolean).join(' · ')}
+                                </span>
+                              </div>
+                              <Chip tone="t9" icon={CircleCheck}>Complete</Chip>
+                              {canEdit && (
+                                <button type="button" onClick={() => deleteFile(f)} aria-label={`Remove ${f.file_name}`} title="Remove"
+                                  className="flex shrink-0 border-0 bg-transparent p-0 text-ui-text-secondary hover:text-error-normal">
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </FileRowShell>
+                        ))}
+                      </div>
                     </div>
-                  )
-                )}
+                  </div>
+                  {project?.dropbox_root_path && (
+                    <div className="mt-4">
+                      <DropboxFileList rootPath={project.dropbox_root_path} rootLabel={project.code} />
+                    </div>
+                  )}
+                </Card>
               </div>
-            ))}
+            )}
           </div>
 
-          {canEdit && (
-            <div style={{ borderTop: '1px solid var(--border-subtle)', padding: 14, background: 'var(--bg-surface)' }}>
-              {draftImage && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--fg-subtle)', marginBottom: 6 }}>
-                  <ImageIcon size={12} /> {draftImage.name}
-                  <button onClick={() => { setDraftImage(null); if (noteFileInputRef.current) noteFileInputRef.current.value = ''; }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)' }}>
-                    <X size={12} />
-                  </button>
-                </div>
+          {/* ── Activity ─────────────────────────────────────────── */}
+          <div className="flex w-[383px] shrink-0 flex-col overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg">
+            <div className="flex h-16 shrink-0 items-center gap-2 border-b border-ui-divider px-4">
+              <span aria-hidden className="size-1.5 rounded-full bg-[var(--color-secondary-700)] dark:bg-ui-heading" />
+              <p className={cn('m-0 flex-1 text-[16px] font-semibold leading-[1.45]', HEADING)}>Activity</p>
+              {activityNotes.length > 0 && <span className="text-[12px] font-semibold text-ui-text-secondary">{activityNotes.length}</span>}
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto border-b border-ui-divider bg-ui-surface p-2">
+              {activityNotes.length === 0 && loaded && (
+                <EmptyState size="sm" className="mt-6 justify-center" icon={<Activity />} title="No activity yet." />
               )}
-              <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}>
-                <textarea
-                  className="form-input"
-                  placeholder="Write a comment…"
-                  value={draft}
-                  onChange={e => setDraft(e.target.value)}
-                  rows={2}
-                  style={{ flex: 1, resize: 'none', fontSize: 13.5, borderRadius: 10 }}
-                />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <input ref={noteFileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
-                    onChange={async e => {
-                      const picked = e.target.files?.[0];
-                      originalImageRef.current = picked ?? null; // full-quality original for the direct Dropbox upload
-                      setDraftImage(picked ? await compressImage(picked) : null); // small copy = fallback upload
-                    }} />
-                  <button className="btn btn-ghost btn-sm" onClick={() => noteFileInputRef.current?.click()} title="Attach image">
-                    <Paperclip size={14} />
-                  </button>
-                  <button className="btn btn-primary btn-sm" onClick={postComment} disabled={posting || (!draft.trim() && !draftImage)} title="Post">
-                    {posting ? <Loader2 size={14} className="qv-spin" /> : <Send size={14} />}
-                  </button>
+              {activityNotes.map(n => (
+                <div key={n.id} className="rounded-[8px] border border-ui-divider bg-ui-page-bg px-3 py-2.5">
+                  <div className="mb-1.5 flex justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="grid size-[22px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold text-ui-body">
+                        {(n.author_name || '?').charAt(0).toUpperCase()}
+                      </span>
+                      <span className={cn('truncate text-[13px] font-semibold', HEADING)}>{n.author_name || 'Unknown'}</span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <span className="text-[11.5px] text-ui-text-secondary">
+                        {n.source_created_at ? new Date(n.source_created_at).toLocaleDateString('en-US') : ''}
+                      </span>
+                      {canEdit && (
+                        <button type="button" onClick={() => deleteNote(n)} title="Delete" aria-label="Delete comment"
+                          className="flex border-0 bg-transparent p-0 text-ui-text-secondary hover:text-error-normal">
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {n.body && n.body !== n.link_url && <div className="whitespace-pre-wrap pl-[30px] text-[13px] leading-[1.5] text-ui-body">{n.body}</div>}
+                  {n.link_url && (
+                    <a href={n.link_url} target="_blank" rel="noopener noreferrer"
+                      className="mt-1.5 flex items-center gap-2 rounded-[6px] border border-ui-divider bg-ui-surface px-2.5 py-2 no-underline">
+                      {n.link_thumbnail_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={n.link_thumbnail_url} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                      ) : (
+                        <span className="grid size-10 shrink-0 place-items-center rounded-[6px] bg-ui-page-bg text-ui-text-secondary"><Link2 size={16} /></span>
+                      )}
+                      <span className="min-w-0">
+                        <span className="block truncate text-[12px] font-semibold text-ui-body">{n.link_title || n.link_url}</span>
+                        <span className="block truncate text-[11.5px] text-ui-text-secondary">{n.link_url}</span>
+                      </span>
+                    </a>
+                  )}
+                  {n.image_path && (
+                    imageLinks[n.image_path] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={imageLinks[n.image_path]}
+                        alt=""
+                        onClick={() => setLightbox(imageLinks[n.image_path!])}
+                        style={{ marginTop: 6, maxWidth: 140, maxHeight: 140, borderRadius: 6, cursor: 'zoom-in', display: 'block', border: '1px solid var(--ui-divider)' }}
+                      />
+                    ) : (
+                      <div className="mt-1.5 grid h-[90px] w-[140px] place-items-center rounded-[6px] bg-ui-surface text-ui-text-secondary">
+                        <ImageIcon size={16} />
+                      </div>
+                    )
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {canEdit && (
+              <div className="shrink-0 py-3 pl-4 pr-2">
+                {draftImage && (
+                  <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] text-ui-body">
+                    <ImageIcon size={12} /> <span className="truncate">{draftImage.name}</span>
+                    <button type="button" aria-label="Remove image" onClick={() => { setDraftImage(null); originalImageRef.current = null; if (noteFileInputRef.current) noteFileInputRef.current.value = ''; }}
+                      className="flex border-0 bg-transparent p-0 text-ui-text-secondary">
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+                <div className="flex items-stretch gap-2">
+                  <textarea
+                    aria-label="Write a comment"
+                    placeholder="Type here.."
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void postComment(); } }}
+                    className="qv-input h-20 min-w-0 flex-1 resize-none rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg p-3 text-[14px] leading-[1.4] text-ui-body outline-none"
+                  />
+                  <div className="flex w-[89px] shrink-0 flex-col justify-center gap-2">
+                    <input ref={noteFileInputRef} type="file" accept="image/*" className="hidden"
+                      onChange={async e => {
+                        const picked = e.target.files?.[0];
+                        originalImageRef.current = picked ?? null; // full-quality original for the direct Dropbox upload
+                        setDraftImage(picked ? await compressImage(picked) : null); // small copy = fallback upload
+                      }} />
+                    <button type="button" onClick={() => noteFileInputRef.current?.click()} title="Attach image" aria-label="Attach image"
+                      className={cn('flex items-center justify-center rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent py-2.5 transition-colors hover:bg-ui-hover-bg dark:border-ui-heading', HEADING)}>
+                      <Paperclip size={16} />
+                    </button>
+                    <button type="button" onClick={postComment} disabled={posting || (!draft.trim() && !draftImage)} title="Post" aria-label="Post comment"
+                      className="flex items-center justify-center rounded-[6px] border-0 bg-[var(--color-secondary-700)] py-2.5 text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950">
+                      {posting ? <Loader2 size={16} className="qv-spin" /> : <SendHorizontal size={16} />}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -728,55 +804,48 @@ function StillToFillIn({ missing, stage }: { missing: string[]; stage: string })
   );
 }
 
-function SectionLabel({ children, icon }: { children: React.ReactNode; icon?: string }) {
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+
+// Figma form card: 8px radius, 14px padding, 16px semibold title.
+function Card({ title, muted, className, children }: { title: string; muted?: boolean; className?: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-      {icon && <span style={{ fontSize: 7, color: 'var(--brand-teal)' }}>{icon}</span>}
-      <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{children}</div>
-      <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+    // 🔴 no overflow:hidden here — Sel/ContactSearchSelect open a position:absolute panel
+    // that needs to escape this card's rounded corners, not get clipped by them.
+    <section className={cn('flex flex-col gap-2 rounded-[8px] border border-ui-divider p-3.5', muted ? 'bg-ui-surface' : 'bg-ui-page-bg', className)}>
+      <h3 className={cn('m-0 text-[16px] font-semibold leading-[1.45]', HEADING)}>{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+// Six-track grid: span 2 = three across, 3 = two across, 6 = full width.
+function Fields({ children }: { children: React.ReactNode }) {
+  return <div className="grid grid-cols-6 gap-2">{children}</div>;
+}
+
+const SPAN: Record<number, string> = { 2: 'col-span-6 sm:col-span-2', 3: 'col-span-6 sm:col-span-3', 4: 'col-span-6 sm:col-span-4', 6: 'col-span-6' };
+
+function Field({ label, span = 2, children }: { label: string; span?: 2 | 3 | 4 | 6; children: React.ReactNode }) {
+  return (
+    <div className={cn('flex min-w-0 flex-col gap-[7px]', SPAN[span])}>
+      <span className="text-[12px] font-medium leading-4 text-ui-body">{label}</span>
+      {children}
     </div>
   );
 }
 
-function Group({ title, muted, children }: { title: string; muted?: boolean; children: React.ReactNode }) {
-  return (
-    <div style={{
-      background: muted ? 'var(--bg-subtle)' : 'var(--bg-surface)',
-      border: '1px solid var(--border-subtle)', borderRadius: 14,
-      // 🔴 no overflow:hidden here — Sel/ContactSearchSelect open a position:absolute panel
-      // that needs to escape this card's rounded corners, not get clipped by them.
-      boxShadow: muted ? 'none' : 'var(--shadow-xs)',
-    }}>
-      <div style={{
-        fontSize: 11.5, fontWeight: 800, color: muted ? 'var(--fg-faint)' : 'var(--fg-muted)',
-        textTransform: 'uppercase', letterSpacing: '0.05em', padding: '10px 14px 0',
-      }}>
-        {title}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 2, padding: 6 }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-const ro: React.CSSProperties = { fontSize: 14, color: 'var(--fg-default)', fontWeight: 500 };
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="qv-field" style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '8px 10px', borderRadius: 9, minHeight: 52 }}>
-      <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--fg-faint)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</div>
-      <div style={{ minWidth: 0 }}>{children}</div>
-    </div>
-  );
-}
-
-const cellInput: React.CSSProperties = {
-  width: '100%', fontSize: 14, fontWeight: 500, padding: '4px 4px', border: '1px solid transparent',
-  borderRadius: 6, background: 'transparent', color: 'var(--fg-default)',
+// Figma "Input": 42px min height, input border, 11px semibold value.
+const fieldBox: React.CSSProperties = {
+  width: '100%', minHeight: 42, padding: '0 12px', border: '1px solid var(--ui-input-border)', borderRadius: 6,
+  background: 'var(--ui-input-bg)', color: 'var(--qv-value)', fontSize: 11, fontWeight: 600, lineHeight: 1.5,
+  letterSpacing: '-0.242px', textAlign: 'left',
 };
 
-function Inp({ value, onSave, type = 'text', ph }: { value: string | number; onSave: (v: string) => void; type?: string; ph?: string }) {
+function ReadOnly({ children }: { children: React.ReactNode }) {
+  return <div style={{ ...fieldBox, display: 'flex', alignItems: 'center', padding: '12px' }}>{children}</div>;
+}
+
+function Inp({ value, onSave, type = 'text', ph, muted }: { value: string | number; onSave: (v: string) => void; type?: string; ph?: string; muted?: boolean }) {
   const [val, setVal] = useState(String(value ?? ''));
   useEffect(() => { setVal(String(value ?? '')); }, [value]);
   return (
@@ -785,16 +854,14 @@ function Inp({ value, onSave, type = 'text', ph }: { value: string | number; onS
       onChange={e => setVal(e.target.value)}
       onBlur={() => { if (val !== String(value ?? '')) onSave(val); }}
       onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-      style={cellInput}
-      onFocus={e => { e.target.style.border = '1px solid var(--brand-teal)'; e.target.style.background = 'var(--bg-surface)'; e.target.style.boxShadow = 'var(--shadow-focus)'; }}
-      onBlurCapture={e => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent'; e.target.style.boxShadow = 'none'; }}
+      className="qv-input"
+      style={{ ...fieldBox, ...(muted && { background: 'var(--ui-surface)' }) }}
     />
   );
 }
 
 // Custom combobox, not a native <select> — the browser's own dropdown chrome (especially on
-// Windows) looks dated next to the rest of this panel. Same value/onChange/opts contract as
-// before so every call site stayed unchanged.
+// Windows) looks dated next to the rest of this panel.
 function Sel({ value, onChange, opts, emphasize }: { value: string; onChange: (v: string) => void; opts: [string, string][]; emphasize?: boolean }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -813,37 +880,33 @@ function Sel({ value, onChange, opts, emphasize }: { value: string; onChange: (v
     <div ref={wrapRef} style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
       <button
         type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
         onClick={() => setOpen(s => !s)}
+        className="qv-input"
         style={{
-          ...cellInput, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
-          border: `1px solid ${emphasize ? 'var(--status-warning)' : 'transparent'}`,
-          background: emphasize ? 'var(--status-warning-bg)' : 'transparent',
+          ...fieldBox, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, cursor: 'pointer',
+          ...(emphasize && { borderColor: 'var(--status-warning)', background: 'var(--status-warning-bg)' }),
         }}
-        onMouseEnter={e => { if (!emphasize) e.currentTarget.style.background = 'var(--bg-subtle)'; }}
-        onMouseLeave={e => { if (!emphasize) e.currentTarget.style.background = 'transparent'; }}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{current}</span>
-        <ChevronDown size={13} style={{ color: 'var(--fg-faint)', flexShrink: 0, marginLeft: 4, transform: open ? 'rotate(180deg)' : undefined, transition: 'transform .12s' }} />
+        <ChevronDown size={16} style={{ flexShrink: 0, transform: open ? 'rotate(180deg)' : undefined, transition: 'transform .12s' }} />
       </button>
 
       {open && (
-        <div style={{
+        <div role="listbox" style={{
           position: 'absolute', top: '100%', left: 0, marginTop: 4, minWidth: '100%', width: 'max-content', maxWidth: 260, zIndex: 100,
-          background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 10,
-          boxShadow: '0 8px 24px rgba(0,0,0,.15)', overflow: 'hidden', maxHeight: 260, overflowY: 'auto',
+          background: 'var(--ui-surface-elevated)', border: '1px solid var(--ui-divider)', borderRadius: 6,
+          boxShadow: 'var(--shadow-03)', maxHeight: 260, overflowY: 'auto', padding: 4,
         }}>
           {opts.map(([v, l]) => (
             <button
               key={v}
               type="button"
+              role="option"
+              aria-selected={v === value}
               onClick={() => { onChange(v); setOpen(false); }}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none',
-                background: v === value ? 'var(--bg-subtle)' : 'transparent', cursor: 'pointer',
-                fontSize: 13.5, fontWeight: v === value ? 700 : 500, color: 'var(--fg-default)',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
-              onMouseLeave={e => (e.currentTarget.style.background = v === value ? 'var(--bg-subtle)' : 'transparent')}
+              className={cn('block w-full rounded-[4px] border-0 px-2.5 py-2 text-left text-[13px] text-ui-body hover:bg-ui-hover-bg', v === value ? 'bg-ui-selected-bg font-semibold' : 'bg-transparent font-medium')}
             >
               {l}
             </button>
@@ -852,4 +915,32 @@ function Sel({ value, onChange, opts, emphasize }: { value: string; onChange: (v
       )}
     </div>
   );
+}
+
+// Figma "Status Chip" (48:500): tone bg/fg, 14px icon, 12px medium label.
+function Chip({ tone, icon: Icon, children }: { tone: string; icon: LucideIcon; children: React.ReactNode }) {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 rounded-[4px] py-[3px] pl-2 pr-2.5 text-[12px] font-medium leading-4 whitespace-nowrap"
+      style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}
+    >
+      <Icon size={14} aria-hidden />
+      {children}
+    </span>
+  );
+}
+
+function FileRowShell({ children }: { children: React.ReactNode }) {
+  return <div className="border-b border-ui-divider py-5 first:pt-0 last:border-b-0 last:pb-0">{children}</div>;
+}
+
+function FileIcon({ name }: { name: string }) {
+  const Icon = /\.(xlsx?|csv|ods)$/i.test(name) ? FileSpreadsheet : FileText;
+  return <Icon size={22} strokeWidth={1.5} className="shrink-0 text-ui-body" aria-hidden />;
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }

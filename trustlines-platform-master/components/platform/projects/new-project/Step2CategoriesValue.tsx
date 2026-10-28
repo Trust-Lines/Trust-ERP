@@ -77,7 +77,7 @@ export function Step2CategoriesValue({
           <div className="form-grid-2" style={{ marginBottom: 0 }}>
             {selectedCats.map(cat => (
               <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 500, minWidth: 100, color: 'var(--color-secondary-700)' }}>{cat}</span>
+                <span className="np-cat-value-label" style={{ fontSize: 13, fontWeight: 500, minWidth: 100 }}>{cat}</span>
                 <input
                   className="form-input" type="text" inputMode="decimal" placeholder="Est. value"
                   aria-label={`${cat} estimated value`}

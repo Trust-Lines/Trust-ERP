@@ -28,6 +28,24 @@ import { Step6InitialTeam } from './new-project/Step6InitialTeam';
 import { SummaryPanel } from './new-project/SummaryPanel';
 import { feedback } from '@/components/ui/feedback-toast';
 
+// Which wizard step shows each validated field — used to jump there when submit fails.
+const FIELD_STEP: Partial<Record<keyof NewProjectFormValues, number>> = {
+  client_id: 1, client_company_id: 1, client_franchise_id: 1, project_code: 1, name: 1, site_location: 1,
+  categories: 2, deal_value: 2, currency: 2,
+  closed_deal_date: 3, est_delivery_date: 3,
+  dropbox_section: 4, dropbox_region: 4, dropbox_status: 4, dropbox_client_type: 4, dropbox_client_name: 4,
+  clickup_task_id: 5, quickbooks_ref: 5,
+  trustlines_pm_id: 6, tlines_pm_id: 6, qc_inspector_id: 6,
+};
+const FIELD_LABEL: Partial<Record<keyof NewProjectFormValues, string>> = {
+  client_id: 'Region', client_company_id: 'Company', project_code: 'Project number', name: 'Project name',
+  site_location: 'Site / location', categories: 'Categories', deal_value: 'Deal value', currency: 'Currency',
+  closed_deal_date: 'Closed-deal date', est_delivery_date: 'Estimated delivery date',
+  dropbox_section: 'Dropbox section', dropbox_region: 'Dropbox region', dropbox_status: 'Dropbox status',
+  dropbox_client_type: 'Client type', dropbox_client_name: 'Client name',
+  trustlines_pm_id: 'Trust-Lines PM', tlines_pm_id: 'Client PM (T-Lines)', qc_inspector_id: 'QC inspector',
+};
+
 export interface EditProjectData {
   id: string;
   name: string;
@@ -575,6 +593,15 @@ export function NewProjectForm({
     }
 
     await proceedWithCreate(values, null);
+  }, (invalid) => {
+    // Fields live on different steps, so a failed submit used to do nothing visible. Say which
+    // fields are wrong and jump to the first step that has one.
+    const fields = Object.keys(invalid) as (keyof NewProjectFormValues)[];
+    if (fields.length === 0) return;
+    const steps = fields.map(k => FIELD_STEP[k] ?? 1);
+    setActiveStep(Math.min(...steps));
+    const labels = fields.map(k => `${FIELD_LABEL[k] ?? k}${invalid[k]?.message ? ` (${invalid[k]?.message})` : ''}`);
+    toast.error(`Fix before creating: ${labels.join(', ')}`);
   });
 
   async function handleDropboxImport(info: DropboxProjectSelection) {

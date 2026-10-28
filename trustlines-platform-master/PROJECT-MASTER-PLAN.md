@@ -3869,3 +3869,4 @@ Customer = T-Lines'ın gerçek son müşterisi
 Ana prensip:
 
 > Aynı proje, farklı ekipler için farklı workspace ve farklı görünürlükle gösterilir; ayrı proje kayıtlarına bölünmez.
+  

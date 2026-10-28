@@ -4,12 +4,12 @@ import { StepFooter } from './StepFooter';
 import type { StepProps } from './types';
 import { Checkbox } from '@/components/ui/checkbox';
 
-export function Step4ScopeOfWork({ form, setForm, onBack, onNext }: StepProps) {
+export function Step4ScopeOfWork({ form, setForm, onBack, onNext, onSaveDraft }: StepProps) {
   return (
-    <div className="space-y-6">
+    <div className="flex flex-1 flex-col gap-6">
       <div>
-        <h2 className="text-base font-bold text-slate-900">Scope of work</h2>
-        <p className="text-xs text-slate-500 mt-0.5">Select trade disciplines requested by customer.</p>
+        <h2 className="text-[20px] font-semibold leading-[1.45] text-[var(--color-secondary-700)] dark:text-ui-heading">Scope of work</h2>
+        <p className="mt-1 text-[13px] text-ui-body">Select trade disciplines requested by customer.</p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -18,8 +18,8 @@ export function Step4ScopeOfWork({ form, setForm, onBack, onNext }: StepProps) {
             key={trade}
             className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
               form.scope_of_work[trade]
-                ? 'border-blue-600 bg-blue-50/60 text-blue-900 font-bold'
-                : 'border-slate-200 bg-ui-surface-elevated text-slate-700 hover:bg-slate-50'
+                ? 'border-[var(--color-secondary-700)] bg-ui-selected-bg text-[var(--color-secondary-700)] font-semibold dark:border-ui-heading dark:text-ui-heading'
+                : 'border-[var(--ui-input-border)] bg-ui-input-bg text-ui-body hover:bg-ui-hover-bg'
             }`}
           >
             <Checkbox
@@ -32,7 +32,7 @@ export function Step4ScopeOfWork({ form, setForm, onBack, onNext }: StepProps) {
         ))}
       </div>
 
-      <StepFooter nextLabel="Continue to Additional notes" onBack={onBack} onNext={onNext} />
+      <StepFooter onBack={onBack} onNext={onNext} onSaveDraft={onSaveDraft} />
     </div>
   );
 }
