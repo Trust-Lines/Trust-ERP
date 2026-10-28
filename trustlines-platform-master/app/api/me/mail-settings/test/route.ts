@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { friendlySmtpError, loadSender, transportFor } from '@/lib/email/mailSettings';
-import { sendTestEmail } from '@/lib/email/sender';
+import { passwordReadable, sendTestEmail, UNREADABLE_PASSWORD } from '@/lib/email/sender';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -14,6 +14,10 @@ export async function POST() {
   const admin = createAdminClient() as any;
   const sender = await loadSender(admin, user.id).catch(() => null);
   if (!sender) return NextResponse.json({ error: 'Save your email settings first' }, { status: 400 });
+  if (!passwordReadable(sender)) {
+    await admin.from('user_mail_settings').update({ last_error: UNREADABLE_PASSWORD, verified_at: null }).eq('user_id', user.id);
+    return NextResponse.json({ error: UNREADABLE_PASSWORD }, { status: 422 });
+  }
 
   const transport = transportFor(sender);
   try {

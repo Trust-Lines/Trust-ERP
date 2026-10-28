@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { appBaseUrl } from '@/lib/env/appUrl';
-import { deriveSecret } from '@/lib/crypto/secrets';
+import { decryptToken, deriveSecret } from '@/lib/crypto/secrets';
 import { renderTemplate, type MergeContact } from '@/lib/marketing/mailTemplates';
 import {
   buildFilterContext, fetchAllMatching, hasAnyCriterion, type ProspectQueryParams,
@@ -41,10 +41,24 @@ export class EmailError extends Error {
   constructor(message: string, readonly status = 400) { super(message); }
 }
 
+export const UNREADABLE_PASSWORD = 'Your saved email password can’t be read — the server’s encryption key is missing or was changed after you saved it. Open Settings → Email sending, type your password again and press “Save & send test email”.';
+
+/** True when the stored SMTP password decrypts with the server's current key. */
+export function passwordReadable(s: Pick<SenderSettings, 'smtp_pass_enc'>): boolean {
+  try { decryptToken(s.smtp_pass_enc); return true; } catch { return false; }
+}
+
 /** The stored sender, or an error the person can act on. */
 async function requireSender(admin: any, userId: string): Promise<SenderSettings> {
-  const s = await loadSender(admin, userId);
+  let s: SenderSettings | null;
+  try {
+    s = await loadSender(admin, userId);
+  } catch (e) {
+    console.error('[email] could not load sender settings:', short(e));
+    throw new EmailError('Your email settings could not be loaded — please try again.', 500);
+  }
   if (!s) throw new EmailError('Set up your email account first: Settings → Email sending.', 412);
+  if (!passwordReadable(s)) throw new EmailError(UNREADABLE_PASSWORD, 412);
   return s;
 }
 
@@ -194,8 +208,11 @@ export async function sendCampaignBatch(admin: any, campaignId: string, max = BA
   if (!c || c.status !== 'sending' || !c.sender_user_id) return { sent: 0, failed: 0, done: false };
 
   const sender = await loadSender(admin, c.sender_user_id);
-  if (!sender) {
-    await admin.from('email_campaigns').update({ status: 'paused', last_error: 'The sender removed their email settings. Set up Settings → Email sending, then resume.' }).eq('id', c.id);
+  if (!sender || !passwordReadable(sender)) {
+    await admin.from('email_campaigns').update({
+      status: 'paused',
+      last_error: sender ? UNREADABLE_PASSWORD : 'The sender removed their email settings. Set up Settings → Email sending, then resume.',
+    }).eq('id', c.id);
     return { sent: 0, failed: 0, done: false };
   }
   const room = Math.max(0, sender.daily_limit - await sentLast24h(admin, sender.user_id));
