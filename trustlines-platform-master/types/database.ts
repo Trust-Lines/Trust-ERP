@@ -592,6 +592,8 @@ export interface CustomerMeeting {
   notes: string | null;
   outcome: string | null;
   status: 'scheduled' | 'completed' | 'cancelled';
+  google_event_id?: string | null; // migration 130: sent as a Google Calendar invite
+  meet_url?: string | null;
   created_by: string | null;
   deleted_at: string | null;
   created_at: string;
@@ -1325,6 +1327,50 @@ export interface EmailSuppression {
   note: string | null;
   created_by: string | null;
   created_at: string;
+}
+
+// ── Google account per person (migration 130) ───────────────────────────────────────────
+
+export interface UserGoogleConnection {
+  user_id: string;
+  google_email: string;
+  access_token_enc?: string; // server-only, AES-256-GCM
+  refresh_token_enc?: string | null; // server-only
+  token_expires_at: string | null;
+  scopes: string[];
+  last_sync_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Copy of a person's Google Calendar event (60 days back, 120 ahead). */
+export interface GoogleCalendarEvent {
+  id: string;
+  user_id: string;
+  google_event_id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  all_day: boolean;
+  status: 'confirmed' | 'tentative' | 'cancelled';
+  organizer_email: string | null;
+  attendees: { email: string; name: string | null; response: string | null }[];
+  meet_url: string | null;
+  meet_code: string | null;
+  html_link: string | null;
+  google_updated_at: string | null;
+  recording_url: string | null;
+  transcript_url: string | null;
+  recording_checked_at: string | null;
+  prospect_id: string | null;
+  customer_id: string | null;
+  customer_meeting_id: string | null;
+  created_in_erp: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export type SurveySubmissionStatus = 'processed' | 'needs_review' | 'rejected_spam' | 'failed';
