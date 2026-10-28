@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarClock, Eye, Hourglass, Layers, Palette, Search, Send, UserPlus } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { CalendarClock, ChevronLeft, ChevronRight, Eye, Hourglass, Layers, Palette, Search, Send, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
 import type { LeadBrief, IntakeFile, DesignFile, ProjectMeta } from '@/app/(platform)/design/page';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatCard } from '@/components/platform/shared/StatCard';
 import { formatDate } from '@/lib/formatDate';
@@ -35,8 +37,10 @@ interface Props {
   creatorMap: Record<string, string>;
 }
 
-type TabKey = 'jobs' | 'board' | 'team';
+type TabKey = 'jobs' | 'board' | 'calendar' | 'team';
+const TABS: TabKey[] = ['jobs', 'board', 'calendar', 'team'];
 type Scope = 'open' | 'review' | 'done' | 'all';
+const SCOPES: Scope[] = ['open', 'review', 'done', 'all'];
 
 const BOARD_COLUMNS = JOB_STATUS_ORDER.filter(s => s !== 'cancelled');
 
@@ -46,9 +50,17 @@ export function DesignWorkspace(props: Props) {
   const [versions, setVersions] = useState<SalesDesignVersion[]>(props.versions);
   const [designFiles, setDesignFiles] = useState<Record<string, DesignFile[]>>(props.designFiles);
   const [openId, setOpenId] = useState<string | null>(initialJobId && props.jobs.some(j => j.id === initialJobId) ? initialJobId : null);
-  const [tab, setTab] = useState<TabKey>('jobs');
+  // Tab + scope live in the URL (?tab=board, ?scope=review) — the sidebar's Design links set them.
+  const params = useSearchParams();
+  const urlTab = params?.get('tab') as TabKey | null;
+  const urlScope = params?.get('scope') as Scope | null;
+  const [tab, setTab] = useState<TabKey>(urlTab && TABS.includes(urlTab) ? urlTab : 'jobs');
   const [search, setSearch] = useState('');
-  const [scope, setScope] = useState<Scope>('open');
+  const [scope, setScope] = useState<Scope>(urlScope && SCOPES.includes(urlScope) ? urlScope : 'open');
+  useEffect(() => {
+    setTab(urlTab && TABS.includes(urlTab) && (urlTab !== 'team' || isManager) ? urlTab : 'jobs');
+    setScope(urlScope && SCOPES.includes(urlScope) ? urlScope : 'open');
+  }, [urlTab, urlScope, isManager]);
   const [fDesigner, setFDesigner] = useState('');
   // Set after mount: the server renders in UTC, so "overdue" would differ from the browser's day.
   const [today, setToday] = useState('');
@@ -64,12 +76,11 @@ export function DesignWorkspace(props: Props) {
   const nameOf = (j: SalesDesignJob) => { const a = anchorId(j); return projectName(leadMap[a], projectMeta[a], j.title); };
   const isOverdue = (j: SalesDesignJob) => !!today && !!j.due_date && j.due_date.slice(0, 10) < today && OPEN_STATUSES.has(j.status);
 
-  const visible = useMemo(() => {
+  // Search + designer apply everywhere; the Open/Review/Finished scope only to the list (the
+  // Board and Calendar show every status as their own columns / days).
+  const searched = useMemo(() => {
     const q = search.trim().toLowerCase();
     return jobs.filter(j => {
-      if (scope === 'open' && !OPEN_STATUSES.has(j.status)) return false;
-      if (scope === 'review' && !['ready_for_sales_review', 'approved_by_sales', 'presented_to_customer'].includes(j.status)) return false;
-      if (scope === 'done' && OPEN_STATUSES.has(j.status)) return false;
       if (fDesigner === '__none__' && j.assigned_designer_id) return false;
       if (fDesigner && fDesigner !== '__none__' && j.assigned_designer_id !== fDesigner) return false;
       if (q) {
@@ -79,7 +90,13 @@ export function DesignWorkspace(props: Props) {
       }
       return true;
     }).sort((a, b) => (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999') || b.created_at.localeCompare(a.created_at));
-  }, [jobs, search, scope, fDesigner, leadMap, projectMeta, designerMap]);
+  }, [jobs, search, fDesigner, leadMap, projectMeta, designerMap]);
+  const visible = useMemo(() => searched.filter(j => {
+    if (scope === 'open') return OPEN_STATUSES.has(j.status);
+    if (scope === 'review') return ['ready_for_sales_review', 'approved_by_sales', 'presented_to_customer'].includes(j.status);
+    if (scope === 'done') return !OPEN_STATUSES.has(j.status);
+    return true;
+  }), [searched, scope]);
 
   const counts = useMemo(() => ({
     open: jobs.filter(j => OPEN_STATUSES.has(j.status)).length,
@@ -132,14 +149,17 @@ export function DesignWorkspace(props: Props) {
   }
 
   const openJob = jobs.find(j => j.id === openId) ?? null;
-  // Keep the URL shareable (?job=…) without a navigation.
+  // Keep the URL shareable (?tab=…&scope=…&job=…) without a navigation.
   useEffect(() => {
     try {
       const url = new URL(window.location.href);
-      if (openId) url.searchParams.set('job', openId); else url.searchParams.delete('job');
-      window.history.replaceState(null, '', url);
+      const set = (k: string, v: string | null) => { if (v) url.searchParams.set(k, v); else url.searchParams.delete(k); };
+      set('tab', tab === 'jobs' ? null : tab);
+      set('scope', tab === 'jobs' && scope !== 'open' ? scope : null);
+      set('job', openId);
+      if (url.href !== window.location.href) window.history.replaceState(null, '', url);
     } catch { /* ignore */ }
-  }, [openId]);
+  }, [tab, scope, openId]);
 
   if (schemaError) {
     return <div className="rounded-[8px] border border-error-normal bg-error-light p-4 text-[13px] text-error-dark">{schemaError}</div>;
@@ -171,6 +191,7 @@ export function DesignWorkspace(props: Props) {
           <TabsList>
             <TabsTrigger value="jobs">{isManager ? 'All jobs' : 'My work'}</TabsTrigger>
             <TabsTrigger value="board">Board</TabsTrigger>
+            <TabsTrigger value="calendar">Calendar</TabsTrigger>
             {isManager && <TabsTrigger value="team">Team{counts.unassigned ? ` · ${counts.unassigned}` : ''}</TabsTrigger>}
           </TabsList>
           {tab !== 'team' && (
@@ -248,7 +269,7 @@ export function DesignWorkspace(props: Props) {
         <TabsContent value="board">
           <div className="flex items-start gap-3 overflow-x-auto pb-2">
             {BOARD_COLUMNS.map(status => {
-              const cards = visible.filter(j => j.status === status);
+              const cards = searched.filter(j => j.status === status);
               const over = overCol === status && dragId != null;
               const allowed = isManager || DESIGNER_STATUSES.includes(status);
               return (
@@ -293,6 +314,11 @@ export function DesignWorkspace(props: Props) {
               );
             })}
           </div>
+        </TabsContent>
+
+        {/* ── Calendar: due dates ── */}
+        <TabsContent value="calendar">
+          <DueCalendar jobs={searched.filter(j => j.status !== 'cancelled')} today={today} nameOf={nameOf} designerMap={designerMap} onOpen={setOpenId} />
         </TabsContent>
 
         {/* ── Team (managers) ── */}
@@ -361,6 +387,69 @@ export function DesignWorkspace(props: Props) {
           onClose={() => setOpenId(null)}
         />
       )}
+    </div>
+  );
+}
+
+const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/** Month view of the jobs' due dates; jobs without one are counted above the grid. */
+function DueCalendar({ jobs, today, nameOf, designerMap, onOpen }: {
+  jobs: SalesDesignJob[]; today: string; nameOf: (j: SalesDesignJob) => string;
+  designerMap: Record<string, string>; onOpen: (id: string) => void;
+}) {
+  const [offset, setOffset] = useState(0);
+  const base = new Date();
+  const view = new Date(base.getFullYear(), base.getMonth() + offset, 1);
+  const year = view.getFullYear(), month = view.getMonth();
+  const byDay = new Map<string, SalesDesignJob[]>();
+  for (const j of jobs) if (j.due_date) { const d = j.due_date.slice(0, 10); byDay.set(d, [...(byDay.get(d) ?? []), j]); }
+  const noDate = jobs.filter(j => !j.due_date).length;
+  const lead = (new Date(year, month, 1).getDay() + 6) % 7;
+  const days = new Date(year, month + 1, 0).getDate();
+  const cells: (number | null)[] = [...Array<null>(lead).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
+  while (cells.length % 7) cells.push(null);
+  const label = view.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  return (
+    <div className="overflow-hidden rounded-[8px] border border-ui-divider bg-ui-surface">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ui-divider px-4 py-3">
+        <span className={cn('text-[15px] font-semibold', HEADING)}>{label}</span>
+        <div className="flex items-center gap-2">
+          {noDate > 0 && <span className="text-[12px] text-ui-text-secondary">{noDate} without a due date</span>}
+          <Button variant="ghost" size="icon" aria-label="Previous month" onClick={() => setOffset(o => o - 1)}><ChevronLeft /></Button>
+          <Button variant="outline" size="sm" onClick={() => setOffset(0)} disabled={offset === 0}>Today</Button>
+          <Button variant="ghost" size="icon" aria-label="Next month" onClick={() => setOffset(o => o + 1)}><ChevronRight /></Button>
+        </div>
+      </div>
+      <div className="grid grid-cols-7">
+        {DOW.map(d => <div key={d} className="border-b border-ui-divider px-2.5 py-2 text-[11px] font-semibold uppercase text-ui-text-secondary">{d}</div>)}
+        {cells.map((day, i) => {
+          const ymd = day ? localYmd(new Date(year, month, day)) : '';
+          const list = day ? byDay.get(ymd) ?? [] : [];
+          return (
+            <div key={i} className={cn('min-h-[104px] border-b border-ui-divider p-1.5', i % 7 !== 6 && 'border-r')}>
+              {day && (
+                <>
+                  <span className={cn('mb-1 inline-grid size-5 place-items-center rounded-full text-[12px]', ymd === today ? 'bg-[var(--color-secondary-700)] font-semibold text-white dark:bg-primary-50 dark:text-primary-950' : 'text-ui-text-secondary')}>{day}</span>
+                  <div className="flex flex-col gap-1">
+                    {list.slice(0, 3).map(j => (
+                      <button
+                        key={j.id} type="button" onClick={() => onOpen(j.id)}
+                        title={nameOf(j) + ' · ' + (designerMap[j.assigned_designer_id ?? ''] ?? 'Unassigned')}
+                        className={cn('truncate rounded-[4px] border-0 px-1.5 py-0.5 text-left text-[11px]', today && ymd < today && OPEN_STATUSES.has(j.status) ? 'bg-error-light text-error-dark' : 'bg-ui-surface-elevated text-ui-body hover:bg-ui-hover-bg')}
+                      >
+                        {nameOf(j)}
+                      </button>
+                    ))}
+                    {list.length > 3 && <span className="px-1 text-[10px] text-ui-text-secondary">+{list.length - 3} more</span>}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

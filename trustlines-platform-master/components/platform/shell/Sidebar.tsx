@@ -48,11 +48,14 @@ import {
   Share2,
   CalendarDays,
   MailOpen,
+  Columns3,
+  Eye,
 } from 'lucide-react';
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip';
 import type { UserRole } from '@/types/database';
 import { pageAllowed } from '@/lib/permissions/catalog';
 import { DEFAULT_LOGO } from '@/lib/regionLogo';
+import { SALES_INTAKE_ROLES } from '@/lib/sales/roles';
 import { UserMenu } from './UserMenu';
 
 // Design: Figma "TRUST-LINES ERP" → "Shell (Task 11)" (112:15713): 72px icon rail + 232px panel
@@ -96,7 +99,25 @@ const DASHBOARD_ITEM: NavItem = { label: 'Dashboard', href: '/dashboard', icon: 
 // Personal Google Calendar view — everyone who has the Dashboard has their own meetings.
 const MEETINGS_ITEM: NavItem = { label: 'My meetings', href: '/meetings', icon: CalendarDays, perm: 'page.dashboard' };
 const CUSTOMERS_ITEM: NavItem = { label: 'Customers', href: '/customers', icon: Contact, perm: 'page.customers' };
-const DESIGN_ITEM: NavItem = { label: 'Design', href: '/design', icon: Palette, perm: 'page.design' };
+// Design workspace views (/design tabs). Sales/managers (lib/sales/design DESIGN_MANAGE_ROLES) see
+// every job and the Team tab; a designer sees their own work.
+function designNav(manager: boolean): NavItem[] {
+  return [
+    { label: manager ? 'All jobs' : 'My work', href: '/design', icon: Palette, perm: 'page.design' },
+    { label: 'Board', href: '/design?tab=board', icon: Columns3, perm: 'page.design' },
+    { label: 'Calendar', href: '/design?tab=calendar', icon: CalendarDays, perm: 'page.design' },
+    { label: 'In review', href: '/design?tab=jobs&scope=review', icon: Eye, perm: 'page.design' },
+    ...(manager ? [{ label: 'Team', href: '/design?tab=team', icon: Users, perm: 'page.design' }] : []),
+  ];
+}
+
+/** Which Design item a /design URL is showing — the items differ only by query string. */
+export function designActiveHref(params: { get(name: string): string | null } | null): string {
+  const tab = params?.get('tab');
+  if (tab === 'board' || tab === 'calendar' || tab === 'team') return `/design?tab=${tab}`;
+  if (params?.get('scope') === 'review') return '/design?tab=jobs&scope=review';
+  return '/design';
+}
 
 // "Supply" → /projects. User feedback 2026-08-28: a separate /supply route next to the project
 // list was one extra page too many ("fazladan sayfa lazım değil, yeterli sayfada lazım"). The
@@ -213,7 +234,7 @@ function activeHrefIn(section: NavSection, pathname: string) {
 }
 
 /** Groups and pages this user may open — shared by the sidebar and the top-bar page search. */
-export function buildNavSections(userRole: UserRole, userPerms: Record<string, boolean> | undefined, quickDealActive = false): NavSection[] {
+export function buildNavSections(userRole: UserRole, userPerms: Record<string, boolean> | undefined, quickDealActive = false, designHref?: string): NavSection[] {
   const isInternal = userRole !== 'tlines_pm';
   // Every link checks its own page key (Roles & Permissions); a page a role hasn't set yet
   // follows its old default — see pageAllowed in lib/permissions/catalog.ts.
@@ -248,7 +269,7 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
     { key: 'dashboard', title: 'Dashboard', icon: LayoutDashboard, items: allowed([DASHBOARD_ITEM, MEETINGS_ITEM]) },
     { key: 'marketing', title: 'Marketing', icon: Megaphone, items: marketingNav },
     ...(showSales ? [{ key: 'sales', title: 'Sales', icon: Target, items: salesItems, activeOverride: quickDealActive ? '/leads/new' : undefined }] : []),
-    { key: 'design', title: 'Design', icon: DraftingCompass, items: allowed([DESIGN_ITEM]) },
+    { key: 'design', title: 'Design', icon: DraftingCompass, items: allowed(designNav(SALES_INTAKE_ROLES.includes(userRole))), activeOverride: designHref },
     { key: 'supply', title: 'Supply', icon: BriefcaseBusiness, items: allowed(SUPPLY_NAV.filter(i => isInternal || !i.internal)) },
     ...(isInternal ? [{ key: 'operations', title: 'Operations', icon: Factory, items: allowed(OPERATIONS_NAV) }] : []),
     ...(isInternal ? [{ key: 'finance', title: 'Finance', icon: Wallet, items: allowed(FINANCE_NAV) }] : []),
@@ -288,7 +309,8 @@ export function Sidebar({
 
   const roleDisplay = roleLabel(userRole);
 
-  const sections = buildNavSections(userRole, userPerms, quickDealActive);
+  const designHref = pathname === '/design' ? designActiveHref(searchParams) : undefined;
+  const sections = buildNavSections(userRole, userPerms, quickDealActive, designHref);
 
   // The page's own group: the one holding the longest matching href.
   const pageSectionKey = sections
@@ -333,7 +355,7 @@ export function Sidebar({
               const Icon = s.icon;
               const active = s.key === shownKey;
               const cls = `${RAIL_ITEM_BASE} ${active ? RAIL_ACTIVE : RAIL_IDLE}`;
-              // A single-page group (Dashboard, Design) goes straight to its page.
+              // A single-page group goes straight to its page.
               if (s.items.length === 1) {
                 return (
                   <RailTip
