@@ -20,10 +20,15 @@ export async function GET(req: NextRequest) {
 
   let q = admin.from('sales_design_jobs').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(1);
   q = opportunityId ? q.eq('opportunity_id', opportunityId) : q.eq('lead_intake_id', leadId);
-  const { data: rows, error } = await q;
-  if (error) return NextResponse.json({ job: null, notReady: true });
+  // Active designers — the card assigns one right after sending the deal to Design.
+  const [{ data: rows, error }, { data: designerRows }] = await Promise.all([
+    q,
+    admin.from('profiles').select('id, full_name').eq('role', 'designer').eq('is_active', true).order('full_name'),
+  ]);
+  const designers = (designerRows ?? []) as { id: string; full_name: string }[];
+  if (error) return NextResponse.json({ job: null, notReady: true, designers });
   const job = (rows ?? [])[0] as Record<string, unknown> | undefined;
-  if (!job) return NextResponse.json({ job: null });
+  if (!job) return NextResponse.json({ job: null, designers });
 
   const [{ data: designer }, { data: versions }] = await Promise.all([
     job.assigned_designer_id
@@ -32,8 +37,10 @@ export async function GET(req: NextRequest) {
     admin.from('sales_design_versions').select('id, version_no, status, presented_at').eq('job_id', job.id).order('version_no', { ascending: false }).limit(1),
   ]);
   return NextResponse.json({
+    designers,
     job: {
-      id: job.id, title: job.title, status: job.status, priority: job.priority, due_date: job.due_date,
+      id: job.id, title: job.title, brief: job.brief ?? null, assigned_designer_id: job.assigned_designer_id ?? null,
+      status: job.status, priority: job.priority, due_date: job.due_date,
       designer: (designer as { full_name?: string } | null)?.full_name ?? null,
       folder: (job.dropbox_folder_path as string | undefined) ?? null,
       sharedUrl: (job.dropbox_shared_url as string | undefined) ?? null,

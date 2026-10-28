@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { X, Plus, Trash2, Loader2, ExternalLink } from 'lucide-react';
 import { LeadActivity } from './LeadActivity';
+import { DealDesign } from '@/components/platform/sales/DealDesign';
 import { PROJECT_TYPES, LEAD_SOURCES } from '@/lib/sales/projectTypes';
 import { composeProjectCode, serviceLineLabel, regionLabel } from '@/lib/regions';
 import { STATUS_ORDER, LEAD_INTAKE_STATUS_KEYS } from './types';
@@ -207,6 +208,12 @@ export function LeadQuickView({ intakeId, assignees, onClose }: {
                 onChange={e => setNewTask(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTask(); } }} />
               <Button variant="outline" onClick={addTask} disabled={!newTask.trim()}><Plus size={13} /> Add</Button>
+            </div>
+
+            {/* Send to Design / designer / brief / shared Dropbox design folder. */}
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>Design</div>
+            <div style={{ marginBottom: 20 }}>
+              <DealDesign leadId={intakeId} onStarted={load} />
             </div>
 
             <LeadActivity intakeId={intakeId} />
