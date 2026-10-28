@@ -123,7 +123,8 @@ const TD_CLS = 'px-2.5 py-2 text-[13px] text-ui-body first:pl-[18px]';
 const SUB_TD_CLS = 'px-2.5 py-2 text-[12px] text-ui-text-secondary';
 const PAGE_BTN = 'inline-flex h-[34px] items-center justify-center gap-1 rounded-[6px] border border-ui-input-border bg-ui-input-bg px-[14px] text-[13px] font-semibold text-[var(--color-secondary-700)] disabled:opacity-50 dark:text-ui-heading [&_svg]:size-3.5';
 const DATE_TIME = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
-const DATE_ONLY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+// UTC: target_contact_date is a DATE column — in a US time zone it would otherwise show a day early.
+const DATE_ONLY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
 function NotAssignedChip() {
   return (
