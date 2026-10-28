@@ -6,8 +6,6 @@ import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
 import { composeProjectCode } from '@/lib/regions';
 import { US_STATES } from '@/lib/usStates';
-
-const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 import { EMPTY, type ChecklistItem, type DocRow, type FormState, type Notes, type Scope } from './intake/types';
 import { StepNav } from './intake/StepNav';
 import { Step1ProjectSetup } from './intake/Step1ProjectSetup';
@@ -17,6 +15,8 @@ import { Step4ScopeOfWork } from './intake/Step4ScopeOfWork';
 import { Step6DimensionsMedia } from './intake/Step6DimensionsMedia';
 import { Step7Checklist } from './intake/Step7Checklist';
 import { LeadSummary } from './intake/LeadSummary';
+
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 interface Props {
   intakeId: string;
@@ -236,28 +236,15 @@ export function IntakeForm({ intakeId, assignees, leadName }: Props) {
       <div className="flex flex-col gap-[18px]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-col gap-[5px] leading-[1.35]">
-            <h1 className="m-0 text-[28px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">New lead</h1>
-            <p className="m-0 text-[13px] text-ui-body">
-              Meeting / Intake form
-              <span className="text-ui-text-secondary"> · {saving ? 'Saving…' : savedAt ? 'Draft saved' : 'Not saved yet'}</span>
-            </p>
-    <div className="w-full space-y-5 pb-16">
-      {/* ── Top Header ────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <Link
-            href="/leads"
-            className="text-xs font-semibold text-primary-500 dark:text-primary-200 hover:text-primary-800 transition-colors flex items-center gap-1 mb-1"
-          >
-            ← Leads
-          </Link>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-primary-800 dark:text-primary-50 tracking-tight">
+            <h1 className="m-0 text-[28px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">
               {isExisting ? (leadName?.trim() || 'Edit lead') : 'New lead'}
             </h1>
-            <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-primary-100 dark:bg-primary-700 text-primary-600 dark:text-primary-200 border border-ui-divider">
-              {savedAt ? (isExisting ? 'Saved' : 'Draft saved') : 'Not saved yet'}
-            </span>
+            <p className="m-0 text-[13px] text-ui-body">
+              Meeting / Intake form
+              <span className="text-ui-text-secondary">
+                {' · '}{saving ? 'Saving…' : savedAt ? (isExisting ? 'Saved' : 'Draft saved') : 'Not saved yet'}
+              </span>
+            </p>
           </div>
           <button
             type="button" onClick={deleteLead} disabled={deleting}
@@ -266,7 +253,7 @@ export function IntakeForm({ intakeId, assignees, leadName }: Props) {
             <Trash2 size={16} aria-hidden /> {deleting ? 'Deleting…' : 'Delete'}
           </button>
         </div>
-        <StepNav activeStep={activeStep} onSelect={setActiveStep} />
+        <StepNav activeStep={activeStep} onSelect={goTo} isStepDone={isStepDone} />
       </div>
 
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[1027fr_365fr]">
