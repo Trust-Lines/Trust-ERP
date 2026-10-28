@@ -15,6 +15,8 @@ export interface LeadBrief {
   matterport_link: string | null;
   scope_of_work: Record<string, boolean> | null;
   notes: Record<string, string> | null;
+  /** The customer (Opportunity jobs) — its Brand Kits show on the job. */
+  prospect_id?: string | null;
 }
 export interface IntakeFile { id: string; lead_intake_id: string; category: string; file_name: string; created_at: string }
 export interface DesignFile { id: string; version_id: string; job_id: string; file_name: string; created_at: string }
@@ -85,7 +87,7 @@ export default async function DesignWorkspacePage({ searchParams }: { searchPara
       const p = prospectById[o.prospect_id];
       const loc = primaryLocationByProspect[o.prospect_id];
       leadMap[o.id] = {
-        id: o.id, customer_name: p?.display_name ?? null, brand: p?.brand_name ?? null,
+        id: o.id, prospect_id: o.prospect_id, customer_name: p?.display_name ?? null, brand: p?.brand_name ?? null,
         city: loc?.city ?? null, street: loc?.address_line_1 ?? null, state: loc?.state ?? null, address: null,
         project_type: o.project_types?.[0] ?? null, matterport_link: null, scope_of_work: null, notes: null,
       };

@@ -48,6 +48,10 @@ import {
   Share2,
   CalendarDays,
   MailOpen,
+  Library,
+  SwatchBook,
+  Layers,
+  MessageSquareQuote,
 } from 'lucide-react';
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip';
 import type { UserRole } from '@/types/database';
@@ -96,7 +100,14 @@ const DASHBOARD_ITEM: NavItem = { label: 'Dashboard', href: '/dashboard', icon: 
 // Personal Google Calendar view — everyone who has the Dashboard has their own meetings.
 const MEETINGS_ITEM: NavItem = { label: 'My meetings', href: '/meetings', icon: CalendarDays, perm: 'page.dashboard' };
 const CUSTOMERS_ITEM: NavItem = { label: 'Customers', href: '/customers', icon: Contact, perm: 'page.customers' };
-const DESIGN_ITEM: NavItem = { label: 'Design', href: '/design', icon: Palette, perm: 'page.design' };
+// Design: the jobs workspace plus the shared library around it.
+const DESIGN_NAV: NavItem[] = [
+  { label: 'Workspace',         href: '/design',           icon: Palette,            perm: 'page.design' },
+  { label: 'Asset Library',     href: '/design/assets',    icon: Library,            perm: 'page.design_assets' },
+  { label: 'Brand Kits',        href: '/design/brands',    icon: SwatchBook,         perm: 'page.design_brands' },
+  { label: 'Materials',         href: '/design/materials', icon: Layers,             perm: 'page.design_materials' },
+  { label: 'Customer Reviews',  href: '/design/reviews',   icon: MessageSquareQuote, perm: 'page.design_reviews' },
+];
 
 // "Supply" → /projects. User feedback 2026-08-28: a separate /supply route next to the project
 // list was one extra page too many ("fazladan sayfa lazım değil, yeterli sayfada lazım"). The
@@ -248,7 +259,7 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
     { key: 'dashboard', title: 'Dashboard', icon: LayoutDashboard, items: allowed([DASHBOARD_ITEM, MEETINGS_ITEM]) },
     { key: 'marketing', title: 'Marketing', icon: Megaphone, items: marketingNav },
     ...(showSales ? [{ key: 'sales', title: 'Sales', icon: Target, items: salesItems, activeOverride: quickDealActive ? '/leads/new' : undefined }] : []),
-    { key: 'design', title: 'Design', icon: DraftingCompass, items: allowed([DESIGN_ITEM]) },
+    { key: 'design', title: 'Design', icon: DraftingCompass, items: allowed(DESIGN_NAV) },
     { key: 'supply', title: 'Supply', icon: BriefcaseBusiness, items: allowed(SUPPLY_NAV.filter(i => isInternal || !i.internal)) },
     ...(isInternal ? [{ key: 'operations', title: 'Operations', icon: Factory, items: allowed(OPERATIONS_NAV) }] : []),
     ...(isInternal ? [{ key: 'finance', title: 'Finance', icon: Wallet, items: allowed(FINANCE_NAV) }] : []),
@@ -333,7 +344,7 @@ export function Sidebar({
               const Icon = s.icon;
               const active = s.key === shownKey;
               const cls = `${RAIL_ITEM_BASE} ${active ? RAIL_ACTIVE : RAIL_IDLE}`;
-              // A single-page group (Dashboard, Design) goes straight to its page.
+              // A single-page group goes straight to its page.
               if (s.items.length === 1) {
                 return (
                   <RailTip

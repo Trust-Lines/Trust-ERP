@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { Box, CheckCheck, ExternalLink, FileText, FolderPlus, Link2, Paperclip, RefreshCw, RotateCcw, Send, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
@@ -17,11 +18,13 @@ import { formatDate, formatDateTime } from '@/lib/formatDate';
 import { cn } from '@/lib/utils';
 import { DESIGN_VERSION_BASE } from '@/lib/sales/designPaths';
 import { DesignFiles, uploadToDesignFolder } from './DesignFiles';
+import { JobMaterials } from './JobMaterials';
+import { BrandSwatches, type BrandKit } from './library/BrandKitsClient';
 import {
   DESIGNER_STATUSES, HEADING, JOB_STATUS_LABEL, JOB_STATUS_ORDER, VERSION_STATUSES, VERSION_STATUS_LABEL, initials,
 } from './designShared';
 
-type TabKey = 'brief' | 'notes' | 'files' | 'versions' | 'activity';
+type TabKey = 'brief' | 'notes' | 'files' | 'versions' | 'materials' | 'activity';
 interface Note { id: string; author_id: string | null; author_name: string | null; body: string; created_at: string }
 interface Activity { id: string; actor_name: string; kind: string; body: string | null; created_at: string }
 
@@ -236,6 +239,7 @@ export function DesignJobSheet(p: Props) {
             <TabsTrigger value="notes">Notes{notes?.length ? ` · ${notes.length}` : ''}</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
             <TabsTrigger value="versions">Versions{p.versions.length ? ` · ${p.versions.length}` : ''}</TabsTrigger>
+            <TabsTrigger value="materials">Materials</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
 
@@ -293,6 +297,8 @@ export function DesignJobSheet(p: Props) {
               )}
             </Card>
 
+            <BrandKitCard prospectId={p.brief?.prospect_id ?? null} />
+
             <div className="grid gap-5 sm:grid-cols-2">
               <Card title="Team">
                 <Person label="Designer" name={designerName} empty="Unassigned" />
@@ -318,6 +324,11 @@ export function DesignJobSheet(p: Props) {
           {/* ── Files: the Dropbox design folder ── */}
           <TabsContent value="files">
             <DesignFiles jobId={job.id} initialPath={filesPath} onVersionFiles={() => void syncVersions(true)} onSharedUrl={setSharedUrl} />
+          </TabsContent>
+
+          {/* ── Materials: what the design specifies from the catalogue ── */}
+          <TabsContent value="materials">
+            <JobMaterials jobId={job.id} />
           </TabsContent>
 
           {/* ── Versions: designer → Sales → customer ── */}
@@ -467,5 +478,31 @@ function Person({ label, name, empty }: { label: string; name: string | null; em
         <p className={cn('m-0 truncate text-[13px]', name ? HEADING : 'text-ui-text-secondary')}>{name ?? empty}</p>
       </div>
     </div>
+  );
+}
+
+/** The customer's Brand Kit(s) on the Brief — colours to copy, fonts, rules, link to the files. */
+function BrandKitCard({ prospectId }: { prospectId: string | null }) {
+  const [kits, setKits] = useState<BrandKit[] | null>(null);
+  useEffect(() => {
+    if (!prospectId) { setKits([]); return; }
+    let live = true;
+    fetch(`/api/design/brands?prospectId=${prospectId}`).then(r => (r.ok ? r.json() : { kits: [] })).then(b => { if (live) setKits(b.kits ?? []); }).catch(() => { if (live) setKits([]); });
+    return () => { live = false; };
+  }, [prospectId]);
+  if (!kits || (!kits.length && !prospectId)) return null;
+  return (
+    <Card title="Brand kit">
+      {kits.length === 0 ? (
+        <p className="m-0 text-[13px] text-ui-text-secondary">No brand kit for this customer yet — <Link href="/design/brands" className="text-ui-link">create one</Link> with the logo, colours and fonts.</p>
+      ) : kits.map(k => (
+        <div key={k.id} className="flex flex-col gap-2">
+          <p className={cn('m-0 text-[13px] font-medium', HEADING)}>{k.name}{k.fonts.length ? <span className="font-normal text-ui-text-secondary"> · {k.fonts.join(', ')}</span> : null}</p>
+          <BrandSwatches colors={k.colors} />
+          {k.guidelines && <p className="m-0 line-clamp-3 whitespace-pre-wrap text-[12px] text-ui-body">{k.guidelines}</p>}
+          <Link href="/design/brands" className="w-fit text-[12px] text-ui-link">Logo & files in Brand Kits →</Link>
+        </div>
+      ))}
+    </Card>
   );
 }

@@ -8,6 +8,10 @@ export const PAGE_ROUTES: { key: string; route: string }[] = [
   { key: 'page.pm',              route: '/pm' },
   { key: 'page.customers',       route: '/customers' },
   { key: 'page.design',          route: '/design' },
+  { key: 'page.design_assets',   route: '/design/assets' },
+  { key: 'page.design_brands',   route: '/design/brands' },
+  { key: 'page.design_materials', route: '/design/materials' },
+  { key: 'page.design_reviews',  route: '/design/reviews' },
   { key: 'page.approvals',       route: '/approvals' },
   { key: 'page.notifications',   route: '/notifications' },
   { key: 'page.clients',         route: '/clients' },
@@ -93,6 +97,10 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'page.projects',       label: 'Projects' },
       { key: 'page.pm',             label: 'PM workspace', hint: 'Personal project priorities. Follows “Projects” until set separately.' },
       { key: 'page.design',         label: 'Design workspace', hint: 'Sales Design jobs assigned to the designer' },
+      { key: 'page.design_assets',  label: 'Design · Asset Library', hint: 'Templates, CAD blocks, standard details. Follows “Design workspace” until set separately.' },
+      { key: 'page.design_brands',  label: 'Design · Brand Kits', hint: 'Customer logos, colours, fonts. Follows “Design workspace” until set separately.' },
+      { key: 'page.design_materials', label: 'Design · Materials & Finishes', hint: 'Material catalogue with suppliers and prices. Follows “Design workspace” until set separately.' },
+      { key: 'page.design_reviews', label: 'Design · Customer Reviews', hint: 'Proposal links sent to customers. Follows “Design workspace” until set separately.' },
       { key: 'page.clients',        label: 'Clients' },
       { key: 'page.suppliers',      label: 'Suppliers & finance', hint: 'Supplier profiles, invoices, payments — vendor cost (hidden from client PM)' },
       { key: 'page.qc',             label: 'QC' },
@@ -217,6 +225,10 @@ export const PAGE_PARENT: Record<string, string> = {
   'page.payments': 'page.expenses',
   'page.budgets': 'page.expenses',
   'page.pm': 'page.projects',
+  'page.design_assets': 'page.design',
+  'page.design_brands': 'page.design',
+  'page.design_materials': 'page.design',
+  'page.design_reviews': 'page.design',
 };
 
 /** Sales pages were guarded by these lists in code (app/(platform)/leads, sales-*); they stay the default. */

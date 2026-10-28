@@ -202,6 +202,19 @@ export const STATUS_TAGS = {
       { key: 'rejected',           label: 'Rejected',       tone: 't10', icon: BadgeX },
     ],
   },
+  // Design → Customer Reviews: a design proposal link sent to the customer (approval_links).
+  customer_review: {
+    title: 'Customer review',
+    tags: [
+      { key: 'waiting',            label: 'Not opened',  tone: 't0',  icon: Hourglass },
+      { key: 'opened',             label: 'Opened',      tone: 't2',  icon: Eye },
+      { key: 'approved',           label: 'Approved',    tone: 't9',  icon: BadgeCheck },
+      { key: 'revision_requested', label: 'Revision',    tone: 't7',  icon: RotateCcw },
+      { key: 'rejected',           label: 'Rejected',    tone: 't10', icon: BadgeX },
+      { key: 'revoked',            label: 'Revoked',     tone: 't0',  icon: CircleOff },
+      { key: 'expired',            label: 'Expired',     tone: 't0',  icon: ClockAlert },
+    ],
+  },
 } as const satisfies Record<string, { title: string; tags: readonly StatusTag[] }>;
 
 export type StatusGroup = keyof typeof STATUS_TAGS;

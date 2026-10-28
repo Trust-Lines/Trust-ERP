@@ -14,6 +14,8 @@ type ComboboxProps = {
   value?: ComboboxOption | null
   defaultValue?: ComboboxOption | null
   onValueChange?: (value: ComboboxOption | null) => void
+  /** Typed text — for lists searched on the server as you type. */
+  onInputValueChange?: (text: string) => void
   placeholder?: string
   emptyText?: string
   disabled?: boolean
@@ -29,6 +31,7 @@ function Combobox({
   value,
   defaultValue,
   onValueChange,
+  onInputValueChange,
   placeholder = "Search…",
   emptyText = "No results",
   disabled,
@@ -42,6 +45,7 @@ function Combobox({
       value={value}
       defaultValue={defaultValue}
       onValueChange={(v) => onValueChange?.(v as ComboboxOption | null)}
+      onInputValueChange={onInputValueChange ? (t: string) => onInputValueChange(t) : undefined}
       itemToStringLabel={(o: ComboboxOption) => o.label}
       isItemEqualToValue={(a: ComboboxOption, b: ComboboxOption) => a.value === b.value}
       disabled={disabled}
