@@ -14,6 +14,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { ConfirmModal, Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { pct, type CampaignStats, type EmailCampaignRow } from '@/lib/email/campaigns';
 import { Field, PANEL, PageHeading, TD_CLS, TH_CLS, fmtNumber, sendJson } from '../pr/shared';
+import { SentEmails } from './SentEmails';
 
 interface Suppression { email: string; reason: string; note: string | null; created_at: string }
 
@@ -23,7 +24,7 @@ const rateText = (v: number | null) => (v === null ? '—' : `${v}%`);
 
 export function EmailCampaignsClient({ canEdit, isManager, mailReady }: { canEdit: boolean; isManager: boolean; mailReady: boolean }) {
   const router = useRouter();
-  const [tab, setTab] = useState<'campaigns' | 'suppressed'>('campaigns');
+  const [tab, setTab] = useState<'campaigns' | 'sent' | 'suppressed'>('campaigns');
   const [campaigns, setCampaigns] = useState<EmailCampaignRow[] | null>(null);
   const [stats, setStats] = useState<Record<string, CampaignStats>>({});
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +87,7 @@ export function EmailCampaignsClient({ canEdit, isManager, mailReady }: { canEdi
       </div>
 
       <nav aria-label="Email views" className="flex h-12 items-stretch gap-8 border-b border-ui-divider">
-        {([['campaigns', 'Campaigns'], ['suppressed', 'Do-not-email list']] as const).map(([key, label]) => (
+        {([['campaigns', 'Campaigns'], ['sent', 'Sent emails'], ['suppressed', 'Do-not-email list']] as const).map(([key, label]) => (
           <button key={key} type="button" aria-current={tab === key ? 'page' : undefined} onClick={() => setTab(key)}
             className={cn('flex items-center gap-1.5 border-0 border-b-[3px] bg-transparent p-0 text-[13px] leading-[1.4]',
               tab === key ? 'border-[var(--color-secondary-700)] font-semibold text-[var(--color-secondary-700)] dark:border-ui-heading dark:text-ui-heading'
@@ -96,7 +97,7 @@ export function EmailCampaignsClient({ canEdit, isManager, mailReady }: { canEdi
         ))}
       </nav>
 
-      {tab === 'suppressed' ? <SuppressionList canEdit={canEdit} isManager={isManager} /> : (
+      {tab === 'sent' ? <SentEmails /> : tab === 'suppressed' ? <SuppressionList canEdit={canEdit} isManager={isManager} /> : (
         <div className={cn(PANEL, 'p-6')}>
           {error ? <ErrorState title="Campaigns aren’t available" description={error} />
             : campaigns === null ? <p className="m-0 text-[13px] text-ui-text-secondary">Loading…</p>
