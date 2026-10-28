@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Bell, Bot } from 'lucide-react';
 import type { UserRole } from '@/types/database';
-import { OPEN_AI_EVENT } from '@/components/platform/ai/TrustLinesAI';
+import { AI_STATE_EVENT, OPEN_AI_EVENT } from '@/components/platform/ai/TrustLinesAI';
 import { UserMenu } from './UserMenu';
 import { PageSearch } from './PageSearch';
 import { buildNavSections, roleLabel } from './Sidebar';
@@ -65,6 +65,12 @@ export function TopBar({
 }: TopBarProps) {
   const pathname = usePathname();
   const sections = React.useMemo(() => (userRole ? buildNavSections(userRole, userPerms) : []), [userRole, userPerms]);
+  const [aiOpen, setAiOpen] = React.useState(false);
+  React.useEffect(() => {
+    const onState = (e: Event) => setAiOpen((e as CustomEvent<boolean>).detail);
+    window.addEventListener(AI_STATE_EVENT, onState);
+    return () => window.removeEventListener(AI_STATE_EVENT, onState);
+  }, []);
 
   // Find matched page title if no custom breadcrumbs provided
   const currentTitle =
@@ -120,10 +126,16 @@ export function TopBar({
           )}
         </Link>
 
+        {/* Figma "Trust Lines AI panel" (334:13694): outlined while the panel is open. */}
         <button
           type="button"
+          aria-pressed={aiOpen}
           onClick={() => window.dispatchEvent(new Event(OPEN_AI_EVENT))}
-          className="flex h-9 cursor-pointer items-center gap-2 rounded-md bg-secondary-700 px-3 text-[13px] font-semibold text-white transition-colors hover:bg-secondary-700/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-700 dark:bg-secondary-50 dark:text-primary-950 dark:hover:bg-secondary-50/90 dark:focus-visible:outline-primary-50"
+          className={
+            aiOpen
+              ? 'flex h-9 cursor-pointer items-center gap-2 rounded-md border border-secondary-700 bg-transparent px-3 text-[13px] font-semibold text-secondary-700 transition-colors hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-700 dark:border-secondary-50 dark:text-secondary-50 dark:focus-visible:outline-primary-50'
+              : 'flex h-9 cursor-pointer items-center gap-2 rounded-md border border-transparent bg-secondary-700 px-3 text-[13px] font-semibold text-white transition-colors hover:bg-secondary-700/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-700 dark:bg-secondary-50 dark:text-primary-950 dark:hover:bg-secondary-50/90 dark:focus-visible:outline-primary-50'
+          }
         >
           <Bot className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
           Trust Lines AI
