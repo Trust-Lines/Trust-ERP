@@ -4,7 +4,8 @@ import * as React from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
-import { TrustLinesAI } from '@/components/platform/ai/TrustLinesAI';
+import { AI_STATE_EVENT, TrustLinesAI } from '@/components/platform/ai/TrustLinesAI';
+import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types/database';
 
 const FULL_WIDTH_ROUTES = ['/production', '/leads', '/sales-tasks', '/sales-projects', '/sales-dashboard', '/marketing/prospects', '/marketing/opportunities', '/marketing/campaigns', '/dashboard'];
@@ -36,6 +37,15 @@ export function AppShell({
   // for full width; only Contacts/Potentials and Home itself are).
   const fullWidth = pathname === '/marketing' || FULL_WIDTH_ROUTES.some(r => pathname === r || pathname?.startsWith(`${r}/`));
   const isHome = pathname === '/home' || pathname === '/';
+  // While the docked Trust Lines AI panel (383px, under the top bar) is open, the main area
+  // reserves that width so the page reflows beside it instead of being covered. Below lg the
+  // panel simply overlays — there isn't room for both.
+  const [aiOpen, setAiOpen] = React.useState(false);
+  React.useEffect(() => {
+    const onState = (e: Event) => setAiOpen((e as CustomEvent<boolean>).detail);
+    window.addEventListener(AI_STATE_EVENT, onState);
+    return () => window.removeEventListener(AI_STATE_EVENT, onState);
+  }, []);
 
   return (
     // items-start (not the flex-row default of stretch): the sidebar is a fixed h-screen
@@ -67,7 +77,7 @@ export function AppShell({
         />
 
         {/* Main Content Area — sized to its own content now, not forced to viewport height */}
-        <main className="bg-[var(--bg-subtle)]">
+        <main className={cn('min-w-0 bg-[var(--bg-subtle)] transition-[margin] duration-200', aiOpen && 'lg:mr-[383px]')}>
           <div
             className={fullWidth ? 'main-inner main-inner--full p-4 sm:p-6' : 'main-inner w-full'}
             style={{
