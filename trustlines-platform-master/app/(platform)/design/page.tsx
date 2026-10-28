@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePage } from '@/lib/permissions/requirePage';
 import { DESIGN_MANAGE_ROLES } from '@/lib/sales/design';
 import { designRootFromProjectRoot } from '@/lib/dropbox/paths';
-import { DesignWorkspaceClient } from '@/components/platform/design/DesignWorkspaceClient';
+import { DesignWorkspace } from '@/components/platform/design/DesignWorkspace';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
 
 export interface LeadBrief {
@@ -20,8 +20,9 @@ export interface IntakeFile { id: string; lead_intake_id: string; category: stri
 export interface DesignFile { id: string; version_id: string; job_id: string; file_name: string; created_at: string }
 export interface ProjectMeta { code: string | null; dropboxRoot: string | null; designRoot: string | null; isDraft: boolean }
 
-export default async function DesignWorkspacePage() {
+export default async function DesignWorkspacePage({ searchParams }: { searchParams: Promise<{ job?: string }> }) {
   await requirePage('page.design');
+  const { job: initialJobId } = await searchParams;
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -33,8 +34,8 @@ export default async function DesignWorkspacePage() {
   const role = (profile as { role: string } | null)?.role ?? '';
   const isManager = DESIGN_MANAGE_ROLES.includes(role);
 
-  const JOB_COLS = 'id, lead_intake_id, opportunity_id, customer_id, title, brief, assigned_designer_id, status, priority, due_date, created_at, updated_at';
-  let q = admin.from('sales_design_jobs').select(JOB_COLS).is('deleted_at', null);
+  // '*' so created_by ("Requested by") and the migration-132 folder columns come along when present.
+  let q = admin.from('sales_design_jobs').select('*').is('deleted_at', null);
   if (!isManager) q = q.eq('assigned_designer_id', user.id);
   const jobsRes = await q.order('created_at', { ascending: false }).limit(200);
 
@@ -188,8 +189,9 @@ export default async function DesignWorkspacePage() {
   }
 
   return (
-    <div className="main-inner">
-      <DesignWorkspaceClient
+    <div style={{ padding: 28 }}>
+      <DesignWorkspace
+        currentUserId={user.id} initialJobId={initialJobId ?? null}
         jobs={jobs} versions={versions} leadMap={leadMap} designerMap={designerMap}
         intakeFiles={intakeFiles} designFiles={designFiles} projectMeta={projectMeta}
         isManager={isManager} schemaError={schemaError} designers={designers}

@@ -552,6 +552,9 @@ export interface SalesDesignJob {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Migration 132 — the job's Dropbox design folder and its shared link (absent before it runs). */
+  dropbox_folder_path?: string | null;
+  dropbox_shared_url?: string | null;
 }
 
 

@@ -70,6 +70,20 @@ export async function ensureDesignDropboxFolder(
   }
 }
 
+/** Create a new job's Dropbox design folder right away — Pre-Project when the deal has no Project yet. Never throws. */
+export async function ensureJobDesignFolder(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any, job: { id: string; title: string; lead_intake_id: string | null; opportunity_id: string | null },
+): Promise<void> {
+  try {
+    const { resolveDesignFolder } = await import('./designFolder');
+    const res = await resolveDesignFolder(admin, job, { create: true });
+    if (!res.ok) console.error('[design] job folder not created:', res.error);
+  } catch (e) {
+    console.error('[design] ensureJobDesignFolder failed:', e instanceof Error ? e.message : e);
+  }
+}
+
 export async function ensureDesignJobForLead(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   admin: any, leadId: string, actorId: string,
@@ -108,7 +122,7 @@ export async function ensureDesignJobForLead(
     await logAudit({ actorId, action: 'design_job.auto_created', resource: `sales_design_job:${job.id}`, newValue: { lead: leadId, trigger: DESIGN_TRIGGER_STATUS } });
     await logLeadActivity(admin, { leadIntakeId: leadId, actorId, kind: 'change', body: 'design job created — awaiting designer assignment' });
 
-    await ensureDesignDropboxFolder(admin, lead?.project_id ?? null);
+    await ensureJobDesignFolder(admin, { id: job.id, title, lead_intake_id: leadId, opportunity_id: null });
 
     return { created: true, jobId: job.id };
   } catch (e) {

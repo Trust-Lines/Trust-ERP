@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { getDropboxClient } from '@/lib/dropbox/client';
 import { requireUserWithRole, loadDesignJobWithAccess } from '@/lib/sales/design';
+import { designJobProjectId, resolveDesignFolder } from '@/lib/sales/designFolder';
+import { DESIGN_VERSION_BASE } from '@/lib/sales/designPaths';
 
 type Params = { params: Promise<{ jobId: string; versionId: string }> };
 
@@ -20,26 +22,17 @@ export async function POST(req: NextRequest, { params }: Params) {
     .select('id, version_no').eq('id', versionId).eq('job_id', jobId).maybeSingle();
   if (!version) return NextResponse.json({ error: 'Version not found' }, { status: 404 });
 
-  let projectId: string | null = null;
-  if (job!.lead_intake_id) {
-    const { data: lead } = await admin.from('lead_intake').select('project_id').eq('id', job!.lead_intake_id).maybeSingle();
-    projectId = (lead as { project_id?: string | null } | null)?.project_id ?? null;
-  } else if (job!.opportunity_id) {
-    const { data: opp } = await admin.from('opportunities').select('project_id').eq('id', job!.opportunity_id).maybeSingle();
-    projectId = (opp as { project_id?: string | null } | null)?.project_id ?? null;
-  }
-  if (!projectId) return NextResponse.json({ error: 'This design job has no project folder yet' }, { status: 409 });
-
-  const { data: project } = await admin.from('projects').select('dropbox_root_path').eq('id', projectId).single();
-  const rootPath = (project as { dropbox_root_path?: string } | null)?.dropbox_root_path;
-  if (!rootPath) return NextResponse.json({ error: 'Project folder not ready' }, { status: 409 });
+  // Into the job's design folder, under the same V{n} folder the Dropbox sync reads.
+  const folder = await resolveDesignFolder(admin, job!, { create: true });
+  if (!folder.ok) return NextResponse.json({ error: folder.error }, { status: folder.status });
+  const projectId = await designJobProjectId(admin, job!);
 
   const safeName = (file.name || 'design')
     .replace(/[/\\]/g, '_')
     .replace(/\.{2,}/g, '.')
     .replace(/^\.+/, '')
     .trim() || 'design';
-  const path = `${rootPath}/01-Sales Design/V${version.version_no}/${safeName}`;
+  const path = `${folder.root}/${DESIGN_VERSION_BASE}/V${version.version_no}/${safeName}`;
   const buffer = Buffer.from(await file.arrayBuffer());
 
   let dropboxPath: string;
