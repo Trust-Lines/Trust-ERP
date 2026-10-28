@@ -22,6 +22,8 @@ export async function POST(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ ok: true, to: r.to });
   } catch (e) {
     if (e instanceof EmailError) return NextResponse.json({ error: e.message }, { status: e.status });
-    return NextResponse.json({ error: 'Could not send the test' }, { status: 500 });
+    const message = e instanceof Error ? e.message : String(e);
+    console.error('[email test]', message);
+    return NextResponse.json({ error: `Could not send the test: ${message.slice(0, 200)}` }, { status: 500 });
   }
 }

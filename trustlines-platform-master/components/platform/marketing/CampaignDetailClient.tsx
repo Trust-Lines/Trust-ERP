@@ -325,7 +325,7 @@ export function CampaignDetailClient({ campaign, ownerName, canEdit, stats, rece
                 <tbody>
                   {recentSubmissions.map(s => (
                     <tr key={s.id} className="border-b border-ui-divider last:border-b-0 text-ui-body">
-                      <td className="whitespace-nowrap py-3 pr-2">{new Date(s.submitted_at).toLocaleString('en-US')}</td>
+                      <td className="whitespace-nowrap py-3 pr-2">{formatDateTime(s.submitted_at)}</td>
                       <td className="px-2 py-3">{SUBMISSION_STATUS_LABEL[s.status] ?? s.status}</td>
                       <td className="max-w-[200px] truncate px-2 py-3">{s.normalized_email ?? '—'}</td>
                       <td className="whitespace-nowrap py-3 pl-2">{s.normalized_phone ?? '—'}</td>

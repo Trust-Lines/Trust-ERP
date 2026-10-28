@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 import { WIZARD_STEPS } from './types';
 
 // Figma "Form progress" (node 290:36895): one row of equal step tabs; the active one is filled.
+// A step is ticked only when isStepDone says so (its required fields are valid), not merely
+// because the user moved past it (QA DEF-15).
 export function StepNav({ activeStep, onSelect, isStepDone }: {
   activeStep: number;
   onSelect: (step: number) => void;
@@ -15,7 +17,6 @@ export function StepNav({ activeStep, onSelect, isStepDone }: {
       {WIZARD_STEPS.map(s => {
         const isActive = activeStep === s.step;
         const isDone = !isActive && isStepDone(s.step);
-
         return (
           <button
             key={s.step}

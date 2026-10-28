@@ -241,9 +241,7 @@ export function IntakeForm({ intakeId, assignees, leadName }: Props) {
             </h1>
             <p className="m-0 text-[13px] text-ui-body">
               Meeting / Intake form
-              <span className="text-ui-text-secondary">
-                {' · '}{saving ? 'Saving…' : savedAt ? (isExisting ? 'Saved' : 'Draft saved') : 'Not saved yet'}
-              </span>
+              <span className="text-ui-text-secondary"> · {saving ? 'Saving…' : savedAt ? (isExisting ? 'Saved' : 'Draft saved') : 'Not saved yet'}</span>
             </p>
           </div>
           <button

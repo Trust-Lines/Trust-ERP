@@ -44,7 +44,7 @@ export function MailSettingsCard({ email }: { email: string }) {
     fetch('/api/me/mail-settings').then(async res => {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) { setNotReady(body.error ?? 'Email settings are unavailable'); return; }
-      if (!body.encryptionReady) setNotReady('The server is missing APP_ENCRYPTION_KEY, so passwords can’t be stored yet. Ask an admin to set it.');
+      if (!body.encryptionReady) setNotReady('This server has no valid APP_ENCRYPTION_KEY (missing, or not the 44-character key — no quotes or spaces), so passwords can’t be saved or read here. An admin must set it in Vercel for this environment (Production and Preview) and redeploy.');
       setSaved(body.settings);
       setForm(toForm(body.settings, email));
     }).catch(() => setNotReady('Email settings are unavailable')).finally(() => setLoading(false));
@@ -123,6 +123,12 @@ export function MailSettingsCard({ email }: { email: string }) {
           <p className="mt-4 text-[13px] text-ui-text-secondary">{notReady}</p>
         ) : (
           <div className="mt-5 flex flex-col gap-4">
+            {/* The buttons below are disabled while this is set — always say why. */}
+            {notReady && (
+              <div role="alert" className="flex items-start gap-2 rounded-[6px] bg-warning-light px-3 py-2 text-[12px] text-warning-dark">
+                <CircleAlert className="mt-px size-4 shrink-0" aria-hidden /> <span>{notReady}</span>
+              </div>
+            )}
             {saved?.last_error && (
               <div role="alert" className="flex items-start gap-2 rounded-[6px] bg-error-light px-3 py-2 text-[12px] text-error-dark">
                 <CircleAlert className="mt-px size-4 shrink-0" aria-hidden /> <span>{saved.last_error}</span>
