@@ -115,7 +115,7 @@ function DatePicker({
         <span className="truncate">{value ? formatDate(value) : placeholder}</span>
       </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Positioner sideOffset={4} align="start" className="z-50">
+        <PopoverPrimitive.Positioner sideOffset={4} align="start" className="z-[10050]">
           <PopoverPrimitive.Popup className={cn(popupBase, "w-64 p-3")}>
             <div className="mb-2 flex items-center justify-between">
               <button type="button" onClick={() => shiftMonth(-1)} aria-label="Previous month" className="grid size-7 place-items-center rounded-[4px] hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring">

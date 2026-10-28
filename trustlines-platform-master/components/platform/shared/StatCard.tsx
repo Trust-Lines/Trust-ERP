@@ -6,7 +6,11 @@ import { cn } from '@/lib/utils';
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 
 /** Figma KPI card (Marketing Home 244:17297, CRM Board 280:25017): 165px tile, icon square, label, big value, optional chip. */
-export function StatCard({ icon: Icon, label, value, chip, href }: { icon: LucideIcon; label: string; value: ReactNode; chip?: string; href?: string }) {
+export function StatCard({ icon: Icon, label, value, chip, href, onClick, active }: {
+  icon: LucideIcon; label: string; value: ReactNode; chip?: string; href?: string;
+  /** Makes the card a toggle button (e.g. a filter); `active` shows it pressed. */
+  onClick?: () => void; active?: boolean;
+}) {
   const body = (
     <>
       <span aria-hidden className="grid size-[49px] place-items-center rounded-control bg-ui-surface-elevated">
@@ -26,11 +30,19 @@ export function StatCard({ icon: Icon, label, value, chip, href }: { icon: Lucid
     </>
   );
   const cls = 'flex h-[165px] flex-col justify-between rounded-modal bg-ui-selected-bg py-3.5 pl-3.5 pr-4 text-inherit no-underline';
+  const interactive = 'outline-none transition-shadow hover:shadow-03 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring';
+  if (onClick) {
+    return (
+      <button
+        type="button" onClick={onClick} aria-pressed={!!active}
+        className={cn(cls, interactive, 'cursor-pointer border-0 text-left', active && 'ring-2 ring-[var(--color-secondary-700)] dark:ring-ui-heading')}
+      >
+        {body}
+      </button>
+    );
+  }
   return href ? (
-    <Link
-      href={href}
-      className={cn(cls, 'outline-none transition-shadow hover:shadow-03 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring')}
-    >
+    <Link href={href} className={cn(cls, interactive)}>
       {body}
     </Link>
   ) : (

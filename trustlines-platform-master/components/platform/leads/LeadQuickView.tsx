@@ -97,7 +97,8 @@ export function LeadQuickView({ intakeId, assignees, onClose }: {
 
   async function removeTask(task: TaskRow) {
     setTasks(ts => ts.filter(t => t.id !== task.id));
-    await fetch(`/api/leads/${intakeId}/tasks/${task.id}`, { method: 'DELETE' }).catch(() => {});
+    const res = await fetch(`/api/leads/${intakeId}/tasks/${task.id}`, { method: 'DELETE' }).catch(() => null);
+    if (!res || !res.ok) { toast.error('Could not delete task'); load(); }
   }
 
   const v = (k: string) => (intake?.[k] as string | number | null) ?? '';

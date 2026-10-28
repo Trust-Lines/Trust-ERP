@@ -366,10 +366,10 @@ export function SalesDesk({ data }: { data: SalesDashboardData }) {
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 22 }}>
-          <Link href="/sales-tasks" className="sd-fact"><b>{n(tasks.dueToday)}</b><span>tasks due today</span></Link>
-          <Link href="/sales-tasks" className="sd-fact"><b style={{ color: tasks.overdue > 0 ? 'var(--status-danger)' : undefined }}>{n(tasks.overdue)}</b><span>overdue</span></Link>
+          <Link href="/sales-tasks?filter=today" className="sd-fact"><b>{n(tasks.dueToday)}</b><span>tasks due today</span></Link>
+          <Link href="/sales-tasks?filter=overdue" className="sd-fact"><b style={{ color: tasks.overdue > 0 ? 'var(--status-danger)' : undefined }}>{n(tasks.overdue)}</b><span>overdue</span></Link>
           <Link href={stageQuery('design_proposal_sent')} className="sd-fact"><b>{n(proposalsOut)}</b><span>proposals waiting for an answer</span></Link>
-          <Link href="/sales-tasks" className="sd-fact"><b>{n(tasks.unassigned)}</b><span>tasks nobody owns yet</span></Link>
+          <Link href="/sales-tasks?filter=unassigned" className="sd-fact"><b>{n(tasks.unassigned)}</b><span>tasks nobody owns yet</span></Link>
         </div>
       </section>
       {notes.length > 0 && (
