@@ -9,7 +9,7 @@ import type { UserRole } from '@/types/database';
 const PURGE_DAYS = 30;
 
 export default async function ProspectsTrashPage() {
-  await requirePage('page.marketing');
+  await requirePage('page.marketing_trash');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');

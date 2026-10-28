@@ -17,7 +17,7 @@ const POT_COLS = 'id, prospect_id, primary_contact_id, title, potential_type, st
   + 'auto_managed, external_stage_label, created_at, external_created_at, updated_at';
 
 export default async function OpportunitiesListPage() {
-  await requirePage('page.marketing');
+  await requirePage('page.marketing_contacts');
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();

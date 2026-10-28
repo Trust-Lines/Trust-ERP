@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
 import { logAudit } from '@/lib/audit/log';
 import { CUSTOMER_COMMS_WRITE_ROLES } from '@/lib/customers/roles';
+import { createMeeting, MeetingError, parseMeetingInput } from '@/lib/google/meetings';
+import { GoogleNotConnected } from '@/lib/google/oauth';
+import { PlatformError } from '@/lib/social/http';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -20,6 +23,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     title?: string; meeting_at?: string; meeting_type?: string; location?: string;
     attendees?: string; notes?: string; outcome?: string; status?: string;
     lead_intake_id?: string | null; project_id?: string | null;
+    /** Also send a Google Calendar invitation with a Meet link from the person's own Google account. */
+    google?: { invite?: boolean; attendee_emails?: string[]; duration_min?: number };
   } | null;
 
   const title = b?.title?.trim();
@@ -48,5 +53,23 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await logAudit({ actorId: user.id, action: 'customer_meeting.created', resource: `customer_meeting:${data.id}`, newValue: { customer_id: id, title } });
+
+  // The meeting is saved either way; a Google problem comes back as a warning, not a failure.
+  if (b?.google?.invite) {
+    try {
+      const input = parseMeetingInput({
+        title, startsAt: data.meeting_at, durationMin: b.google.duration_min ?? 60, attendees: b.google.attendee_emails ?? [],
+        description: data.notes, location: data.location, withMeet: true, customerId: id, customerMeetingId: data.id,
+      });
+      const ev = await createMeeting(admin, user.id, input);
+      await admin.from('customer_meetings').update({ google_event_id: ev.google_event_id, meet_url: ev.meet_url }).eq('id', data.id);
+      return NextResponse.json({ meeting: { ...data, meet_url: ev.meet_url } }, { status: 201 });
+    } catch (e) {
+      const googleError = e instanceof MeetingError || e instanceof GoogleNotConnected ? e.message
+        : e instanceof PlatformError ? `Google said: ${e.message}` : 'The Google invitation could not be sent';
+      if (!(e instanceof MeetingError || e instanceof GoogleNotConnected)) console.error('[customer meeting google]', e instanceof Error ? e.message : e);
+      return NextResponse.json({ meeting: data, googleError }, { status: 201 });
+    }
+  }
   return NextResponse.json({ meeting: data }, { status: 201 });
 }

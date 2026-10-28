@@ -1,10 +1,13 @@
 import { redirect } from 'next/navigation';
+import { requirePage } from '@/lib/permissions/requirePage';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { IntakeForm } from '@/components/platform/leads/IntakeForm';
 import { SALES_INTAKE_ROLES } from '@/lib/sales/roles';
 
 export default async function NewLeadFormPage() {
+  // Roles & Permissions switch (catalog.ts PAGE_LEGACY_ROLES keeps the old role list as default).
+  await requirePage('page.leads');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');

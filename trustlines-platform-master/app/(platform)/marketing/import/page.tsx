@@ -4,7 +4,7 @@ import { MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
 import { ContactImportClient } from '@/components/platform/marketing/ContactImportClient';
 
 export default async function ContactImportPage() {
-  await requirePage('page.marketing');
+  await requirePage('page.marketing_import');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user!.id).single();

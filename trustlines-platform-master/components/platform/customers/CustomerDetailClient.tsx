@@ -46,7 +46,8 @@ export function CustomerDetailClient({
     const body = await res.json().catch(() => ({}));
     if (!res.ok) { toast.error(body.error ?? 'Failed to save meeting'); return false; }
     setMeetings(p => [body.meeting, ...p].sort((a, b) => b.meeting_at.localeCompare(a.meeting_at)));
-    toast.success('Meeting saved');
+    if (body.googleError) toast.warning(`Meeting saved, but the Google invite wasn’t sent: ${body.googleError}`, { duration: 10_000 });
+    else toast.success(body.meeting?.meet_url ? 'Meeting saved — Google invite with Meet link sent' : 'Meeting saved');
     return true;
   }
 
@@ -212,7 +213,7 @@ export function CustomerDetailClient({
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2 xl:grid-cols-3">
         <ContactsCard contacts={contacts} canEdit={canEdit} onSave={saveContact} onDelete={deleteContact} />
         <AddressesCard addresses={addresses} canEdit={canEdit} onSave={saveAddress} onDelete={deleteAddress} />
-        <MeetingsCard meetings={meetings} canEdit={canEdit}
+        <MeetingsCard meetings={meetings} canEdit={canEdit} contactEmails={contacts.map(c => c.email).filter((e): e is string => !!e)}
           onSave={saveMeeting} onSetStatus={setMeetingStatus} onDelete={deleteMeeting} />
       </div>
     </div>

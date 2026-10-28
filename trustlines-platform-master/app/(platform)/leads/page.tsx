@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requirePage } from '@/lib/permissions/requirePage';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { LeadsClient } from '@/components/platform/leads/LeadsClient';
@@ -19,6 +20,8 @@ const LEADS_ALLOWED_ROLES = ['sales_marketing_manager', 'sales_rep', 'ops_manage
 const BOARD_ALLOWED_ROLES = LEADS_ALLOWED_ROLES;
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ open?: string; stage?: string }> }) {
+  // Roles & Permissions switch (catalog.ts PAGE_LEGACY_ROLES keeps the old role list as default).
+  await requirePage('page.leads');
   const { open: openId, stage: stageParam } = await searchParams;
   const initialStage = STATUS_ORDER.find(s => s.key === stageParam)?.key;
   const supabase = await createClient();
