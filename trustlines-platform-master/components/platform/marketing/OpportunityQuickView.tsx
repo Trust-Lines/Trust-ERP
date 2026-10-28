@@ -24,6 +24,7 @@ import { OPPORTUNITY_STAGE_LABEL, TIMING_LABEL } from '@/lib/marketing/classific
 import { REGIONS } from '@/lib/regions';
 import type { OpportunityStage, PotentialStatus, LeadTiming } from '@/types/database';
 import { feedback } from '@/components/ui/feedback-toast';
+import { DealDocuments } from '@/components/platform/sales/DealDocuments';
 
 type Deal = Record<string, unknown>;
 interface ProspectInfo { display_name: string; industry: string | null; brand_name: string | null }
@@ -348,6 +349,12 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                       <DealProgressPanel stage={String(opp.stage) as OpportunityStage} progress={progress} />
                     </Card>
                   </div>
+                )}
+                {/* System drawing: Design → Estimate → Contract → Closed Deal (migration 131). */}
+                {kind === 'opportunity' && (
+                  <Card title="Estimate & Contract">
+                    <DealDocuments opportunityId={opportunityId} dealTitle={title} defaultCurrency={(opp.currency as string | null) ?? null} canEdit={canEdit} />
+                  </Card>
                 )}
 
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

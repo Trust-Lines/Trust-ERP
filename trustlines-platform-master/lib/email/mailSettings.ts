@@ -118,3 +118,15 @@ export function isTemporarySmtpError(e: unknown): boolean {
   const err = e as { responseCode?: number; code?: string };
   return (err.responseCode !== undefined && err.responseCode >= 400 && err.responseCode < 500) || err.code === 'ETIMEDOUT' || err.code === 'ECONNECTION';
 }
+
+/**
+ * The receiving server said the ADDRESS doesn't exist (a hard bounce at send time) — as opposed
+ * to a problem with the sender's own login or limits. Those addresses go on the do-not-email
+ * list, so nobody keeps mailing a dead address (which hurts the sender's reputation).
+ */
+export function isHardBounce(e: unknown): boolean {
+  const err = e as { responseCode?: number; response?: string; message?: string; rejected?: unknown[] };
+  const text = `${err.response ?? ''} ${err.message ?? ''}`;
+  if (![550, 551, 553].includes(err.responseCode ?? 0) && !(Array.isArray(err.rejected) && err.rejected.length)) return false;
+  return /user unknown|unknown user|no such user|does not exist|doesn't exist|mailbox (is )?unavailable|mailbox not found|invalid recipient|recipient (address )?rejected|address rejected|5\.1\.1|5\.1\.10/i.test(text);
+}

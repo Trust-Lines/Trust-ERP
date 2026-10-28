@@ -1329,6 +1329,64 @@ export interface EmailSuppression {
   created_at: string;
 }
 
+// ── Sales estimates & contracts (migration 131) ─────────────────────────────────────────
+
+export interface SalesEstimate {
+  id: string;
+  opportunity_id: string;
+  number: string; // EST-YYYYMM-XXXXXX
+  version: number;
+  title: string;
+  currency: 'USD' | 'EUR' | 'TRY' | 'GBP';
+  line_items: { description: string; quantity: number; unit: string | null; unit_price: number }[];
+  discount_pct: number;
+  tax_pct: number;
+  subtotal: number;
+  total: number;
+  notes: string | null;
+  valid_until: string | null; // DATE
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'superseded';
+  token_hash?: string | null; // server-only
+  sent_at: string | null;
+  viewed_at: string | null;
+  decided_at: string | null;
+  decided_by_name: string | null;
+  decision_note: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface SalesContract {
+  id: string;
+  opportunity_id: string;
+  estimate_id: string | null;
+  number: string; // CTR-YYYYMM-XXXXXX
+  title: string;
+  currency: string;
+  amount: number;
+  terms: string;
+  customer_name: string | null;
+  signer_name: string | null;
+  signer_email: string | null;
+  status: 'draft' | 'sent' | 'signed' | 'declined' | 'cancelled';
+  content_hash: string | null;
+  token_hash?: string | null; // server-only
+  sent_at: string | null;
+  viewed_at: string | null;
+  signed_at: string | null;
+  signed_name: string | null;
+  signed_title: string | null;
+  signed_ip: string | null;
+  signed_user_agent: string | null;
+  declined_reason: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
 // ── Google account per person (migration 130) ───────────────────────────────────────────
 
 export interface UserGoogleConnection {

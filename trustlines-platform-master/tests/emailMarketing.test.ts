@@ -115,3 +115,13 @@ describe('campaign audience', () => {
     expect(pct(1, 0)).toBeNull();
   });
 });
+
+describe('hard bounces', () => {
+  it('treats “address does not exist” as a bounce, not a login or limit problem', async () => {
+    const { isHardBounce } = await import('@/lib/email/mailSettings');
+    expect(isHardBounce({ responseCode: 550, response: '550 5.1.1 The email account that you tried to reach does not exist.' })).toBe(true);
+    expect(isHardBounce({ responseCode: 550, response: '550 5.7.1 Sender not allowed' })).toBe(false);
+    expect(isHardBounce({ responseCode: 535, response: '535 authentication failed' })).toBe(false);
+    expect(isHardBounce({ responseCode: 421, response: '421 try again later' })).toBe(false);
+  });
+});
