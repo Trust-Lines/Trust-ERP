@@ -10,7 +10,7 @@ import {
   trackLinks, unsubscribeUrl, withSignature, wrapCampaign, type TrackingLinks,
 } from '@/lib/email/compose';
 import {
-  friendlySmtpError, fromHeader, isTemporarySmtpError, loadSender, sentLast24h, transportFor, type SenderSettings,
+  friendlySmtpError, fromHeader, isHardBounce, isTemporarySmtpError, loadSender, sentLast24h, transportFor, type SenderSettings,
 } from '@/lib/email/mailSettings';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -70,6 +70,11 @@ async function suppressedSet(admin: any, emails: string[]): Promise<Set<string>>
     for (const r of (data ?? []) as { email: string }[]) out.add(r.email);
   }
   return out;
+}
+
+/** A dead address goes on the do-not-email list (reason: bounced). */
+async function suppressBounced(admin: any, email: string, campaignId: string | null) {
+  await admin.from('email_suppressions').upsert({ email: normalizeEmail(email), reason: 'bounced', campaign_id: campaignId }, { onConflict: 'email', ignoreDuplicates: true });
 }
 
 // ── Audience ─────────────────────────────────────────────────────────────────────────────
@@ -266,6 +271,8 @@ export async function sendCampaignBatch(admin: any, campaignId: string, max = BA
           }
           await admin.from('email_messages').update({ status: 'failed', error: friendlySmtpError(e) }).eq('id', m.id);
           failed += 1;
+          // A dead address isn't a settings problem: list it and carry on with the batch.
+          if (isHardBounce(e)) { await suppressBounced(admin, m.to_email, c.id); continue; }
           if (failed >= 5 && sent === 0) {
             // Every email failing = a settings problem, not bad addresses: stop and tell the sender.
             const rest = batch.slice(i + 1).map(x => x.id);
@@ -361,7 +368,9 @@ export async function sendDirectEmail(admin: any, userId: string, e: DirectEmail
     await admin.from('email_messages').update({ status: 'sent', sent_at: new Date().toISOString(), smtp_message_id: info.messageId ?? null }).eq('id', row.id);
     return { id: row.id };
   } catch (err) {
-    const message = friendlySmtpError(err);
+    const bounced = isHardBounce(err);
+    if (bounced) await suppressBounced(admin, to, null);
+    const message = bounced ? 'This address doesn’t exist (the receiving server rejected it) — it was added to the do-not-email list.' : friendlySmtpError(err);
     await admin.from('email_messages').update({ status: 'failed', error: message }).eq('id', row.id);
     throw new EmailError(message, 502);
   } finally {
