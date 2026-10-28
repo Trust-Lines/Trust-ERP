@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 type Search = { post?: string; tab?: string; connected?: string; accounts?: string; synced?: string; connectError?: string };
 
 export default async function SocialMediaPage({ searchParams }: { searchParams: Promise<Search> }) {
-  await requirePage('page.marketing');
+  await requirePage('page.marketing_social');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');

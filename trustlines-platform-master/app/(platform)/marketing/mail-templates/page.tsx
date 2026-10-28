@@ -9,7 +9,7 @@ export const revalidate = 0;
 
 export default async function MailTemplatesPage() {
   // Same gate as Contacts — this is Marketing's own tool, not a separate permission.
-  await requirePage('page.marketing');
+  await requirePage('page.marketing_mail_templates');
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();

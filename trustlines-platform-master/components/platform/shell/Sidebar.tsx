@@ -51,7 +51,7 @@ import {
 } from 'lucide-react';
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip';
 import type { UserRole } from '@/types/database';
-import { permCan } from '@/lib/permissions/catalog';
+import { pageAllowed } from '@/lib/permissions/catalog';
 import { DEFAULT_LOGO } from '@/lib/regionLogo';
 import { UserMenu } from './UserMenu';
 
@@ -109,7 +109,7 @@ const DESIGN_ITEM: NavItem = { label: 'Design', href: '/design', icon: Palette, 
 // (tlines_pm) users exactly as before, when the whole Operations group was internal-only.
 const SUPPLY_NAV: (NavItem & { internal?: boolean })[] = [
   { label: 'Projects',  href: '/projects',  icon: FolderKanban,   perm: 'page.projects' },
-  { label: 'PM',        href: '/pm',        icon: ClipboardList,  perm: 'page.projects' },
+  { label: 'PM',        href: '/pm',        icon: ClipboardList,  perm: 'page.pm' },
   { label: 'Clients',   href: '/clients',   icon: Building2,      perm: 'page.clients',   internal: true },
   { label: 'Suppliers', href: '/suppliers', icon: Package,        perm: 'page.suppliers', internal: true },
   { label: 'QC',        href: '/qc',        icon: ClipboardCheck, perm: 'page.qc',        internal: true },
@@ -118,10 +118,10 @@ const SUPPLY_NAV: (NavItem & { internal?: boolean })[] = [
 
 // Invoices, Payments and Budgets are placeholder pages for now, gated like Expenses.
 const FINANCE_NAV: NavItem[] = [
-  { label: 'Invoices', href: '/invoices', icon: Landmark,   perm: 'page.expenses' },
-  { label: 'Payments', href: '/payments', icon: CreditCard, perm: 'page.expenses' },
+  { label: 'Invoices', href: '/invoices', icon: Landmark,   perm: 'page.invoices' },
+  { label: 'Payments', href: '/payments', icon: CreditCard, perm: 'page.payments' },
   { label: 'Expenses', href: '/expenses', icon: Receipt,    perm: 'page.expenses' },
-  { label: 'Budgets',  href: '/budgets',  icon: PieChart,   perm: 'page.expenses' },
+  { label: 'Budgets',  href: '/budgets',  icon: PieChart,   perm: 'page.budgets' },
 ];
 
 const OPERATIONS_NAV: NavItem[] = [
@@ -144,8 +144,8 @@ const CRM_BOARD_NAV: NavItem[] = [
 ];
 const SALES_NAV: NavItem[] = [
   { label: 'Quick Deals',        href: '/leads/new',      icon: FilePlus,   perm: 'page.leads' },
-  { label: 'Tasks',              href: '/sales-tasks',    icon: ListChecks, perm: 'page.leads' },
-  { label: 'Handoffs',           href: '/sales-projects', icon: Inbox,      perm: 'page.leads' },
+  { label: 'Tasks',              href: '/sales-tasks',    icon: ListChecks, perm: 'page.sales_tasks' },
+  { label: 'Handoffs',           href: '/sales-projects', icon: Inbox,      perm: 'page.sales_handoffs' },
 ];
 // Marketing Home (`/marketing`) comes first on purpose — it's the actual landing page for the
 // whole module (MarketingWorkspaceClient), and it was previously reachable from NOWHERE in the
@@ -158,18 +158,18 @@ const SALES_NAV: NavItem[] = [
 // (/marketing/opportunities) is untouched in case something still links to it directly.
 const MARKETING_NAV: NavItem[] = [
   { label: 'Marketing Home',      href: '/marketing',               icon: Megaphone,    perm: 'page.marketing' },
-  { label: 'Contacts',            href: '/marketing/prospects',     icon: FolderSearch, perm: 'page.marketing' },
+  { label: 'Contacts',            href: '/marketing/prospects',     icon: FolderSearch, perm: 'page.marketing_contacts' },
   // 2026-09-28: query-builder Contacts still requires a criterion — this is the one deliberate
   // exception, "type a name, see everyone" for whoever just needs to look a person up.
-  { label: 'Contact Manager',     href: '/marketing/contact-manager', icon: UserSearch,  perm: 'page.marketing' },
-  { label: 'Email Campaigns',     href: '/marketing/email',         icon: MailOpen,     perm: 'page.marketing' },
-  { label: 'Mail Templates',      href: '/marketing/mail-templates', icon: Mail,        perm: 'page.marketing' },
+  { label: 'Contact Manager',     href: '/marketing/contact-manager', icon: UserSearch,  perm: 'page.marketing_contact_manager' },
+  { label: 'Email Campaigns',     href: '/marketing/email',         icon: MailOpen,     perm: 'page.marketing_email' },
+  { label: 'Mail Templates',      href: '/marketing/mail-templates', icon: Mail,        perm: 'page.marketing_mail_templates' },
   { label: 'Campaigns & Surveys', href: '/marketing/campaigns',     icon: QrCode,       perm: 'page.marketing_campaigns' },
   // Marketing & PR workspace (migration 127): social media tracking + the team calendar.
-  { label: 'Social Media',        href: '/marketing/social',        icon: Share2,       perm: 'page.marketing' },
-  { label: 'Calendar',            href: '/marketing/calendar',      icon: CalendarDays, perm: 'page.marketing' },
-  { label: 'Website (Store Maker)', href: '/marketing/website',     icon: Globe,        perm: 'page.marketing' },
-  { label: 'Trash',               href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing' },
+  { label: 'Social Media',        href: '/marketing/social',        icon: Share2,       perm: 'page.marketing_social' },
+  { label: 'Calendar',            href: '/marketing/calendar',      icon: CalendarDays, perm: 'page.marketing_calendar' },
+  { label: 'Website (Store Maker)', href: '/marketing/website',     icon: Globe,        perm: 'page.marketing_website' },
+  { label: 'Trash',               href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing_trash' },
 ];
 
 export function roleLabel(role: string) {
@@ -215,11 +215,10 @@ function activeHrefIn(section: NavSection, pathname: string) {
 /** Groups and pages this user may open — shared by the sidebar and the top-bar page search. */
 export function buildNavSections(userRole: UserRole, userPerms: Record<string, boolean> | undefined, quickDealActive = false): NavSection[] {
   const isInternal = userRole !== 'tlines_pm';
-  const SALES_ADMIN_ROLES = ['sales_marketing_manager', 'ops_manager', 'general_manager'];
-  const isSalesAdmin = SALES_ADMIN_ROLES.includes(userRole);
-  const isSales = isSalesAdmin || userRole === 'sales_rep';
-  const isMarketing = permCan(userPerms, 'page.marketing');
-  const marketingNav: NavItem[] = MARKETING_NAV;
+  // Every link checks its own page key (Roles & Permissions); a page a role hasn't set yet
+  // follows its old default — see pageAllowed in lib/permissions/catalog.ts.
+  const allowed = (items: NavItem[]) => items.filter(i => pageAllowed(userRole, userPerms, i.perm));
+  const marketingNav = allowed(MARKETING_NAV);
 
   // Sales and Marketing are two different teams working two different jobs (Sales works deals
   // through to a Trust project; Marketing works leads through to a qualified Opportunity) — they
@@ -228,28 +227,27 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
   const salesNav: NavItem[] = [
     ...CRM_BOARD_NAV,
     ...SALES_NAV,
-    ...(isSalesAdmin
-      ? [{ label: 'Dashboard', href: '/sales-dashboard', icon: BarChart3, perm: 'page.sales_dashboard' },
-         { label: 'Sales Team', href: '/sales-team', icon: Users, perm: 'page.sales_team' }]
-      : []),
+    { label: 'Dashboard', href: '/sales-dashboard', icon: BarChart3, perm: 'page.sales_dashboard' },
+    { label: 'Sales Team', href: '/sales-team', icon: Users, perm: 'page.sales_team' },
     // Customers = the real end-customer record, used AFTER a project is won/delivered
     // (addresses, contacts, meetings, follow-ups, handover). That's a Sales/T-Lines
     // relationship concern, not something Trust Lines' internal ops/production side needs —
     // it used to be its own standalone sidebar item between Projects and Operations, visible
     // to everyone including roles that never touch a customer relationship. Living inside
-    // this group means it only shows for Sales-side roles (isSales below), same as the rest
+    // this group means it only shows for Sales-side roles (showSales below), same as the rest
     // of the Sales nav.
     CUSTOMERS_ITEM,
-    { label: 'Trash', href: '/leads/trash', icon: Trash2, perm: 'page.leads' },
+    { label: 'Trash', href: '/leads/trash', icon: Trash2, perm: 'page.leads_trash' },
   ];
 
-  // Marketing and Sales lists are shown to their teams without per-item permission checks
-  // (bypassPerm in the previous layout); every other group filters by permission.
-  const allowed = (items: NavItem[]) => items.filter(i => permCan(userPerms, i.perm));
+  // The Sales group shows when the person can open a Sales page; Customers alone (which
+  // internal roles also have) doesn't make it a Sales group.
+  const salesItems = allowed(salesNav);
+  const showSales = salesItems.some(i => i !== CUSTOMERS_ITEM);
   const sections: NavSection[] = [
     { key: 'dashboard', title: 'Dashboard', icon: LayoutDashboard, items: allowed([DASHBOARD_ITEM, MEETINGS_ITEM]) },
-    ...(isMarketing ? [{ key: 'marketing', title: 'Marketing', icon: Megaphone, items: marketingNav }] : []),
-    ...(isSales ? [{ key: 'sales', title: 'Sales', icon: Target, items: salesNav, activeOverride: quickDealActive ? '/leads/new' : undefined }] : []),
+    { key: 'marketing', title: 'Marketing', icon: Megaphone, items: marketingNav },
+    ...(showSales ? [{ key: 'sales', title: 'Sales', icon: Target, items: salesItems, activeOverride: quickDealActive ? '/leads/new' : undefined }] : []),
     { key: 'design', title: 'Design', icon: DraftingCompass, items: allowed([DESIGN_ITEM]) },
     { key: 'supply', title: 'Supply', icon: BriefcaseBusiness, items: allowed(SUPPLY_NAV.filter(i => isInternal || !i.internal)) },
     ...(isInternal ? [{ key: 'operations', title: 'Operations', icon: Factory, items: allowed(OPERATIONS_NAV) }] : []),
@@ -300,7 +298,7 @@ export function Sidebar({
   const shownKey = browsing ?? pageSectionKey ?? sections[0]?.key ?? null;
   const shown = sections.find(s => s.key === shownKey);
   const shownActiveHref = shown && shown.key === pageSectionKey ? activeHrefIn(shown, pathname) : '';
-  const canSettings = permCan(userPerms, 'page.settings');
+  const canSettings = pageAllowed(userRole, userPerms, 'page.settings');
 
   return (
     <aside

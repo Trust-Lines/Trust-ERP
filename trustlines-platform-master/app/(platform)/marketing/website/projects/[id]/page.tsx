@@ -18,7 +18,7 @@ const EMPTY: EditorProject = {
 };
 
 export default async function WebsiteProjectPage({ params }: { params: Promise<{ id: string }> }) {
-  await requirePage('page.marketing');
+  await requirePage('page.marketing_website');
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

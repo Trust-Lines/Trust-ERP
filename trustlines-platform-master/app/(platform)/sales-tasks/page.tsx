@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requirePage } from '@/lib/permissions/requirePage';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { TasksClient, type TaskRow } from '@/components/platform/sales/TasksClient';
@@ -9,6 +10,8 @@ import { OPPORTUNITY_STAGE_LABEL } from '@/lib/marketing/classification';
 import type { OpportunityStage } from '@/types/database';
 
 export default async function SalesTasksPage() {
+  // Roles & Permissions switch (catalog.ts PAGE_LEGACY_ROLES keeps the old role list as default).
+  await requirePage('page.sales_tasks');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');

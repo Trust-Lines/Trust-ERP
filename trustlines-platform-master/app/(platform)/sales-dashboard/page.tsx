@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requirePage } from '@/lib/permissions/requirePage';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { SalesDesk } from '@/components/platform/sales/SalesDesk';
@@ -7,6 +8,8 @@ import { loadSalesDashboard } from '@/lib/sales/dashboardData';
 const DASH_ROLES = ['sales_marketing_manager', 'ops_manager', 'general_manager'];
 
 export default async function SalesDashboardPage() {
+  // Roles & Permissions switch (catalog.ts PAGE_LEGACY_ROLES keeps the old role list as default).
+  await requirePage('page.sales_dashboard');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
