@@ -53,7 +53,7 @@ export default function SurveyPage() {
   }
 
   if (campaign.surveyTemplate === 'soccer_challenge') {
-    return <SoccerChallenge campaignSlug={campaign.slug} consentTextVersion={campaign.consentTextVersion} />;
+    return <SoccerChallenge campaignSlug={campaign.slug} eventName={campaign.publicTitle || campaign.name} consentTextVersion={campaign.consentTextVersion} />;
   }
   if (campaign.surveyTemplate === 'general') {
     return <GeneralSurvey campaignSlug={campaign.slug} consentTextVersion={campaign.consentTextVersion} />;

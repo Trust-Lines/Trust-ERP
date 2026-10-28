@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
 import { logAudit } from '@/lib/audit/log';
-import { CONTAINER_READ_ROLES, CONTAINER_WRITE_ROLES, CONTAINER_STATUSES } from '@/lib/logistics/containers';
+import { CONTAINER_READ_ROLES, CONTAINER_WRITE_ROLES, CONTAINER_STATUSES, containerDateError } from '@/lib/logistics/containers';
 
 const COLS = 'id, container_no, booking_no, carrier, vessel_name, voyage_no, origin_port, destination_port, departure_date, estimated_arrival_date, actual_arrival_date, customs_clearance_date, warehouse_arrival_date, status, seal_no, tracking_url, notes, created_at, updated_at';
 
@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
   const b = await req.json().catch(() => null) as Record<string, unknown> | null;
   if (!b) return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
   const str = (k: string) => (typeof b[k] === 'string' ? (b[k] as string).trim() || null : null);
+
+  const dateErr = containerDateError({ departure_date: str('departure_date'), estimated_arrival_date: str('estimated_arrival_date') });
+  if (dateErr) return NextResponse.json({ error: dateErr }, { status: 400 });
 
   const status = CONTAINER_STATUSES.includes(String(b.status) as never) ? String(b.status) : 'PLANNING';
   const { data, error } = await admin.from('containers').insert({

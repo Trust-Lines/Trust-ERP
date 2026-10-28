@@ -4,7 +4,7 @@ import Image from "next/image";
 import { MiniFootball3D } from "../MiniFootball3D";
 
 /** Top bar: event tag, T LINES logo and the live "Player level / Score" card. */
-export function ScoreHeader({ level, score }: { level: string; score: number }) {
+export function ScoreHeader({ level, score, eventName }: { level: string; score: number; eventName: string }) {
   return (
       <header className="topbar">
         <div className="header-left">
@@ -12,7 +12,7 @@ export function ScoreHeader({ level, score }: { level: string; score: number }) 
             <span className="header-football-badge" aria-hidden="true">
               <MiniFootball3D />
             </span>
-            <span className="event-tag-text">Soccer Challenge · NACS 2026</span>
+            <span className="event-tag-text">Soccer Challenge · {eventName}</span>
           </div>
         </div>
 

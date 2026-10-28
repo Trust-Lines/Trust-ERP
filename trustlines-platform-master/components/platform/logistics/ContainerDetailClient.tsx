@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Trash2, Search, ExternalLink, Package } from 'lucide-react';
 import { toast } from 'sonner';
@@ -63,15 +63,24 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
     toast.success('Removed');
   }
 
-  async function patch(p: Record<string, unknown>) {
+  async function patch(p: Record<string, unknown>): Promise<boolean> {
     setBusy(true);
     try {
       const res = await fetch(`/api/containers/${c.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
       const b = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(b.error ?? 'Failed'); return; }
+      if (!res.ok) { toast.error(b.error ?? 'Failed'); return false; }
       setC(b.container);
+      return true;
     } finally { setBusy(false); }
   }
+
+  // Date inputs are uncontrolled: put the saved value back when the server rejects a date.
+  const patchDate = (key: 'departure_date' | 'estimated_arrival_date' | 'actual_arrival_date') =>
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const input = e.target;
+      const ok = await patch({ [key]: input.value || null });
+      if (!ok) input.value = c[key] ?? '';
+    };
 
   async function searchAvailable(q: string) {
     setQuery(q);
@@ -129,9 +138,9 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
             {field('Booking #', <input className="form-input" style={{ fontSize: 13 }} defaultValue={c.booking_no ?? ''} disabled={ro} onBlur={e => e.target.value !== (c.booking_no ?? '') && patch({ booking_no: e.target.value })} />)}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 10 }}>
-            {field('Departure', <input type="date" className="form-input" style={{ fontSize: 13 }} defaultValue={c.departure_date ?? ''} disabled={ro} onChange={e => patch({ departure_date: e.target.value || null })} />)}
-            {field('ETA', <input type="date" className="form-input" style={{ fontSize: 13 }} defaultValue={c.estimated_arrival_date ?? ''} disabled={ro} onChange={e => patch({ estimated_arrival_date: e.target.value || null })} />)}
-            {field('Arrived', <input type="date" className="form-input" style={{ fontSize: 13 }} defaultValue={c.actual_arrival_date ?? ''} disabled={ro} onChange={e => patch({ actual_arrival_date: e.target.value || null })} />)}
+            {field('Departure', <input type="date" className="form-input" style={{ fontSize: 13 }} defaultValue={c.departure_date ?? ''} max={c.estimated_arrival_date ?? undefined} disabled={ro} onChange={patchDate('departure_date')} />)}
+            {field('ETA', <input type="date" className="form-input" style={{ fontSize: 13 }} defaultValue={c.estimated_arrival_date ?? ''} min={c.departure_date ?? undefined} disabled={ro} onChange={patchDate('estimated_arrival_date')} />)}
+            {field('Arrived', <input type="date" className="form-input" style={{ fontSize: 13 }} defaultValue={c.actual_arrival_date ?? ''} min={c.departure_date ?? undefined} disabled={ro} onChange={patchDate('actual_arrival_date')} />)}
             {/* 🔴 FIX (Roadmap Month 3, task 19): customs_clearance_date has been a real, fully
                 backend-supported column (migration 058, in the PATCH EDITABLE list) since Logistics
                 was built — it was just never rendered here, so "Customs" from the Phase 11 §4 spec

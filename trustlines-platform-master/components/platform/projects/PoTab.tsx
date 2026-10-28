@@ -140,10 +140,13 @@ export function PoTab({ projectId, userId, userRole, userPerms, catGroup, catego
         <div style={{ display: 'flex', minHeight: 560 }}>
           <div style={{ width: 250, borderRight: '1px solid var(--border-subtle)', flexShrink: 0, display: 'flex', flexDirection: 'column', background: 'var(--bg-subtle)' }}>
             <div style={{ padding: 12, borderBottom: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {/* The Client PM reviews / signs / holds POs but does not generate them (server returns 403). */}
+              {userRole !== 'tlines_pm' && (
               <button onClick={generate} disabled={generating || !hasPriceList} title={hasPriceList ? '' : 'Generate the Item Price List first'} style={{
                 width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 padding: '9px 12px', borderRadius: 8, border: 'none', background: hasPriceList ? '#1a2b4b' : '#cbd5e1', color: '#fff', fontSize: 12, fontWeight: 700, cursor: hasPriceList ? 'pointer' : 'not-allowed',
               }}>{generating ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={13} />} Generate PO</button>
+              )}
               {canHold && (
                 <>
                   <div style={{ display: 'flex', gap: 6 }}>

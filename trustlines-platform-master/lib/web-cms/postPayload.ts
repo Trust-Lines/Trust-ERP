@@ -26,7 +26,9 @@ export function parsePostPayload(raw: unknown):
   const category = str(p.category);
   if (!BLOG_CATEGORIES.some(c => c.value === category)) return { error: 'Pick a category' };
   const cover = str(p.cover_image_url);
-  if (!isImageKitUrl(cover)) return { error: 'Cover image is required (ImageKit URL)' };
+  // Drafts may be saved without a cover (stored as '', the column is NOT NULL); publishing needs one.
+  if (cover && !isImageKitUrl(cover)) return { error: 'Cover image must be an ImageKit URL' };
+  if (!cover && p.is_published === true) return { error: 'Add a cover image before publishing' };
   const published_at = str(p.published_at);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(published_at) || Number.isNaN(Date.parse(published_at))) return { error: 'Pick a valid date' };
 

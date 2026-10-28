@@ -35,7 +35,9 @@ export function parseProjectPayload(raw: unknown):
   const location = str(p.location);
   if (!location) return { error: 'Location is required' };
   const cover = str(p.cover_image_url);
-  if (!isImageKitUrl(cover)) return { error: 'Cover image is required (ImageKit URL)' };
+  // Drafts may be saved without a cover (stored as '', the column is NOT NULL); publishing needs one.
+  if (cover && !isImageKitUrl(cover)) return { error: 'Cover image must be an ImageKit URL' };
+  if (!cover && p.is_published === true) return { error: 'Add a cover image before publishing' };
 
   let year: number | null = null;
   if (p.year_built !== null && p.year_built !== undefined && p.year_built !== '') {

@@ -401,7 +401,7 @@ export function ProspectDetailClient({
           { key: 'needs', label: `Needs (${needs.length})`, icon: Target },
           { key: 'potentials', label: `Potentials (${activePotentials.length})`, icon: Clock },
           { key: 'opportunities', label: `Opportunities (${opportunities.length})`, icon: ArrowRightCircle },
-          { key: 'activities', label: 'Activities', icon: Activity },
+          { key: 'activities', label: 'Emails & activity', icon: Activity },
           { key: 'files', label: 'Files', icon: FileText },
           { key: 'history', label: `Past Projects (${historicalProjects.length})`, icon: History },
         ] as { key: Tab; label: string; icon: typeof Building2 }[]).map(t => {
@@ -505,7 +505,7 @@ export function ProspectDetailClient({
         />
       )}
 
-      {tab === 'activities' && <ActivitiesTab />}
+      {tab === 'activities' && <ActivitiesTab prospect={prospect} contacts={contacts} canEdit={canEdit} />}
 
       {tab === 'files' && (
         <FilesTab

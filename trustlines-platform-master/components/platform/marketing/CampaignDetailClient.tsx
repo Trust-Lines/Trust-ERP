@@ -11,6 +11,7 @@ import { SURVEY_TEMPLATE_LABELS, type SurveyTemplate } from '@/lib/marketing/sur
 import type { RecentSubmissionRow } from '@/lib/marketing/campaigns';
 import type { CampaignStatus, CampaignType, LeadSource } from '@/types/database';
 import { EmptyState } from '@/components/ui/empty-state';
+import { formatDateTime } from '@/lib/formatDate';
 
 export interface CampaignDetail {
   id: string;

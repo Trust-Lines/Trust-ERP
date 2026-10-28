@@ -20,8 +20,10 @@ function composeAddress(city?: string | null, street?: string | null, state?: st
 
 
 
+// service_line is NOT here on purpose: the form defaults it to 'ST', so it alone
+// would create a row for every opened-and-abandoned form.
 const MEANINGFUL_FIELDS = [
-  'customer_name', 'brand', 'customer_email', 'contact_person', 'contact_phone',
+  'region', 'customer_name', 'brand', 'customer_email', 'contact_person', 'contact_phone',
   'industry', 'project_type', 'customer_address', 'city', 'street', 'state',
   'matterport_link', 'source', 'follow_up_date', 'next_action',
 ] as const;

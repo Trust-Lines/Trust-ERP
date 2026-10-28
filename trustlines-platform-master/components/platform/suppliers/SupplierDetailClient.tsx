@@ -97,6 +97,20 @@ function ProfileCard({ supplier, canEdit, onSaved }: { supplier: Supplier; canEd
     toast.success('Supplier updated'); setEdit(false); onSaved();
   }
 
+  // Soft toggle only (is_active) — invoices, payments and history are kept.
+  async function toggleActive() {
+    const activate = !supplier.is_active;
+    if (!activate && !confirm(`Deactivate ${supplier.name}? It will no longer be offered as a vendor. Invoices and payments are kept.`)) return;
+    setSaving(true);
+    const res = await fetch(`/api/suppliers/${supplier.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: activate }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) { toast.error(body.error ?? 'Failed to update supplier'); return; }
+    toast.success(activate ? 'Supplier reactivated' : 'Supplier deactivated'); onSaved();
+  }
+
   const Row = ({ label, value }: { label: string; value: string | null }) => (
     <div style={{ display: 'flex', gap: 8, fontSize: 13, padding: '4px 0' }}>
       <span style={{ color: 'var(--fg-subtle)', minWidth: 120 }}>{label}</span>
@@ -108,7 +122,14 @@ function ProfileCard({ supplier, canEdit, onSaved }: { supplier: Supplier; canEd
     <div className="card" style={{ padding: 16, marginBottom: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Profile</h2>
-        {canEdit && !edit && <button className="btn btn-secondary btn-sm" onClick={() => setEdit(true)}>Edit</button>}
+        {canEdit && !edit && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-secondary btn-sm" onClick={toggleActive} disabled={saving}>
+              {supplier.is_active ? 'Deactivate' : 'Reactivate'}
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setEdit(true)}>Edit</button>
+          </div>
+        )}
       </div>
       {!edit ? (
         <div>

@@ -6,7 +6,8 @@ import { CONTACT_METHODS, MAX_COMPANIONS, POSITIONS, type Companion, type Survey
 import { Field } from "./Field";
 
 /** Step 2 — "Meet the player": representative, contact details and optional companions. */
-export function StepMeetPlayer({ data, update, contactMethods, companions, setCompanions, updateCompanion }: {
+export function StepMeetPlayer({ eventName, data, update, contactMethods, companions, setCompanions, updateCompanion }: {
+  eventName: string;
   data: SurveyData;
   update: (name: string, value: string) => void;
   contactMethods: string[];
@@ -18,7 +19,7 @@ export function StepMeetPlayer({ data, update, contactMethods, companions, setCo
               <>
                 <span className="overline-tag">Player details</span>
                 <h1 className="step-heading">Meet the player</h1>
-                <p className="intro">Tell us how our team can connect with you following NACS 2026.</p>
+                <p className="intro">Tell us how our team can connect with you following {eventName}.</p>
                 <div className="field-grid">
                   <Field label="Representative — who is entering this?" name="representative" value={data.representative} update={update} wide>
                     <option value="">Select your name</option>

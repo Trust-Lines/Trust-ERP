@@ -6,11 +6,18 @@ import { WIZARD_STEPS } from './types';
 
 // Figma "Form progress" (node 290:36895): one row of equal step tabs; the active one is filled.
 export function StepNav({ activeStep, onSelect }: { activeStep: number; onSelect: (step: number) => void }) {
+export function StepNav({ activeStep, onSelect, isStepDone }: {
+  activeStep: number;
+  onSelect: (step: number) => void;
+  isStepDone: (step: number) => boolean;
+}) {
   return (
     <nav aria-label="Intake steps" className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
       {WIZARD_STEPS.map(s => {
         const isActive = activeStep === s.step;
         const isDone = activeStep > s.step;
+        const isDone = !isActive && isStepDone(s.step);
+
         return (
           <button
             key={s.step}
