@@ -2,6 +2,7 @@
 # allows daily crons (a sub-daily schedule in vercel.json makes the deployment fail):
 #   • /api/cron/email-queue    — sends the next batch of each email campaign, starts scheduled ones
 #   • /api/cron/social-publish — publishes social posts whose scheduled time has come
+#   • /api/cron/google-sync    — copies connected Google Calendars (each at most every 30 min)
 # Vercel still runs both once a day as a fallback (vercel.json).
 #
 # Setup (GitHub → Settings → Secrets and variables → Actions):
@@ -36,7 +37,7 @@ jobs:
             exit 0
           fi
           status=0
-          for path in /api/cron/email-queue /api/cron/social-publish; do
+          for path in /api/cron/email-queue /api/cron/social-publish /api/cron/google-sync; do
             code=$(curl -sS -o /tmp/out.json -w '%{http_code}' --max-time 300 \
               -H "Authorization: Bearer $CRON_SECRET" "$ERP_URL$path") || code=000
             echo "$path → HTTP $code"

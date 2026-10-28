@@ -13,6 +13,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { MERGE_FIELDS } from '@/lib/marketing/mailTemplates';
 import type { Contact, Prospect } from './types';
+import { ContactMeetings } from './ContactMeetings';
 
 // Contact → Activities: every email this Contact received from the ERP (one-to-one and
 // campaigns, with opens and clicks) and "Send email" from the user's own mailbox.
@@ -120,6 +121,8 @@ export function ActivitiesTab({ prospect, contacts, canEdit }: { prospect: Prosp
           ))}
         </ul>
       )}
+
+      <ContactMeetings prospectId={prospect.id} contactName={prospect.display_name} emails={recipients.map(r => r.value)} canEdit={canEdit} />
 
       {composing && (
         <ComposeDialog

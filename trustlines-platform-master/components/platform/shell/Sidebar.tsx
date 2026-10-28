@@ -93,6 +93,8 @@ export const ROLE_LABELS: Record<string, string> = {
 };
 
 const DASHBOARD_ITEM: NavItem = { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, perm: 'page.dashboard' };
+// Personal Google Calendar view — everyone who has the Dashboard has their own meetings.
+const MEETINGS_ITEM: NavItem = { label: 'My meetings', href: '/meetings', icon: CalendarDays, perm: 'page.dashboard' };
 const CUSTOMERS_ITEM: NavItem = { label: 'Customers', href: '/customers', icon: Contact, perm: 'page.customers' };
 const DESIGN_ITEM: NavItem = { label: 'Design', href: '/design', icon: Palette, perm: 'page.design' };
 
@@ -245,7 +247,7 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
   // (bypassPerm in the previous layout); every other group filters by permission.
   const allowed = (items: NavItem[]) => items.filter(i => permCan(userPerms, i.perm));
   const sections: NavSection[] = [
-    { key: 'dashboard', title: 'Dashboard', icon: LayoutDashboard, items: allowed([DASHBOARD_ITEM]) },
+    { key: 'dashboard', title: 'Dashboard', icon: LayoutDashboard, items: allowed([DASHBOARD_ITEM, MEETINGS_ITEM]) },
     ...(isMarketing ? [{ key: 'marketing', title: 'Marketing', icon: Megaphone, items: marketingNav }] : []),
     ...(isSales ? [{ key: 'sales', title: 'Sales', icon: Target, items: salesNav, activeOverride: quickDealActive ? '/leads/new' : undefined }] : []),
     { key: 'design', title: 'Design', icon: DraftingCompass, items: allowed([DESIGN_ITEM]) },

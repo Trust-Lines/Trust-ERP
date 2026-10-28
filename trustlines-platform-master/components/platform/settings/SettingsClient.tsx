@@ -7,6 +7,7 @@ import { readHideAmounts, writeHideAmounts } from '@/lib/privacy/hideAmounts';
 import { toast } from 'sonner';
 import { ThemeSwitch } from '@/components/platform/shared/ThemeSync';
 import { MailSettingsCard } from './MailSettingsCard';
+import { GoogleAccountCard } from './GoogleAccountCard';
 
 const MIN_PASSWORD = 8;
 
@@ -130,6 +131,8 @@ export function SettingsClient({ isGeneralManager, canBackUpContacts, email }: {
       <ChangePasswordCard email={email} />
 
       <MailSettingsCard email={email} />
+
+      <GoogleAccountCard />
 
       <div className="card">
         <div className="card-body" style={{ padding: 20 }}>

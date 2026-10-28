@@ -19,6 +19,7 @@ export interface Meeting {
   id: string; title: string; meeting_type: string | null; meeting_at: string;
   location: string | null; attendees: string | null; notes: string | null; outcome: string | null;
   status: 'scheduled' | 'completed' | 'cancelled';
+  meet_url?: string | null; // Google Meet link when the meeting was sent as a Google invite (migration 130)
 }
 export interface FollowUp {
   id: string; note: string; due_date: string; assignee_id: string | null;

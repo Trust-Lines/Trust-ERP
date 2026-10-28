@@ -39,9 +39,12 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     .eq('customer_id', id).order('created_at', { ascending: false }).limit(200);
   const projects = projRes.error ? [] : (projRes.data ?? []);
 
-  const meetRes = await sb.from('customer_meetings')
-    .select('id, customer_id, lead_intake_id, project_id, title, meeting_type, meeting_at, location, attendees, notes, outcome, status, created_at')
+  const MEET_COLS = 'id, customer_id, lead_intake_id, project_id, title, meeting_type, meeting_at, location, attendees, notes, outcome, status, created_at';
+  const meetQuery = (cols: string) => sb.from('customer_meetings').select(cols)
     .eq('customer_id', id).is('deleted_at', null).order('meeting_at', { ascending: false }).limit(100);
+  // meet_url arrives with migration 130; until it's applied, load the meetings without it.
+  let meetRes = await meetQuery(`${MEET_COLS}, meet_url`);
+  if (meetRes.error) meetRes = await meetQuery(MEET_COLS);
   const meetings = meetRes.error ? [] : (meetRes.data ?? []);
 
   const fuRes = await sb.from('customer_follow_ups')
