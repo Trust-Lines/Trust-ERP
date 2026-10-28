@@ -59,19 +59,27 @@ const taskApi = (t: TaskRow) =>
     : `/api/leads/${t.lead_id}/tasks/${t.id}`;
 const taskHref = (t: TaskRow) => (t.kind === 'opportunity' ? `/leads?open=${t.lead_id}` : `/leads/${t.lead_id}`);
 
-export function TasksClient({ tasks: initial, assignees, currentUserId }: {
+/** `/sales-tasks?filter=…` presets (the Sales dashboard links here). */
+export const TASK_QUICK_FILTERS = ['overdue', 'today', 'unassigned', 'mine'] as const;
+export type TaskQuickFilter = typeof TASK_QUICK_FILTERS[number];
+
+export function TasksClient({ tasks: initial, assignees, currentUserId, openDeals = [], initialFilter }: {
   tasks: TaskRow[];
   assignees: { id: string; full_name: string }[];
   currentUserId: string;
+  /** Every open deal the user can work — the New Task dialog's choices. */
+  openDeals?: { id: string; name: string }[];
+  initialFilter?: TaskQuickFilter;
 }) {
   const router = useRouter();
   const [tasks, setTasks] = useState(initial);
-  const [mine, setMine]     = useState(false);
+  const [mine, setMine]     = useState(initialFilter === 'mine');
   const [fStatus, setFStatus] = useState('');
-  const [fAssignee, setFAssignee] = useState('');
+  const [fAssignee, setFAssignee] = useState(initialFilter === 'unassigned' ? '__none__' : '');
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
-  const [fOverdue, setFOverdue] = useState(false);
+  const [fOverdue, setFOverdue] = useState(initialFilter === 'overdue');
+  const [fToday, setFToday] = useState(initialFilter === 'today');
   const [openDealId, setOpenDealId] = useState<string | null>(null); // deal shown in the progress pop-up
   const [syncing, setSyncing] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
@@ -112,6 +120,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
       if (fAssignee === '__none__' && t.assignee_id) return false;
       if (fAssignee && fAssignee !== '__none__' && t.assignee_id !== fAssignee) return false;
       if (fOverdue && !(t.status !== 'done' && t.due_date && t.due_date < today)) return false;
+      if (fToday && !(t.status !== 'done' && t.due_date?.slice(0, 10) === today)) return false;
       if (q && !`${t.title} ${t.lead_name} ${t.deal_stage ?? ''}`.toLowerCase().includes(q)) return false;
       return true;
     }).sort((a, b) => {
@@ -123,18 +132,19 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
       if (ad !== bd) return ad - bd;                                             // within a deal: open first
       return (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999');
     });
-  }, [tasks, mine, fStatus, fAssignee, fOverdue, search, currentUserId, today]);
+  }, [tasks, mine, fStatus, fAssignee, fOverdue, fToday, search, currentUserId, today]);
 
   const open = tasks.filter(t => t.status !== 'done').length;
   const overdue = tasks.filter(t => t.status !== 'done' && t.due_date && t.due_date < today).length;
   const myOpen = tasks.filter(t => t.status !== 'done' && t.assignee_id === currentUserId).length;
+  const dueToday = tasks.filter(t => t.status !== 'done' && t.due_date?.slice(0, 10) === today).length;
 
   // Deals a new task can be attached to — the Opportunities already on this list.
   const deals = useMemo(() => {
-    const m = new Map<string, string>();
+    const m = new Map<string, string>(openDeals.map(d => [d.id, d.name]));
     for (const t of tasks) if (t.kind === 'opportunity' && !m.has(t.lead_id)) m.set(t.lead_id, t.lead_name);
     return [...m].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [tasks]);
+  }, [tasks, openDeals]);
 
   return (
     <div className="flex flex-col gap-[30px]">
@@ -153,6 +163,18 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
                 className={cn('border-0 bg-transparent p-0 text-[13px] text-error-normal hover:underline', fOverdue && 'font-semibold underline')}
               >
                 {overdue} overdue
+              </button>
+            </>
+          )}
+          {(dueToday > 0 || fToday) && (
+            <>
+              {' · '}
+              <button
+                type="button" aria-pressed={fToday} onClick={() => setFToday(o => !o)}
+                title={fToday ? 'Show all tasks' : 'Show only tasks due today'}
+                className={cn('border-0 bg-transparent p-0 text-[13px] text-[var(--status-warning-fg)] hover:underline', fToday && 'font-semibold underline')}
+              >
+                {dueToday} due today
               </button>
             </>
           )}
@@ -185,10 +207,10 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
             <UserRound aria-hidden />
             Assigned to me{myOpen > 0 ? ` · ${myOpen}` : ''}
           </button>
-          {(mine || fStatus || fAssignee || fOverdue || search) && (
+          {(mine || fStatus || fAssignee || fOverdue || fToday || search) && (
             <button
               type="button"
-              onClick={() => { setMine(false); setFStatus(''); setFAssignee(''); setFOverdue(false); setSearch(''); }}
+              onClick={() => { setMine(false); setFStatus(''); setFAssignee(''); setFOverdue(false); setFToday(false); setSearch(''); }}
               className="border-0 bg-transparent px-1 text-[13px] font-medium text-ui-link hover:underline"
             >
               Clear filters
@@ -205,7 +227,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
           </button>
           <button
             type="button" onClick={() => setCreating(true)} disabled={deals.length === 0}
-            title={deals.length === 0 ? 'No deals on this list to add a task to' : undefined}
+            title={deals.length === 0 ? 'No open deals to add a task to' : undefined}
             className="inline-flex h-9 items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent pl-7 pr-10 text-[13px] font-medium leading-[1.35] text-ui-btn-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             <Plus size={16} aria-hidden />

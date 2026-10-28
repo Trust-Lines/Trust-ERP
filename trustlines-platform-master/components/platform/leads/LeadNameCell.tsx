@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, Clock, ListChecks } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
+import { toast } from 'sonner';
+import { ChevronDown, ChevronRight, Plus, ExternalLink, Trash2, Clock, ListChecks } from 'lucide-react';
 import { readableTextColor } from '@/lib/marketing/pillColor';
 import type { Lead } from './types';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -21,12 +23,11 @@ function apiBasePathFor(lead: Lead): string {
   return `/api/leads/${lead.id}`;
 }
 
-export function LeadNameCell({ lead, today, assignees, onOpen, onEdit }: {
+export function LeadNameCell({ lead, today, assignees, onOpen }: {
   lead: Lead;
   today: string;
   assignees: { id: string; full_name: string }[];
   onOpen: () => void;
-  onEdit: () => void;
 }) {
   const apiBase = apiBasePathFor(lead);
   const [hovered, setHovered] = useState(false);
@@ -48,15 +49,20 @@ export function LeadNameCell({ lead, today, assignees, onOpen, onEdit }: {
 
   useEffect(() => { if (expanded && tasks === null) loadTasks(); }, [expanded, tasks, loadTasks]);
 
+  // Enter saves and unmounts the input; its blur must not save the same subtask twice.
+  const savingRef = useRef(false);
   async function saveNewSubtask() {
+    if (savingRef.current) return;
     const title = draft.trim();
     if (!title) { setAdding(false); return; }
+    savingRef.current = true;
     setDraft('');
     setAdding(false);
     const res = await fetch(`${apiBase}/tasks`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }),
     }).catch(() => null);
-    if (!res || !res.ok) return;
+    savingRef.current = false;
+    if (!res || !res.ok) { toast.error('Could not add the subtask'); return; }
     const body = await res.json();
     setTasks(prev => [...(prev ?? []), body.task]);
     setExpanded(true);
@@ -64,14 +70,16 @@ export function LeadNameCell({ lead, today, assignees, onOpen, onEdit }: {
 
   async function patchTask(task: TaskRow, patch: Partial<TaskRow>) {
     setTasks(prev => (prev ?? []).map(t => (t.id === task.id ? { ...t, ...patch } : t)));
-    await fetch(`${apiBase}/tasks/${task.id}`, {
+    const res = await fetch(`${apiBase}/tasks/${task.id}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch),
-    }).catch(() => {});
+    }).catch(() => null);
+    if (!res || !res.ok) { toast.error('Could not save the subtask'); void loadTasks(); }
   }
 
   async function removeTask(task: TaskRow) {
     setTasks(prev => (prev ?? []).filter(t => t.id !== task.id));
-    await fetch(`${apiBase}/tasks/${task.id}`, { method: 'DELETE' }).catch(() => {});
+    const res = await fetch(`${apiBase}/tasks/${task.id}`, { method: 'DELETE' }).catch(() => null);
+    if (!res || !res.ok) { toast.error('Could not delete the subtask'); void loadTasks(); }
   }
 
   const taskCount = tasks?.length ?? lead.tasks_total ?? 0;
@@ -124,7 +132,12 @@ export function LeadNameCell({ lead, today, assignees, onOpen, onEdit }: {
           {/* Shown on hover, and whenever one of them has keyboard focus. */}
           <div className={cn('flex shrink-0 gap-0.5 transition-opacity', hovered ? 'opacity-100' : 'opacity-0 focus-within:opacity-100')}>
             <Button variant="ghost" size="icon-xs" onClick={() => { setAdding(true); setExpanded(true); }} title="Add subtask" aria-label="Add subtask"><Plus size={13} /></Button>
-            <Button variant="ghost" size="icon-xs" onClick={onEdit} title="Edit" aria-label="Edit"><Pencil size={12} /></Button>
+            {/* The name already opens the quick view; this jumps to the full intake form. */}
+            {lead.origin === 'lead_intake' && (
+              <Link href={`/leads/${lead.id}`} title="Open the full form" aria-label="Open the full form" className={buttonVariants({ variant: 'ghost', size: 'icon-xs' })}>
+                <ExternalLink size={12} />
+              </Link>
+            )}
           </div>
         </div>
       </div>
