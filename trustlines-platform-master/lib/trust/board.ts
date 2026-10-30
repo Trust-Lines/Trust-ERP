@@ -87,6 +87,8 @@ export function classifyTrustProject(p: TrustProject, today: string): TrustBoard
   return { stage: 'finalization', note: null, onHold, dateISO: created };
 }
 
+const TRUST_DEFAULT_URL = 'https://trust-excel.vercel.app/api';
+
 const clean = (v: string | undefined) => v?.trim().replace(/^["']|["']$/g, '').trim() || undefined;
 
 /**
@@ -94,7 +96,13 @@ const clean = (v: string | undefined) => v?.trim().replace(/^["']|["']$/g, '').t
  * can't be read, `error` says why (missing env, HTTP status, network) so the board can show it.
  */
 export async function loadTrustProjects(): Promise<{ projects: TrustProject[]; error: string | null }> {
-  const raw = clean(process.env.TRUST_API_URL)?.replace(/\/+$/, '');
+  let raw = clean(process.env.TRUST_API_URL)?.replace(/\/+$/, '');
+  // A value that isn't a web address (prod once had an email address here) falls back to the
+  // Trust System's own address instead of leaving the board empty.
+  if (raw && !/^https?:\/\//i.test(raw)) {
+    console.warn('[trust board] TRUST_API_URL is not a URL — using', TRUST_DEFAULT_URL);
+    raw = TRUST_DEFAULT_URL;
+  }
   const keyName = clean(process.env.TRUST_API_KEY) ? 'TRUST_API_KEY' : 'INTEGRATION_API_KEY';
   const key = clean(process.env[keyName]);
   if (!raw || !key) return { projects: [], error: `not configured (${!raw ? 'TRUST_API_URL' : 'TRUST_API_KEY'} missing)` };
