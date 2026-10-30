@@ -149,11 +149,11 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: 'var(--bg-surface)', borderRadius: 'var(--radius-lg)', width: '96vw', maxWidth: 1680, height: '92vh',
+          background: 'var(--ui-page-bg)', borderRadius: 12, width: '96vw', maxWidth: 1616, height: '92vh', maxHeight: 1206,
           boxShadow: '0 12px 48px rgba(0,0,0,.3)', display: 'flex', overflow: 'hidden',
         }}
       >
-        <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: '20px 24px' }}>
+        <div style={{ flex: 1, minWidth: 0, padding: 32 }}>
           {loading && <div style={{ padding: 60, textAlign: 'center', color: 'var(--fg-subtle)' }}>Loading…</div>}
           {!loading && notFound && <div style={{ padding: 60, textAlign: 'center', color: 'var(--fg-subtle)' }}>Could not load this lead.</div>}
           {!loading && data && (
@@ -170,125 +170,121 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
               assignees={data.people}
               canEdit={canEdit}
               onClose={onClose}
-            />
-          )}
-        </div>
-
-        <div style={{ width: 360, flexShrink: 0, borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', background: 'var(--bg-subtle)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid var(--border-subtle)' }}>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>Activity</div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 4 }} aria-label="Close">
-              <X size={18} />
-            </button>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'grid', gap: 10, alignContent: 'start' }}>
-            {notes.length === 0 && !loading && (
-              <EmptyState size="sm" className="mt-6 justify-center" icon={<Activity />} title="No activity yet." />
-            )}
-            {notes.map(n => (
-              <div key={n.id} style={{ background: 'var(--bg-surface)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border-subtle)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontWeight: 600, fontSize: 12.5 }}>{n.author_name || 'Unknown'}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ color: 'var(--fg-subtle)', fontSize: 11 }}>
-                      {n.source_created_at ? new Date(n.source_created_at).toLocaleDateString('en-US') : ''}
-                    </span>
-                    {n.author_id && n.author_id === viewerId && editingId !== n.id && (
-                      <button onClick={() => { setEditingId(n.id); setEditDraft(n.body); }} title="Edit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0, display: 'flex' }}>
-                        <Pencil size={12} />
-                      </button>
-                    )}
-                    {canEdit && (
-                      <button onClick={() => deleteNote(n)} title="Delete (temporary, dev-only)" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0, display: 'flex' }}>
-                        <Trash2 size={12} />
-                      </button>
-                    )}
-                  </div>
+              aside={(
+                <div style={{ width: 360, flexShrink: 0, borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', background: 'var(--bg-subtle)' }}>
+                <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border-subtle)', fontWeight: 700, fontSize: 14 }}>Activity</div>
+                  <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'grid', gap: 10, alignContent: 'start' }}>
+                  {notes.length === 0 && !loading && (
+                    <EmptyState size="sm" className="mt-6 justify-center" icon={<Activity />} title="No activity yet." />
+                  )}
+                  {notes.map(n => (
+                    <div key={n.id} style={{ background: 'var(--bg-surface)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontWeight: 600, fontSize: 12.5 }}>{n.author_name || 'Unknown'}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ color: 'var(--fg-subtle)', fontSize: 11 }}>
+                            {n.source_created_at ? new Date(n.source_created_at).toLocaleDateString('en-US') : ''}
+                          </span>
+                          {n.author_id && n.author_id === viewerId && editingId !== n.id && (
+                            <button onClick={() => { setEditingId(n.id); setEditDraft(n.body); }} title="Edit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0, display: 'flex' }}>
+                              <Pencil size={12} />
+                            </button>
+                          )}
+                          {canEdit && (
+                            <button onClick={() => deleteNote(n)} title="Delete (temporary, dev-only)" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0, display: 'flex' }}>
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {showContactLabel && (
+                        <div style={{ fontSize: 10.5, color: 'var(--fg-faint)', marginBottom: 4 }}>
+                          re: {contactNameById[n.prospect_contact_id] ?? 'Contact'}
+                        </div>
+                      )}
+                      {editingId === n.id ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <textarea
+                            className="form-input"
+                            value={editDraft}
+                            onChange={e => setEditDraft(e.target.value)}
+                            rows={2}
+                            style={{ fontSize: 12.5, resize: 'none' }}
+                            autoFocus
+                          />
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button className="btn btn-primary btn-sm" onClick={() => saveEdit(n)} disabled={!editDraft.trim()}>
+                              <Check size={12} /> Save
+                            </button>
+                            <button className="btn btn-ghost btn-sm" onClick={() => setEditingId(null)}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        n.body && (
+                          <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, color: 'var(--fg-default)' }}>
+                            {n.body}
+                            {n.edited_at && <span style={{ fontSize: 10.5, color: 'var(--fg-faint)' }}> (edited)</span>}
+                          </div>
+                        )
+                      )}
+                      {n.image_path && (
+                        imageLinks[n.image_path] ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={imageLinks[n.image_path]}
+                            alt=""
+                            onClick={() => setLightbox(imageLinks[n.image_path!])}
+                            style={{ marginTop: 6, maxWidth: 140, maxHeight: 140, borderRadius: 6, cursor: 'zoom-in', display: 'block', border: '1px solid var(--border-subtle)' }}
+                          />
+                        ) : (
+                          <div style={{ marginTop: 6, width: 140, height: 90, borderRadius: 6, background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-faint)' }}>
+                            <ImageIcon size={16} />
+                          </div>
+                        )
+                      )}
+                    </div>
+                  ))}
                 </div>
-                {showContactLabel && (
-                  <div style={{ fontSize: 10.5, color: 'var(--fg-faint)', marginBottom: 4 }}>
-                    re: {contactNameById[n.prospect_contact_id] ?? 'Contact'}
-                  </div>
-                )}
-                {editingId === n.id ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <textarea
-                      className="form-input"
-                      value={editDraft}
-                      onChange={e => setEditDraft(e.target.value)}
-                      rows={2}
-                      style={{ fontSize: 12.5, resize: 'none' }}
-                      autoFocus
-                    />
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-primary btn-sm" onClick={() => saveEdit(n)} disabled={!editDraft.trim()}>
-                        <Check size={12} /> Save
-                      </button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setEditingId(null)}>Cancel</button>
+
+                {canEdit && (
+                  <div style={{ borderTop: '1px solid var(--border-subtle)', padding: 12, background: 'var(--bg-surface)' }}>
+                    {draftImage && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--fg-subtle)', marginBottom: 6 }}>
+                        <ImageIcon size={12} /> {draftImage.name}
+                        <button onClick={() => { setDraftImage(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)' }}>
+                          <X size={12} />
+                        </button>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}>
+                      <textarea
+                        className="form-input"
+                        placeholder="Write a comment…"
+                        value={draft}
+                        onChange={e => setDraft(e.target.value)}
+                        rows={2}
+                        style={{ flex: 1, resize: 'none', fontSize: 12.5 }}
+                      />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+                          onChange={async e => {
+                            const picked = e.target.files?.[0];
+                            originalImageRef.current = picked ?? null; // full-quality original for the direct Dropbox upload
+                            setDraftImage(picked ? await compressImage(picked) : null); // small copy = fallback upload
+                          }} />
+                        <button className="btn btn-ghost btn-sm" onClick={() => fileInputRef.current?.click()} title="Attach image">
+                          <Paperclip size={14} />
+                        </button>
+                        <button className="btn btn-primary btn-sm" onClick={postComment} disabled={posting || (!draft.trim() && !draftImage)} title="Post">
+                          {posting ? <Loader2 size={14} className="qv-spin" /> : <Send size={14} />}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                ) : (
-                  n.body && (
-                    <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, color: 'var(--fg-default)' }}>
-                      {n.body}
-                      {n.edited_at && <span style={{ fontSize: 10.5, color: 'var(--fg-faint)' }}> (edited)</span>}
-                    </div>
-                  )
-                )}
-                {n.image_path && (
-                  imageLinks[n.image_path] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={imageLinks[n.image_path]}
-                      alt=""
-                      onClick={() => setLightbox(imageLinks[n.image_path!])}
-                      style={{ marginTop: 6, maxWidth: 140, maxHeight: 140, borderRadius: 6, cursor: 'zoom-in', display: 'block', border: '1px solid var(--border-subtle)' }}
-                    />
-                  ) : (
-                    <div style={{ marginTop: 6, width: 140, height: 90, borderRadius: 6, background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-faint)' }}>
-                      <ImageIcon size={16} />
-                    </div>
-                  )
                 )}
               </div>
-            ))}
-          </div>
-
-          {canEdit && (
-            <div style={{ borderTop: '1px solid var(--border-subtle)', padding: 12, background: 'var(--bg-surface)' }}>
-              {draftImage && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--fg-subtle)', marginBottom: 6 }}>
-                  <ImageIcon size={12} /> {draftImage.name}
-                  <button onClick={() => { setDraftImage(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)' }}>
-                    <X size={12} />
-                  </button>
-                </div>
               )}
-              <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}>
-                <textarea
-                  className="form-input"
-                  placeholder="Write a comment…"
-                  value={draft}
-                  onChange={e => setDraft(e.target.value)}
-                  rows={2}
-                  style={{ flex: 1, resize: 'none', fontSize: 12.5 }}
-                />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
-                    onChange={async e => {
-                      const picked = e.target.files?.[0];
-                      originalImageRef.current = picked ?? null; // full-quality original for the direct Dropbox upload
-                      setDraftImage(picked ? await compressImage(picked) : null); // small copy = fallback upload
-                    }} />
-                  <button className="btn btn-ghost btn-sm" onClick={() => fileInputRef.current?.click()} title="Attach image">
-                    <Paperclip size={14} />
-                  </button>
-                  <button className="btn btn-primary btn-sm" onClick={postComment} disabled={posting || (!draft.trim() && !draftImage)} title="Post">
-                    {posting ? <Loader2 size={14} className="qv-spin" /> : <Send size={14} />}
-                  </button>
-                </div>
-              </div>
-            </div>
+            />
           )}
         </div>
       </div>

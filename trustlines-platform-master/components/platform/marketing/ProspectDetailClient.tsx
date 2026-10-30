@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Download, ArrowLeft, Building2, Users, MapPin, Trash2, Archive, ArchiveRestore, Target, Clock, ArrowRightCircle, Activity, FileText, Loader2, History } from 'lucide-react';
+import { ArrowLeft, Building2, Users, MapPin, Trash2, Archive, ArchiveRestore, Target, Clock, ArrowRightCircle, Activity, FileText, Loader2, History, Gem, BriefcaseBusiness, CloudSync, CircleDashed, Pause, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { computeProspectCompleteness } from '@/lib/marketing/prospectCompleteness';
+import { OPPORTUNITY_STAGE_LABEL } from '@/lib/marketing/classification';
 import type { NeedClassification } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
 import {
@@ -23,6 +24,12 @@ import { ActivitiesTab } from './prospect-detail/ActivitiesTab';
 import { FilesTab } from './prospect-detail/FilesTab';
 import { HistoryTab } from './prospect-detail/HistoryTab';
 import { feedback } from '@/components/ui/feedback-toast';
+import { cn } from '@/lib/utils';
+
+const ADD_BUTTON = 'inline-flex h-9 items-center justify-center gap-2 rounded-[6px] border border-ui-divider bg-ui-surface-elevated pl-4 pr-[22px] text-[13px] font-semibold leading-[1.4] text-ui-body';
+const ACTION_BUTTON = 'inline-flex h-10 items-center justify-center gap-2 rounded-[6px] border pl-5 pr-6 text-[13px] font-medium';
+const NEED_TONE: Record<NeedClassification, string> = { unclassified: 't0', potential: 't7', opportunity: 't7', disqualified: 't10' };
+const STAGE_TONE: Partial<Record<OpportunityRow['stage'], string>> = { closed_won: 't9', closed_lost: 't10', on_hold: 't0' };
 
 interface Props {
   initialProspect: Prospect;
@@ -37,11 +44,12 @@ interface Props {
   assignees?: { id: string; full_name: string }[];
   canEdit?: boolean;
   onClose?: () => void;
+  aside?: React.ReactNode;
 }
 
 export function ProspectDetailClient({
   initialProspect, initialContacts, initialLocations, initialNeeds, initialPotentials, initialOpportunities,
-  initialFiles = [], showsAttended = [], assignees = [], canEdit, onClose,
+  initialFiles = [], showsAttended = [], assignees = [], canEdit, onClose, aside,
 }: Props) {
   const router = useRouter();
   const [prospect, setProspect] = useState<Prospect>(initialProspect);
@@ -315,220 +323,269 @@ export function ProspectDetailClient({
     setLocations(prev => prev.filter(l => l.id !== id));
   }
 
+  const onHold = opportunities.some(o => o.stage === 'on_hold');
+  const subtitle = [...(prospect.business_types ?? []), prospect.brand_name, prospect.entity_type === 'person' ? prospect.organization_name : null, prospect.entity_type === 'person' ? 'Person' : 'Organization'].filter(Boolean).join(' · ');
+  const address = primaryLocation ? [primaryLocation.city, primaryLocation.address_line_1, primaryLocation.state].filter(Boolean).join(', ') : '';
+
+  function openNeed(id: string) {
+    setTab('needs');
+    requestAnimationFrame(() => document.getElementById(`need-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+  }
+
   return (
-    <>
-      <div style={{ marginBottom: 16 }}>
-        {onClose ? (
-          <button onClick={onClose} className="btn btn-ghost btn-sm" style={{ marginBottom: 10 }}>
-            <ArrowLeft size={14} /> Back
-          </button>
-        ) : (
-          <Link href="/marketing/prospects" className="btn btn-ghost btn-sm" style={{ marginBottom: 10 }}>
-            <ArrowLeft size={14} /> Contacts
-          </Link>
-        )}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>{prospect.display_name}</h1>
-              <span className="pill" style={{ background: prospect.entity_type === 'person' ? 'var(--brand-orange-100)' : 'var(--brand-teal-100)', color: prospect.entity_type === 'person' ? 'var(--brand-orange-600)' : 'var(--brand-teal-600)', fontSize: 10.5 }}>
-                {prospect.entity_type === 'person' ? 'Person' : 'Organization'}
-              </span>
+    <div className={cn('flex min-h-0 flex-col gap-6', onClose && 'h-full')}>
+      {!onClose && (
+        <Link href="/marketing/prospects" className="btn btn-ghost btn-sm self-start">
+          <ArrowLeft size={14} /> Contacts
+        </Link>
+      )}
+      <div className="flex flex-wrap items-stretch justify-between gap-4">
+        <div className="flex min-w-0 flex-col items-start gap-4">
+          <div className="flex min-w-0 flex-col items-start">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">{prospect.display_name}</h1>
+              {onHold && (
+                <span className="inline-flex h-[22px] items-center gap-1 rounded-[4px] px-2.5 text-[12px] font-medium leading-4" style={{ background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}>
+                  <Pause size={14} aria-hidden /> On Hold
+                </span>
+              )}
             </div>
-            {prospect.brand_name && <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>{prospect.brand_name}</p>}
-            {prospect.entity_type === 'person' && prospect.organization_name && (
-              <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>{prospect.organization_name}</p>
-            )}
+            <p className="m-0 text-[14px] font-medium leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">{subtitle}</p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {canEdit && (
-              <>
-                <button className="btn btn-secondary btn-sm" onClick={() => { setTab('needs'); setAddingNeedIntent('potential'); setAddingNeed(true); }}>
-                  <Clock size={13} /> Add Potential
-                </button>
-                <button className="btn btn-secondary btn-sm" onClick={() => { setTab('needs'); setAddingNeedIntent('opportunity'); setAddingNeed(true); }}>
-                  <ArrowRightCircle size={13} /> Add Opportunity
-                </button>
-                <button className="btn btn-secondary btn-sm" onClick={() => { setTab('history'); setAddingHistoricalProject(true); }}>
-                  <History size={13} /> Add Project
-                </button>
-              </>
-            )}
-            {canEdit ? (
-              <Select className="form-input" style={{ fontSize: 12, width: 200 }} value={prospect.status}
-                onChange={e => patch({ status: e.target.value })}>
-                {STATUSES.map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-              </Select>
-            ) : (
-              <span className="pill" style={{ background: 'var(--bg-sunken)', color: 'var(--fg-subtle)' }}>{STATUS_LABEL[prospect.status]}</span>
-            )}
-            <button className="btn btn-secondary btn-sm" disabled={backingUp} onClick={backUpThisContact} title="Save this Contact's whole card (people, locations, needs, potentials, notes…) to Dropbox as Excel + JSON">
-              {backingUp ? <Loader2 size={13} className="spin" /> : <Download size={13} />} Back up
-            </button>
-            {canEdit && (
-              <button className="btn btn-secondary btn-sm" onClick={() => patch({ is_archived: !prospect.is_archived })}>
-                {prospect.is_archived ? <><ArchiveRestore size={13} /> Unarchive</> : <><Archive size={13} /> Archive</>}
-              </button>
-            )}
-            {canEdit && (
-              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }} onClick={trashProspect}>
-                <Trash2 size={13} /> Delete
-              </button>
-            )}
-          </div>
+          {opportunities.length > 0 && (
+            <span className="inline-flex h-[22px] items-center gap-2 rounded-[4px] bg-[#DAE6F0] px-2.5 text-[12px] font-medium leading-4 text-[#1D5078]">
+              <span className="size-1.5 rounded-full bg-current" aria-hidden /> Clients Opportunity
+            </span>
+          )}
+          {address && <p className="m-0 text-[14px] leading-[1.35] text-ui-text-secondary">{address}</p>}
         </div>
-
-        <div style={{ marginTop: 12, maxWidth: 360 }} title={completeness.checks.filter(c => !c.done).map(c => c.label).join(', ') || 'All fields filled'}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--fg-subtle)', marginBottom: 3 }}>
-            <span>Profile completeness</span>
-            <span>{completeness.filledCount}/{completeness.totalCount} · {completeness.percent}%</span>
-          </div>
-          <div style={{ height: 5, borderRadius: 3, background: 'var(--bg-sunken)', overflow: 'hidden' }}>
-            <div style={{
-              height: '100%', width: `${completeness.percent}%`, borderRadius: 3,
-              background: completeness.percent >= 80 ? 'var(--status-success)' : completeness.percent >= 40 ? 'var(--status-warning)' : 'var(--status-danger)',
-              transition: 'width 0.2s',
-            }} />
+        <div className="flex flex-col items-end justify-between gap-4">
+          {onClose ? (
+            <button type="button" onClick={onClose} aria-label="Close" className="border-0 bg-transparent p-0 text-[var(--color-secondary-700)] dark:text-ui-heading">
+              <X size={32} strokeWidth={1.5} aria-hidden />
+            </button>
+          ) : <span />}
+          <div className="flex flex-wrap items-center justify-end gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              {canEdit && (
+                <>
+                  <button type="button" className={ADD_BUTTON} title="Add Potential" onClick={() => { setTab('needs'); setAddingNeedIntent('potential'); setAddingNeed(true); }}>
+                    <Clock size={16} aria-hidden /> Potential
+                  </button>
+                  <button type="button" className={ADD_BUTTON} title="Add Opportunity" onClick={() => { setTab('needs'); setAddingNeedIntent('opportunity'); setAddingNeed(true); }}>
+                    <Gem size={16} aria-hidden /> Opportunity
+                  </button>
+                  <button type="button" className={ADD_BUTTON} title="Add Project" onClick={() => { setTab('history'); setAddingHistoricalProject(true); }}>
+                    <BriefcaseBusiness size={16} aria-hidden /> Project
+                  </button>
+                </>
+              )}
+              {canEdit ? (
+                <Select className="form-input" style={{ fontSize: 13, height: 36, width: 'auto', minWidth: 101 }} value={prospect.status}
+                  onChange={e => patch({ status: e.target.value })}>
+                  {STATUSES.map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                </Select>
+              ) : (
+                <span className="inline-flex h-9 items-center rounded-[6px] border border-ui-input-border bg-ui-input-bg px-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:text-ui-heading">{STATUS_LABEL[prospect.status]}</span>
+              )}
+            </div>
+            <span className="h-9 w-px bg-ui-divider" aria-hidden />
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {canEdit && (
+                <button type="button" className={cn(ACTION_BUTTON, 'border-[var(--status-t10-fg)]')} style={{ background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' }} onClick={trashProspect}>
+                  <Trash2 size={16} aria-hidden /> Delete
+                </button>
+              )}
+              <button type="button" className={cn(ACTION_BUTTON, 'border-[var(--color-secondary-700)] bg-transparent text-[var(--color-secondary-700)] dark:border-[#EEF2F6] dark:text-[#EEF2F6]')} disabled={backingUp} onClick={backUpThisContact} title="Save this Contact's whole card (people, locations, needs, potentials, notes…) to Dropbox as Excel + JSON">
+                {backingUp ? <Loader2 size={16} className="spin" /> : <CloudSync size={16} aria-hidden />} Back up
+              </button>
+              {canEdit && (
+                <button type="button" className={cn(ACTION_BUTTON, 'border-transparent bg-[var(--color-secondary-700)] text-white dark:bg-[#EEF2F6] dark:text-[#0A0C0F]')} onClick={() => patch({ is_archived: !prospect.is_archived })}>
+                  {prospect.is_archived ? <><ArchiveRestore size={16} aria-hidden /> Unarchive</> : <><Archive size={16} aria-hidden /> Archive</>}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border-subtle)', marginBottom: 18 }}>
-        {([
-          { key: 'overview', label: 'Overview', icon: Building2 },
-          { key: 'contacts', label: `Contacts (${contacts.length})`, icon: Users },
-          { key: 'locations', label: `Locations (${locations.length})`, icon: MapPin },
-          { key: 'needs', label: `Needs (${needs.length})`, icon: Target },
-          { key: 'potentials', label: `Potentials (${activePotentials.length})`, icon: Clock },
-          { key: 'opportunities', label: `Opportunities (${opportunities.length})`, icon: ArrowRightCircle },
-          { key: 'activities', label: 'Emails & activity', icon: Activity },
-          { key: 'files', label: 'Files', icon: FileText },
-          { key: 'history', label: `Past Projects (${historicalProjects.length})`, icon: History },
-        ] as { key: Tab; label: string; icon: typeof Building2 }[]).map(t => {
-          const Icon = t.icon;
-          const active = tab === t.key;
-          return (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className="btn btn-ghost btn-sm"
-              style={{
-                borderRadius: 0, borderBottom: active ? '2px solid var(--ui-tab-accent, var(--brand-navy))' : '2px solid transparent',
-                boxShadow: active ? 'var(--ui-tab-glow, none)' : 'none',
-                color: active ? 'var(--ui-tab-accent-text, var(--fg-default))' : 'var(--fg-subtle)', fontWeight: active ? 600 : 500,
-              }}
-            >
-              <Icon size={14} /> {t.label}
-            </button>
-          );
-        })}
+      <div className="flex min-h-0 flex-1 gap-4">
+        <div className="flex w-[262px] shrink-0 flex-col gap-2 overflow-y-auto rounded-[8px] bg-ui-surface p-2">
+          {needs.length === 0 && <p className="m-auto p-4 text-center text-[13px] text-ui-text-secondary">No needs yet.</p>}
+          {needs.map(n => {
+            const stage = opportunities.find(o => o.need_id === n.id)?.stage;
+            const tone = stage ? STAGE_TONE[stage] ?? 't7' : NEED_TONE[n.classification];
+            return (
+              <button key={n.id} type="button" onClick={() => openNeed(n.id)} className="flex w-full shrink-0 flex-col items-start gap-2 rounded-[6px] border-0 bg-ui-page-bg px-5 py-3 text-left">
+                <span className="flex w-full flex-col gap-[3px] leading-[1.4]">
+                  <span className="truncate text-[13px] font-semibold text-ui-body">{n.title}</span>
+                  {(n.description || n.source) && <span className="truncate text-[11px] text-ui-text-secondary">{n.description || n.source}</span>}
+                </span>
+                <span className="inline-flex max-w-full items-center gap-1 rounded-[4px] py-[3px] pl-2 pr-2.5 text-[12px] font-medium leading-4" style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}>
+                  <CircleDashed size={14} aria-hidden className="shrink-0" />
+                  <span className="truncate">{stage ? OPPORTUNITY_STAGE_LABEL[stage] : NEED_CLASSIFICATION_LABEL[n.classification]}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex min-w-0 flex-1 overflow-hidden rounded-[8px] border border-ui-divider bg-ui-surface">
+          <div className="min-w-0 flex-1 overflow-y-auto p-4">
+            <div style={{ marginBottom: 12, maxWidth: 360 }} title={completeness.checks.filter(c => !c.done).map(c => c.label).join(', ') || 'All fields filled'}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--fg-subtle)', marginBottom: 3 }}>
+                <span>Profile completeness</span>
+                <span>{completeness.filledCount}/{completeness.totalCount} · {completeness.percent}%</span>
+              </div>
+              <div style={{ height: 5, borderRadius: 3, background: 'var(--bg-sunken)', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', width: `${completeness.percent}%`, borderRadius: 3,
+                  background: completeness.percent >= 80 ? 'var(--status-success)' : completeness.percent >= 40 ? 'var(--status-warning)' : 'var(--status-danger)',
+                  transition: 'width 0.2s',
+                }} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, borderBottom: '1px solid var(--border-subtle)', marginBottom: 18 }}>
+              {([
+                { key: 'overview', label: 'Overview', icon: Building2 },
+                { key: 'contacts', label: `Contacts (${contacts.length})`, icon: Users },
+                { key: 'locations', label: `Locations (${locations.length})`, icon: MapPin },
+                { key: 'needs', label: `Needs (${needs.length})`, icon: Target },
+                { key: 'potentials', label: `Potentials (${activePotentials.length})`, icon: Clock },
+                { key: 'opportunities', label: `Opportunities (${opportunities.length})`, icon: ArrowRightCircle },
+                { key: 'activities', label: 'Emails & activity', icon: Activity },
+                { key: 'files', label: 'Files', icon: FileText },
+                { key: 'history', label: `Past Projects (${historicalProjects.length})`, icon: History },
+              ] as { key: Tab; label: string; icon: typeof Building2 }[]).map(t => {
+                const Icon = t.icon;
+                const active = tab === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => setTab(t.key)}
+                    className="btn btn-ghost btn-sm"
+                    style={{
+                      borderRadius: 0, borderBottom: active ? '2px solid var(--ui-tab-accent, var(--brand-navy))' : '2px solid transparent',
+                      boxShadow: active ? 'var(--ui-tab-glow, none)' : 'none',
+                      color: active ? 'var(--ui-tab-accent-text, var(--fg-default))' : 'var(--fg-subtle)', fontWeight: active ? 600 : 500,
+                    }}
+                  >
+                    <Icon size={14} /> {t.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {tab === 'overview' && (
+              <OverviewTab
+                prospect={prospect}
+                primaryContact={primaryContact}
+                primaryLocation={primaryLocation}
+                showsAttended={showsAttended}
+                needs={needs}
+                canEdit={canEdit}
+                editingProfile={editingProfile}
+                setEditingProfile={setEditingProfile}
+                onPatch={patch}
+                onUpdateContact={updateContact}
+                onViewNeeds={() => setTab('needs')}
+              />
+            )}
+
+            {tab === 'contacts' && (
+              <ContactsTab
+                contacts={contacts}
+                canEdit={canEdit}
+                addingContact={addingContact}
+                setAddingContact={setAddingContact}
+                editingContactId={editingContactId}
+                setEditingContactId={setEditingContactId}
+                onSave={saveContact}
+                onUpdate={updateContact}
+                onDelete={deleteContact}
+              />
+            )}
+
+            {tab === 'locations' && (
+              <LocationsTab
+                locations={locations}
+                canEdit={canEdit}
+                addingLocation={addingLocation}
+                setAddingLocation={setAddingLocation}
+                editingLocationId={editingLocationId}
+                setEditingLocationId={setEditingLocationId}
+                onSave={saveLocation}
+                onUpdate={updateLocation}
+                onDelete={deleteLocation}
+              />
+            )}
+
+            {tab === 'needs' && (
+              <NeedsTab
+                prospect={prospect}
+                needs={needs}
+                opportunities={opportunities}
+                potentials={potentials}
+                locations={locations}
+                canEdit={canEdit}
+                addingNeed={addingNeed}
+                setAddingNeed={setAddingNeed}
+                addingNeedIntent={addingNeedIntent}
+                editingNeedId={editingNeedId}
+                setEditingNeedId={setEditingNeedId}
+                onSave={saveNeed}
+                onUpdate={updateNeed}
+                onTrash={trashNeed}
+                setNeeds={setNeeds}
+                setOpportunities={setOpportunities}
+                setPotentials={setPotentials}
+                setTab={setTab}
+              />
+            )}
+
+            {tab === 'potentials' && <PotentialsTab activePotentials={activePotentials} donePotentials={donePotentials} />}
+
+            {tab === 'opportunities' && (
+              <OpportunitiesTab
+                opportunities={opportunities}
+                canEdit={canEdit}
+                assignees={assignees}
+                expandedOppId={expandedOppId}
+                setExpandedOppId={setExpandedOppId}
+                handingOffId={handingOffId}
+                onHandOff={handOffOpportunity}
+              />
+            )}
+
+            {tab === 'activities' && <ActivitiesTab prospect={prospect} contacts={contacts} canEdit={canEdit} />}
+
+            {tab === 'files' && (
+              <FilesTab
+                files={files}
+                canEdit={canEdit}
+                fileInputRef={fileInputRef}
+                uploadingFile={uploadingFile}
+                onUpload={uploadFile}
+                onView={viewFile}
+                onDelete={deleteFile}
+              />
+            )}
+
+            {tab === 'history' && (
+              <HistoryTab
+                canEdit={canEdit}
+                addingHistoricalProject={addingHistoricalProject}
+                setAddingHistoricalProject={setAddingHistoricalProject}
+                historicalProjectsLoaded={historicalProjectsLoaded}
+                historicalProjects={historicalProjects}
+                onSave={saveHistoricalProject}
+              />
+            )}
+          </div>
+          {aside}
+        </div>
       </div>
-
-      {tab === 'overview' && (
-        <OverviewTab
-          prospect={prospect}
-          primaryContact={primaryContact}
-          primaryLocation={primaryLocation}
-          showsAttended={showsAttended}
-          needs={needs}
-          canEdit={canEdit}
-          editingProfile={editingProfile}
-          setEditingProfile={setEditingProfile}
-          onPatch={patch}
-          onUpdateContact={updateContact}
-          onViewNeeds={() => setTab('needs')}
-        />
-      )}
-
-      {tab === 'contacts' && (
-        <ContactsTab
-          contacts={contacts}
-          canEdit={canEdit}
-          addingContact={addingContact}
-          setAddingContact={setAddingContact}
-          editingContactId={editingContactId}
-          setEditingContactId={setEditingContactId}
-          onSave={saveContact}
-          onUpdate={updateContact}
-          onDelete={deleteContact}
-        />
-      )}
-
-      {tab === 'locations' && (
-        <LocationsTab
-          locations={locations}
-          canEdit={canEdit}
-          addingLocation={addingLocation}
-          setAddingLocation={setAddingLocation}
-          editingLocationId={editingLocationId}
-          setEditingLocationId={setEditingLocationId}
-          onSave={saveLocation}
-          onUpdate={updateLocation}
-          onDelete={deleteLocation}
-        />
-      )}
-
-      {tab === 'needs' && (
-        <NeedsTab
-          prospect={prospect}
-          needs={needs}
-          opportunities={opportunities}
-          potentials={potentials}
-          locations={locations}
-          canEdit={canEdit}
-          addingNeed={addingNeed}
-          setAddingNeed={setAddingNeed}
-          addingNeedIntent={addingNeedIntent}
-          editingNeedId={editingNeedId}
-          setEditingNeedId={setEditingNeedId}
-          onSave={saveNeed}
-          onUpdate={updateNeed}
-          onTrash={trashNeed}
-          setNeeds={setNeeds}
-          setOpportunities={setOpportunities}
-          setPotentials={setPotentials}
-          setTab={setTab}
-        />
-      )}
-
-      {tab === 'potentials' && <PotentialsTab activePotentials={activePotentials} donePotentials={donePotentials} />}
-
-      {tab === 'opportunities' && (
-        <OpportunitiesTab
-          opportunities={opportunities}
-          canEdit={canEdit}
-          assignees={assignees}
-          expandedOppId={expandedOppId}
-          setExpandedOppId={setExpandedOppId}
-          handingOffId={handingOffId}
-          onHandOff={handOffOpportunity}
-        />
-      )}
-
-      {tab === 'activities' && <ActivitiesTab prospect={prospect} contacts={contacts} canEdit={canEdit} />}
-
-      {tab === 'files' && (
-        <FilesTab
-          files={files}
-          canEdit={canEdit}
-          fileInputRef={fileInputRef}
-          uploadingFile={uploadingFile}
-          onUpload={uploadFile}
-          onView={viewFile}
-          onDelete={deleteFile}
-        />
-      )}
-
-      {tab === 'history' && (
-        <HistoryTab
-          canEdit={canEdit}
-          addingHistoricalProject={addingHistoricalProject}
-          setAddingHistoricalProject={setAddingHistoricalProject}
-          historicalProjectsLoaded={historicalProjectsLoaded}
-          historicalProjects={historicalProjects}
-          onSave={saveHistoricalProject}
-        />
-      )}
-    </>
+    </div>
   );
 }
