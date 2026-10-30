@@ -41,6 +41,8 @@ export interface ClientOpportunityRow {
   request: string | null;
   priority: string | null;
   createdAt: string;           // ClickUp's created date when it came from ClickUp
+  ownerId: string | null;      // sales owner, else marketing owner (Potential: assignee)
+  ownerIsSales: boolean;
   matchedBy: 'name' | 'link';
 }
 
@@ -53,9 +55,16 @@ export interface KeyClientsData {
 export async function loadKeyClients(admin: any, opts: { includeInactive?: boolean } = {}): Promise<KeyClientsData> {
   let q = admin.from('key_clients').select('id, name, aliases, notes, is_active').is('deleted_at', null).order('name');
   if (!opts.includeInactive) q = q.eq('is_active', true);
-  const [{ data: clients, error }, { data: links, error: lErr }] = await Promise.all([
-    q, admin.from('key_client_links').select('id, key_client_id, opportunity_id, potential_id, prospect_id, mode, note'),
+  const linkCols = 'id, key_client_id, opportunity_id, potential_id, prospect_id, mode, note';
+  const [{ data: clients, error }, linkRes] = await Promise.all([
+    q, admin.from('key_client_links').select(linkCols),
   ]);
+  let { data: links, error: lErr } = linkRes;
+  // A database made from an early draft of 134 has no potential_id (136 adds it) — still list
+  // the clients' deals; only Potential links are unavailable there.
+  if (lErr && /potential_id/.test(lErr.message)) {
+    ({ data: links, error: lErr } = await admin.from('key_client_links').select(linkCols.replace(' potential_id,', '')));
+  }
   if (error || lErr) throw Object.assign(new Error((error ?? lErr).message), { code: (error ?? lErr).code });
   return { clients: (clients ?? []).map((c: any) => ({ ...c, aliases: c.aliases ?? [] })), links: links ?? [] };
 }
@@ -72,8 +81,8 @@ async function readAll(build: (from: number, to: number) => PromiseLike<{ data: 
   return out;
 }
 
-const OPP_COLS = 'id, prospect_id, title, brand, stage, region, external_project_code, external_stage_label, to_do_raw, next_action, next_action_date, deadline, project_types, project_type_raw, request_raw, priority, external_created_at, created_at';
-const POT_COLS = 'id, prospect_id, title, brand, status, region, external_project_code, external_stage_label, to_do_raw, target_contact_date, due_date, project_type_raw, request_raw, priority, external_created_at, created_at';
+const OPP_COLS = 'id, prospect_id, title, brand, stage, region, external_project_code, external_stage_label, to_do_raw, next_action, next_action_date, deadline, project_types, project_type_raw, request_raw, priority, external_created_at, created_at, sales_owner_id, marketing_owner_id';
+const POT_COLS = 'id, prospect_id, title, brand, status, region, external_project_code, external_stage_label, to_do_raw, target_contact_date, due_date, project_type_raw, request_raw, priority, external_created_at, created_at, assigned_to';
 
 /** Every open deal of a key client, grouped by region (sheet order). */
 export async function loadClientOpportunities(admin: any): Promise<{
@@ -117,6 +126,8 @@ export async function loadClientOpportunities(admin: any): Promise<{
       projectTypes: o.project_types ?? [], projectTypeRaw: o.project_type_raw ?? null,
       request: o.request_raw ?? null, priority: o.priority ?? null,
       createdAt: o.external_created_at ?? o.created_at,
+      ownerId: isOpp ? o.sales_owner_id ?? o.marketing_owner_id ?? null : o.assigned_to ?? null,
+      ownerIsSales: isOpp && !!o.sales_owner_id,
       matchedBy: linked.has(o.id) || linked.has(o.prospect_id) ? 'link' : 'name',
     };
     (regions[o.region ?? ''] ??= []).push(row);
