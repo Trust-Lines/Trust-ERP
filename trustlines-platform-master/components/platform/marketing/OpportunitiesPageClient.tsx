@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { OpportunityQuickView } from './OpportunityQuickView';
+import type { QuickViewTarget } from '@/lib/marketing/quickViewLink';
 import { MarketingPipelineNav } from './MarketingPipelineNav';
 import type { OpportunityStage, ProjectType, LeadEntityType } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
@@ -62,6 +63,8 @@ interface Props {
   loadError?: boolean;
   prospectTotal: number | null;
   assignees: { id: string; full_name: string }[];
+  /** ?open=<id>&kind=…&focus=… — open that deal on load, missing fields highlighted (lib/marketing/quickViewLink.ts). */
+  initialOpen?: QuickViewTarget | null;
 }
 
 const DATE_TIME = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -99,14 +102,14 @@ function csvCell(v: string | number | null | undefined): string {
 // 🔴 2026-09-17: this page is Marketing's Potentials-only work queue now — once a Potential
 // is handed off, it's Sales's business (/leads, which already merges it in). Every row on
 // this page is therefore always "Potential"; there's nothing to drop it down to here.
-export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, prospectTotal, assignees }: Props) {
+export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, prospectTotal, assignees, initialOpen = null }: Props) {
   const [deals, setDeals] = useState(initialDeals);
   const [query, setQuery] = useState('');
   const [regionFilter, setRegionFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState('');
   const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [open, setOpen] = useState<{ id: string; kind: 'opportunity' | 'potential' } | null>(null);
+  const [open, setOpen] = useState<{ id: string; kind: 'opportunity' | 'potential'; focus?: string[] } | null>(initialOpen);
   const [savingAssignee, setSavingAssignee] = useState<string | null>(null);
 
   async function changeAssignee(d: DealRow, userId: string) {
@@ -349,6 +352,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
         <OpportunityQuickView
           opportunityId={open.id}
           kind={open.kind}
+          focusFields={open.focus}
           assignees={assignees}
           canEdit={canEdit}
           onClose={() => setOpen(null)}

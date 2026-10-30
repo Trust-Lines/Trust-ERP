@@ -117,6 +117,12 @@ export default async function MarketingWorkspacePage() {
 
   const teamGapSections = teamGaps;
 
+  // Same pool as Marketing → Opportunities: who a deal can be assigned to in the quick view that a
+  // "… needs region/state" notification opens in place.
+  const { data: assignees } = await admin.from('profiles').select('id, full_name')
+    .in('role', ['marketing_pr', 'marketing_manager', 'sales_rep', 'sales_marketing_manager', 'ops_manager', 'general_manager'])
+    .eq('is_active', true).order('full_name', { ascending: true });
+
   return (
     <div style={{ padding: '24px 32px' }}>
       <MarketingWorkspaceClient
@@ -127,6 +133,7 @@ export default async function MarketingWorkspacePage() {
         potentialCount={potentialRes.error ? null : (potentialRes.count ?? 0)}
         myDaySections={myDay.sections}
         teamGapSections={teamGapSections}
+        assignees={(assignees ?? []) as { id: string; full_name: string }[]}
         myStats={{
           contactsTotal, incompleteCount, unqualifiedCount, contractSignedCount,
           weeklyActivityCount: weeklyActivityCount ?? 0,

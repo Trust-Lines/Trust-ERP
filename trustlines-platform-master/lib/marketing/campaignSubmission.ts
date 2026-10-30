@@ -3,6 +3,7 @@
 
 import { normalizeEmail, normalizePhone } from './duplicates';
 import { runClassificationForNeed, type NeedSyncResult } from './opportunityEngine';
+import { focusFromMissing, quickViewLink } from './quickViewLink';
 import { PROJECT_TYPES, TIMINGS } from './classification';
 import { logAudit } from '@/lib/audit/log';
 import { normalizeRepresentative, setCreatedByLabelIfEmpty } from './surveyRepresentatives';
@@ -360,6 +361,12 @@ async function notifyIncompleteSubmission(
       || [dto.firstName, dto.lastName].filter(Boolean).join(' ').trim()
       || 'A new survey response';
     const recordKind = sync.opportunity ? 'an Opportunity' : sync.potential ? 'a Potential' : 'a Lead';
+    // Opens that deal's quick view with the missing fields highlighted (lib/marketing/quickViewLink.ts).
+    const oppId = sync.opportunity?.id as string | undefined;
+    const potId = sync.potential?.id as string | undefined;
+    const link = oppId ? quickViewLink('opportunity', oppId, focusFromMissing(missing.join(' ')))
+      : potId ? quickViewLink('potential', potId, focusFromMissing(missing.join(' ')))
+      : '/marketing/opportunities';
 
     const recipients = [...await usersWithRoles(admin, ['sales_marketing_manager', 'marketing_manager']), attributionUser(campaign)];
     await notifyUsers(admin, {
@@ -367,8 +374,8 @@ async function notifyIncompleteSubmission(
       projectId: null,
       type: 'survey.incomplete_submission',
       title: `${name} needs ${missing.join(' and ')}`,
-      body: `"${campaign.name}" just created ${recordKind} for ${name}, but it's missing ${missing.join(' and ')}. Open the CRM board and fill it in.`,
-      link: '/leads',
+      body: `"${campaign.name}" just created ${recordKind} for ${name}, but it's missing ${missing.join(' and ')}. Open it and fill it in.`,
+      link,
     });
   } catch (e) {
     console.error('[campaignSubmission] incomplete-data notification failed:', e instanceof Error ? e.message : e);

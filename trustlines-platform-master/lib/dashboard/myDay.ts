@@ -1,4 +1,5 @@
 
+import { focusFromMissing, parseQuickView, quickViewLink, type QuickViewTarget } from '@/lib/marketing/quickViewLink';
 import { canSeeInternalSupply } from '@/lib/lifecycle/projectLifecycle';
 import { skillForType } from '@/lib/team/derive';
 import { buildQcQueue, isInspectable, type QcItem, type QcInspection } from '@/lib/qc/queue';
@@ -11,6 +12,12 @@ export interface MyDayItem {
   href:     string;
   badge?:   string;
   tone?:    'default' | 'warn' | 'danger' | 'good';
+  /** Open this deal's quick view in place instead of navigating (lib/marketing/quickViewLink.ts). */
+  quickView?: QuickViewTarget;
+  /** The notifications row behind this item (marked read when opened). */
+  notificationId?: string;
+  /** Its record is gone (deleted since): Open just clears it — nowhere to go. */
+  stale?: boolean;
 }
 
 export interface MyDaySection {
@@ -113,15 +120,43 @@ async function buildSignatures(admin: any, userId: string): Promise<MyDaySection
 
 async function buildNotifications(admin: any, userId: string): Promise<MyDaySection> {
   const { data } = await admin.from('notifications')
-    .select('id, title, link, created_at').eq('user_id', userId).eq('is_read', false)
+    .select('id, type, title, link, created_at').eq('user_id', userId).eq('is_read', false)
     .order('created_at', { ascending: false }).limit(8) as {
-      data: { id: string; title: string; link: string | null; created_at: string }[] | null;
+      data: { id: string; type: string; title: string; link: string | null; created_at: string }[] | null;
     };
   const rows = data ?? [];
-  return {
-    key: 'notifications', title: 'Unread notifications',
-    items: rows.map(n => ({ label: n.title, href: n.link ?? '/notifications' })),
-  };
+  const items: MyDayItem[] = [];
+  for (const n of rows) {
+    let quickView = parseQuickView(n.link);
+    // Older "<name> needs region/state" notifications only linked to the Sales CRM board ('/leads',
+    // which Marketing can't open): find the deal by the name in the title.
+    if (!quickView && n.type === 'survey.incomplete_submission') quickView = await findIncompleteDeal(admin, n.title);
+    const stale = !quickView && n.type === 'survey.incomplete_submission';
+    items.push({
+      label: n.title, notificationId: n.id, quickView: quickView ?? undefined, stale: stale || undefined,
+      href: quickView ? quickViewLink(quickView.kind, quickView.id, quickView.focus) : stale ? '/marketing' : (n.link ?? '/notifications'),
+      sublabel: stale ? 'This record was deleted' : undefined,
+    });
+  }
+  return { key: 'notifications', title: 'Unread notifications', items };
+}
+
+/** "<name> needs …" → that Prospect's newest open Opportunity (else Potential), plus the fields to fill. */
+async function findIncompleteDeal(admin: any, title: string): Promise<QuickViewTarget | null> {
+  const m = title.match(/^(.*?)\s+needs\s+(.+)$/i);
+  if (!m) return null;
+  const { data: prospects } = await admin.from('prospects').select('id')
+    .ilike('display_name', m[1].replace(/[%_\\]/g, ch => `\\${ch}`)).is('deleted_at', null)
+    .order('created_at', { ascending: false }).limit(1);
+  const prospectId = (prospects as { id: string }[] | null)?.[0]?.id;
+  if (!prospectId) return null;
+  const focus = focusFromMissing(m[2]);
+  const { data: opp } = await admin.from('opportunities').select('id').eq('prospect_id', prospectId).is('deleted_at', null)
+    .order('created_at', { ascending: false }).limit(1);
+  if (opp?.[0]?.id) return { kind: 'opportunity', id: opp[0].id, focus };
+  const { data: pot } = await admin.from('prospect_potentials').select('id').eq('prospect_id', prospectId).is('deleted_at', null)
+    .order('created_at', { ascending: false }).limit(1);
+  return pot?.[0]?.id ? { kind: 'potential', id: pot[0].id, focus } : null;
 }
 
 async function myProjects(admin: any, userId: string, slot: 'tlines_pm_id' | 'trustlines_pm_id'): Promise<{ id: string; code: string; name: string }[]> {
