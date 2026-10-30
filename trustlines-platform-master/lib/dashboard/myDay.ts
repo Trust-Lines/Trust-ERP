@@ -16,6 +16,8 @@ export interface MyDayItem {
   quickView?: QuickViewTarget;
   /** The notifications row behind this item (marked read when opened). */
   notificationId?: string;
+  /** Its record is gone (deleted since): Open just clears it — nowhere to go. */
+  stale?: boolean;
 }
 
 export interface MyDaySection {
@@ -129,12 +131,11 @@ async function buildNotifications(admin: any, userId: string): Promise<MyDaySect
     // Older "<name> needs region/state" notifications only linked to the Sales CRM board ('/leads',
     // which Marketing can't open): find the deal by the name in the title.
     if (!quickView && n.type === 'survey.incomplete_submission') quickView = await findIncompleteDeal(admin, n.title);
+    const stale = !quickView && n.type === 'survey.incomplete_submission';
     items.push({
-      label: n.title, notificationId: n.id, quickView: quickView ?? undefined,
-      href: quickView ? quickViewLink(quickView.kind, quickView.id, quickView.focus)
-        // Deal not found (e.g. deleted since): still somewhere Marketing can open, never '/leads'.
-        : n.type === 'survey.incomplete_submission' ? '/marketing/opportunities'
-        : (n.link ?? '/notifications'),
+      label: n.title, notificationId: n.id, quickView: quickView ?? undefined, stale: stale || undefined,
+      href: quickView ? quickViewLink(quickView.kind, quickView.id, quickView.focus) : stale ? '/marketing' : (n.link ?? '/notifications'),
+      sublabel: stale ? 'This record was deleted' : undefined,
     });
   }
   return { key: 'notifications', title: 'Unread notifications', items };

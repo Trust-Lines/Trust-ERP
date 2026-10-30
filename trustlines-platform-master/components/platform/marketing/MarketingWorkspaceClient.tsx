@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { MyDayItem, MyDaySection } from '@/lib/dashboard/myDay';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import { OpportunityQuickView } from './OpportunityQuickView';
 import { StatCard } from '@/components/platform/shared/StatCard';
 
@@ -166,12 +167,19 @@ function InboxPanel({ items: initialItems, assignees }: { items: MyDayItem[]; as
   // Sales CRM board), with the missing fields highlighted.
   const [open, setOpen] = useState<MyDayItem | null>(null);
 
+  function markRead(item: MyDayItem) {
+    // RLS lets a user mark only their own notifications read.
+    if (item.notificationId) void createClient().from('notifications').update({ is_read: true } as never).eq('id', item.notificationId);
+  }
   function openInPlace(item: MyDayItem) {
-    setOpen(item);
-    if (item.notificationId) {
-      // RLS lets a user mark only their own notifications read.
-      void createClient().from('notifications').update({ is_read: true } as never).eq('id', item.notificationId);
+    markRead(item);
+    if (item.stale) {
+      // Its record was deleted: nothing to open — clear it instead of sending anyone elsewhere.
+      setItems(list => list.filter(i => i !== item));
+      toast.info('That record was deleted — notification cleared');
+      return;
     }
+    setOpen(item);
   }
 
   return (
@@ -206,7 +214,7 @@ function InboxPanel({ items: initialItems, assignees }: { items: MyDayItem[]; as
               {item.badge && item.tone && item.tone !== 'default' && (
                 <StatusChip tone={item.tone} label={item.badge} />
               )}
-              {item.quickView ? (
+              {item.quickView || item.stale ? (
                 <button
                   type="button" onClick={() => openInPlace(item)}
                   className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[6px] border border-ui-divider bg-ui-input-bg px-3 text-[13px] font-medium leading-[1.4] text-ui-body outline-none hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
