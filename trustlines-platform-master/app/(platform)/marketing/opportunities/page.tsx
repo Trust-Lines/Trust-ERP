@@ -3,6 +3,7 @@ import { requirePage } from '@/lib/permissions/requirePage';
 import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { SALES_HANDOFF_ROLES } from '@/lib/sales/roles';
 import { OpportunitiesPageClient, type DealRow } from '@/components/platform/marketing/OpportunitiesPageClient';
+import { parseQuickView } from '@/lib/marketing/quickViewLink';
 import type { UserRole, LeadEntityType } from '@/types/database';
 
 // Per-user, RLS-scoped counts — never serve a cached render across users/sessions.
@@ -16,7 +17,7 @@ const POT_COLS = 'id, prospect_id, primary_contact_id, title, potential_type, st
   + 'industry_raw, brand, state, formatted_address, request_raw, to_do_raw, tags, external_project_code, '
   + 'auto_managed, external_stage_label, created_at, external_created_at, updated_at';
 
-export default async function OpportunitiesListPage() {
+export default async function OpportunitiesListPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   await requirePage('page.marketing_contacts');
   const supabase = await createClient();
 
@@ -115,6 +116,7 @@ export default async function OpportunitiesListPage() {
         initialDeals={deals} canEdit={canEdit} loadError={loadError}
         prospectTotal={prospectTotal}
         assignees={people ?? []}
+        initialOpen={parseQuickView(await searchParams)}
       />
     </div>
   );
