@@ -161,14 +161,15 @@ export default async function DashboardPage() {
       .sort((a, b) => a.client.localeCompare(b.client) || b.createdAt.localeCompare(a.createdAt));
 
     const opportunityItems: BoardCardItem[] = regionOpportunities.map(o => {
-      const [top, bottom] = opportunityBadge(o.projectCode);
+      // Badge = the sheet's project number ("#507"); deals without one keep their code / "OP".
+      const [top, bottom] = o.projectNo ? [`#${o.projectNo}`, ''] : opportunityBadge(o.projectCode);
       // ClickUp's "date created" when imported (when it became an opportunity there), else ours.
       const becameOpportunityDate = o.createdAt.slice(0, 10);
       return {
         id: o.id, kind: 'opportunity',
         badgeTop: top, badgeBottom: bottom,
-        title: `${o.client} · ${o.site}`,
-        subtitle: prospectPlace.get(o.prospectId) ?? null,
+        title: o.client,
+        subtitle: o.site || (prospectPlace.get(o.prospectId) ?? null),
         category: categoryLabel(o.projectTypes.length ? o.projectTypes : o.projectTypeRaw ? [o.projectTypeRaw] : null),
         pmName: o.ownerId ? pmNames.get(o.ownerId) ?? null : null,
         pmLabel: o.ownerIsSales ? 'Sales Owner' : 'Marketing Owner',
