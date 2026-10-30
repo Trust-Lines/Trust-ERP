@@ -6,6 +6,7 @@ import { MapPinOff, Pause, Plus } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Select as FilterSelect } from '@/components/ui/select';
+import { toast } from 'sonner';
 import { ProjectQuickView } from './ProjectQuickView';
 // The real, editable opportunity popup — same one /leads and /marketing/opportunities use
 // (comments, files, ClickUp reference, inline edits) — not a dashboard-only rebuild.
@@ -42,6 +43,50 @@ export interface BoardCardItem {
   note?: string | null;
   /** Status chips: the deal's stage, or each Trust type's production status. */
   statuses?: string[];
+  /** "Assign to": the person for this card in the stage it's in (board_assignees, per stage). */
+  assign?: { kind: string; stage: string; label: string; userId: string | null };
+}
+
+const assignKey = (item: BoardCardItem) => `${item.assign?.kind}:${item.id}:${item.assign?.stage}`;
+
+/** "Assign to" on the cards — every active user, chosen from the design-system Select. */
+const AssignContext = React.createContext<{
+  options: { value: string; label: string }[];
+  canAssign: boolean;
+  assigned: Record<string, string | null>;
+  assign: (item: BoardCardItem, userId: string | null) => void;
+}>({ options: [], canAssign: false, assigned: {}, assign: () => {} });
+
+const UNASSIGNED = '';
+
+function AssignBox({ item, section }: { item: BoardCardItem; section: BoardSection }) {
+  const { options, canAssign, assigned, assign } = React.useContext(AssignContext);
+  const key = assignKey(item);
+  const current = key in assigned ? assigned[key] : item.assign?.userId ?? null;
+  const name = options.find(o => o.value === current)?.label ?? null;
+  // The card's own tone, darker for the name — not a form field.
+  const ink = `color-mix(in srgb, ${section.accent} 60%, black)`;
+  return (
+    <span
+      className="flex w-[210px] shrink-0 flex-col rounded-[8px] px-3 pb-1.5 pt-2 leading-normal shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+      style={{ background: `color-mix(in srgb, ${section.bg} 35%, white)`, color: ink }}
+      onClick={e => e.stopPropagation()}
+      onKeyDown={e => e.stopPropagation()}
+    >
+      <span className="text-[12px] font-medium opacity-80">Assign to</span>
+      {canAssign ? (
+        <FilterSelect
+          aria-label={`Assign ${item.assign?.label ?? ''} to`}
+          options={[{ value: UNASSIGNED, label: 'Unassigned' }, ...options]}
+          value={current ?? UNASSIGNED}
+          onValueChange={v => assign(item, v || null)}
+          className="h-7 border-0 bg-transparent px-0 text-[16px] font-bold text-current hover:border-0 dark:border-0 dark:bg-transparent dark:px-0"
+        />
+      ) : (
+        <span className="truncate text-[16px] font-bold">{name ?? 'Unassigned'}</span>
+      )}
+    </span>
+  );
 }
 
 export interface BoardSection {
@@ -98,12 +143,16 @@ function CroppedLogo({ src, code, className }: { src: string; code: string; clas
 function Card({ item, section, onOpen }: {
   item: BoardCardItem; section: BoardSection; onOpen: (item: BoardCardItem) => void;
 }) {
+  // Cards hold the Assign to dropdown, so no card is a <button> (a control can't sit inside one).
+  const opens = item.kind !== 'trust';
   return (
-    <button
-      type="button"
-      className="relative flex w-full flex-col gap-1.5 rounded-[10px] border border-solid pb-3.5 pl-4 pr-3.5 pt-5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-[filter,box-shadow] hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)] hover:brightness-[0.98]"
+    <div
+      role={opens ? 'button' : undefined}
+      tabIndex={opens ? 0 : undefined}
+      className={`relative flex w-full flex-col gap-1.5 rounded-[10px] border border-solid pb-3.5 pl-4 pr-3.5 pt-5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-[filter,box-shadow] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring ${opens ? 'cursor-pointer hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)] hover:brightness-[0.98]' : ''}`}
       style={{ background: section.bg, color: section.accent, borderColor: `color-mix(in srgb, ${section.accent} 35%, transparent)`, borderLeftWidth: 4, borderLeftColor: section.accent }}
-      onClick={() => onOpen(item)}
+      onClick={opens ? () => onOpen(item) : undefined}
+      onKeyDown={opens ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(item); } } : undefined}
     >
       <span
         className="absolute -top-3.5 left-3 flex h-6 min-w-[92px] items-center justify-center rounded-[5px] px-2 text-[15px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.12)]"
@@ -140,14 +189,14 @@ function Card({ item, section, onOpen }: {
           <span className="block truncate text-[12px] leading-normal">{item.subtitle}</span>
           {item.note && <span className="mt-0.5 block text-[12px] font-bold leading-normal">{item.note}</span>}
         </span>
-        {item.pmName && (
+        {item.assign ? <AssignBox item={item} section={section} /> : item.pmName && (
           <span className="flex shrink-0 flex-col rounded-[4px] px-2 py-0.5 leading-normal" style={{ background: section.accent, color: 'var(--ui-surface-elevated)' }}>
             <span className="text-[13px] font-semibold">{item.pmName}</span>
             <span className="text-[10px]">{item.pmLabel}</span>
           </span>
         )}
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -239,8 +288,11 @@ function Column({ column, onOpen }: { column: BoardColumn; onOpen: (item: BoardC
   );
 }
 
-export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError }: {
+export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false }: {
   columns: BoardColumn[];
+  /** Everyone who can be picked in a Trust card's "Assign to", and whether this viewer may. */
+  users?: { id: string; full_name: string }[];
+  canAssign?: boolean;
   /** Why the Trust System sections are empty, when it couldn't be read. */
   trustError?: string | null;
   canCreateTask: boolean;
@@ -253,6 +305,26 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   canEdit: boolean;
 }) {
   const [openProjectId, setOpenProjectId] = React.useState<string | null>(null);
+  const [assigned, setAssigned] = React.useState<Record<string, string | null>>({});
+  const assignOptions = React.useMemo(() => users.map(u => ({ value: u.id, label: u.full_name })), [users]);
+  const assign = React.useCallback(async (item: BoardCardItem, userId: string | null) => {
+    if (!item.assign) return;
+    const key = assignKey(item);
+    const before = key in assigned ? assigned[key] : item.assign.userId;
+    if (before === userId) return;
+    setAssigned(a => ({ ...a, [key]: userId }));
+    try {
+      const res = await fetch('/api/tlines-dashboard/assignee', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemKind: item.assign.kind, itemId: item.id, stage: item.assign.stage, label: item.assign.label, userId }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? 'Could not save');
+    } catch (e) {
+      setAssigned(a => ({ ...a, [key]: before }));
+      toast.error(e instanceof Error ? e.message : 'Could not save the assignment');
+    }
+  }, [assigned]);
+  const assignCtx = React.useMemo(() => ({ options: assignOptions, canAssign, assigned, assign }), [assignOptions, canAssign, assigned, assign]);
   const [openOpportunityId, setOpenOpportunityId] = React.useState<string | null>(null);
   const [dateFrom, setDateFrom] = React.useState('');
   const [dateTo, setDateTo] = React.useState('');
@@ -283,7 +355,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   };
 
   return (
-    <>
+    <AssignContext.Provider value={assignCtx}>
       <PageHead
         from={dateFrom} to={dateTo} preset={preset} canCreateTask={canCreateTask} onPreset={applyPreset}
         onFrom={v => { setDateFrom(v); setPreset(''); }} onTo={v => { setDateTo(v); setPreset(''); }}
@@ -319,6 +391,6 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
           onClose={() => setOpenOpportunityId(null)}
         />
       )}
-    </>
+    </AssignContext.Provider>
   );
 }

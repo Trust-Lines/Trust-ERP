@@ -9,6 +9,7 @@ import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { SALES_HANDOFF_ROLES, SALES_INTAKE_ROLES } from '@/lib/sales/roles';
 import { loadClientOpportunities, type ClientOpportunityRow } from '@/lib/keyClients/server';
 import { quickViewLink } from '@/lib/marketing/quickViewLink';
+import { KEY_CLIENT_ADMIN_ROLES } from '@/lib/keyClients/roles';
 import { classifyTrustProject, loadTrustProjects, typeLabel, typeStatuses, type TrustStage } from '@/lib/trust/board';
 import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem } from '@/components/platform/dashboard/BranchBoard';
 import { TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
@@ -124,6 +125,17 @@ export default async function DashboardPage() {
     ? [{ data: [] }, [] as ClientOpportunityRow[], { projects: [], error: null }]
     : await Promise.all([projectQuery, loadClientOpps(), loadTrustProjects()]);
   const trustProjects = trust.projects;
+  // "Assign to" on every card, one person per card per stage (board_assignees, migration 137) —
+  // empty until it's applied. Keyed "kind:id:stage".
+  const boardIds = [...trustProjects.map(p => p.id), ...opportunities.map(o => o.id)];
+  const [assignRows, { data: allUsers }] = await Promise.all([
+    fetchInChunks(boardIds, chunk => admin.from('board_assignees').select('item_kind, item_id, stage, user_id').in('item_id', chunk))
+      .catch(() => []),   // table not there yet (migration 137)
+    admin.from('profiles').select('id, full_name').eq('is_active', true).not('full_name', 'is', null).order('full_name', { ascending: true }),
+  ]) as [{ item_kind: string; item_id: string; stage: string; user_id: string }[], { data: { id: string; full_name: string }[] | null }];
+  const assigneeOf = new Map(assignRows.map(a => [`${a.item_kind}:${a.item_id}:${a.stage}`, a.user_id]));
+  const assignFor = (kind: string, id: string, stage: string, label: string) =>
+    ({ kind, stage, label, userId: assigneeOf.get(`${kind}:${id}:${stage}`) ?? null });
   const trustToday = new Date().toISOString().slice(0, 10);
   const trustCards = trustProjects.filter(p => regionCodes.includes(p.bucket)).map(p => {
     const e = classifyTrustProject(p, trustToday);
@@ -134,6 +146,7 @@ export default async function DashboardPage() {
       subtitle: p.address,
       category: (p.types ?? []).map(typeLabel).filter(Boolean).join(', ') || null,
       pmName: null, pmLabel: '',
+      assign: assignFor('trust', p.id, e.stage, `#${p.projectNo}`),
       onHold: e.onHold,
       dateISO: e.dateISO,
       dateLabel: fmtDate(e.dateISO),
@@ -197,6 +210,7 @@ export default async function DashboardPage() {
         category: categoryLabel(o.projectTypes.length ? o.projectTypes : o.projectTypeRaw ? [o.projectTypeRaw] : null),
         pmName: o.ownerId ? pmNames.get(o.ownerId) ?? null : null,
         pmLabel: o.ownerIsSales ? 'Sales Owner' : 'Marketing Owner',
+        assign: assignFor(o.kind, o.id, 'opportunity', o.projectNo ? `#${o.projectNo}` : o.site),
         onHold: o.stage === 'on_hold',
         dateISO: becameOpportunityDate,
         dateLabel: fmtDate(becameOpportunityDate),
@@ -322,6 +336,8 @@ export default async function DashboardPage() {
       canEdit={canEditOpportunities}
       canCreateTask={SALES_INTAKE_ROLES.includes(userRole)}
       trustError={trust.error}
+      users={allUsers ?? []}
+      canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
       top={<TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} />}
     />
   );
