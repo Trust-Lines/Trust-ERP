@@ -111,7 +111,7 @@ export function CustomersPageClient({ initialCustomers, canEdit }: Props) {
             <ArrowDownUp aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-[1] size-3.5 -translate-y-1/2 text-[var(--color-secondary-700)] dark:text-ui-heading" />
             <FilterSelect
               aria-label="Sort"
-              className="inline-flex h-10 w-auto cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading [&_svg]:size-3.5"
+              className="inline-flex h-10 w-auto cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:pl-[34px] dark:pr-3 dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading [&_svg]:size-3.5"
               value={sortBy}
               onValueChange={v => setSortBy((v ?? 'newest') as SortKey)}
               options={[

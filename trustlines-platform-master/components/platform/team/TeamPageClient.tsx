@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ArrowDown, ArrowDownUp, ChevronDown, Ellipsis, Pencil, Search, Trash2, UserRoundPlus, Users, X } from 'lucide-react';
 import { Select as FilterSelect } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import {
   COMPANY_SIDES, OFFICES, DEPARTMENTS, SKILLS,
@@ -94,20 +95,21 @@ const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
 const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-3.5';
 
+// Figma "Selection checkbox": 16px, 3px radius, input border + background.
+const CHECKBOX = 'size-4 rounded-[3px] border-[var(--ui-input-border)] bg-ui-input-bg dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg';
+
 type SortKey = 'newest' | 'oldest' | 'name';
 
-// Role colours come from role_definitions; t4 (purple) is the design default.
+// Every role uses the t4 (purple) tone, as in the design; the theme swaps it for dark mode.
 function RoleBadge({ role, roleMap }: { role: string; roleMap: Map<string, RoleOption> }) {
-  const def = roleMap.get(role);
-  const bg  = def?.color_bg ?? 'var(--status-t4-bg)';
-  const fg  = def?.color_fg ?? 'var(--status-t4-fg)';
-  const lbl = def?.label ?? FALLBACK_LABELS[role] ?? role;
+  const lbl = roleMap.get(role)?.label ?? FALLBACK_LABELS[role] ?? role;
   return (
     <span
-      className="inline-flex h-9 max-w-full items-center truncate rounded-[4px] border border-solid px-4 py-[3px] text-[12px] font-medium leading-4"
-      style={{ background: bg, color: fg, borderColor: fg }}
+      title={lbl}
+      className="inline-flex h-9 max-w-full items-center rounded-[4px] border border-solid px-4 py-[3px] text-[12px] font-medium leading-4"
+      style={{ background: 'var(--status-t4-bg)', color: 'var(--status-t4-fg)', borderColor: 'var(--status-t4-fg)' }}
     >
-      {lbl}
+      <span className="truncate">{lbl}</span>
     </span>
   );
 }
@@ -318,7 +320,7 @@ function InviteModal({
 // Same field language as New Customer / New lead: 12px label, 42px input, outlined Cancel + dark primary.
 const FORM_LABEL = 'mb-[7px] block text-[12px] font-medium leading-4 text-ui-body';
 const FORM_FIELD = 'min-h-[42px] w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-disabled focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
-const FORM_SELECT = 'h-[42px] min-h-[42px] w-full rounded-[6px] border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading';
+const FORM_SELECT = 'h-[42px] min-h-[42px] w-full rounded-[6px] border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading';
 const SECTION_TITLE = 'm-0 text-[11px] font-semibold uppercase tracking-[0.04em] text-ui-text-secondary';
 
 function ToggleChip({ on, onToggle, children }: { on: boolean; onToggle: () => void; children: React.ReactNode }) {
@@ -657,6 +659,7 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
   const [query, setQuery]           = useState('');
   const [sortBy, setSortBy]         = useState<SortKey>('newest');
   const [menuId, setMenuId]         = useState<string | null>(null);
+  const [selected, setSelected]     = useState<Set<string>>(new Set());
   const isOps = canEdit ?? (userRole === 'ops_manager');
 
   const roleMap = useMemo(() => new Map(roleDefinitions.map(r => [r.name, r])), [roleDefinitions]);
@@ -684,6 +687,10 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
       return sortBy === 'oldest' ? ta - tb : tb - ta;
     });
   }, [profiles, query, sortBy, roleMap]);
+
+  const selectedCount = filtered.filter(p => selected.has(p.id)).length;
+  const allSelected = filtered.length > 0 && selectedCount === filtered.length;
+  const someSelected = selectedCount > 0 && !allSelected;
 
   function handleInvited(np: ProfileRow) {
     setProfiles(prev => {
@@ -729,7 +736,7 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
             <ArrowDownUp aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-[1] size-3.5 -translate-y-1/2 text-[var(--color-secondary-700)] dark:text-ui-heading" />
             <FilterSelect
               aria-label="Sort"
-              className="inline-flex h-10 w-auto cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading [&_svg]:size-3.5"
+              className="inline-flex h-10 w-auto cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:pl-[34px] dark:pr-3 dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading [&_svg]:size-3.5"
               value={sortBy}
               onValueChange={v => setSortBy((v ?? 'newest') as SortKey)}
               options={[
@@ -758,18 +765,25 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
           <EmptyState icon={<Search />} title="No matching members" description={`Nothing matches “${query}”.`} />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] border-collapse">
+            <table className="w-full min-w-[1200px] border-collapse">
               <thead>
                 <tr className="h-[46px] border-b border-ui-divider bg-[var(--ui-table-head-bg,var(--ui-surface))]">
-                  <th className={cn(TH, 'w-[228px] pl-[18px]')}>
-                    <span className="inline-flex items-center gap-0.5">Name{sortBy === 'name' && <ArrowDown size={12} aria-hidden />}</span>
+                  <th className="w-[44px] pl-[18px] pr-2.5">
+                    <Checkbox
+                      aria-label="Select all members" className={CHECKBOX}
+                      checked={allSelected} indeterminate={someSelected}
+                      onCheckedChange={on => setSelected(on ? new Set(filtered.map(p => p.id)) : new Set())}
+                    />
                   </th>
-                  <th className={TH}>Email</th>
+                  <th className={cn(TH, 'w-[186px]')}>
+                    <span className="inline-flex items-center gap-0.5">Name<ArrowDown size={12} aria-hidden /></span>
+                  </th>
+                  <th className={cn(TH, 'w-[326px]')}>Email</th>
                   <th className={cn(TH, 'w-[216px]')}>Role</th>
                   <th className={cn(TH, 'w-[194px]')}>Region</th>
                   <th className={cn(TH, 'w-[142px]')}>Manager</th>
-                  <th className={cn(TH, 'w-[130px]')}>Joined Date</th>
-                  <th className={cn(TH, 'w-[180px]')}>Status</th>
+                  <th className={cn(TH, 'w-[195px]')}>Joined Date</th>
+                  <th className={cn(TH, 'w-[267px]')}>Status</th>
                   <th className="w-[48px]"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
@@ -778,11 +792,22 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
                   const name = p.full_name || p.email;
                   return (
                     <tr key={p.id} className="h-16 border-b border-ui-divider last:border-b-0">
-                      <td className="max-w-0 pl-[18px] pr-2.5">
+                      <td className="pl-[18px] pr-2.5">
+                        <Checkbox
+                          aria-label={`Select ${name}`} className={CHECKBOX}
+                          checked={selected.has(p.id)}
+                          onCheckedChange={on => setSelected(prev => {
+                            const next = new Set(prev);
+                            if (on) next.add(p.id); else next.delete(p.id);
+                            return next;
+                          })}
+                        />
+                      </td>
+                      <td className="max-w-0 px-2.5">
                         <p className={cn('m-0 truncate text-[13px] font-semibold', HEADING)}>{p.full_name || '—'}</p>
                       </td>
                       <td className="max-w-0 px-2.5"><p className="m-0 truncate text-[13px] text-ui-body">{p.email}</p></td>
-                      <td className="max-w-0 px-2"><RoleBadge role={p.role} roleMap={roleMap} /></td>
+                      <td className="px-2"><RoleBadge role={p.role} roleMap={roleMap} /></td>
                       <td className="px-2">
                         {isOps ? (
                           <button
