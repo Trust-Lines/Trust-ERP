@@ -1,8 +1,11 @@
 'use client';
 
 import * as React from 'react';
-import { MapPinOff } from 'lucide-react';
+import Link from 'next/link';
+import { MapPinOff, Pause, Plus } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
+import { Select as FilterSelect } from '@/components/ui/select';
 import { ProjectQuickView } from './ProjectQuickView';
 // The real, editable opportunity popup — same one /leads and /marketing/opportunities use
 // (comments, files, ClickUp reference, inline edits) — not a dashboard-only rebuild.
@@ -24,6 +27,10 @@ export interface BoardCardItem {
   badgeBottom: string;
   title: string;
   subtitle: string | null;
+  category: string | null;
+  pmName: string | null;
+  pmLabel: string;
+  onHold: boolean;
   // Raw yyyy-mm-dd (project: est. delivery, falling back to closed-deal date; opportunity: the
   // date it became an opportunity — ClickUp's own creation date, reliably set, unlike the
   // often-blank expected_close_date) — kept separate from dateLabel so the date filter can
@@ -36,10 +43,9 @@ export interface BoardCardItem {
 export interface BoardSection {
   key: string;
   label: string;
-  accent: string;   // dot + label text
+  accent: string;   // text, dot + badges
+  labelColor?: string; // section heading, when it differs from accent
   bg: string;        // section tint
-  badgeBg: string;
-  badgeText: string;
   items: BoardCardItem[];
   emptyLabel: string;
 }
@@ -49,7 +55,6 @@ export interface BoardColumn {
   logoSrc: string;
   logoCode: string;
   headerColor: string;
-  total: number;
   sections: BoardSection[];
 }
 
@@ -86,131 +91,142 @@ function CroppedLogo({ src, code, className }: { src: string; code: string; clas
   );
 }
 
-function CardBody({ item }: { item: BoardCardItem }) {
-  return (
-    <span className="min-w-0 flex-1 text-primary-800 dark:text-primary-50">
-      <span className="flex items-center justify-between gap-3">
-        <span className="truncate text-[14px] font-bold">{item.title}</span>
-        {item.dateLabel && <span className="shrink-0 text-[11px] font-medium opacity-70">{item.dateLabel}</span>}
-      </span>
-      {item.subtitle && <span className="block truncate text-[11px] opacity-90">{item.subtitle}</span>}
-    </span>
-  );
-}
-
-function CardBadge({ item, badgeBg, badgeText }: { item: BoardCardItem; badgeBg: string; badgeText: string }) {
-  return (
-    <span
-      className="shrink-0 rounded px-2 py-1 text-[12px] font-bold text-center leading-tight"
-      style={{ background: badgeBg, color: badgeText }}
-    >
-      {item.badgeTop}
-      {item.badgeBottom && <><br />{item.badgeBottom}</>}
-    </span>
-  );
-}
-
-function Card({ item, badgeBg, badgeText, onOpen }: {
-  item: BoardCardItem; badgeBg: string; badgeText: string; onOpen: (item: BoardCardItem) => void;
+function Card({ item, section, onOpen }: {
+  item: BoardCardItem; section: BoardSection; onOpen: (item: BoardCardItem) => void;
 }) {
   return (
     <button
       type="button"
-      className="flex w-full items-center gap-3 px-3.5 py-3 border-t first:border-t-0 text-left hover:brightness-[0.98] transition-[filter]"
-      style={{ borderColor: 'rgba(0,0,0,0.06)' }}
+      className="relative flex w-full flex-col gap-[3px] rounded-[8px] border-0 pb-2.5 pl-3 pr-2.5 pt-4 text-left transition-[filter] hover:brightness-[0.98]"
+      style={{ background: section.bg, color: section.accent }}
       onClick={() => onOpen(item)}
     >
-      <CardBadge item={item} badgeBg={badgeBg} badgeText={badgeText} />
-      <CardBody item={item} />
+      <span
+        className="absolute -top-3 left-[9px] flex h-5 min-w-[87px] items-center justify-center rounded-[4px] px-1.5 text-[14px] font-medium"
+        style={{ background: section.accent, color: 'var(--ui-surface-elevated)' }}
+      >
+        {[item.badgeTop, item.badgeBottom].filter(Boolean).join(' ')}
+      </span>
+      <span className="flex w-full items-start justify-between gap-2">
+        <span className="min-w-0">
+          <span className="flex items-center gap-2">
+            <span className="min-w-0 truncate text-[16px] font-bold leading-normal">{item.title}</span>
+            {item.onHold && (
+              <span className="inline-flex h-3.5 shrink-0 items-center gap-0.5 rounded-[2px] px-0.5 text-[10px] font-medium" style={{ background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}>
+                <Pause size={10} aria-hidden /> On Hold
+              </span>
+            )}
+          </span>
+          {item.category && <span className="block truncate text-[10px] leading-normal">{item.category}</span>}
+        </span>
+        {item.dateLabel && <span className="shrink-0 text-[10px] leading-normal">{item.dateLabel}</span>}
+      </span>
+      <span className="flex w-full items-end justify-between gap-2">
+        <span className="min-w-0 truncate text-[10px] leading-normal">{item.subtitle}</span>
+        {item.pmName && (
+          <span className="flex shrink-0 flex-col rounded-[4px] px-2 py-0.5 leading-normal" style={{ background: section.accent, color: 'var(--ui-surface-elevated)' }}>
+            <span className="text-[13px] font-semibold">{item.pmName}</span>
+            <span className="text-[10px]">{item.pmLabel}</span>
+          </span>
+        )}
+      </span>
     </button>
   );
 }
 
 function Section({ section, onOpen }: { section: BoardSection; onOpen: (item: BoardCardItem) => void }) {
+  const empty = section.items.length === 0;
   return (
-    <div className="rounded-md pt-2.5" style={{ background: section.bg }}>
-      <div className="flex items-center gap-2 px-3.5 pb-2">
-        <span className="size-2 shrink-0 rounded-full" style={{ background: section.accent }} />
-        <span className="text-[12.5px] font-bold uppercase tracking-wide" style={{ color: section.accent }}>
+    <div className={`flex flex-col ${empty ? 'gap-1' : 'gap-6'}`}>
+      <div className="flex items-center gap-1">
+        <span className="size-1 shrink-0 rounded-full" style={{ background: section.labelColor ?? section.accent }} />
+        <span className="min-w-0 flex-1 text-[10px] font-semibold uppercase leading-normal" style={{ color: section.labelColor ?? section.accent }}>
           {section.label}
         </span>
       </div>
-      {section.items.length === 0 ? (
-        <div className="border-t px-3.5 py-2.5" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
-          <p className="text-[12.5px] opacity-60" style={{ color: section.accent }}>{section.emptyLabel}</p>
-        </div>
+      {empty ? (
+        <p className="m-0 truncate rounded-[8px] p-2.5 text-[10px] leading-normal" style={{ background: section.bg, color: section.accent }}>
+          {section.emptyLabel}
+        </p>
       ) : (
-        section.items.map(item => (
-          <Card key={item.id} item={item} badgeBg={section.badgeBg} badgeText={section.badgeText} onOpen={onOpen} />
-        ))
+        section.items.map(item => <Card key={item.id} item={item} section={section} onOpen={onOpen} />)
       )}
     </div>
   );
 }
 
-function DateFilterBar({ from, to, onFrom, onTo, onClear }: {
-  from: string; to: string; onFrom: (v: string) => void; onTo: (v: string) => void; onClear: () => void;
+type Preset = '' | 'week' | 'month';
+const PRESETS = [{ value: '', label: 'All dates' }, { value: 'week', label: 'This week' }, { value: 'month', label: 'This month' }];
+const DATE_INPUT = 'h-9 rounded-[6px] border border-ui-divider bg-ui-input-bg px-3 text-[13px] font-medium text-ui-body outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+function presetRange(p: Preset): [string, string] {
+  if (!p) return ['', ''];
+  const now = new Date();
+  if (p === 'month') return [iso(new Date(now.getFullYear(), now.getMonth(), 1)), iso(new Date(now.getFullYear(), now.getMonth() + 1, 0))];
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+  return [iso(start), iso(new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6))];
+}
+
+// Figma "Page heading" (node 376:31511).
+function PageHead({ from, to, preset, canCreateTask, onFrom, onTo, onPreset }: {
+  from: string; to: string; preset: Preset; canCreateTask: boolean;
+  onFrom: (v: string) => void; onTo: (v: string) => void; onPreset: (p: Preset) => void;
 }) {
-  const active = from !== '' || to !== '';
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-ui-divider bg-ui-surface-elevated px-4 py-3">
-      <span className="text-[12px] font-semibold uppercase tracking-wide text-ui-text-secondary">Date filter</span>
-      <label className="flex items-center gap-1.5 text-[13px] text-primary-700 dark:text-primary-100">
-        From
-        <input
-          type="date" value={from} onChange={e => onFrom(e.target.value)}
-          className="rounded-md border border-ui-input-border bg-ui-input-bg px-2 py-1 text-[13px]"
+    <div className="mb-[30px] flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col gap-[5px] leading-[1.35]">
+        <PageCrumbs items={[{ label: 'General', href: '/dashboard' }, { label: 'Dashboard', href: '/dashboard' }]} />
+        <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">Dashboard</h1>
+        <p className="m-0 text-[13px] text-ui-body">Keep handoffs moving. Clear the blockers before they affect delivery.</p>
+      </div>
+      <div
+        className="flex flex-wrap items-end gap-3"
+        title="Project cards: delivery date. Opportunity cards: date it became an opportunity (ClickUp creation date). Cards with no date are hidden while a filter is set."
+      >
+        <label className="flex flex-col gap-[5px] text-[11px] leading-[1.35] text-ui-body">
+          From
+          <input type="date" value={from} onChange={e => onFrom(e.target.value)} className={DATE_INPUT} />
+        </label>
+        <label className="flex flex-col gap-[5px] text-[11px] leading-[1.35] text-ui-body">
+          To
+          <input type="date" value={to} onChange={e => onTo(e.target.value)} className={DATE_INPUT} />
+        </label>
+        <FilterSelect
+          aria-label="Date range" value={preset} options={PRESETS} onValueChange={v => onPreset((v ?? '') as Preset)}
+          className="h-9 w-auto rounded-[6px] border-ui-divider bg-ui-input-bg text-[13px] font-medium text-ui-body dark:rounded-[6px] dark:border-ui-divider dark:bg-ui-input-bg"
         />
-      </label>
-      <label className="flex items-center gap-1.5 text-[13px] text-primary-700 dark:text-primary-100">
-        To
-        <input
-          type="date" value={to} onChange={e => onTo(e.target.value)}
-          className="rounded-md border border-ui-input-border bg-ui-input-bg px-2 py-1 text-[13px]"
-        />
-      </label>
-      {active && (
-        <button type="button" onClick={onClear} className="text-[12px] font-medium text-ui-link hover:underline">
-          Clear
-        </button>
-      )}
-      <span className="basis-full text-[11px] text-ui-text-secondary sm:basis-auto">
-        Project cards: delivery date. Opportunity cards: date it became an opportunity (ClickUp
-        creation date). Cards with no date are hidden while a filter is set.
-      </span>
+        {canCreateTask && (
+          <Link href="/sales-tasks" className="inline-flex h-9 items-center gap-2 rounded-[6px] bg-ui-btn-accent px-3 text-[13px] font-medium text-ui-btn-accent-fg no-underline hover:brightness-95">
+            <Plus size={16} aria-hidden /> Create task
+          </Link>
+        )}
+      </div>
     </div>
   );
 }
 
 function Column({ column, onOpen }: { column: BoardColumn; onOpen: (item: BoardCardItem) => void }) {
   return (
-    // The count badge sits half outside the header (-top-3 -right-3), so it must stay OUTSIDE
-    // the clipped/rounded wrapper below — clipping it together with the header would cut it off.
-    <div className="relative">
-      <div className="overflow-hidden rounded-xl shadow-sm" style={{ background: column.headerColor }}>
-        <div className="flex items-center justify-center px-4 pb-3 pt-5">
-          <CroppedLogo src={column.logoSrc} code={column.logoCode} className="h-16 sm:h-20" />
-        </div>
-        {/* No fixed/stretched height here — each column is exactly as tall as its own content,
-            so a branch with fewer items never drags a leftover block of header color below it. */}
-        <div className="space-y-3.5 bg-ui-surface-elevated p-3 sm:p-3.5">
-          {column.sections.map(section => (
-            <Section key={section.key} section={section} onOpen={onOpen} />
-          ))}
-        </div>
+    <div className="flex flex-col gap-2.5 rounded-[16px] bg-ui-surface p-2.5">
+      <div className="flex h-[105px] items-center justify-center rounded-[11px] py-[13px]" style={{ background: column.headerColor }}>
+        <CroppedLogo src={column.logoSrc} code={column.logoCode} className="h-[62px]" />
       </div>
-      <div
-        className="absolute -top-3 -right-3 grid size-11 place-items-center rounded-[10px] border-4 border-ui-page-bg text-[22px] font-bold text-primary-50"
-        style={{ background: column.headerColor }}
-      >
-        {column.total}
+      {/* No fixed/stretched height — each column is exactly as tall as its own content. */}
+      <div className="flex flex-col gap-4 rounded-[11px] bg-ui-surface-elevated px-3 pb-3.5 pt-2">
+        {column.sections.map(section => (
+          <Section key={section.key} section={section} onOpen={onOpen} />
+        ))}
       </div>
     </div>
   );
 }
 
-export function BranchBoard({ columns, assignees, canEdit }: {
+export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top }: {
   columns: BoardColumn[];
+  canCreateTask: boolean;
+  /** Greeting, My Tasks and KPIs: they sit between the page heading and the board. */
+  top: React.ReactNode;
   // Same "marketingAssignees" list /leads passes into this popup (profiles that can own an
   // opportunity) and the same canEdit gate that page computes from the viewer's role — both
   // decided server-side in app/(platform)/dashboard/page.tsx, not guessed here.
@@ -221,6 +237,7 @@ export function BranchBoard({ columns, assignees, canEdit }: {
   const [openOpportunityId, setOpenOpportunityId] = React.useState<string | null>(null);
   const [dateFrom, setDateFrom] = React.useState('');
   const [dateTo, setDateTo] = React.useState('');
+  const [preset, setPreset] = React.useState<Preset>('');
 
   const handleOpen = (item: BoardCardItem) => {
     if (item.kind === 'project') setOpenProjectId(item.id);
@@ -237,33 +254,37 @@ export function BranchBoard({ columns, assignees, canEdit }: {
     };
     return columns.map(column => {
       const sections = column.sections.map(s => ({ ...s, items: s.items.filter(i => inRange(i.dateISO)) }));
-      return { ...column, sections, total: sections.reduce((sum, s) => sum + s.items.length, 0) };
+      return { ...column, sections };
     });
   }, [columns, dateFrom, dateTo]);
 
-  if (columns.length === 0) {
-    return (
-      <EmptyState
-        boxed
-        icon={<MapPinOff />}
-        title="No branch is assigned to your account yet"
-        description="Ask an admin to set your region on the Team page."
-      />
-    );
-  }
+  const applyPreset = (p: Preset) => {
+    const [from, to] = presetRange(p);
+    setPreset(p); setDateFrom(from); setDateTo(to);
+  };
+
   return (
     <>
-      <DateFilterBar
-        from={dateFrom} to={dateTo} onFrom={setDateFrom} onTo={setDateTo}
-        onClear={() => { setDateFrom(''); setDateTo(''); }}
+      <PageHead
+        from={dateFrom} to={dateTo} preset={preset} canCreateTask={canCreateTask} onPreset={applyPreset}
+        onFrom={v => { setDateFrom(v); setPreset(''); }} onTo={v => { setDateTo(v); setPreset(''); }}
       />
-      {/* items-start: columns must NOT stretch to match the tallest one (grid's default) — see
-          the Column comment above for why that mattered. */}
-      <div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {filteredColumns.map(column => (
-          <Column key={column.regionCode} column={column} onOpen={handleOpen} />
-        ))}
-      </div>
+      {top}
+      {columns.length === 0 ? (
+        <EmptyState
+          boxed
+          icon={<MapPinOff />}
+          title="No branch is assigned to your account yet"
+          description="Ask an admin to set your region on the Team page."
+        />
+      ) : (
+        // items-start: columns must NOT stretch to match the tallest one (grid's default).
+        <div className="grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+          {filteredColumns.map(column => (
+            <Column key={column.regionCode} column={column} onOpen={handleOpen} />
+          ))}
+        </div>
+      )}
       <ProjectQuickView projectId={openProjectId} onClose={() => setOpenProjectId(null)} />
       {openOpportunityId && (
         <OpportunityQuickView

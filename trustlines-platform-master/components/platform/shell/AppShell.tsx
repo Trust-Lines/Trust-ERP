@@ -8,7 +8,7 @@ import { AI_STATE_EVENT, TrustLinesAI } from '@/components/platform/ai/TrustLine
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types/database';
 
-const FULL_WIDTH_ROUTES = ['/production', '/leads', '/sales-tasks', '/sales-projects', '/sales-dashboard', '/marketing/prospects', '/marketing/opportunities', '/marketing/campaigns', '/dashboard'];
+const FULL_WIDTH_ROUTES = ['/production', '/leads', '/sales-tasks', '/sales-projects', '/sales-dashboard', '/marketing/prospects', '/marketing/opportunities', '/marketing/campaigns', '/dashboard', '/my-tasks'];
 
 interface AppShellProps {
   children: React.ReactNode;

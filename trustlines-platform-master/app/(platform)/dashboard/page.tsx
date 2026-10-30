@@ -2,12 +2,13 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect as nextRedirect } from 'next/navigation';
 import { REGIONS } from '@/lib/regions';
+import { fetchInChunks } from '@/lib/supabase/chunkedIn';
 import { regionLogoByCode } from '@/lib/regionLogo';
 import { getAssignedRegions, regionAllows } from '@/lib/access/regionScope';
 import { MARKETING_ROLES } from '@/lib/marketing/roles';
-import { SALES_HANDOFF_ROLES } from '@/lib/sales/roles';
+import { SALES_HANDOFF_ROLES, SALES_INTAKE_ROLES } from '@/lib/sales/roles';
 import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem } from '@/components/platform/dashboard/BranchBoard';
-import { TopSummaryRow, type ApprovalSummaryItem } from '@/components/platform/dashboard/TopSummaryRow';
+import { TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
 
 // Same set /marketing/opportunities uses to gate its own quick-view edits — reused here so
 // the popup opened from the dashboard board follows the exact same edit rule, not a new one.
@@ -26,25 +27,27 @@ const OPPORTUNITY_EDIT_ROLES = [...SALES_HANDOFF_ROLES, ...MARKETING_ROLES];
 // Row mapping — projects.current_stage only has 5 values (migration 007), fewer than the
 // design's 7 rows. Best-effort mapping below; "To Production" and "Shipped" have no
 // distinguishing signal in the data model yet and are always empty until that's defined.
-// Colours come from the 2026 palette tokens in globals.css (text/badge use the darker
-// shade so labels keep contrast on the light section background).
-const c = (token: string) => `var(--color-${token})`;
+// Colours: Figma "ops_manager" stage variables in globals.css (node 376:32191, dark 384:41126).
 const SECTION_DEFS = [
-  { key: 'opportunity',  label: 'Clients Opportunity',    accent: c('info-normal'),    bg: c('info-light'),    badgeBg: c('info-normal'),    badgeText: c('info-light') },
-  { key: 'finalization', label: 'Finalization',           accent: c('warning-dark'),   bg: c('warning-light'), badgeBg: c('warning-dark'),   badgeText: c('warning-light') },
-  { key: 'technical',    label: 'Technical / PO + PF',    accent: c('secondary-600'),  bg: c('secondary-50'),  badgeBg: c('secondary-600'),  badgeText: c('secondary-50') },
-  { key: 'to_production',label: 'To Production',          accent: c('primary-600'),    bg: c('primary-50'),    badgeBg: c('primary-600'),    badgeText: c('primary-50') },
-  { key: 'in_production',label: 'Production In Progress', accent: c('accent-600'),     bg: c('accent-50'),     badgeBg: c('accent-600'),     badgeText: c('accent-50') },
-  { key: 'shipped',      label: 'Shipped',                accent: c('grey-600'),       bg: c('grey-50'),       badgeBg: c('grey-600'),       badgeText: c('grey-50') },
-  { key: 'ready',        label: 'Ready For Installation', accent: c('success-dark'),   bg: c('success-light'), badgeBg: c('success-dark'),   badgeText: c('success-light') },
+  { key: 'opportunity',   label: 'Clients Opportunity',    accent: 'var(--stage-opportunity-fg)', bg: 'var(--stage-opportunity-bg)' },
+  { key: 'finalization',  label: 'Finalization',           accent: 'var(--stage-finalization-fg)', bg: 'var(--stage-finalization-bg)', labelColor: 'var(--stage-finalization-label)' },
+  { key: 'technical',     label: 'Technical / PO + PF',    accent: 'var(--stage-technical-fg)', bg: 'var(--stage-technical-bg)' },
+  { key: 'to_production', label: 'To Production',          accent: 'var(--stage-to-production-fg)', bg: 'var(--stage-to-production-bg)' },
+  { key: 'in_production', label: 'Production In Progress', accent: 'var(--stage-production-fg)', bg: 'var(--stage-production-bg)' },
+  { key: 'shipped',       label: 'Shipped',                accent: 'var(--stage-shipped-fg)', bg: 'var(--stage-shipped-bg)' },
+  { key: 'ready',         label: 'Ready For Installation', accent: 'var(--stage-ready-fg)', bg: 'var(--stage-ready-bg)' },
 ] as const;
 
 const HEADER_COLORS: Record<string, string> = {
-  TLINES_NE: c('secondary-600'),
-  TLINES_SE: c('grey-700'),
-  TLINES_NW: c('info-dark'),
-  CVW:       c('accent-700'),
+  TLINES_NE: '#465B6D',
+  TLINES_SE: '#3B472B',
+  TLINES_NW: '#2E5BA3',
+  CVW:       '#7A655E',
 };
+
+function categoryLabel(values: string[] | null | undefined): string | null {
+  return values?.map(v => v.replace(/_/g, ' ')).join(', ') || null;
+}
 
 function fmtDate(d: string | null | undefined): string | null {
   if (!d) return null;
@@ -75,8 +78,9 @@ export default async function DashboardPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
-  const { data: profileData } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  const userRole = (profileData as { role: string | null } | null)?.role ?? 'ops_manager';
+  const { data: profileData } = await supabase.from('profiles').select('role, full_name').eq('id', user.id).single();
+  const profile = profileData as { role: string | null; full_name: string | null } | null;
+  const userRole = profile?.role ?? 'ops_manager';
 
   // Same T-Lines-side boundary as the old dashboard (AGENTS.md §2) — send marketing accounts
   // to their own scoped landing page instead of the branch board.
@@ -93,7 +97,7 @@ export default async function DashboardPage() {
   // open. tlines_pm additionally sees only projects they are assigned to.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let projectQuery = (supabase as any).from('projects')
-    .select('id, code, name, current_stage, region, site_location, est_delivery_date, closed_deal_date, created_at')
+    .select('id, code, name, current_stage, region, site_location, est_delivery_date, closed_deal_date, created_at, categories, tlines_pm_id')
     .in('region', regionCodes)
     .is('deleted_at', null)
     .neq('is_archived', true)
@@ -105,7 +109,7 @@ export default async function DashboardPage() {
     : await Promise.all([
         projectQuery,
         admin.from('opportunities')
-          .select('id, title, stage, region, external_created_at, created_at, external_project_code')
+          .select('id, title, stage, region, external_created_at, created_at, external_project_code, prospect_id, project_types, sales_owner_id, marketing_owner_id')
           .in('region', regionCodes)
           .is('deleted_at', null)
           .not('stage', 'in', '(closed_won,closed_lost)'),
@@ -114,7 +118,7 @@ export default async function DashboardPage() {
   type ProjectRow = {
     id: string; code: string; name: string; current_stage: string; region: string | null;
     site_location: string | null; est_delivery_date: string | null; closed_deal_date: string | null;
-    created_at: string;
+    created_at: string; categories: string[] | null; tlines_pm_id: string | null;
   };
   type OpportunityRow = {
     id: string; title: string; stage: string; region: string | null;
@@ -124,10 +128,36 @@ export default async function DashboardPage() {
     // to our own created_at only for opportunities that were never imported from ClickUp.
     external_created_at: string | null; created_at: string;
     external_project_code: string | null;
+    prospect_id: string; project_types: string[] | null;
+    sales_owner_id: string | null; marketing_owner_id: string | null;
   };
 
   const projects = (projectRows ?? []) as ProjectRow[];
   const opportunities = (opportunityRows ?? []) as OpportunityRow[];
+
+  const pmIds = [...new Set([
+    ...projects.map(p => p.tlines_pm_id),
+    ...opportunities.map(o => o.sales_owner_id ?? o.marketing_owner_id),
+  ].filter(Boolean))] as string[];
+  const prospectIds = [...new Set(opportunities.map(o => o.prospect_id))];
+  const [pmRows, locationRows, holdRows] = await Promise.all([
+    fetchInChunks(pmIds, chunk => admin.from('profiles').select('id, full_name').in('id', chunk)),
+    fetchInChunks(prospectIds, chunk => admin.from('prospect_locations').select('prospect_id, city, state').in('prospect_id', chunk).order('created_at', { ascending: true })),
+    // A project is "On Hold" when one of its types is: same HOLD statuses as lib/dashboard/myDay.ts.
+    fetchInChunks(projects.map(p => p.id), chunk => admin.from('production_items')
+      .select('project_id').eq('source', 'project').in('status', ['HOLD_T', 'HOLD_PM']).is('deleted_at', null).in('project_id', chunk)),
+  ]) as [
+    { id: string; full_name: string }[],
+    { prospect_id: string; city: string | null; state: string | null }[],
+    { project_id: string }[],
+  ];
+  const pmNames = new Map(pmRows.map(p => [p.id, p.full_name]));
+  const heldProjects = new Set(holdRows.map(h => h.project_id));
+  const prospectPlace = new Map<string, string>();
+  for (const l of locationRows) {
+    const place = [l.city, l.state].filter(Boolean).join(', ');
+    if (place && !prospectPlace.has(l.prospect_id)) prospectPlace.set(l.prospect_id, place);
+  }
 
   const columns: BoardColumn[] = visibleRegions.map(r => {
     const regionProjects = projects.filter(p => p.region === r.code);
@@ -136,11 +166,16 @@ export default async function DashboardPage() {
     const opportunityItems: BoardCardItem[] = regionOpportunities.map(o => {
       const [top, bottom] = opportunityBadge(o.external_project_code);
       const becameOpportunityDate = (o.external_created_at ?? o.created_at).slice(0, 10);
+      const ownerId = o.sales_owner_id ?? o.marketing_owner_id;
       return {
         id: o.id, kind: 'opportunity',
         badgeTop: top, badgeBottom: bottom,
         title: o.title,
-        subtitle: null,
+        subtitle: prospectPlace.get(o.prospect_id) ?? null,
+        category: categoryLabel(o.project_types),
+        pmName: ownerId ? pmNames.get(ownerId) ?? null : null,
+        pmLabel: o.sales_owner_id ? 'Sales Owner' : 'Marketing Owner',
+        onHold: o.stage === 'on_hold',
         dateISO: becameOpportunityDate,
         dateLabel: fmtDate(becameOpportunityDate),
         href: '/marketing/opportunities',
@@ -154,6 +189,10 @@ export default async function DashboardPage() {
         id: p.id, kind: 'project', badgeTop: top, badgeBottom: bottom,
         title: p.name,
         subtitle: p.site_location,
+        onHold: heldProjects.has(p.id),
+        category: categoryLabel(p.categories),
+        pmName: p.tlines_pm_id ? pmNames.get(p.tlines_pm_id) ?? null : null,
+        pmLabel: 'T Lines PM',
         dateISO: date,
         dateLabel: fmtDate(date),
         href: `/projects/${p.id}`,
@@ -180,20 +219,16 @@ export default async function DashboardPage() {
     };
 
     const sections: BoardSection[] = SECTION_DEFS.map(def => ({
-      key: def.key, label: def.label, accent: def.accent, bg: def.bg,
-      badgeBg: def.badgeBg, badgeText: def.badgeText,
+      key: def.key, label: def.label, accent: def.accent, bg: def.bg, labelColor: 'labelColor' in def ? def.labelColor : undefined,
       items: itemsByKey[def.key],
       emptyLabel: 'No Active Projects',
     }));
-
-    const total = sections.reduce((sum, s) => sum + s.items.length, 0);
 
     return {
       regionCode: r.code,
       logoSrc: regionLogoByCode(r.dropboxShort),
       logoCode: r.dropboxShort,
-      headerColor: HEADER_COLORS[r.code] ?? c('secondary-600'),
-      total,
+      headerColor: HEADER_COLORS[r.code] ?? HEADER_COLORS.TLINES_NE,
       sections,
     };
   });
@@ -242,10 +277,31 @@ export default async function DashboardPage() {
     });
   }
 
+  // Figma's "In Design" has no stage of its own, so it uses client_approval (the Technical row).
+  const stageKpi = (key: KpiItem['key'], label: string, stages: string[]): KpiItem => {
+    const rows = projects.filter(p => stages.includes(p.current_stage));
+    const fresh = rows.filter(p => p.created_at >= weekAgo).length;
+    return { key, label, value: rows.length, href: '/projects', badge: fresh > 0 ? `+${fresh} New` : undefined };
+  };
+  const kpis: KpiItem[] = [
+    {
+      key: 'active', label: 'Active Projects', value: activeCount, href: '/projects',
+      // Overdue is the more urgent signal; fall back to "new this week" when nothing is late.
+      badge: overdueCount > 0 ? `${overdueCount} overdue` : newThisWeek > 0 ? `+${newThisWeek} New` : undefined,
+    },
+    stageKpi('design', 'In Design', ['client_approval']),
+    stageKpi('production', 'In Production', ['production']),
+    stageKpi('finalizing', 'Finalizing', ['closed_deal', 'finalization']),
+    { key: 'approvals', label: 'Approvals', value: approvals.length, href: '/approvals', badge: approvals.length > 0 ? 'Pending' : undefined },
+  ];
+
   return (
-    <>
-      <TopSummaryRow approvals={approvals} activeCount={activeCount} overdueCount={overdueCount} newThisWeek={newThisWeek} />
-      <BranchBoard columns={columns} assignees={marketingAssignees ?? []} canEdit={canEditOpportunities} />
-    </>
+    <BranchBoard
+      columns={columns}
+      assignees={marketingAssignees ?? []}
+      canEdit={canEditOpportunities}
+      canCreateTask={SALES_INTAKE_ROLES.includes(userRole)}
+      top={<TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} />}
+    />
   );
 }
