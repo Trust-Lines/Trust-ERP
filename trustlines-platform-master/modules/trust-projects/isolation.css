@@ -56,6 +56,15 @@
    and column headers stack under it; table sizes themselves are untouched. */
 .trust-projects.trust-projects { --global-navbar-height: 80px; } /* doubled class: beats the scoped :root rule */
 
+/* In the Trust System a fixed 64px navbar (z-index 1000) sat over the board, so its sticky region
+   header (z 98), filter bar (z 99) and page header (z 100) slid UNDER it. T-ERP's top bar is z-30:
+   without this they rode over it. A stacking context keeps the whole board under T-ERP's chrome. */
+.trust-projects.trust-projects:not(.trust-projects-portal) { position: relative; z-index: 0; }
+
+/* The board's page header ("Projects" / Export / Add) is pinned with an inline `top: 108px`
+   (Trust's 64px navbar + 44px sort bar). Same stack, measured from T-ERP's 80px top bar. */
+.trust-projects .board-page > div:first-child { top: var(--total-header-height) !important; }
+
 /* Body-level portal root for the board's modals and dropdowns (lib/portalRoot.ts). */
 .trust-projects.trust-projects-portal {
   position: absolute;

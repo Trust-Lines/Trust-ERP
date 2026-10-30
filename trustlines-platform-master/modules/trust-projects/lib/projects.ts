@@ -210,10 +210,13 @@ export const getProjects = async (): Promise<ProjectsResponse> => {
   const backendTotalPages = first.meta?.totalPages ?? 1;
   const pagesToWalk = Math.min(backendTotalPages, MAX_PAGES);
 
-  for (let p = 2; p <= pagesToWalk; p++) {
-    const next = await fetchPage(p);
-    all.push(...next.data);
-  }
+  // T-ERP ADAPTATION: pages 2…N in parallel (was one after another). Every request here goes
+  // T-ERP → Trust System, so waiting for each page in turn made the board load several times slower.
+  // Same pages, same order, same request count (well under the 200/min limit).
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(0, pagesToWalk - 1) }, (_, i) => fetchPage(i + 2)),
+  );
+  for (const next of rest) all.push(...next.data);
 
   // ── TEMP DEV LOG: prove pagination is doing its job, never silent.
   // Disable with `window.__PROJECT_LIST_DEBUG__ = false` from the console.

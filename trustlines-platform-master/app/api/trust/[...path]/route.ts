@@ -17,6 +17,20 @@ type Ctx = { params: Promise<{ path: string[] }> };
 
 const PASS_RESPONSE_HEADERS = ['content-type', 'content-disposition', 'cache-control'];
 
+// The board fires a burst of requests on load; looking the role up once per user per 30 s (per
+// server instance) instead of on every request takes a DB round trip off each of them.
+const ROLE_TTL = 30_000;
+const roleCache = new Map<string, { role: string | null; at: number }>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function roleOf(admin: any, userId: string): Promise<string | null> {
+  const hit = roleCache.get(userId);
+  if (hit && Date.now() - hit.at < ROLE_TTL) return hit.role;
+  const { data } = await admin.from('profiles').select('role').eq('id', userId).single();
+  const role = (data as { role?: string } | null)?.role ?? null;
+  roleCache.set(userId, { role, at: Date.now() });
+  return role;
+}
+
 async function forward(req: NextRequest, { params }: Ctx) {
   const base = process.env.TRUST_API_URL?.replace(/\/+$/, '');
   // TRUST_API_KEY per docs/T-ERP-INTEGRATION.md; t-erp's Vercel project has it as INTEGRATION_API_KEY.
@@ -29,9 +43,8 @@ async function forward(req: NextRequest, { params }: Ctx) {
   if (!user) return unauth;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
-  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
-  const role = (profile as { role?: string } | null)?.role ?? null;
-  const perms = await getRolePermissions(admin, role);
+  const role = await roleOf(admin, user.id);
+  const perms = await getRolePermissions(admin, role); // itself cached 30 s
   if (!pageAllowed(role, perms, 'page.production')) {
     return NextResponse.json({ statusCode: 403, message: 'No access to the Production board' }, { status: 403 });
   }
