@@ -62,7 +62,13 @@ interface Props {
 
 const CAMPAIGN_TYPE_LABEL: Record<CampaignType, string> = { trade_fair: 'Trade Fair', event: 'Event' };
 const STATUS_LABEL: Record<CampaignStatus, string> = { draft: 'Draft', active: 'Active', paused: 'Paused', closed: 'Closed' };
-const STATUS_TONE: Record<CampaignStatus, string> = { draft: 't0', active: 't6', paused: 't7', closed: 't10' };
+// Fixed palette colors with white text, same as the Campaigns list, so the chip stays readable in dark mode.
+const STATUS_BG: Record<CampaignStatus, string> = {
+  draft: 'var(--color-grey-500)',
+  active: 'var(--color-success-normal)',
+  paused: 'var(--color-warning-normal)',
+  closed: 'var(--color-error-normal)',
+};
 const SUBMISSION_STATUS_LABEL: Record<string, string> = {
   processed: 'Processed', needs_review: 'Needs review', rejected_spam: 'Rejected (spam)', failed: 'Failed',
 };
@@ -138,7 +144,6 @@ export function CampaignDetailClient({ campaign, ownerName, canEdit, stats, rece
   }
 
   const isClosed = campaign.status === 'closed';
-  const tone = STATUS_TONE[campaign.status];
   const subtitle = [
     CAMPAIGN_TYPE_LABEL[campaign.campaign_type],
     SOURCE_LABEL[campaign.source] !== CAMPAIGN_TYPE_LABEL[campaign.campaign_type] ? SOURCE_LABEL[campaign.source] : null,
@@ -168,7 +173,7 @@ export function CampaignDetailClient({ campaign, ownerName, canEdit, stats, rece
             <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>{campaign.name}</h1>
             <span
               className="inline-flex items-center rounded-[4px] px-2.5 py-[3px] text-[11px] font-medium uppercase leading-4"
-              style={{ background: `var(--status-${tone}-fg)`, color: '#fff' }}
+              style={{ background: STATUS_BG[campaign.status], color: '#fff' }}
             >
               {STATUS_LABEL[campaign.status]}
             </span>
