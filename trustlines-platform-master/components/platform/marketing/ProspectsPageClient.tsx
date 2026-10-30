@@ -24,6 +24,7 @@ import { SourceSelect } from './SourceSelect';
 import { TagMultiSelect } from './TagMultiSelect';
 import { Select } from '@/components/platform/shared/Select';
 import { exportContactsWorkbook, type ContactExportRow } from '@/lib/excel/contactsExcelExport';
+import { PersonFace } from '@/components/ui/avatar-directory';
 
 export interface ProspectRow {
   id: string;
@@ -157,7 +158,7 @@ function initials(name: string): string {
 function OwnerAvatar({ name }: { name: string | null }) {
   return (
     <span aria-hidden className="grid size-[26px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold leading-[1.4] text-ui-body">
-      {name ? initials(name) : '—'}
+      {name ? <PersonFace name={name} fallback={initials(name)} /> : '—'}
     </span>
   );
 }

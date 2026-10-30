@@ -16,6 +16,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatDate, formatDateTime } from '@/lib/formatDate';
 import { cn } from '@/lib/utils';
+import { PersonFace } from '@/components/ui/avatar-directory';
 import { DESIGN_VERSION_BASE } from '@/lib/sales/designPaths';
 import { DesignFiles, uploadToDesignFolder } from './DesignFiles';
 import { JobMaterials } from './JobMaterials';
@@ -472,7 +473,7 @@ function Card({ title, icon, children }: { title: string; icon?: React.ReactNode
 function Person({ label, name, empty }: { label: string; name: string | null; empty: string }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span aria-hidden className={cn('grid size-[28px] shrink-0 place-items-center rounded-full bg-ui-surface-elevated text-[10px] font-semibold', HEADING)}>{initials(name)}</span>
+      <span aria-hidden className={cn('grid size-[28px] shrink-0 place-items-center rounded-full bg-ui-surface-elevated text-[10px] font-semibold', HEADING)}><PersonFace name={name} fallback={initials(name)} /></span>
       <div className="min-w-0">
         <p className="m-0 text-[10.5px] uppercase tracking-wide text-ui-text-secondary">{label}</p>
         <p className={cn('m-0 truncate text-[13px]', name ? HEADING : 'text-ui-text-secondary')}>{name ?? empty}</p>

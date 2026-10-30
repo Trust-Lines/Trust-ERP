@@ -11,6 +11,7 @@ import { ThemeSwitch } from '@/components/platform/shared/ThemeSync';
 import { SignaturePad } from '@/components/platform/SignaturePad';
 import { roleLabel } from '@/components/platform/shell/Sidebar';
 import { compressImage } from '@/lib/client/compressImage';
+import { AVATARS_CHANGED_EVENT } from '@/components/ui/avatar-directory';
 import { MailSettingsCard } from './MailSettingsCard';
 import { GoogleAccountCard } from './GoogleAccountCard';
 
@@ -94,6 +95,7 @@ function ProfileBanner({ fullName, role, email, avatarUrl: initialAvatar }: { fu
       const b = await res.json().catch(() => ({}));
       if (!res.ok) { toast.error(b.error ?? 'Could not upload the photo'); return; }
       setAvatar(b.url);
+      window.dispatchEvent(new Event(AVATARS_CHANGED_EVENT));
       toast.success('Profile photo updated');
     } catch { toast.error('Could not upload the photo'); }
     finally { setPhotoBusy(false); }
@@ -105,6 +107,7 @@ function ProfileBanner({ fullName, role, email, avatarUrl: initialAvatar }: { fu
       const res = await fetch('/api/me/avatar', { method: 'DELETE' });
       if (!res.ok) { toast.error('Could not remove the photo'); return; }
       setAvatar(null);
+      window.dispatchEvent(new Event(AVATARS_CHANGED_EVENT));
       toast.success('Profile photo removed');
     } finally { setPhotoBusy(false); }
   }
