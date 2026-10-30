@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useMemo, useState } from 'react';
 import {
   Search, AlertTriangle, ArrowDown, ArrowUp, Ban, ChevronDown, ChevronUp, ChevronsUp, FolderInput,
@@ -196,7 +197,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
   return (
     <div className="w-full pb-12">
       <div className="mb-[18px] flex flex-col gap-[5px] leading-[1.35]">
-        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Marketing / Contacts / Potentials</p>
+        <PageCrumbs items={[{ label: 'Marketing', href: '/marketing' }, { label: 'Contacts', href: '/marketing/prospects' }, { label: 'Potentials', href: '/marketing/opportunities' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Potentials</h1>
         <p className="m-0 text-[13px] text-ui-body">
           {filteredDeals.length} record{filteredDeals.length === 1 ? '' : 's'} — click a row to open it, contacts still working toward real evidence for a Sales hand-off

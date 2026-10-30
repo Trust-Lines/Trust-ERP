@@ -166,7 +166,7 @@ export function MarketingCalendarClient({ initialMonth, initial, campaigns, canE
 
   const heading = (
     <PageHeading
-      trail="Marketing / Calendar"
+      trail={[{ label: 'Marketing', href: '/marketing' }, { label: 'Calendar', href: '/marketing/calendar' }]}
       title="Calendar"
       subtitle="Events, press, meetings and deadlines for the Marketing & PR team, with planned posts and campaigns."
       actions={canEdit && !error && <Button onClick={() => openNew(today ?? `${month}-01`)}><Plus /> New entry</Button>}

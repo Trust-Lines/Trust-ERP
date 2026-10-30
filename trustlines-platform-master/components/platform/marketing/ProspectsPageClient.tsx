@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Search, Users, User, Building2, AlertTriangle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Loader2, ArrowUp, ArrowDown, Ban, Filter, Download, Copy, Send, FolderInput, Upload } from 'lucide-react';
@@ -510,7 +511,7 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
     <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
         <div className="flex flex-col gap-[5px] leading-[1.35]">
-          <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Marketing / Contacts</p>
+          <PageCrumbs items={[{ label: 'Marketing', href: '/marketing' }, { label: 'Contacts', href: '/marketing/prospects' }]} />
           <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Contacts</h1>
           <p className="m-0 text-[13px] text-ui-body">
             {queryRequired && !hasAnyQuery

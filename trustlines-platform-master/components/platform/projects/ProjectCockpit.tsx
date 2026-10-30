@@ -1,9 +1,11 @@
 'use client';
 
+import { Fragment } from 'react';
 import Link from 'next/link';
-import { AlertCircle, ArrowRight, CheckCircle2, Circle, Clock, Layers } from 'lucide-react';
+import { AlertCircle, ArrowRight, Check, CircleCheck, Clock, Layers } from 'lucide-react';
 import { PHASE_LABELS, TYPE_SUB_PHASE_LABELS, type LifecyclePhase, type TypeSubPhase } from '@/lib/lifecycle/projectLifecycle';
 import { EmptyState } from '@/components/ui/empty-state';
+import { cn } from '@/lib/utils';
 
 interface RailStage { phase: LifecyclePhase; label: string; state: 'done' | 'active' | 'upcoming' }
 interface Blocker { code: string; message: string; count?: number }
@@ -44,11 +46,17 @@ function ownerLabel(owner: ActionOwner, pmNames: CockpitProps['pmNames']): strin
   return ROLE_LABELS[owner.role ?? ''] ?? owner.role ?? '—';
 }
 
-const SUBPHASE_TONE: Record<TypeSubPhase, 'good' | 'warn' | 'muted'> = {
-  VENDOR_PENDING: 'warn', PO_PENDING: 'warn', READY_TO_ORDER: 'muted', ORDERED: 'muted',
-  IN_PRODUCTION: 'muted', READY_TO_SHIP: 'good', SHIPPING: 'good', SENT: 'good',
-  ON_HOLD: 'warn', ASSEMBLY: 'muted',
+const SUBPHASE_TONE: Record<TypeSubPhase, 't2' | 't7' | 't0'> = {
+  VENDOR_PENDING: 't7', PO_PENDING: 't7', READY_TO_ORDER: 't0', ORDERED: 't0',
+  IN_PRODUCTION: 't0', READY_TO_SHIP: 't2', SHIPPING: 't2', SENT: 't2',
+  ON_HOLD: 't7', ASSEMBLY: 't0',
 };
+
+// Figma "Project Detail" (node 245:28820).
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const CARD_TITLE = cn('m-0 text-[20px] font-semibold tracking-[0.4px]', HEADING);
+const CARD = 'flex flex-col gap-3.5 rounded-[8px] border border-ui-divider bg-ui-page-bg p-4';
+const RAIL_CHIP = 'inline-flex items-center justify-center gap-1 rounded-[4px] py-4 pl-4 pr-5 text-[12px] font-medium leading-4 whitespace-nowrap';
 
 export function ProjectCockpit({
   projectId, rail, blockers, perType, nextActions, pending, canSeeInternal, pmNames,
@@ -57,115 +65,102 @@ export function ProjectCockpit({
   const mismatch = blockers.find(b => b.code === 'stage_mismatch');
 
   return (
-    <section aria-label="Project cockpit" style={{ display: 'grid', gap: 16, marginBottom: 20 }}>
-      <div className="card" style={{ padding: 16 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-          {rail.map((s, i) => (
-            <div key={s.phase} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span
-                className="pill"
-                title={PHASE_LABELS[s.phase]}
-                style={{
-                  fontSize: 11, whiteSpace: 'nowrap',
-                  fontWeight: s.state === 'active' ? 700 : 400,
-                  background: s.state === 'active' ? 'var(--brand-navy)'
-                    : s.state === 'done' ? 'var(--status-success-bg)' : 'var(--bg-sunken)',
-                  color: s.state === 'active' ? 'white'
-                    : s.state === 'done' ? 'var(--status-success-fg)' : 'var(--fg-subtle)',
-                  boxShadow: s.state === 'active' ? '0 1px 3px rgba(15,42,68,0.28)' : undefined,
-                }}
-              >
-                {s.state === 'done' && <CheckCircle2 size={11} style={{ verticalAlign: '-1px', marginRight: 3 }} />}
-                {s.label}
-              </span>
-              {i < rail.length - 1 && <span style={{ color: 'var(--fg-subtle)', fontSize: 10 }}>›</span>}
-            </div>
+    <section aria-label="Project cockpit" className="flex flex-col gap-[18px]">
+      <div className="rounded-[8px] border border-ui-selected-bg px-2.5 py-2">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {rail.map(s => (
+            <span
+              key={s.phase}
+              title={PHASE_LABELS[s.phase]}
+              className={cn(RAIL_CHIP, s.state === 'active' && 'min-w-fit flex-1 bg-[var(--color-primary-500)] text-white')}
+              style={s.state === 'active' ? undefined : s.state === 'done'
+                ? { background: 'var(--status-t9-bg)', color: 'var(--status-t9-fg)' }
+                : { background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}
+            >
+              {s.state === 'done' && <CircleCheck size={14} aria-hidden />}
+              {s.label}
+            </span>
           ))}
         </div>
 
         {(activeBlockers.length > 0 || mismatch) && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+          <div className="mt-2.5 flex flex-wrap gap-2 px-1 pb-1">
             {activeBlockers.map(b => (
-              <span key={b.code} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--fg-subtle)' }}>
-                <AlertCircle size={13} style={{ color: 'var(--status-warning-fg, #b45309)' }} /> {b.message}
+              <span key={b.code} className="inline-flex items-center gap-1.5 text-[12px] text-ui-body">
+                <AlertCircle size={13} aria-hidden style={{ color: 'var(--status-t7-fg)' }} /> {b.message}
               </span>
             ))}
             {mismatch && (
-              <span title={mismatch.message} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--fg-subtle)', fontStyle: 'italic' }}>
-                <Clock size={13} /> {mismatch.message}
+              <span title={mismatch.message} className="inline-flex items-center gap-1.5 text-[12px] italic text-ui-body">
+                <Clock size={13} aria-hidden /> {mismatch.message}
               </span>
             )}
           </div>
         )}
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-        <PendingPill label="Open approvals" value={pending.openApprovals} href="/approvals" />
+      <div className="flex flex-wrap gap-[18px]">
+        <PendingPill label="Open Approvals" value={pending.openApprovals} href="/approvals" />
         <PendingPill label="Open change requests" value={pending.openChangeRequests} href={`/projects/${projectId}/finalization`} />
         <PendingPill label="Overdue follow-ups" value={pending.overdueFollowUps} href={`/projects/${projectId}/finalization`} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16 }}>
-        <div className="card" style={{ padding: 16 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 12px' }}>Next actions</h2>
+      <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-2">
+        <div className={CARD}>
+          <h2 className={CARD_TITLE}>Next actions</h2>
           {nextActions.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>Nothing is waiting — this project is on track.</p>
+            <p className="m-0 text-[13px] text-ui-body">Nothing is waiting — this project is on track.</p>
           ) : (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
-              {nextActions.map(a => (
-                <li key={a.code}>
-                  <Link href={a.href} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, textDecoration: 'none', color: 'inherit' }}>
-                    <ArrowRight size={14} style={{ color: 'var(--fg-subtle)', flexShrink: 0 }} />
-                    <span style={{ flex: 1 }}>{a.action}</span>
-                    <span className="pill" style={{ fontSize: 10, background: 'var(--bg-sunken)', color: 'var(--fg-subtle)', whiteSpace: 'nowrap' }}>
-                      {ownerLabel(a.owner, pmNames)}
-                    </span>
-                  </Link>
-                </li>
+            <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+              {nextActions.map((a, i) => (
+                <Fragment key={a.code}>
+                  {i > 0 && <li aria-hidden className="h-px bg-ui-divider" />}
+                  <li>
+                    <Link href={a.href} className="flex items-center gap-2 text-inherit no-underline hover:underline">
+                      <ArrowRight size={16} aria-hidden className={cn('shrink-0', HEADING)} />
+                      <span className={cn('min-w-0 flex-1 text-[14px] font-semibold leading-[1.5] tracking-[-0.308px]', HEADING)}>{a.action}</span>
+                      <span className={cn('whitespace-nowrap rounded-[4px] bg-ui-selected-bg px-3 text-[12px] leading-[1.5] tracking-[-0.264px]', HEADING)}>
+                        {ownerLabel(a.owner, pmNames)}
+                      </span>
+                    </Link>
+                  </li>
+                </Fragment>
               ))}
             </ul>
           )}
         </div>
 
-        <div className="card" style={{ padding: 16 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 12px' }}>Types</h2>
+        <div className={CARD}>
+          <h2 className={CARD_TITLE}>Types</h2>
           {perType.length === 0 ? (
             <EmptyState size="sm" className="py-0" icon={<Layers />} title="No types defined yet." />
           ) : (
-            <div style={{ display: 'grid', gap: 6 }}>
-              {perType.map(t => (
-                <Link
-                  key={t.id}
-                  href={`/projects/${projectId}/types`}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, textDecoration: 'none', color: 'inherit' }}
-                >
-                  <span style={{ fontWeight: 600, minWidth: 90 }}>{t.type}</span>
-                  <span
-                    className="pill"
-                    style={{
-                      fontSize: 10,
-                      background: SUBPHASE_TONE[t.subPhase] === 'good' ? 'var(--status-success-bg)'
-                        : SUBPHASE_TONE[t.subPhase] === 'warn' ? 'var(--status-warning-bg, #fef3c7)' : 'var(--bg-sunken)',
-                      color: SUBPHASE_TONE[t.subPhase] === 'good' ? 'var(--status-success-fg)'
-                        : SUBPHASE_TONE[t.subPhase] === 'warn' ? 'var(--status-warning-fg, #b45309)' : 'var(--fg-subtle)',
-                    }}
-                  >
-                    {TYPE_SUB_PHASE_LABELS[t.subPhase]}
-                  </span>
-                  {canSeeInternal && (
-                    <span style={{ display: 'inline-flex', gap: 8, marginLeft: 'auto', color: 'var(--fg-subtle)' }}>
-                      <SignChip label="Vendor" ok={t.hasVendor} />
-                      <SignChip label="PO" ok={t.poSigned} />
-                      {t.pfSigned !== undefined && <SignChip label="PF" ok={t.pfSigned} />}
-                    </span>
-                  )}
-                  {t.isOverdue && (
-                    <span style={{ color: 'var(--status-danger, #dc2626)', fontSize: 11, marginLeft: canSeeInternal ? 8 : 'auto' }}>
-                      overdue
-                    </span>
-                  )}
-                </Link>
-              ))}
+            <div className="flex flex-col gap-2.5">
+              {perType.map((t, i) => {
+                const tone = SUBPHASE_TONE[t.subPhase];
+                return (
+                  <Fragment key={t.id}>
+                    {i > 0 && <div aria-hidden className="h-px bg-ui-divider" />}
+                    <Link href={`/projects/${projectId}/types`} className="flex flex-wrap items-center gap-2.5 text-inherit no-underline hover:opacity-80">
+                      <span className={cn('text-[14px] font-semibold leading-[1.5] tracking-[-0.308px]', HEADING)}>{t.type}</span>
+                      <span
+                        className="rounded-[4px] px-[13px] py-px text-[12px] leading-[1.5] tracking-[-0.264px] whitespace-nowrap"
+                        style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}
+                      >
+                        {TYPE_SUB_PHASE_LABELS[t.subPhase]}
+                      </span>
+                      {t.isOverdue && <span className="text-[11px]" style={{ color: 'var(--status-t10-fg)' }}>overdue</span>}
+                      {canSeeInternal && (
+                        <span className="ml-auto inline-flex items-center gap-2.5">
+                          <SignChip label="Vendor" ok={t.hasVendor} />
+                          <SignChip label="PO" ok={t.poSigned} />
+                          {t.pfSigned !== undefined && <SignChip label="PF" ok={t.pfSigned} />}
+                        </span>
+                      )}
+                    </Link>
+                  </Fragment>
+                );
+              })}
             </div>
           )}
         </div>
@@ -175,26 +170,23 @@ export function ProjectCockpit({
 }
 
 function PendingPill({ label, value, href }: { label: string; value: number; href: string }) {
-  const active = value > 0;
   return (
     <Link
       href={href}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, textDecoration: 'none',
-        padding: '6px 12px', borderRadius: 8,
-        background: active ? 'var(--status-warning-bg, #fef3c7)' : 'var(--bg-sunken)',
-        color: active ? 'var(--status-warning-fg, #b45309)' : 'var(--fg-subtle)',
-      }}
+      className={cn('flex min-w-[220px] flex-1 items-center justify-center gap-1 rounded-[8px] bg-ui-selected-bg py-4 pl-4 pr-5 leading-4 no-underline whitespace-nowrap transition-opacity hover:opacity-85', HEADING)}
     >
-      <strong style={{ fontSize: 15 }}>{value}</strong> {label}
+      <span className="text-[20px] font-semibold">{value}</span>
+      <span className="text-[12px] font-medium">{label}</span>
     </Link>
   );
 }
 
 function SignChip({ label, ok }: { label: string; ok: boolean }) {
   return (
-    <span title={`${label}: ${ok ? 'yes' : 'no'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
-      {ok ? <CheckCircle2 size={12} style={{ color: 'var(--status-success-fg)' }} /> : <Circle size={12} />}
+    <span title={`${label}: ${ok ? 'yes' : 'no'}`} className={cn('inline-flex items-center gap-1 text-[14px] leading-[1.5] tracking-[-0.308px]', HEADING)}>
+      <span className="inline-flex size-[15px] items-center justify-center rounded-[4px] border border-solid border-current">
+        {ok && <Check size={11} strokeWidth={3} aria-hidden />}
+      </span>
       {label}
     </span>
   );

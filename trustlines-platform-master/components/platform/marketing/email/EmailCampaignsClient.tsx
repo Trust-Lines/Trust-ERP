@@ -67,7 +67,7 @@ export function EmailCampaignsClient({ canEdit, isManager, mailReady }: { canEdi
   return (
     <div className="flex flex-col gap-[30px]">
       <PageHeading
-        trail="Marketing / Email Campaigns"
+        trail={[{ label: 'Marketing', href: '/marketing' }, { label: 'Email Campaigns', href: '/marketing/email' }]}
         title="Email Campaigns"
         subtitle="Send a designed email to a Contacts audience from your own mailbox, then follow opens, clicks and unsubscribes."
         actions={canEdit && <Button loading={creating} onClick={create}><Plus /> New campaign</Button>}

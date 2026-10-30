@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -186,7 +187,7 @@ export function CampaignsPageClient({ initialCampaigns, canEdit, canSeeAll, load
   return (
     <div className="w-full pb-12">
       <div className="mb-[18px] flex flex-col gap-[5px] leading-[1.35]">
-        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Marketing / Campaigns &amp; Surveys</p>
+        <PageCrumbs items={[{ label: 'Marketing', href: '/marketing' }, { label: 'Campaigns & Surveys', href: '/marketing/campaigns' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Campaigns &amp; Surveys</h1>
         <p className="m-0 text-[13px] text-ui-body">
           {campaigns.length} campaign{campaigns.length !== 1 ? 's' : ''}{canSeeAll ? '' : ' — yours'} · each one has its own public survey link and QR code.

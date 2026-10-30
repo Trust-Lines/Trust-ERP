@@ -1,29 +1,31 @@
 'use client';
 
 import { Activity } from 'lucide-react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import type { AuditRow } from './ProjectDetailClient';
 import { EmptyState } from '@/components/ui/empty-state';
+import { cn } from '@/lib/utils';
 
 interface Props {
   events: AuditRow[];
   userRole: string;
   userId: string;
+  className?: string;
 }
 
-interface ActionCfg { icon: string; color: string; bg: string; label: (n: unknown, o: unknown) => string }
+type ActionLabel = (n: unknown, o: unknown) => string;
 
-const ACTION_MAP: Record<string, ActionCfg> = {
-  'document.approved':  { icon: '✓', color: '#0E6B30', bg: '#E7F6EC', label: (n) => `approved ${_str(n, 'doc_type', 'document')} v${_str(n, 'version', '')}` },
-  'stage.advanced':     { icon: '→', color: '#0E6B30', bg: '#E7F6EC', label: (n, o) => `advanced stage from ${_str(o, 'stage', '?').replace(/_/g,' ')} to ${_str(n, 'stage', '?').replace(/_/g,' ')}` },
-  'document.uploaded':  { icon: '↑', color: 'var(--status-info-fg)', bg: '#E2EBFC', label: (n) => `uploaded ${_str(n, 'fileName', _str(n, 'doc_type', 'document'))}` },
-  'document.created':   { icon: '↑', color: 'var(--status-info-fg)', bg: '#E2EBFC', label: (n) => `created ${_str(n, 'doc_type', 'document')}` },
-  'qc.failed':          { icon: '✕', color: 'var(--status-danger-fg)', bg: '#FCE5E5', label: () => 'QC failed' },
-  'document.rejected':  { icon: '✕', color: 'var(--status-danger-fg)', bg: '#FCE5E5', label: () => 'rejected document' },
-  'stage.overdue':      { icon: '⚠', color: 'var(--status-warning-fg)', bg: '#FDF1DD', label: () => 'stage marked overdue' },
-  'gate.blocked':       { icon: '⚠', color: 'var(--status-warning-fg)', bg: '#FDF1DD', label: (n) => `gate blocked: ${_str(n, 'reason', '')}` },
-  'project.created':    { icon: '✦', color: '#1F5A5A', bg: '#DDECEC', label: (n) => `created project ${_str(n, 'code', '')}` },
-  'stage.overridden':   { icon: '⚡', color: 'var(--status-warning-fg)', bg: '#FDF1DD', label: (n) => `overrode stage gate — reason: ${_str(n, 'reason', '')}` },
+const ACTION_LABELS: Record<string, ActionLabel> = {
+  'document.approved':  (n) => `approved ${_str(n, 'doc_type', 'document')} v${_str(n, 'version', '')}`,
+  'stage.advanced':     (n, o) => `advanced stage from ${_str(o, 'stage', '?').replace(/_/g,' ')} to ${_str(n, 'stage', '?').replace(/_/g,' ')}`,
+  'document.uploaded':  (n) => `uploaded ${_str(n, 'fileName', _str(n, 'doc_type', 'document'))}`,
+  'document.created':   (n) => `created ${_str(n, 'doc_type', 'document')}`,
+  'qc.failed':          () => 'QC failed',
+  'document.rejected':  () => 'rejected document',
+  'stage.overdue':      () => 'stage marked overdue',
+  'gate.blocked':       (n) => `gate blocked: ${_str(n, 'reason', '')}`,
+  'project.created':    (n) => `created project ${_str(n, 'code', '')}`,
+  'stage.overridden':   (n) => `overrode stage gate — reason: ${_str(n, 'reason', '')}`,
 };
 
 function _str(val: unknown, key: string, fallback: string): string {
@@ -33,13 +35,12 @@ function _str(val: unknown, key: string, fallback: string): string {
   return fallback;
 }
 
-function getCfg(action: string): ActionCfg {
-  return ACTION_MAP[action] ?? {
-    icon: '·',
-    color: 'var(--fg-subtle)',
-    bg: 'var(--bg-sunken)',
-    label: () => action.replace(/\./g, ' '),
-  };
+function actionLabel(action: string, n: unknown, o: unknown): string {
+  return ACTION_LABELS[action]?.(n, o) ?? action.replace(/\./g, ' ');
+}
+
+function initialsOf(name: string): string {
+  return name.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 }
 
 function relativeTime(d: string): string {
@@ -54,84 +55,57 @@ function relativeTime(d: string): string {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export function AuditTrail({ events, userRole, userId }: Props) {
+// Figma "Project Detail" › Activity (node 245:28820).
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+
+export function AuditTrail({ events, userRole, className }: Props) {
   const [showAll, setShowAll] = useState(false);
   const PAGE = 10;
 
   const isTlinesPm = userRole === 'tlines_pm';
-  const filtered = isTlinesPm
-    ? events
-    : events;
-
-  const visible = showAll ? filtered : filtered.slice(0, PAGE);
+  const visible = showAll ? events : events.slice(0, PAGE);
 
   return (
-    <div className="card" style={{ marginTop: 14 }}>
-      <div className="card-head">
-        <div>
-          <div className="text-eyebrow">Last 30 days</div>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Activity</h3>
-        </div>
-      </div>
+    <div className={cn('flex flex-col gap-3.5 rounded-[8px] border border-ui-divider bg-ui-page-bg p-4', className)}>
+      <h2 className={cn('m-0 text-[20px] font-semibold tracking-[0.4px]', HEADING)}>Activity</h2>
 
-      {isTlinesPm && (
-        <div style={{ padding: '8px 18px', fontSize: 12, color: 'var(--fg-subtle)', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
-          Showing your activity only.
+      {isTlinesPm && <p className="m-0 text-[12px] text-ui-text-secondary">Showing your activity only.</p>}
+
+      {visible.length === 0 ? (
+        <EmptyState size="sm" className="justify-center px-4 py-7" icon={<Activity />} title="No activity yet." />
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {visible.map((ev, i) => {
+            const label = actionLabel(ev.action, ev.new_value, ev.old_value);
+            const actor = ev.actor?.full_name ?? 'System';
+            return (
+              <Fragment key={ev.id}>
+                {i > 0 && <div aria-hidden className="h-px bg-ui-divider" />}
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-[39px] shrink-0 items-center justify-center rounded-[6px] bg-ui-selected-bg text-[12px] leading-[1.4] text-ui-body">
+                    {initialsOf(actor)}
+                  </span>
+                  <div className={cn('min-w-0 flex-1 leading-[normal]', HEADING)}>
+                    <p className="m-0 truncate text-[14px] font-semibold tracking-[-0.308px]">{actor}</p>
+                    <p className="m-0 text-[12px] tracking-[-0.264px]">{label}</p>
+                  </div>
+                  <span suppressHydrationWarning className="shrink-0 whitespace-nowrap text-[14px] leading-[1.5] tracking-[-0.308px] text-ui-text-secondary">
+                    {relativeTime(ev.created_at)}
+                  </span>
+                </div>
+              </Fragment>
+            );
+          })}
         </div>
       )}
 
-      <div style={{ padding: '4px 0' }}>
-        {visible.length === 0 ? (
-          <EmptyState size="sm" className="justify-center px-4 py-7" icon={<Activity />} title="No activity yet." />
-        ) : (
-          visible.map(ev => {
-            const cfg   = getCfg(ev.action);
-            const label = cfg.label(ev.new_value, ev.old_value);
-            const actor = ev.actor?.full_name ?? 'System';
-
-            return (
-              <div
-                key={ev.id}
-                style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 12,
-                  padding: '9px 18px',
-                  borderBottom: '1px solid var(--border-subtle)',
-                }}
-              >
-                <div style={{
-                  width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                  background: cfg.bg, color: cfg.color,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 11, fontWeight: 700, marginTop: 1,
-                }}>
-                  {cfg.icon}
-                </div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: 'var(--fg-default)', lineHeight: 1.4 }}>
-                    <strong style={{ fontWeight: 600 }}>{actor}</strong>{' '}{label}
-                  </div>
-                </div>
-
-                <span suppressHydrationWarning style={{ fontSize: 11, color: 'var(--fg-faint)', flexShrink: 0, whiteSpace: 'nowrap', marginTop: 1 }}>
-                  {relativeTime(ev.created_at)}
-                </span>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {filtered.length > PAGE && (
-        <div style={{ padding: '10px 18px', borderTop: '1px solid var(--border-subtle)' }}>
-          <button
-            className="btn btn-ghost btn-sm"
-            style={{ color: 'var(--brand-teal)', padding: 0 }}
-            onClick={() => setShowAll(s => !s)}
-          >
-            {showAll ? 'Show less' : `Load more (${filtered.length - PAGE} more)`}
-          </button>
-        </div>
+      {events.length > PAGE && (
+        <button
+          type="button" onClick={() => setShowAll(s => !s)}
+          className="self-start border-0 bg-transparent p-0 text-[13px] font-medium text-ui-nav-active hover:underline"
+        >
+          {showAll ? 'Show less' : `Load more (${events.length - PAGE} more)`}
+        </button>
       )}
     </div>
   );

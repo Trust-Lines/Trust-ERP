@@ -96,9 +96,9 @@ export default async function ProjectsPage() {
   return (
     <div className="main-inner">
       <nav aria-label="Breadcrumb" className="mb-[18px] flex items-center gap-2 text-[12px] leading-[1.4]">
-        <span className="text-ui-text-secondary">Supply</span>
+        <Link href="/projects" className="text-ui-text-secondary no-underline hover:underline">Supply</Link>
         <ChevronRight aria-hidden className="size-3 text-ui-text-secondary" />
-        <span className="text-ui-body">Projects</span>
+        <Link href="/projects" aria-current="page" className="text-ui-body no-underline hover:underline">Projects</Link>
       </nav>
       <div className="mb-[18px] flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-[6px]">
