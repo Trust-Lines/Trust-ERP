@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { findStatusTag } from '@/lib/status/tags';
 import { cn } from '@/lib/utils';
+import { PersonFace } from '@/components/ui/avatar-directory';
 import type { TaskQuickFilter } from '@/lib/sales/taskFilters';
 
 export interface TaskRow {
@@ -337,7 +338,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
                           renderOption={o => (
                             <span className="inline-flex min-w-0 items-center gap-2">
                               <span aria-hidden className={cn('grid size-[26px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold', HEADING)}>
-                                {initials(o.value ? o.label : null)}
+                                <PersonFace userId={o.value || null} name={o.value ? o.label : null} fallback={initials(o.value ? o.label : null)} />
                               </span>
                               <span className={cn('truncate text-[13px] leading-[1.4]', o.value ? HEADING : 'text-ui-text-secondary')}>{o.label}</span>
                             </span>

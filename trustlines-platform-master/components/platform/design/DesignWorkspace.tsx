@@ -14,6 +14,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { StatCard } from '@/components/platform/shared/StatCard';
 import { formatDate } from '@/lib/formatDate';
 import { cn } from '@/lib/utils';
+import { PersonFace } from '@/components/ui/avatar-directory';
 import { DesignJobSheet } from './DesignJobSheet';
 import {
   DESIGNER_STATUSES, FILTER_CLS, HEADING, JOB_STATUS_LABEL, JOB_STATUS_ORDER, OPEN_STATUSES,
@@ -249,7 +250,7 @@ export function DesignWorkspace(props: Props) {
                     </div>
                     <StatusBadge group="design_job" status={j.status} size="sm" />
                     <span className="flex w-[160px] items-center gap-2 text-[12px] text-ui-body">
-                      <span aria-hidden className={cn('grid size-[24px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold', HEADING)}>{initials(designer)}</span>
+                      <span aria-hidden className={cn('grid size-[24px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold', HEADING)}><PersonFace name={designer} fallback={initials(designer)} /></span>
                       <span className="truncate">{designer ?? 'Unassigned'}</span>
                     </span>
                     <span className={cn('w-[110px] text-[12px]', isOverdue(j) ? 'font-semibold text-error-normal' : 'text-ui-body')}>
@@ -301,7 +302,7 @@ export function DesignWorkspace(props: Props) {
                           <p className="m-0 mt-0.5 text-[11px] text-ui-text-secondary">{leadMap[anchorId(j)]?.project_type || 'Design'}</p>
                           <div className="mt-2 flex items-center justify-between gap-2 text-[11px]">
                             <span className="flex min-w-0 items-center gap-1.5 text-ui-body">
-                              <span aria-hidden className={cn('grid size-[20px] shrink-0 place-items-center rounded-full bg-ui-surface text-[9px] font-semibold', HEADING)}>{initials(designer)}</span>
+                              <span aria-hidden className={cn('grid size-[20px] shrink-0 place-items-center rounded-full bg-ui-surface text-[9px] font-semibold', HEADING)}><PersonFace name={designer} fallback={initials(designer)} /></span>
                               <span className="truncate">{designer ?? 'Unassigned'}</span>
                             </span>
                             {j.due_date && <span className={isOverdue(j) ? 'font-semibold text-error-normal' : 'text-ui-text-secondary'}>{formatDate(j.due_date)}</span>}
@@ -351,7 +352,7 @@ export function DesignWorkspace(props: Props) {
                     key={w.id} type="button" onClick={() => { setTab('jobs'); setScope('open'); setFDesigner(w.id); }}
                     className="flex items-center gap-3 rounded-[6px] border-0 bg-ui-surface-elevated px-4 py-2.5 text-left hover:bg-ui-hover-bg"
                   >
-                    <span aria-hidden className={cn('grid size-[28px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold', HEADING)}>{initials(w.name)}</span>
+                    <span aria-hidden className={cn('grid size-[28px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold', HEADING)}><PersonFace name={w.name} userId={w.id} fallback={initials(w.name)} /></span>
                     <span className={cn('flex-1 truncate text-[13px]', HEADING)}>{w.name}</span>
                     <span className={cn('text-[13px] font-semibold', w.open >= 3 ? 'text-error-normal' : 'text-ui-body')}>{w.open} open</span>
                     {w.overdue > 0 && <span className="text-[12px] text-error-normal">{w.overdue} overdue</span>}

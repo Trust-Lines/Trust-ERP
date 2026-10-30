@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, LogOut, Settings, Shield } from 'lucide-react';
 import { ThemeSwitch } from '@/components/platform/shared/ThemeSync';
+import { PersonFace } from '@/components/ui/avatar-directory';
 
 // Design: Figma "TRUST-LINES ERP" → "Shell (Task 11)" → "User dropdown" (99:12105), light + dark.
 export function userInitials(name: string) {
@@ -65,11 +66,11 @@ export function UserMenu({
         className="flex cursor-pointer items-center gap-[9px] rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-700 dark:focus-visible:outline-primary-50"
       >
         <span
-          className={`flex items-center justify-center rounded-md bg-secondary-100 text-primary-500 dark:bg-secondary-700 dark:text-primary-100 ${
+          className={`flex items-center justify-center overflow-hidden rounded-md bg-secondary-100 text-primary-500 dark:bg-secondary-700 dark:text-primary-100 ${
             variant === 'rail' ? 'h-12 w-12 text-sm font-medium' : 'h-9 w-9 text-xs'
           }`}
         >
-          {initials}
+          <PersonFace name={userName} fallback={initials} />
         </span>
         {variant === 'topbar' && (
           <ChevronDown className={`h-3 w-3 text-primary-500 transition-transform dark:text-primary-100 ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
@@ -84,8 +85,8 @@ export function UserMenu({
           }`}
         >
           <div className="flex items-start gap-3 p-3">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary-100 text-[11px] text-primary-500 dark:bg-secondary-700 dark:text-primary-100">
-              {initials}
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary-100 text-[11px] text-primary-500 dark:bg-secondary-700 dark:text-primary-100">
+              <PersonFace name={userName} fallback={initials} />
             </span>
             <div className="flex min-w-0 flex-col gap-[3px] leading-[1.4]">
               <p className="truncate text-sm font-semibold text-primary-500 dark:text-primary-100">{userName || 'User'}</p>

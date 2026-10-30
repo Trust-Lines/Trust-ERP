@@ -15,6 +15,7 @@ import type { ProjectRow, ProjectViewNote } from '@/app/(platform)/projects/page
 import { EmptyState } from '@/components/ui/empty-state';
 import { buttonVariants } from '@/components/ui/button';
 import Link from 'next/link';
+import { PersonFace } from '@/components/ui/avatar-directory';
 
 interface Props {
   projects: ProjectRow[];
@@ -423,7 +424,7 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                         {p.owner ? (
                           <span className="flex items-center gap-2 whitespace-nowrap">
                             <span aria-hidden className="grid size-[26px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold leading-[1.4] text-ui-body">
-                              {initials(p.owner.full_name)}
+                              <PersonFace name={p.owner.full_name} fallback={initials(p.owner.full_name)} />
                             </span>
                             {p.owner.full_name}
                           </span>
