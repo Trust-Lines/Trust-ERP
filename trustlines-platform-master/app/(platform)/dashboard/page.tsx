@@ -9,6 +9,7 @@ import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { SALES_HANDOFF_ROLES, SALES_INTAKE_ROLES } from '@/lib/sales/roles';
 import { loadClientOpportunities, type ClientOpportunityRow } from '@/lib/keyClients/server';
 import { quickViewLink } from '@/lib/marketing/quickViewLink';
+import { classifyTrustProject, loadTrustProjects, typeLabel, type TrustStage } from '@/lib/trust/board';
 import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem } from '@/components/platform/dashboard/BranchBoard';
 import { TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
 
@@ -118,9 +119,30 @@ export default async function DashboardPage() {
       return [];
     }
   };
-  const [{ data: projectRows }, opportunities] = regionCodes.length === 0
-    ? [{ data: [] }, [] as ClientOpportunityRow[]]
-    : await Promise.all([projectQuery, loadClientOpps()]);
+  // Finalization → Shipped come from the Trust System, by project number (lib/trust/board.ts).
+  const [{ data: projectRows }, opportunities, trustProjects] = regionCodes.length === 0
+    ? [{ data: [] }, [] as ClientOpportunityRow[], []]
+    : await Promise.all([projectQuery, loadClientOpps(), loadTrustProjects()]);
+  const trustToday = new Date().toISOString().slice(0, 10);
+  const trustCards = trustProjects.filter(p => regionCodes.includes(p.bucket)).map(p => {
+    const e = classifyTrustProject(p, trustToday);
+    const item: BoardCardItem = {
+      id: p.id, kind: 'trust',
+      badgeTop: `#${p.projectNo}`, badgeBottom: '',
+      title: p.name,
+      subtitle: p.address,
+      category: (p.types ?? []).map(typeLabel).filter(Boolean).join(', ') || null,
+      pmName: null, pmLabel: '',
+      onHold: e.onHold,
+      dateISO: e.dateISO,
+      dateLabel: fmtDate(e.dateISO),
+      href: '',
+      note: e.note,
+    };
+    return { region: p.bucket, stage: e.stage, item };
+  });
+  const trustItems = (region: string, stage: TrustStage) =>
+    trustCards.filter(c => c.region === region && c.stage === stage).map(c => c.item);
 
   type ProjectRow = {
     id: string; code: string; name: string; current_stage: string; region: string | null;
@@ -197,9 +219,6 @@ export default async function DashboardPage() {
       };
     };
 
-    const finalizationItems = regionProjects.filter(p => p.current_stage === 'closed_deal' || p.current_stage === 'finalization').map(toCardItem);
-    const technicalItems    = regionProjects.filter(p => p.current_stage === 'client_approval').map(toCardItem);
-    const inProductionItems = regionProjects.filter(p => p.current_stage === 'production').map(toCardItem);
     const readyItems        = regionProjects.filter(p => p.current_stage === 'delivered').map(toCardItem);
 
     // Newest date first within each section, undated cards pushed to the end (never dropped).
@@ -208,11 +227,11 @@ export default async function DashboardPage() {
 
     const itemsByKey: Record<string, BoardCardItem[]> = {
       opportunity:   opportunityItems,                     // already in client order
-      finalization:  [...finalizationItems].sort(byDate),
-      technical:     [...technicalItems].sort(byDate),
-      to_production: [],
-      in_production: [...inProductionItems].sort(byDate),
-      shipped:       [],
+      finalization:  trustItems(r.code, 'finalization').sort(byDate),
+      technical:     trustItems(r.code, 'technical').sort(byDate),
+      to_production: trustItems(r.code, 'to_production').sort(byDate),
+      in_production: trustItems(r.code, 'in_production').sort(byDate),
+      shipped:       trustItems(r.code, 'shipped').sort(byDate),
       ready:         [...readyItems].sort(byDate),
     };
 

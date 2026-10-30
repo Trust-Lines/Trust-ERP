@@ -22,7 +22,7 @@ import { OpportunityQuickView } from '@/components/platform/marketing/Opportunit
 
 export interface BoardCardItem {
   id: string;
-  kind: 'project' | 'opportunity';
+  kind: 'project' | 'opportunity' | 'trust';   // trust = a Trust System project (no popup yet)
   badgeTop: string;
   badgeBottom: string;
   title: string;
@@ -38,6 +38,8 @@ export interface BoardCardItem {
   dateISO: string | null;
   dateLabel: string | null;
   href: string;
+  /** Short line under the address, e.g. which types have a PF code / what hasn't shipped. */
+  note?: string | null;
 }
 
 export interface BoardSection {
@@ -122,7 +124,10 @@ function Card({ item, section, onOpen }: {
         {item.dateLabel && <span className="shrink-0 text-[10px] leading-normal">{item.dateLabel}</span>}
       </span>
       <span className="flex w-full items-end justify-between gap-2">
-        <span className="min-w-0 truncate text-[10px] leading-normal">{item.subtitle}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-[10px] leading-normal">{item.subtitle}</span>
+          {item.note && <span className="block text-[10px] font-semibold leading-normal">{item.note}</span>}
+        </span>
         {item.pmName && (
           <span className="flex shrink-0 flex-col rounded-[4px] px-2 py-0.5 leading-normal" style={{ background: section.accent, color: 'var(--ui-surface-elevated)' }}>
             <span className="text-[13px] font-semibold">{item.pmName}</span>
@@ -241,7 +246,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top }:
 
   const handleOpen = (item: BoardCardItem) => {
     if (item.kind === 'project') setOpenProjectId(item.id);
-    else setOpenOpportunityId(item.id);
+    else if (item.kind === 'opportunity') setOpenOpportunityId(item.id);
   };
 
   const filteredColumns = React.useMemo(() => {
