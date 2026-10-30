@@ -478,15 +478,19 @@ const ProjectBlock: React.FC<ProjectBlockProps> = ({ mode = 'projects', project,
           };
           newMap.set(itemId, mergedItem);
 
-          // 💰 CRITICAL: Also update global state for reactive section totals
-          if (updateGlobalItem) {
-            updateGlobalItem(itemId, mergedItem);
-          }
+          // T-ERP ADAPTATION: parent state updates must not run inside this state updater (React runs
+          // updaters during render → "Cannot update a component while rendering a different component").
+          queueMicrotask(() => {
+            // 💰 CRITICAL: Also update global state for reactive section totals
+            if (updateGlobalItem) {
+              updateGlobalItem(itemId, mergedItem);
+            }
 
-          // 🔥 SUPPLIER FIX: Update parent state for immediate UI refresh
-          if (onSupplierItemUpdated && 'projectId' in updatedItem) {
-            onSupplierItemUpdated(updatedItem as BackendProjectItem);
-          }
+            // 🔥 SUPPLIER FIX: Update parent state for immediate UI refresh
+            if (onSupplierItemUpdated && 'projectId' in updatedItem) {
+              onSupplierItemUpdated(updatedItem as BackendProjectItem);
+            }
+          });
         }
         return newMap;
       });
@@ -1798,8 +1802,12 @@ const ProjectBlock: React.FC<ProjectBlockProps> = ({ mode = 'projects', project,
         if (item.containerNo && item.containerNo.toUpperCase() === oldName.toUpperCase()) {
           const updated = { ...item, containerNo: newName };
           newMap.set(id, updated);
-          if (updateGlobalItem) updateGlobalItem(id, { containerNo: newName });
-          if (onSupplierItemUpdated) onSupplierItemUpdated(updated as BackendProjectItem);
+          // T-ERP ADAPTATION: parent state updates must not run inside this state updater (React runs
+          // updaters during render → "Cannot update a component while rendering a different component").
+          queueMicrotask(() => {
+            if (updateGlobalItem) updateGlobalItem(id, { containerNo: newName });
+            if (onSupplierItemUpdated) onSupplierItemUpdated(updated as BackendProjectItem);
+          });
         }
       });
       return newMap;
@@ -1932,8 +1940,12 @@ const ProjectBlock: React.FC<ProjectBlockProps> = ({ mode = 'projects', project,
             vendor: { ...(item.vendor || {}), id: vendorId, code: newCode, name: newName },
           };
           newMap.set(id, updated as any);
-          if (updateGlobalItem) updateGlobalItem(id, updated as any);
-          if (onSupplierItemUpdated) onSupplierItemUpdated(updated as BackendProjectItem);
+          // T-ERP ADAPTATION: parent state updates must not run inside this state updater (React runs
+          // updaters during render → "Cannot update a component while rendering a different component").
+          queueMicrotask(() => {
+            if (updateGlobalItem) updateGlobalItem(id, updated as any);
+            if (onSupplierItemUpdated) onSupplierItemUpdated(updated as BackendProjectItem);
+          });
         }
       });
       return newMap;
