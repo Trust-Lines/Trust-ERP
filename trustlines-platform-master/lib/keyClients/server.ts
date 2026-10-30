@@ -41,6 +41,8 @@ export interface ClientOpportunityRow {
   request: string | null;
   priority: string | null;
   createdAt: string;           // ClickUp's created date when it came from ClickUp
+  ownerId: string | null;      // sales owner, else marketing owner (Potential: assignee)
+  ownerIsSales: boolean;
   matchedBy: 'name' | 'link';
 }
 
@@ -72,8 +74,8 @@ async function readAll(build: (from: number, to: number) => PromiseLike<{ data: 
   return out;
 }
 
-const OPP_COLS = 'id, prospect_id, title, brand, stage, region, external_project_code, external_stage_label, to_do_raw, next_action, next_action_date, deadline, project_types, project_type_raw, request_raw, priority, external_created_at, created_at';
-const POT_COLS = 'id, prospect_id, title, brand, status, region, external_project_code, external_stage_label, to_do_raw, target_contact_date, due_date, project_type_raw, request_raw, priority, external_created_at, created_at';
+const OPP_COLS = 'id, prospect_id, title, brand, stage, region, external_project_code, external_stage_label, to_do_raw, next_action, next_action_date, deadline, project_types, project_type_raw, request_raw, priority, external_created_at, created_at, sales_owner_id, marketing_owner_id';
+const POT_COLS = 'id, prospect_id, title, brand, status, region, external_project_code, external_stage_label, to_do_raw, target_contact_date, due_date, project_type_raw, request_raw, priority, external_created_at, created_at, assigned_to';
 
 /** Every open deal of a key client, grouped by region (sheet order). */
 export async function loadClientOpportunities(admin: any): Promise<{
@@ -117,6 +119,8 @@ export async function loadClientOpportunities(admin: any): Promise<{
       projectTypes: o.project_types ?? [], projectTypeRaw: o.project_type_raw ?? null,
       request: o.request_raw ?? null, priority: o.priority ?? null,
       createdAt: o.external_created_at ?? o.created_at,
+      ownerId: isOpp ? o.sales_owner_id ?? o.marketing_owner_id ?? null : o.assigned_to ?? null,
+      ownerIsSales: isOpp && !!o.sales_owner_id,
       matchedBy: linked.has(o.id) || linked.has(o.prospect_id) ? 'link' : 'name',
     };
     (regions[o.region ?? ''] ??= []).push(row);

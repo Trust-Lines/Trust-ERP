@@ -7,6 +7,8 @@ import { regionLogoByCode } from '@/lib/regionLogo';
 import { getAssignedRegions, regionAllows } from '@/lib/access/regionScope';
 import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { SALES_HANDOFF_ROLES, SALES_INTAKE_ROLES } from '@/lib/sales/roles';
+import { loadClientOpportunities, type ClientOpportunityRow } from '@/lib/keyClients/server';
+import { quickViewLink } from '@/lib/marketing/quickViewLink';
 import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem } from '@/components/platform/dashboard/BranchBoard';
 import { TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
 
@@ -104,42 +106,35 @@ export default async function DashboardPage() {
     .eq('is_draft', false);
   if (userRole === 'tlines_pm') projectQuery = projectQuery.eq('tlines_pm_id', user.id);
 
-  const [{ data: projectRows }, { data: opportunityRows }] = regionCodes.length === 0
-    ? [{ data: [] }, { data: [] }]
-    : await Promise.all([
-        projectQuery,
-        admin.from('opportunities')
-          .select('id, title, stage, region, external_created_at, created_at, external_project_code, prospect_id, project_types, sales_owner_id, marketing_owner_id')
-          .in('region', regionCodes)
-          .is('deleted_at', null)
-          .not('stage', 'in', '(closed_won,closed_lost)'),
-      ]);
+  // "Clients Opportunity" is not every deal: only the open Opportunities/Potentials of our key
+  // clients (key_clients, migration 134 — lib/keyClients/server.ts). Trust follows those before
+  // they're signed; everything else waits until it's a project.
+  const loadClientOpps = async (): Promise<ClientOpportunityRow[]> => {
+    try {
+      const r = await loadClientOpportunities(admin);
+      return Object.values(r.regions).flat().filter(o => !!o.region && regionCodes.includes(o.region));
+    } catch (e) {
+      console.error('[dashboard] client opportunities unavailable (migration 134?):', e instanceof Error ? e.message : e);
+      return [];
+    }
+  };
+  const [{ data: projectRows }, opportunities] = regionCodes.length === 0
+    ? [{ data: [] }, [] as ClientOpportunityRow[]]
+    : await Promise.all([projectQuery, loadClientOpps()]);
 
   type ProjectRow = {
     id: string; code: string; name: string; current_stage: string; region: string | null;
     site_location: string | null; est_delivery_date: string | null; closed_deal_date: string | null;
     created_at: string; categories: string[] | null; tlines_pm_id: string | null;
   };
-  type OpportunityRow = {
-    id: string; title: string; stage: string; region: string | null;
-    // external_created_at = the real ClickUp "date created" (when it became an opportunity
-    // there — lib/clickup/importOpportunitiesMapping.ts). Set on every imported row, unlike
-    // expected_close_date which is often left blank — use it as the card's date, falling back
-    // to our own created_at only for opportunities that were never imported from ClickUp.
-    external_created_at: string | null; created_at: string;
-    external_project_code: string | null;
-    prospect_id: string; project_types: string[] | null;
-    sales_owner_id: string | null; marketing_owner_id: string | null;
-  };
 
   const projects = (projectRows ?? []) as ProjectRow[];
-  const opportunities = (opportunityRows ?? []) as OpportunityRow[];
 
   const pmIds = [...new Set([
     ...projects.map(p => p.tlines_pm_id),
-    ...opportunities.map(o => o.sales_owner_id ?? o.marketing_owner_id),
+    ...opportunities.map(o => o.ownerId),
   ].filter(Boolean))] as string[];
-  const prospectIds = [...new Set(opportunities.map(o => o.prospect_id))];
+  const prospectIds = [...new Set(opportunities.map(o => o.prospectId))];
   const [pmRows, locationRows, holdRows] = await Promise.all([
     fetchInChunks(pmIds, chunk => admin.from('profiles').select('id, full_name').in('id', chunk)),
     fetchInChunks(prospectIds, chunk => admin.from('prospect_locations').select('prospect_id, city, state').in('prospect_id', chunk).order('created_at', { ascending: true })),
@@ -164,21 +159,21 @@ export default async function DashboardPage() {
     const regionOpportunities = opportunities.filter(o => o.region === r.code);
 
     const opportunityItems: BoardCardItem[] = regionOpportunities.map(o => {
-      const [top, bottom] = opportunityBadge(o.external_project_code);
-      const becameOpportunityDate = (o.external_created_at ?? o.created_at).slice(0, 10);
-      const ownerId = o.sales_owner_id ?? o.marketing_owner_id;
+      const [top, bottom] = opportunityBadge(o.projectCode);
+      // ClickUp's "date created" when imported (when it became an opportunity there), else ours.
+      const becameOpportunityDate = o.createdAt.slice(0, 10);
       return {
         id: o.id, kind: 'opportunity',
         badgeTop: top, badgeBottom: bottom,
-        title: o.title,
-        subtitle: prospectPlace.get(o.prospect_id) ?? null,
-        category: categoryLabel(o.project_types),
-        pmName: ownerId ? pmNames.get(ownerId) ?? null : null,
-        pmLabel: o.sales_owner_id ? 'Sales Owner' : 'Marketing Owner',
+        title: o.site,
+        subtitle: prospectPlace.get(o.prospectId) ?? null,
+        category: categoryLabel(o.projectTypes.length ? o.projectTypes : o.projectTypeRaw ? [o.projectTypeRaw] : null),
+        pmName: o.ownerId ? pmNames.get(o.ownerId) ?? null : null,
+        pmLabel: o.ownerIsSales ? 'Sales Owner' : 'Marketing Owner',
         onHold: o.stage === 'on_hold',
         dateISO: becameOpportunityDate,
         dateLabel: fmtDate(becameOpportunityDate),
-        href: '/marketing/opportunities',
+        href: quickViewLink(o.kind, o.id),
       };
     });
 
