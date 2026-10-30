@@ -1,4 +1,5 @@
 import { SALES_HANDOFF_ROLES, SALES_INTAKE_ROLES, SALES_TEAM_ADMIN_ROLES } from '@/lib/sales/roles';
+import { TLINES_DASHBOARD_ROLES } from '@/lib/keyClients/roles';
 
 export type PermCategory = 'page' | 'edit' | 'sign' | 'view' | 'notify' | 'progress';
 
@@ -36,6 +37,7 @@ export const PAGE_ROUTES: { key: string; route: string }[] = [
   { key: 'page.qc',              route: '/qc' },
   { key: 'page.logistics',       route: '/logistics' },
   { key: 'page.management',      route: '/management' },
+  { key: 'page.tlines_dashboard', route: '/tlines-dashboard' },
   { key: 'page.suppliers',       route: '/suppliers' },
   { key: 'page.expenses',        route: '/expenses' },
   { key: 'page.invoices',        route: '/invoices' },
@@ -112,6 +114,7 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'page.production',     label: 'Production board' },
       { key: 'page.logistics',      label: 'Logistics' },
       { key: 'page.management',     label: 'Management workspace', hint: 'Company-wide blockers, workload and project health' },
+      { key: 'page.tlines_dashboard', label: 'TLines dashboard', hint: 'Projects progress by region, including key clients’ deals before they are signed' },
     ],
   },
   {
@@ -239,6 +242,7 @@ export const PAGE_LEGACY_ROLES: Record<string, string[]> = {
   'page.sales_handoffs': SALES_HANDOFF_ROLES,
   'page.sales_dashboard': SALES_TEAM_ADMIN_ROLES,
   'page.sales_team': SALES_TEAM_ADMIN_ROLES,
+  'page.tlines_dashboard': TLINES_DASHBOARD_ROLES,
 };
 
 /** Whether `role` (with its effective permission map) may open the page behind `key`. */
