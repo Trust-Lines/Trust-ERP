@@ -87,6 +87,8 @@ export function classifyTrustProject(p: TrustProject, today: string): TrustBoard
   return { stage: 'finalization', note: null, onHold, dateISO: created };
 }
 
+const TRUST_DEFAULT_URL = 'https://trust-excel.vercel.app/api';
+
 const clean = (v: string | undefined) => v?.trim().replace(/^["']|["']$/g, '').trim() || undefined;
 
 /**
@@ -94,11 +96,23 @@ const clean = (v: string | undefined) => v?.trim().replace(/^["']|["']$/g, '').t
  * can't be read, `error` says why (missing env, HTTP status, network) so the board can show it.
  */
 export async function loadTrustProjects(): Promise<{ projects: TrustProject[]; error: string | null }> {
-  const raw = clean(process.env.TRUST_API_URL)?.replace(/\/+$/, '');
-  const key = clean(process.env.TRUST_API_KEY) ?? clean(process.env.INTEGRATION_API_KEY);
+  let raw = clean(process.env.TRUST_API_URL)?.replace(/\/+$/, '');
+  // A value that isn't a web address (prod once had an email address here) falls back to the
+  // Trust System's own address instead of leaving the board empty.
+  if (raw && !/^https?:\/\//i.test(raw)) {
+    console.warn('[trust board] TRUST_API_URL is not a URL — using', TRUST_DEFAULT_URL);
+    raw = TRUST_DEFAULT_URL;
+  }
+  const keyName = clean(process.env.TRUST_API_KEY) ? 'TRUST_API_KEY' : 'INTEGRATION_API_KEY';
+  const key = clean(process.env[keyName]);
   if (!raw || !key) return { projects: [], error: `not configured (${!raw ? 'TRUST_API_URL' : 'TRUST_API_KEY'} missing)` };
   // The API lives under /api — accept the URL with or without it.
   const base = /\/api$/.test(raw) ? raw : `${raw}/api`;
+  // Named in every message (host + which key variable) — not secret, and it's what tells a
+  // wrong deployment / wrong key apart when prod differs from local.
+  let host = raw;
+  try { host = new URL(base).host; } catch { /* keep raw */ }
+  const where = `${host}, ${keyName}`;
   const all: TrustProject[] = [];
   try {
     for (let page = 1; page <= 50; page++) {
@@ -116,7 +130,9 @@ export async function loadTrustProjects(): Promise<{ projects: TrustProject[]; e
   } catch (e) {
     const msg = e instanceof Error ? (e.name === 'TimeoutError' ? 'timed out' : e.message) : String(e);
     console.error('[trust board] projects unavailable:', msg);
-    return { projects: [], error: msg };
+    return { projects: [], error: `${msg} — ${where}` };
   }
-  return { projects: all.filter(p => !p.deletedAt && p.status !== 'DONE'), error: null };
+  const live = all.filter(p => !p.deletedAt && p.status !== 'DONE');
+  if (!live.length) return { projects: [], error: `no projects returned (${all.length} in total) — ${where}` };
+  return { projects: live, error: null };
 }
