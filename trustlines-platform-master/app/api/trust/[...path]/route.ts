@@ -19,9 +19,10 @@ const PASS_RESPONSE_HEADERS = ['content-type', 'content-disposition', 'cache-con
 
 async function forward(req: NextRequest, { params }: Ctx) {
   const base = process.env.TRUST_API_URL?.replace(/\/+$/, '');
-  const key = process.env.TRUST_API_KEY;
+  // TRUST_API_KEY per docs/T-ERP-INTEGRATION.md; t-erp's Vercel project has it as INTEGRATION_API_KEY.
+  const key = process.env.TRUST_API_KEY || process.env.INTEGRATION_API_KEY;
   if (!base || !key) {
-    return NextResponse.json({ statusCode: 503, message: 'Trust System connection is not configured (TRUST_API_URL / TRUST_API_KEY).' }, { status: 503 });
+    return NextResponse.json({ statusCode: 503, message: 'Trust System connection is not configured (TRUST_API_URL / TRUST_API_KEY or INTEGRATION_API_KEY).' }, { status: 503 });
   }
 
   const { user, unauth } = await requireUser();

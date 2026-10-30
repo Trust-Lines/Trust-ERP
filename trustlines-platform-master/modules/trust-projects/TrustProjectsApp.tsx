@@ -18,7 +18,7 @@ function Gate({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) {
     return (
       <p className="m-0 rounded-[8px] bg-ui-surface p-5 text-[13px] text-ui-body">
-        Could not connect to the Trust System. Check that TRUST_API_URL and TRUST_API_KEY are set for T-ERP,
+        Could not connect to the Trust System. Check that TRUST_API_URL and the API key (TRUST_API_KEY or INTEGRATION_API_KEY) are set for T-ERP,
         and that you have access to the Production board.
       </p>
     );
