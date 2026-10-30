@@ -1,0 +1,69 @@
+/*
+ * T-ERP → Trust board isolation. Loaded BEFORE styles.scoped.css.
+ *
+ * The Trust System page was built on plain browser defaults (no Tailwind preflight); T-ERP's
+ * preflight and base layer reset buttons, inputs, headings, borders, line-height and colours.
+ * Inside .trust-projects this puts the browser defaults back (`revert` = user-agent value), so the
+ * board renders as it does in the Trust System. Everything uses :where() (specificity 0,1,0) and
+ * comes first, so every Trust rule still wins over it.
+ */
+
+/* The Trust page's document defaults (html/body there), set on the wrapper. */
+.trust-projects {
+  color: #000;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: normal;
+  letter-spacing: normal;
+  font-feature-settings: normal;
+  font-variation-settings: normal;
+  tab-size: revert;
+  -webkit-text-size-adjust: revert;
+  text-align: left;
+}
+
+.trust-projects :where(*),
+.trust-projects :where(*)::before,
+.trust-projects :where(*)::after {
+  border: revert;
+  outline: revert;
+}
+
+.trust-projects :where(h1, h2, h3, h4, h5, h6) { font-size: revert; font-weight: revert; }
+.trust-projects :where(b, strong) { font-weight: revert; }
+.trust-projects :where(small) { font-size: revert; }
+.trust-projects :where(a) { color: revert; text-decoration: revert; }
+.trust-projects :where(ol, ul, menu) { list-style: revert; }
+.trust-projects :where(img, svg, video, canvas, audio, iframe, embed, object) { display: revert; vertical-align: revert; }
+.trust-projects :where(img, video) { max-width: revert; height: revert; }
+.trust-projects :where(table) { text-indent: revert; border-color: revert; border-collapse: revert; }
+.trust-projects :where(hr) { height: revert; color: revert; border-top-width: revert; }
+.trust-projects :where(textarea) { resize: revert; }
+.trust-projects :where(button, input, select, optgroup, textarea),
+.trust-projects :where(input)::file-selector-button {
+  font: revert;
+  letter-spacing: revert;
+  color: revert;
+  background-color: revert;
+  border-radius: revert;
+  opacity: revert;
+  appearance: revert;
+}
+.trust-projects :where(input, textarea)::placeholder { opacity: revert; color: revert; }
+.trust-projects :where(:focus-visible) { box-shadow: revert; }
+
+/* Outer frame: T-ERP's top bar is 80px (Trust's navbar was 64px). The board's sticky filter bar
+   and column headers stack under it; table sizes themselves are untouched. */
+.trust-projects.trust-projects { --global-navbar-height: 80px; } /* doubled class: beats the scoped :root rule */
+
+/* Body-level portal root for the board's modals and dropdowns (lib/portalRoot.ts). */
+.trust-projects.trust-projects-portal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  background: transparent;
+  z-index: 9000;
+}
