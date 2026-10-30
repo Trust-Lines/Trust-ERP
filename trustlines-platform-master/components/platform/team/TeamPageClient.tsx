@@ -105,10 +105,11 @@ function RoleBadge({ role, roleMap }: { role: string; roleMap: Map<string, RoleO
   const lbl = roleMap.get(role)?.label ?? FALLBACK_LABELS[role] ?? role;
   return (
     <span
-      className="inline-flex h-9 max-w-full items-center truncate rounded-[4px] border border-solid px-4 py-[3px] text-[12px] font-medium leading-4"
+      title={lbl}
+      className="inline-flex h-9 max-w-full items-center rounded-[4px] border border-solid px-4 py-[3px] text-[12px] font-medium leading-4"
       style={{ background: 'var(--status-t4-bg)', color: 'var(--status-t4-fg)', borderColor: 'var(--status-t4-fg)' }}
     >
-      {lbl}
+      <span className="truncate">{lbl}</span>
     </span>
   );
 }
@@ -806,7 +807,7 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
                         <p className={cn('m-0 truncate text-[13px] font-semibold', HEADING)}>{p.full_name || '—'}</p>
                       </td>
                       <td className="max-w-0 px-2.5"><p className="m-0 truncate text-[13px] text-ui-body">{p.email}</p></td>
-                      <td className="max-w-0 px-2"><RoleBadge role={p.role} roleMap={roleMap} /></td>
+                      <td className="px-2"><RoleBadge role={p.role} roleMap={roleMap} /></td>
                       <td className="px-2">
                         {isOps ? (
                           <button
