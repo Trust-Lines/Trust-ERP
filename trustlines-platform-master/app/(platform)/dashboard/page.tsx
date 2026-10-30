@@ -9,6 +9,7 @@ import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { SALES_HANDOFF_ROLES, SALES_INTAKE_ROLES } from '@/lib/sales/roles';
 import { loadClientOpportunities, type ClientOpportunityRow } from '@/lib/keyClients/server';
 import { quickViewLink } from '@/lib/marketing/quickViewLink';
+import { KEY_CLIENT_ADMIN_ROLES } from '@/lib/keyClients/roles';
 import { classifyTrustProject, loadTrustProjects, typeLabel, typeStatuses, type TrustStage } from '@/lib/trust/board';
 import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem } from '@/components/platform/dashboard/BranchBoard';
 import { TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
@@ -124,6 +125,15 @@ export default async function DashboardPage() {
     ? [{ data: [] }, [] as ClientOpportunityRow[], { projects: [], error: null }]
     : await Promise.all([projectQuery, loadClientOpps(), loadTrustProjects()]);
   const trustProjects = trust.projects;
+  // "Assign to" on Trust cards (trust_project_assignees, migration 137) — empty until it's applied.
+  const [{ data: assignRows }, { data: allUsers }] = await Promise.all([
+    trustProjects.length
+      ? admin.from('trust_project_assignees').select('trust_project_id, user_id').in('trust_project_id', trustProjects.map(p => p.id))
+      : Promise.resolve({ data: [] }),
+    admin.from('profiles').select('id, full_name').eq('is_active', true).not('full_name', 'is', null).order('full_name', { ascending: true }),
+  ]) as [{ data: { trust_project_id: string; user_id: string }[] | null }, { data: { id: string; full_name: string }[] | null }];
+  const trustAssignee = new Map((assignRows ?? []).map(a => [a.trust_project_id, a.user_id]));
+  const userNames = new Map((allUsers ?? []).map(u => [u.id, u.full_name]));
   const trustToday = new Date().toISOString().slice(0, 10);
   const trustCards = trustProjects.filter(p => regionCodes.includes(p.bucket)).map(p => {
     const e = classifyTrustProject(p, trustToday);
@@ -133,7 +143,9 @@ export default async function DashboardPage() {
       title: p.name,
       subtitle: p.address,
       category: (p.types ?? []).map(typeLabel).filter(Boolean).join(', ') || null,
-      pmName: null, pmLabel: '',
+      pmName: userNames.get(trustAssignee.get(p.id) ?? '') ?? null, pmLabel: 'Assign to',
+      assigneeId: trustAssignee.get(p.id) ?? null,
+      projectNo: p.projectNo,
       onHold: e.onHold,
       dateISO: e.dateISO,
       dateLabel: fmtDate(e.dateISO),
@@ -322,6 +334,8 @@ export default async function DashboardPage() {
       canEdit={canEditOpportunities}
       canCreateTask={SALES_INTAKE_ROLES.includes(userRole)}
       trustError={trust.error}
+      users={allUsers ?? []}
+      canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
       top={<TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} />}
     />
   );
