@@ -87,27 +87,36 @@ export function classifyTrustProject(p: TrustProject, today: string): TrustBoard
   return { stage: 'finalization', note: null, onHold, dateISO: created };
 }
 
-/** Every live Trust project (not finished, not deleted). Empty when the Trust System isn't configured or is down. */
-export async function loadTrustProjects(): Promise<TrustProject[]> {
-  const base = process.env.TRUST_API_URL?.replace(/\/$/, '');
-  const key = process.env.TRUST_API_KEY ?? process.env.INTEGRATION_API_KEY;
-  if (!base || !key) return [];
+const clean = (v: string | undefined) => v?.trim().replace(/^["']|["']$/g, '').trim() || undefined;
+
+/**
+ * Every live Trust project (not finished, not deleted). Never throws: when the Trust System
+ * can't be read, `error` says why (missing env, HTTP status, network) so the board can show it.
+ */
+export async function loadTrustProjects(): Promise<{ projects: TrustProject[]; error: string | null }> {
+  const raw = clean(process.env.TRUST_API_URL)?.replace(/\/+$/, '');
+  const key = clean(process.env.TRUST_API_KEY) ?? clean(process.env.INTEGRATION_API_KEY);
+  if (!raw || !key) return { projects: [], error: `not configured (${!raw ? 'TRUST_API_URL' : 'TRUST_API_KEY'} missing)` };
+  // The API lives under /api — accept the URL with or without it.
+  const base = /\/api$/.test(raw) ? raw : `${raw}/api`;
   const all: TrustProject[] = [];
   try {
     for (let page = 1; page <= 50; page++) {
       const res = await fetch(`${base}/projects?page=${page}&limit=100`, {
         headers: { 'X-API-Key': key },
-        next: { revalidate: 60 },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(15_000),
       });
-      if (!res.ok) throw new Error(`Trust API ${res.status}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}${res.status === 401 || res.status === 403 ? ' (API key rejected)' : res.status === 404 ? ' (wrong TRUST_API_URL?)' : ''}`);
       const body = await res.json() as { data?: TrustProject[] };
       const rows = body.data ?? [];
       all.push(...rows);
       if (rows.length < 100) break;
     }
   } catch (e) {
-    console.error('[trust board] projects unavailable:', e instanceof Error ? e.message : e);
-    return [];
+    const msg = e instanceof Error ? (e.name === 'TimeoutError' ? 'timed out' : e.message) : String(e);
+    console.error('[trust board] projects unavailable:', msg);
+    return { projects: [], error: msg };
   }
-  return all.filter(p => !p.deletedAt && p.status !== 'DONE');
+  return { projects: all.filter(p => !p.deletedAt && p.status !== 'DONE'), error: null };
 }

@@ -120,9 +120,10 @@ export default async function DashboardPage() {
     }
   };
   // Finalization → Shipped come from the Trust System, by project number (lib/trust/board.ts).
-  const [{ data: projectRows }, opportunities, trustProjects] = regionCodes.length === 0
-    ? [{ data: [] }, [] as ClientOpportunityRow[], []]
+  const [{ data: projectRows }, opportunities, trust] = regionCodes.length === 0
+    ? [{ data: [] }, [] as ClientOpportunityRow[], { projects: [], error: null }]
     : await Promise.all([projectQuery, loadClientOpps(), loadTrustProjects()]);
+  const trustProjects = trust.projects;
   const trustToday = new Date().toISOString().slice(0, 10);
   const trustCards = trustProjects.filter(p => regionCodes.includes(p.bucket)).map(p => {
     const e = classifyTrustProject(p, trustToday);
@@ -320,6 +321,7 @@ export default async function DashboardPage() {
       assignees={marketingAssignees ?? []}
       canEdit={canEditOpportunities}
       canCreateTask={SALES_INTAKE_ROLES.includes(userRole)}
+      trustError={trust.error}
       top={<TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} />}
     />
   );
