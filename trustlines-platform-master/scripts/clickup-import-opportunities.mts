@@ -164,6 +164,9 @@ const SOURCES: { id: string; kind: 'view' | 'list'; region: RegionTag; label: st
   { id: '901521322569', kind: 'list', region: 'CVW', label: 'Opportunities W', excludeSubtasksAndBlank: true },
 ];
 const WRITE = process.argv.includes('--write');
+// Top-up runs: add the new Opportunities/Potentials only — an existing Prospect's latest
+// source/campaign is left as it is.
+const NO_UPDATE = process.argv.includes('--no-update');
 // Region-by-region (2026-09-19): `tsx scripts/clickup-import-opportunities.mts TLINES_NE [--write]`.
 // No region arg = every source (old behaviour).
 const REGION_ARG = process.argv.slice(2).find(a => !a.startsWith('--')) as RegionTag | undefined;
@@ -171,6 +174,13 @@ const REGION_ARG = process.argv.slice(2).find(a => !a.startsWith('--')) as Regio
 // reported by default — the old always-on fallback created 141 bad address-only Prospects
 // (2026-09-17). Opt in explicitly with --allow-fallback.
 const ALLOW_FALLBACK = process.argv.includes('--allow-fallback');
+// Top-up runs (2026-10-30), decided per task after matching against the app:
+//   --link=<json>  { "<opportunity task id>": "<prospect id>" } — attach to a company that already
+//                  exists in the app (e.g. the contact was added by hand there) instead of creating one.
+//   --skip=<ids>   comma-separated task ids NOT to import (the deal is already in the app).
+const linkArg = process.argv.find(a => a.startsWith('--link='))?.slice('--link='.length);
+const LINK: Record<string, string> = linkArg ? JSON.parse(readFileSync(linkArg, 'utf8')) : {};
+const SKIP = new Set((process.argv.find(a => a.startsWith('--skip='))?.slice('--skip='.length) ?? '').split(',').filter(Boolean));
 // Also add comments/files to Needs imported earlier (e.g. the 18 Potentials) — idempotent, adds nothing twice.
 const BACKFILL_DETAILS = process.argv.includes('--backfill-details');
 
@@ -224,8 +234,17 @@ async function main() {
     if (src.excludeSubtasksAndBlank) console.log(`  dropped ${droppedSubtask} subtask(s), ${droppedBlank} blank-Status-OP task(s)`);
   }
 
-  const { data: existingNeeds } = await admin.from('prospect_needs').select('external_ref').eq('external_source', 'clickup').not('external_ref', 'is', null);
-  const existingNeedRefs = new Set(((existingNeeds ?? []) as { external_ref: string }[]).map(r => r.external_ref));
+  // Paged: a single select stops at 1000 rows, after which already-imported Needs would look
+  // new and be imported a second time (2026-10-30: 672 rows, so not hit yet — fixed before it is).
+  const existingNeeds: { external_ref: string }[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await admin.from('prospect_needs').select('external_ref')
+      .eq('external_source', 'clickup').not('external_ref', 'is', null).range(from, from + 999);
+    if (error) throw new Error(`existing needs: ${error.message}`);
+    existingNeeds.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  const existingNeedRefs = new Set(existingNeeds.map(r => r.external_ref));
 
   let matched = 0, createdProspect = 0, skipped = 0, created = 0, failed = 0;
   let potentials = 0, opportunities = 0, skippedNoContact = 0, backfilled = 0;
@@ -243,6 +262,7 @@ async function main() {
       }
       continue;
     }
+    if (SKIP.has(c.externalRef)) { console.log(`  skip (already in the app): ${c.siteName} (${c.externalRef})`); skipped += 1; continue; }
     stageCounts.set(c.statusOpRaw, (stageCounts.get(c.statusOpRaw) ?? 0) + 1);
     if (c.outcome.kind === 'potential') potentials += 1; else opportunities += 1;
 
@@ -267,6 +287,13 @@ async function main() {
         }
       }
 
+      if (!prospectId && LINK[c.externalRef]) {
+        const { data: linked } = await admin.from('prospects').select('id, display_name').eq('id', LINK[c.externalRef]).is('deleted_at', null).maybeSingle();
+        if (!linked) throw new Error(`--link target ${LINK[c.externalRef]} not found`);
+        prospectId = linked.id; matched += 1;
+        console.log(`  linked to existing "${linked.display_name}": ${c.siteName} (${c.externalRef})`);
+      }
+
       const attributedUser = actorId;
       let sourceLabel: string | null = null;
       let campaignId: string | null = null;
@@ -287,7 +314,8 @@ async function main() {
         if (WRITE) {
           const { data: newProspect, error: pErr } = await admin.from('prospects').insert({
             entity_type: 'organization',
-            organization_name: c.brand ?? c.siteName,
+            // ClickUp's placeholder brand "N/A" is not a company name.
+            organization_name: (c.brand && !/^\s*n\/?a\s*$/i.test(c.brand) ? c.brand : null) ?? c.siteName,
             business_types: c.businessTypes,
             source_label: sourceLabel,
             campaign_id: campaignId,
@@ -304,7 +332,7 @@ async function main() {
           if (pErr) throw new Error(`prospect insert: ${pErr.message}`);
           prospectId = newProspect.id;
         }
-      } else if (WRITE && campaignId) {
+      } else if (WRITE && campaignId && !NO_UPDATE) {
         // Existing Prospect (matched via Contact) — only the LATEST touch updates;
         // original source_label/campaign_id are never overwritten (same rule as the
         // Contacts import and the public survey pipeline).

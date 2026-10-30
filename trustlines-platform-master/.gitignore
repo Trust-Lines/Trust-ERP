@@ -47,3 +47,4 @@ scripts/clickup-import-dry-run-output.json
 scripts/clickup-import-failures.json
 scripts/clickup-import-opportunities-dry-run.json
 scripts/clickup-opportunities-ne-full.json
+scripts/clickup-new-only-dry-run-output.json
