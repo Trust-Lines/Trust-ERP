@@ -4,6 +4,7 @@ import { SALES_INTAKE_ROLES } from '@/lib/sales/roles';
 import { logLeadActivity } from '@/lib/sales/activity';
 import { notifyLeadWatchers } from '@/lib/sales/notify';
 import { assertLeadAccess } from '@/lib/sales/leadAccess';
+import { notifyDesignerOfDealNote } from '@/lib/sales/designNotify';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -45,5 +46,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   await logLeadActivity(admin, { leadIntakeId: id, actorId: user.id, kind: 'comment', body: text });
   await notifyLeadWatchers(admin, { leadId: id, actorId: user.id, title: 'New comment on a lead', body: text.slice(0, 140) });
+  await notifyDesignerOfDealNote(admin, { leadIntakeId: id, actorId: user.id, body: text });
   return NextResponse.json({ ok: true });
 }

@@ -11,7 +11,7 @@ import type { UserRole } from '@/types/database';
 export const dynamic = 'force-dynamic';
 
 export default async function MarketingCalendarPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
-  await requirePage('page.marketing');
+  await requirePage('page.marketing_calendar');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');

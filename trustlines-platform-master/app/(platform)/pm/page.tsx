@@ -8,7 +8,7 @@ import { toRows } from '@/lib/workspace/rows';
 import type { UserRole } from '@/types/database';
 
 export default async function PmWorkspacePage() {
-  await requirePage('page.projects');
+  await requirePage('page.pm');
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

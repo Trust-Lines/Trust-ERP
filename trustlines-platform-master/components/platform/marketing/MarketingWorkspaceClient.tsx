@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { MyDayItem, MyDaySection } from '@/lib/dashboard/myDay';
+import { createClient } from '@/lib/supabase/client';
+import { OpportunityQuickView } from './OpportunityQuickView';
 import { StatCard } from '@/components/platform/shared/StatCard';
 
 const PAGE_SIZE = 20;
@@ -39,6 +41,8 @@ interface Props {
   // Personal completion percentages — everything here is derived from data this person
   // already owns/is assigned (never a $ figure; marketing_pr never sees pricing).
   myStats: MyStats;
+  /** People a deal can be assigned to inside the quick view. */
+  assignees?: { id: string; full_name: string }[];
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -70,7 +74,7 @@ function sectionLabel(title: string): string {
   return title.replace(/\s*\(\d+\)$/, '');
 }
 
-export function MarketingWorkspaceClient({ role, isManager, myDaySections, teamGapSections, myStats }: Props) {
+export function MarketingWorkspaceClient({ role, isManager, myDaySections, teamGapSections, myStats, assignees = [] }: Props) {
   const mySections = MARKETING_SECTION_ORDER
     .map(key => myDaySections.find(s => s.key === key))
     .filter((s): s is MyDaySection => !!s && s.items.length > 0);
@@ -121,7 +125,7 @@ export function MarketingWorkspaceClient({ role, isManager, myDaySections, teamG
 
       {/* ── Personal priorities ─────────────────────────────────────────── */}
       <div className="flex flex-col items-stretch gap-6 xl:flex-row xl:items-start">
-        <InboxPanel items={inbox} />
+        <InboxPanel items={inbox} assignees={assignees} />
         <ActionsPanel actions={actions} />
       </div>
     </div>
@@ -154,9 +158,19 @@ function LoadMore({ remaining, onClick }: { remaining: number; onClick: () => vo
   );
 }
 
-function InboxPanel({ items }: { items: MyDayItem[] }) {
+function InboxPanel({ items: initialItems, assignees }: { items: MyDayItem[]; assignees: { id: string; full_name: string }[] }) {
+  const [items, setItems] = useState(initialItems);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const visible = items.slice(0, visibleCount);
+  // A "… needs region/state" notification opens that deal right here (Marketing can't open the
+  // Sales CRM board), with the missing fields highlighted.
+  const [open, setOpen] = useState<MyDayItem | null>(null);
+
+  function openInPlace(item: MyDayItem) {
+    // RLS lets a user mark only their own notifications read.
+    if (item.notificationId) void createClient().from('notifications').update({ is_read: true } as never).eq('id', item.notificationId);
+    setOpen(item);
+  }
 
   return (
     <section className="flex min-h-[483px] min-w-0 flex-1 flex-col gap-5 rounded-[10px] border border-ui-divider p-5">
@@ -190,17 +204,41 @@ function InboxPanel({ items }: { items: MyDayItem[] }) {
               {item.badge && item.tone && item.tone !== 'default' && (
                 <StatusChip tone={item.tone} label={item.badge} />
               )}
-              <Link
-                href={item.href}
-                className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[6px] border border-ui-divider bg-ui-input-bg px-3 text-[13px] font-medium leading-[1.4] text-ui-body no-underline outline-none hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
-              >
-                <ArrowUpRight aria-hidden className="size-4" />
-                Open
-              </Link>
+              {item.quickView ? (
+                <button
+                  type="button" onClick={() => openInPlace(item)}
+                  className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[6px] border border-ui-divider bg-ui-input-bg px-3 text-[13px] font-medium leading-[1.4] text-ui-body outline-none hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
+                >
+                  <ArrowUpRight aria-hidden className="size-4" />
+                  Open
+                </button>
+              ) : (
+                <Link
+                  href={item.href}
+                  className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[6px] border border-ui-divider bg-ui-input-bg px-3 text-[13px] font-medium leading-[1.4] text-ui-body no-underline outline-none hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
+                >
+                  <ArrowUpRight aria-hidden className="size-4" />
+                  Open
+                </Link>
+              )}
             </div>
           ))}
           <LoadMore remaining={items.length - visible.length} onClick={() => setVisibleCount(c => c + PAGE_SIZE)} />
         </div>
+      )}
+
+      {open?.quickView && (
+        <OpportunityQuickView
+          opportunityId={open.quickView.id}
+          kind={open.quickView.kind}
+          focusFields={open.quickView.focus}
+          assignees={assignees}
+          onClose={() => {
+            // Read now — it leaves the inbox.
+            setItems(list => list.filter(i => i !== open));
+            setOpen(null);
+          }}
+        />
       )}
     </section>
   );

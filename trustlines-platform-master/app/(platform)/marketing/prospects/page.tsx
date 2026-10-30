@@ -21,7 +21,7 @@ import type { UserRole } from '@/types/database';
 const PAGE_SIZE = 50;
 
 export default async function ProspectsListPage() {
-  await requirePage('page.marketing');
+  await requirePage('page.marketing_contacts');
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();

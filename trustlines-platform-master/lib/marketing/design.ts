@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { logAudit } from '@/lib/audit/log';
-import { ensureDesignDropboxFolder } from '@/lib/sales/design';
+import { ensureJobDesignFolder } from '@/lib/sales/design';
 
 export async function ensureDesignJobForOpportunity(
   admin: any, opportunityId: string, actorId: string,
@@ -41,7 +41,7 @@ export async function ensureDesignJobForOpportunity(
     }
 
     await logAudit({ actorId, action: 'design_job.auto_created', resource: `sales_design_job:${job.id}`, newValue: { opportunity: opportunityId } });
-    await ensureDesignDropboxFolder(admin, opp.project_id ?? null);
+    await ensureJobDesignFolder(admin, { id: job.id, title: `Sales Design — ${opp.title}`, lead_intake_id: null, opportunity_id: opportunityId });
 
     return { created: true, jobId: job.id };
   } catch (e) {

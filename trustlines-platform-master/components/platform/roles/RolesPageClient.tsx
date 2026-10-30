@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Plus, Trash2, ShieldCheck } from 'lucide-react';
-import { PERMISSION_GROUPS } from '@/lib/permissions/catalog';
+import { PERMISSION_GROUPS, effectivePermissions, pageAllowed, pageInherited } from '@/lib/permissions/catalog';
 
 export interface RoleDefinition {
   name:        string;
@@ -126,13 +126,17 @@ function NewRoleModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
 }
 
 function PermissionEditor({
-  perms, isSystem, onChange,
+  roleName, perms, isSystem, onChange,
 }: {
+  roleName: string;
   perms:    Record<string, boolean>;
   isSystem: boolean;
   onChange: (p: Record<string, boolean>) => void;
 }) {
   const isAll = !!perms['all'];
+  // Pages use the same rule as the app (pageAllowed): a page the role hasn't set yet follows its
+  // parent page / old default, so the switch shows what the role can really open today.
+  const isOn = (category: string, key: string) => (category === 'page' ? pageAllowed(roleName, perms, key) : !!perms[key]);
 
   function set(key: string, val: boolean) { onChange({ ...perms, [key]: val }); }
 
@@ -162,10 +166,10 @@ function PermissionEditor({
 
       {PERMISSION_GROUPS.map(group => {
         const keys = group.perms.map(p => p.key);
-        const granted = keys.filter(k => !!perms[k]).length;
+        const granted = keys.filter(k => isOn(group.category, k)).length;
         const allOn = granted === keys.length;
         return (
-          <div key={group.category} style={{ border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden' }}>
+          <div key={group.title} style={{ border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
               <span style={{ fontSize: 16 }}>{group.icon}</span>
               <div style={{ flex: 1 }}>
@@ -181,7 +185,8 @@ function PermissionEditor({
             </div>
             <div>
               {group.perms.map((p, idx) => {
-                const on = !!perms[p.key];
+                const on = isOn(group.category, p.key);
+                const inherited = group.category === 'page' && pageInherited(perms, p.key);
                 return (
                   <div key={p.key} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
@@ -191,6 +196,7 @@ function PermissionEditor({
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg-default)' }}>{p.label}</div>
                       {p.hint && <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1 }}>{p.hint}</div>}
+                      {inherited && <div style={{ fontSize: 10.5, color: 'var(--fg-faint)', marginTop: 2, fontStyle: 'italic' }}>Follows the default — switch it to set it for this role</div>}
                     </div>
                     <Toggle checked={on} onChange={val => set(p.key, val)} />
                   </div>
@@ -215,7 +221,8 @@ export function RolesPageClient({ initialRoles }: Props) {
 
   const current = roles.find(r => r.name === selected);
   const livePerms: Record<string, boolean> = current
-    ? (pendingPerms[current.name] ?? current.permissions)
+    // The stored map, or the code defaults when the role has none saved — what the app really uses.
+    ? (pendingPerms[current.name] ?? effectivePermissions(current.name, current.permissions))
     : {};
   const isDirty = current ? pendingPerms[current.name] !== undefined : false;
 
@@ -321,6 +328,7 @@ export function RolesPageClient({ initialRoles }: Props) {
               </div>
               <div style={{ padding: 20, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
                 <PermissionEditor
+                  roleName={current.name}
                   perms={livePerms}
                   isSystem={current.is_system}
                   onChange={p => setPendingPerms(prev => ({ ...prev, [current.name]: p }))}

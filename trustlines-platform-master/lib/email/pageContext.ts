@@ -9,7 +9,7 @@ import type { UserRole } from '@/types/database';
 
 /** Who is looking at an Email Campaigns page, and whether their mailbox is connected. */
 export async function emailPageContext() {
-  await requirePage('page.marketing');
+  await requirePage('page.marketing_email');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');

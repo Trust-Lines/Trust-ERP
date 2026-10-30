@@ -273,7 +273,7 @@ export function LeadsTable({
                     {/* Cell order must match LEAD_COLUMNS. */}
                     <td className="sticky-col" style={{ ...cell, fontSize: 12, fontWeight: 500, whiteSpace: 'normal', overflow: 'visible' }}>
                       <LeadNameCell lead={l} today={today} assignees={l.origin === 'opportunity' || l.origin === 'potential' ? marketingAssignees : assignees}
-                        onOpen={() => onOpen?.(l.id)} onEdit={() => onOpen?.(l.id)} />
+                        onOpen={() => onOpen?.(l.id)} />
                     </td>
 
                     <td style={cell}>{l.project_no ?? '—'}</td>

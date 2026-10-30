@@ -6,7 +6,7 @@ import type { UserRole } from '@/types/database';
 
 export default async function ContactManagerPage() {
   // Same gate as Contacts — this is a second, simpler front door onto the same table.
-  await requirePage('page.marketing');
+  await requirePage('page.marketing_contact_manager');
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();

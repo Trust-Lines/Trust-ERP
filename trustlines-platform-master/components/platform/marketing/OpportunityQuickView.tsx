@@ -24,6 +24,8 @@ import { OPPORTUNITY_STAGE_LABEL, TIMING_LABEL } from '@/lib/marketing/classific
 import { REGIONS } from '@/lib/regions';
 import type { OpportunityStage, PotentialStatus, LeadTiming } from '@/types/database';
 import { feedback } from '@/components/ui/feedback-toast';
+import { DealDocuments } from '@/components/platform/sales/DealDocuments';
+import { DealDesign } from '@/components/platform/sales/DealDesign';
 
 type Deal = Record<string, unknown>;
 interface ProspectInfo { display_name: string; industry: string | null; brand_name: string | null }
@@ -49,13 +51,16 @@ const POTENTIAL_STATUS_LABEL: Record<PotentialStatus, string> = {
 };
 const POTENTIAL_STATUS_OPTS: [string, string][] = Object.entries(POTENTIAL_STATUS_LABEL);
 
-export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assignees, onClose, onChanged, canEdit = true }: {
+export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assignees, onClose, onChanged, canEdit = true, focusFields = [] }: {
   opportunityId: string;
   kind?: 'opportunity' | 'potential';
   assignees: { id: string; full_name: string }[];
   onClose: () => void;
   onChanged?: (patch: Record<string, unknown>) => void;
   canEdit?: boolean;
+  /** Fields to point at while they're empty ('region', 'state', 'contact') — e.g. from a
+   *  "needs region/state" notification. Highlighted until filled; the panel scrolls to the first. */
+  focusFields?: string[];
 }) {
   const apiBase = `/api/marketing/${kind === 'potential' ? 'potentials' : 'opportunities'}/${opportunityId}`;
   const [opp, setOpp] = useState<Deal | null>(null);
@@ -108,6 +113,15 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
   }, [apiBase, kind]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Opened to fill something in: bring the first highlighted field into view once the data is here.
+  const scrolledToFocus = useRef(false);
+  const focusKey = focusFields.join(',');
+  useEffect(() => {
+    if (!focusKey || !opp || scrolledToFocus.current) return;
+    scrolledToFocus.current = true;
+    requestAnimationFrame(() => document.querySelector('[data-focus-field="true"]')?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+  }, [focusKey, opp]);
 
   useEffect(() => {
     const missing = notes.filter(n => n.image_path && !imageLinks[n.image_path]);
@@ -349,6 +363,17 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                     </Card>
                   </div>
                 )}
+                {/* System drawing: Design → Estimate → Contract → Closed Deal (migration 131). */}
+                {kind === 'opportunity' && (
+                  <Card title="Design">
+                    <DealDesign opportunityId={opportunityId} />
+                  </Card>
+                )}
+                {kind === 'opportunity' && (
+                  <Card title="Estimate & Contract">
+                    <DealDocuments opportunityId={opportunityId} dealTitle={title} defaultCurrency={(opp.currency as string | null) ?? null} canEdit={canEdit} />
+                  </Card>
+                )}
 
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   <Card title="Status & Ownership">
@@ -378,7 +403,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                           <Sel value={String(v('assigned_to'))} onChange={x => saveField('assigned_to', x || null)} opts={assigneeOpts} />
                         </Field>
                       )}
-                      <Field label="Contact" span={kind === 'opportunity' ? 4 : 6}>
+                      <Field label="Contact" span={kind === 'opportunity' ? 4 : 6} focus={focusFields.includes('contact') && !v('primary_contact_id') && !v('direct_contact_raw')}>
                         <ContactSearchSelect
                           value={String(v('primary_contact_id'))}
                           valueLabel={contactLabel || contacts.find(c => c.id === v('primary_contact_id'))?.name || ''}
@@ -435,7 +460,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
 
                   <Card title="Location & Business" className="self-start">
                     <Fields>
-                      <Field label="01-State" span={2}><Inp value={v('state')} ph="e.g TX" onSave={x => saveField('state', x)} /></Field>
+                      <Field label="01-State" span={2} focus={focusFields.includes('state') && !v('state')}><Inp value={v('state')} ph="e.g TX" onSave={x => saveField('state', x)} /></Field>
                       <Field label="11-Location" span={2}><Inp value={v('formatted_address')} ph="address.." onSave={x => saveField('formatted_address', x)} /></Field>
                       <Field label="Brand" span={2}><Inp value={v('brand')} ph="brand.." onSave={x => saveField('brand', x)} /></Field>
                       <Field label="Industry" span={2}>
@@ -458,7 +483,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                       <Field label="Business Type" span={2}>
                         <Inp value={businessTypes.join(', ')} ph="comma separated.." onSave={x => saveField('business_types', x.split(',').map(s => s.trim()).filter(Boolean))} />
                       </Field>
-                      <Field label="Region" span={2}>
+                      <Field label="Region" span={2} focus={focusFields.includes('region') && !v('region')}>
                         <Sel value={String(v('region'))} onChange={x => saveField('region', x || null)}
                           opts={[['', '—'], ...REGIONS.map(r => [r.code, r.label] as [string, string])]}
                           emphasize={!v('region')} />
@@ -469,7 +494,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
 
                   <Card title="Clickup Reference" muted className="self-start">
                     <Fields>
-                      <Field label="Direct Contact" span={3}><Inp muted value={v('direct_contact_raw')} ph="Name, phone, email.." onSave={x => saveField('direct_contact_raw', x)} /></Field>
+                      <Field label="Direct Contact" span={3} focus={focusFields.includes('contact') && !v('primary_contact_id') && !v('direct_contact_raw')}><Inp muted value={v('direct_contact_raw')} ph="Name, phone, email.." onSave={x => saveField('direct_contact_raw', x)} /></Field>
                       <Field label="Status OP" span={3}><Inp muted value={v('external_stage_label')} ph="status OP.." onSave={x => saveField('external_stage_label', x)} /></Field>
                       <Field label="Requests" span={3}><Inp muted value={v('request_raw')} ph="Requests.." onSave={x => saveField('request_raw', x)} /></Field>
                       <Field label="To do" span={3}><Inp muted value={v('to_do_raw')} ph="To do.." onSave={x => saveField('to_do_raw', x)} /></Field>
@@ -825,10 +850,17 @@ function Fields({ children }: { children: React.ReactNode }) {
 
 const SPAN: Record<number, string> = { 2: 'col-span-6 sm:col-span-2', 3: 'col-span-6 sm:col-span-3', 4: 'col-span-6 sm:col-span-4', 6: 'col-span-6' };
 
-function Field({ label, span = 2, children }: { label: string; span?: 2 | 3 | 4 | 6; children: React.ReactNode }) {
+/** `focus`: this is the field to fill in (opened from a "needs …" notification) — highlighted until it has a value. */
+function Field({ label, span = 2, focus = false, children }: { label: string; span?: 2 | 3 | 4 | 6; focus?: boolean; children: React.ReactNode }) {
   return (
-    <div className={cn('flex min-w-0 flex-col gap-[7px]', SPAN[span])}>
-      <span className="text-[12px] font-medium leading-4 text-ui-body">{label}</span>
+    <div
+      data-focus-field={focus || undefined}
+      className={cn('flex min-w-0 flex-col gap-[7px]', SPAN[span],
+        focus && 'rounded-[8px] bg-[var(--status-t7-bg)] p-2 outline-2 outline-solid outline-[var(--status-t7-fg)] transition-colors')}
+    >
+      <span className={cn('text-[12px] font-medium leading-4', focus ? 'font-semibold text-[var(--status-t7-fg)]' : 'text-ui-body')}>
+        {label}{focus && ' — fill this in'}
+      </span>
       {children}
     </div>
   );

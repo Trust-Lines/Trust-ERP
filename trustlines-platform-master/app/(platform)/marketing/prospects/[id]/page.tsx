@@ -7,7 +7,7 @@ import { ProspectDetailClient } from '@/components/platform/marketing/ProspectDe
 import type { UserRole } from '@/types/database';
 
 export default async function ProspectDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requirePage('page.marketing');
+  await requirePage('page.marketing_contacts');
   const { id } = await params;
   const supabase = await createClient();
 

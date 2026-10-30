@@ -116,14 +116,26 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
     setOpportunities(prev => prev.map(o => (o.id === id ? { ...o, ...patch } : o)));
   }
 
-  async function doAccept(id: string, form: { region: string; service_line: string; city: string; street: string; state: string; customer_name: string }) {
+  // POST one row action. A network error comes back as ok:false, so busyId is always cleared.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- each action returns its own shape
+  async function act(id: string, action: string, payload?: unknown): Promise<{ ok: boolean; body: Record<string, any> }> {
     setBusyId(id);
-    const res = await fetch(`/api/sales/opportunities/${id}/accept`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
-    });
-    const body = await res.json().catch(() => ({}));
-    setBusyId(null);
-    if (!res.ok) { toast.error(body.error ?? 'Failed to accept'); return; }
+    try {
+      const res = await fetch(`/api/sales/opportunities/${id}/${action}`, {
+        method: 'POST',
+        ...(payload ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) } : {}),
+      });
+      return { ok: res.ok, body: await res.json().catch(() => ({})) };
+    } catch {
+      return { ok: false, body: { error: 'Network error — check your connection and try again' } };
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function doAccept(id: string, form: { region: string; service_line: string; city: string; street: string; state: string; customer_name: string }) {
+    const { ok, body } = await act(id, 'accept', form);
+    if (!ok) { toast.error(body.error ?? 'Failed to accept'); return; }
     updateRow(id, { stage: body.opportunity.stage, project_id: body.opportunity.project_id });
     setAcceptingId(null);
     feedback.success(body.alreadyAccepted ? 'Already accepted' : 'Project created', {
@@ -134,44 +146,33 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
 
   async function doReturn(id: string, reason: string) {
     if (!reason.trim()) { toast.error('A reason is required'); return; }
-    setBusyId(id);
-    const res = await fetch(`/api/sales/opportunities/${id}/return`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }),
-    });
-    const body = await res.json().catch(() => ({}));
-    setBusyId(null);
-    if (!res.ok) { toast.error(body.error ?? 'Failed to return'); return; }
+    const { ok, body } = await act(id, 'return', { reason });
+    if (!ok) { toast.error(body.error ?? 'Failed to return'); return; }
     updateRow(id, { stage: body.opportunity.stage, return_reason: body.opportunity.return_reason });
     setReturningId(null);
     toast.success('Returned to Marketing');
   }
 
-  async function doCloseWon(id: string) {
-    setBusyId(id);
-    const res = await fetch(`/api/sales/opportunities/${id}/close-won`, { method: 'POST' });
-    const body = await res.json().catch(() => ({}));
-    setBusyId(null);
-    if (!res.ok) { toast.error(body.error ?? 'Failed to close won'); return; }
+  async function doCloseWon(o: SalesOpportunityRow) {
+    // Closing Won hands the project to delivery and notifies the PMs — not a one-click accident.
+    if (!window.confirm(`Close "${o.title}" as Won? The project moves on to the delivery team.`)) return;
+    const id = o.id;
+    const { ok, body } = await act(id, 'close-won');
+    if (!ok) { toast.error(body.error ?? 'Failed to close won'); return; }
     updateRow(id, { stage: body.opportunity.stage });
     toast.success('Closed Won');
   }
 
   async function doStartDesign(id: string) {
-    setBusyId(id);
-    const res = await fetch(`/api/sales/opportunities/${id}/start-design`, { method: 'POST' });
-    const body = await res.json().catch(() => ({}));
-    setBusyId(null);
-    if (!res.ok) { toast.error(body.error ?? 'Failed to start Design'); return; }
+    const { ok, body } = await act(id, 'start-design');
+    if (!ok) { toast.error(body.error ?? 'Failed to start Design'); return; }
     updateRow(id, { stage: 'discovery' });
     toast.success('Design job started — assign a designer on the Design page');
   }
 
   async function doNegotiate(id: string) {
-    setBusyId(id);
-    const res = await fetch(`/api/sales/opportunities/${id}/negotiate`, { method: 'POST' });
-    const body = await res.json().catch(() => ({}));
-    setBusyId(null);
-    if (!res.ok) { toast.error(body.error ?? 'Failed to move to Negotiation'); return; }
+    const { ok, body } = await act(id, 'negotiate');
+    if (!ok) { toast.error(body.error ?? 'Failed to move to Negotiation'); return; }
     updateRow(id, { stage: body.opportunity.stage });
     toast.success('Moved to Negotiation');
   }
@@ -179,13 +180,8 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
   async function doCloseLost(id: string) {
     const reason = window.prompt('Reason for Closed Lost:');
     if (!reason?.trim()) return;
-    setBusyId(id);
-    const res = await fetch(`/api/sales/opportunities/${id}/close-lost`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }),
-    });
-    const body = await res.json().catch(() => ({}));
-    setBusyId(null);
-    if (!res.ok) { toast.error(body.error ?? 'Failed to close lost'); return; }
+    const { ok, body } = await act(id, 'close-lost', { reason: reason.trim() });
+    if (!ok) { toast.error(body.error ?? 'Failed to close lost'); return; }
     updateRow(id, { stage: body.opportunity.stage, closed_reason: body.opportunity.closed_reason });
     toast.success('Closed Lost');
   }
@@ -222,7 +218,7 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
             className="inline-flex h-9 items-center gap-2 rounded-[6px] bg-ui-btn-accent px-8 text-[13px] font-medium leading-[1.35] text-ui-btn-accent-fg no-underline transition-opacity hover:opacity-90"
           >
             <Plus size={16} aria-hidden />
-            Add to handoffs
+            Quick Deal
           </Link>
         </div>
       </div>
@@ -300,6 +296,9 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
                           <button type="button" className={ACTION_PRIMARY} onClick={() => setAcceptingId(o.id)}>Accept</button>
                         </>
                       )}
+                      {o.project_id && (
+                        <Link href={`/projects/${o.project_id}`} className={ACTION_NEUTRAL}>View project</Link>
+                      )}
                       {CLOSABLE_STAGES.includes(o.stage) && (
                         <>
                           {(o.stage === 'discovery' || o.stage === 'sales_design' || o.stage === 'proposal') && o.design_job && (
@@ -327,14 +326,14 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
                           {/* Close Won needs the Project that Accept creates (lib/marketing/salesHandoff.ts → 409) — QA DEF-17. */}
                           <button type="button" className={ACTION_WON} disabled={busy || !o.project_id}
                             title={o.project_id ? undefined : 'Accept the Opportunity first — Close Won needs a Project'}
-                            onClick={() => doCloseWon(o.id)}>Close Won</button>
+                            onClick={() => doCloseWon(o)}>Close Won</button>
                         </>
                       )}
                     </div>
                   </div>
 
                   {o.stage === 'sales_handoff' && acceptingId === o.id && (
-                    <AcceptForm busy={busy} onSave={form => doAccept(o.id, form)} onCancel={() => setAcceptingId(null)} />
+                    <AcceptForm busy={busy} defaultCustomer={o.lead_display_name} onSave={form => doAccept(o.id, form)} onCancel={() => setAcceptingId(null)} />
                   )}
                   {o.stage === 'sales_handoff' && returningId === o.id && (
                     <ReturnForm busy={busy} onSave={reason => doReturn(o.id, reason)} onCancel={() => setReturningId(null)} />
@@ -357,13 +356,13 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
   );
 }
 
-function AcceptForm({ busy, onSave, onCancel }: { busy: boolean; onSave: (f: { region: string; service_line: string; city: string; street: string; state: string; customer_name: string }) => void; onCancel: () => void }) {
+function AcceptForm({ busy, defaultCustomer = '', onSave, onCancel }: { busy: boolean; defaultCustomer?: string; onSave: (f: { region: string; service_line: string; city: string; street: string; state: string; customer_name: string }) => void; onCancel: () => void }) {
   const [region, setRegion] = useState('');
   const [serviceLine, setServiceLine] = useState('');
   const [city, setCity] = useState('');
   const [street, setStreet] = useState('');
   const [state, setState] = useState('');
-  const [customerName, setCustomerName] = useState('');
+  const [customerName, setCustomerName] = useState(defaultCustomer);
 
   const canSubmit = region && serviceLine && city.trim() && state.trim() && customerName.trim();
 

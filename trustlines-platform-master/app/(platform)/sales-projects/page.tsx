@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { requirePage } from '@/lib/permissions/requirePage';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { SALES_HANDOFF_ROLES } from '@/lib/sales/roles';
@@ -10,6 +11,8 @@ const SALES_VISIBLE_STAGES = [
 ];
 
 export default async function SalesProjectsPage() {
+  // Roles & Permissions switch (catalog.ts PAGE_LEGACY_ROLES keeps the old role list as default).
+  await requirePage('page.sales_handoffs');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');

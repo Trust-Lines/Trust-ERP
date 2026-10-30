@@ -16,7 +16,7 @@ export const revalidate = 0;
 const TABS: HubTab[] = ['projects', 'blog', 'leads', 'work_types', 'projects_header', 'blog_header'];
 
 export default async function WebsiteCmsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  await requirePage('page.marketing');
+  await requirePage('page.marketing_website');
   const { tab } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

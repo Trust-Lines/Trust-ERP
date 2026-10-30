@@ -1,16 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PRIORITY_COLOR, type Lead } from './types';
 
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-function ymd(d: Date): string { return d.toISOString().slice(0, 10); }
+// Local calendar day — toISOString() is UTC and put every follow-up one day early east of UTC.
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
-export function LeadsCalendar({ leads }: { leads: Lead[] }) {
+export function LeadsCalendar({ leads, onOpen }: { leads: Lead[]; onOpen: (id: string) => void }) {
   const [offset, setOffset] = useState(0);
   const base = new Date();
   const view = new Date(base.getFullYear(), base.getMonth() + offset, 1);
@@ -21,9 +23,10 @@ export function LeadsCalendar({ leads }: { leads: Lead[] }) {
   const byDate = new Map<string, Lead[]>();
   for (const l of leads) {
     if (!l.follow_up_date) continue;
-    const arr = byDate.get(l.follow_up_date) ?? [];
+    const day = l.follow_up_date.slice(0, 10);
+    const arr = byDate.get(day) ?? [];
     arr.push(l);
-    byDate.set(l.follow_up_date, arr);
+    byDate.set(day, arr);
   }
   const withoutDate = leads.filter(l => !l.follow_up_date).length;
 
@@ -70,16 +73,16 @@ export function LeadsCalendar({ leads }: { leads: Lead[] }) {
                   }}>{day}</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     {dayLeads.slice(0, 4).map(l => (
-                      <Link key={l.id} href={`/leads/${l.id}`} title={l.name} style={{
-                        display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none',
+                      <button key={l.id} type="button" onClick={() => onOpen(l.id)} title={l.name} style={{
+                        display: 'flex', alignItems: 'center', gap: 4, border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%',
                         fontSize: 11, padding: '2px 5px', borderRadius: 4, background: 'var(--bg-sunken)', color: 'var(--fg-default)',
                         overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
                       }}>
                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: PRIORITY_COLOR[l.priority], flexShrink: 0 }} />
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.name}</span>
-                      </Link>
+                      </button>
                     ))}
-                    {dayLeads.length > 4 && <span style={{ fontSize: 10, color: 'var(--fg-faint)' }}>+{dayLeads.length - 4} more</span>}
+                    {dayLeads.length > 4 && <span title={dayLeads.slice(4).map(l => l.name).join(', ')} style={{ fontSize: 10, color: 'var(--fg-faint)' }}>+{dayLeads.length - 4} more</span>}
                   </div>
                 </>
               )}
