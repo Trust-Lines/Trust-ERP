@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Check, ChevronDown, Ellipsis, ExternalLink, ListChecks, Plus, RefreshCw, RotateCcw, Search, UserRound, X } from 'lucide-react';
 import { formatDate } from '@/lib/formatDate';
 import { Select as FilterSelect } from '@/components/ui/select';
+import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { findStatusTag } from '@/lib/status/tags';
@@ -295,7 +296,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
                             </span>
                           </span>
                           <ChevronDown size={14} aria-hidden className="shrink-0 text-ui-body" />
-                          <select
+                          <Select
                             aria-label={`Assignee for ${t.title}`}
                             value={t.assignee_id ?? ''}
                             onChange={e => {
@@ -306,7 +307,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
                           >
                             <option value="">Unassigned</option>
                             {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-                          </select>
+                          </Select>
                         </label>
                       </td>
                       <td className="px-2">
@@ -316,7 +317,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
                         >
                           {STATUS_META[t.status].label}
                           <ChevronDown size={14} aria-hidden />
-                          <select
+                          <Select
                             aria-label={`Status for ${t.title}`}
                             value={t.status}
                             onChange={e => {
@@ -326,7 +327,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
                             className="absolute inset-0 cursor-pointer opacity-0"
                           >
                             {STATUS_ORDER.map(s => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
-                          </select>
+                          </Select>
                         </label>
                       </td>
                       <td className="px-2">
@@ -471,17 +472,17 @@ function NewTaskDialog({ deals, assignees, onClose, onCreated }: {
         </label>
         <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
           Deal
-          <select required value={dealId} onChange={e => setDealId(e.target.value)} className={fieldCls}>
+          <Select required value={dealId} onChange={e => setDealId(e.target.value)} className={fieldCls}>
             {deals.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
+          </Select>
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
             Assignee
-            <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)} className={fieldCls}>
+            <Select value={assigneeId} onChange={e => setAssigneeId(e.target.value)} className={fieldCls}>
               <option value="">Unassigned</option>
               {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-            </select>
+            </Select>
           </label>
           <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
             Due
