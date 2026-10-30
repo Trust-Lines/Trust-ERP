@@ -16,8 +16,6 @@ export interface MyDayItem {
   quickView?: QuickViewTarget;
   /** The notifications row behind this item (marked read when opened). */
   notificationId?: string;
-  /** Its record is gone (deleted since): Open just clears it — nowhere to go. */
-  stale?: boolean;
 }
 
 export interface MyDaySection {
@@ -118,26 +116,51 @@ async function buildSignatures(admin: any, userId: string): Promise<MyDaySection
   };
 }
 
+const INBOX_SIZE = 8;
+
 async function buildNotifications(admin: any, userId: string): Promise<MyDaySection> {
+  // A few extra rows: the ones whose record was deleted are dropped below.
   const { data } = await admin.from('notifications')
     .select('id, type, title, link, created_at').eq('user_id', userId).eq('is_read', false)
-    .order('created_at', { ascending: false }).limit(8) as {
+    .order('created_at', { ascending: false }).limit(INBOX_SIZE * 3) as {
       data: { id: string; type: string; title: string; link: string | null; created_at: string }[] | null;
     };
   const rows = data ?? [];
-  const items: MyDayItem[] = [];
+
+  const targets = new Map<string, QuickViewTarget | null>();
   for (const n of rows) {
     let quickView = parseQuickView(n.link);
     // Older "<name> needs region/state" notifications only linked to the Sales CRM board ('/leads',
     // which Marketing can't open): find the deal by the name in the title.
     if (!quickView && n.type === 'survey.incomplete_submission') quickView = await findIncompleteDeal(admin, n.title);
-    const stale = !quickView && n.type === 'survey.incomplete_submission';
-    items.push({
-      label: n.title, notificationId: n.id, quickView: quickView ?? undefined, stale: stale || undefined,
-      href: quickView ? quickViewLink(quickView.kind, quickView.id, quickView.focus) : stale ? '/marketing' : (n.link ?? '/notifications'),
-      sublabel: stale ? 'This record was deleted' : undefined,
-    });
+    targets.set(n.id, quickView);
   }
+
+  // Does each linked deal still exist? (One query per kind.)
+  const live = new Set<string>();
+  for (const [kind, table] of [['opportunity', 'opportunities'], ['potential', 'prospect_potentials']] as const) {
+    const ids = [...targets.values()].filter(t => t?.kind === kind).map(t => t!.id);
+    if (!ids.length) continue;
+    const { data: found } = await admin.from(table).select('id').in('id', ids).is('deleted_at', null);
+    for (const r of (found ?? []) as { id: string }[]) live.add(r.id);
+  }
+
+  // A deal notification whose record is gone is not shown, and is marked read so it doesn't
+  // linger on the Notifications page either.
+  const gone = rows.filter(n => {
+    const t = targets.get(n.id);
+    return t ? !live.has(t.id) : n.type === 'survey.incomplete_submission';
+  });
+  if (gone.length) await admin.from('notifications').update({ is_read: true }).in('id', gone.map(n => n.id));
+  const goneIds = new Set(gone.map(n => n.id));
+
+  const items: MyDayItem[] = rows.filter(n => !goneIds.has(n.id)).slice(0, INBOX_SIZE).map(n => {
+    const quickView = targets.get(n.id) ?? null;
+    return {
+      label: n.title, notificationId: n.id, quickView: quickView ?? undefined,
+      href: quickView ? quickViewLink(quickView.kind, quickView.id, quickView.focus) : (n.link ?? '/notifications'),
+    };
+  });
   return { key: 'notifications', title: 'Unread notifications', items };
 }
 
