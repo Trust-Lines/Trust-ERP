@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { X, Trash2, Upload, Check, Loader2 } from 'lucide-react';
+import { X, Trash2, Upload, Check, Loader2, PenLine, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -191,11 +191,14 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
             <button key={m} onClick={() => setMode(m)} style={{
               flex: 1, padding: '6px 0', borderRadius: 4, border: 'none', cursor: 'pointer',
               fontSize: 12, fontWeight: 600,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               background: mode === m ? 'var(--bg-surface)' : 'none',
               color:      mode === m ? 'var(--fg-default)' : 'var(--fg-faint)',
               boxShadow:  mode === m ? '0 1px 4px rgba(0,0,0,.12)' : 'none',
             }}>
-              {m === 'draw' ? '✏️ Draw' : '📷 Upload Photo'}
+              {m === 'draw'
+                ? <><PenLine size={14} aria-hidden /> Draw</>
+                : <><Camera size={14} aria-hidden /> Upload Photo</>}
             </button>
           ))}
         </div>
