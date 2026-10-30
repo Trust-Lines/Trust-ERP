@@ -95,10 +95,16 @@ const clean = (v: string | undefined) => v?.trim().replace(/^["']|["']$/g, '').t
  */
 export async function loadTrustProjects(): Promise<{ projects: TrustProject[]; error: string | null }> {
   const raw = clean(process.env.TRUST_API_URL)?.replace(/\/+$/, '');
-  const key = clean(process.env.TRUST_API_KEY) ?? clean(process.env.INTEGRATION_API_KEY);
+  const keyName = clean(process.env.TRUST_API_KEY) ? 'TRUST_API_KEY' : 'INTEGRATION_API_KEY';
+  const key = clean(process.env[keyName]);
   if (!raw || !key) return { projects: [], error: `not configured (${!raw ? 'TRUST_API_URL' : 'TRUST_API_KEY'} missing)` };
   // The API lives under /api — accept the URL with or without it.
   const base = /\/api$/.test(raw) ? raw : `${raw}/api`;
+  // Named in every message (host + which key variable) — not secret, and it's what tells a
+  // wrong deployment / wrong key apart when prod differs from local.
+  let host = raw;
+  try { host = new URL(base).host; } catch { /* keep raw */ }
+  const where = `${host}, ${keyName}`;
   const all: TrustProject[] = [];
   try {
     for (let page = 1; page <= 50; page++) {
@@ -116,7 +122,9 @@ export async function loadTrustProjects(): Promise<{ projects: TrustProject[]; e
   } catch (e) {
     const msg = e instanceof Error ? (e.name === 'TimeoutError' ? 'timed out' : e.message) : String(e);
     console.error('[trust board] projects unavailable:', msg);
-    return { projects: [], error: msg };
+    return { projects: [], error: `${msg} — ${where}` };
   }
-  return { projects: all.filter(p => !p.deletedAt && p.status !== 'DONE'), error: null };
+  const live = all.filter(p => !p.deletedAt && p.status !== 'DONE');
+  if (!live.length) return { projects: [], error: `no projects returned (${all.length} in total) — ${where}` };
+  return { projects: live, error: null };
 }
