@@ -9,7 +9,7 @@ import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { SALES_HANDOFF_ROLES, SALES_INTAKE_ROLES } from '@/lib/sales/roles';
 import { loadClientOpportunities, type ClientOpportunityRow } from '@/lib/keyClients/server';
 import { quickViewLink } from '@/lib/marketing/quickViewLink';
-import { classifyTrustProject, loadTrustProjects, typeLabel, type TrustStage } from '@/lib/trust/board';
+import { classifyTrustProject, loadTrustProjects, typeLabel, typeStatuses, type TrustStage } from '@/lib/trust/board';
 import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem } from '@/components/platform/dashboard/BranchBoard';
 import { TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
 
@@ -138,6 +138,7 @@ export default async function DashboardPage() {
       dateLabel: fmtDate(e.dateISO),
       href: '',
       note: e.note,
+      statuses: typeStatuses(p),
     };
     return { region: p.bucket, stage: e.stage, item };
   });
@@ -199,6 +200,7 @@ export default async function DashboardPage() {
         dateISO: becameOpportunityDate,
         dateLabel: fmtDate(becameOpportunityDate),
         href: quickViewLink(o.kind, o.id),
+        statuses: o.stageLabel ? [o.stageLabel] : [],
       };
     });
 

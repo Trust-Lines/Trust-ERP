@@ -48,6 +48,18 @@ export function typeLabel(type: string | null): string | null {
   return type.toLowerCase().replace(/(^|[\s_-])\w/g, s => s.toUpperCase()).replace(/_/g, ' ');
 }
 
+/** "Image · Ready to receive", one per type (a type in several states lists each). */
+export function typeStatuses(p: TrustProject): string[] {
+  const byType = new Map<string, Set<string>>();
+  for (const i of p.items ?? []) {
+    const t = typeLabel(i.type); const s = typeLabel(i.status);
+    if (!t || !s) continue;
+    if (!byType.has(t)) byType.set(t, new Set());
+    byType.get(t)!.add(s.charAt(0) + s.slice(1).toLowerCase());
+  }
+  return [...byType].map(([t, ss]) => `${t} · ${[...ss].join(', ')}`);
+}
+
 const uniq = (xs: (string | null)[]) => [...new Set(xs.filter((x): x is string => !!x))];
 
 /** Section, card note and date for one Trust project. `today` is yyyy-mm-dd. */

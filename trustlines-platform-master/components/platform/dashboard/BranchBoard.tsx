@@ -40,6 +40,8 @@ export interface BoardCardItem {
   href: string;
   /** Short line under the address, e.g. which types have a PF code / what hasn't shipped. */
   note?: string | null;
+  /** Status chips: the deal's stage, or each Trust type's production status. */
+  statuses?: string[];
 }
 
 export interface BoardSection {
@@ -99,12 +101,12 @@ function Card({ item, section, onOpen }: {
   return (
     <button
       type="button"
-      className="relative flex w-full flex-col gap-[3px] rounded-[8px] border-0 pb-2.5 pl-3 pr-2.5 pt-4 text-left transition-[filter] hover:brightness-[0.98]"
-      style={{ background: section.bg, color: section.accent }}
+      className="relative flex w-full flex-col gap-1.5 rounded-[10px] border border-solid pb-3.5 pl-4 pr-3.5 pt-5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-[filter,box-shadow] hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)] hover:brightness-[0.98]"
+      style={{ background: section.bg, color: section.accent, borderColor: `color-mix(in srgb, ${section.accent} 35%, transparent)`, borderLeftWidth: 4, borderLeftColor: section.accent }}
       onClick={() => onOpen(item)}
     >
       <span
-        className="absolute -top-3 left-[9px] flex h-5 min-w-[87px] items-center justify-center rounded-[4px] px-1.5 text-[14px] font-medium"
+        className="absolute -top-3.5 left-3 flex h-6 min-w-[92px] items-center justify-center rounded-[5px] px-2 text-[15px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.12)]"
         style={{ background: section.accent, color: 'var(--ui-surface-elevated)' }}
       >
         {[item.badgeTop, item.badgeBottom].filter(Boolean).join(' ')}
@@ -112,21 +114,31 @@ function Card({ item, section, onOpen }: {
       <span className="flex w-full items-start justify-between gap-2">
         <span className="min-w-0">
           <span className="flex items-center gap-2">
-            <span className="min-w-0 truncate text-[16px] font-bold leading-normal">{item.title}</span>
+            <span className="min-w-0 truncate text-[18px] font-bold leading-tight">{item.title}</span>
             {item.onHold && (
-              <span className="inline-flex h-3.5 shrink-0 items-center gap-0.5 rounded-[2px] px-0.5 text-[10px] font-medium" style={{ background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}>
-                <Pause size={10} aria-hidden /> On Hold
+              <span className="inline-flex h-5 shrink-0 items-center gap-1 rounded-[4px] px-1.5 text-[11px] font-semibold" style={{ background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}>
+                <Pause size={11} aria-hidden /> On Hold
               </span>
             )}
           </span>
-          {item.category && <span className="block truncate text-[10px] leading-normal">{item.category}</span>}
+          {item.category && <span className="mt-0.5 block truncate text-[12px] font-medium leading-normal opacity-90">{item.category}</span>}
         </span>
-        {item.dateLabel && <span className="shrink-0 text-[10px] leading-normal">{item.dateLabel}</span>}
+        {item.dateLabel && <span className="shrink-0 text-[12px] font-medium leading-normal">{item.dateLabel}</span>}
       </span>
+      {item.statuses && item.statuses.length > 0 && (
+        <span className="flex flex-wrap gap-1.5">
+          {item.statuses.map(s => (
+            <span key={s} className="inline-flex h-6 items-center rounded-full px-2.5 text-[12px] font-semibold leading-none"
+              style={{ background: section.accent, color: 'var(--ui-surface-elevated)' }}>
+              {s}
+            </span>
+          ))}
+        </span>
+      )}
       <span className="flex w-full items-end justify-between gap-2">
         <span className="min-w-0">
-          <span className="block truncate text-[10px] leading-normal">{item.subtitle}</span>
-          {item.note && <span className="block text-[10px] font-semibold leading-normal">{item.note}</span>}
+          <span className="block truncate text-[12px] leading-normal">{item.subtitle}</span>
+          {item.note && <span className="mt-0.5 block text-[12px] font-bold leading-normal">{item.note}</span>}
         </span>
         {item.pmName && (
           <span className="flex shrink-0 flex-col rounded-[4px] px-2 py-0.5 leading-normal" style={{ background: section.accent, color: 'var(--ui-surface-elevated)' }}>
@@ -142,15 +154,15 @@ function Card({ item, section, onOpen }: {
 function Section({ section, onOpen }: { section: BoardSection; onOpen: (item: BoardCardItem) => void }) {
   const empty = section.items.length === 0;
   return (
-    <div className={`flex flex-col ${empty ? 'gap-1' : 'gap-6'}`}>
+    <div className={`flex flex-col ${empty ? 'gap-1.5' : 'gap-7'}`}>
       <div className="flex items-center gap-1">
-        <span className="size-1 shrink-0 rounded-full" style={{ background: section.labelColor ?? section.accent }} />
-        <span className="min-w-0 flex-1 text-[10px] font-semibold uppercase leading-normal" style={{ color: section.labelColor ?? section.accent }}>
+        <span className="size-2 shrink-0 rounded-full" style={{ background: section.labelColor ?? section.accent }} />
+        <span className="min-w-0 flex-1 text-[12px] font-bold uppercase tracking-wide leading-normal" style={{ color: section.labelColor ?? section.accent }}>
           {section.label}
         </span>
       </div>
       {empty ? (
-        <p className="m-0 truncate rounded-[8px] p-2.5 text-[10px] leading-normal" style={{ background: section.bg, color: section.accent }}>
+        <p className="m-0 truncate rounded-[8px] p-3 text-[12px] leading-normal" style={{ background: section.bg, color: section.accent }}>
           {section.emptyLabel}
         </p>
       ) : (
