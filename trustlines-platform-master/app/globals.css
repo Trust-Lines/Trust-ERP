@@ -1803,13 +1803,7 @@ html[data-hide-amounts] [data-money] { -webkit-text-security: disc; text-securit
 .dark {
   color-scheme: dark;
 
-  /* Eye-comfort surfaces: softer than pure black, less saturated than navy; one step between layers. */
-  --ui-page-bg: #12171D;
-  --ui-surface-elevated: #1B222B;
-  --ui-divider: #2C3542;
-  --ui-heading: #E6E9EE;
-  --ui-body: #C9D0DA;
-  --ui-text-secondary: #9AA6B6;
+  /* Page, surface, divider and text colours come from the Figma dark block above (Basic UI Colors, Dark Mode). */
 
   /* Tabs, filter chips, inputs (dark only) */
   --ui-tab-active: #8FC1FF;
@@ -1820,7 +1814,7 @@ html[data-hide-amounts] [data-money] { -webkit-text-security: disc; text-securit
   --ui-divider-strong: #3A4554;
   --ui-control-border: #465262; /* outlined buttons (Columns, Assigned to me) */
   /* Grouped tables (CRM Board): header a step above the rows, group rows a step below the card */
-  --ui-table-head-bg: #1E2530;
+  --ui-table-head-bg: var(--ui-surface); /* Figma "Main Surfaces+Cards" */
   --ui-group-row-bg: #171D25;
   --ui-group-count: #C9D0DA;
   /* List rows shown as cards (Design projects) and review-state chips */
@@ -1867,7 +1861,7 @@ html[data-hide-amounts] [data-money] { -webkit-text-security: disc; text-securit
   --bg-sunken: #161C23;
   --bg-inverse: var(--color-primary-50);
 
-  --border-subtle: #252E3A;
+  --border-subtle: var(--ui-divider);
   --border-strong: var(--color-primary-500);
 
   --fg-default: #E6E9EE;
