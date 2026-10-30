@@ -9,11 +9,11 @@ import { hashColor, readableTextColor } from '@/lib/marketing/pillColor';
 function TonePill({ tone, label, chevron }: { tone: string; label: string; chevron?: boolean }) {
   return (
     <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 4, padding: chevron ? '3px 8px 3px 10px' : '3px 10px', borderRadius: 4,
+      display: 'inline-flex', alignItems: 'center', gap: 4, maxWidth: '100%', minWidth: 0, padding: chevron ? '3px 8px 3px 10px' : '3px 10px', borderRadius: 4,
       background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)`,
       fontSize: 12, fontWeight: 500, lineHeight: '16px', whiteSpace: 'nowrap',
     }}>
-      {label}
+      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
       {chevron && <ChevronDown size={14} style={{ flexShrink: 0 }} />}
     </span>
   );
@@ -81,14 +81,16 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
     <>
       <button
         ref={triggerRef}
+        title={value ?? undefined}
         onClick={e => { e.stopPropagation(); setOpen(s => !s); }}
         style={{
+          maxWidth: '100%', minWidth: 0,
           display: 'inline-flex', alignItems: 'center', gap: 5, border: '1px solid transparent',
           borderRadius: 6, padding: '2px 6px 2px 2px', background: 'transparent', cursor: 'pointer', minHeight: 22,
         }}
       >
         {value && toneFor ? <TonePill tone={toneFor(value)} label={value} chevron /> : value && renderPill ? renderPill(value) : value ? (
-          <span style={{ background: colorFor(value), color: readableTextColor(colorFor(value)), fontSize: 10.5, fontWeight: 600, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap' }}>
+          <span style={{ background: colorFor(value), color: readableTextColor(colorFor(value)), fontSize: 10.5, fontWeight: 600, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {value}
           </span>
         ) : (

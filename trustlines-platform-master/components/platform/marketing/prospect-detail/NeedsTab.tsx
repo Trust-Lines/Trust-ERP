@@ -61,13 +61,13 @@ export function NeedsTab({
             const linkedPotential = potentials.find(p => p.need_id === n.id && !DONE_POTENTIAL_STATUSES.has(p.status));
             if (editingNeedId === n.id) {
               return (
-                <div key={n.id} className="card"><div className="card-body">
+                <div key={n.id} id={`need-${n.id}`} className="card"><div className="card-body">
                   <NeedForm initial={n} locations={locations} onSave={payload => onUpdate(n.id, payload)} onCancel={() => setEditingNeedId(null)} />
                 </div></div>
               );
             }
             return (
-              <div key={n.id} className="card"><div className="card-body">
+              <div key={n.id} id={`need-${n.id}`} className="card"><div className="card-body">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{n.title}</div>
                   <NeedClassificationPill c={n.classification} />

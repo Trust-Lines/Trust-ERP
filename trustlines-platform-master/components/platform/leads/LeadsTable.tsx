@@ -51,7 +51,7 @@ const ROW_PAGE = 60;
 export const DEFAULT_HIDDEN_COLUMNS = ['Contact', '01-State', 'To Do', 'Source', 'Deal Size', 'Deposit', 'Payment', 'Date Done', 'Targeted'];
 
 const COLUMN_WIDTHS = [
-  280, 100, 100, 120, 140, 170, 170, 180, 150, 120, 170, 110,
+  280, 100, 100, 170, 140, 170, 170, 180, 150, 120, 170, 110,
   150, 80, 140, 120, 110, 100, 110, 110, 90,
 ];
 
@@ -282,13 +282,14 @@ export function LeadsTable({
 
                     <td style={cell}>
                       {assigneePool(l).length > 0 ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
                           <Avatar name={l.assignee} size="xs" />
                           <ColorSelect
                             value={l.assignee_id && l.assignee !== 'Unassigned' ? l.assignee : null}
                             options={assigneePool(l).map(a => a.full_name)}
                             knownColors={NEUTRAL_PILL(assigneePool(l).map(a => a.full_name))}
                             allowCreate={false} placeholder="Unassigned"
+                            renderPill={name => <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, color: 'var(--ui-body)' }}>{name}</span>}
                             onChange={name => onAssigneeChange?.(l.id, assigneePool(l).find(a => a.full_name === name)?.id ?? '')}
                           />
                         </span>
