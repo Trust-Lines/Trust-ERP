@@ -264,6 +264,25 @@
   --status-t10-bg: var(--color-error-light);
   --status-t10-fg: var(--color-error-dark);
 
+  /* Dashboard board stages + greeting card (Figma "ops_manager", node 376:31396). */
+  --stage-opportunity-fg: #678FAF;
+  --stage-opportunity-bg: #DAE6F0;
+  --stage-finalization-fg: #C48A28;
+  --stage-finalization-bg: #FFF6E8;
+  --stage-finalization-label: #C48A28;
+  --stage-technical-fg: #8064BA;
+  --stage-technical-bg: #E9DFFF;
+  --stage-to-production-fg: #678FAF;
+  --stage-to-production-bg: #D7EDFF;
+  --stage-production-fg: #2A6FBE;
+  --stage-production-bg: #D7EAFF;
+  --stage-shipped-fg: #C46A43;
+  --stage-shipped-bg: #FFE3D7;
+  --stage-ready-fg: #216B2E;
+  --stage-ready-bg: #CFF6D6;
+  --dash-hero-bg: radial-gradient(circle at 22% 54%, #4C5767 0%, #2B3D55 70%);
+  --dash-hero-fg: var(--color-secondary-100);
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -460,6 +479,24 @@
   --status-t9-fg: var(--color-success-light);
   --status-t10-bg: var(--color-error-dark);
   --status-t10-fg: var(--color-error-light);
+
+  /* Dashboard board stages + greeting card — Dark (Figma node 384:41126). */
+  --stage-opportunity-fg: #DAE6F0;
+  --stage-opportunity-bg: #678FAF;
+  --stage-finalization-fg: #FFF6E8;
+  --stage-finalization-bg: #C48A28;
+  --stage-technical-fg: #E9DFFF;
+  --stage-technical-bg: #8064BA;
+  --stage-to-production-fg: #D7EDFF;
+  --stage-to-production-bg: #678FAF;
+  --stage-production-fg: #D7EAFF;
+  --stage-production-bg: #2A6FBE;
+  --stage-shipped-fg: #FFE3D7;
+  --stage-shipped-bg: #C46A43;
+  --stage-ready-fg: #CFF6D6;
+  --stage-ready-bg: #216B2E;
+  --dash-hero-bg: radial-gradient(circle at 22% 54%, #B7C2D1 0%, #CCD7E5 70%);
+  --dash-hero-fg: var(--color-secondary-700);
 
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

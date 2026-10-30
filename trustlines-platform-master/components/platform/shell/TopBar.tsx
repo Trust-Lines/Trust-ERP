@@ -53,6 +53,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/audit': 'Audit & Security Log',
   '/settings': 'Settings & Preferences',
   '/notifications': 'Notifications',
+  '/my-tasks': 'My Tasks',
 };
 
 export function TopBar({
