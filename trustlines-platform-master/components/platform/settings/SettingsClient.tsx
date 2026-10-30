@@ -1,8 +1,8 @@
 'use client';
 
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
-import { useEffect, useState } from 'react';
-import { CloudSync, Download, EyeOff, Eye, Lock, Palette, Pencil, ShieldAlert } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Camera, CloudSync, Download, EyeOff, Eye, Loader2, Lock, Palette, Pencil, ShieldAlert, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { readHideAmounts, writeHideAmounts } from '@/lib/privacy/hideAmounts';
 import { toast } from 'sonner';
@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { ThemeSwitch } from '@/components/platform/shared/ThemeSync';
 import { SignaturePad } from '@/components/platform/SignaturePad';
 import { roleLabel } from '@/components/platform/shell/Sidebar';
+import { compressImage } from '@/lib/client/compressImage';
 import { MailSettingsCard } from './MailSettingsCard';
 import { GoogleAccountCard } from './GoogleAccountCard';
 
@@ -74,9 +75,39 @@ function PasswordInput({ label, value, onChange, autoComplete, show, onToggleSho
   );
 }
 
-function ProfileBanner({ fullName, role, email }: { fullName: string; role: string; email: string }) {
+function ProfileBanner({ fullName, role, email, avatarUrl: initialAvatar }: { fullName: string; role: string; email: string; avatarUrl: string | null }) {
   const [signature, setSignature] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  // Profile photo (stored in Dropbox — app/api/me/avatar).
+  const [avatar, setAvatar] = useState<string | null>(initialAvatar);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
+
+  async function uploadPhoto(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Choose an image'); return; }
+    setPhotoBusy(true);
+    try {
+      const form = new FormData();
+      form.append('file', await compressImage(file));
+      const res = await fetch('/api/me/avatar', { method: 'POST', body: form });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(b.error ?? 'Could not upload the photo'); return; }
+      setAvatar(b.url);
+      toast.success('Profile photo updated');
+    } catch { toast.error('Could not upload the photo'); }
+    finally { setPhotoBusy(false); }
+  }
+
+  async function removePhoto() {
+    setPhotoBusy(true);
+    try {
+      const res = await fetch('/api/me/avatar', { method: 'DELETE' });
+      if (!res.ok) { toast.error('Could not remove the photo'); return; }
+      setAvatar(null);
+      toast.success('Profile photo removed');
+    } finally { setPhotoBusy(false); }
+  }
   useEffect(() => {
     fetch('/api/user/signature').then(r => r.json()).then((j: { base64?: string | null }) => setSignature(j.base64 ?? null)).catch(() => setSignature(null));
   }, []);
@@ -84,8 +115,28 @@ function ProfileBanner({ fullName, role, email }: { fullName: string; role: stri
   return (
     <div className="w-full overflow-hidden rounded-[10px] border border-ui-divider p-5" style={{ background: BANNER_BG }}>
       <div className="flex w-full items-center gap-4">
-        <div className="relative flex size-[137px] shrink-0 items-center justify-center rounded-[8px] bg-ui-page-bg">
-          <span aria-hidden className="text-[40px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">{initialsOf(fullName, email)}</span>
+        <div className="relative flex size-[137px] shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-ui-page-bg">
+          {avatar
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={avatar} alt="Your profile photo" className="size-full object-cover" onError={() => setAvatar(null)} />
+            : <span aria-hidden className="text-[40px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">{initialsOf(fullName, email)}</span>}
+          <button
+            type="button" onClick={() => photoInput.current?.click()} disabled={photoBusy}
+            aria-label={avatar ? 'Change profile photo' : 'Upload profile photo'} title={avatar ? 'Change photo' : 'Upload photo'}
+            className="absolute bottom-1 left-1 flex size-[33px] items-center justify-center rounded-[6px] border-0 bg-[var(--color-secondary-700)] p-1 text-white hover:opacity-90 disabled:opacity-60"
+          >
+            {photoBusy ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Camera size={16} aria-hidden />}
+          </button>
+          {avatar && !photoBusy && (
+            <button
+              type="button" onClick={() => void removePhoto()} aria-label="Remove profile photo" title="Remove photo"
+              className="absolute right-1 top-1 flex size-[26px] items-center justify-center rounded-[6px] border-0 bg-black/55 p-1 text-white hover:bg-black/70"
+            >
+              <X size={14} aria-hidden />
+            </button>
+          )}
+          <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" hidden
+            onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void uploadPhoto(f); }} />
           <button
             type="button" onClick={() => setEditing(true)} aria-label="Edit signature"
             className="absolute bottom-1 right-1 flex size-[33px] items-center justify-center rounded-[6px] border-0 bg-[var(--color-secondary-700)] p-1 text-white hover:opacity-90"
@@ -372,8 +423,10 @@ function PreferencesTab({ email }: { email: string }) {
   );
 }
 
-export function SettingsClient({ isGeneralManager, canBackUpContacts, role, fullName, email }: {
+export function SettingsClient({ isGeneralManager, canBackUpContacts, role, fullName, email, avatarUrl = null }: {
   isGeneralManager: boolean; canBackUpContacts: boolean; role: string; fullName: string; email: string;
+  /** /api/avatar/<id>?v=… when the person has a photo (migration 135). */
+  avatarUrl?: string | null;
 }) {
   const [tab, setTab] = useState<Tab>('profile');
   const tabs: { key: Tab; label: string }[] = [{ key: 'profile', label: 'Profile' }, { key: 'preferences', label: 'Preferences' }];
@@ -411,7 +464,7 @@ export function SettingsClient({ isGeneralManager, canBackUpContacts, role, full
         {tab === 'profile' && (
           <div className="flex w-full flex-col items-stretch gap-6 lg:flex-row lg:items-start">
             <div className="flex min-w-0 flex-1 flex-col gap-6 self-stretch">
-              <ProfileBanner fullName={fullName} role={role} email={email} />
+              <ProfileBanner fullName={fullName} role={role} email={email} avatarUrl={avatarUrl} />
               <PersonalInfoCard fullName={fullName} email={email} />
             </div>
             <ChangePasswordCard email={email} />
