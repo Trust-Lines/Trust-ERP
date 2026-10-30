@@ -9,7 +9,7 @@ export default tseslint.config(
     // modules/trust-projects is the Trust System page moved as-is (not rewritten to our lint rules);
     // the files written for T-ERP in it are still linted.
     ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts', 'lib/demo/**',
-      'modules/trust-projects/**/*.{ts,tsx}', '!modules/trust-projects/TrustProjectsApp.tsx', '!modules/trust-projects/lib/router.ts', '!modules/trust-projects/lib/portalRoot.ts'],
+      'modules/trust-projects/**/*.{ts,tsx}', '!modules/trust-projects/TrustProjectsApp.tsx', '!modules/trust-projects/TrustProviders.tsx', '!modules/trust-projects/lib/router.ts', '!modules/trust-projects/lib/portalRoot.ts'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

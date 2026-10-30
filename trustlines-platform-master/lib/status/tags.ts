@@ -215,6 +215,39 @@ export const STATUS_TAGS = {
       { key: 'expired',            label: 'Expired',     tone: 't0',  icon: ClockAlert },
     ],
   },
+  // Production → Projects board (Trust System rows). Keys are the Trust display values; tones keep
+  // the meaning of the Trust colours (red = not ordered, blue = ordered, green = sent…).
+  trust_status: {
+    title: 'Production status',
+    tags: [
+      { key: 'HOLD / T',          label: 'Hold / T',          tone: 't0',  icon: Pause },
+      { key: 'HOLD / PM',         label: 'Hold / PM',         tone: 't0',  icon: Pause },
+      { key: 'HOLD BOOKS',        label: 'Hold books',        tone: 't8',  icon: Pause },
+      { key: 'NOT ORDERED',       label: 'Not ordered',       tone: 't10', icon: CircleX },
+      { key: 'TO ORDER',          label: 'To order',          tone: 't8',  icon: ClockAlert },
+      { key: 'BOOKS IN PROGRESS', label: 'Books in progress', tone: 't1',  icon: NotepadText },
+      { key: 'ORDERED',           label: 'Ordered',           tone: 't2',  icon: CheckCheck },
+      { key: 'WAITING PAYMENT',   label: 'Waiting payment',   tone: 't4',  icon: Hourglass },
+      { key: 'ASSEMBLY',          label: 'Assembly',          tone: 't7',  icon: Hammer },
+      { key: 'READY TO RECEIVE',  label: 'Ready to receive',  tone: 't8',  icon: PackageCheck },
+      { key: 'RECEIVED',          label: 'Received',          tone: 't5',  icon: PackageCheck },
+      { key: 'READY',             label: 'Ready',             tone: 't6',  icon: CircleCheck },
+      { key: 'SENT TO TLINES',    label: 'Sent to TLines',    tone: 't9',  icon: Ship },
+      { key: 'PARTIAL SENT',      label: 'Partial sent',      tone: 't3',  icon: Ship },
+      { key: 'SENT',              label: 'Sent',              tone: 't9',  icon: Ship },
+    ],
+  },
+  trust_sign: {
+    title: 'PO / PF signature',
+    tags: [
+      { key: 'NOT SIGNED',             label: 'Not signed',        tone: 't10', icon: CircleOff },
+      { key: 'READY TO SIGN',          label: 'Ready to sign',     tone: 't7',  icon: SquarePen },
+      { key: 'WAITING TLINES TO SIGN', label: 'Waiting TLines',    tone: 't2',  icon: Hourglass },
+      { key: 'WAITING T TO SIGN',      label: 'Waiting T',         tone: 't3',  icon: Hourglass },
+      { key: 'SIGNED WITH EST PRICE',  label: 'Signed (est. price)', tone: 't5', icon: BadgeCheck },
+      { key: 'SIGNED',                 label: 'Signed',            tone: 't9',  icon: BadgeCheck },
+    ],
+  },
 } as const satisfies Record<string, { title: string; tags: readonly StatusTag[] }>;
 
 export type StatusGroup = keyof typeof STATUS_TAGS;
