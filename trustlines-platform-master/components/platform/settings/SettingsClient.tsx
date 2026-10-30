@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { ThemeSwitch } from '@/components/platform/shared/ThemeSync';
 import { SignaturePad } from '@/components/platform/SignaturePad';
 import { roleLabel } from '@/components/platform/shell/Sidebar';
-import { compressImage } from '@/lib/client/compressImage';
+import { PhotoCropDialog } from './PhotoCropDialog';
 import { AVATARS_CHANGED_EVENT } from '@/components/ui/avatar-directory';
 import { MailSettingsCard } from './MailSettingsCard';
 import { GoogleAccountCard } from './GoogleAccountCard';
@@ -83,6 +83,7 @@ function ProfileBanner({ fullName, role, email, avatarUrl: initialAvatar }: { fu
   const [avatar, setAvatar] = useState<string | null>(initialAvatar);
   const [photoBusy, setPhotoBusy] = useState(false);
   const photoInput = useRef<HTMLInputElement>(null);
+  const [cropping, setCropping] = useState<File | null>(null);
 
   async function uploadPhoto(file: File | undefined) {
     if (!file) return;
@@ -90,7 +91,7 @@ function ProfileBanner({ fullName, role, email, avatarUrl: initialAvatar }: { fu
     setPhotoBusy(true);
     try {
       const form = new FormData();
-      form.append('file', await compressImage(file));
+      form.append('file', file); // already a 512px square from PhotoCropDialog
       const res = await fetch('/api/me/avatar', { method: 'POST', body: form });
       const b = await res.json().catch(() => ({}));
       if (!res.ok) { toast.error(b.error ?? 'Could not upload the photo'); return; }
@@ -139,30 +140,44 @@ function ProfileBanner({ fullName, role, email, avatarUrl: initialAvatar }: { fu
             </button>
           )}
           <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" hidden
-            onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void uploadPhoto(f); }} />
-          <button
-            type="button" onClick={() => setEditing(true)} aria-label="Edit signature"
-            className="absolute bottom-1 right-1 flex size-[33px] items-center justify-center rounded-[6px] border-0 bg-[var(--color-secondary-700)] p-1 text-white hover:opacity-90"
-          >
-            <Pencil size={16} aria-hidden />
-          </button>
+            onChange={e => {
+              const f = e.target.files?.[0]; e.target.value = '';
+              if (!f) return;
+              if (!f.type.startsWith('image/')) { toast.error('Choose an image'); return; }
+              setCropping(f);
+            }} />
         </div>
         <div className="flex min-w-0 flex-1 flex-col justify-between self-stretch p-1">
           <div className="flex flex-col">
             <p className="m-0 truncate text-[32px] font-semibold text-[var(--color-secondary-50)]">{fullName || email}</p>
             <p className="m-0 text-[16px] font-medium leading-[1.35] text-[var(--color-secondary-50)]">{role ? roleLabel(role) : ''}</p>
           </div>
-          <button
-            type="button" onClick={() => setEditing(true)} aria-label={signature ? 'Change signature' : 'Add signature'}
-            className="flex h-9 w-[132px] items-center border-0 bg-transparent p-0 text-left text-[12px] text-[var(--color-secondary-100)]"
-          >
-            {signature
-              // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={signature} alt="Your signature" className="h-9 max-w-[132px] object-contain object-left brightness-0 invert-[.93]" />
-              : 'Add signature'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button" onClick={() => setEditing(true)} aria-label={signature ? 'Change signature' : 'Add signature'}
+              className="flex h-9 w-[132px] items-center border-0 bg-transparent p-0 text-left text-[12px] text-[var(--color-secondary-100)]"
+            >
+              {signature
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={signature} alt="Your signature" className="h-9 max-w-[132px] object-contain object-left brightness-0 invert-[.93]" />
+                : 'Add signature'}
+            </button>
+            <button
+              type="button" onClick={() => setEditing(true)} aria-label="Edit signature" title="Edit signature"
+              className="flex size-[33px] shrink-0 items-center justify-center rounded-[6px] border-0 bg-white/15 p-1 text-white hover:bg-white/25"
+            >
+              <Pencil size={16} aria-hidden />
+            </button>
+          </div>
         </div>
       </div>
+      {cropping && (
+        <PhotoCropDialog
+          file={cropping}
+          onCancel={() => setCropping(null)}
+          onCropped={f => { setCropping(null); void uploadPhoto(f); }}
+        />
+      )}
       {editing && (
         <SignaturePad
           existingBase64={signature}
