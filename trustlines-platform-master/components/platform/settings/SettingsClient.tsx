@@ -339,33 +339,32 @@ function PreferencesTab({ email }: { email: string }) {
         </div>
       </div>
 
+      {/* Figma "Hide amounts" (node 336:23072). */}
       <div className="card">
         <div className="card-body" style={{ padding: 20 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <EyeOff size={18} /> Privacy
+            <EyeOff size={18} /> Hide amounts
           </h2>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Hide amounts</div>
-              <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: '4px 0 0', maxWidth: 640 }}>
-                Masks every money figure on screen as <strong>$•••••</strong> — pipeline value, deal sizes, deposits,
-                totals. Columns and cards stay where they are; only the numbers are hidden. Applies to this browser
-                only. It&apos;s a screen guard for when someone is looking over your shoulder, not a permission setting.
-              </p>
+          <div className="flex flex-wrap items-center justify-between gap-6">
+            <p className="m-0 max-w-[414px]" style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>
+              Pipeline value, deal sizes, deposits, totals. It&apos;s a screen guard for when someone is looking over your
+              shoulder, not a permission setting.
+            </p>
+            <div className="flex items-center gap-16">
+              <div aria-hidden className={cn('flex h-[66px] w-[207px] items-center justify-center rounded-[11px] border border-ui-divider text-[28px] font-semibold leading-[1.35] tracking-[2.24px] whitespace-nowrap', HEADING)}>
+                {hideAmounts ? '$ •••••••' : '$ 25,000'}
+              </div>
+              <button
+                type="button" role="switch" aria-checked={hideAmounts} aria-label="Hide amounts"
+                onClick={toggleHideAmounts}
+                className={cn(
+                  'relative h-[37px] w-[72px] shrink-0 cursor-pointer rounded-[8px] border-0 transition-colors',
+                  hideAmounts ? 'bg-[var(--color-primary-500)] dark:bg-ui-btn-accent' : 'bg-ui-selected-bg',
+                )}
+              >
+                <span className={cn('absolute top-[3.5px] size-[30px] rounded-[4px] bg-white transition-[left]', hideAmounts ? 'left-[38.5px]' : 'left-[3.5px]')} />
+              </button>
             </div>
-            <button
-              type="button" role="switch" aria-checked={hideAmounts} aria-label="Hide amounts"
-              onClick={toggleHideAmounts}
-              style={{
-                flexShrink: 0, width: 46, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer', position: 'relative',
-                background: hideAmounts ? 'var(--brand-teal)' : 'var(--border-default)', transition: 'background 120ms',
-              }}
-            >
-              <span style={{
-                position: 'absolute', top: 3, left: hideAmounts ? 23 : 3, width: 20, height: 20, borderRadius: '50%',
-                background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.3)', transition: 'left 120ms',
-              }} />
-            </button>
           </div>
         </div>
       </div>
