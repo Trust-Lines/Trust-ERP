@@ -11,6 +11,7 @@ import { ThemeSwitch } from '@/components/platform/shared/ThemeSync';
 import { SignaturePad } from '@/components/platform/SignaturePad';
 import { roleLabel } from '@/components/platform/shell/Sidebar';
 import { MailSettingsCard } from './MailSettingsCard';
+import { GoogleAccountCard } from './GoogleAccountCard';
 
 const MIN_PASSWORD = 8;
 
@@ -318,6 +319,8 @@ function PreferencesTab({ email }: { email: string }) {
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <MailSettingsCard email={email} />
+
+      <GoogleAccountCard />
 
       <div className="card">
         <div className="card-body" style={{ padding: 20 }}>

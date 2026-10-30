@@ -235,7 +235,8 @@ describe('processSurveySubmission — incomplete-data notification', () => {
     expect(recipients).not.toContain('unrelated');
     expect(db.notifications[0].type).toBe('survey.incomplete_submission');
     expect(db.notifications[0].title).toContain('region/state');
-    expect(db.notifications[0].link).toBe('/leads');
+    // Opens that deal's quick view in Marketing (not the Sales CRM board), region/state highlighted.
+    expect(db.notifications[0].link).toBe('/marketing/opportunities?open=prospect_potentials-5&kind=potential&focus=region%2Cstate');
   });
 
   it('does not notify when state is present', async () => {

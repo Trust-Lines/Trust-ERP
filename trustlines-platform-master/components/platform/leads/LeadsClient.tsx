@@ -107,6 +107,12 @@ export function LeadsClient({
   const [sortBy, setSortBy] = useState('created_desc');
 
   const assigneeName = (id?: string | null) => assignees.find(a => a.id === id)?.full_name;
+  // Filter options: everyone who owns a row — Opportunity rows are owned from the wider marketing pool.
+  const filterAssignees = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of [...assignees, ...marketingAssignees]) if (!m.has(a.id)) m.set(a.id, a.full_name);
+    return [...m].map(([id, full_name]) => ({ id, full_name })).sort((a, b) => a.full_name.localeCompare(b.full_name));
+  }, [assignees, marketingAssignees]);
   const marketingAssigneeName = (id?: string | null) => marketingAssignees.find(a => a.id === id)?.full_name;
 
   function updateField(id: string, patch: Partial<Lead>, body: Record<string, unknown>) {
@@ -178,7 +184,7 @@ export function LeadsClient({
     fetch(`/api/leads/${id}/status`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ opportunity_status: status }),
-    }).catch(() => {
+    }).then(res => { if (!res.ok) throw new Error(); }).catch(() => {
       toast.error('Could not save status');
       if (prevStatus) setLeads(prev => prev.map(l => (l.id === id ? { ...l, opportunity_status: prevStatus } : l)));
     });
@@ -403,8 +409,10 @@ export function LeadsClient({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={BriefcaseBusiness} label="All Records" value={leads.length} chip={newChip(newCounts.all)} />
         <StatCard icon={CircleDollarSign} label="Pipeline Value" value={formatMoney(pipelineValue)} chip={newChip(newCounts.pipeline)} />
-        <StatCard icon={Send} label="Proposal Sent" value={proposalSentCount} chip={newChip(newCounts.proposal)} />
-        <StatCard icon={CircleCheck} label="Deals Closed" value={dealsClosedCount} chip={newChip(newCounts.closed)} />
+        <StatCard icon={Send} label="Proposal Sent" value={proposalSentCount} chip={newChip(newCounts.proposal)}
+          active={selectedStage === 'design_proposal_sent'} onClick={() => setSelectedStage(s => (s === 'design_proposal_sent' ? null : 'design_proposal_sent'))} />
+        <StatCard icon={CircleCheck} label="Deals Closed" value={dealsClosedCount} chip={newChip(newCounts.closed)}
+          active={selectedStage === 'deal_closed'} onClick={() => setSelectedStage(s => (s === 'deal_closed' ? null : 'deal_closed'))} />
       </div>
 
       {truncatedAt && (
@@ -421,7 +429,7 @@ export function LeadsClient({
             <input
               type="search"
               aria-label="Search records"
-              placeholder="Search contacts…"
+              placeholder="Search name, brand, project #…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="h-9 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-2.5 text-[13px] leading-[1.45] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
@@ -449,7 +457,7 @@ export function LeadsClient({
             options={[
               { value: '', label: 'Assignee' },
               { value: '__none__', label: 'Unassigned' },
-              ...assignees.map(a => ({ value: a.id, label: a.full_name })),
+              ...filterAssignees.map(a => ({ value: a.id, label: a.full_name })),
             ]}
           />
 
@@ -599,7 +607,7 @@ export function LeadsClient({
         )}
 
         {view === 'calendar' && (
-          <LeadsCalendar leads={visibleLeads} />
+          <LeadsCalendar leads={visibleLeads} onOpen={handleOpen} />
         )}
       </div>
 

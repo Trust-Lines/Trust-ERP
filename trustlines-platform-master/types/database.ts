@@ -552,6 +552,9 @@ export interface SalesDesignJob {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Migration 132 — the job's Dropbox design folder and its shared link (absent before it runs). */
+  dropbox_folder_path?: string | null;
+  dropbox_shared_url?: string | null;
 }
 
 
@@ -592,6 +595,8 @@ export interface CustomerMeeting {
   notes: string | null;
   outcome: string | null;
   status: 'scheduled' | 'completed' | 'cancelled';
+  google_event_id?: string | null; // migration 130: sent as a Google Calendar invite
+  meet_url?: string | null;
   created_by: string | null;
   deleted_at: string | null;
   created_at: string;
@@ -1325,6 +1330,108 @@ export interface EmailSuppression {
   note: string | null;
   created_by: string | null;
   created_at: string;
+}
+
+// ── Sales estimates & contracts (migration 131) ─────────────────────────────────────────
+
+export interface SalesEstimate {
+  id: string;
+  opportunity_id: string;
+  number: string; // EST-YYYYMM-XXXXXX
+  version: number;
+  title: string;
+  currency: 'USD' | 'EUR' | 'TRY' | 'GBP';
+  line_items: { description: string; quantity: number; unit: string | null; unit_price: number }[];
+  discount_pct: number;
+  tax_pct: number;
+  subtotal: number;
+  total: number;
+  notes: string | null;
+  valid_until: string | null; // DATE
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'superseded';
+  token_hash?: string | null; // server-only
+  sent_at: string | null;
+  viewed_at: string | null;
+  decided_at: string | null;
+  decided_by_name: string | null;
+  decision_note: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface SalesContract {
+  id: string;
+  opportunity_id: string;
+  estimate_id: string | null;
+  number: string; // CTR-YYYYMM-XXXXXX
+  title: string;
+  currency: string;
+  amount: number;
+  terms: string;
+  customer_name: string | null;
+  signer_name: string | null;
+  signer_email: string | null;
+  status: 'draft' | 'sent' | 'signed' | 'declined' | 'cancelled';
+  content_hash: string | null;
+  token_hash?: string | null; // server-only
+  sent_at: string | null;
+  viewed_at: string | null;
+  signed_at: string | null;
+  signed_name: string | null;
+  signed_title: string | null;
+  signed_ip: string | null;
+  signed_user_agent: string | null;
+  declined_reason: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+// ── Google account per person (migration 130) ───────────────────────────────────────────
+
+export interface UserGoogleConnection {
+  user_id: string;
+  google_email: string;
+  access_token_enc?: string; // server-only, AES-256-GCM
+  refresh_token_enc?: string | null; // server-only
+  token_expires_at: string | null;
+  scopes: string[];
+  last_sync_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Copy of a person's Google Calendar event (60 days back, 120 ahead). */
+export interface GoogleCalendarEvent {
+  id: string;
+  user_id: string;
+  google_event_id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  all_day: boolean;
+  status: 'confirmed' | 'tentative' | 'cancelled';
+  organizer_email: string | null;
+  attendees: { email: string; name: string | null; response: string | null }[];
+  meet_url: string | null;
+  meet_code: string | null;
+  html_link: string | null;
+  google_updated_at: string | null;
+  recording_url: string | null;
+  transcript_url: string | null;
+  recording_checked_at: string | null;
+  prospect_id: string | null;
+  customer_id: string | null;
+  customer_meeting_id: string | null;
+  created_in_erp: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export type SurveySubmissionStatus = 'processed' | 'needs_review' | 'rejected_spam' | 'failed';

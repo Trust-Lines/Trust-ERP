@@ -8,6 +8,7 @@ import { getDropboxClient } from '@/lib/dropbox/client';
 import { buildNeedFilesPath } from '@/lib/marketing/needFiles';
 import { sanitizeFileName } from '@/lib/marketing/prospectFiles';
 import { handleDirectUploadRequest } from '@/lib/marketing/directUpload';
+import { notifyDesignerOfDealNote } from '@/lib/sales/designNotify';
 
 const ALLOWED_ROLES = [...SALES_HANDOFF_ROLES, ...MARKETING_ROLES];
 
@@ -97,5 +98,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await logAudit({ actorId: user.id, action: 'opportunity.note_posted', resource: `need_notes:${note.id}`, newValue: { opportunity_id: id } });
+  // The deal's designer reads these notes in the Design workspace — tell them one arrived.
+  await notifyDesignerOfDealNote(admin, { opportunityId: id, actorId: user.id, body: note.body ?? '' });
   return NextResponse.json({ note }, { status: 201 });
 }

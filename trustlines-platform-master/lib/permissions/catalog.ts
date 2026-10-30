@@ -1,22 +1,48 @@
+import { SALES_HANDOFF_ROLES, SALES_INTAKE_ROLES, SALES_TEAM_ADMIN_ROLES } from '@/lib/sales/roles';
+import { TLINES_DASHBOARD_ROLES } from '@/lib/keyClients/roles';
 
 export type PermCategory = 'page' | 'edit' | 'sign' | 'view' | 'notify' | 'progress';
 
 export const PAGE_ROUTES: { key: string; route: string }[] = [
   { key: 'page.dashboard',       route: '/dashboard' },
   { key: 'page.projects',        route: '/projects' },
+  { key: 'page.pm',              route: '/pm' },
   { key: 'page.customers',       route: '/customers' },
   { key: 'page.design',          route: '/design' },
+  { key: 'page.design_assets',   route: '/design/assets' },
+  { key: 'page.design_brands',   route: '/design/brands' },
+  { key: 'page.design_materials', route: '/design/materials' },
+  { key: 'page.design_reviews',  route: '/design/reviews' },
   { key: 'page.approvals',       route: '/approvals' },
   { key: 'page.notifications',   route: '/notifications' },
   { key: 'page.clients',         route: '/clients' },
   { key: 'page.marketing',       route: '/marketing' },
+  { key: 'page.marketing_contacts', route: '/marketing/prospects' },
+  { key: 'page.marketing_contact_manager', route: '/marketing/contact-manager' },
+  { key: 'page.marketing_import', route: '/marketing/import' },
+  { key: 'page.marketing_email', route: '/marketing/email' },
+  { key: 'page.marketing_mail_templates', route: '/marketing/mail-templates' },
   { key: 'page.marketing_campaigns', route: '/marketing/campaigns' },
+  { key: 'page.marketing_social', route: '/marketing/social' },
+  { key: 'page.marketing_calendar', route: '/marketing/calendar' },
+  { key: 'page.marketing_website', route: '/marketing/website' },
+  { key: 'page.marketing_trash', route: '/marketing/prospects/trash' },
+  { key: 'page.leads',           route: '/leads' },
+  { key: 'page.sales_tasks',     route: '/sales-tasks' },
+  { key: 'page.sales_handoffs',  route: '/sales-projects' },
+  { key: 'page.sales_dashboard', route: '/sales-dashboard' },
+  { key: 'page.sales_team',      route: '/sales-team' },
+  { key: 'page.leads_trash',     route: '/leads/trash' },
   { key: 'page.production',      route: '/production' },
   { key: 'page.qc',              route: '/qc' },
   { key: 'page.logistics',       route: '/logistics' },
   { key: 'page.management',      route: '/management' },
+  { key: 'page.tlines_dashboard', route: '/tlines-dashboard' },
   { key: 'page.suppliers',       route: '/suppliers' },
   { key: 'page.expenses',        route: '/expenses' },
+  { key: 'page.invoices',        route: '/invoices' },
+  { key: 'page.payments',        route: '/payments' },
+  { key: 'page.budgets',         route: '/budgets' },
   { key: 'page.team',            route: '/team' },
   { key: 'page.roles',           route: '/roles' },
   { key: 'page.audit',           route: '/audit' },
@@ -28,31 +54,86 @@ export const PAGE_ROUTES: { key: string; route: string }[] = [
 export interface PermDef { key: string; label: string; hint?: string }
 export interface PermGroup { category: PermCategory; title: string; icon: string; perms: PermDef[] }
 
+// Page access is split by area so every page in the sidebar can be switched on/off per role.
 export const PERMISSION_GROUPS: PermGroup[] = [
   {
-    category: 'page', title: 'Pages (can open)', icon: '🗂️',
+    category: 'page', title: 'Pages · General', icon: '🗂️',
     perms: [
       { key: 'page.dashboard',      label: 'Dashboard' },
-      { key: 'page.projects',       label: 'Projects' },
-      { key: 'page.customers',      label: 'Customers' },
-      { key: 'page.design',         label: 'Design workspace', hint: 'Sales Design jobs assigned to the designer' },
       { key: 'page.approvals',      label: 'Approvals inbox' },
       { key: 'page.notifications',  label: 'Notifications' },
-      { key: 'page.clients',        label: 'Clients' },
-      { key: 'page.marketing',      label: 'Marketing workspace', hint: 'Prospects, Potentials & Opportunity origination (pre-Sales)' },
+      { key: 'page.settings',       label: 'Settings' },
+    ],
+  },
+  {
+    category: 'page', title: 'Pages · Marketing', icon: '📣',
+    perms: [
+      { key: 'page.marketing',      label: 'Marketing Home', hint: 'The Marketing workspace. A Marketing page you haven’t set separately follows this switch.' },
+      { key: 'page.marketing_contacts', label: 'Contacts', hint: 'Contacts query builder, Contact pages, Potentials & Opportunities lists' },
+      { key: 'page.marketing_contact_manager', label: 'Contact Manager', hint: 'Browse every Contact without building a query' },
+      { key: 'page.marketing_import', label: 'Contact import', hint: 'Excel / business-card import' },
+      { key: 'page.marketing_email', label: 'Email Campaigns', hint: 'Email campaigns, sent emails and the do-not-email list' },
+      { key: 'page.marketing_mail_templates', label: 'Mail Templates' },
       { key: 'page.marketing_campaigns', label: 'Campaigns & Surveys', hint: 'Trade fair/event campaigns and their public survey link' },
-      { key: 'page.production',     label: 'Production board' },
-      { key: 'page.qc',             label: 'QC' },
-      { key: 'page.management',     label: 'Management workspace', hint: 'Company-wide blockers, workload and project health' },
-      { key: 'page.logistics',      label: 'Logistics' },
+      { key: 'page.marketing_social', label: 'Social Media' },
+      { key: 'page.marketing_calendar', label: 'Calendar' },
+      { key: 'page.marketing_website', label: 'Website (Store Maker)', hint: 'Public website projects and blog' },
+      { key: 'page.marketing_trash', label: 'Marketing Trash', hint: 'Deleted Contacts and Needs' },
+    ],
+  },
+  {
+    category: 'page', title: 'Pages · Sales', icon: '🎯',
+    perms: [
+      { key: 'page.leads',           label: 'CRM Board & Quick Deals', hint: 'Deals board, lead pages and the new-lead form' },
+      { key: 'page.sales_tasks',     label: 'Sales Tasks' },
+      { key: 'page.sales_handoffs',  label: 'Handoffs', hint: 'Opportunities handed from Marketing to Sales' },
+      { key: 'page.sales_dashboard', label: 'Sales Dashboard' },
+      { key: 'page.sales_team',      label: 'Sales Team' },
+      { key: 'page.customers',       label: 'Customers' },
+      { key: 'page.leads_trash',     label: 'Sales Trash', hint: 'Deleted leads' },
+    ],
+  },
+  {
+    category: 'page', title: 'Pages · Projects & Supply', icon: '📁',
+    perms: [
+      { key: 'page.projects',       label: 'Projects' },
+      { key: 'page.pm',             label: 'PM workspace', hint: 'Personal project priorities. Follows “Projects” until set separately.' },
+      { key: 'page.design',         label: 'Design workspace', hint: 'Sales Design jobs assigned to the designer' },
+      { key: 'page.design_assets',  label: 'Design · Asset Library', hint: 'Templates, CAD blocks, standard details. Follows “Design workspace” until set separately.' },
+      { key: 'page.design_brands',  label: 'Design · Brand Kits', hint: 'Customer logos, colours, fonts. Follows “Design workspace” until set separately.' },
+      { key: 'page.design_materials', label: 'Design · Materials & Finishes', hint: 'Material catalogue with suppliers and prices. Follows “Design workspace” until set separately.' },
+      { key: 'page.design_reviews', label: 'Design · Customer Reviews', hint: 'Proposal links sent to customers. Follows “Design workspace” until set separately.' },
+      { key: 'page.clients',        label: 'Clients' },
       { key: 'page.suppliers',      label: 'Suppliers & finance', hint: 'Supplier profiles, invoices, payments — vendor cost (hidden from client PM)' },
-      { key: 'page.expenses',       label: 'Trust Expenses', hint: 'Internal operational spend ledger (hidden from client PM)' },
+      { key: 'page.qc',             label: 'QC' },
+    ],
+  },
+  {
+    category: 'page', title: 'Pages · Operations', icon: '🏭',
+    perms: [
+      { key: 'page.production',     label: 'Production board' },
+      { key: 'page.logistics',      label: 'Logistics' },
+      { key: 'page.management',     label: 'Management workspace', hint: 'Company-wide blockers, workload and project health' },
+      { key: 'page.tlines_dashboard', label: 'TLines dashboard', hint: 'Projects progress by region, including key clients’ deals before they are signed' },
+    ],
+  },
+  {
+    category: 'page', title: 'Pages · Finance', icon: '💰',
+    perms: [
+      { key: 'page.expenses',       label: 'Expenses', hint: 'Internal operational spend ledger (hidden from client PM). Invoices, Payments and Budgets follow this until set separately.' },
+      { key: 'page.invoices',       label: 'Invoices' },
+      { key: 'page.payments',       label: 'Payments' },
+      { key: 'page.budgets',        label: 'Budgets' },
+    ],
+  },
+  {
+    category: 'page', title: 'Pages · Admin', icon: '🛠️',
+    perms: [
       { key: 'page.team',           label: 'Team' },
       { key: 'page.roles',          label: 'Roles & Permissions' },
       { key: 'page.audit',          label: 'Audit log' },
       { key: 'page.dropbox_wizard', label: 'Dropbox Wizard' },
-      { key: 'page.trash',          label: 'Trash' },
-      { key: 'page.settings',       label: 'Settings' },
+      { key: 'page.trash',          label: 'Projects Trash' },
     ],
   },
   {
@@ -126,6 +207,58 @@ export type PermMap = Record<string, boolean>;
 export function permCan(perms: PermMap | null | undefined, key: string): boolean {
   if (!perms) return false;
   return perms.all === true || perms[key] === true;
+}
+
+// Page keys added after roles were already saved. A role's stored map is used WHOLE (see
+// effectivePermissions), so a brand-new key would read as "off" for every saved role and lock
+// people out. Instead, until an admin sets the key for a role, it follows what used to decide
+// access to that page: its parent key, or the fixed role list the page used to check in code.
+// An explicit true/false in the role's map (set on the Roles page) always wins.
+export const PAGE_PARENT: Record<string, string> = {
+  'page.marketing_contacts': 'page.marketing',
+  'page.marketing_contact_manager': 'page.marketing',
+  'page.marketing_import': 'page.marketing',
+  'page.marketing_email': 'page.marketing',
+  'page.marketing_mail_templates': 'page.marketing',
+  'page.marketing_social': 'page.marketing',
+  'page.marketing_calendar': 'page.marketing',
+  'page.marketing_website': 'page.marketing',
+  'page.marketing_trash': 'page.marketing',
+  'page.invoices': 'page.expenses',
+  'page.payments': 'page.expenses',
+  'page.budgets': 'page.expenses',
+  'page.pm': 'page.projects',
+  'page.design_assets': 'page.design',
+  'page.design_brands': 'page.design',
+  'page.design_materials': 'page.design',
+  'page.design_reviews': 'page.design',
+};
+
+/** Sales pages were guarded by these lists in code (app/(platform)/leads, sales-*); they stay the default. */
+export const PAGE_LEGACY_ROLES: Record<string, string[]> = {
+  'page.leads': SALES_INTAKE_ROLES,
+  'page.leads_trash': SALES_INTAKE_ROLES,
+  'page.sales_tasks': SALES_INTAKE_ROLES,
+  'page.sales_handoffs': SALES_HANDOFF_ROLES,
+  'page.sales_dashboard': SALES_TEAM_ADMIN_ROLES,
+  'page.sales_team': SALES_TEAM_ADMIN_ROLES,
+  'page.tlines_dashboard': TLINES_DASHBOARD_ROLES,
+};
+
+/** Whether `role` (with its effective permission map) may open the page behind `key`. */
+export function pageAllowed(role: string | null | undefined, perms: PermMap | null | undefined, key: string): boolean {
+  if (!perms) return false;
+  if (perms.all === true) return true;
+  if (key in perms) return perms[key] === true;
+  const parent = PAGE_PARENT[key];
+  if (parent) return pageAllowed(role, perms, parent);
+  const legacy = PAGE_LEGACY_ROLES[key];
+  return !!role && !!legacy && legacy.includes(role);
+}
+
+/** True when the role hasn't set this page itself and is following its parent / old default. */
+export function pageInherited(perms: PermMap | null | undefined, key: string): boolean {
+  return !!perms && perms.all !== true && !(key in perms) && (key in PAGE_PARENT || key in PAGE_LEGACY_ROLES);
 }
 
 const ALL: PermMap = { all: true };

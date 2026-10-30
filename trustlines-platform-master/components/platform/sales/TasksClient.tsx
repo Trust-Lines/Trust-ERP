@@ -5,14 +5,17 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Check, ChevronDown, Ellipsis, ExternalLink, ListChecks, Plus, RefreshCw, RotateCcw, Search, UserRound, X } from 'lucide-react';
+import { Check, Ellipsis, ExternalLink, ListChecks, Plus, RefreshCw, RotateCcw, Search, UserRound, X } from 'lucide-react';
 import { formatDate } from '@/lib/formatDate';
-import { Select as FilterSelect } from '@/components/ui/select';
-import { Select } from '@/components/platform/shared/Select';
+import { Select as FilterSelect, Select } from '@/components/ui/select';
+import { DatePicker } from '@/components/ui/date-picker';
+import { Combobox } from '@/components/ui/combobox';
+import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { findStatusTag } from '@/lib/status/tags';
 import { cn } from '@/lib/utils';
+import type { TaskQuickFilter } from '@/lib/sales/taskFilters';
 
 export interface TaskRow {
   id: string;
@@ -47,6 +50,24 @@ const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center 
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
 const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-3.5';
 
+// Table-cell dropdowns: the design-system Select without the form-field box (the cell is the box).
+const CELL_SELECT = 'h-auto w-auto max-w-full gap-2.5 border-0 bg-transparent px-0 hover:border-0 dark:border-0 dark:bg-transparent dark:px-0';
+// Status trigger = the tone pill. Literal class strings — Tailwind can't see classes built at runtime.
+const STATUS_TRIGGER: Record<TaskRow['status'], string> = {
+  todo:        'border-[var(--status-t2-fg)] bg-[var(--status-t2-bg)] text-[var(--status-t2-fg)] hover:border-[var(--status-t2-fg)] dark:border-[var(--status-t2-fg)] dark:bg-[var(--status-t2-bg)] dark:text-[var(--status-t2-fg)]',
+  in_progress: 'border-[var(--status-t7-fg)] bg-[var(--status-t7-bg)] text-[var(--status-t7-fg)] hover:border-[var(--status-t7-fg)] dark:border-[var(--status-t7-fg)] dark:bg-[var(--status-t7-bg)] dark:text-[var(--status-t7-fg)]',
+  done:        'border-[var(--status-t9-fg)] bg-[var(--status-t9-bg)] text-[var(--status-t9-fg)] hover:border-[var(--status-t9-fg)] dark:border-[var(--status-t9-fg)] dark:bg-[var(--status-t9-bg)] dark:text-[var(--status-t9-fg)]',
+};
+
+/** 'YYYY-MM-DD' ⇄ local Date, so the DatePicker can edit the date-only column. */
+const parseISODate = (s: string | null) => {
+  if (!s) return null;
+  const [y, m, d] = s.slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+const toISODate = (d: Date | null) =>
+  d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : null;
+
 const fmt = (iso: string | null) => formatDate(iso);
 // Deal date is written exactly like the CRM board's "Date created" (m/d/yy) so the two screens read the same.
 const fmtCrm = (iso: string | null) => {
@@ -61,19 +82,23 @@ const taskApi = (t: TaskRow) =>
     : `/api/leads/${t.lead_id}/tasks/${t.id}`;
 const taskHref = (t: TaskRow) => (t.kind === 'opportunity' ? `/leads?open=${t.lead_id}` : `/leads/${t.lead_id}`);
 
-export function TasksClient({ tasks: initial, assignees, currentUserId }: {
+export function TasksClient({ tasks: initial, assignees, currentUserId, openDeals = [], initialFilter }: {
   tasks: TaskRow[];
   assignees: { id: string; full_name: string }[];
   currentUserId: string;
+  /** Every open deal the user can work — the New Task dialog's choices. */
+  openDeals?: { id: string; name: string }[];
+  initialFilter?: TaskQuickFilter;
 }) {
   const router = useRouter();
   const [tasks, setTasks] = useState(initial);
-  const [mine, setMine]     = useState(false);
+  const [mine, setMine]     = useState(initialFilter === 'mine');
   const [fStatus, setFStatus] = useState('');
-  const [fAssignee, setFAssignee] = useState('');
+  const [fAssignee, setFAssignee] = useState(initialFilter === 'unassigned' ? '__none__' : '');
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
-  const [fOverdue, setFOverdue] = useState(false);
+  const [fOverdue, setFOverdue] = useState(initialFilter === 'overdue');
+  const [fToday, setFToday] = useState(initialFilter === 'today');
   const [openDealId, setOpenDealId] = useState<string | null>(null); // deal shown in the progress pop-up
   const [syncing, setSyncing] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
@@ -114,6 +139,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
       if (fAssignee === '__none__' && t.assignee_id) return false;
       if (fAssignee && fAssignee !== '__none__' && t.assignee_id !== fAssignee) return false;
       if (fOverdue && !(t.status !== 'done' && t.due_date && t.due_date < today)) return false;
+      if (fToday && !(t.status !== 'done' && t.due_date?.slice(0, 10) === today)) return false;
       if (q && !`${t.title} ${t.lead_name} ${t.deal_stage ?? ''}`.toLowerCase().includes(q)) return false;
       return true;
     }).sort((a, b) => {
@@ -125,18 +151,19 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
       if (ad !== bd) return ad - bd;                                             // within a deal: open first
       return (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999');
     });
-  }, [tasks, mine, fStatus, fAssignee, fOverdue, search, currentUserId, today]);
+  }, [tasks, mine, fStatus, fAssignee, fOverdue, fToday, search, currentUserId, today]);
 
   const open = tasks.filter(t => t.status !== 'done').length;
   const overdue = tasks.filter(t => t.status !== 'done' && t.due_date && t.due_date < today).length;
   const myOpen = tasks.filter(t => t.status !== 'done' && t.assignee_id === currentUserId).length;
+  const dueToday = tasks.filter(t => t.status !== 'done' && t.due_date?.slice(0, 10) === today).length;
 
   // Deals a new task can be attached to — the Opportunities already on this list.
   const deals = useMemo(() => {
-    const m = new Map<string, string>();
+    const m = new Map<string, string>(openDeals.map(d => [d.id, d.name]));
     for (const t of tasks) if (t.kind === 'opportunity' && !m.has(t.lead_id)) m.set(t.lead_id, t.lead_name);
     return [...m].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [tasks]);
+  }, [tasks, openDeals]);
 
   return (
     <div className="flex flex-col gap-[30px]">
@@ -155,6 +182,18 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
                 className={cn('border-0 bg-transparent p-0 text-[13px] text-error-normal hover:underline', fOverdue && 'font-semibold underline')}
               >
                 {overdue} overdue
+              </button>
+            </>
+          )}
+          {(dueToday > 0 || fToday) && (
+            <>
+              {' · '}
+              <button
+                type="button" aria-pressed={fToday} onClick={() => setFToday(o => !o)}
+                title={fToday ? 'Show all tasks' : 'Show only tasks due today'}
+                className={cn('border-0 bg-transparent p-0 text-[13px] text-[var(--status-warning-fg)] hover:underline', fToday && 'font-semibold underline')}
+              >
+                {dueToday} due today
               </button>
             </>
           )}
@@ -187,10 +226,10 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
             <UserRound aria-hidden />
             Assigned to me{myOpen > 0 ? ` · ${myOpen}` : ''}
           </button>
-          {(mine || fStatus || fAssignee || fOverdue || search) && (
+          {(mine || fStatus || fAssignee || fOverdue || fToday || search) && (
             <button
               type="button"
-              onClick={() => { setMine(false); setFStatus(''); setFAssignee(''); setFOverdue(false); setSearch(''); }}
+              onClick={() => { setMine(false); setFStatus(''); setFAssignee(''); setFOverdue(false); setFToday(false); setSearch(''); }}
               className="border-0 bg-transparent px-1 text-[13px] font-medium text-ui-link hover:underline"
             >
               Clear filters
@@ -207,7 +246,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
           </button>
           <button
             type="button" onClick={() => setCreating(true)} disabled={deals.length === 0}
-            title={deals.length === 0 ? 'No deals on this list to add a task to' : undefined}
+            title={deals.length === 0 ? 'No open deals to add a task to' : undefined}
             className="inline-flex h-9 items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent pl-7 pr-10 text-[13px] font-medium leading-[1.35] text-ui-btn-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             <Plus size={16} aria-hidden />
@@ -286,58 +325,45 @@ export function TasksClient({ tasks: initial, assignees, currentUserId }: {
                       </td>
                       <td className="px-2 text-[12px] whitespace-nowrap text-ui-body">{fmtCrm(t.deal_date)}</td>
                       <td className="px-2.5">
-                        <label className="relative inline-flex max-w-full cursor-pointer items-center gap-2.5">
-                          <span className="inline-flex min-w-0 items-center gap-2">
-                            <span aria-hidden className={cn('grid size-[26px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold', HEADING)}>
-                              {initials(t.assignee_name)}
+                        <Select
+                          aria-label={`Assignee for ${t.title}`}
+                          className={CELL_SELECT}
+                          value={t.assignee_id ?? ''}
+                          onValueChange={v => {
+                            const id = v || null;
+                            patch(t, { assignee_id: id, assignee_name: assignees.find(a => a.id === id)?.full_name ?? null });
+                          }}
+                          options={[{ value: '', label: 'Unassigned' }, ...assignees.map(a => ({ value: a.id, label: a.full_name }))]}
+                          renderOption={o => (
+                            <span className="inline-flex min-w-0 items-center gap-2">
+                              <span aria-hidden className={cn('grid size-[26px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold', HEADING)}>
+                                {initials(o.value ? o.label : null)}
+                              </span>
+                              <span className={cn('truncate text-[13px] leading-[1.4]', o.value ? HEADING : 'text-ui-text-secondary')}>{o.label}</span>
                             </span>
-                            <span className={cn('truncate text-[13px] leading-[1.4]', t.assignee_name ? HEADING : 'text-ui-text-secondary')}>
-                              {t.assignee_name ?? 'Unassigned'}
-                            </span>
-                          </span>
-                          <ChevronDown size={14} aria-hidden className="shrink-0 text-ui-body" />
-                          <Select
-                            aria-label={`Assignee for ${t.title}`}
-                            value={t.assignee_id ?? ''}
-                            onChange={e => {
-                              const id = e.target.value || null;
-                              patch(t, { assignee_id: id, assignee_name: assignees.find(a => a.id === id)?.full_name ?? null });
-                            }}
-                            className="absolute inset-0 cursor-pointer opacity-0"
-                          >
-                            <option value="">Unassigned</option>
-                            {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-                          </Select>
-                        </label>
-                      </td>
-                      <td className="px-2">
-                        <label
-                          className="relative inline-flex h-[30px] cursor-pointer items-center gap-2.5 rounded-[4px] border pl-4 pr-2.5 text-[12px] font-medium leading-4 uppercase"
-                          style={{ background: `var(--status-${STATUS_META[t.status].tone}-bg)`, color: `var(--status-${STATUS_META[t.status].tone}-fg)`, borderColor: `var(--status-${STATUS_META[t.status].tone}-fg)` }}
-                        >
-                          {STATUS_META[t.status].label}
-                          <ChevronDown size={14} aria-hidden />
-                          <Select
-                            aria-label={`Status for ${t.title}`}
-                            value={t.status}
-                            onChange={e => {
-                              const s = e.target.value as TaskRow['status'];
-                              patch(t, { status: s, completed_at: s === 'done' ? new Date().toISOString() : null });
-                            }}
-                            className="absolute inset-0 cursor-pointer opacity-0"
-                          >
-                            {STATUS_ORDER.map(s => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
-                          </Select>
-                        </label>
-                      </td>
-                      <td className="px-2">
-                        <input
-                          type="date" value={t.due_date ?? ''} aria-label={`Due date for ${t.title}`}
-                          onChange={e => patch(t, { due_date: e.target.value || null })}
-                          className={cn(
-                            'h-[30px] rounded-[4px] border border-[var(--color-secondary-700)] bg-ui-input-bg pl-4 pr-2.5 text-[12px] font-medium dark:border-ui-heading',
-                            isOverdue ? 'text-error-normal' : HEADING,
                           )}
+                        />
+                      </td>
+                      <td className="px-2">
+                        <Select
+                          aria-label={`Status for ${t.title}`}
+                          className={cn(CELL_SELECT, 'h-[30px] rounded-[4px] border pl-4 pr-2.5 text-[12px] font-medium uppercase dark:rounded-[4px] dark:px-2.5 dark:pl-4', STATUS_TRIGGER[t.status])}
+                          value={t.status}
+                          onValueChange={v => {
+                            const s = v as TaskRow['status'] | null;
+                            if (!s || s === t.status) return;
+                            patch(t, { status: s, completed_at: s === 'done' ? new Date().toISOString() : null });
+                          }}
+                          options={STATUS_ORDER.map(s => ({ value: s, label: STATUS_META[s].label }))}
+                        />
+                      </td>
+                      <td className="px-2">
+                        <DatePicker
+                          aria-label={`Due date for ${t.title}`}
+                          placeholder="No due date"
+                          value={parseISODate(t.due_date)}
+                          onValueChange={d => patch(t, { due_date: toISODate(d) })}
+                          className={cn('h-[30px] text-[12px] font-medium', isOverdue && 'text-error-normal dark:text-error-normal')}
                         />
                       </td>
                       <td className="px-2 text-[12px] whitespace-nowrap text-ui-body">{fmt(t.created_at)}</td>
@@ -412,6 +438,7 @@ function NewTaskDialog({ deals, assignees, onClose, onCreated }: {
   onCreated: (row: TaskRow) => void;
 }) {
   const [dealId, setDealId] = useState(deals[0]?.id ?? '');
+  const dealOptions = useMemo(() => deals.map(d => ({ value: d.id, label: d.name })), [deals]);
   const [title, setTitle] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
   const [due, setDue] = useState('');
@@ -452,7 +479,6 @@ function NewTaskDialog({ deals, assignees, onClose, onCreated }: {
     } finally { setSaving(false); }
   }
 
-  const fieldCls = 'h-10 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
   return (
     <div className="fixed inset-0 z-[10000] grid place-items-center bg-black/45 p-4" onClick={onClose}>
       <form
@@ -468,26 +494,35 @@ function NewTaskDialog({ deals, assignees, onClose, onCreated }: {
         </div>
         <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
           Task
-          <input autoFocus required value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Send the revised proposal" className={fieldCls} />
+          <Input autoFocus required aria-label="Task" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Send the revised proposal" className="h-10" />
         </label>
-        <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
+        <div className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
           Deal
-          <Select required value={dealId} onChange={e => setDealId(e.target.value)} className={fieldCls}>
-            {deals.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </Select>
-        </label>
+          {/* Searchable — the open-deal list can run to hundreds. */}
+          <Combobox
+            aria-label="Deal" placeholder="Search a deal…" emptyText="No open deal matches"
+            className="h-10"
+            options={dealOptions}
+            value={dealOptions.find(o => o.value === dealId) ?? null}
+            onValueChange={o => setDealId(o?.value ?? '')}
+          />
+        </div>
         <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
+          <div className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
             Assignee
-            <Select value={assigneeId} onChange={e => setAssigneeId(e.target.value)} className={fieldCls}>
-              <option value="">Unassigned</option>
-              {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-            </Select>
-          </label>
-          <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
+            <Select
+              aria-label="Assignee" className="h-10"
+              value={assigneeId} onValueChange={v => setAssigneeId(v ?? '')}
+              options={[{ value: '', label: 'Unassigned' }, ...assignees.map(a => ({ value: a.id, label: a.full_name }))]}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
             Due
-            <input type="date" value={due} onChange={e => setDue(e.target.value)} className={fieldCls} />
-          </label>
+            <DatePicker
+              aria-label="Due date" placeholder="No due date" className="h-10 w-full"
+              value={parseISODate(due || null)} onValueChange={d => setDue(toISODate(d) ?? '')}
+            />
+          </div>
         </div>
         <div className="flex justify-end gap-2.5 pt-1">
           <button type="button" onClick={onClose} className={cn('h-9 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent px-5 text-[13px] font-medium hover:bg-ui-hover-bg dark:border-ui-heading', HEADING)}>

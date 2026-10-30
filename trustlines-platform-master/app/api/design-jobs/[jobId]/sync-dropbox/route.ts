@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUserWithRole, loadDesignJobWithAccess } from '@/lib/sales/design';
-import { designRootFromProjectRoot } from '@/lib/dropbox/paths';
+import { resolveDesignFolder } from '@/lib/sales/designFolder';
 import { syncDesignVersionsFromDropbox } from '@/lib/sales/designVersionSync';
 
 type Params = { params: Promise<{ jobId: string }> };
@@ -19,23 +19,9 @@ export async function POST(_req: NextRequest, { params }: Params) {
   if (accessDeny) return accessDeny;
 
   const anchorId = job!.lead_intake_id ?? job!.opportunity_id;
-  let projectId: string | null = null;
-  if (job!.lead_intake_id) {
-    const { data } = await admin.from('lead_intake').select('project_id').eq('id', job!.lead_intake_id).maybeSingle();
-    projectId = data?.project_id ?? null;
-  } else if (job!.opportunity_id) {
-    const { data } = await admin.from('opportunities').select('project_id').eq('id', job!.opportunity_id).maybeSingle();
-    projectId = data?.project_id ?? null;
-  }
-  if (!projectId) {
-    return NextResponse.json({ error: 'No project yet for this job — the Dropbox design folder is not ready.', synced: false }, { status: 409 });
-  }
-
-  const { data: project } = await admin.from('projects').select('dropbox_root_path').eq('id', projectId).maybeSingle();
-  const designRoot = project?.dropbox_root_path ? designRootFromProjectRoot(project.dropbox_root_path) : null;
-  if (!designRoot) {
-    return NextResponse.json({ error: 'Dropbox design folder path could not be resolved.', synced: false }, { status: 409 });
-  }
+  const folder = await resolveDesignFolder(admin, job!);
+  if (!folder.ok) return NextResponse.json({ error: folder.error, synced: false }, { status: folder.status });
+  const designRoot = folder.root;
 
   const result = await syncDesignVersionsFromDropbox(admin, jobId, designRoot, user.id);
   if (result.error) {

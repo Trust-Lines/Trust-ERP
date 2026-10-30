@@ -155,6 +155,66 @@ export const STATUS_TAGS = {
       { key: 'skipped', label: 'Skipped', tone: 't7',  icon: CircleOff },
     ],
   },
+  sales_estimate: {
+    title: 'Estimate',
+    tags: [
+      { key: 'draft',      label: 'Draft',      tone: 't0',  icon: SquarePen },
+      { key: 'sent',       label: 'Sent',       tone: 't2',  icon: Send },
+      { key: 'accepted',   label: 'Accepted',   tone: 't9',  icon: CircleCheck },
+      { key: 'rejected',   label: 'Rejected',   tone: 't10', icon: CircleX },
+      { key: 'expired',    label: 'Expired',    tone: 't7',  icon: ClockAlert },
+      { key: 'superseded', label: 'Replaced',   tone: 't0',  icon: RotateCcw },
+    ],
+  },
+  sales_contract: {
+    title: 'Contract',
+    tags: [
+      { key: 'draft',     label: 'Draft',     tone: 't0',  icon: SquarePen },
+      { key: 'sent',      label: 'Sent',      tone: 't2',  icon: Send },
+      { key: 'signed',    label: 'Signed',    tone: 't9',  icon: BadgeCheck },
+      { key: 'declined',  label: 'Declined',  tone: 't10', icon: BadgeX },
+      { key: 'cancelled', label: 'Cancelled', tone: 't0',  icon: CircleOff },
+    ],
+  },
+  // Design workspace (sales_design_jobs.status / sales_design_versions.status).
+  design_job: {
+    title: 'Design job',
+    tags: [
+      { key: 'awaiting_assignment',    label: 'Awaiting designer', tone: 't7',  icon: Hourglass },
+      { key: 'assigned',               label: 'Assigned',          tone: 't2',  icon: UserRoundSearch },
+      { key: 'working_on_it',          label: 'Working on it',     tone: 't5',  icon: DraftingCompass },
+      { key: 'ready_for_sales_review', label: 'Sales review',      tone: 't3',  icon: Eye },
+      { key: 'revision_requested',     label: 'Revision',          tone: 't8',  icon: RotateCcw },
+      { key: 'approved_by_sales',      label: 'Approved',          tone: 't9',  icon: BadgeCheck },
+      { key: 'presented_to_customer',  label: 'With customer',     tone: 't4',  icon: Send },
+      { key: 'completed',              label: 'Completed',         tone: 't9',  icon: CheckCheck },
+      { key: 'cancelled',              label: 'Cancelled',         tone: 't0',  icon: CircleOff },
+    ],
+  },
+  design_version: {
+    title: 'Design version',
+    tags: [
+      { key: 'draft',              label: 'Draft',          tone: 't0',  icon: SquarePen },
+      { key: 'submitted',          label: 'Sent to Sales',  tone: 't3',  icon: Eye },
+      { key: 'presented',          label: 'With customer',  tone: 't4',  icon: Send },
+      { key: 'approved',           label: 'Approved',       tone: 't9',  icon: BadgeCheck },
+      { key: 'revision_requested', label: 'Revision',       tone: 't8',  icon: RotateCcw },
+      { key: 'rejected',           label: 'Rejected',       tone: 't10', icon: BadgeX },
+    ],
+  },
+  // Design → Customer Reviews: a design proposal link sent to the customer (approval_links).
+  customer_review: {
+    title: 'Customer review',
+    tags: [
+      { key: 'waiting',            label: 'Not opened',  tone: 't0',  icon: Hourglass },
+      { key: 'opened',             label: 'Opened',      tone: 't2',  icon: Eye },
+      { key: 'approved',           label: 'Approved',    tone: 't9',  icon: BadgeCheck },
+      { key: 'revision_requested', label: 'Revision',    tone: 't7',  icon: RotateCcw },
+      { key: 'rejected',           label: 'Rejected',    tone: 't10', icon: BadgeX },
+      { key: 'revoked',            label: 'Revoked',     tone: 't0',  icon: CircleOff },
+      { key: 'expired',            label: 'Expired',     tone: 't0',  icon: ClockAlert },
+    ],
+  },
 } as const satisfies Record<string, { title: string; tags: readonly StatusTag[] }>;
 
 export type StatusGroup = keyof typeof STATUS_TAGS;
