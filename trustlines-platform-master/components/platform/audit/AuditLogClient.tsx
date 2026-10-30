@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronRight, Shield } from 'lucide-react';
-import { Select } from '@/components/platform/shared/Select';
+import { Select as FilterSelect } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
+import { cn } from '@/lib/utils';
 
 export interface AuditEntry {
   id: string;
@@ -19,24 +20,22 @@ export interface AuditEntry {
   projectCode: string | null;
 }
 
-function actionStyle(action: string): { bg: string; color: string; label: string } {
+// Figma "Audit Log" (node 352:4679).
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
+const FILTER = 'inline-flex h-10 w-auto cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-5 pr-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading [&_svg]:size-3.5';
+
+/** Status tone per action family; the design's default (updates) is t4. */
+function actionTone(action: string): string {
   const a = action.toLowerCase();
-  // Theme tokens, so chips stay readable in light and dark mode.
-  if (a.includes('creat') || a.includes('add') || a.includes('insert'))
-    return { bg: 'var(--status-success-bg)', color: 'var(--status-success-fg)', label: action };
-  if (a.includes('delet') || a.includes('remov') || a.includes('trash'))
-    return { bg: 'var(--status-danger-bg)', color: 'var(--status-danger-fg)', label: action };
-  if (a.includes('updat') || a.includes('edit') || a.includes('chang'))
-    return { bg: 'var(--status-info-bg)', color: 'var(--status-info-fg)', label: action };
-  if (a.includes('approv') || a.includes('sign') || a.includes('complet'))
-    return { bg: 'var(--status-success-bg)', color: 'var(--status-success-fg)', label: action };
-  if (a.includes('reject') || a.includes('fail') || a.includes('error'))
-    return { bg: 'var(--status-danger-bg)', color: 'var(--status-danger-fg)', label: action };
-  if (a.includes('stage') || a.includes('advanc'))
-    return { bg: 'color-mix(in srgb, #7c3aed 16%, var(--bg-surface))', color: 'color-mix(in srgb, #7c3aed 65%, var(--fg-default))', label: action };
-  if (a.includes('login') || a.includes('auth') || a.includes('access'))
-    return { bg: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)', label: action };
-  return { bg: 'var(--bg-sunken)', color: 'var(--fg-subtle)', label: action };
+  if (a.includes('creat') || a.includes('add') || a.includes('insert')) return 't9';
+  if (a.includes('delet') || a.includes('remov') || a.includes('trash')) return 't10';
+  if (a.includes('updat') || a.includes('edit') || a.includes('chang')) return 't4';
+  if (a.includes('approv') || a.includes('sign') || a.includes('complet')) return 't6';
+  if (a.includes('reject') || a.includes('fail') || a.includes('error')) return 't10';
+  if (a.includes('stage') || a.includes('advanc')) return 't3';
+  if (a.includes('login') || a.includes('auth') || a.includes('access')) return 't7';
+  return 't0';
 }
 
 function fmtAction(action: string): string {
@@ -45,7 +44,7 @@ function fmtAction(action: string): string {
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
+    month: 'numeric', day: 'numeric', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
 }
@@ -59,28 +58,19 @@ function DiffView({ old_value, new_value }: { old_value: unknown; new_value: unk
   };
   const oldStr = format(old_value);
   const newStr = format(new_value);
+  const PRE = 'm-0 overflow-x-auto whitespace-pre-wrap break-all rounded-[6px] border border-solid px-2.5 py-2 text-[11px]';
   return (
-    <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+    <div className="flex gap-2.5">
       {oldStr && (
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--status-danger)', marginBottom: 3, textTransform: 'uppercase' }}>Before</div>
-          <pre style={{
-            margin: 0, padding: '8px 10px', borderRadius: 5,
-            background: 'var(--status-danger-bg)', border: '1px solid color-mix(in srgb, var(--status-danger) 35%, transparent)',
-            fontSize: 11, color: 'var(--status-danger-fg)', overflowX: 'auto',
-            whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-          }}>{oldStr}</pre>
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 text-[10px] font-semibold uppercase" style={{ color: 'var(--status-t10-fg)' }}>Before</div>
+          <pre className={PRE} style={{ background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)', borderColor: 'var(--status-t10-fg)' }}>{oldStr}</pre>
         </div>
       )}
       {newStr && (
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--status-success)', marginBottom: 3, textTransform: 'uppercase' }}>After</div>
-          <pre style={{
-            margin: 0, padding: '8px 10px', borderRadius: 5,
-            background: 'var(--status-success-bg)', border: '1px solid color-mix(in srgb, var(--status-success) 35%, transparent)',
-            fontSize: 11, color: 'var(--status-success-fg)', overflowX: 'auto',
-            whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-          }}>{newStr}</pre>
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 text-[10px] font-semibold uppercase" style={{ color: 'var(--status-t9-fg)' }}>After</div>
+          <pre className={PRE} style={{ background: 'var(--status-t9-bg)', color: 'var(--status-t9-fg)', borderColor: 'var(--status-t9-fg)' }}>{newStr}</pre>
         </div>
       )}
     </div>
@@ -89,76 +79,63 @@ function DiffView({ old_value, new_value }: { old_value: unknown; new_value: unk
 
 function LogRow({ entry }: { entry: AuditEntry }) {
   const [expanded, setExpanded] = useState(false);
-  const { bg, color } = actionStyle(entry.action);
+  const tone = actionTone(entry.action);
   const hasDiff = !!(entry.old_value || entry.new_value);
 
   return (
     <>
       <tr
-        style={{
-          borderBottom: '1px solid var(--border-subtle)',
-          background: expanded ? 'var(--bg-subtle)' : 'var(--bg-surface)',
-          cursor: hasDiff ? 'pointer' : 'default',
-        }}
+        className={cn('h-[50px] border-b border-ui-divider', hasDiff && 'cursor-pointer hover:bg-ui-hover-bg/50', expanded && 'bg-ui-surface')}
         onClick={() => hasDiff && setExpanded(e => !e)}
+        aria-expanded={hasDiff ? expanded : undefined}
       >
-        <td style={{ padding: '10px 8px 10px 14px', width: 20 }}>
-          {hasDiff && (
-            expanded
-              ? <ChevronDown size={13} color="var(--fg-faint)" />
-              : <ChevronRight size={13} color="var(--fg-faint)" />
-          )}
+        <td className="w-6 pl-2 text-ui-body">
+          {hasDiff && (expanded ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />)}
         </td>
 
-        <td style={{ padding: '10px 12px' }}>
-          <span style={{
-            display: 'inline-block', padding: '3px 8px', borderRadius: 99,
-            fontSize: 10, fontWeight: 700, background: bg, color,
-            whiteSpace: 'nowrap',
-          }}>
+        <td className="pl-[15px] pr-2">
+          <span
+            className="inline-flex h-7 items-center whitespace-nowrap rounded-[4px] border border-solid px-4 py-[3px] text-[12px] font-medium leading-4"
+            style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)`, borderColor: `var(--status-${tone}-fg)` }}
+          >
             {fmtAction(entry.action)}
           </span>
         </td>
 
-        <td style={{ padding: '10px 12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{
-              width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-              background: 'var(--brand-teal)', color: 'white',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 8, fontWeight: 700,
-            }}>
+        <td className="px-2.5">
+          <div className="flex items-center gap-2">
+            <span className="flex size-[26px] shrink-0 items-center justify-center rounded-full bg-ui-surface text-[10px] font-semibold leading-[1.4] text-ui-body">
               {entry.actorName === 'System'
-                ? <Shield size={10} />
+                ? <Shield size={12} aria-hidden />
                 : entry.actorName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
-            </div>
-            <span style={{ fontSize: 12, color: 'var(--fg-default)' }}>{entry.actorName}</span>
+            </span>
+            <span className="whitespace-nowrap text-[13px] leading-[1.4] text-ui-body">{entry.actorName}</span>
           </div>
         </td>
 
-        <td style={{ padding: '10px 12px' }}>
+        <td className="max-w-0 px-2.5">
           {entry.projectName ? (
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-default)' }}>{entry.projectName}</div>
-              <div style={{ fontSize: 10, color: 'var(--fg-faint)' }}>{entry.projectCode}</div>
-            </div>
+            <>
+              <p className={cn('m-0 truncate text-[13px] font-semibold', HEADING)}>{entry.projectName}</p>
+              {entry.projectCode && <p className="m-0 truncate font-mono text-[11px] text-ui-text-secondary">{entry.projectCode}</p>}
+            </>
           ) : (
-            <span style={{ fontSize: 12, color: 'var(--fg-faint)' }}>—</span>
+            <span className={cn('text-[13px] font-semibold', HEADING)}>-</span>
           )}
         </td>
 
-        <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--fg-subtle)' }}>
-          {entry.resource ?? '—'}
+        <td className="max-w-0 px-2.5">
+          <p className="m-0 truncate text-[13px] text-ui-body">{entry.resource ?? '—'}</p>
         </td>
 
-        <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--fg-faint)', whiteSpace: 'nowrap' }}>
+        <td className="whitespace-nowrap px-2 pr-4 text-[12px] text-ui-body">
           {fmtDate(entry.created_at)}
         </td>
       </tr>
 
       {expanded && hasDiff && (
-        <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
-          <td colSpan={6} style={{ padding: '0 14px 12px 44px' }}>
+        <tr className="border-b border-ui-divider bg-ui-surface">
+          <td colSpan={6} className="pb-3 pl-11 pr-3.5">
             <DiffView old_value={entry.old_value} new_value={entry.new_value} />
           </td>
         </tr>
@@ -189,93 +166,76 @@ export function AuditLogClient({ logs }: { logs: AuditEntry[] }) {
   }, [logs, search, filterAction, filterActor]);
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700 }}>Audit Log</h1>
-          <p style={{ margin: 0, fontSize: 12, color: 'var(--fg-faint)' }}>
-            All system activity from the last 30 days · {logs.length} entries
-          </p>
-        </div>
+    <div className="flex flex-col gap-[30px]">
+      {/* ── Page heading ── */}
+      <div className="flex flex-col gap-[5px] leading-[1.35]">
+        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Admin / Audit Log</p>
+        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Audit Log</h1>
+        <p className="m-0 text-[13px] text-ui-body">All system activity from the last 30 days · {logs.length} entries</p>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 180 }}>
-          <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-faint)' }} />
+      {/* ── Toolbar ── */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="relative w-[380px] max-w-full">
+          <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" />
           <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search actions, actors, projects…"
-            className="form-input"
-            style={{ paddingLeft: 30, fontSize: 13 }}
+            type="search" aria-label="Search audit log" placeholder="Search actions, actors, projects…"
+            value={search} onChange={e => setSearch(e.target.value)}
+            className="h-10 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-2.5 text-[13px] leading-[1.45] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
           />
         </div>
-
-        <Select
-          value={filterAction}
-          onChange={e => setFilterAction(e.target.value)}
-          className="form-input form-select"
-          style={{ fontSize: 13, flex: '0 0 180px' }}
-        >
-          <option value="">All actions</option>
-          {actions.map(a => (
-            <option key={a} value={a}>{fmtAction(a)}</option>
-          ))}
-        </Select>
-
-        <Select
-          value={filterActor}
-          onChange={e => setFilterActor(e.target.value)}
-          className="form-input form-select"
-          style={{ fontSize: 13, flex: '0 0 160px' }}
-        >
-          <option value="">All users</option>
-          {actors.map(a => (
-            <option key={a} value={a}>{a}</option>
-          ))}
-        </Select>
-
+        <FilterSelect
+          aria-label="Filter by action" className={FILTER}
+          value={filterAction} onValueChange={v => setFilterAction(v ?? '')}
+          options={[{ value: '', label: 'All Actions' }, ...actions.map(a => ({ value: a, label: fmtAction(a) }))]}
+        />
+        <FilterSelect
+          aria-label="Filter by user" className={FILTER}
+          value={filterActor} onValueChange={v => setFilterActor(v ?? '')}
+          options={[{ value: '', label: 'All Users' }, ...actors.map(a => ({ value: a, label: a }))]}
+        />
         {(search || filterAction || filterActor) && (
           <button
-            className="btn btn-ghost btn-sm"
+            type="button"
             onClick={() => { setSearch(''); setFilterAction(''); setFilterActor(''); }}
+            className="h-10 rounded-[6px] border-0 bg-transparent px-3 text-[13px] font-medium text-ui-body hover:bg-ui-hover-bg"
           >
             Clear
           </button>
         )}
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="card">
+      {/* ── Table ── */}
+      <div className="overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg">
+        {filtered.length === 0 ? (
           <EmptyState icon={<Shield />} title="No audit entries found" description="Try a different search or filter." />
-        </div>
-      ) : (
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
-                <th style={{ width: 20, padding: '8px 8px 8px 14px' }} />
-                {['ACTION', 'USER', 'PROJECT', 'RESOURCE', 'DATE'].map(h => (
-                  <th key={h} style={{
-                    padding: '8px 12px', textAlign: 'left',
-                    fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
-                    letterSpacing: '0.07em', color: 'var(--fg-faint)',
-                  }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(entry => (
-                <LogRow key={entry.id} entry={entry} />
-              ))}
-            </tbody>
-          </table>
-
-          <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border-subtle)', fontSize: 11, color: 'var(--fg-faint)' }}>
-            Showing {filtered.length} of {logs.length} entries (last 30 days)
-          </div>
-        </div>
-      )}
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1000px] border-collapse">
+                <thead>
+                  <tr className="h-[46px] border-b border-ui-divider bg-[var(--ui-table-head-bg,var(--ui-surface))]">
+                    <th className="w-6" />
+                    <th className={cn(TH, 'w-[440px] pl-[15px]')}>Action</th>
+                    <th className={cn(TH, 'w-[250px]')}>User</th>
+                    <th className={cn(TH, 'w-[250px]')}>Project</th>
+                    <th className={TH}>Resource</th>
+                    <th className={cn(TH, 'w-[190px]')}>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(entry => (
+                    <LogRow key={entry.id} entry={entry} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-3.5 py-2.5 text-[12px] text-ui-text-secondary">
+              Showing {filtered.length} of {logs.length} entries (last 30 days)
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
