@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Pencil, Trash2, Users } from 'lucide-react';
-import { Avatar } from '@/components/platform/shared/Avatar';
+import { ArrowDown, ArrowDownUp, ChevronDown, Ellipsis, Pencil, Search, Trash2, UserRoundPlus, Users, X } from 'lucide-react';
+import { Select as FilterSelect } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import {
   COMPANY_SIDES, OFFICES, DEPARTMENTS, SKILLS,
   COMPANY_SIDE_LABELS, OFFICE_LABELS, DEPARTMENT_LABELS, SKILL_LABELS,
@@ -88,16 +89,44 @@ const FALLBACK_LABELS: Partial<Record<string, string>> = {
   sales_rep:               'Sales Rep',
 };
 
+// Figma "Team Members" (node 351:3365).
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
+const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-3.5';
+
+type SortKey = 'newest' | 'oldest' | 'name';
+
+// Role colours come from role_definitions; t4 (purple) is the design default.
 function RoleBadge({ role, roleMap }: { role: string; roleMap: Map<string, RoleOption> }) {
   const def = roleMap.get(role);
-  const bg  = def?.color_bg ?? 'var(--bg-sunken)';
-  const fg  = def?.color_fg ?? 'var(--fg-subtle)';
+  const bg  = def?.color_bg ?? 'var(--status-t4-bg)';
+  const fg  = def?.color_fg ?? 'var(--status-t4-fg)';
   const lbl = def?.label ?? FALLBACK_LABELS[role] ?? role;
   return (
-    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 3, background: bg, color: fg }}>
+    <span
+      className="inline-flex h-9 max-w-full items-center truncate rounded-[4px] border border-solid px-4 py-[3px] text-[12px] font-medium leading-4"
+      style={{ background: bg, color: fg, borderColor: fg }}
+    >
       {lbl}
     </span>
   );
+}
+
+function StatusChip({ active }: { active: boolean }) {
+  const tone = active ? 't9' : 't0';
+  return (
+    <span
+      className="inline-flex h-9 items-center rounded-[4px] border border-solid px-8 text-[12px] font-medium uppercase leading-4"
+      style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)`, borderColor: `var(--status-${tone}-fg)` }}
+    >
+      {active ? 'Active' : 'Inactive'}
+    </span>
+  );
+}
+
+function regionText(codes: string[] | null | undefined): string {
+  const shorts = (codes ?? []).map(c => REGIONS.find(r => r.code === c)?.codeShort ?? c);
+  return shorts.length ? `T Lines (${shorts.join(', ')})` : '—';
 }
 
 function InviteModal({
@@ -286,6 +315,28 @@ function InviteModal({
   );
 }
 
+// Same field language as New Customer / New lead: 12px label, 42px input, outlined Cancel + dark primary.
+const FORM_LABEL = 'mb-[7px] block text-[12px] font-medium leading-4 text-ui-body';
+const FORM_FIELD = 'min-h-[42px] w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-disabled focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
+const FORM_SELECT = 'h-[42px] min-h-[42px] w-full rounded-[6px] border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading';
+const SECTION_TITLE = 'm-0 text-[11px] font-semibold uppercase tracking-[0.04em] text-ui-text-secondary';
+
+function ToggleChip({ on, onToggle, children }: { on: boolean; onToggle: () => void; children: React.ReactNode }) {
+  return (
+    <label
+      className={cn(
+        'inline-flex cursor-pointer items-center gap-1.5 rounded-[6px] border border-solid px-2.5 py-1.5 text-[12px] font-medium transition-colors',
+        on
+          ? 'border-[var(--color-secondary-500)] bg-ui-selected-bg text-[var(--color-secondary-700)] dark:text-ui-heading'
+          : 'border-ui-divider bg-ui-input-bg text-ui-body hover:bg-ui-hover-bg',
+      )}
+    >
+      <input type="checkbox" checked={on} onChange={onToggle} className="m-0 accent-[var(--color-secondary-700)]" />
+      {children}
+    </label>
+  );
+}
+
 function EditModal({
   profile, roleDefinitions, clients, serviceLines, allProfiles, metadataReady, onClose, onSaved,
 }: {
@@ -314,6 +365,12 @@ function EditModal({
   const [regionIds, setRegionIds]     = useState<string[]>(profile.region_ids ?? []);
   const [serviceIds, setServiceIds]   = useState<string[]>(profile.service_line_ids ?? []);
   const [assignedRegions, setAssignedRegions] = useState<string[]>(profile.assigned_regions ?? []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const toggle = (list: string[], set: (v: string[]) => void, value: string) =>
     set(list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
@@ -359,141 +416,123 @@ function EditModal({
   }
 
   const allRoles = roleDefinitions;
+  const dash = { value: '', label: '—' };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
-        <div className="modal-head">
-          <span style={{ fontSize: 15, fontWeight: 600 }}>Edit member</span>
-          <button className="btn btn-ghost btn-sm" style={{ padding: '4px 8px' }} onClick={onClose}>✕</button>
-        </div>
-        <div className="modal-body">
-          <div className="form-group">
-            <label className="form-label required">Full name</label>
-            <input
-              className="form-input"
-              value={fullName}
-              onChange={e => setFullName(e.target.value)}
-              autoFocus
-            />
+    <div className="fixed inset-0 z-[10000] grid place-items-center bg-black/45 p-4" onClick={onClose}>
+      <div
+        role="dialog" aria-modal="true" aria-labelledby="edit-member-title" onClick={e => e.stopPropagation()}
+        className="flex max-h-[90vh] w-full max-w-[600px] flex-col gap-6 overflow-y-auto rounded-[8px] border border-ui-divider bg-ui-page-bg p-5 shadow-04"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 id="edit-member-title" className={cn('m-0 text-[20px] font-semibold leading-[1.45]', HEADING)}>Edit member</h2>
+            <p className="m-0 mt-1 text-[13px] text-ui-body">{profile.email}</p>
           </div>
-          <div className="form-group">
-            <label className="form-label required">Role</label>
-            <Select
-              className="form-input form-select"
-              value={role}
-              onChange={e => setRole(e.target.value as UserRole)}
-            >
-              {allRoles.map(r => (
-                <option key={r.name} value={r.name}>{r.label}</option>
-              ))}
-            </Select>
+          <button type="button" onClick={onClose} aria-label="Close" className="grid size-8 place-items-center rounded-[6px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="edit-full-name" className={FORM_LABEL}>Full name<span className="text-error-normal" aria-hidden>*</span></label>
+              <input id="edit-full-name" className={FORM_FIELD} value={fullName} onChange={e => setFullName(e.target.value)} autoFocus />
+            </div>
+            <div>
+              <label htmlFor="edit-role" className={FORM_LABEL}>Role<span className="text-error-normal" aria-hidden>*</span></label>
+              <FilterSelect
+                id="edit-role" className={FORM_SELECT}
+                value={role} onValueChange={v => setRole((v ?? role) as UserRole)}
+                options={allRoles.map(r => ({ value: r.name, label: r.label }))}
+              />
+            </div>
           </div>
 
           {metadataReady && (
             <>
-              <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '14px 0 12px', paddingTop: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-faint)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 }}>
-                  Organisation
+              <div className="border-t border-ui-divider pt-4">
+                <p className={SECTION_TITLE}>Organisation</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="edit-company-side" className={FORM_LABEL}>Company side</label>
+                  <FilterSelect
+                    id="edit-company-side" className={FORM_SELECT}
+                    value={companySide} onValueChange={v => setCompanySide(v ?? '')}
+                    options={[dash, ...COMPANY_SIDES.map(s => ({ value: s, label: COMPANY_SIDE_LABELS[s] }))]}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="edit-office" className={FORM_LABEL}>Office</label>
+                  <FilterSelect
+                    id="edit-office" className={FORM_SELECT}
+                    value={office} onValueChange={v => setOffice(v ?? '')}
+                    options={[dash, ...OFFICES.map(o => ({ value: o, label: OFFICE_LABELS[o] }))]}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="edit-department" className={FORM_LABEL}>Department</label>
+                  <FilterSelect
+                    id="edit-department" className={FORM_SELECT}
+                    value={department} onValueChange={v => setDepartment(v ?? '')}
+                    options={[dash, ...DEPARTMENTS.map(d => ({ value: d, label: DEPARTMENT_LABELS[d] }))]}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="edit-manager" className={FORM_LABEL}>Manager</label>
+                  <FilterSelect
+                    id="edit-manager" className={FORM_SELECT}
+                    value={managerId} onValueChange={v => setManagerId(v ?? '')}
+                    options={[dash, ...managerOptions.map(p => ({ value: p.id, label: p.full_name }))]}
+                  />
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="edit-company-side">Company side</label>
-                  <Select id="edit-company-side" className="form-input form-select" value={companySide} onChange={e => setCompanySide(e.target.value)}>
-                    <option value="">—</option>
-                    {COMPANY_SIDES.map(s => <option key={s} value={s}>{COMPANY_SIDE_LABELS[s]}</option>)}
-                  </Select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="edit-office">Office</label>
-                  <Select id="edit-office" className="form-input form-select" value={office} onChange={e => setOffice(e.target.value)}>
-                    <option value="">—</option>
-                    {OFFICES.map(o => <option key={o} value={o}>{OFFICE_LABELS[o]}</option>)}
-                  </Select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="edit-department">Department</label>
-                  <Select id="edit-department" className="form-input form-select" value={department} onChange={e => setDepartment(e.target.value)}>
-                    <option value="">—</option>
-                    {DEPARTMENTS.map(d => <option key={d} value={d}>{DEPARTMENT_LABELS[d]}</option>)}
-                  </Select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="edit-manager">Manager</label>
-                  <Select id="edit-manager" className="form-input form-select" value={managerId} onChange={e => setManagerId(e.target.value)}>
-                    <option value="">—</option>
-                    {managerOptions.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                  </Select>
-                </div>
-              </div>
-
-              <fieldset className="form-group" style={{ border: 0, padding: 0, margin: '0 0 12px' }}>
-                <legend className="form-label" style={{ padding: 0 }}>Skills</legend>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {SKILLS.map(s => {
-                    const on = skills.includes(s);
-                    return (
-                      <label key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${on ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, background: on ? 'var(--brand-teal-100)' : 'var(--bg-surface)' }}>
-                        <input type="checkbox" checked={on} onChange={() => toggle(skills, setSkills, s)} style={{ margin: 0 }} />
-                        {SKILL_LABELS[s]}
-                      </label>
-                    );
-                  })}
+              <fieldset className="m-0 border-0 p-0">
+                <legend className={cn(FORM_LABEL, 'p-0')}>Skills</legend>
+                <div className="flex flex-wrap gap-1.5">
+                  {SKILLS.map(s => (
+                    <ToggleChip key={s} on={skills.includes(s)} onToggle={() => toggle(skills, setSkills, s)}>{SKILL_LABELS[s]}</ToggleChip>
+                  ))}
                 </div>
               </fieldset>
 
-              <fieldset className="form-group" style={{ border: 0, padding: 0, margin: '0 0 12px' }}>
-                <legend className="form-label" style={{ padding: 0 }}>Client Regions (accounts)</legend>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {clients.map(c => {
-                    const on = regionIds.includes(c.id);
-                    return (
-                      <label key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${on ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, background: on ? 'var(--brand-teal-100)' : 'var(--bg-surface)' }}>
-                        <input type="checkbox" checked={on} onChange={() => toggle(regionIds, setRegionIds, c.id)} style={{ margin: 0 }} />
-                        {c.name}
-                      </label>
-                    );
-                  })}
+              <fieldset className="m-0 border-0 p-0">
+                <legend className={cn(FORM_LABEL, 'p-0')}>Client Regions (accounts)</legend>
+                <div className="flex flex-wrap gap-1.5">
+                  {clients.map(c => (
+                    <ToggleChip key={c.id} on={regionIds.includes(c.id)} onToggle={() => toggle(regionIds, setRegionIds, c.id)}>{c.name}</ToggleChip>
+                  ))}
                 </div>
               </fieldset>
 
-              <fieldset className="form-group" style={{ border: 0, padding: 0, margin: '0 0 12px' }}>
-                <legend className="form-label" style={{ padding: 0 }}>T-Lines Regions (CRM visibility)</legend>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {REGIONS.map(r => {
-                    const on = assignedRegions.includes(r.code);
-                    return (
-                      <label key={r.code} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${on ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, background: on ? 'var(--brand-teal-100)' : 'var(--bg-surface)' }}>
-                        <input type="checkbox" checked={on} onChange={() => toggle(assignedRegions, setAssignedRegions, r.code)} style={{ margin: 0 }} />
-                        {r.label}
-                      </label>
-                    );
-                  })}
+              <fieldset className="m-0 border-0 p-0">
+                <legend className={cn(FORM_LABEL, 'p-0')}>T-Lines Regions (CRM visibility)</legend>
+                <div className="flex flex-wrap gap-1.5">
+                  {REGIONS.map(r => (
+                    <ToggleChip key={r.code} on={assignedRegions.includes(r.code)} onToggle={() => toggle(assignedRegions, setAssignedRegions, r.code)}>{r.label}</ToggleChip>
+                  ))}
                 </div>
                 {assignedRegions.length === 0 && (
-                  <p style={{ fontSize: 11.5, color: 'var(--fg-faint)', margin: '4px 0 0' }}>
+                  <p className="m-0 mt-1.5 text-[12px] text-ui-text-secondary">
                     No region assigned yet — this person still sees only their own leads/opportunities (fallback).
                   </p>
                 )}
               </fieldset>
 
               {serviceLines.length > 0 && (
-                <fieldset className="form-group" style={{ border: 0, padding: 0, margin: '0 0 12px' }}>
-                  <legend className="form-label" style={{ padding: 0 }}>Service lines</legend>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 96, overflowY: 'auto' }}>
+                <fieldset className="m-0 border-0 p-0">
+                  <legend className={cn(FORM_LABEL, 'p-0')}>Service lines</legend>
+                  <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
                     {serviceLines.map(s => {
-                      const on = serviceIds.includes(s.id);
                       const region = clients.find(c => c.id === s.client_id);
                       return (
-                        <label key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${on ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, background: on ? 'var(--brand-teal-100)' : 'var(--bg-surface)' }}>
-                          <input type="checkbox" checked={on} onChange={() => toggle(serviceIds, setServiceIds, s.id)} style={{ margin: 0 }} />
+                        <ToggleChip key={s.id} on={serviceIds.includes(s.id)} onToggle={() => toggle(serviceIds, setServiceIds, s.id)}>
                           {s.name}{region?.code ? ` · ${region.code}` : ''}
-                        </label>
+                        </ToggleChip>
                       );
                     })}
                   </div>
@@ -503,40 +542,51 @@ function EditModal({
           )}
 
           {isClientPm && (
-            <div className="form-group">
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 12px', border: `1px solid ${isGeneralPm ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, borderRadius: 8, marginBottom: 10, cursor: 'pointer', background: isGeneralPm ? 'var(--brand-teal-100)' : 'var(--bg-surface)' }}>
-                <input type="checkbox" checked={isGeneralPm} onChange={e => { setIsGeneralPm(e.target.checked); if (e.target.checked) setPmClientId(''); }} style={{ marginTop: 2 }} />
-                <span style={{ fontSize: 12.5 }}><b>General PM — Project Management Supervisor</b><div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1 }}>Oversees all regions; signs the PO supervisor box.</div></span>
+            <div className="flex flex-col gap-3">
+              <label
+                className={cn(
+                  'flex cursor-pointer items-start gap-2 rounded-[8px] border border-solid px-3 py-2.5',
+                  isGeneralPm ? 'border-[var(--color-secondary-500)] bg-ui-selected-bg' : 'border-ui-divider bg-ui-input-bg',
+                )}
+              >
+                <input
+                  type="checkbox" checked={isGeneralPm} className="mt-0.5 accent-[var(--color-secondary-700)]"
+                  onChange={e => { setIsGeneralPm(e.target.checked); if (e.target.checked) setPmClientId(''); }}
+                />
+                <span className="text-[13px] text-ui-body">
+                  <b className={HEADING}>General PM — Project Management Supervisor</b>
+                  <span className="mt-0.5 block text-[12px] text-ui-text-secondary">Oversees all regions; signs the PO supervisor box.</span>
+                </span>
               </label>
               {!isGeneralPm && (
-                <>
-                  <label className="form-label">Region this PM manages</label>
-                  <Select className="form-input form-select" value={pmClientId} onChange={e => setPmClientId(e.target.value)}>
-                    <option value="">No region</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>)}
-                  </Select>
-                </>
+                <div>
+                  <label htmlFor="edit-pm-region" className={FORM_LABEL}>Region this PM manages</label>
+                  <FilterSelect
+                    id="edit-pm-region" className={FORM_SELECT}
+                    value={pmClientId} onValueChange={v => setPmClientId(v ?? '')}
+                    options={[{ value: '', label: 'No region' }, ...clients.map(c => ({ value: c.id, label: `${c.name}${c.code ? ` (${c.code})` : ''}` }))]}
+                  />
+                </div>
               )}
             </div>
           )}
 
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-              <input
-                type="checkbox"
-                checked={isActive}
-                onChange={e => setIsActive(e.target.checked)}
-              />
-              Active account
-            </label>
-          </div>
+          <label className="flex cursor-pointer items-center gap-2 text-[13px] font-medium text-ui-body">
+            <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="m-0 accent-[var(--color-secondary-700)]" />
+            Active account
+          </label>
         </div>
-        <div className="modal-foot">
-          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+
+        <div className="flex items-center justify-between gap-3 border-t border-ui-divider pt-5">
           <button
-            className="btn btn-primary"
-            disabled={!fullName.trim() || saving}
-            onClick={handleSave}
+            type="button" onClick={onClose}
+            className="inline-flex h-9 items-center rounded-[6px] border border-ui-divider bg-ui-input-bg px-8 text-[13px] font-medium text-ui-body transition-colors hover:bg-ui-hover-bg"
+          >
+            Cancel
+          </button>
+          <button
+            type="button" disabled={!fullName.trim() || saving} onClick={handleSave}
+            className="inline-flex h-9 items-center rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-8 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950"
           >
             {saving ? 'Saving…' : 'Save changes'}
           </button>
@@ -598,102 +648,19 @@ function DeleteConfirm({
   );
 }
 
-function MemberRow({
-  profile, franchise, isOps, roleMap, onEdit, onDelete,
-}: {
-  profile:   ProfileRow;
-  franchise?: FranchiseRow | null;
-  isOps:     boolean;
-  roleMap:   Map<string, RoleOption>;
-  onEdit:    (p: ProfileRow) => void;
-  onDelete:  (p: ProfileRow) => void;
-}) {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 14,
-      padding: '12px 18px', borderBottom: '1px solid var(--border-subtle)',
-    }}>
-      <Avatar name={profile.full_name || profile.email} size="md" />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 14, fontWeight: 600 }}>{profile.full_name || '—'}</span>
-          <RoleBadge role={profile.role} roleMap={roleMap} />
-          {!profile.is_active && (
-            <span className="pill" style={{ background: 'var(--bg-sunken)', color: 'var(--fg-subtle)', fontSize: 9 }}>
-              Inactive
-            </span>
-          )}
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 2 }}>
-          {profile.email}
-          {franchise && (
-            <span style={{ marginLeft: 10, color: 'var(--brand-teal)' }}>
-              · {franchise.client?.name} › {franchise.name}
-            </span>
-          )}
-        </div>
-      </div>
-      {isOps && (
-        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-          <button
-            onClick={() => onEdit(profile)}
-            title="Edit member"
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              padding: '5px 6px', borderRadius: 5, color: 'var(--fg-subtle)',
-              display: 'flex', alignItems: 'center',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-          >
-            <Pencil size={14} />
-          </button>
-          <button
-            onClick={() => onDelete(profile)}
-            title="Deactivate member"
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              padding: '5px 6px', borderRadius: 5, color: 'var(--fg-subtle)',
-              display: 'flex', alignItems: 'center',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--status-danger-bg)'; e.currentTarget.style.color = 'var(--status-danger)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--fg-subtle)'; }}
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
-  return (
-    <div className="card" style={{ marginBottom: 16 }}>
-      <div className="card-head">
-        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{title}</h3>
-        <span style={{ fontSize: 12, color: 'var(--fg-subtle)', marginLeft: 'auto' }}>
-          {count} member{count !== 1 ? 's' : ''}
-        </span>
-      </div>
-      <div className="card-body flush">
-        {count === 0
-          ? <EmptyState size="sm" className="justify-center px-4 py-5" icon={<Users />} title="No members yet." />
-          : children}
-      </div>
-    </div>
-  );
-}
-
 export function TeamPageClient({ profiles: init, clients, franchises: rawFranchises, roleDefinitions, serviceLines, metadataReady, userRole, canEdit }: Props) {
   const router  = useRouter();
   const [profiles, setProfiles]     = useState<ProfileRow[]>(init);
   const [showInvite, setShowInvite] = useState(false);
   const [editTarget, setEditTarget] = useState<ProfileRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProfileRow | null>(null);
+  const [query, setQuery]           = useState('');
+  const [sortBy, setSortBy]         = useState<SortKey>('newest');
+  const [menuId, setMenuId]         = useState<string | null>(null);
   const isOps = canEdit ?? (userRole === 'ops_manager');
 
-  const roleMap = new Map(roleDefinitions.map(r => [r.name, r]));
+  const roleMap = useMemo(() => new Map(roleDefinitions.map(r => [r.name, r])), [roleDefinitions]);
+  const nameById = new Map(profiles.map(p => [p.id, p.full_name || p.email]));
 
   const sales     = profiles.filter(p => SALES_ROLES.includes(p.role));
   const internal  = profiles.filter(p => p.role !== 'tlines_pm' && !SALES_ROLES.includes(p.role));
@@ -704,7 +671,19 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
     ...f,
     client: f.client_id ? (clientMap.get(f.client_id) ?? null) : null,
   }));
-  const franchiseByPm = new Map<string, FranchiseRow>();
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const rows = !q ? profiles : profiles.filter(p =>
+      (p.full_name ?? '').toLowerCase().includes(q)
+      || (p.email ?? '').toLowerCase().includes(q)
+      || (roleMap.get(p.role)?.label ?? FALLBACK_LABELS[p.role] ?? p.role).toLowerCase().includes(q));
+    return [...rows].sort((a, b) => {
+      if (sortBy === 'name') return (a.full_name || a.email).localeCompare(b.full_name || b.email);
+      const ta = Date.parse(a.created_at) || 0, tb = Date.parse(b.created_at) || 0;
+      return sortBy === 'oldest' ? ta - tb : tb - ta;
+    });
+  }, [profiles, query, sortBy, roleMap]);
 
   function handleInvited(np: ProfileRow) {
     setProfiles(prev => {
@@ -725,58 +704,135 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
   }
 
   return (
-    <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Team</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
-            {profiles.length} member{profiles.length !== 1 ? 's' : ''}
-          </p>
+    <div className="flex flex-col gap-[30px]">
+      {/* ── Page heading ── */}
+      <div className="flex flex-col gap-[5px] leading-[1.35]">
+        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Admin / Team Member</p>
+        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Team Members</h1>
+        <p className="m-0 text-[13px] text-ui-body">
+          {profiles.length} member{profiles.length !== 1 ? 's' : ''} · {internal.length} internal · {clientPMs.length} client PM{clientPMs.length !== 1 ? 's' : ''} · {sales.length} sales &amp; marketing
+        </p>
+      </div>
+
+      {/* ── Toolbar ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative w-[380px] max-w-full">
+            <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" />
+            <input
+              type="search" aria-label="Search members" placeholder="Search members…"
+              value={query} onChange={e => setQuery(e.target.value)}
+              className="h-10 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-2.5 text-[13px] leading-[1.45] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
+            />
+          </div>
+          <div className="relative">
+            <ArrowDownUp aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-[1] size-3.5 -translate-y-1/2 text-[var(--color-secondary-700)] dark:text-ui-heading" />
+            <FilterSelect
+              aria-label="Sort"
+              className="inline-flex h-10 w-auto cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading [&_svg]:size-3.5"
+              value={sortBy}
+              onValueChange={v => setSortBy((v ?? 'newest') as SortKey)}
+              options={[
+                { value: 'newest', label: 'Newest' },
+                { value: 'oldest', label: 'Oldest' },
+                { value: 'name', label: 'Name A–Z' },
+              ]}
+            />
+          </div>
         </div>
         {isOps && (
-          <button className="btn btn-primary" onClick={() => setShowInvite(true)}>
-            + Invite member
+          <button
+            type="button" onClick={() => setShowInvite(true)}
+            className="inline-flex h-10 items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent px-8 text-[13px] font-medium leading-[1.35] text-ui-btn-accent-fg transition-opacity hover:opacity-90"
+          >
+            <UserRoundPlus size={16} aria-hidden /> Invite Member
           </button>
         )}
       </div>
 
-      <Section title="Internal staff" count={internal.length}>
-        {internal.map(p => (
-          <MemberRow
-            key={p.id} profile={p} isOps={isOps} roleMap={roleMap}
-            onEdit={setEditTarget} onDelete={setDeleteTarget}
-          />
-        ))}
-      </Section>
-
-      <Section title="Client PMs (T-Lines)" count={clientPMs.length}>
-        {clientPMs.map(p => (
-          <MemberRow
-            key={p.id} profile={p} franchise={franchiseByPm.get(p.id) ?? null}
-            isOps={isOps} roleMap={roleMap} onEdit={setEditTarget} onDelete={setDeleteTarget}
-          />
-        ))}
-        {isOps && clientPMs.length === 0 && (
-          <div style={{ padding: '8px 18px 16px', textAlign: 'center' }}>
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ color: 'var(--brand-teal)' }}
-              onClick={() => setShowInvite(true)}
-            >
-              Invite first Client PM →
-            </button>
+      {/* ── Table ── */}
+      <div className="overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg">
+        {profiles.length === 0 ? (
+          <EmptyState icon={<Users />} title="No members yet." />
+        ) : filtered.length === 0 ? (
+          <EmptyState icon={<Search />} title="No matching members" description={`Nothing matches “${query}”.`} />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1100px] border-collapse">
+              <thead>
+                <tr className="h-[46px] border-b border-ui-divider bg-[var(--ui-table-head-bg,var(--ui-surface))]">
+                  <th className={cn(TH, 'w-[228px] pl-[18px]')}>
+                    <span className="inline-flex items-center gap-0.5">Name{sortBy === 'name' && <ArrowDown size={12} aria-hidden />}</span>
+                  </th>
+                  <th className={TH}>Email</th>
+                  <th className={cn(TH, 'w-[216px]')}>Role</th>
+                  <th className={cn(TH, 'w-[194px]')}>Region</th>
+                  <th className={cn(TH, 'w-[142px]')}>Manager</th>
+                  <th className={cn(TH, 'w-[130px]')}>Joined Date</th>
+                  <th className={cn(TH, 'w-[180px]')}>Status</th>
+                  <th className="w-[48px]"><span className="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(p => {
+                  const name = p.full_name || p.email;
+                  return (
+                    <tr key={p.id} className="h-16 border-b border-ui-divider last:border-b-0">
+                      <td className="max-w-0 pl-[18px] pr-2.5">
+                        <p className={cn('m-0 truncate text-[13px] font-semibold', HEADING)}>{p.full_name || '—'}</p>
+                      </td>
+                      <td className="max-w-0 px-2.5"><p className="m-0 truncate text-[13px] text-ui-body">{p.email}</p></td>
+                      <td className="max-w-0 px-2"><RoleBadge role={p.role} roleMap={roleMap} /></td>
+                      <td className="px-2">
+                        {isOps ? (
+                          <button
+                            type="button" onClick={() => setEditTarget(p)} title="Change region in Edit member"
+                            className="inline-flex h-9 max-w-full items-center gap-4 rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg pl-4 pr-2.5 text-[13px] font-medium text-[var(--color-secondary-700)] hover:bg-ui-hover-bg dark:text-ui-heading"
+                          >
+                            <span className="truncate">{regionText(p.assigned_regions)}</span>
+                            <ChevronDown size={14} aria-hidden className="shrink-0" />
+                          </button>
+                        ) : (
+                          <span className="text-[13px] font-medium text-[var(--color-secondary-700)] dark:text-ui-heading">{regionText(p.assigned_regions)}</span>
+                        )}
+                      </td>
+                      <td className="max-w-0 px-2"><p className="m-0 truncate text-[12px] text-ui-body">{(p.manager_id && nameById.get(p.manager_id)) || '—'}</p></td>
+                      <td className="px-2 text-[12px] text-ui-body">{p.created_at ? new Date(p.created_at).toLocaleDateString('en-US') : '—'}</td>
+                      <td className="px-2"><StatusChip active={p.is_active} /></td>
+                      <td className="relative pr-2 text-center">
+                        {isOps && (
+                          <>
+                            <button
+                              type="button" aria-label={`Actions for ${name}`} aria-expanded={menuId === p.id}
+                              onClick={() => setMenuId(id => (id === p.id ? null : p.id))}
+                              className="inline-grid size-7 place-items-center rounded-[4px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
+                            >
+                              <Ellipsis size={16} />
+                            </button>
+                            {menuId === p.id && (
+                              <>
+                                <div className="fixed inset-0 z-20" onClick={() => setMenuId(null)} />
+                                <div role="menu" className="absolute right-2 top-full z-30 mt-1 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
+                                  <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { setMenuId(null); setEditTarget(p); }}>
+                                    <Pencil aria-hidden /> Edit member
+                                  </button>
+                                  <button type="button" role="menuitem" className={cn(MENU_ITEM, 'text-[var(--color-error-normal)]')} onClick={() => { setMenuId(null); setDeleteTarget(p); }}>
+                                    <Trash2 aria-hidden /> Delete member
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
-      </Section>
-
-      <Section title="Sales & Marketing" count={sales.length}>
-        {sales.map(p => (
-          <MemberRow
-            key={p.id} profile={p} isOps={isOps} roleMap={roleMap}
-            onEdit={setEditTarget} onDelete={setDeleteTarget}
-          />
-        ))}
-      </Section>
+      </div>
 
       {showInvite && isOps && (
         <InviteModal
@@ -808,6 +864,6 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
           onDeleted={handleDeleted}
         />
       )}
-    </>
+    </div>
   );
 }

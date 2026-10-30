@@ -71,7 +71,7 @@ export default async function TeamPage() {
   }
 
   return (
-    <div className="main-inner">
+    <div style={{ padding: 28 }}>
       <TeamPageClient
         canEdit={canEdit}
         profiles={profiles as never}
