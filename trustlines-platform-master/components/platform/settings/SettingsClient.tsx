@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { CloudSync, Download, EyeOff, Eye, Lock, Palette, Pencil, ShieldAlert } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { readHideAmounts, writeHideAmounts } from '@/lib/privacy/hideAmounts';
@@ -120,46 +119,25 @@ function ProfileBanner({ fullName, role, email }: { fullName: string; role: stri
 }
 
 function PersonalInfoCard({ fullName, email }: { fullName: string; email: string }) {
-  const router = useRouter();
-  const [initialFirst, initialLast] = splitName(fullName);
-  const [first, setFirst] = useState(initialFirst);
-  const [last, setLast] = useState(initialLast);
-  const [saving, setSaving] = useState(false);
-  const nextName = `${first.trim()} ${last.trim()}`.trim();
-  const canSave = !saving && !!first.trim() && nextName !== fullName.trim();
+  const [first, last] = splitName(fullName);
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const res = await fetch('/api/me/profile', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ full_name: nextName }),
-      });
-      const b = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(b.error ?? 'Could not save your profile');
-      toast.success('Profile updated');
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not save your profile');
-    } finally { setSaving(false); }
-  }
-
+  // Names are managed by ops on the Team page; there is no self-service save endpoint.
   return (
-    <form onSubmit={save} className={cn(CARD, 'flex w-full flex-1 flex-col')}>
+    <div className={cn(CARD, 'flex w-full flex-1 flex-col')}>
       <div className="flex w-full flex-col gap-[18px]">
         <div className="flex w-full items-start justify-between gap-4">
           <h2 className={cn('m-0 text-[20px] font-semibold leading-[1.45]', HEADING)}>Personal Information</h2>
-          <button type="submit" className={BTN_PRIMARY} disabled={!canSave}>{saving ? 'Saving…' : 'Save Changes'}</button>
+          <button type="button" className={BTN_PRIMARY} disabled title="Name changes are made by an Ops Manager on the Team page">Save Changes</button>
         </div>
         <div className="flex w-full flex-col gap-4">
           <div className="flex w-full flex-col gap-4 sm:flex-row">
             <label className="flex min-w-0 flex-1 flex-col gap-[7px]">
               <span className={FIELD_LABEL}>First Name</span>
-              <input className={TEXT_INPUT} autoComplete="given-name" value={first} onChange={e => setFirst(e.target.value)} />
+              <input className={TEXT_INPUT} value={first} readOnly aria-readonly />
             </label>
             <label className="flex min-w-0 flex-1 flex-col gap-[7px]">
               <span className={FIELD_LABEL}>Last Name</span>
-              <input className={TEXT_INPUT} autoComplete="family-name" value={last} onChange={e => setLast(e.target.value)} />
+              <input className={TEXT_INPUT} value={last} readOnly aria-readonly />
             </label>
           </div>
           <label className="flex w-full flex-col gap-[7px]">
@@ -168,7 +146,7 @@ function PersonalInfoCard({ fullName, email }: { fullName: string; email: string
           </label>
         </div>
       </div>
-    </form>
+    </div>
   );
 }
 
