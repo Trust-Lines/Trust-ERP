@@ -55,9 +55,16 @@ export interface KeyClientsData {
 export async function loadKeyClients(admin: any, opts: { includeInactive?: boolean } = {}): Promise<KeyClientsData> {
   let q = admin.from('key_clients').select('id, name, aliases, notes, is_active').is('deleted_at', null).order('name');
   if (!opts.includeInactive) q = q.eq('is_active', true);
-  const [{ data: clients, error }, { data: links, error: lErr }] = await Promise.all([
-    q, admin.from('key_client_links').select('id, key_client_id, opportunity_id, potential_id, prospect_id, mode, note'),
+  const linkCols = 'id, key_client_id, opportunity_id, potential_id, prospect_id, mode, note';
+  const [{ data: clients, error }, linkRes] = await Promise.all([
+    q, admin.from('key_client_links').select(linkCols),
   ]);
+  let { data: links, error: lErr } = linkRes;
+  // A database made from an early draft of 134 has no potential_id (136 adds it) — still list
+  // the clients' deals; only Potential links are unavailable there.
+  if (lErr && /potential_id/.test(lErr.message)) {
+    ({ data: links, error: lErr } = await admin.from('key_client_links').select(linkCols.replace(' potential_id,', '')));
+  }
   if (error || lErr) throw Object.assign(new Error((error ?? lErr).message), { code: (error ?? lErr).code });
   return { clients: (clients ?? []).map((c: any) => ({ ...c, aliases: c.aliases ?? [] })), links: links ?? [] };
 }

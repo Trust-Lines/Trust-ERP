@@ -156,7 +156,9 @@ export default async function DashboardPage() {
 
   const columns: BoardColumn[] = visibleRegions.map(r => {
     const regionProjects = projects.filter(p => p.region === r.code);
-    const regionOpportunities = opportunities.filter(o => o.region === r.code);
+    // Like the PROJECTS PROGRESS sheet: grouped by client (A–Z), newest first within a client.
+    const regionOpportunities = opportunities.filter(o => o.region === r.code)
+      .sort((a, b) => a.client.localeCompare(b.client) || b.createdAt.localeCompare(a.createdAt));
 
     const opportunityItems: BoardCardItem[] = regionOpportunities.map(o => {
       const [top, bottom] = opportunityBadge(o.projectCode);
@@ -165,7 +167,7 @@ export default async function DashboardPage() {
       return {
         id: o.id, kind: 'opportunity',
         badgeTop: top, badgeBottom: bottom,
-        title: o.site,
+        title: `${o.client} · ${o.site}`,
         subtitle: prospectPlace.get(o.prospectId) ?? null,
         category: categoryLabel(o.projectTypes.length ? o.projectTypes : o.projectTypeRaw ? [o.projectTypeRaw] : null),
         pmName: o.ownerId ? pmNames.get(o.ownerId) ?? null : null,
@@ -204,7 +206,7 @@ export default async function DashboardPage() {
       a.dateISO && b.dateISO ? b.dateISO.localeCompare(a.dateISO) : a.dateISO ? -1 : b.dateISO ? 1 : 0;
 
     const itemsByKey: Record<string, BoardCardItem[]> = {
-      opportunity:   [...opportunityItems].sort(byDate),
+      opportunity:   opportunityItems,                     // already in client order
       finalization:  [...finalizationItems].sort(byDate),
       technical:     [...technicalItems].sort(byDate),
       to_production: [],
