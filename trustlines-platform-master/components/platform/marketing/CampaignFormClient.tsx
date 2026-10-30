@@ -58,11 +58,11 @@ export const EMPTY_CAMPAIGN_FORM: CampaignFormValues = {
 };
 
 type CampaignStatus = 'draft' | 'active' | 'paused' | 'closed';
-const STATUS_BADGE: Record<CampaignStatus, { label: string; tone: string }> = {
-  draft: { label: 'DRAFT', tone: 't0' },
-  active: { label: 'ACTIVE', tone: 't6' },
-  paused: { label: 'PAUSED', tone: 't7' },
-  closed: { label: 'CLOSED', tone: 't10' },
+const STATUS_BADGE: Record<CampaignStatus, { label: string; bg: string }> = {
+  draft: { label: 'DRAFT', bg: 'var(--color-grey-500)' },
+  active: { label: 'ACTIVE', bg: 'var(--color-success-normal)' },
+  paused: { label: 'PAUSED', bg: 'var(--color-warning-normal)' },
+  closed: { label: 'CLOSED', bg: 'var(--color-error-normal)' },
 };
 
 const DATE_ONLY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -292,7 +292,7 @@ export function CampaignFormClient({ mode, campaignId, status, initial }: Props)
             <h3 className="np-card-title">Campaign Preview</h3>
             <span
               className="np-status-badge"
-              style={{ background: `var(--status-${badge.tone}-fg)`, color: '#fff', padding: '2px 10px', fontSize: 11 }}
+              style={{ background: badge.bg, color: '#fff', padding: '2px 10px', fontSize: 11 }}
             >
               {badge.label}
             </span>

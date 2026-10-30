@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -161,7 +162,7 @@ export function NotificationsClient({ userId, role, notifications, loadError }: 
     <div className="flex flex-col gap-[18px]">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-[5px] leading-[1.35]">
-          <p className="m-0 text-[11px] font-semibold uppercase text-ui-nav-active">Workspace / {roleLabel}</p>
+          <PageCrumbs className="uppercase" items={[{ label: 'Workspace', href: '/dashboard' }, { label: roleLabel }]} />
           <div className="flex items-center gap-3">
             <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Notifications</h1>
             {totalUnread > 0 && (

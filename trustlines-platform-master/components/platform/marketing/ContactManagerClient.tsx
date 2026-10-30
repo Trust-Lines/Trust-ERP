@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useEffect, useRef, useState } from 'react';
 import { Search, Loader2, ChevronLeft, ChevronRight, FolderInput, Users, ArrowDown, ArrowUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -151,7 +152,7 @@ export function ContactManagerClient({ canEdit }: { canEdit: boolean }) {
     <>
       <div className="mb-[18px] flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-[5px] leading-[1.35]">
-          <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Marketing / Contact Manager</p>
+          <PageCrumbs items={[{ label: 'Marketing', href: '/marketing' }, { label: 'Contact Manager', href: '/marketing/contact-manager' }]} />
           <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Contact Manager</h1>
           <p className="m-0 text-[13px] text-ui-body">
             {total.toLocaleString('en-US')} contact{total !== 1 ? 's' : ''} — newest added first.

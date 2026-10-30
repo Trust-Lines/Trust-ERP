@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -143,7 +144,7 @@ export function ProspectsTrashClient({ rows, needRows, canPurge, purgeDays }: { 
   return (
     <div className="flex flex-col gap-[30px]">
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Marketing / Contacts / Trash</p>
+        <PageCrumbs items={[{ label: 'Marketing', href: '/marketing' }, { label: 'Contacts', href: '/marketing/prospects' }, { label: 'Trash', href: '/marketing/prospects/trash' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Trash</h1>
         <p className="m-0 text-[13px] text-ui-body">
           Deleted items remain here for {purgeDays} days. Restoring a Contact also restores its Needs and Potentials.

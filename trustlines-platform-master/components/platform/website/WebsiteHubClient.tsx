@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -188,7 +189,7 @@ export function WebsiteHubClient({
       <div className="flex flex-col gap-[18px]">
         {/* ── Page heading ── */}
         <div className="flex flex-col gap-[5px] leading-[1.35]">
-          <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Marketing / Website</p>
+          <PageCrumbs items={[{ label: 'Marketing', href: '/marketing' }, { label: 'Website', href: '/marketing/website' }]} />
           <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Website (Store Maker)</h1>
           <p className="m-0 text-[13px] text-ui-body">
             Content for <a href={siteUrl} target="_blank" rel="noreferrer" className="text-inherit no-underline hover:underline">{siteUrl.replace(/^https?:\/\//, '')}</a>. Changes go live within a minute.

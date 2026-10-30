@@ -59,6 +59,8 @@ export default async function AuditPage() {
   }));
 
   return (
-    <AuditLogClient logs={enriched} />
+    <div style={{ padding: 28 }}>
+      <AuditLogClient logs={enriched} />
+    </div>
   );
 }

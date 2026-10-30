@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -199,7 +200,7 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
       {/* ── Page heading ── */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-[5px] leading-[1.35]">
-          <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Sales / Handoffs</p>
+          <PageCrumbs items={[{ label: 'Sales', href: '/leads' }, { label: 'Handoffs', href: '/sales-projects' }]} />
           <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Opportunity Handoffs</h1>
           <p className="m-0 text-[13px] text-ui-body">
             {opportunities.length} opportunit{opportunities.length !== 1 ? 'ies' : 'y'} handed off from Marketing or already yours

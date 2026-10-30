@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -168,7 +169,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
     <div className="flex flex-col gap-[30px]">
       {/* ── Page heading ── */}
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Sales / Tasks</p>
+        <PageCrumbs items={[{ label: 'Sales', href: '/leads' }, { label: 'Tasks', href: '/sales-tasks' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Tasks</h1>
         <p className="m-0 text-[13px] text-ui-body">
           {open} open · {myOpen} assigned to me

@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useState } from 'react';
 import Link from 'next/link';
 import {
@@ -89,7 +90,7 @@ export function MarketingWorkspaceClient({ role, isManager, myDaySections, teamG
     <div className="flex flex-col gap-[30px]">
       {/* ── Page heading ─────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <p className="text-[11px] font-semibold text-ui-nav-active">Marketing / Home</p>
+        <PageCrumbs items={[{ label: 'Marketing', href: '/marketing' }, { label: 'Home', href: '/marketing' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Marketing Home</h1>
         <p className="text-[13px] text-ui-body">
           {ROLE_LABEL[role] ?? role} · {isManager ? 'sees every Lead and Opportunity' : 'sees Leads and Opportunities in your region'}

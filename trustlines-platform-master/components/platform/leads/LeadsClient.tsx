@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -380,7 +381,7 @@ export function LeadsClient({
       {/* ── Page heading ──────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-[5px] leading-[1.35]">
-          <p className="text-[11px] font-semibold text-ui-nav-active">Sales / CRM Board</p>
+          <PageCrumbs items={[{ label: 'Sales', href: '/leads' }, { label: 'CRM Board', href: '/leads' }]} />
           <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>CRM Board</h1>
           <p className="text-[13px] text-ui-body">
             {leads.length} records · {formatMoney(pipelineValue)} open pipeline

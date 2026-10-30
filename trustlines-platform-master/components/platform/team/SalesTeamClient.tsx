@@ -1,9 +1,10 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowDownUp, ChevronDown, Copy, Ellipsis, Mail, Search, UserRoundPlus, X } from 'lucide-react';
+import { ArrowDownUp, Copy, Ellipsis, Mail, Search, UserRoundPlus, X } from 'lucide-react';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,9 @@ type SortKey = 'newest' | 'oldest' | 'name';
 // Figma "Sales team" (node 299:12046).
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
+// Dropdowns: dark: overrides beat the shared field style's dark padding, border and fill.
+const ROW_SELECT = 'inline-flex h-9 w-[233px] max-w-full cursor-pointer items-center gap-4 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-4 pr-2.5 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:pl-4 dark:pr-2.5 dark:text-ui-heading [&_svg]:size-3.5';
+const FORM_SELECT = 'inline-flex h-10 w-full cursor-pointer items-center rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] font-normal text-ui-heading dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading [&_svg]:size-3.5';
 const FIELD = 'h-10 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
 const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-3.5';
 
@@ -114,7 +118,7 @@ export function SalesTeamClient({ reps, regionClients, nextNumber }: Props) {
     <div className="flex flex-col gap-[30px]">
       {/* ── Page heading ── */}
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Sales / Sales Team</p>
+        <PageCrumbs items={[{ label: 'Sales', href: '/leads' }, { label: 'Sales Team', href: '/sales-team' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Sales Team</h1>
         <p className="m-0 text-[13px] text-ui-body">{reps.length} sales rep{reps.length === 1 ? '' : 's'}</p>
       </div>
@@ -190,22 +194,14 @@ export function SalesTeamClient({ reps, regionClients, nextNumber }: Props) {
                       <p className="m-0 truncate text-[13px] text-ui-body" title={r.email}>{r.email}</p>
                     </td>
                     <td className="px-2">
-                      <label className={cn('relative inline-flex h-9 w-[233px] max-w-full items-center gap-4 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-4 pr-2.5', savingRegion === r.id ? 'opacity-60' : 'cursor-pointer')}>
-                        <span className={cn('min-w-0 flex-1 truncate text-[13px] font-medium', r.sales_region_id ? HEADING : 'text-ui-text-secondary')}>
-                          {regionClients.find(c => c.id === r.sales_region_id) ? regionLabel(regionClients.find(c => c.id === r.sales_region_id)!) : 'Unassigned'}
-                        </span>
-                        <ChevronDown size={14} aria-hidden className={cn('shrink-0', HEADING)} />
-                        <select
-                          aria-label={`Region for ${r.full_name}`}
-                          value={r.sales_region_id ?? ''}
-                          disabled={savingRegion === r.id}
-                          onChange={e => handleRegionChange(r.id, e.target.value)}
-                          className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-wait"
-                        >
-                          <option value="">— Unassigned</option>
-                          {regionClients.map(c => <option key={c.id} value={c.id}>{regionLabel(c)}</option>)}
-                        </select>
-                      </label>
+                      <FilterSelect
+                        aria-label={`Region for ${r.full_name}`}
+                        className={cn(ROW_SELECT, savingRegion === r.id && 'opacity-60')}
+                        value={r.sales_region_id ?? ''}
+                        disabled={savingRegion === r.id}
+                        onValueChange={v => handleRegionChange(r.id, v ?? '')}
+                        options={[{ value: '', label: '— Unassigned' }, ...regionClients.map(c => ({ value: c.id, label: regionLabel(c) }))]}
+                      />
                     </td>
                     <td className="px-2 text-[12px] whitespace-nowrap text-ui-body">
                       {r.project_count} Project{r.project_count === 1 ? '' : 's'}
@@ -348,13 +344,14 @@ function InviteDialog({ regionClients, onClose, onInvited }: { regionClients: Re
           Email
           <input required type="email" className={FIELD} placeholder="jane@example.com" value={email} onChange={e => setEmail(e.target.value)} />
         </label>
-        <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
-          Region
-          <select className={FIELD} value={regionId} onChange={e => setRegionId(e.target.value)}>
-            <option value="">No region (assign later)</option>
-            {regionClients.map(c => <option key={c.id} value={c.id}>{regionLabel(c)}</option>)}
-          </select>
-        </label>
+        <div className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
+          <label htmlFor="new-rep-region">Region</label>
+          <FilterSelect
+            id="new-rep-region" className={FORM_SELECT}
+            value={regionId} onValueChange={v => setRegionId(v ?? '')}
+            options={[{ value: '', label: 'No region (assign later)' }, ...regionClients.map(c => ({ value: c.id, label: regionLabel(c) }))]}
+          />
+        </div>
         <div className="flex justify-end gap-2.5 pt-1">
           <button type="button" onClick={onClose} className={cn('h-9 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent px-5 text-[13px] font-medium hover:bg-ui-hover-bg dark:border-ui-heading', HEADING)}>
             Cancel

@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs, type CrumbItem } from '@/components/platform/shared/PageCrumbs';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { platformLabel } from '@/lib/marketing/prWorkspace';
@@ -12,11 +13,11 @@ export const PANEL = 'rounded-[10px] border border-ui-divider bg-ui-surface-elev
 export const TH_CLS = 'whitespace-nowrap px-2.5 py-2.5 text-left text-[12px] font-medium text-ui-text-secondary first:pl-3 last:pr-3';
 export const TD_CLS = 'px-2.5 py-3 align-middle text-[12px] leading-[1.45] text-ui-body first:pl-3 last:pr-3';
 
-export function PageHeading({ trail, title, subtitle, actions }: { trail: string; title: string; subtitle: ReactNode; actions?: ReactNode }) {
+export function PageHeading({ trail, title, subtitle, actions }: { trail: string | CrumbItem[]; title: string; subtitle: ReactNode; actions?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">{trail}</p>
+        <PageCrumbs items={typeof trail === 'string' ? [{ label: trail }] : trail} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>{title}</h1>
         <p className="m-0 text-[13px] text-ui-body">{subtitle}</p>
       </div>
