@@ -22,7 +22,6 @@ export default async function ProductionPage({ searchParams }: { searchParams: P
   if (!user) redirect('/login');
   const { view } = await searchParams;
   const tracker = view === 'tracker';
-  const classic = view === 'classic';
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
   const role = (profile as { role: string } | null)?.role ?? null;
@@ -36,11 +35,11 @@ export default async function ProductionPage({ searchParams }: { searchParams: P
           <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Operations / Production</p>
           <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Production</h1>
           <p className="m-0 text-[13px] text-ui-body">
-            {tracker ? 'Production statuses tracked in T-ERP.' : classic ? 'The Trust System board as it looks there — every action is available.' : 'Trust System projects, live — changes here show up there and the other way round.'}
+            {tracker ? 'Production statuses tracked in T-ERP.' : 'The Trust System Projects board — the same live data, edited here or there.'}
           </p>
         </div>
         <nav aria-label="Production views" className="flex gap-2">
-          {([['Projects board', '/production', !tracker && !classic], ['Classic board', '/production?view=classic', classic], ['Production tracker', '/production?view=tracker', tracker]] as [string, string, boolean][]).map(([label, href, on]) => (
+          {([['Projects board', '/production', !tracker], ['Production tracker', '/production?view=tracker', tracker]] as [string, string, boolean][]).map(([label, href, on]) => (
             <Link key={href} href={href} aria-current={on ? 'page' : undefined}
               className={cn(TAB, on
                 ? 'border-[var(--color-secondary-700)] text-[var(--color-secondary-700)] dark:border-ui-heading dark:text-ui-heading'
@@ -50,7 +49,7 @@ export default async function ProductionPage({ searchParams }: { searchParams: P
           ))}
         </nav>
       </div>
-      {tracker ? <ProductionClient canEdit={canEdit} /> : <div className="px-7 pb-7"><TrustProjectsBoard classic={classic} canEdit={canEdit} /></div>}
+      {tracker ? <ProductionClient canEdit={canEdit} /> : <div className="px-7 pb-7"><TrustProjectsBoard /></div>}
     </div>
   );
 }
