@@ -125,15 +125,17 @@ export default async function DashboardPage() {
     ? [{ data: [] }, [] as ClientOpportunityRow[], { projects: [], error: null }]
     : await Promise.all([projectQuery, loadClientOpps(), loadTrustProjects()]);
   const trustProjects = trust.projects;
-  // "Assign to" on Trust cards (trust_project_assignees, migration 137) — empty until it's applied.
-  const [{ data: assignRows }, { data: allUsers }] = await Promise.all([
-    trustProjects.length
-      ? admin.from('trust_project_assignees').select('trust_project_id, user_id').in('trust_project_id', trustProjects.map(p => p.id))
-      : Promise.resolve({ data: [] }),
+  // "Assign to" on every card, one person per card per stage (board_assignees, migration 137) —
+  // empty until it's applied. Keyed "kind:id:stage".
+  const boardIds = [...trustProjects.map(p => p.id), ...opportunities.map(o => o.id)];
+  const [assignRows, { data: allUsers }] = await Promise.all([
+    fetchInChunks(boardIds, chunk => admin.from('board_assignees').select('item_kind, item_id, stage, user_id').in('item_id', chunk))
+      .catch(() => []),   // table not there yet (migration 137)
     admin.from('profiles').select('id, full_name').eq('is_active', true).not('full_name', 'is', null).order('full_name', { ascending: true }),
-  ]) as [{ data: { trust_project_id: string; user_id: string }[] | null }, { data: { id: string; full_name: string }[] | null }];
-  const trustAssignee = new Map((assignRows ?? []).map(a => [a.trust_project_id, a.user_id]));
-  const userNames = new Map((allUsers ?? []).map(u => [u.id, u.full_name]));
+  ]) as [{ item_kind: string; item_id: string; stage: string; user_id: string }[], { data: { id: string; full_name: string }[] | null }];
+  const assigneeOf = new Map(assignRows.map(a => [`${a.item_kind}:${a.item_id}:${a.stage}`, a.user_id]));
+  const assignFor = (kind: string, id: string, stage: string, label: string) =>
+    ({ kind, stage, label, userId: assigneeOf.get(`${kind}:${id}:${stage}`) ?? null });
   const trustToday = new Date().toISOString().slice(0, 10);
   const trustCards = trustProjects.filter(p => regionCodes.includes(p.bucket)).map(p => {
     const e = classifyTrustProject(p, trustToday);
@@ -143,9 +145,8 @@ export default async function DashboardPage() {
       title: p.name,
       subtitle: p.address,
       category: (p.types ?? []).map(typeLabel).filter(Boolean).join(', ') || null,
-      pmName: userNames.get(trustAssignee.get(p.id) ?? '') ?? null, pmLabel: 'Assign to',
-      assigneeId: trustAssignee.get(p.id) ?? null,
-      projectNo: p.projectNo,
+      pmName: null, pmLabel: '',
+      assign: assignFor('trust', p.id, e.stage, `#${p.projectNo}`),
       onHold: e.onHold,
       dateISO: e.dateISO,
       dateLabel: fmtDate(e.dateISO),
@@ -209,6 +210,7 @@ export default async function DashboardPage() {
         category: categoryLabel(o.projectTypes.length ? o.projectTypes : o.projectTypeRaw ? [o.projectTypeRaw] : null),
         pmName: o.ownerId ? pmNames.get(o.ownerId) ?? null : null,
         pmLabel: o.ownerIsSales ? 'Sales Owner' : 'Marketing Owner',
+        assign: assignFor(o.kind, o.id, 'opportunity', o.projectNo ? `#${o.projectNo}` : o.site),
         onHold: o.stage === 'on_hold',
         dateISO: becameOpportunityDate,
         dateLabel: fmtDate(becameOpportunityDate),

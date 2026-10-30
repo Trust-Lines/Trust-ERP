@@ -6,7 +6,6 @@ import { MapPinOff, Pause, Plus } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Select as FilterSelect } from '@/components/ui/select';
-import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { toast } from 'sonner';
 import { ProjectQuickView } from './ProjectQuickView';
 // The real, editable opportunity popup — same one /leads and /marketing/opportunities use
@@ -44,42 +43,47 @@ export interface BoardCardItem {
   note?: string | null;
   /** Status chips: the deal's stage, or each Trust type's production status. */
   statuses?: string[];
-  /** Trust cards: who it's assigned to on our side (trust_project_assignees) + the Trust number. */
-  assigneeId?: string | null;
-  projectNo?: string;
+  /** "Assign to": the person for this card in the stage it's in (board_assignees, per stage). */
+  assign?: { kind: string; stage: string; label: string; userId: string | null };
 }
 
-/** "Assign to" on Trust cards — every active user, chosen from the design-system Combobox. */
+const assignKey = (item: BoardCardItem) => `${item.assign?.kind}:${item.id}:${item.assign?.stage}`;
+
+/** "Assign to" on the cards — every active user, chosen from the design-system Select. */
 const AssignContext = React.createContext<{
-  options: ComboboxOption[];
+  options: { value: string; label: string }[];
   canAssign: boolean;
   assigned: Record<string, string | null>;
   assign: (item: BoardCardItem, userId: string | null) => void;
 }>({ options: [], canAssign: false, assigned: {}, assign: () => {} });
 
-function AssignBox({ item }: { item: BoardCardItem }) {
+const UNASSIGNED = '';
+
+function AssignBox({ item, section }: { item: BoardCardItem; section: BoardSection }) {
   const { options, canAssign, assigned, assign } = React.useContext(AssignContext);
-  const current = item.id in assigned ? assigned[item.id] : item.assigneeId ?? null;
-  const value = options.find(o => o.value === current) ?? null;
+  const key = assignKey(item);
+  const current = key in assigned ? assigned[key] : item.assign?.userId ?? null;
+  const name = options.find(o => o.value === current)?.label ?? null;
+  // The card's own tone, darker for the name — not a form field.
+  const ink = `color-mix(in srgb, ${section.accent} 60%, black)`;
   return (
     <span
-      className="flex w-[220px] shrink-0 flex-col gap-1 rounded-[8px] px-3 py-2 leading-normal text-ui-heading shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-      style={{ background: 'var(--ui-surface-elevated)' }}
+      className="flex w-[210px] shrink-0 flex-col rounded-[8px] px-3 pb-1.5 pt-2 leading-normal shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+      style={{ background: `color-mix(in srgb, ${section.bg} 35%, white)`, color: ink }}
       onClick={e => e.stopPropagation()}
+      onKeyDown={e => e.stopPropagation()}
     >
-      <span className="text-[12px] font-medium text-ui-body">Assign to</span>
+      <span className="text-[12px] font-medium opacity-80">Assign to</span>
       {canAssign ? (
-        <Combobox
-          aria-label={`Assign #${item.projectNo ?? ''} to`}
-          options={options}
-          value={value}
-          onValueChange={o => assign(item, o?.value ?? null)}
-          placeholder="Choose a person…"
-          emptyText="No one matches"
-          className="h-8 text-[13px] font-semibold"
+        <FilterSelect
+          aria-label={`Assign ${item.assign?.label ?? ''} to`}
+          options={[{ value: UNASSIGNED, label: 'Unassigned' }, ...options]}
+          value={current ?? UNASSIGNED}
+          onValueChange={v => assign(item, v || null)}
+          className="h-7 border-0 bg-transparent px-0 text-[16px] font-bold text-current hover:border-0 dark:border-0 dark:bg-transparent dark:px-0"
         />
       ) : (
-        <span className="truncate text-[15px] font-bold">{value?.label ?? 'Unassigned'}</span>
+        <span className="truncate text-[16px] font-bold">{name ?? 'Unassigned'}</span>
       )}
     </span>
   );
@@ -139,7 +143,7 @@ function CroppedLogo({ src, code, className }: { src: string; code: string; clas
 function Card({ item, section, onOpen }: {
   item: BoardCardItem; section: BoardSection; onOpen: (item: BoardCardItem) => void;
 }) {
-  // Trust cards hold a dropdown, so no card is a <button> (a control can't sit inside one).
+  // Cards hold the Assign to dropdown, so no card is a <button> (a control can't sit inside one).
   const opens = item.kind !== 'trust';
   return (
     <div
@@ -185,7 +189,7 @@ function Card({ item, section, onOpen }: {
           <span className="block truncate text-[12px] leading-normal">{item.subtitle}</span>
           {item.note && <span className="mt-0.5 block text-[12px] font-bold leading-normal">{item.note}</span>}
         </span>
-        {item.kind === 'trust' ? <AssignBox item={item} /> : item.pmName && (
+        {item.assign ? <AssignBox item={item} section={section} /> : item.pmName && (
           <span className="flex shrink-0 flex-col rounded-[4px] px-2 py-0.5 leading-normal" style={{ background: section.accent, color: 'var(--ui-surface-elevated)' }}>
             <span className="text-[13px] font-semibold">{item.pmName}</span>
             <span className="text-[10px]">{item.pmLabel}</span>
@@ -304,17 +308,19 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   const [assigned, setAssigned] = React.useState<Record<string, string | null>>({});
   const assignOptions = React.useMemo(() => users.map(u => ({ value: u.id, label: u.full_name })), [users]);
   const assign = React.useCallback(async (item: BoardCardItem, userId: string | null) => {
-    const before = item.id in assigned ? assigned[item.id] : item.assigneeId ?? null;
+    if (!item.assign) return;
+    const key = assignKey(item);
+    const before = key in assigned ? assigned[key] : item.assign.userId;
     if (before === userId) return;
-    setAssigned(a => ({ ...a, [item.id]: userId }));
+    setAssigned(a => ({ ...a, [key]: userId }));
     try {
-      const res = await fetch('/api/tlines-dashboard/trust-assignee', {
+      const res = await fetch('/api/tlines-dashboard/assignee', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trustProjectId: item.id, projectNo: item.projectNo, userId }),
+        body: JSON.stringify({ itemKind: item.assign.kind, itemId: item.id, stage: item.assign.stage, label: item.assign.label, userId }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? 'Could not save');
     } catch (e) {
-      setAssigned(a => ({ ...a, [item.id]: before }));
+      setAssigned(a => ({ ...a, [key]: before }));
       toast.error(e instanceof Error ? e.message : 'Could not save the assignment');
     }
   }, [assigned]);
