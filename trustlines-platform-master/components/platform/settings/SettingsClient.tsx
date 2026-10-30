@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useEffect, useState } from 'react';
 import { CloudSync, Download, EyeOff, Eye, Lock, Palette, Pencil, ShieldAlert } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -383,7 +384,7 @@ export function SettingsClient({ isGeneralManager, canBackUpContacts, role, full
       <div className="flex flex-col gap-[30px]">
         {/* ── Page heading ── */}
         <div className="flex flex-col gap-[5px] leading-[1.35]">
-          <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Admin/Settings</p>
+          <PageCrumbs items={[{ label: 'Admin', href: '/settings' }, { label: 'Settings', href: '/settings' }]} />
           <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Settings</h1>
           <p className="m-0 text-[13px] text-ui-body">Personal information, appearance</p>
         </div>

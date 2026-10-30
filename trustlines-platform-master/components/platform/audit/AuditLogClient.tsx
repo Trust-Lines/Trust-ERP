@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronRight, Shield } from 'lucide-react';
 import { Select as FilterSelect } from '@/components/ui/select';
@@ -169,7 +170,7 @@ export function AuditLogClient({ logs }: { logs: AuditEntry[] }) {
     <div className="flex flex-col gap-[30px]">
       {/* ── Page heading ── */}
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Admin / Audit Log</p>
+        <PageCrumbs items={[{ label: 'Admin', href: '/team' }, { label: 'Audit Log', href: '/audit' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Audit Log</h1>
         <p className="m-0 text-[13px] text-ui-body">All system activity from the last 30 days · {logs.length} entries</p>
       </div>

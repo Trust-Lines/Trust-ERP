@@ -1,6 +1,6 @@
 'use client';
 
-import { StickyNote } from 'lucide-react';
+import { ChevronRight, Copy, FolderInput, StickyNote, Trash } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -22,6 +22,12 @@ import { can } from '@/lib/permissions/can';
 import type { ProjectStage, ProjectPhase } from '@/types/database';
 import type { StepRecord } from '@/lib/workflow/steps';
 import { EmptyState } from '@/components/ui/empty-state';
+import { cn } from '@/lib/utils';
+
+// Figma "Project Detail" (node 245:28820).
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const BTN_OUTLINE = 'inline-flex h-10 items-center justify-center gap-2 rounded-[6px] border border-solid border-[var(--color-secondary-700)] bg-transparent px-3.5 text-[13px] font-semibold text-[var(--color-secondary-700)] no-underline transition-colors hover:bg-ui-hover-bg dark:border-ui-heading dark:text-ui-heading';
+const BTN_PRIMARY = 'inline-flex h-10 items-center justify-center gap-3 rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-5 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 dark:bg-primary-50 dark:text-primary-950';
 
 export interface ProfileSnippet { id: string; full_name: string }
 
@@ -231,55 +237,54 @@ function FinanceCard({ project, documents, userRole }: {
 
   const hasPOSigned = documents.some(d => d.doc_type === 'po_bo' && d.status === 'signed');
   const hasPFSigned = documents.some(d => d.doc_type === 'pf' && d.status === 'signed');
+  const noValue = `${S} -`;
+  const note = (text: string) => <span className="text-[14px] font-normal tracking-normal">{text}</span>;
 
   return (
-    <div className="card" style={{ marginBottom: 14 }}>
-      <div className="card-head">
-        <div>
-          <div className="text-eyebrow">Finance</div>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Value & margin</h3>
-        </div>
+    <div className="flex flex-col gap-3.5 rounded-[8px] border border-ui-divider bg-ui-page-bg p-4">
+      <h2 className={cn('m-0 text-[20px] font-semibold tracking-[0.4px]', HEADING)}>Finance</h2>
+      <div className="grid flex-1 grid-cols-1 gap-x-[22px] gap-y-2.5 sm:grid-cols-2">
+        <FinanceTile label="EST. Value" currency={currency}>
+          {project.deal_value != null ? fmt(project.deal_value) : noValue}
+        </FinanceTile>
+        <FinanceTile label="Margin">
+          {hideSensitive
+            ? <PermissionShield label="Restricted" />
+            : project.margin_target_pct != null
+              ? (
+                <span style={{
+                  color: project.margin_target_pct >= 0 ? undefined : 'var(--status-t10-fg)',
+                }}>
+                  {project.margin_target_pct}%
+                </span>
+              )
+              : noValue}
+        </FinanceTile>
+        <FinanceTile label="Total PO" currency={currency}>
+          {hasPOSigned ? noValue : note('No PO yet')}
+        </FinanceTile>
+        <FinanceTile label="Total PF" currency={hideSensitive ? undefined : currency}>
+          {hideSensitive
+            ? <PermissionShield label="Restricted" />
+            : hasPFSigned ? noValue : note('No PF yet')}
+        </FinanceTile>
       </div>
-      <div className="card-body">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
-          <div className="kpi">
-            <div className="label">Est. Value</div>
-            <div className="value" style={{ fontSize: 20 }}>{fmt(project.deal_value)}</div>
-            <div style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 2 }}>{currency}</div>
-          </div>
-          <div className="kpi">
-            <div className="label">Total PO</div>
-            <div className="value" style={{ fontSize: 20 }}>
-              {hasPOSigned ? '—' : <span style={{ fontSize: 13, color: 'var(--fg-faint)' }}>No PO yet</span>}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 2 }}>{currency}</div>
-          </div>
-          <div className="kpi">
-            <div className="label">Total PF</div>
-            <div className="value" style={{ fontSize: 20 }}>
-              {hideSensitive
-                ? <PermissionShield label="Restricted" />
-                : hasPFSigned ? '—' : <span style={{ fontSize: 13, color: 'var(--fg-faint)' }}>No PF yet</span>}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 2 }}>{hideSensitive ? '' : currency}</div>
-          </div>
-          <div className="kpi">
-            <div className="label">Margin</div>
-            <div className="value" style={{ fontSize: 20 }}>
-              {hideSensitive
-                ? <PermissionShield label="Restricted" />
-                : project.margin_target_pct != null
-                  ? (
-                    <span style={{
-                      color: project.margin_target_pct >= 0 ? 'var(--status-success-fg)' : 'var(--status-danger-fg)',
-                    }}>
-                      {project.margin_target_pct}%
-                    </span>
-                  )
-                  : '—'}
-            </div>
-          </div>
-        </div>
+    </div>
+  );
+}
+
+function FinanceTile({ label, currency, children }: { label: string; currency?: string; children: React.ReactNode }) {
+  return (
+    <div
+      className="flex min-h-[140px] flex-col justify-end gap-1 rounded-[16px] py-3.5 pl-4 pr-4"
+      style={{ background: 'var(--status-t6-bg)', color: 'var(--status-t6-fg)' }}
+    >
+      <p className="m-0 text-[14px] leading-[1.5] tracking-[-0.308px]">{label}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 truncate text-[30px] font-semibold leading-[1.5] tracking-[0.6px]">{children}</div>
+        {currency && (
+          <span className="rounded-[4px] bg-ui-surface-elevated px-2.5 py-0.5 text-[14px] font-medium leading-[1.5] tracking-[0.56px]">{currency}</span>
+        )}
       </div>
     </div>
   );
@@ -492,103 +497,118 @@ export function ProjectDetailClient({
     return new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
+  async function copyCode() {
+    try { await navigator.clipboard.writeText(project.code); toast.success('Project code copied'); }
+    catch { toast.error('Could not copy'); }
+  }
+
+  const clientLine = [
+    project.client?.name, project.client_franchise?.code, project.client_company?.name,
+  ].filter(Boolean).join(' · ');
+
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--fg-subtle)', marginBottom: 14 }}>
-        <Link href="/projects" style={{ color: 'var(--fg-subtle)', textDecoration: 'none' }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'var(--brand-teal)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg-subtle)')}
-        >
-          Projects
-        </Link>
-        <span style={{ color: 'var(--fg-faint)' }}>/</span>
-        <span style={{ color: 'var(--fg-default)', fontWeight: 500 }}>
-          {project.code} — {project.name}
-        </span>
-      </div>
+      <div className="mb-[18px] flex flex-col gap-[18px]">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[12px] leading-[1.4]">
+          <Link href="/projects" className="text-ui-text-secondary no-underline hover:underline">Supply</Link>
+          <ChevronRight aria-hidden className="size-3 text-ui-text-secondary" />
+          <Link href="/projects" className="text-ui-body no-underline hover:underline">Projects</Link>
+          <ChevronRight aria-hidden className="size-3 text-ui-text-secondary" />
+          <Link href={`/projects/${project.id}`} aria-current="page" className="text-ui-body no-underline hover:underline">#{project.code}</Link>
+        </nav>
 
-      {!hidePhaseRail && (
-        <div style={{ marginBottom: 16 }}>
-          <PhaseRail currentPhase={project.current_phase} />
-        </div>
-      )}
+        {!hidePhaseRail && <PhaseRail currentPhase={project.current_phase} />}
 
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--fg-faint)', marginBottom: 4 }}>
-              {project.code}
-              {project.client && ` · ${project.client.name}`}
-              {project.client_franchise && ` · ${project.client_franchise.code}`}
-              {project.client_company && ` · ${project.client_company.name}`}
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <div className="flex items-center gap-2.5 text-[30px] leading-normal" style={{ color: 'var(--status-t4-fg)' }}>
+              <span># {project.code}</span>
+              <button
+                type="button" onClick={copyCode} aria-label="Copy project code"
+                className="grid size-[26px] place-items-center border-0 bg-transparent p-0 text-inherit hover:opacity-70"
+              >
+                <Copy size={26} aria-hidden />
+              </button>
             </div>
-            <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, color: 'var(--fg-default)', margin: '0 0 6px' }}>
+            <h1 className="m-0 text-[30px] font-semibold leading-normal" style={{ color: 'var(--status-t4-fg)' }}>
               {project.name}
             </h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {clientLine && <p className="m-0 text-[13px] text-ui-body">{clientLine}</p>}
+            <div className="flex flex-wrap items-center gap-2.5">
               <StageBadge stage={project.current_stage} />
               {project.categories?.length > 0 && (
-                <span style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>
-                  {project.categories.join(', ')}
-                </span>
+                <span className="text-[13px] text-ui-body">{project.categories.join(', ')}</span>
               )}
               {project.est_delivery_date && (
-                <span style={{ fontSize: 13, color: isOverdue ? 'var(--status-danger)' : 'var(--fg-subtle)', fontWeight: isOverdue ? 600 : undefined }}>
+                <span className={cn('text-[13px]', isOverdue ? 'font-semibold' : 'text-ui-body')} style={isOverdue ? { color: 'var(--status-t10-fg)' } : undefined}>
                   · Due {fmtDateShort(project.est_delivery_date)}
-                  {isOverdue && (
-                    <span style={{ color: 'var(--status-danger)', fontWeight: 700 }}> · {overdueDays}d overdue</span>
-                  )}
+                  {isOverdue && <span className="font-bold"> · {overdueDays}d overdue</span>}
                 </span>
               )}
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <Link href="/projects" className="btn btn-ghost btn-sm">← Back</Link>
-            <Link href={`/projects/${project.id}/handover`} className="btn btn-secondary btn-sm">Handover</Link>
-            <Link href={`/projects/${project.id}/finalization`} className="btn btn-secondary btn-sm">Finalization</Link>
-            <Link href={`/projects/${project.id}/delivery`} className="btn btn-secondary btn-sm">Delivery</Link>
+          <div className="flex flex-wrap items-center justify-end gap-2.5">
+            <Link href="/projects" className={BTN_OUTLINE}>← Back</Link>
+            <Link href={`/projects/${project.id}/handover`} className={BTN_OUTLINE}>Handover</Link>
+            <Link href={`/projects/${project.id}/finalization`} className={BTN_OUTLINE}>Finalization</Link>
+            <Link href={`/projects/${project.id}/delivery`} className={BTN_OUTLINE}>Delivery</Link>
             {permCan(userPerms, 'page.production') && (
-              <Link href={`/projects/${project.id}/types`} className="btn btn-secondary btn-sm">Types</Link>
+              <Link href={`/projects/${project.id}/types`} className={BTN_OUTLINE}>Types</Link>
             )}
             {['ops_manager', 'general_manager', 'accountant', 'accounting', 'trustlines_pm'].includes(userRole) && (
-              <Link href={`/projects/${project.id}/finance`} className="btn btn-secondary btn-sm">Finance</Link>
+              <Link href={`/projects/${project.id}/finance`} className={BTN_OUTLINE}>Finance</Link>
             )}
-            <button className="btn btn-secondary btn-sm">Export</button>
             {(userRole === 'ops_manager' || userRole === 'general_manager') && (
-              <Link href={`/projects/${project.id}/edit`} className="btn btn-secondary btn-sm">Edit</Link>
+              <Link href={`/projects/${project.id}/edit`} className={BTN_OUTLINE}>Edit</Link>
             )}
+            <button type="button" className={BTN_PRIMARY}><FolderInput size={16} aria-hidden /> Export File</button>
             {can(userRole, 'project:delete') && (
               <button
-                className="btn btn-ghost btn-sm"
+                type="button"
                 onClick={handleDelete}
                 disabled={deleting}
                 title="Move to trash"
-                style={{ color: 'var(--status-danger)', borderColor: 'var(--status-danger)' }}
+                aria-label="Move to trash"
+                className="inline-flex h-10 items-center justify-center rounded-[6px] border-0 px-3.5 transition-opacity hover:opacity-85 disabled:opacity-50"
+                style={{ background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' }}
               >
-                {deleting ? '…' : '🗑'}
+                {deleting ? '…' : <Trash size={16} aria-hidden />}
               </button>
             )}
           </div>
         </div>
 
-      </div>
-
-      {topSlot}
-
-      <div className="tab-bar">
-        {allTabs.map(tab => (
-          <button
-            key={tab}
-            className={`tab-item${activeTab === tab ? ' active' : ''}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-          </button>
-        ))}
+        {/* ── Saved views (underline tabs, 48px, 3px active border) ── */}
+        <div role="tablist" aria-label="Project sections" className="flex h-12 items-stretch gap-8 overflow-x-auto border-b border-ui-divider">
+          {allTabs.map(tab => {
+            const active = activeTab === tab;
+            return (
+              <button
+                key={tab} type="button" role="tab" aria-selected={active} onClick={() => setActiveTab(tab)}
+                className={cn(
+                  'flex shrink-0 items-center whitespace-nowrap border-0 border-b-[3px] border-solid bg-transparent px-0 text-[13px] leading-[1.4]',
+                  active
+                    ? 'border-[var(--color-secondary-700)] font-semibold text-[var(--color-secondary-700)] dark:border-ui-heading dark:text-ui-heading'
+                    : 'border-transparent text-ui-text-secondary hover:text-ui-body',
+                )}
+              >
+                {tab}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {activeTab === 'Overview' ? (
+        <>
+        {topSlot}
+
+        <div className="mb-[18px] grid grid-cols-1 items-stretch gap-[18px] xl:grid-cols-[minmax(0,1fr)_400px]">
+          <FinanceCard project={project} documents={documents} userRole={userRole} />
+          <AuditTrail events={auditEvents} userRole={userRole} userId={userId} />
+        </div>
+
         <div className="detail-grid">
           <div>
             <ProjectWorkflow
@@ -606,8 +626,6 @@ export function ProjectDetailClient({
               onStepsChanged={() => router.refresh()}
             />
 
-            <FinanceCard project={project} documents={documents} userRole={userRole} />
-
             <DatesCard project={project} stageHistory={stageHistory} />
 
             {userRole !== 'tlines_pm' && (
@@ -622,8 +640,6 @@ export function ProjectDetailClient({
               dropboxRootPath={project.dropbox_root_path}
               onRefresh={() => router.refresh()}
             />
-
-            <AuditTrail events={auditEvents} userRole={userRole} userId={userId} />
           </div>
 
           <div className="detail-rail">
@@ -637,6 +653,7 @@ export function ProjectDetailClient({
             />
           </div>
         </div>
+        </>
       ) : activeTab === 'Plan Layout' ? (
         <PlanLayoutTab
           projectId={project.id}

@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Mail, Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react';
@@ -132,9 +133,13 @@ export function MailTemplatesClient({ initialTemplates, loadError, canEdit }: Pr
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-[5px] leading-[1.35]">
-          <p className="m-0 text-[11px] font-semibold text-ui-nav-active">
-            Marketing / Mail Templates{editing ? (editing.id ? ' / Edit' : ' / New') : ''}
-          </p>
+          <PageCrumbs
+            items={[
+              { label: 'Marketing', href: '/marketing' },
+              { label: 'Mail Templates', href: '/marketing/mail-templates', onClick: () => setEditing(null) },
+              ...(editing ? [{ label: editing.id ? 'Edit' : 'New' }] : []),
+            ]}
+          />
           <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>
             {editing ? (editing.id ? 'Edit Template' : 'New Template') : 'Mail Templates'}
           </h1>

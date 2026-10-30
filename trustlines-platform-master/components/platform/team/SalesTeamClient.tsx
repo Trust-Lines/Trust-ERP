@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -117,7 +118,7 @@ export function SalesTeamClient({ reps, regionClients, nextNumber }: Props) {
     <div className="flex flex-col gap-[30px]">
       {/* ── Page heading ── */}
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Sales / Sales Team</p>
+        <PageCrumbs items={[{ label: 'Sales', href: '/leads' }, { label: 'Sales Team', href: '/sales-team' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Sales Team</h1>
         <p className="m-0 text-[13px] text-ui-body">{reps.length} sales rep{reps.length === 1 ? '' : 's'}</p>
       </div>

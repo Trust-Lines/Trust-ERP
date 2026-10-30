@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
   FileCheck2,
@@ -937,19 +938,21 @@ export function ApprovalsPageClient() {
       {/* ── 1. HEADER SECTION ────────────────────────────────────────── */}
       <div className="mb-6">
         {/* Breadcrumbs */}
-        <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-400 font-normal mb-3">
-          <span
-            className="text-[13px] font-semibold leading-[1.4]"
+        <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-1.5 text-xs text-slate-400 font-normal mb-3">
+          {/* Operations has no page of its own: its module card on the Dashboard opens Requests. */}
+          <Link
+            href="/dashboard"
+            className="text-[13px] font-semibold leading-[1.4] no-underline hover:underline"
             style={{
               color: 'var(--fg-subtle, #5E6F87)',
               fontFamily: 'var(--font-instrument-sans), "Instrument Sans", sans-serif',
             }}
           >
             Tlines NE / Operations
-          </span>
-          <span>&gt;</span>
-          <span className="text-slate-600 font-medium">Requests</span>
-        </div>
+          </Link>
+          <span aria-hidden>&gt;</span>
+          <Link href="/approvals" aria-current="page" className="text-slate-600 font-medium no-underline hover:underline">Requests</Link>
+        </nav>
 
         {/* Title, Count, Description & Actions */}
         <div className="flex items-start justify-between gap-4 md:items-center">

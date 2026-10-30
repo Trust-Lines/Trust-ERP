@@ -1,3 +1,4 @@
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { requirePage } from '@/lib/permissions/requirePage';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -82,7 +83,7 @@ export default async function ManagementPage() {
   return (
     <div className="flex flex-col gap-[30px]" style={{ padding: 28 }}>
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Operations / Management</p>
+        <PageCrumbs items={[{ label: 'Operations', href: '/production' }, { label: 'Management', href: '/management' }]} />
         <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">Management</h1>
         <p className="m-0 text-[13px] text-ui-body">
           Keep handoffs moving. Clear the blockers before they affect delivery. · {entries.length} active projects · {blocked.length} blocked

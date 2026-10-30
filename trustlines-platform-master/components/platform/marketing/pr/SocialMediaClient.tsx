@@ -289,7 +289,7 @@ export function SocialMediaClient({ initial, campaigns, providers, canEdit, isMa
   if (loadError) {
     return (
       <div className="flex flex-col gap-[30px]">
-        <PageHeading trail="Marketing / Social Media" title="Social Media" subtitle="Accounts, follower growth and post results in one place." />
+        <PageHeading trail={[{ label: 'Marketing', href: '/marketing' }, { label: 'Social Media', href: '/marketing/social' }]} title="Social Media" subtitle="Accounts, follower growth and post results in one place." />
         <div className={cn(PANEL, 'p-6')}><ErrorState title="Social media tracking isn’t available" description={loadError} /></div>
       </div>
     );
@@ -298,7 +298,7 @@ export function SocialMediaClient({ initial, campaigns, providers, canEdit, isMa
   return (
     <div className="flex flex-col gap-[30px]">
       <PageHeading
-        trail="Marketing / Social Media"
+        trail={[{ label: 'Marketing', href: '/marketing' }, { label: 'Social Media', href: '/marketing/social' }]}
         title="Social Media"
         subtitle={connectedCount
           ? 'Plan and publish posts, and follow how they perform. Connected accounts sync every night — or press “Sync now”.'

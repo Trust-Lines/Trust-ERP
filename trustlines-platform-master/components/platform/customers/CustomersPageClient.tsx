@@ -1,5 +1,6 @@
 'use client';
 
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -91,7 +92,7 @@ export function CustomersPageClient({ initialCustomers, canEdit }: Props) {
     <div className="flex flex-col gap-[30px]">
       {/* ── Page heading ── */}
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Sales / Customers</p>
+        <PageCrumbs items={[{ label: 'Sales', href: '/leads' }, { label: 'Customers', href: '/customers' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Customers</h1>
         <p className="m-0 text-[13px] text-ui-body">{customers.length} end customer{customers.length !== 1 ? 's' : ''}</p>
       </div>
