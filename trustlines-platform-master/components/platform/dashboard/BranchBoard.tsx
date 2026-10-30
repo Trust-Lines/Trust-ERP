@@ -239,8 +239,10 @@ function Column({ column, onOpen }: { column: BoardColumn; onOpen: (item: BoardC
   );
 }
 
-export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top }: {
+export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError }: {
   columns: BoardColumn[];
+  /** Why the Trust System sections are empty, when it couldn't be read. */
+  trustError?: string | null;
   canCreateTask: boolean;
   /** Greeting, My Tasks and KPIs: they sit between the page heading and the board. */
   top: React.ReactNode;
@@ -287,6 +289,11 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top }:
         onFrom={v => { setDateFrom(v); setPreset(''); }} onTo={v => { setDateTo(v); setPreset(''); }}
       />
       {top}
+      {trustError && (
+        <p role="status" className="m-0 rounded-[8px] px-3 py-2 text-[13px] font-medium" style={{ background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}>
+          Trust System couldn’t be read — Finalization to Shipped are empty: {trustError}
+        </p>
+      )}
       {columns.length === 0 ? (
         <EmptyState
           boxed
