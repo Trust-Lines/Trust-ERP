@@ -66,10 +66,14 @@ export function BrandKitsClient() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visible.map(k => (
             <button key={k.id} type="button" onClick={() => setOpenId(k.id)}
-              className="flex flex-col gap-3 rounded-[8px] border-0 bg-ui-surface p-4 text-left transition-colors hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring">
-              <div className="flex h-10 overflow-hidden rounded-[6px]">
-                {k.colors.length ? k.colors.slice(0, 8).map(c => <span key={c.hex + c.name} className="flex-1" style={{ background: c.hex }} />) : <span className="flex-1 bg-ui-surface-elevated" />}
-              </div>
+              className="flex cursor-pointer flex-col gap-3 rounded-[8px] border border-ui-divider bg-ui-surface-elevated p-4 text-left transition-colors hover:border-ui-input-border focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring">
+              {k.colors.length ? (
+                <div className="flex h-10 overflow-hidden rounded-[6px] border border-ui-divider">
+                  {k.colors.slice(0, 8).map(c => <span key={c.hex + c.name} className="flex-1" style={{ background: c.hex }} />)}
+                </div>
+              ) : (
+                <div className="grid h-10 place-items-center rounded-[6px] border border-dashed border-ui-divider text-[12px] text-ui-text-secondary">No colours yet</div>
+              )}
               <div>
                 <h3 className={cn('m-0 text-[14px] font-semibold', HEADING)}>{k.name}</h3>
                 <p className="m-0 text-[12px] text-ui-text-secondary">{k.prospect_name ?? 'Not linked to a customer'}{k.fonts.length ? ` · ${k.fonts.slice(0, 2).join(', ')}` : ''}</p>

@@ -7,6 +7,7 @@ import { VendorSelect } from './VendorSelect';
 import type { Vendor } from './AddVendorModal';
 import { STATUS_CHAIN } from '@/lib/production/board';
 import { Select } from '@/components/platform/shared/Select';
+import { Button } from '@/components/ui/button';
 
 const TYPES = ['Millwork', 'Shelving', 'Ceiling', 'Image', 'Furniture', 'Decoration'];
 const STATUSES = [...STATUS_CHAIN, 'HOLD_T', 'HOLD_PM', 'ASSEMBLY'];
@@ -111,9 +112,9 @@ export function ExtraItemsPanel({ source, label, canEdit, onChanged }: {
                 {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </Select>
             </label>
-            <button className="btn btn-primary btn-sm" onClick={addRow} disabled={adding}>
-              {adding ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={14} />} Add row
-            </button>
+            <Button className="h-10" onClick={addRow} loading={adding} disabled={adding}>
+              <Plus aria-hidden /> Add Row
+            </Button>
           </div>
         )}
 
@@ -158,7 +159,7 @@ export function ExtraItemsPanel({ source, label, canEdit, onChanged }: {
                         </Select>
                       ) : r.status}
                     </td>
-                    {canEdit && <td style={{ padding: '8px 10px', textAlign: 'right' }}><button className="btn btn-ghost btn-sm" onClick={() => removeRow(r.id)} title="Delete"><Trash2 size={14} /></button></td>}
+                    {canEdit && <td style={{ padding: '8px 10px', textAlign: 'right' }}><Button variant="ghost" size="icon" className="text-error-normal" onClick={() => removeRow(r.id)} title="Delete" aria-label="Delete row"><Trash2 aria-hidden /></Button></td>}
                   </tr>
                 ))}
               </tbody>

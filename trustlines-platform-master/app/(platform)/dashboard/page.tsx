@@ -301,7 +301,8 @@ export default async function DashboardPage() {
       assignees={marketingAssignees ?? []}
       canEdit={canEditOpportunities}
       canCreateTask={SALES_INTAKE_ROLES.includes(userRole)}
-      top={<TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} />}
+      // key: this element reaches the client inside BranchBoard's static children; without it dev React warns.
+      top={<TopSummaryRow key="top" fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} />}
     />
   );
 }

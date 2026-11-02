@@ -2,8 +2,11 @@
 
 import { useState, useRef, useEffect, useMemo, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { popupBase } from '@/components/ui/field-styles';
+import { cn } from '@/lib/utils';
 import type { Vendor } from './AddVendorModal';
 
 export function VendorSelect({
@@ -88,23 +91,27 @@ export function VendorSelect({
       {open && rect && createPortal(
         <div
           ref={panelRef}
+          className={cn(popupBase, 'overflow-hidden text-[12px] dark:p-0')}
           style={{
             position: 'fixed', zIndex: 100000,
             left: Math.min(rect.left, window.innerWidth - 252),
             top: openUp ? undefined : rect.bottom + 4,
             bottom: openUp ? (window.innerHeight - rect.top + 4) : undefined,
-            width: 244, background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
-            borderRadius: 6, boxShadow: '0 12px 32px rgba(0,0,0,0.22)', overflow: 'hidden',
+            width: 244,
           }}
         >
-          <input
-            autoFocus
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search vendors…"
-            style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 12, border: 'none', borderBottom: '1px solid var(--border-subtle)', outline: 'none' }}
-          />
-          <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+          <div className="flex items-center gap-2 border-b border-ui-divider px-2.5 py-2">
+            <Search size={13} className="shrink-0 text-ui-text-secondary" aria-hidden />
+            <input
+              autoFocus
+              aria-label="Search vendors"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search vendors…"
+              className="w-full min-w-0 border-0 bg-transparent text-[13px] text-ui-heading shadow-none! outline-none! placeholder:text-ui-text-secondary"
+            />
+          </div>
+          <div className="flex max-h-[220px] flex-col gap-0.5 overflow-y-auto p-1.5 [scrollbar-width:thin] dark:[scrollbar-color:var(--color-primary-600)_transparent]">
             {hasValue && onClear && (
               <Row label="— none —" onClick={() => { onClear(); setOpen(false); setQuery(''); }} />
             )}
@@ -112,26 +119,25 @@ export function VendorSelect({
               <Row
                 key={v.id}
                 label={`${v.code} — ${v.name}`}
+                selected={`${v.code} — ${v.name}` === displayValue}
                 deleting={deletingId === v.id}
                 onClick={() => { onPick(v); setOpen(false); setQuery(''); }}
                 onDelete={onDeleted ? () => del(v) : undefined}
               />
             ))}
             {filtered.length === 0 && (
-              <div style={{ padding: '8px 10px', fontSize: 11, color: 'var(--fg-faint)' }}>No match</div>
+              <div className="px-2 py-1.5 text-[11px] text-ui-text-secondary">No match</div>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => { setOpen(false); onAddNew(query.trim()); setQuery(''); }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6, width: '100%',
-              padding: '9px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              background: 'var(--brand-teal-100)', color: 'var(--brand-teal)', border: 'none', borderTop: '1px solid var(--border-subtle)',
-            }}
-          >
-            <Plus size={13} /> Add new vendor{query.trim() ? ` “${query.trim()}”` : ''}
-          </button>
+          <div className="border-t border-ui-divider p-1.5 dark:border-t-0">
+            <Button
+              variant="ghost"
+              className="w-full justify-start dark:text-ui-body"
+              onClick={() => { setOpen(false); onAddNew(query.trim()); setQuery(''); }}
+            >
+              <Plus aria-hidden /> Add new vendor{query.trim() ? ` “${query.trim()}”` : ''}
+            </Button>
+          </div>
         </div>,
         document.body,
       )}
@@ -139,32 +145,30 @@ export function VendorSelect({
   );
 }
 
-function Row({ label, deleting, onClick, onDelete }: { label: string; deleting?: boolean; onClick: () => void; onDelete?: () => void }) {
+function Row({ label, selected, deleting, onClick, onDelete }: { label: string; selected?: boolean; deleting?: boolean; onClick: () => void; onDelete?: () => void }) {
   return (
-    <div
-      style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-surface)' }}
-      onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; }}
-      onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
-    >
+    <div className={cn(
+      'group flex items-center rounded-[2px] text-ui-body hover:bg-primary-700 hover:text-primary-50 dark:rounded-[4px] dark:hover:bg-white/10',
+      selected && 'bg-ui-selected-bg font-semibold dark:bg-[var(--ui-menu-active-bg)] dark:text-[var(--ui-menu-active-fg)] dark:hover:bg-[var(--ui-menu-active-bg)] dark:hover:text-[var(--ui-menu-active-fg)]',
+    )}>
       <button
         type="button"
         onClick={onClick}
-        style={{
-          flex: 1, minWidth: 0, padding: '7px 10px', fontSize: 12, cursor: 'pointer', textAlign: 'left',
-          background: 'transparent', border: 'none', color: 'var(--fg-default)',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}
+        className="min-w-0 flex-1 cursor-pointer truncate border-0 bg-transparent px-2 py-2 text-left text-[13px] text-inherit outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ui-focus-ring"
       >
         {label}
       </button>
+      {selected && <Check size={14} className="mr-1 shrink-0" aria-label="Selected" />}
       {onDelete && (
         <button
           type="button"
           onClick={e => { e.stopPropagation(); onDelete(); }}
+          disabled={deleting}
           title="Delete vendor"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 8px', color: deleting ? '#fca5a5' : '#dc2626', flexShrink: 0 }}
+          aria-label={`Delete vendor ${label}`}
+          className="shrink-0 cursor-pointer border-0 bg-transparent px-2 py-1.5 text-error-normal outline-none group-hover:text-primary-50 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring disabled:opacity-50"
         >
-          <Trash2 size={12} />
+          <Trash2 size={12} aria-hidden />
         </button>
       )}
     </div>
