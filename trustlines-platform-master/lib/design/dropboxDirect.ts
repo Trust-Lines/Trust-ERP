@@ -5,13 +5,19 @@ import { relativeTo, safeSegment } from '@/lib/sales/designPaths';
 
 /** Upload link for `folder/fileName` — add + autorename, never overwrites. Dropbox creates missing parent folders. */
 export async function uploadLinkIn(folder: string, fileName: string): Promise<string | null> {
+  return (await uploadTargetIn(folder, fileName))?.link ?? null;
+}
+
+/** uploadLinkIn plus the path the file lands at (unless a file there already makes Dropbox rename it). */
+export async function uploadTargetIn(folder: string, fileName: string): Promise<{ link: string; path: string } | null> {
   const name = safeSegment(fileName, '');
   if (!name) return null;
+  const path = `${folder}/${name}`;
   const res = await getDropboxClient().filesGetTemporaryUploadLink({
-    commit_info: { path: `${folder}/${name}`, mode: { '.tag': 'add' }, autorename: true },
+    commit_info: { path, mode: { '.tag': 'add' }, autorename: true },
     duration: 3600,
   });
-  return res.result.link;
+  return { link: res.result.link, path };
 }
 
 /** The file's metadata when `path` is a file somewhere under `folder`, else null. */

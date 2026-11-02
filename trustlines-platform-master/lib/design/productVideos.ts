@@ -20,7 +20,13 @@ export function installPath(slug: string): string {
   return `/install/${slug}`;
 }
 
-export const IMAGE_ACCEPT = 'image/png,image/jpeg,.png,.jpg,.jpeg';
+/** Dropbox file name for an upload — the time stamp keeps it unique, so its path is known up front. */
+export function productUploadName(code: string, fileName: string, now = new Date()): string {
+  const stamp = now.toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-');
+  return `${code} - ${stamp} - ${fileName}`;
+}
+
+export const IMAGE_ACCEPT ='image/png,image/jpeg,.png,.jpg,.jpeg';
 export const PRODUCT_IMAGES_ROOT = `${PRODUCT_VIDEOS_ROOT}/Images`;
 
 /** The sticker's text fields from a request body → table columns (only the keys that were sent). */

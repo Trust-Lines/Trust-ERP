@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { dropboxError, fileIn, uploadLinkIn } from '@/lib/design/dropboxDirect';
-import { PRODUCT_VIDEOS_ROOT, installPath, isUploadToken, newVideoSlug } from '@/lib/design/productVideos';
-import { appBaseUrl } from '@/lib/env/appUrl';
+import { dropboxError, fileIn, uploadTargetIn } from '@/lib/design/dropboxDirect';
+import { PRODUCT_VIDEOS_ROOT, installPath, isUploadToken, newVideoSlug, productUploadName } from '@/lib/design/productVideos';
+import { qrBaseUrl } from '@/lib/env/appUrl';
 import { safeSegment } from '@/lib/sales/designPaths';
 
 export const dynamic = 'force-dynamic';
@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
     const fileName = String(body.fileName ?? '');
     if (!VIDEO_EXT.test(fileName)) return NextResponse.json({ error: 'Choose an MP4, MOV or WEBM video' }, { status: 400 });
     try {
-      const url = await uploadLinkIn(PRODUCT_VIDEOS_ROOT, `${safeSegment(productCode, 'Product')} - ${fileName}`);
-      return url ? NextResponse.json({ link: url }) : NextResponse.json({ error: 'Invalid file name' }, { status: 400 });
+      const target = await uploadTargetIn(PRODUCT_VIDEOS_ROOT, productUploadName(safeSegment(productCode, 'Product'), fileName));
+      return target ? NextResponse.json(target) : NextResponse.json({ error: 'Invalid file name' }, { status: 400 });
     } catch (e) { return NextResponse.json({ error: `Dropbox: ${dropboxError(e)}` }, { status: 502 }); }
   }
 
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       const { error } = await admin.from('product_videos').insert({ slug, product_code: productCode, title, ...video });
       if (error) return NextResponse.json({ error: 'Could not save the video' }, { status: 500 });
     }
-    return NextResponse.json({ ok: true, replaced: !!existing, productCode, link: `${appBaseUrl()}${installPath(slug)}` });
+    return NextResponse.json({ ok: true, replaced: !!existing, productCode, link: `${qrBaseUrl()}${installPath(slug)}` });
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

@@ -49,6 +49,7 @@ export function ProductVideosClient() {
   const [items, setItems] = useState<Product[] | null>(null);
   const [notReady, setNotReady] = useState<string | null>(null);
   const [baseUrl, setBaseUrl] = useState('');
+  const [qrBase, setQrBase] = useState('');   // printed QR codes (QR_BASE_URL)
   const [me, setMe] = useState(''); const [isManager, setIsManager] = useState(false);
   const [q, setQ] = useState('');
   const [form, setForm] = useState<Product | 'new' | null>(null);
@@ -61,12 +62,12 @@ export function ProductVideosClient() {
     const res = await fetch(API).catch(() => null);
     const b = res ? await res.json().catch(() => ({})) : {};
     if (!res?.ok) { toast.error(b.error ?? 'Could not load the products'); setItems([]); return; }
-    setNotReady(b.notReady ?? null); setItems(b.videos ?? []); setBaseUrl(b.baseUrl || window.location.origin);
+    setNotReady(b.notReady ?? null); setItems(b.videos ?? []); setBaseUrl(b.baseUrl || window.location.origin); setQrBase(b.qrBaseUrl || b.baseUrl || window.location.origin);
     setMe(b.me ?? ''); setIsManager(!!b.isManager);
   }
   useEffect(() => { void load(); }, []);
 
-  const linkOf = (p: Product) => `${baseUrl || window.location.origin}${installPath(p.slug)}`;
+  const linkOf = (p: Product) => `${qrBase || window.location.origin}${installPath(p.slug)}`;
   const upsert = (p: Product) => setItems(list => (list ?? []).some(x => x.id === p.id) ? (list ?? []).map(x => (x.id === p.id ? p : x)) : [p, ...(list ?? [])]);
   const visible = useMemo(() => {
     const s = q.trim().toLowerCase();
