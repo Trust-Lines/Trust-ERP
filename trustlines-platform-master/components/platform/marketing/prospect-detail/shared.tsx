@@ -8,6 +8,10 @@ import { Pill } from '@/components/platform/shared/Pill';
 import type { NeedClassification } from '@/types/database';
 import { NEED_CLASSIFICATION_LABEL, NEED_CLASSIFICATION_VARIANT } from './types';
 
+export const HEADING = 'text-[var(--color-secondary-700)] dark:text-[var(--color-secondary-50)]';
+/** Small status/tag chip, same shape as the customer page's project stage chips. */
+export const CHIP = 'inline-flex h-[26px] items-center rounded-[4px] px-2.5 text-[11px] font-medium leading-4';
+
 export function NeedClassificationPill({ c }: { c: NeedClassification }) {
   return <Pill variant={NEED_CLASSIFICATION_VARIANT[c]}>{NEED_CLASSIFICATION_LABEL[c]}</Pill>;
 }
