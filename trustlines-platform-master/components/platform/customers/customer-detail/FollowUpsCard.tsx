@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Select } from '@/components/platform/shared/Select';
 import { todayISO, type Assignee, type FollowUp } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
-import { AddButton, DetailCard, FORM_BOX, IconAction, RowList } from './ui';
+import { AddButton, DetailCard, FORM_BOX, FORM_SUBMIT, IconAction, RowList } from './ui';
 
 export function FollowUpsCard({ followUps, assignees, canEdit, onSave, onSetStatus, onDelete }: {
   followUps: FollowUp[];
@@ -93,8 +94,8 @@ function FollowUpForm({ assignees, onSave, onCancel }: {
 
   return (
     <div className={FORM_BOX}>
-      <div className="mb-2.5 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_150px_180px]">
-        <div><label className="form-label required" style={{ fontSize: 11 }}>Follow-up</label>
+      <div className="mb-2.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="sm:col-span-2"><label className="form-label required" style={{ fontSize: 11 }}>Follow-up</label>
           <input className="form-input" style={{ fontSize: 13 }} placeholder="e.g. Call about layout approval" value={note} onChange={e => setNote(e.target.value)} autoFocus /></div>
         <div><label className="form-label required" style={{ fontSize: 11 }}>Due date</label>
           <input type="date" className="form-input" style={{ fontSize: 13 }} value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
@@ -104,9 +105,9 @@ function FollowUpForm({ assignees, onSave, onCancel }: {
             {assignees.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
           </Select></div>
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn btn-primary btn-sm" onClick={submit} disabled={!note.trim() || !dueDate || saving}>{saving ? 'Saving…' : 'Add follow-up'}</button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+      <div className="flex gap-1.5">
+        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={!note.trim() || !dueDate || saving}><Plus aria-hidden /> Add Follow-up</Button>
+        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   );

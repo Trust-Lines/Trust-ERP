@@ -78,4 +78,7 @@ export function RowList({ children }: { children: ReactNode }) {
 }
 
 /** Inline add/edit form container. */
+// Same look as the customer page's Edit button, including while disabled (CustomerDetailClient.tsx).
+export const FORM_SUBMIT = 'h-10 gap-2 rounded-[6px] bg-[var(--color-secondary-700)] pl-[34px] pr-11 font-medium text-white transition-opacity hover:bg-[var(--color-secondary-700)] hover:opacity-90 active:bg-[var(--color-secondary-700)] disabled:bg-[var(--color-secondary-700)] disabled:text-white disabled:opacity-60 dark:bg-primary-50 dark:text-primary-950 dark:disabled:bg-primary-50 dark:disabled:text-primary-950';
+
 export const FORM_BOX = 'rounded-[6px] border border-ui-divider bg-ui-surface px-3.5 py-3';

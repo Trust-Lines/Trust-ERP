@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { CalendarDays, ChevronDown } from 'lucide-react';
+import { CalendarDays, ChevronDown, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select } from '@/components/platform/shared/Select';
 import { MEETING_TYPES, cap, type Meeting } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
-import { AddButton, DetailCard, FORM_BOX, IconAction, RowList } from './ui';
+import { AddButton, DetailCard, FORM_BOX, FORM_SUBMIT, IconAction, RowList } from './ui';
 
 export function MeetingsCard({ meetings, canEdit, contactEmails = [], onSave, onSetStatus, onDelete }: {
   meetings: Meeting[];
@@ -121,7 +123,7 @@ function MeetingForm({ contactEmails, onSave, onCancel }: { contactEmails: strin
 
   return (
     <div className={FORM_BOX}>
-      <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="mb-2 grid grid-cols-1 gap-2">
         <div><label className="form-label required" style={{ fontSize: 11 }}>Title</label>
           <input className="form-input" style={{ fontSize: 13 }} placeholder="e.g. Site visit" value={f.title} onChange={set('title')} autoFocus /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Type</label>
@@ -131,7 +133,7 @@ function MeetingForm({ contactEmails, onSave, onCancel }: { contactEmails: strin
         <div><label className="form-label required" style={{ fontSize: 11 }}>Date & time</label>
           <input type="datetime-local" className="form-input" style={{ fontSize: 13 }} value={f.meeting_at} onChange={set('meeting_at')} /></div>
       </div>
-      <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="mb-2 grid grid-cols-1 gap-2">
         <div><label className="form-label" style={{ fontSize: 11 }}>Location</label><input className="form-input" style={{ fontSize: 13 }} value={f.location} onChange={set('location')} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Attendees</label><input className="form-input" style={{ fontSize: 13 }} placeholder="Names, comma separated" value={f.attendees} onChange={set('attendees')} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Status</label>
@@ -139,17 +141,17 @@ function MeetingForm({ contactEmails, onSave, onCancel }: { contactEmails: strin
             <option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option>
           </Select></div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+      <div className="mb-2.5 grid grid-cols-1 gap-2">
         <div><label className="form-label" style={{ fontSize: 11 }}>Notes</label><textarea className="form-input" rows={2} style={{ fontSize: 13, resize: 'vertical' }} value={f.notes} onChange={set('notes')} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Outcome</label><textarea className="form-input" rows={2} style={{ fontSize: 13, resize: 'vertical' }} value={f.outcome} onChange={set('outcome')} /></div>
       </div>
       {/* Google invite from the person's own Google account (Settings → Google account). */}
       <label className="mb-2 flex items-center gap-2 text-[12px] text-ui-body">
-        <input type="checkbox" checked={invite} onChange={e => setInvite(e.target.checked)} />
+        <Checkbox checked={invite} onCheckedChange={v => setInvite(v)} />
         Send a Google Calendar invitation with a Google Meet link
       </label>
       {invite && (
-        <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_140px]">
+        <div className="mb-2 grid grid-cols-1 gap-2">
           <div><label className="form-label" style={{ fontSize: 11 }}>Invite (emails)</label>
             <input className="form-input" style={{ fontSize: 13 }} placeholder="name@company.com, …" value={f.invite_emails} onChange={set('invite_emails')} /></div>
           <div><label className="form-label" style={{ fontSize: 11 }}>Duration</label>
@@ -158,9 +160,9 @@ function MeetingForm({ contactEmails, onSave, onCancel }: { contactEmails: strin
             </Select></div>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn btn-primary btn-sm" onClick={submit} disabled={!f.title.trim() || !f.meeting_at || saving}>{saving ? 'Saving…' : 'Save meeting'}</button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+      <div className="flex gap-1.5">
+        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={!f.title.trim() || !f.meeting_at || saving}><Plus aria-hidden /> Add Meeting</Button>
+        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   );
