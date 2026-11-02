@@ -2154,6 +2154,16 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-11-02 (Roles & permissions redesign, Figma node 388:62738) — NO migration, NO API change
+- Restyled the /roles content to the Figma design: Roles list card, role colour rows, sticky selected-role banner,
+  permission group cards and the 54×28 toggle. Save, discard, delete, modals and permission logic are unchanged.
+- Kept from data, not Figma: role list/colours, PERMISSION_GROUPS titles, and the "n roles · n custom" subtitle
+  (the Figma subtitle "Personal information, appearance" is placeholder copy).
+- Dark mode (Figma node 390:63673): a role's stored tint/strong colours swap, like status tones; selected row gets a
+  4px left bar in both themes; toggle, action buttons, Edit Details and trash follow the dark Figma tokens.
+- Changed files: components/platform/roles/RolesPageClient.tsx, PROJECT-MASTER-PLAN.md.
+- Verified: targeted ESLint, tsc, npm test and npm run build pass. Not visually checked in a browser.
+
 2026-10-19 (Requests redesign typography + Design chip) — NO migration, NO API change
 - Matched the Requests title and "Tlines NE / Operations" breadcrumb typography to the approved Instrument Sans
   specification and updated the Design status chip to the specified T4 background, spacing, gap, and 4px radius.
