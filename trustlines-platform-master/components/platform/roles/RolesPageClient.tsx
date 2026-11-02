@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { toast } from 'sonner';
-import { Plus, Trash2, ShieldCheck } from 'lucide-react';
-import { PERMISSION_GROUPS, effectivePermissions, pageAllowed, pageInherited } from '@/lib/permissions/catalog';
+import { Switch as SwitchPrimitive } from '@base-ui/react/switch';
+import { Plus, Trash2, ShieldCheck, Monitor, ToggleRight, ToggleLeft, SquarePen, PenLine, Signature, Eye, Bell, TrendingUp, type LucideIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
+import { PERMISSION_GROUPS, effectivePermissions, pageAllowed, pageInherited, type PermCategory } from '@/lib/permissions/catalog';
 
 export interface RoleDefinition {
   name:        string;
@@ -29,28 +32,32 @@ const COLOR_PRESETS = [
   { bg: '#e3eaf2', fg: '#0F2A44' },
 ];
 
-function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+const GROUP_ICONS: Record<PermCategory, LucideIcon> = {
+  page: Monitor, edit: PenLine, sign: Signature, view: Eye, notify: Bell, progress: TrendingUp,
+};
+
+// Figma "Primary button" at the Roles page's 32px height: #2B3D55 light, #EEF2F6 dark.
+const ACTION_BTN = 'gap-2 rounded-[6px] px-4 font-medium bg-[var(--color-secondary-700)] text-ui-btn-primary-fg hover:bg-[var(--color-secondary-600)] active:bg-[var(--color-secondary-600)] dark:bg-[var(--color-secondary-50)]';
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-[var(--color-secondary-50)]';
+
+// A role's stored pair is tint + strong colour. Dark mode swaps them, like the status tones in globals.css.
+function roleVars(role: RoleDefinition) {
+  return { '--role-tint': role.color_bg, '--role-strong': role.color_fg } as CSSProperties;
+}
+const ROLE_SURFACE = 'bg-[var(--role-tint)] dark:bg-[var(--role-strong)]';
+const ROLE_TEXT = 'text-[var(--role-strong)] dark:text-[var(--role-tint)]';
+
+// Figma: 54×28 track with an inset 23×22 thumb — bigger and squarer than components/ui/switch.
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
-    <div
-      role="switch"
-      aria-checked={checked}
-      onClick={e => { e.stopPropagation(); if (!disabled) onChange(!checked); }}
-      style={{
-        width: 38, height: 22, borderRadius: 11, flexShrink: 0,
-        background: checked ? 'var(--brand-teal)' : 'var(--border-strong)',
-        cursor: disabled ? 'default' : 'pointer',
-        position: 'relative', transition: 'background 150ms',
-        opacity: disabled ? 0.45 : 1,
-      }}
+    <SwitchPrimitive.Root
+      checked={checked}
+      onCheckedChange={onChange}
+      aria-label={label}
+      className="inline-flex h-7 w-[54px] shrink-0 cursor-pointer items-center rounded-[8px] bg-ui-selected-bg p-[3px] outline-none transition-colors focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring data-checked:bg-[var(--color-secondary-700)] dark:data-checked:bg-[var(--color-secondary-50)]"
     >
-      <span style={{
-        position: 'absolute', top: 3, borderRadius: '50%',
-        width: 16, height: 16, background: 'white',
-        left: checked ? 19 : 3,
-        transition: 'left 150ms',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-      }} />
-    </div>
+      <SwitchPrimitive.Thumb className="h-[22px] w-[23px] rounded-[4px] bg-ui-page-bg transition-transform duration-150 data-checked:translate-x-[25px]" />
+    </SwitchPrimitive.Root>
   );
 }
 
@@ -157,7 +164,7 @@ function PermissionEditor({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="flex flex-col gap-4">
       {isSystem && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px', background: 'var(--status-info-bg)', border: '1px solid color-mix(in srgb, var(--status-info) 35%, transparent)', borderRadius: 8, fontSize: 12, color: 'var(--status-info-fg)' }}>
           🛡️ System role — defaults shown. You can still tailor its permissions; changes are saved.
@@ -168,42 +175,37 @@ function PermissionEditor({
         const keys = group.perms.map(p => p.key);
         const granted = keys.filter(k => isOn(group.category, k)).length;
         const allOn = granted === keys.length;
+        const GroupIcon = GROUP_ICONS[group.category];
         return (
-          <div key={group.title} style={{ border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
-              <span style={{ fontSize: 16 }}>{group.icon}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>{group.title}</div>
-                <div style={{ fontSize: 10.5, color: 'var(--fg-faint)' }}>{granted}/{keys.length} enabled</div>
+          <section key={group.title} aria-label={group.title} className="flex flex-col gap-4 rounded-[10px] border border-ui-divider bg-ui-surface-elevated px-2 pb-2.5 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-2">
+              <div className="flex min-h-9 min-w-0 items-center gap-1.5">
+                <GroupIcon size={26} className={`shrink-0 ${HEADING}`} aria-hidden />
+                <h2 className={`m-0 text-[20px] font-semibold leading-normal ${HEADING}`}>{group.title}</h2>
+                <span className="ml-1 whitespace-nowrap text-[12px] text-ui-text-secondary">{granted}/{keys.length} enabled</span>
               </div>
-              <button
-                onClick={() => setGroup(keys, !allOn)}
-                disabled={false}
-                style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--brand-teal)', cursor: 'pointer' }}>
-                {allOn ? 'Clear all' : 'Enable all'}
-              </button>
+              <Button className={ACTION_BTN} onClick={() => setGroup(keys, !allOn)}>
+                {allOn ? <ToggleLeft aria-hidden /> : <ToggleRight aria-hidden />}
+                {allOn ? 'Clear All' : 'Enable All'}
+              </Button>
             </div>
-            <div>
-              {group.perms.map((p, idx) => {
+            <div className="flex flex-col gap-2">
+              {group.perms.map(p => {
                 const on = isOn(group.category, p.key);
                 const inherited = group.category === 'page' && pageInherited(perms, p.key);
                 return (
-                  <div key={p.key} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                    padding: '10px 14px', background: on ? 'color-mix(in srgb, var(--brand-teal) 8%, var(--bg-surface))' : 'var(--bg-surface)',
-                    borderBottom: idx < group.perms.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                  }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg-default)' }}>{p.label}</div>
-                      {p.hint && <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1 }}>{p.hint}</div>}
-                      {inherited && <div style={{ fontSize: 10.5, color: 'var(--fg-faint)', marginTop: 2, fontStyle: 'italic' }}>Follows the default — switch it to set it for this role</div>}
+                  <div key={p.key} className="flex items-center justify-between gap-3 rounded-[6px] border border-ui-divider bg-ui-surface px-6 py-4">
+                    <div className="min-w-0">
+                      <div className={`text-[20px] font-semibold leading-[1.35] ${HEADING}`}>{p.label}</div>
+                      {p.hint && <div className="mt-0.5 text-[12px] text-ui-text-secondary">{p.hint}</div>}
+                      {inherited && <div className="mt-0.5 text-[11px] italic text-ui-text-secondary">Follows the default — switch it to set it for this role</div>}
                     </div>
-                    <Toggle checked={on} onChange={val => set(p.key, val)} />
+                    <Toggle checked={on} onChange={val => set(p.key, val)} label={p.label} />
                   </div>
                 );
               })}
             </div>
-          </div>
+          </section>
         );
       })}
     </div>
@@ -251,7 +253,6 @@ export function RolesPageClient({ initialRoles }: Props) {
     toast.success('Role deleted');
   }
 
-  const systemRoles = roles.filter(r => r.is_system);
   const customRoles = roles.filter(r => !r.is_system);
 
   const PROTECTED = ['ops_manager'];
@@ -261,82 +262,68 @@ export function RolesPageClient({ initialRoles }: Props) {
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Roles & Permissions</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
-            {roles.length} roles · {customRoles.length} custom
-          </p>
-        </div>
-        <button className="btn btn-primary" onClick={() => setShowNew(true)}>
-          <Plus size={14} /> New role
-        </button>
+    <div className="flex flex-col gap-[30px]">
+      <div className="flex flex-col gap-[5px] leading-[1.35]">
+        <PageCrumbs items={[{ label: 'Admin' }, { label: 'Roles & permissions', href: '/roles' }]} />
+        <h1 className={`m-0 text-[28px] font-semibold leading-[1.35] ${HEADING}`}>Roles &amp; permissions</h1>
+        <p className="m-0 text-[13px] text-ui-body">
+          {roles.length} roles · {customRoles.length} custom
+        </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 20, alignItems: 'start' }}>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {systemRoles.length > 0 && (
-            <div className="card" style={{ padding: 0 }}>
-              <div style={{ padding: '10px 14px 4px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--fg-faint)' }}>
-                System
-              </div>
-              {systemRoles.map(r => (
-                <RoleItem key={r.name} role={r} isSelected={selected === r.name} isDirty={!!pendingPerms[r.name]} onSelect={() => setSelected(r.name)}
-                  onDelete={PROTECTED.includes(r.name) ? undefined : () => handleDelete(r.name)} deleting={deleting === r.name} />
-              ))}
-            </div>
-          )}
-          {(customRoles.length > 0) && (
-            <div className="card" style={{ padding: 0 }}>
-              <div style={{ padding: '10px 14px 4px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--fg-faint)' }}>
-                Custom
-              </div>
-              {customRoles.map(r => (
-                <RoleItem key={r.name} role={r} isSelected={selected === r.name} isDirty={!!pendingPerms[r.name]} onSelect={() => setSelected(r.name)}
-                  onDelete={() => handleDelete(r.name)} deleting={deleting === r.name} />
-              ))}
-            </div>
-          )}
-          <button className="btn btn-ghost btn-sm" style={{ color: 'var(--brand-teal)' }} onClick={() => setShowNew(true)}>
-            <Plus size={12} /> New custom role
-          </button>
+      <div className="flex flex-col items-start gap-4 lg:flex-row">
+        <div className="w-full shrink-0 overflow-hidden rounded-[10px] border border-ui-divider lg:w-[315px]">
+          <div className="flex items-center justify-between gap-3 border-b border-ui-divider bg-ui-surface py-2.5 pl-4 pr-2.5">
+            <h2 className={`m-0 text-[20px] font-semibold leading-9 ${HEADING}`}>Roles</h2>
+            <Button
+              className="gap-2 rounded-[6px] bg-ui-btn-accent px-4 font-medium text-ui-btn-accent-fg hover:bg-ui-btn-accent hover:brightness-95 active:bg-ui-btn-accent dark:bg-ui-btn-accent dark:text-ui-btn-accent-fg dark:hover:bg-ui-btn-accent"
+              onClick={() => setShowNew(true)}
+            >
+              <Plus size={14} aria-hidden /> Add Role
+            </Button>
+          </div>
+          {roles.length === 0 ? (
+            <div className="bg-ui-surface-elevated p-6 text-center text-[13px] text-ui-text-secondary">No roles yet</div>
+          ) : roles.map(r => (
+            <RoleItem key={r.name} role={r} isSelected={selected === r.name} isDirty={!!pendingPerms[r.name]} onSelect={() => setSelected(r.name)}
+              onDelete={PROTECTED.includes(r.name) ? undefined : () => handleDelete(r.name)} deleting={deleting === r.name} />
+          ))}
         </div>
 
-        <div className="card" style={{ padding: 0 }}>
+        <div className="flex w-full min-w-0 flex-1 flex-col gap-4">
           {current ? (
             <>
-              <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 5, background: current.color_bg, color: current.color_fg }}>
-                  {current.label}
-                </span>
-                <span style={{ fontSize: 12, color: 'var(--fg-faint)' }}>
-                  {current.is_system ? 'System' : 'Custom'} · {current.name}
-                </span>
-                <button className="btn btn-ghost btn-sm" style={{ marginLeft: isDirty ? 0 : 'auto' }} onClick={() => setEditDetails(current)}>Edit details</button>
-                {isDirty && (
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                    <button className="btn btn-ghost btn-sm"
-                      onClick={() => setPendingPerms(prev => { const n = { ...prev }; delete n[current.name]; return n; })}
-                      disabled={saving}>Discard</button>
-                    <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
-                      {saving ? 'Saving…' : 'Save changes'}
-                    </button>
-                  </div>
-                )}
+              <div
+                className={`sticky top-20 z-10 flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-[var(--role-strong)] px-4 py-2.5 ${ROLE_SURFACE}`}
+                style={roleVars(current)}
+              >
+                <h2 className={`m-0 min-w-0 text-[20px] font-semibold leading-9 ${ROLE_TEXT}`}>{current.label}</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  {isDirty && (
+                    <>
+                      <Button variant="outline" className="rounded-[6px] bg-ui-surface-elevated font-medium"
+                        onClick={() => setPendingPerms(prev => { const n = { ...prev }; delete n[current.name]; return n; })}
+                        disabled={saving}>Discard</Button>
+                      <Button className={ACTION_BTN} onClick={handleSave} loading={saving} disabled={saving}>Save changes</Button>
+                    </>
+                  )}
+                  <Button
+                    className="gap-2 rounded-[6px] bg-[var(--role-strong)] px-4 font-medium text-white hover:bg-[var(--role-strong)] hover:brightness-95 active:bg-[var(--role-strong)] dark:bg-[var(--role-tint)] dark:text-primary-950 dark:hover:bg-[var(--role-tint)] dark:active:bg-[var(--role-tint)]"
+                    onClick={() => setEditDetails(current)}
+                  >
+                    <SquarePen aria-hidden /> Edit Details
+                  </Button>
+                </div>
               </div>
-              <div style={{ padding: 20, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
-                <PermissionEditor
-                  roleName={current.name}
-                  perms={livePerms}
-                  isSystem={current.is_system}
-                  onChange={p => setPendingPerms(prev => ({ ...prev, [current.name]: p }))}
-                />
-              </div>
+              <PermissionEditor
+                roleName={current.name}
+                perms={livePerms}
+                isSystem={current.is_system}
+                onChange={p => setPendingPerms(prev => ({ ...prev, [current.name]: p }))}
+              />
             </>
           ) : (
-            <div style={{ padding: 40, textAlign: 'center', color: 'var(--fg-faint)', fontSize: 13 }}>
+            <div className="rounded-[10px] border border-ui-divider bg-ui-surface-elevated p-10 text-center text-[13px] text-ui-text-secondary">
               Select a role to view permissions
             </div>
           )}
@@ -425,21 +412,29 @@ function RoleItem({ role, isSelected, isDirty, onSelect, onDelete, deleting }: {
   onSelect: () => void; onDelete?: () => void; deleting?: boolean;
 }) {
   return (
-    <div onClick={onSelect} style={{
-      display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px',
-      cursor: 'pointer', borderLeft: `3px solid ${isSelected ? 'var(--brand-teal)' : 'transparent'}`,
-      background: isSelected ? 'var(--bg-sunken)' : 'transparent',
-    }}>
-      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, flexShrink: 0, background: role.color_bg, color: role.color_fg }}>
-        {role.label}
-      </span>
-      {isDirty && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />}
+    <div
+      className={`flex min-h-14 items-center border-b border-ui-divider pr-4 last:border-b-0 ${ROLE_SURFACE} ${isSelected ? 'shadow-[inset_4px_0_0_var(--role-strong)] dark:shadow-[inset_4px_0_0_var(--role-tint)]' : ''}`}
+      style={roleVars(role)}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={isSelected}
+        className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 self-stretch border-0 bg-transparent py-2 pl-4 pr-3 text-left text-[14px] font-semibold leading-4 outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ui-focus-ring ${ROLE_TEXT}`}
+      >
+        <span className="min-w-0">{role.label}</span>
+        {isDirty && <span className="size-1.5 shrink-0 rounded-full bg-warning-normal" aria-label="Unsaved changes" />}
+      </button>
       {onDelete && (
-        <button onClick={e => { e.stopPropagation(); onDelete(); }} disabled={deleting} title="Delete"
-          style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', padding: 3, borderRadius: 4, color: 'var(--fg-faint)', display: 'flex' }}
-          onMouseEnter={e => { e.currentTarget.style.color = '#dc2626'; }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--fg-faint)'; }}>
-          <Trash2 size={12} />
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={deleting}
+          title="Delete"
+          aria-label={`Delete role ${role.label}`}
+          className="flex shrink-0 cursor-pointer items-center justify-center rounded-[6px] border-0 bg-ui-surface-elevated p-1 text-[var(--status-t10-fg)] outline-none hover:bg-[var(--status-t10-bg)] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring disabled:opacity-60"
+        >
+          <Trash2 size={16} aria-hidden />
         </button>
       )}
     </div>
