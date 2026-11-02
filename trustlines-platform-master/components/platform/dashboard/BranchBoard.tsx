@@ -8,6 +8,7 @@ import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { BoardItemView } from './BoardItemView';
+import type { TrustItem } from '@/lib/trust/board';
 
 // Design: Figma "Tlines-Websites" → "Desktop - 17" (node 60:1139) — the 4-branch board that
 // replaces the old company-wide dashboard. Each column is one real T-Lines region
@@ -41,6 +42,10 @@ export interface BoardCardItem {
   statuses?: string[];
   /** "Assign to": the person for this card in the stage it's in (board_assignees, per stage). */
   assign?: { kind: string; stage: string; label: string; userId: string | null };
+  /** The project number ("490") — the popup gathers everything we hold for it. */
+  projectNo?: string | null;
+  /** The Trust System's types for that number (PO + PF, Production, Shipping tabs). */
+  trustItems?: TrustItem[] | null;
 }
 
 const assignKey = (item: BoardCardItem) => `${item.assign?.kind}:${item.id}:${item.assign?.stage}`;
@@ -285,7 +290,7 @@ function Column({ column, onOpen }: { column: BoardColumn; onOpen: OpenCard }) {
   );
 }
 
-export function BranchBoard({ columns, canCreateTask, top, trustError, users = [], canAssign = false }: {
+export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false }: {
   columns: BoardColumn[];
   /** Everyone who can be picked in a Trust card's "Assign to", and whether this viewer may. */
   users?: { id: string; full_name: string }[];
@@ -374,7 +379,7 @@ export function BranchBoard({ columns, canCreateTask, top, trustError, users = [
           ))}
         </div>
       )}
-      {open && <BoardItemView item={open.item} section={open.section} onClose={() => setOpen(null)} />}
+      {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} onClose={() => setOpen(null)} />}
     </AssignContext.Provider>
   );
 }
