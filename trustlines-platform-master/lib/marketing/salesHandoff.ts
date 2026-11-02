@@ -124,7 +124,7 @@ export async function returnOpportunity(admin: any, opportunityId: string, actor
   return data;
 }
 
-async function resolveOrCreateCustomerForProspect(
+export async function resolveOrCreateCustomerForProspect(
   admin: any, prospectId: string, actorId: string,
 ): Promise<{ customerId: string | null; displayName: string | null }> {
   const { data: prospect } = await admin.from('prospects')

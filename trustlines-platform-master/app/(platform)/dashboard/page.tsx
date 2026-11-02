@@ -154,7 +154,7 @@ export default async function DashboardPage() {
       note: e.note,
       statuses: typeStatuses(p),
     };
-    return { region: p.bucket, stage: e.stage, item };
+    return { region: p.bucket, stage: e.stage, item, createdAt: p.createdAt };
   });
   const trustItems = (region: string, stage: TrustStage) =>
     trustCards.filter(c => c.region === region && c.stage === stage).map(c => c.item);
@@ -317,15 +317,27 @@ export default async function DashboardPage() {
     const fresh = rows.filter(p => p.created_at >= weekAgo).length;
     return { key, label, value: rows.length, href: '/projects', badge: fresh > 0 ? `+${fresh} New` : undefined };
   };
+  // The board's project rows come from the Trust System, so the counts do too (same visible
+  // regions): Finalizing = Finalization, In Design = Technical / PO + PF, In Production = To
+  // Production + Production In Progress + Shipped. Falls back to our own projects without Trust.
+  const trustKpi = (key: KpiItem['key'], label: string, stages: TrustStage[]): KpiItem => {
+    const rows = trustCards.filter(c => stages.includes(c.stage));
+    const fresh = rows.filter(c => c.createdAt >= weekAgo).length;
+    return { key, label, value: rows.length, href: '/dashboard', badge: fresh > 0 ? `+${fresh} New` : undefined };
+  };
+  const useTrust = trustCards.length > 0;
+  const trustNew = trustCards.filter(c => c.createdAt >= weekAgo).length;
   const kpis: KpiItem[] = [
-    {
-      key: 'active', label: 'Active Projects', value: activeCount, href: '/projects',
-      // Overdue is the more urgent signal; fall back to "new this week" when nothing is late.
-      badge: overdueCount > 0 ? `${overdueCount} overdue` : newThisWeek > 0 ? `+${newThisWeek} New` : undefined,
-    },
-    stageKpi('design', 'In Design', ['client_approval']),
-    stageKpi('production', 'In Production', ['production']),
-    stageKpi('finalizing', 'Finalizing', ['closed_deal', 'finalization']),
+    useTrust
+      ? { key: 'active', label: 'Active Projects', value: trustCards.length, href: '/dashboard', badge: trustNew > 0 ? `+${trustNew} New` : undefined }
+      : {
+          key: 'active', label: 'Active Projects', value: activeCount, href: '/projects',
+          // Overdue is the more urgent signal; fall back to "new this week" when nothing is late.
+          badge: overdueCount > 0 ? `${overdueCount} overdue` : newThisWeek > 0 ? `+${newThisWeek} New` : undefined,
+        },
+    useTrust ? trustKpi('design', 'In Design', ['technical']) : stageKpi('design', 'In Design', ['client_approval']),
+    useTrust ? trustKpi('production', 'In Production', ['to_production', 'in_production', 'shipped']) : stageKpi('production', 'In Production', ['production']),
+    useTrust ? trustKpi('finalizing', 'Finalizing', ['finalization']) : stageKpi('finalizing', 'Finalizing', ['closed_deal', 'finalization']),
     { key: 'approvals', label: 'Approvals', value: approvals.length, href: '/approvals', badge: approvals.length > 0 ? 'Pending' : undefined },
   ];
 
