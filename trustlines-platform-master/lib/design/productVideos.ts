@@ -19,3 +19,25 @@ export const isVideoSlug = (s: string) => /^[a-z0-9]{6,32}$/.test(s);
 export function installPath(slug: string): string {
   return `/install/${slug}`;
 }
+
+export const IMAGE_ACCEPT = 'image/png,image/jpeg,.png,.jpg,.jpeg';
+export const PRODUCT_IMAGES_ROOT = `${PRODUCT_VIDEOS_ROOT}/Images`;
+
+/** The sticker's text fields from a request body → table columns (only the keys that were sent). */
+export function stickerFieldsFrom(body: Record<string, unknown>): Record<string, unknown> {
+  const text = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max) || null;
+  const out: Record<string, unknown> = {};
+  if ('title' in body) out.title = text(body.title, 200);
+  if ('category' in body) out.category = text(body.category, 200);
+  if ('collection' in body) out.collection = text(body.collection, 80);
+  if ('colorName' in body) out.color_name = text(body.colorName, 80);
+  if ('colorHex' in body) {
+    const m = String(body.colorHex ?? '').trim().match(/^#?([0-9a-f]{6})$/i);
+    out.color_hex = m ? `#${m[1].toLowerCase()}` : null;
+  }
+  if ('specs' in body) {
+    const raw = Array.isArray(body.specs) ? body.specs.map(String) : String(body.specs ?? '').split(/\n/);
+    out.specs = raw.map(s => s.replace(/^\s*[-•]\s*/, '').trim()).filter(Boolean).slice(0, 4).map(s => s.slice(0, 80));
+  }
+  return out;
+}
