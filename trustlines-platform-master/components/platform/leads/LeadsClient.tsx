@@ -505,7 +505,7 @@ export function LeadsClient({
               <ArrowDownUp aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-[1] size-3.5 -translate-y-1/2 text-[var(--color-secondary-700)] dark:text-ui-heading" />
               <Select
                 aria-label="Sort"
-                className={cn(FILTER_CLS, 'gap-2 pl-[34px]')}
+                className={cn(FILTER_CLS, 'gap-2 pl-[34px] dark:pl-[34px] dark:pr-2')}
                 value={sortBy}
                 onValueChange={v => setSortBy(v ?? 'created_desc')}
                 options={[
