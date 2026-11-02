@@ -45,7 +45,11 @@ export default async function InstallVideoPage({ params }: { params: Promise<{ s
           src={`/api/public/product-videos/${slug}`}
           controls
           playsInline
-          preload="metadata"
+          // Starts on its own when the QR is scanned. Browsers only autoplay muted video — the
+          // viewer turns the sound on from the controls.
+          autoPlay
+          muted
+          preload="auto"
           style={{ width: '100%', aspectRatio: '16 / 9', background: '#000', borderRadius: 12 }}
         >
           Your browser can’t play this video.

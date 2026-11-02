@@ -1,7 +1,7 @@
 // Product installation videos (migration 138): browser-safe constants + pure helpers.
 
 export const PRODUCT_VIDEOS_ROOT = '/Design/Product Videos';
-export const PRODUCT_VIDEOS_NOT_READY = 'Product videos are not set up yet — run migration 138_product_videos.sql.';
+export const PRODUCT_VIDEOS_NOT_READY = 'Product videos are not set up yet — run migrations 138_product_videos.sql and 139_product_video_stickers_and_upload_links.sql.';
 
 /** Video files the player can show (the browser plays mp4 / webm / mov). */
 export const VIDEO_ACCEPT = 'video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v';
@@ -41,3 +41,11 @@ export function stickerFieldsFrom(body: Record<string, unknown>): Record<string,
   }
   return out;
 }
+
+/** Long, unguessable token for a no-login upload link (/video-upload/<token>). */
+export function newUploadToken(): string {
+  const abc = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from(crypto.getRandomValues(new Uint8Array(24)), b => abc[b % abc.length]).join('');
+}
+export const isUploadToken = (s: string) => /^[A-Za-z0-9]{20,64}$/.test(s);
+export const uploadPagePath = (token: string) => `/video-upload/${token}`;

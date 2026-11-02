@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { Copy, Download, ExternalLink, FileText, Film, ImagePlus, Pencil, Plus, QrCode, Search, Trash2, Upload } from 'lucide-react';
+import { Copy, Download, ExternalLink, FileText, Film, ImagePlus, Link2, Pencil, Plus, QrCode, Search, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmModal, Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { formatDate } from '@/lib/formatDate';
 import { cn } from '@/lib/utils';
-import { IMAGE_ACCEPT, VIDEO_ACCEPT, installPath } from '@/lib/design/productVideos';
+import { IMAGE_ACCEPT, VIDEO_ACCEPT, installPath, uploadPagePath } from '@/lib/design/productVideos';
+import { downloadBlob, downloadQr, fileSafe } from '@/lib/client/qrDownload';
 import { uploadViaLink } from '@/lib/client/designUpload';
 import { stickerPdf } from '@/lib/client/stickerPdf';
 import { HEADING, formatBytes } from '../designShared';
@@ -24,24 +25,6 @@ interface Product {
   created_by: string | null; created_at: string; updated_at: string;
 }
 const API = '/api/design/videos';
-const fileSafe = (s: string) => s.replace(/[^\w.-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'product';
-
-function downloadBlob(name: string, blob: Blob) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-}
-
-/** QR as PNG (1024 px) or SVG (scales to any print size). */
-async function downloadQr(url: string, code: string, kind: 'png' | 'svg') {
-  const opts = { margin: 2, errorCorrectionLevel: 'M' as const };
-  if (kind === 'svg') {
-    downloadBlob(`QR-${fileSafe(code)}.svg`, new Blob([await QRCode.toString(url, { ...opts, type: 'svg' })], { type: 'image/svg+xml' }));
-  } else {
-    downloadBlob(`QR-${fileSafe(code)}.png`, await (await fetch(await QRCode.toDataURL(url, { ...opts, width: 1024 }))).blob());
-  }
-}
 
 /** The packaging sticker with the product's current details and QR code. */
 async function sticker(p: Product, link: string, mode: 'download' | 'preview') {
@@ -120,6 +103,7 @@ export function ProductVideosClient() {
         subtitle="Each product’s packaging sticker and its installation video. The sticker’s QR code opens a public page (no login) with the video. Files live in Dropbox under /Design/Product Videos."
         action={<Button onClick={() => setForm('new')} disabled={!!notReady}><Plus /> Add product</Button>} />
       {notReady && <NotReady message={notReady} />}
+      {!notReady && <UploadLinks baseUrl={baseUrl} canManage={isManager} />}
 
       <div className="relative w-[320px] max-w-full">
         <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" />
@@ -182,6 +166,59 @@ export function ProductVideosClient() {
         title={`Remove “${removing?.product_code}”?`} description="Its QR code will stop opening the video. The files stay in Dropbox." confirmLabel="Remove"
         onConfirm={async () => { if (removing) await remove(removing); setRemoving(null); }} />
     </div>
+  );
+}
+
+interface UploadLink { id: string; token: string; label: string | null; created_at: string }
+
+/** No-login links for the production floor: upload a video, get its QR code. */
+function UploadLinks({ baseUrl, canManage }: { baseUrl: string; canManage: boolean }) {
+  const [links, setLinks] = useState<UploadLink[] | null>(null);
+  const [notReady, setNotReady] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    void fetch(`${API}/links`).then(r => r.json()).then(b => { setLinks(b.links ?? []); setNotReady(b.notReady ?? null); }).catch(() => setLinks([]));
+  }, []);
+  const urlOf = (l: UploadLink) => `${baseUrl || window.location.origin}${uploadPagePath(l.token)}`;
+
+  async function create() {
+    setBusy(true);
+    try {
+      const res = await fetch(`${API}/links`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label: 'Production floor' }) });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(b.error ?? 'Could not create the link'); return; }
+      setLinks(l => [b.link, ...(l ?? [])]);
+      await navigator.clipboard.writeText(urlOf(b.link)).catch(() => {});
+      toast.success('Upload link created and copied');
+    } finally { setBusy(false); }
+  }
+  async function revoke(l: UploadLink) {
+    const res = await fetch(`${API}/links/${l.id}`, { method: 'DELETE' });
+    if (!res.ok) { toast.error('Could not revoke the link'); return; }
+    setLinks(x => (x ?? []).filter(y => y.id !== l.id)); toast.success('Link revoked — it no longer works');
+  }
+
+  if (notReady) return <NotReady message={notReady} />;
+  return (
+    <section className="flex flex-col gap-2.5 rounded-[8px] bg-ui-surface p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Link2 size={16} aria-hidden className="text-ui-text-secondary" />
+        <h2 className={cn('m-0 flex-1 text-[14px] font-semibold', HEADING)}>Upload link (no login)</h2>
+        {canManage && <Button size="sm" variant="outline" loading={busy} onClick={() => void create()}><Plus /> New link</Button>}
+      </div>
+      <p className="m-0 text-[12px] text-ui-body">Give this link to the production floor: they upload a product’s video and get its QR code — no account needed. Revoke it any time.</p>
+      {links === null ? null : links.length === 0
+        ? <p className="m-0 text-[12px] text-ui-text-secondary">{canManage ? 'No link yet — create one.' : 'No link yet — a manager can create one.'}</p>
+        : links.map(l => (
+          <div key={l.id} className="flex flex-wrap items-center gap-2 rounded-[6px] bg-ui-surface-elevated px-3 py-2">
+            <span className="text-[12px] font-semibold text-ui-heading">{l.label ?? 'Upload link'}</span>
+            <code className="min-w-0 flex-1 truncate text-[12px] text-ui-body">{urlOf(l)}</code>
+            <Button size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(urlOf(l)).then(() => toast.success('Link copied'))}><Copy /> Copy</Button>
+            <Button size="icon-sm" variant="ghost" aria-label="Open the upload page" render={<a href={urlOf(l)} target="_blank" rel="noreferrer" />}><ExternalLink /></Button>
+            {canManage && <Button size="icon-sm" variant="ghost" aria-label="Revoke this link" title="Revoke" onClick={() => void revoke(l)}><Trash2 /></Button>}
+          </div>
+        ))}
+    </section>
   );
 }
 
