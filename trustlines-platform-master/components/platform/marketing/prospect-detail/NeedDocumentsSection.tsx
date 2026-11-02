@@ -2,10 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { FileText, Image as ImageIcon, Link2, Video, Loader2 } from 'lucide-react';
+import { FileText, Image as ImageIcon, Link2, Plus, Video } from 'lucide-react';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { FORM_BOX, FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
+import { cn } from '@/lib/utils';
 import { Select } from '@/components/platform/shared/Select';
 import { REGIONS, SERVICE_LINES } from '@/lib/regions';
+import { CHIP, HEADING } from './shared';
 import { type Need } from './types';
+
+const FILE_BTN = 'h-auto min-h-10 cursor-pointer gap-2 rounded-[6px] font-medium';
 
 interface NeedDocument {
   id: string; category: 'layout' | 'photo' | 'matterport' | 'link';
@@ -108,25 +114,25 @@ export function NeedDocumentsSection({ need, canEdit, prospectId, onNeedChange, 
   if (!loaded) return null;
 
   return (
-    <div style={{ marginTop: 8, marginBottom: 8, padding: '8px 10px', border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--bg-subtle)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Evidence</div>
-        {projectCode && <span className="pill" style={{ fontSize: 9.5, background: 'var(--status-success-bg)', color: 'var(--status-success-fg)' }}>{projectCode}</span>}
+    <div className={cn(FORM_BOX, 'flex flex-col gap-2.5')}>
+      <div className="flex items-center gap-2">
+        <h3 className={cn('m-0 text-[13px] font-semibold', HEADING)}>Evidence</h3>
+        {projectCode && <span className={cn(CHIP, 'bg-[var(--status-t9-bg)] text-[var(--status-t9-fg)]')}>{projectCode}</span>}
       </div>
 
       {docs.length === 0 ? (
-        <div style={{ fontSize: 11.5, color: 'var(--fg-faint)', marginBottom: 6 }}>
+        <p className="m-0 text-[12px] text-ui-text-secondary">
           No layout, photo, or reference link yet — stays a Potential until one is added.
-        </div>
+        </p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 6 }}>
+        <div className="flex flex-col gap-1">
           {docs.map(d => {
             const Icon = DOC_ICON[d.category];
             return (
-              <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+              <div key={d.id} className="flex items-center gap-1.5 text-[12px] text-ui-body">
                 <Icon size={13} />
                 {d.url ? (
-                  <a href={d.url} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-navy)' }}>{d.url}</a>
+                  <a href={d.url} target="_blank" rel="noreferrer" className="break-all text-ui-link">{d.url}</a>
                 ) : (
                   <span>{d.file_name}</span>
                 )}
@@ -137,57 +143,54 @@ export function NeedDocumentsSection({ need, canEdit, prospectId, onNeedChange, 
       )}
 
       {canEdit && !setupReady && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 6, alignItems: 'end' }}>
+        <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto]">
           <div>
-            <div style={{ fontSize: 10.5, color: 'var(--fg-subtle)', marginBottom: 2 }}>Region</div>
-            <Select className="form-input" style={{ fontSize: 12, padding: '4px 6px' }} value={region} onChange={e => setRegion(e.target.value)}>
+            <label className="form-label" style={{ fontSize: 11 }}>Region</label>
+            <Select className="form-input" style={{ fontSize: 13 }} value={region} onChange={e => setRegion(e.target.value)}>
               <option value="">—</option>
               {REGIONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
             </Select>
           </div>
           <div>
-            <div style={{ fontSize: 10.5, color: 'var(--fg-subtle)', marginBottom: 2 }}>Service line</div>
-            <Select className="form-input" style={{ fontSize: 12, padding: '4px 6px' }} value={serviceLine} onChange={e => setServiceLine(e.target.value)}>
+            <label className="form-label" style={{ fontSize: 11 }}>Service line</label>
+            <Select className="form-input" style={{ fontSize: 13 }} value={serviceLine} onChange={e => setServiceLine(e.target.value)}>
               <option value="">—</option>
               {SERVICE_LINES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </Select>
           </div>
           <div>
-            <div style={{ fontSize: 10.5, color: 'var(--fg-subtle)', marginBottom: 2 }}>State</div>
-            <input className="form-input" style={{ fontSize: 12, padding: '4px 6px' }} value={state} onChange={e => setState(e.target.value)} placeholder="e.g. NY" />
+            <label className="form-label" style={{ fontSize: 11 }}>State</label>
+            <input className="form-input" style={{ fontSize: 13 }} value={state} onChange={e => setState(e.target.value)} placeholder="e.g. NY" />
           </div>
-          <button className="btn btn-secondary btn-sm" disabled={savingSetup || !draftReady} onClick={saveSetup}>
-            {savingSetup ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : 'Save'}
-          </button>
-          <div style={{ gridColumn: '1 / -1', fontSize: 10.5, color: 'var(--fg-faint)' }}>
+          <Button className={cn(FORM_SUBMIT, 'px-6')} loading={savingSetup} disabled={savingSetup || !draftReady} onClick={saveSetup}>Save</Button>
+          <p className="col-span-full m-0 text-[11px] text-ui-text-secondary">
             Set these once so a project folder can be created the moment a document/link is attached.
-          </div>
+          </p>
         </div>
       )}
 
       {canEdit && setupReady && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-          <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer' }}>
-            <FileText size={12} /> Layout
+        <div className="flex flex-wrap gap-2">
+          <label className={buttonVariants({ variant: 'outline', className: FILE_BTN })}>
+            <FileText aria-hidden /> Layout
             <input type="file" hidden disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile('layout', f); e.target.value = ''; }} />
           </label>
-          <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer' }}>
-            <ImageIcon size={12} /> Photo
+          <label className={buttonVariants({ variant: 'outline', className: FILE_BTN })}>
+            <ImageIcon aria-hidden /> Photo
             <input type="file" hidden disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile('photo', f); e.target.value = ''; }} />
           </label>
-          <Select className="form-input" style={{ fontSize: 12, padding: '3px 6px', width: 110 }} value={linkCategory} onChange={e => setLinkCategory(e.target.value as 'matterport' | 'link')}>
+          <Select className="form-input" style={{ fontSize: 13, width: 130 }} value={linkCategory} onChange={e => setLinkCategory(e.target.value as 'matterport' | 'link')}>
             <option value="matterport">Matterport</option>
             <option value="link">Link</option>
           </Select>
-          <input className="form-input" style={{ fontSize: 12, padding: '3px 6px', flex: 1, minWidth: 160 }}
+          <input className="form-input" style={{ fontSize: 13, flex: 1, minWidth: 160, width: 'auto' }}
             placeholder="https://…" value={linkUrl} onChange={e => setLinkUrl(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') addLink(); }} />
-          <button className="btn btn-secondary btn-sm" disabled={uploading || !linkUrl.trim()} onClick={addLink}>
-            {uploading ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : '+ Add'}
-          </button>
+          <Button className={cn(FORM_SUBMIT, 'h-auto px-4')} loading={uploading} disabled={uploading || !linkUrl.trim()} onClick={addLink}>
+            <Plus aria-hidden /> Add
+          </Button>
         </div>
       )}
     </div>
   );
 }
-

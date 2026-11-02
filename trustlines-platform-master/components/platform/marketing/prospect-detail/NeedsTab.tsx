@@ -1,9 +1,12 @@
 'use client';
 
 import type { Dispatch, SetStateAction } from 'react';
-import { Pencil, Trash2, ClipboardList } from 'lucide-react';
+import { Pencil, ClipboardList } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { IconAction } from '@/components/platform/customers/customer-detail/ui';
+import { cn } from '@/lib/utils';
 import { PROJECT_TYPE_LABEL, SCOPE_TYPE_LABEL, OPPORTUNITY_STAGE_LABEL } from '@/lib/marketing/classification';
-import { NeedClassificationPill } from './shared';
+import { CHIP, HEADING, NeedClassificationPill } from './shared';
 import { NeedForm } from './NeedForm';
 import { NeedDocumentsSection } from './NeedDocumentsSection';
 import {
@@ -11,6 +14,9 @@ import {
   type Need, type OpportunityRow, type Potential, type Prospect, type ProspectLocation, type Tab,
 } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
+
+const TAG = 'bg-[var(--status-t0-bg)] text-[var(--status-t0-fg)]';
+const LINK_CHIP = 'cursor-pointer border-0 hover:opacity-90';
 
 export function NeedsTab({
   prospect, needs, opportunities, potentials, locations, canEdit,
@@ -62,28 +68,24 @@ export function NeedsTab({
               );
             }
             return (
-              <div key={n.id} id={`need-${n.id}`} className="card"><div className="card-body">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{n.title}</div>
+              <div key={n.id} id={`need-${n.id}`} className="flex flex-col gap-3 rounded-[8px] border border-ui-divider bg-ui-page-bg p-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className={cn('m-0 text-[20px] font-semibold leading-[1.35]', HEADING)}>{n.title}</h3>
                   <NeedClassificationPill c={n.classification} />
                   {canEdit && (
-                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setEditingNeedId(n.id)}>
-                        <Pencil size={12} /> Edit
-                      </button>
-                      <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }} onClick={() => onTrash(n.id, n.title)}>
-                        <Trash2 size={12} />
-                      </button>
+                    <div className="ml-auto flex items-center gap-1">
+                      <Button variant="ghost" onClick={() => setEditingNeedId(n.id)}><Pencil aria-hidden /> Edit</Button>
+                      <IconAction kind="delete" label={`Move ${n.title} to trash`} onClick={() => onTrash(n.id, n.title)} />
                     </div>
                   )}
                 </div>
-                {n.description && <div style={{ fontSize: 12.5, color: 'var(--fg-subtle)', marginBottom: 6, whiteSpace: 'pre-wrap' }}>{n.description}</div>}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
-                  {n.project_types.map(t => <span key={t} className="pill" style={{ background: 'var(--bg-subtle)', fontSize: 10.5 }}>{PROJECT_TYPE_LABEL[t]}</span>)}
-                  {n.scope_types.map(t => <span key={t} className="pill" style={{ background: 'var(--bg-subtle)', fontSize: 10.5 }}>{SCOPE_TYPE_LABEL[t]}</span>)}
+                {n.description && <p className="m-0 whitespace-pre-wrap text-[13px] text-ui-body">{n.description}</p>}
+                <div className="flex flex-wrap gap-1.5">
+                  {n.project_types.map(t => <span key={t} className={cn(CHIP, TAG)}>{PROJECT_TYPE_LABEL[t]}</span>)}
+                  {n.scope_types.map(t => <span key={t} className={cn(CHIP, TAG)}>{SCOPE_TYPE_LABEL[t]}</span>)}
                 </div>
                 {n.classification_reasons.length > 0 && (
-                  <ul style={{ margin: '4px 0 8px', paddingLeft: 18, fontSize: 12 }}>
+                  <ul className="m-0 list-disc pl-[18px] text-[12px] text-ui-body">
                     {n.classification_reasons.map(r => <li key={r}>{r}</li>)}
                   </ul>
                 )}
@@ -101,20 +103,20 @@ export function NeedsTab({
                   }}
                 />
                 {(linkedOpportunity || linkedPotential) && (
-                  <div style={{ fontSize: 11.5, color: 'var(--fg-subtle)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {linkedOpportunity && (
-                      <button className="pill" style={{ border: 'none', cursor: 'pointer', background: 'var(--status-info-bg)', color: 'var(--status-info)' }} onClick={() => setTab('opportunities')}>
+                      <button type="button" className={cn(CHIP, LINK_CHIP, 'bg-[var(--status-t2-bg)] text-[var(--status-t2-fg)]')} onClick={() => setTab('opportunities')}>
                         → Opportunity: {OPPORTUNITY_STAGE_LABEL[linkedOpportunity.stage]}
                       </button>
                     )}
                     {linkedPotential && (
-                      <button className="pill" style={{ border: 'none', cursor: 'pointer', background: 'var(--status-warning-bg, #fef3c7)', color: 'var(--status-warning-fg, #92400e)' }} onClick={() => setTab('potentials')}>
+                      <button type="button" className={cn(CHIP, LINK_CHIP, 'bg-[var(--status-t7-bg)] text-[var(--status-t7-fg)]')} onClick={() => setTab('potentials')}>
                         → Potential: {linkedPotential.status}
                       </button>
                     )}
                   </div>
                 )}
-              </div></div>
+              </div>
             );
           })}
         </div>
