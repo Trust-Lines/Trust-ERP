@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Plus, Trash2 } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, MapPin, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { TimePicker } from '@/components/ui/time-picker';
 import { Select } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/feedback-states';
@@ -15,6 +16,7 @@ import { ConfirmModal, Modal, ModalClose, ModalContent, modalSecondaryButtonClas
 import { CALENDAR_KINDS, calendarKindLabel, daysBetween, monthGridRange } from '@/lib/marketing/prWorkspace';
 import type { CalendarEntryRow, CampaignOption, SocialPostRow } from '@/lib/marketing/prWorkspaceServer';
 import type { StatusTone } from '@/lib/status/tags';
+import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { Field, PANEL, PageHeading, fmtDay, localToday, sendJson } from './shared';
 
 type CalendarPost = Pick<SocialPostRow, 'id' | 'title' | 'status' | 'planned_on' | 'published_on' | 'account_id'>;
@@ -278,7 +280,7 @@ export function MarketingCalendarClient({ initialMonth, initial, campaigns, canE
         {entryEdit && (
           <ModalContent
             size="lg"
-            title={entryEdit.id ? 'Edit entry' : 'New calendar entry'}
+            title={<span className={ENTRY_HEADING}>{entryEdit.id ? 'Edit entry' : 'New calendar entry'}</span>}
             footer={canEdit && (
               <>
                 {entryEdit.id && canDeleteEntry(entryEdit.createdBy) && (
@@ -287,8 +289,8 @@ export function MarketingCalendarClient({ initialMonth, initial, campaigns, canE
                     <Trash2 /> Delete
                   </Button>
                 )}
-                <ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Cancel</ModalClose>
-                <Button onClick={saveEntry}>{entryEdit.id ? 'Save entry' : 'Add entry'}</Button>
+                <ModalClose render={<Button variant="secondary" className={cn(modalSecondaryButtonClass, 'h-10 rounded-[6px] font-medium')} />}>Cancel</ModalClose>
+                <Button className={FORM_SUBMIT} onClick={saveEntry}>{entryEdit.id ? 'Save entry' : 'Add entry'}</Button>
               </>
             )}
           >
@@ -308,6 +310,13 @@ export function MarketingCalendarClient({ initialMonth, initial, campaigns, canE
     </div>
   );
 }
+
+// Same field, heading and action look as the Customer and Contact forms.
+const ENTRY_HEADING = 'text-[var(--color-secondary-700)] dark:text-[var(--color-secondary-50)]';
+const ENTRY_TEXTAREA = 'rounded-[6px] border-[var(--ui-input-border)] bg-ui-input-bg text-[13px] text-ui-body dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg';
+const ENTRY_FIELD = `h-10 ${ENTRY_TEXTAREA}`;
+// dark:pl keeps room for the icon: fieldBase's dark:px-3 otherwise wins and the text sits on it.
+const ICON_PAD = 'pl-8 dark:pl-8';
 
 function ItemChip({ item, onOpen, large = false }: { item: DayItem; onOpen: (item: DayItem) => void; large?: boolean }) {
   const cls = cn(
@@ -332,39 +341,36 @@ function EntryFields({ form, disabled, campaignOptions, onChange }: {
   return (
     <fieldset disabled={disabled} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0">
       <Field label="Title" htmlFor="cal-title">
-        <Input id="cal-title" placeholder="e.g. NACS Show 2026" value={form.title} onChange={e => onChange({ title: e.target.value })} />
+        <Input id="cal-title" className={ENTRY_FIELD} placeholder="e.g. NACS Show 2026" value={form.title} onChange={e => onChange({ title: e.target.value })} />
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Type">
-          <Select aria-label="Type" value={form.kind} options={CALENDAR_KINDS.map(k => ({ value: k.value, label: k.label }))} onValueChange={v => onChange({ kind: v ?? 'other' })} disabled={disabled} />
+          <Select aria-label="Type" className={ENTRY_FIELD} value={form.kind} options={CALENDAR_KINDS.map(k => ({ value: k.value, label: k.label }))} onValueChange={v => onChange({ kind: v ?? 'other' })} disabled={disabled} />
         </Field>
         <Field label="Campaign">
-          <Select aria-label="Campaign" value={form.campaign_id} options={campaignOptions} onValueChange={v => onChange({ campaign_id: v ?? '' })} disabled={disabled} />
+          <Select aria-label="Campaign" className={ENTRY_FIELD} value={form.campaign_id} options={campaignOptions} onValueChange={v => onChange({ campaign_id: v ?? '' })} disabled={disabled} />
         </Field>
         <Field label="Start date" htmlFor="cal-start">
-          <Input id="cal-start" type="date" value={form.starts_on} onChange={e => onChange({ starts_on: e.target.value })} />
+          <Input id="cal-start" className={ENTRY_FIELD} type="date" value={form.starts_on} onChange={e => onChange({ starts_on: e.target.value })} />
         </Field>
         <Field label="End date" htmlFor="cal-end" hint="Only for entries that run over several days.">
-          <Input id="cal-end" type="date" min={form.starts_on || undefined} value={form.ends_on} onChange={e => onChange({ ends_on: e.target.value })} />
+          <Input id="cal-end" className={ENTRY_FIELD} type="date" min={form.starts_on || undefined} value={form.ends_on} onChange={e => onChange({ ends_on: e.target.value })} />
         </Field>
-        <Field label="Start time" htmlFor="cal-st" hint="Leave empty for an all-day entry.">
-          <div className="relative">
-            <Clock size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-ui-text-secondary" aria-hidden />
-            <Input id="cal-st" type="time" className="pl-7" value={form.start_time} onChange={e => onChange({ start_time: e.target.value })} />
-          </div>
+        <Field label="Start time" hint="Leave empty for an all-day entry.">
+          <TimePicker aria-label="Start time" className={ENTRY_FIELD} value={form.start_time} disabled={disabled} onValueChange={v => onChange({ start_time: v })} />
         </Field>
-        <Field label="End time" htmlFor="cal-et">
-          <Input id="cal-et" type="time" value={form.end_time} onChange={e => onChange({ end_time: e.target.value })} />
+        <Field label="End time">
+          <TimePicker aria-label="End time" className={ENTRY_FIELD} value={form.end_time} disabled={disabled} onValueChange={v => onChange({ end_time: v })} />
         </Field>
       </div>
       <Field label="Location" htmlFor="cal-loc">
         <div className="relative">
           <MapPin size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-ui-text-secondary" aria-hidden />
-          <Input id="cal-loc" className="pl-7" placeholder="e.g. Las Vegas Convention Center, booth 1234" value={form.location} onChange={e => onChange({ location: e.target.value })} />
+          <Input id="cal-loc" className={cn(ENTRY_FIELD, ICON_PAD)} placeholder="e.g. Las Vegas Convention Center, booth 1234" value={form.location} onChange={e => onChange({ location: e.target.value })} />
         </div>
       </Field>
       <Field label="Notes" htmlFor="cal-notes">
-        <Textarea id="cal-notes" rows={4} placeholder="Agenda, who attends, what to bring…" value={form.notes} onChange={e => onChange({ notes: e.target.value })} />
+        <Textarea id="cal-notes" className={ENTRY_TEXTAREA} rows={4} placeholder="Agenda, who attends, what to bring…" value={form.notes} onChange={e => onChange({ notes: e.target.value })} />
       </Field>
     </fieldset>
   );
