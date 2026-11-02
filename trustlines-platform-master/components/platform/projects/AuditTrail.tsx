@@ -5,6 +5,7 @@ import { Fragment, useState } from 'react';
 import type { AuditRow } from './ProjectDetailClient';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
+import { PersonFace } from '@/components/ui/avatar-directory';
 
 interface Props {
   events: AuditRow[];
@@ -83,7 +84,7 @@ export function AuditTrail({ events, userRole, className }: Props) {
                 {i > 0 && <div aria-hidden className="h-px bg-ui-divider" />}
                 <div className="flex items-center gap-2.5">
                   <span className="flex size-[39px] shrink-0 items-center justify-center rounded-[6px] bg-ui-selected-bg text-[12px] leading-[1.4] text-ui-body">
-                    {initialsOf(actor)}
+                    <PersonFace name={actor} fallback={initialsOf(actor)} />
                   </span>
                   <div className={cn('min-w-0 flex-1 leading-[normal]', HEADING)}>
                     <p className="m-0 truncate text-[14px] font-semibold tracking-[-0.308px]">{actor}</p>

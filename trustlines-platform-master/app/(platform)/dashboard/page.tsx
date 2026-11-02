@@ -7,6 +7,10 @@ import { regionLogoByCode } from '@/lib/regionLogo';
 import { getAssignedRegions, regionAllows } from '@/lib/access/regionScope';
 import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { SALES_HANDOFF_ROLES, SALES_INTAKE_ROLES } from '@/lib/sales/roles';
+import { loadClientOpportunities, type ClientOpportunityRow } from '@/lib/keyClients/server';
+import { quickViewLink } from '@/lib/marketing/quickViewLink';
+import { KEY_CLIENT_ADMIN_ROLES } from '@/lib/keyClients/roles';
+import { classifyTrustProject, loadTrustProjects, typeLabel, typeStatuses, type TrustStage } from '@/lib/trust/board';
 import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem } from '@/components/platform/dashboard/BranchBoard';
 import { TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
 
@@ -104,42 +108,72 @@ export default async function DashboardPage() {
     .eq('is_draft', false);
   if (userRole === 'tlines_pm') projectQuery = projectQuery.eq('tlines_pm_id', user.id);
 
-  const [{ data: projectRows }, { data: opportunityRows }] = regionCodes.length === 0
-    ? [{ data: [] }, { data: [] }]
-    : await Promise.all([
-        projectQuery,
-        admin.from('opportunities')
-          .select('id, title, stage, region, external_created_at, created_at, external_project_code, prospect_id, project_types, sales_owner_id, marketing_owner_id')
-          .in('region', regionCodes)
-          .is('deleted_at', null)
-          .not('stage', 'in', '(closed_won,closed_lost)'),
-      ]);
+  // "Clients Opportunity" is not every deal: only the open Opportunities/Potentials of our key
+  // clients (key_clients, migration 134 — lib/keyClients/server.ts). Trust follows those before
+  // they're signed; everything else waits until it's a project.
+  const loadClientOpps = async (): Promise<ClientOpportunityRow[]> => {
+    try {
+      const r = await loadClientOpportunities(admin);
+      // Only deals with a project number, like the PROJECTS PROGRESS sheet — a numberless
+      // Potential is too early for the board.
+      return Object.values(r.regions).flat().filter(o => !!o.region && regionCodes.includes(o.region) && !!o.projectNo);
+    } catch (e) {
+      console.error('[dashboard] client opportunities unavailable (migration 134?):', e instanceof Error ? e.message : e);
+      return [];
+    }
+  };
+  // Finalization → Shipped come from the Trust System, by project number (lib/trust/board.ts).
+  const [{ data: projectRows }, opportunities, trust] = regionCodes.length === 0
+    ? [{ data: [] }, [] as ClientOpportunityRow[], { projects: [], error: null }]
+    : await Promise.all([projectQuery, loadClientOpps(), loadTrustProjects()]);
+  const trustProjects = trust.projects;
+  // "Assign to" on every card, one person per card per stage (board_assignees, migration 137) —
+  // empty until it's applied. Keyed "kind:id:stage".
+  const boardIds = [...trustProjects.map(p => p.id), ...opportunities.map(o => o.id)];
+  const [assignRows, { data: allUsers }] = await Promise.all([
+    fetchInChunks(boardIds, chunk => admin.from('board_assignees').select('item_kind, item_id, stage, user_id').in('item_id', chunk))
+      .catch(() => []),   // table not there yet (migration 137)
+    admin.from('profiles').select('id, full_name').eq('is_active', true).not('full_name', 'is', null).order('full_name', { ascending: true }),
+  ]) as [{ item_kind: string; item_id: string; stage: string; user_id: string }[], { data: { id: string; full_name: string }[] | null }];
+  const assigneeOf = new Map(assignRows.map(a => [`${a.item_kind}:${a.item_id}:${a.stage}`, a.user_id]));
+  const assignFor = (kind: string, id: string, stage: string, label: string) =>
+    ({ kind, stage, label, userId: assigneeOf.get(`${kind}:${id}:${stage}`) ?? null });
+  const trustToday = new Date().toISOString().slice(0, 10);
+  const trustCards = trustProjects.filter(p => regionCodes.includes(p.bucket)).map(p => {
+    const e = classifyTrustProject(p, trustToday);
+    const item: BoardCardItem = {
+      id: p.id, kind: 'trust',
+      badgeTop: `#${p.projectNo}`, badgeBottom: '',
+      title: p.name,
+      subtitle: p.address,
+      category: (p.types ?? []).map(typeLabel).filter(Boolean).join(', ') || null,
+      pmName: null, pmLabel: '',
+      assign: assignFor('trust', p.id, e.stage, `#${p.projectNo}`),
+      onHold: e.onHold,
+      dateISO: e.dateISO,
+      dateLabel: fmtDate(e.dateISO),
+      href: '',
+      note: e.note,
+      statuses: typeStatuses(p),
+    };
+    return { region: p.bucket, stage: e.stage, item, createdAt: p.createdAt };
+  });
+  const trustItems = (region: string, stage: TrustStage) =>
+    trustCards.filter(c => c.region === region && c.stage === stage).map(c => c.item);
 
   type ProjectRow = {
     id: string; code: string; name: string; current_stage: string; region: string | null;
     site_location: string | null; est_delivery_date: string | null; closed_deal_date: string | null;
     created_at: string; categories: string[] | null; tlines_pm_id: string | null;
   };
-  type OpportunityRow = {
-    id: string; title: string; stage: string; region: string | null;
-    // external_created_at = the real ClickUp "date created" (when it became an opportunity
-    // there — lib/clickup/importOpportunitiesMapping.ts). Set on every imported row, unlike
-    // expected_close_date which is often left blank — use it as the card's date, falling back
-    // to our own created_at only for opportunities that were never imported from ClickUp.
-    external_created_at: string | null; created_at: string;
-    external_project_code: string | null;
-    prospect_id: string; project_types: string[] | null;
-    sales_owner_id: string | null; marketing_owner_id: string | null;
-  };
 
   const projects = (projectRows ?? []) as ProjectRow[];
-  const opportunities = (opportunityRows ?? []) as OpportunityRow[];
 
   const pmIds = [...new Set([
     ...projects.map(p => p.tlines_pm_id),
-    ...opportunities.map(o => o.sales_owner_id ?? o.marketing_owner_id),
+    ...opportunities.map(o => o.ownerId),
   ].filter(Boolean))] as string[];
-  const prospectIds = [...new Set(opportunities.map(o => o.prospect_id))];
+  const prospectIds = [...new Set(opportunities.map(o => o.prospectId))];
   const [pmRows, locationRows, holdRows] = await Promise.all([
     fetchInChunks(pmIds, chunk => admin.from('profiles').select('id, full_name').in('id', chunk)),
     fetchInChunks(prospectIds, chunk => admin.from('prospect_locations').select('prospect_id, city, state').in('prospect_id', chunk).order('created_at', { ascending: true })),
@@ -161,24 +195,29 @@ export default async function DashboardPage() {
 
   const columns: BoardColumn[] = visibleRegions.map(r => {
     const regionProjects = projects.filter(p => p.region === r.code);
-    const regionOpportunities = opportunities.filter(o => o.region === r.code);
+    // Like the PROJECTS PROGRESS sheet: grouped by client (A–Z), newest first within a client.
+    const regionOpportunities = opportunities.filter(o => o.region === r.code)
+      .sort((a, b) => a.client.localeCompare(b.client) || b.createdAt.localeCompare(a.createdAt));
 
     const opportunityItems: BoardCardItem[] = regionOpportunities.map(o => {
-      const [top, bottom] = opportunityBadge(o.external_project_code);
-      const becameOpportunityDate = (o.external_created_at ?? o.created_at).slice(0, 10);
-      const ownerId = o.sales_owner_id ?? o.marketing_owner_id;
+      // Badge = the sheet's project number ("#507"); deals without one keep their code / "OP".
+      const [top, bottom] = o.projectNo ? [`#${o.projectNo}`, ''] : opportunityBadge(o.projectCode);
+      // ClickUp's "date created" when imported (when it became an opportunity there), else ours.
+      const becameOpportunityDate = o.createdAt.slice(0, 10);
       return {
         id: o.id, kind: 'opportunity',
         badgeTop: top, badgeBottom: bottom,
-        title: o.title,
-        subtitle: prospectPlace.get(o.prospect_id) ?? null,
-        category: categoryLabel(o.project_types),
-        pmName: ownerId ? pmNames.get(ownerId) ?? null : null,
-        pmLabel: o.sales_owner_id ? 'Sales Owner' : 'Marketing Owner',
+        title: o.client,
+        subtitle: o.site || (prospectPlace.get(o.prospectId) ?? null),
+        category: categoryLabel(o.projectTypes.length ? o.projectTypes : o.projectTypeRaw ? [o.projectTypeRaw] : null),
+        pmName: o.ownerId ? pmNames.get(o.ownerId) ?? null : null,
+        pmLabel: o.ownerIsSales ? 'Sales Owner' : 'Marketing Owner',
+        assign: assignFor(o.kind, o.id, 'opportunity', o.projectNo ? `#${o.projectNo}` : o.site),
         onHold: o.stage === 'on_hold',
         dateISO: becameOpportunityDate,
         dateLabel: fmtDate(becameOpportunityDate),
-        href: '/marketing/opportunities',
+        href: quickViewLink(o.kind, o.id),
+        statuses: o.stageLabel ? [o.stageLabel] : [],
       };
     });
 
@@ -199,9 +238,6 @@ export default async function DashboardPage() {
       };
     };
 
-    const finalizationItems = regionProjects.filter(p => p.current_stage === 'closed_deal' || p.current_stage === 'finalization').map(toCardItem);
-    const technicalItems    = regionProjects.filter(p => p.current_stage === 'client_approval').map(toCardItem);
-    const inProductionItems = regionProjects.filter(p => p.current_stage === 'production').map(toCardItem);
     const readyItems        = regionProjects.filter(p => p.current_stage === 'delivered').map(toCardItem);
 
     // Newest date first within each section, undated cards pushed to the end (never dropped).
@@ -209,12 +245,12 @@ export default async function DashboardPage() {
       a.dateISO && b.dateISO ? b.dateISO.localeCompare(a.dateISO) : a.dateISO ? -1 : b.dateISO ? 1 : 0;
 
     const itemsByKey: Record<string, BoardCardItem[]> = {
-      opportunity:   [...opportunityItems].sort(byDate),
-      finalization:  [...finalizationItems].sort(byDate),
-      technical:     [...technicalItems].sort(byDate),
-      to_production: [],
-      in_production: [...inProductionItems].sort(byDate),
-      shipped:       [],
+      opportunity:   opportunityItems,                     // already in client order
+      finalization:  trustItems(r.code, 'finalization').sort(byDate),
+      technical:     trustItems(r.code, 'technical').sort(byDate),
+      to_production: trustItems(r.code, 'to_production').sort(byDate),
+      in_production: trustItems(r.code, 'in_production').sort(byDate),
+      shipped:       trustItems(r.code, 'shipped').sort(byDate),
       ready:         [...readyItems].sort(byDate),
     };
 
@@ -283,15 +319,27 @@ export default async function DashboardPage() {
     const fresh = rows.filter(p => p.created_at >= weekAgo).length;
     return { key, label, value: rows.length, href: '/projects', badge: fresh > 0 ? `+${fresh} New` : undefined };
   };
+  // The board's project rows come from the Trust System, so the counts do too (same visible
+  // regions): Finalizing = Finalization, In Design = Technical / PO + PF, In Production = To
+  // Production + Production In Progress + Shipped. Falls back to our own projects without Trust.
+  const trustKpi = (key: KpiItem['key'], label: string, stages: TrustStage[]): KpiItem => {
+    const rows = trustCards.filter(c => stages.includes(c.stage));
+    const fresh = rows.filter(c => c.createdAt >= weekAgo).length;
+    return { key, label, value: rows.length, href: '/dashboard', badge: fresh > 0 ? `+${fresh} New` : undefined };
+  };
+  const useTrust = trustCards.length > 0;
+  const trustNew = trustCards.filter(c => c.createdAt >= weekAgo).length;
   const kpis: KpiItem[] = [
-    {
-      key: 'active', label: 'Active Projects', value: activeCount, href: '/projects',
-      // Overdue is the more urgent signal; fall back to "new this week" when nothing is late.
-      badge: overdueCount > 0 ? `${overdueCount} overdue` : newThisWeek > 0 ? `+${newThisWeek} New` : undefined,
-    },
-    stageKpi('design', 'In Design', ['client_approval']),
-    stageKpi('production', 'In Production', ['production']),
-    stageKpi('finalizing', 'Finalizing', ['closed_deal', 'finalization']),
+    useTrust
+      ? { key: 'active', label: 'Active Projects', value: trustCards.length, href: '/dashboard', badge: trustNew > 0 ? `+${trustNew} New` : undefined }
+      : {
+          key: 'active', label: 'Active Projects', value: activeCount, href: '/projects',
+          // Overdue is the more urgent signal; fall back to "new this week" when nothing is late.
+          badge: overdueCount > 0 ? `${overdueCount} overdue` : newThisWeek > 0 ? `+${newThisWeek} New` : undefined,
+        },
+    useTrust ? trustKpi('design', 'In Design', ['technical']) : stageKpi('design', 'In Design', ['client_approval']),
+    useTrust ? trustKpi('production', 'In Production', ['to_production', 'in_production', 'shipped']) : stageKpi('production', 'In Production', ['production']),
+    useTrust ? trustKpi('finalizing', 'Finalizing', ['finalization']) : stageKpi('finalizing', 'Finalizing', ['closed_deal', 'finalization']),
     { key: 'approvals', label: 'Approvals', value: approvals.length, href: '/approvals', badge: approvals.length > 0 ? 'Pending' : undefined },
   ];
 
@@ -301,8 +349,10 @@ export default async function DashboardPage() {
       assignees={marketingAssignees ?? []}
       canEdit={canEditOpportunities}
       canCreateTask={SALES_INTAKE_ROLES.includes(userRole)}
-      // key: this element reaches the client inside BranchBoard's static children; without it dev React warns.
-      top={<TopSummaryRow key="top" fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} />}
+      trustError={trust.error}
+      users={allUsers ?? []}
+      canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
+      top={<TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} />}
     />
   );
 }

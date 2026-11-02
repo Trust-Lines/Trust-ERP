@@ -20,7 +20,12 @@ export async function uploadViaLink(apiUrl: string, file: File, extra: Record<st
       if (!path) throw new Error(`Could not upload ${file.name}`);
       return path;
     } catch (e) {
-      if (contentType.startsWith('text/plain')) throw e;
+      // The file may be in Dropbox even so (e.g. its reply was lost, then the retry hit the used
+      // link). When the API told us where it lands, hand that back — its save step checks it.
+      if (contentType.startsWith('text/plain')) {
+        if (typeof b.path === 'string') return b.path;
+        throw e;
+      }
     }
   }
   throw new Error(`Could not upload ${file.name}`);

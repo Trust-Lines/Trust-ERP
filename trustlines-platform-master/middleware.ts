@@ -31,8 +31,13 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  const publicPaths = ['/login', '/tlines-login', '/trustlines-login', '/auth/callback', '/auth/set-password', '/auth/forgot-password', '/api/auth/forgot-password', '/review', '/survey', '/unsubscribe', '/quote', '/contract', '/api/public', '/api/cron'];
+  const publicPaths = ['/login', '/tlines-login', '/trustlines-login', '/auth/callback', '/auth/set-password', '/auth/forgot-password', '/api/auth/forgot-password', '/review', '/survey', '/unsubscribe', '/quote', '/contract', '/install/', '/video-upload/', '/api/public', '/api/cron'];
   const isPublic = publicPaths.some(p => pathname.startsWith(p));
+
+  // The Trust System proxy answers like an API (401), not with a login page redirect.
+  if (!user && pathname.startsWith('/api/trust/')) {
+    return NextResponse.json({ statusCode: 401, message: 'Sign in to T-ERP' }, { status: 401 });
+  }
 
   if (!user && !isPublic) {
     const loginUrl = request.nextUrl.clone();

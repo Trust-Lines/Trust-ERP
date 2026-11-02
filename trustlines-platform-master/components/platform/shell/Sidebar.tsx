@@ -107,6 +107,7 @@ const DESIGN_NAV: NavItem[] = [
   { label: 'Brand Kits',        href: '/design/brands',    icon: SwatchBook,         perm: 'page.design_brands' },
   { label: 'Materials',         href: '/design/materials', icon: Layers,             perm: 'page.design_materials' },
   { label: 'Customer Reviews',  href: '/design/reviews',   icon: MessageSquareQuote, perm: 'page.design_reviews' },
+  { label: 'Product Videos',    href: '/design/videos',    icon: QrCode,             perm: 'page.design_videos' },
 ];
 
 // "Supply" → /projects. User feedback 2026-08-28: a separate /supply route next to the project

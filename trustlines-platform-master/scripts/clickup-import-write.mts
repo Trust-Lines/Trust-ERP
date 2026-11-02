@@ -128,6 +128,17 @@ async function main() {
   const existingContactRows = await fetchAllRows<{ external_ref: string }>('prospect_contacts', 'external_ref');
   const existingContactRefs = new Set(existingContactRows.map(r => r.external_ref));
 
+  // Top-up runs (2026-10-30): `--only=<dry-run json>` imports ONLY the tasks the dry run
+  // (scripts/clickup-new-only-dry-run.mts) marked "new" — nothing it held back (people already
+  // added by hand in the app) — and never updates an existing record (no region merge).
+  const onlyArg = process.argv.find(a => a.startsWith('--only='))?.slice('--only='.length);
+  const ONLY: Set<string> | null = onlyArg
+    ? new Set((JSON.parse(readFileSync(onlyArg, 'utf8')) as { externalRef: string; verdict: string }[])
+      .filter(r => r.verdict === 'new').map(r => r.externalRef))
+    : null;
+  const UNASSIGNED = process.argv.includes('--unassigned');
+  if (ONLY) console.log(`--only: importing just ${ONLY.size} task(s) from ${onlyArg}; existing records are not updated.`);
+
   const campaignCache = new Map<string, string>();
   let created = 0, skipped = 0, failed = 0, additionalContacts = 0, additionalContactsSkipped = 0, orphanedChildren = 0, regionsMerged = 0;
   const failures: { externalRef: string; name: string; error: string }[] = [];
@@ -135,6 +146,7 @@ async function main() {
   async function importTopLevel(task: ClickUpTask, region: RegionTag, label: string): Promise<void> {
     const c: ProspectCandidate = mapTaskToProspectCandidate(task, region, label);
     const existingId = prospectIdByTaskId.get(c.externalRef);
+    if (existingId && ONLY) { skipped += 1; return; } // top-up run: never touch an existing record
     if (existingId) {
       // 🔴 2026-09-17: a task genuinely cross-listed in two regions' ClickUp Contacts lists
       // (confirmed live — "GoMart" sits in both NW and SE) used to just get silently
@@ -184,8 +196,9 @@ async function main() {
         region: c.region,
         regions: [c.region],
         status: 'captured',
-        owner_id: actorId,
-        assigned_marketing_user_id: actorId,
+        // --unassigned: like the earlier imports (their owner was removed) — region rules decide visibility.
+        owner_id: UNASSIGNED ? null : actorId,
+        assigned_marketing_user_id: UNASSIGNED ? null : actorId,
         external_source: c.externalSource,
         external_ref: c.externalRef,
         created_by: actorId,
@@ -284,8 +297,9 @@ async function main() {
     const tasks = src.kind === 'view' ? await getAllViewTasks(src.id) : await getAllListTasks(src.id);
     console.log(`  ${tasks.length} task(s)`);
 
-    const topLevel = tasks.filter(t => !t.parent);
-    const children = tasks.filter(t => !!t.parent);
+    const inScope = (t: ClickUpTask) => !ONLY || ONLY.has(t.id);
+    const topLevel = tasks.filter(t => !t.parent && inScope(t));
+    const children = tasks.filter(t => !!t.parent && inScope(t));
     console.log(`  ${topLevel.length} top-level, ${children.length} nested contact(s)`);
 
     for (const task of topLevel) await importTopLevel(task, src.region, src.label);

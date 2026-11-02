@@ -25,3 +25,12 @@ export function appBaseUrl(): string {
 
   return 'http://localhost:3000';
 }
+
+/**
+ * Base of links printed as QR codes (product stickers). `QR_BASE_URL` — a domain the company owns
+ * and points at this app (e.g. https://qr.trust-lines.com) — keeps printed codes working if the
+ * app's own address ever changes. Defaults to appBaseUrl().
+ */
+export function qrBaseUrl(): string {
+  return process.env.QR_BASE_URL?.trim().replace(/\/+$/, '') || appBaseUrl();
+}

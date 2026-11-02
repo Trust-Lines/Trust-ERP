@@ -6,6 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { UserRoundIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useAvatarSrc } from "@/components/ui/avatar-directory"
 
 // Figma "Avatar Sizes": 24/32/40/48/64px rounded squares, primary-700 fill, person icon in primary-50.
 const avatarVariants = cva(
@@ -33,11 +34,15 @@ type AvatarProps = VariantProps<typeof avatarVariants> & {
   /** Person's name: used for alt text and the initials fallback. */
   name?: string
   src?: string | null
+  /** Look the person's profile photo up by id (else by `name`) when no `src` is given. */
+  userId?: string | null
   className?: string
 }
 
 /** Photo if `src` loads, else initials from `name`, else the Figma person icon. */
-function Avatar({ name, src, size, className }: AvatarProps) {
+function Avatar({ name, src, userId, size, className }: AvatarProps) {
+  const photo = useAvatarSrc({ userId, name })
+  src = src ?? photo
   return (
     <AvatarPrimitive.Root data-slot="avatar" className={cn(avatarVariants({ size }), className)}>
       {src && <AvatarPrimitive.Image src={src} alt={name ?? ""} className="size-full object-cover" />}

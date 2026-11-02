@@ -13,6 +13,7 @@ export const PAGE_ROUTES: { key: string; route: string }[] = [
   { key: 'page.design_brands',   route: '/design/brands' },
   { key: 'page.design_materials', route: '/design/materials' },
   { key: 'page.design_reviews',  route: '/design/reviews' },
+  { key: 'page.design_videos',   route: '/design/videos' },
   { key: 'page.approvals',       route: '/approvals' },
   { key: 'page.notifications',   route: '/notifications' },
   { key: 'page.clients',         route: '/clients' },
@@ -103,6 +104,7 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'page.design_brands',  label: 'Design · Brand Kits', hint: 'Customer logos, colours, fonts. Follows “Design workspace” until set separately.' },
       { key: 'page.design_materials', label: 'Design · Materials & Finishes', hint: 'Material catalogue with suppliers and prices. Follows “Design workspace” until set separately.' },
       { key: 'page.design_reviews', label: 'Design · Customer Reviews', hint: 'Proposal links sent to customers. Follows “Design workspace” until set separately.' },
+      { key: 'page.design_videos', label: 'Design · Product Videos', hint: 'Installation videos behind the packaging sticker QR codes. Follows “Design workspace” until set separately.' },
       { key: 'page.clients',        label: 'Clients' },
       { key: 'page.suppliers',      label: 'Suppliers & finance', hint: 'Supplier profiles, invoices, payments — vendor cost (hidden from client PM)' },
       { key: 'page.qc',             label: 'QC' },
@@ -232,6 +234,7 @@ export const PAGE_PARENT: Record<string, string> = {
   'page.design_brands': 'page.design',
   'page.design_materials': 'page.design',
   'page.design_reviews': 'page.design',
+  'page.design_videos': 'page.design',
 };
 
 /** Sales pages were guarded by these lists in code (app/(platform)/leads, sales-*); they stay the default. */

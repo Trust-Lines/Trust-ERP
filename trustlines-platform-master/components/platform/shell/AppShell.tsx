@@ -1,5 +1,6 @@
 'use client';
 
+import { AvatarDirectoryProvider } from '@/components/ui/avatar-directory';
 import * as React from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from './Sidebar';
@@ -55,6 +56,7 @@ export function AppShell({
     // No overflow-hidden/h-screen here either — the page now scrolls normally (the body), with
     // the sidebar and TopBar staying in view via `sticky`, not via clipping+internal scroll.
     // Same background as <main> so the space under a short page doesn't show as a white band.
+    <AvatarDirectoryProvider>
     <div className="flex w-full items-start bg-[var(--bg-subtle)] text-neutral-900 dark:bg-ui-page-bg">
       {/* Collapsible Claude-style Sidebar */}
       <Sidebar
@@ -94,5 +96,6 @@ export function AppShell({
 
       <TrustLinesAI />
     </div>
+    </AvatarDirectoryProvider>
   );
 }
