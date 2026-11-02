@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
-import { isVideoSlug, newVideoSlug, stickerFieldsFrom } from '@/lib/design/productVideos';
+import { isVideoSlug, newVideoSlug, productUploadName, stickerFieldsFrom } from '@/lib/design/productVideos';
 import { buildStoreMakerSticker } from '@/lib/stickers/storeMakerSticker';
 
 describe('product video slugs', () => {
@@ -37,5 +37,12 @@ describe('buildStoreMakerSticker', () => {
     const { width, height } = doc.getPage(0).getSize();
     expect(Math.round(width)).toBe(842);
     expect(Math.round(height)).toBe(298);
+  });
+});
+
+describe('productUploadName', () => {
+  it('stamps the upload so its Dropbox path is unique and known up front', () => {
+    expect(productUploadName('IN-FC-48 F12 BODY', 'Web Video (2).mp4', new Date('2026-11-02T11:17:52Z')))
+      .toBe('IN-FC-48 F12 BODY - 20261102-111752 - Web Video (2).mp4');
   });
 });
