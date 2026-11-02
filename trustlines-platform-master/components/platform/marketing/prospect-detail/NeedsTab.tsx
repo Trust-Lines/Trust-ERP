@@ -43,13 +43,8 @@ export function NeedsTab({
         "another project" for this Lead is a new Need here, never edited into an existing Opportunity.
       </p>
       {addingNeed && canEdit && (
-        <div className="card" style={{ marginBottom: 12 }}>
-          <div className="card-body">
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-subtle)', marginBottom: 8 }}>
-              Adding a {addingNeedIntent === 'opportunity' ? 'new Opportunity' : 'new Potential'}
-            </div>
-            <NeedForm locations={locations} defaultRegion={prospect.region} onSave={onSave} onCancel={() => setAddingNeed(false)} />
-          </div>
+        <div className="mb-3">
+          <NeedForm heading={addingNeedIntent === 'opportunity' ? 'New Opportunity' : 'New Potential'} locations={locations} defaultRegion={prospect.region} onSave={onSave} onCancel={() => setAddingNeed(false)} />
         </div>
       )}
       {needs.length === 0 ? (
@@ -61,9 +56,9 @@ export function NeedsTab({
             const linkedPotential = potentials.find(p => p.need_id === n.id && !DONE_POTENTIAL_STATUSES.has(p.status));
             if (editingNeedId === n.id) {
               return (
-                <div key={n.id} id={`need-${n.id}`} className="card"><div className="card-body">
+                <div key={n.id} id={`need-${n.id}`}>
                   <NeedForm initial={n} locations={locations} onSave={payload => onUpdate(n.id, payload)} onCancel={() => setEditingNeedId(null)} />
-                </div></div>
+                </div>
               );
             }
             return (

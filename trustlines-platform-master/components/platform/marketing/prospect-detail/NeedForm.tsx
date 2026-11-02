@@ -1,13 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select } from '@/components/platform/shared/Select';
 import { PROJECT_TYPE_LABEL, TIMING_LABEL, TIMINGS, PROJECT_TYPES } from '@/lib/marketing/classification';
 import { REGIONS, SERVICE_LINES } from '@/lib/regions';
 import type { ProjectType, LeadTiming } from '@/types/database';
 import { locationLabel, type Need, type ProspectLocation } from './types';
+import { FormShell, OptionButton } from './shared';
 
-export function NeedForm({ initial, defaultRegion, locations, onSave, onCancel }: { initial?: Need; defaultRegion?: string | null; locations: ProspectLocation[]; onSave: (n: Record<string, unknown>) => Promise<boolean>; onCancel: () => void }) {
+export function NeedForm({ heading, initial, defaultRegion, locations, onSave, onCancel }: { heading?: string; initial?: Need; defaultRegion?: string | null; locations: ProspectLocation[]; onSave: (n: Record<string, unknown>) => Promise<boolean>; onCancel: () => void }) {
   const [title, setTitle] = useState(initial?.title ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [locationId, setLocationId] = useState(initial?.location_id ?? '');
@@ -53,7 +57,16 @@ export function NeedForm({ initial, defaultRegion, locations, onSave, onCancel }
   }
 
   return (
-    <div>
+    <FormShell
+      title={heading ?? (initial ? `Edit ${initial.title}` : 'New need')}
+      onCancel={onCancel}
+      footer={<>
+        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={!title.trim() || saving || (timing === 'contact_later' && !targetContactDate)}>
+          {initial ? 'Save changes' : 'Save Need'}
+        </Button>
+        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
+      </>}
+    >
       <div style={{ marginBottom: 10 }}>
         <label className="form-label required" style={{ fontSize: 12 }}>Title</label>
         <input className="form-input" placeholder="e.g. Manhattan Full Remodel" value={title} onChange={e => setTitle(e.target.value)} autoFocus />
@@ -62,10 +75,9 @@ export function NeedForm({ initial, defaultRegion, locations, onSave, onCancel }
         <div className="form-label" style={{ fontSize: 12, marginBottom: 4 }}>Project type</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {PROJECT_TYPES.map(t => (
-            <button key={t} type="button" onClick={() => togglePill(projectTypes, t, setProjectTypes)}
-              className="pill" style={{ cursor: 'pointer', border: 'none', background: projectTypes.includes(t) ? 'var(--brand-navy)' : 'var(--bg-subtle)', color: projectTypes.includes(t) ? 'white' : 'var(--fg-subtle)', fontSize: 11 }}>
+            <OptionButton key={t} active={projectTypes.includes(t)} onClick={() => togglePill(projectTypes, t, setProjectTypes)}>
               {PROJECT_TYPE_LABEL[t]}
-            </button>
+            </OptionButton>
           ))}
         </div>
       </div>
@@ -110,20 +122,19 @@ export function NeedForm({ initial, defaultRegion, locations, onSave, onCancel }
       </div>
       <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: 12 }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input type="checkbox" checked={hasActiveProject === true} onChange={e => setHasActiveProject(e.target.checked ? true : null)} /> Has an active project
+          <Checkbox checked={hasActiveProject === true} onCheckedChange={v => setHasActiveProject(v ? true : null)} /> Has an active project
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input type="checkbox" checked={layoutAvailable === true} onChange={e => setLayoutAvailable(e.target.checked ? true : null)} /> Layout/drawings available
+          <Checkbox checked={layoutAvailable === true} onCheckedChange={v => setLayoutAvailable(v ? true : null)} /> Layout/drawings available
         </label>
       </div>
       <div style={{ marginBottom: 10 }}>
         <div className="form-label" style={{ fontSize: 12, marginBottom: 4 }}>Timing</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {TIMINGS.map(t => (
-            <button key={t} type="button" onClick={() => setTiming(t)}
-              className="pill" style={{ cursor: 'pointer', border: 'none', background: timing === t ? 'var(--brand-navy)' : 'var(--bg-subtle)', color: timing === t ? 'white' : 'var(--fg-subtle)', fontSize: 11 }}>
+            <OptionButton key={t} active={timing === t} onClick={() => setTiming(t)}>
               {TIMING_LABEL[t]}
-            </button>
+            </OptionButton>
           ))}
         </div>
       </div>
@@ -137,13 +148,7 @@ export function NeedForm({ initial, defaultRegion, locations, onSave, onCancel }
         <label className="form-label" style={{ fontSize: 12 }}>Description</label>
         <textarea className="form-input" rows={2} value={description} onChange={e => setDescription(e.target.value)} />
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn-primary btn-sm" onClick={submit} disabled={!title.trim() || saving || (timing === 'contact_later' && !targetContactDate)}>
-          {saving ? 'Saving…' : initial ? 'Save changes' : 'Save need'}
-        </button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
-      </div>
-    </div>
+    </FormShell>
   );
 }
 

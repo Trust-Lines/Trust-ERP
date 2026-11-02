@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { CircleAlert, Eye, Mail, MousePointerClick, Send } from 'lucide-react';
@@ -225,7 +226,7 @@ function ComposeDialog({ prospectId, recipients, onClose, onSent }: {
             </span>
           </label>
           <label className="flex items-center gap-2 text-[12px] text-ui-body">
-            <input type="checkbox" className="size-4 accent-[var(--color-secondary-700)]" checked={signature} onChange={e => setSignature(e.target.checked)} />
+            <Checkbox checked={signature} onCheckedChange={v => setSignature(v)} />
             Add my signature
           </label>
         </div>

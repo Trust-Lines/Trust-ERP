@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
+import { FormShell, OptionButton } from './shared';
 import { Select } from '@/components/platform/shared/Select';
 import { PROJECT_TYPE_LABEL, PROJECT_TYPES } from '@/lib/marketing/classification';
 import { REGIONS, SERVICE_LINES } from '@/lib/regions';
@@ -28,7 +31,16 @@ export function HistoricalProjectForm({ onSave, onCancel }: { onSave: (p: Record
   }
 
   return (
-    <div>
+    <FormShell
+      title="New past project"
+      onCancel={onCancel}
+      footer={<>
+        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={!valid || saving}>
+          Save project
+        </Button>
+        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
+      </>}
+    >
       <div style={{ marginBottom: 10 }}>
         <label className="form-label required" style={{ fontSize: 12 }}>Title</label>
         <input className="form-input" placeholder="e.g. Manhattan Store Fixtures" value={title} onChange={e => setTitle(e.target.value)} autoFocus />
@@ -37,10 +49,9 @@ export function HistoricalProjectForm({ onSave, onCancel }: { onSave: (p: Record
         <div className="form-label required" style={{ fontSize: 12, marginBottom: 4 }}>Store status</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {PROJECT_TYPES.map(t => (
-            <button key={t} type="button" onClick={() => setProjectType(t)}
-              className="pill" style={{ cursor: 'pointer', border: 'none', background: projectType === t ? 'var(--brand-navy)' : 'var(--bg-subtle)', color: projectType === t ? 'white' : 'var(--fg-subtle)', fontSize: 11 }}>
+            <OptionButton key={t} active={projectType === t} onClick={() => setProjectType(t)}>
               {PROJECT_TYPE_LABEL[t]}
-            </button>
+            </OptionButton>
           ))}
         </div>
       </div>
@@ -64,13 +75,7 @@ export function HistoricalProjectForm({ onSave, onCancel }: { onSave: (p: Record
         <label className="form-label" style={{ fontSize: 12 }}>Completed date</label>
         <input className="form-input" type="date" value={completedDate} onChange={e => setCompletedDate(e.target.value)} />
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn-primary btn-sm" onClick={submit} disabled={!valid || saving}>
-          {saving ? 'Saving…' : 'Save project'}
-        </button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
-      </div>
-    </div>
+    </FormShell>
   );
 }
 

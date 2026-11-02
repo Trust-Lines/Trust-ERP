@@ -72,7 +72,7 @@ export function CustomerReviewsClient() {
 
   return (
     <div className="flex w-full flex-col gap-[30px] pb-12">
-      <LibraryHeader crumb="Design / Customer Reviews" title="Customer Reviews"
+      <LibraryHeader href="/design/reviews" title="Customer Reviews"
         subtitle="Every design proposal sent to a customer: did they open it, what did they decide, how long has it been waiting. Links are sent from a job's Versions tab." />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

@@ -340,7 +340,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
                               <span aria-hidden className={cn('grid size-[26px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold', HEADING)}>
                                 <PersonFace userId={o.value || null} name={o.value ? o.label : null} fallback={initials(o.value ? o.label : null)} />
                               </span>
-                              <span className={cn('truncate text-[13px] leading-[1.4]', o.value ? HEADING : 'text-ui-text-secondary')}>{o.label}</span>
+                              <span className={cn('truncate text-[13px] leading-[1.4]', o.value ? HEADING : 'text-ui-text-secondary', 'in-data-highlighted:text-primary-50')}>{o.label}</span>
                             </span>
                           )}
                         />

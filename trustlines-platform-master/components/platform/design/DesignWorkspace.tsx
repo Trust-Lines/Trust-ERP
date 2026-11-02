@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { StatCard } from '@/components/platform/shared/StatCard';
 import { formatDate } from '@/lib/formatDate';
 import { cn } from '@/lib/utils';
@@ -169,7 +170,7 @@ export function DesignWorkspace(props: Props) {
   return (
     <div className="flex w-full flex-col gap-[30px] pb-12">
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Design / Workspace</p>
+        <PageCrumbs items={[{ label: 'Design', href: '/design' }, { label: 'Workspace', href: '/design' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Design</h1>
         <p className="m-0 text-[13px] text-ui-body">
           {isManager

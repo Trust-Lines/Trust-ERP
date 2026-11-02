@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { Select } from '@/components/platform/shared/Select';
 import { type Contact } from './types';
 import { FormShell } from './shared';
@@ -36,8 +39,8 @@ export function ContactForm({ initial, onSave, onCancel }: { initial?: Contact; 
       title={initial ? `Edit ${initial.name}` : 'New contact'}
       onCancel={onCancel}
       footer={<>
-        <button className="btn btn-primary btn-sm" onClick={submit} disabled={!name.trim() || saving}>{saving ? 'Saving…' : initial ? 'Save changes' : 'Save contact'}</button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={!name.trim() || saving}>{initial ? 'Save changes' : 'Save contact'}</Button>
+        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
       </>}
     >
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
@@ -74,13 +77,13 @@ export function ContactForm({ initial, onSave, onCancel }: { initial?: Contact; 
       <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0 14px' }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
-          <input type="checkbox" checked={isDecisionMaker} onChange={e => setIsDecisionMaker(e.target.checked)} /> Decision maker
+          <Checkbox checked={isDecisionMaker} onCheckedChange={v => setIsDecisionMaker(v)} /> Decision maker
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
-          <input type="checkbox" checked={isPrimary} onChange={e => setIsPrimary(e.target.checked)} /> Primary contact
+          <Checkbox checked={isPrimary} onCheckedChange={v => setIsPrimary(v)} /> Primary contact
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
-          <input type="checkbox" checked={whatsapp} onChange={e => setWhatsapp(e.target.checked)} /> WhatsApp available
+          <Checkbox checked={whatsapp} onCheckedChange={v => setWhatsapp(v)} /> WhatsApp available
         </label>
       </div>
     </FormShell>

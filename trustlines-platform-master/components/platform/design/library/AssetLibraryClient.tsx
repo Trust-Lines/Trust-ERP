@@ -59,7 +59,7 @@ export function AssetLibraryClient() {
 
   return (
     <div className="flex w-full flex-col gap-[30px] pb-12">
-      <LibraryHeader crumb="Design / Asset Library" title="Asset Library"
+      <LibraryHeader href="/design/assets" title="Asset Library"
         subtitle="Templates, CAD blocks, render setups and standard details the whole team reuses. Files live in Dropbox under /Design/Library."
         action={<Button onClick={() => setUploadOpen(true)} disabled={!!notReady}><Upload /> Upload assets</Button>} />
       {notReady && <NotReady message={notReady} />}
