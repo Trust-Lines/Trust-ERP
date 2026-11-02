@@ -8,6 +8,7 @@ import { getAssignedRegions, regionAllows } from '@/lib/access/regionScope';
 import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { SALES_HANDOFF_ROLES, SALES_INTAKE_ROLES } from '@/lib/sales/roles';
 import { loadClientOpportunities, type ClientOpportunityRow } from '@/lib/keyClients/server';
+import { projectNumber } from '@/lib/keyClients/match';
 import { quickViewLink } from '@/lib/marketing/quickViewLink';
 import { KEY_CLIENT_ADMIN_ROLES } from '@/lib/keyClients/roles';
 import { classifyTrustProject, loadTrustProjects, typeLabel, typeStatuses, type TrustStage } from '@/lib/trust/board';
@@ -138,6 +139,8 @@ export default async function DashboardPage() {
   const assigneeOf = new Map(assignRows.map(a => [`${a.item_kind}:${a.item_id}:${a.stage}`, a.user_id]));
   const assignFor = (kind: string, id: string, stage: string, label: string) =>
     ({ kind, stage, label, userId: assigneeOf.get(`${kind}:${id}:${stage}`) ?? null });
+  // The popup's PO + PF / Production / Shipping tabs: the Trust types of the card's project number.
+  const trustByNo = new Map(trustProjects.map(p => [p.projectNo, p.items ?? []]));
   const trustToday = new Date().toISOString().slice(0, 10);
   const trustCards = trustProjects.filter(p => regionCodes.includes(p.bucket)).map(p => {
     const e = classifyTrustProject(p, trustToday);
@@ -155,6 +158,8 @@ export default async function DashboardPage() {
       href: '',
       note: e.note,
       statuses: typeStatuses(p),
+      projectNo: p.projectNo,
+      trustItems: p.items ?? [],
     };
     return { region: p.bucket, stage: e.stage, item, createdAt: p.createdAt };
   });
@@ -218,13 +223,18 @@ export default async function DashboardPage() {
         dateLabel: fmtDate(becameOpportunityDate),
         href: quickViewLink(o.kind, o.id),
         statuses: o.stageLabel ? [o.stageLabel] : [],
+        projectNo: o.projectNo,
+        trustItems: o.projectNo ? trustByNo.get(o.projectNo) ?? null : null,
       };
     });
 
     const toCardItem = (p: ProjectRow): BoardCardItem => {
       const [top, bottom] = projectBadge(p.code);
       const date = p.est_delivery_date ?? p.closed_deal_date;
+      const no = projectNumber(p.code);
       return {
+        projectNo: no,
+        trustItems: no ? trustByNo.get(no) ?? null : null,
         id: p.id, kind: 'project', badgeTop: top, badgeBottom: bottom,
         title: p.name,
         subtitle: p.site_location,

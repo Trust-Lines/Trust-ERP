@@ -7,10 +7,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ProjectQuickView } from './ProjectQuickView';
-// The real, editable opportunity popup — same one /leads and /marketing/opportunities use
-// (comments, files, ClickUp reference, inline edits) — not a dashboard-only rebuild.
-import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
+import { BoardItemView } from './BoardItemView';
+import type { TrustItem } from '@/lib/trust/board';
 
 // Design: Figma "Tlines-Websites" → "Desktop - 17" (node 60:1139) — the 4-branch board that
 // replaces the old company-wide dashboard. Each column is one real T-Lines region
@@ -18,8 +16,7 @@ import { OpportunityQuickView } from '@/components/platform/marketing/Opportunit
 // caller (app/(platform)/dashboard/page.tsx, via lib/access/regionScope) — this component
 // only renders whatever columns it's given.
 //
-// Every card opens a quick-view popup in place — a project's shows files + progress, an
-// opportunity's shows its pipeline details — instead of navigating off the dashboard.
+// Every card opens its popup in place (BoardItemView) instead of navigating off the dashboard.
 
 export interface BoardCardItem {
   id: string;
@@ -45,6 +42,10 @@ export interface BoardCardItem {
   statuses?: string[];
   /** "Assign to": the person for this card in the stage it's in (board_assignees, per stage). */
   assign?: { kind: string; stage: string; label: string; userId: string | null };
+  /** The project number ("490") — the popup gathers everything we hold for it. */
+  projectNo?: string | null;
+  /** The Trust System's types for that number (PO + PF, Production, Shipping tabs). */
+  trustItems?: TrustItem[] | null;
 }
 
 const assignKey = (item: BoardCardItem) => `${item.assign?.kind}:${item.id}:${item.assign?.stage}`;
@@ -141,18 +142,17 @@ function CroppedLogo({ src, code, className }: { src: string; code: string; clas
 }
 
 function Card({ item, section, onOpen }: {
-  item: BoardCardItem; section: BoardSection; onOpen: (item: BoardCardItem) => void;
+  item: BoardCardItem; section: BoardSection; onOpen: OpenCard;
 }) {
   // Cards hold the Assign to dropdown, so no card is a <button> (a control can't sit inside one).
-  const opens = item.kind !== 'trust';
   return (
     <div
-      role={opens ? 'button' : undefined}
-      tabIndex={opens ? 0 : undefined}
-      className={`relative flex w-full flex-col gap-1.5 rounded-[10px] border border-solid pb-3.5 pl-4 pr-3.5 pt-5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-[filter,box-shadow] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring ${opens ? 'cursor-pointer hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)] hover:brightness-[0.98]' : ''}`}
+      role="button"
+      tabIndex={0}
+      className="relative flex w-full cursor-pointer flex-col gap-1.5 rounded-[10px] border border-solid pb-3.5 pl-4 pr-3.5 pt-5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-[filter,box-shadow] hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)] hover:brightness-[0.98] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
       style={{ background: section.bg, color: section.accent, borderColor: `color-mix(in srgb, ${section.accent} 35%, transparent)`, borderLeftWidth: 4, borderLeftColor: section.accent }}
-      onClick={opens ? () => onOpen(item) : undefined}
-      onKeyDown={opens ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(item); } } : undefined}
+      onClick={() => onOpen(item, section)}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(item, section); } }}
     >
       <span
         className="absolute -top-3.5 left-3 flex h-6 min-w-[92px] items-center justify-center rounded-[5px] px-2 text-[15px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.12)]"
@@ -200,7 +200,9 @@ function Card({ item, section, onOpen }: {
   );
 }
 
-function Section({ section, onOpen }: { section: BoardSection; onOpen: (item: BoardCardItem) => void }) {
+type OpenCard = (item: BoardCardItem, section: BoardSection) => void;
+
+function Section({ section, onOpen }: { section: BoardSection; onOpen: OpenCard }) {
   const empty = section.items.length === 0;
   return (
     <div className={`flex flex-col ${empty ? 'gap-1.5' : 'gap-7'}`}>
@@ -272,7 +274,7 @@ function PageHead({ from, to, preset, canCreateTask, onFrom, onTo, onPreset }: {
   );
 }
 
-function Column({ column, onOpen }: { column: BoardColumn; onOpen: (item: BoardCardItem) => void }) {
+function Column({ column, onOpen }: { column: BoardColumn; onOpen: OpenCard }) {
   return (
     <div className="flex flex-col gap-2.5 rounded-[16px] bg-ui-surface p-2.5">
       <div className="flex h-[105px] items-center justify-center rounded-[11px] py-[13px]" style={{ background: column.headerColor }}>
@@ -304,7 +306,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   assignees: { id: string; full_name: string }[];
   canEdit: boolean;
 }) {
-  const [openProjectId, setOpenProjectId] = React.useState<string | null>(null);
+  const [open, setOpen] = React.useState<{ item: BoardCardItem; section: BoardSection } | null>(null);
   const [assigned, setAssigned] = React.useState<Record<string, string | null>>({});
   const assignOptions = React.useMemo(() => users.map(u => ({ value: u.id, label: u.full_name })), [users]);
   const assign = React.useCallback(async (item: BoardCardItem, userId: string | null) => {
@@ -325,16 +327,11 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
     }
   }, [assigned]);
   const assignCtx = React.useMemo(() => ({ options: assignOptions, canAssign, assigned, assign }), [assignOptions, canAssign, assigned, assign]);
-  // A Clients Opportunity card is an Opportunity or a Potential — the popup must load the right one.
-  const [openDeal, setOpenDeal] = React.useState<{ id: string; kind: 'opportunity' | 'potential' } | null>(null);
   const [dateFrom, setDateFrom] = React.useState('');
   const [dateTo, setDateTo] = React.useState('');
   const [preset, setPreset] = React.useState<Preset>('');
 
-  const handleOpen = (item: BoardCardItem) => {
-    if (item.kind === 'project') setOpenProjectId(item.id);
-    else if (item.kind === 'opportunity') setOpenDeal({ id: item.id, kind: item.assign?.kind === 'potential' ? 'potential' : 'opportunity' });
-  };
+  const handleOpen: OpenCard = (item, section) => setOpen({ item, section });
 
   const filteredColumns = React.useMemo(() => {
     if (!dateFrom && !dateTo) return columns;
@@ -382,16 +379,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
           ))}
         </div>
       )}
-      <ProjectQuickView projectId={openProjectId} onClose={() => setOpenProjectId(null)} />
-      {openDeal && (
-        <OpportunityQuickView
-          opportunityId={openDeal.id}
-          kind={openDeal.kind}
-          assignees={assignees}
-          canEdit={canEdit}
-          onClose={() => setOpenDeal(null)}
-        />
-      )}
+      {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} onClose={() => setOpen(null)} />}
     </AssignContext.Provider>
   );
 }

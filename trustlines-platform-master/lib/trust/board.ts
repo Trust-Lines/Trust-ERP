@@ -15,6 +15,8 @@ export interface TrustItem {
   type: string | null;
   status: string | null;
   pfCode: string | null;
+  pfSignStatus?: string | null;
+  poSignStatus?: string | null;
   containerNo: string | null;
   containerDate: string | null;
 }
@@ -40,8 +42,8 @@ export interface TrustBoardEntry {
 }
 
 /** Production statuses at or past "ordered" (before it leaves on a container). */
-const PAST_ORDERED = new Set(['ORDERED', 'BOOKS_IN_PROGRESS', 'HOLD_BOOKS', 'READY', 'READY_TO_RECEIVE', 'RECEIVED', 'SENT_TO_TLINES', 'PARTIAL_SENT', 'SENT']);
-const HOLD = new Set(['HOLD_T', 'HOLD_PM']);
+export const PAST_ORDERED = new Set(['ORDERED', 'BOOKS_IN_PROGRESS', 'HOLD_BOOKS', 'READY', 'READY_TO_RECEIVE', 'RECEIVED', 'SENT_TO_TLINES', 'PARTIAL_SENT', 'SENT']);
+export const HOLD = new Set(['HOLD_T', 'HOLD_PM']);
 
 export function typeLabel(type: string | null): string | null {
   if (!type) return null;
