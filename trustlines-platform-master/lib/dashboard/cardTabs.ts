@@ -5,6 +5,17 @@ import { HOLD, PAST_ORDERED, typeLabel, type TrustItem } from '@/lib/trust/board
 import type { ProjectFinance } from '@/lib/finance/projectTotals';
 
 export type CardPhase = 'potential' | 'opportunity' | 'project';
+
+/** Each tab's switch on the Roles page ("Dashboard project popup", lib/permissions/catalog). */
+export const CARD_TAB_PERMS = {
+  deal: 'view.card_deal',
+  finalization: 'view.card_finalization',
+  po_pf: 'view.card_po_pf',
+  production: 'view.card_production',
+  shipping: 'view.card_shipping',
+  finance: 'view.card_finance',
+} as const;
+export type CardTabKey = keyof typeof CARD_TAB_PERMS;
 export type ChipTone = 't0' | 't2' | 't7' | 't9' | 't10';
 export interface CardChip { label: string; tone: ChipTone }
 
@@ -47,12 +58,21 @@ const shippedBy = (today: string) => (i: TrustItem) =>
 
 const types = (items: TrustItem[]) => [...new Set(items.map(i => typeLabel(i.type)).filter(Boolean))].join(', ') || null;
 
-export function buildCardTabs({ deals, project, trustItems, finance, today }: {
+export function buildCardTabs({ allowed, ...data }: {
   deals: CardDeal[];
   project: CardProject | null;
   trustItems: TrustItem[] | null;
   finance: ProjectFinance | null;
   today: string;              // yyyy-mm-dd
+  /** The tabs this role may see; every one when not given. */
+  allowed?: readonly string[];
+}): CardTab[] {
+  const tabs = allTabs(data);
+  return allowed ? tabs.filter(t => allowed.includes(t.view === 'deal' ? 'deal' : t.key)) : tabs;
+}
+
+function allTabs({ deals, project, trustItems, finance, today }: {
+  deals: CardDeal[]; project: CardProject | null; trustItems: TrustItem[] | null; finance: ProjectFinance | null; today: string;
 }): CardTab[] {
   const tabs: CardTab[] = [];
   const items = trustItems ?? [];
