@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPin, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select } from '@/components/platform/shared/Select';
 import { ADDRESS_TYPES, type Address } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
-import { AddButton, DetailCard, FORM_BOX, IconAction, PrimaryChip, RowList } from './ui';
+import { AddButton, DetailCard, FORM_BOX, FORM_SUBMIT, IconAction, PrimaryChip, RowList } from './ui';
 
 export function AddressesCard({ addresses, canEdit, onSave, onDelete }: {
   addresses: Address[];
@@ -85,29 +87,29 @@ function AddressForm({ address, onSave, onCancel }: { address?: Address; onSave:
 
   return (
     <div className={FORM_BOX}>
-      <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_140px]">
+      <div className="mb-2 grid grid-cols-1 gap-2">
         <div><label className="form-label" style={{ fontSize: 11 }}>Label</label><input className="form-input" style={{ fontSize: 13 }} placeholder="e.g. HQ, Store #4" value={f.label} onChange={set('label')} autoFocus /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Type</label>
           <Select className="form-input" style={{ fontSize: 13 }} value={f.address_type} onChange={set('address_type')}>
             <option value="">—</option>{ADDRESS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
           </Select></div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+      <div className="mb-2 grid grid-cols-1 gap-2">
         <div><label className="form-label" style={{ fontSize: 11 }}>Street</label><input className="form-input" style={{ fontSize: 13 }} value={f.line1} onChange={set('line1')} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Street 2</label><input className="form-input" style={{ fontSize: 13 }} value={f.line2} onChange={set('line2')} /></div>
       </div>
-      <div className="mb-2.5 grid grid-cols-2 gap-2">
+      <div className="mb-2.5 grid grid-cols-2 gap-2 [&>div]:min-w-0">
         <div><label className="form-label" style={{ fontSize: 11 }}>City</label><input className="form-input" style={{ fontSize: 13 }} value={f.city} onChange={set('city')} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>State</label><input className="form-input" style={{ fontSize: 13 }} value={f.state} onChange={set('state')} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Postal</label><input className="form-input" style={{ fontSize: 13 }} value={f.postal_code} onChange={set('postal_code')} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Country</label><input className="form-input" style={{ fontSize: 13 }} value={f.country} onChange={set('country')} /></div>
       </div>
       <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, marginBottom: 10 }}>
-        <input type="checkbox" checked={f.is_primary} onChange={e => setF(p => ({ ...p, is_primary: e.target.checked }))} /> Primary address
+        <Checkbox checked={f.is_primary} onCheckedChange={v => setF(p => ({ ...p, is_primary: v }))} /> Primary address
       </label>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn btn-primary btn-sm" onClick={submit} disabled={saving}>{saving ? 'Saving…' : (address ? 'Save' : 'Add')}</button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+      <div className="flex gap-1.5">
+        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={saving}>{address ? 'Save' : <><Plus aria-hidden /> Add Address</>}</Button>
+        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   );

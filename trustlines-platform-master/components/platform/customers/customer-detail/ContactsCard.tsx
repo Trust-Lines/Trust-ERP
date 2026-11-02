@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Users } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select } from '@/components/platform/shared/Select';
 import { ROLE_TYPES, cap, type Contact } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
-import { AddButton, ApproverChip, DetailCard, FORM_BOX, IconAction, PrimaryChip, RowList } from './ui';
+import { AddButton, ApproverChip, DetailCard, FORM_BOX, FORM_SUBMIT, IconAction, PrimaryChip, RowList } from './ui';
 
 export function ContactsCard({ contacts, canEdit, onSave, onDelete }: {
   contacts: Contact[];
@@ -84,7 +86,7 @@ function ContactForm({ contact, onSave, onCancel }: { contact?: Contact; onSave:
 
   return (
     <div className={FORM_BOX}>
-      <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className="mb-2 grid grid-cols-1 gap-2">
         <div><label className="form-label required" style={{ fontSize: 11 }}>Name</label><input className="form-input" style={{ fontSize: 13 }} value={f.name} onChange={e => setF(p => ({ ...p, name: e.target.value }))} autoFocus /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Title</label><input className="form-input" style={{ fontSize: 13 }} placeholder="e.g. Owner" value={f.title} onChange={e => setF(p => ({ ...p, title: e.target.value }))} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Role</label>
@@ -93,21 +95,21 @@ function ContactForm({ contact, onSave, onCancel }: { contact?: Contact; onSave:
             {ROLE_TYPES.map(r => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
           </Select></div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+      <div className="mb-2 grid grid-cols-1 gap-2">
         <div><label className="form-label" style={{ fontSize: 11 }}>Email</label><input className="form-input" style={{ fontSize: 13 }} type="email" value={f.email} onChange={e => setF(p => ({ ...p, email: e.target.value }))} /></div>
         <div><label className="form-label" style={{ fontSize: 11 }}>Phone</label><input className="form-input" style={{ fontSize: 13 }} value={f.phone} onChange={e => setF(p => ({ ...p, phone: e.target.value }))} /></div>
       </div>
       <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: 12 }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-          <input type="checkbox" checked={f.is_primary} onChange={e => setF(p => ({ ...p, is_primary: e.target.checked }))} /> Primary contact
+          <Checkbox checked={f.is_primary} onCheckedChange={v => setF(p => ({ ...p, is_primary: v }))} /> Primary contact
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-          <input type="checkbox" checked={f.is_authorized_approver} onChange={e => setF(p => ({ ...p, is_authorized_approver: e.target.checked }))} /> Authorized approver
+          <Checkbox checked={f.is_authorized_approver} onCheckedChange={v => setF(p => ({ ...p, is_authorized_approver: v }))} /> Authorized approver
         </label>
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn btn-primary btn-sm" onClick={submit} disabled={!f.name.trim() || saving}>{saving ? 'Saving…' : (contact ? 'Save' : 'Add')}</button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+      <div className="flex gap-1.5">
+        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={!f.name.trim() || saving}>{contact ? 'Save' : <><Plus aria-hidden /> Add Contact</>}</Button>
+        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   );
