@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ArrowLeft, ArrowUp, ArrowDown, Trash2, ExternalLink, ImagePlus, Images, Loader2 } from 'lucide-react';
 import { PROJECT_CATEGORIES, slugify, thumb } from '@/lib/web-cms/config';
-import { ImageField } from './ImageField';
+import { ImageField, MEDIA_BTN } from './ImageField';
 import { MediaPicker } from './MediaPicker';
+import { Button } from '@/components/ui/button';
 import { Select } from '@/components/platform/shared/Select';
 import { uploadMany } from './imagekitClient';
 import { WorkTypeTile } from './WorkTypeTile';
@@ -192,8 +193,8 @@ export function ProjectEditorClient({ initial, canEdit, siteUrl, workTypes }: Pr
                 >
                   {uploading ? <Loader2 size={20} className="animate-spin" /> : (
                     <>
-                      <button className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()}><ImagePlus size={13} style={{ marginRight: 4 }} /> Upload</button>
-                      <button className="btn btn-secondary btn-sm" onClick={() => setPicking(true)}><Images size={13} style={{ marginRight: 4 }} /> Library</button>
+                      <Button variant="outline" className={MEDIA_BTN} onClick={() => fileRef.current?.click()}><ImagePlus aria-hidden /> Upload</Button>
+                      <Button variant="outline" className={MEDIA_BTN} onClick={() => setPicking(true)}><Images aria-hidden /> Library</Button>
                       <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>or drop files</span>
                     </>
                   )}

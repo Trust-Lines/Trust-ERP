@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_DEFAULTS, type ProjectsPageSettings, type SettingsKey } from '@/lib/web-cms/config';
+import { Button } from '@/components/ui/button';
+import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { ImageField } from './ImageField';
 
 interface Props {
@@ -59,7 +61,7 @@ export function PageHeaderForm({ settingsKey, initial, canEdit, folder }: Props)
           <input className="form-input" style={{ width: '100%' }} disabled={!canEdit} value={settings.hero_image_alt}
             onChange={e => setSettings(s => ({ ...s, hero_image_alt: e.target.value }))} />
         ))}
-        {canEdit && <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save header'}</button>}
+        {canEdit && <Button className={FORM_SUBMIT} loading={saving} disabled={saving} onClick={save}>Save Header</Button>}
       </div>
       <div>
         {field('Background image', (

@@ -2,8 +2,11 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, GripVertical, ArrowUp, ArrowDown, ImagePlus, X, Loader2, AlertTriangle, Layers } from 'lucide-react';
+import { Plus, Images, GripVertical, ArrowUp, ArrowDown, ImagePlus, X, Loader2, AlertTriangle, Layers } from 'lucide-react';
 import type { WorkTypeRow } from '@/lib/web-cms/workTypes';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
+import { MEDIA_BTN } from './ImageField';
 import { WorkTypeTile } from './WorkTypeTile';
 import { uploadToImageKit } from './imagekitClient';
 import { MediaPicker } from './MediaPicker';
@@ -18,6 +21,8 @@ interface Props {
 }
 
 const FOLDER = '/store-maker/work-types';
+
+const MEDIA_LABEL = buttonVariants({ variant: 'outline', className: `${MEDIA_BTN} cursor-pointer` });
 
 export function WorkTypesClient({ initial, canEdit, siteUrl, loadError }: Props) {
   const [types, setTypes] = useState(initial);
@@ -145,12 +150,12 @@ export function WorkTypesClient({ initial, canEdit, siteUrl, loadError }: Props)
                 </div>
                 {canEdit && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                    <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
-                      {uploadingId === t.id ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} style={{ marginRight: 4 }} />}
+                    <label className={MEDIA_LABEL}>
+                      {uploadingId === t.id ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus aria-hidden />}
                       {uploadingId === t.id ? '' : 'Icon'}
                       <input type="file" accept="image/svg+xml,image/png" hidden onChange={e => { uploadIcon(t, e.target.files?.[0]); e.target.value = ''; }} />
                     </label>
-                    <button className="btn btn-ghost btn-sm" onClick={() => setPickingFor(t.id)} title="Pick from library">Library</button>
+                    <Button variant="outline" className={MEDIA_BTN} onClick={() => setPickingFor(t.id)} title="Pick from library"><Images aria-hidden /> Library</Button>
                     {t.icon_url && (
                       <button className="btn btn-ghost btn-sm" onClick={() => patch(t, { icon_url: '' })} title="Back to built-in icon"><X size={13} /></button>
                     )}
@@ -174,12 +179,12 @@ export function WorkTypesClient({ initial, canEdit, siteUrl, loadError }: Props)
               <input className="form-input" style={{ width: '100%', marginBottom: 10 }} placeholder="e.g. Lighting" value={newLabel}
                 onChange={e => setNewLabel(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') add(); }} />
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12 }}>
-                <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
-                  {uploadingId === 'new' ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} style={{ marginRight: 4 }} />}
+                <label className={MEDIA_LABEL}>
+                  {uploadingId === 'new' ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus aria-hidden />}
                   {uploadingId === 'new' ? '' : newIcon ? 'Change icon' : 'Upload icon'}
                   <input type="file" accept="image/svg+xml,image/png" hidden onChange={e => { uploadIcon(null, e.target.files?.[0]); e.target.value = ''; }} />
                 </label>
-                <button className="btn btn-ghost btn-sm" onClick={() => setPickingFor('new')}>Library</button>
+                <Button variant="outline" className={MEDIA_BTN} onClick={() => setPickingFor('new')}><Images aria-hidden /> Library</Button>
               </div>
               <div style={{ fontSize: 11.5, color: 'var(--fg-subtle)', marginBottom: 12 }}>
                 Icon: cream (#FFF4E0) on a transparent background, 77 × 77 px or larger, SVG preferred. Without one the tile shows a placeholder.
@@ -189,9 +194,9 @@ export function WorkTypesClient({ initial, canEdit, siteUrl, loadError }: Props)
                   <WorkTypeTile slug="new" label={newLabel.trim()} iconUrl={newIcon || null} siteUrl={siteUrl} size={110} />
                 </div>
               )}
-              <button className="btn btn-primary" disabled={adding} onClick={add}>
-                <Plus size={14} style={{ marginRight: 5 }} /> {adding ? 'Adding…' : 'Add type'}
-              </button>
+              <Button className={FORM_SUBMIT} loading={adding} disabled={adding} onClick={add}>
+                <Plus aria-hidden /> Add Type
+              </Button>
             </div></div>
           )}
 

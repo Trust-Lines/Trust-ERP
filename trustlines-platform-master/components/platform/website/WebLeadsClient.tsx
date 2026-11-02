@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Inbox, Mail, Phone, Building2, MapPin, Trash2, UserPlus, X, Loader2 } from 'lucide-react';
 import { LEAD_STATUSES, LEAD_STATUS_LABEL, type LeadStatus } from '@/lib/web-cms/leads';
 import { Select } from '@/components/platform/shared/Select';
+import { CategoryViews } from './CategoryViews';
 
 export interface WebLeadRow {
   id: string; kind: 'contact' | 'newsletter'; name: string | null; phone: string | null; email: string | null;
@@ -88,16 +89,17 @@ export function WebLeadsClient({ initial, canEdit, loadError }: { initial: WebLe
     } finally { setBusy(false); }
   }
 
-  const chip = (active: boolean, text: string, onClick: () => void) => (
-    <button key={text} className={`btn btn-sm ${active ? 'btn-primary' : 'btn-ghost'}`} onClick={onClick}>{text}</button>
-  );
-
   return (
     <>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        {chip(statusFilter === 'all', `All (${leads.length})`, () => setStatusFilter('all'))}
-        {LEAD_STATUSES.map(s => chip(statusFilter === s, `${LEAD_STATUS_LABEL[s]} (${count(s)})`, () => setStatusFilter(s)))}
-        <span style={{ flex: 1 }} />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-ui-divider pb-3">
+        <CategoryViews
+          label="Lead status" className="border-b-0 pb-0" value={statusFilter}
+          options={[
+            { value: 'all', label: 'All', count: leads.length },
+            ...LEAD_STATUSES.map(s => ({ value: s, label: LEAD_STATUS_LABEL[s], count: count(s) })),
+          ]}
+          onChange={v => setStatusFilter(v as typeof statusFilter)}
+        />
         <Select className="form-input" value={kindFilter} onChange={e => setKindFilter(e.target.value as typeof kindFilter)} style={{ width: 170 }}>
           <option value="all">Contact form + Newsletter</option>
           <option value="contact">Contact form only</option>

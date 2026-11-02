@@ -3,9 +3,13 @@
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ImagePlus, Images, Trash2, Loader2, UploadCloud } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { thumb } from '@/lib/web-cms/config';
 import { uploadMany } from './imagekitClient';
 import { MediaPicker } from './MediaPicker';
+
+/** Platform outline button for the Upload / Library actions. Solid fill: they can sit on a photo. */
+export const MEDIA_BTN = 'gap-1.5 rounded-[6px] bg-ui-surface-elevated font-medium hover:bg-ui-surface-elevated hover:brightness-95 dark:bg-ui-surface-elevated';
 
 interface Props {
   /** Current image URL ('' = none). */
@@ -65,16 +69,16 @@ export function ImageField({ value, onChange, folder, disabled, height = 180, la
 
         {!disabled && !busy && (
           <div style={{ position: 'absolute', left: 8, right: 8, bottom: 8, display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => inputRef.current?.click()}>
-              <ImagePlus size={13} style={{ marginRight: 4 }} /> Upload
-            </button>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPicking(true)}>
-              <Images size={13} style={{ marginRight: 4 }} /> Library
-            </button>
+            <Button variant="outline" className={MEDIA_BTN} onClick={() => inputRef.current?.click()}>
+              <ImagePlus aria-hidden /> Upload
+            </Button>
+            <Button variant="outline" className={MEDIA_BTN} onClick={() => setPicking(true)}>
+              <Images aria-hidden /> Library
+            </Button>
             {value && (
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => onChange('')} aria-label="Remove image">
-                <Trash2 size={13} style={{ color: '#dc2626' }} />
-              </button>
+              <Button variant="outline" size="icon" className={`${MEDIA_BTN} text-error-dark dark:text-error-light`} onClick={() => onChange('')} aria-label="Remove image">
+                <Trash2 aria-hidden />
+              </Button>
             )}
           </div>
         )}

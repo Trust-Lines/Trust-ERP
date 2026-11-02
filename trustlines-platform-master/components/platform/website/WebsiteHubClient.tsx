@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import { PageHeaderForm } from './PageHeaderForm';
 import { WebLeadsClient, type WebLeadRow } from './WebLeadsClient';
+import { CategoryViews } from './CategoryViews';
 import { WorkTypesClient } from './WorkTypesClient';
 import type { WorkTypeRow } from '@/lib/web-cms/workTypes';
 
@@ -105,29 +106,6 @@ function ContentCard({ title, meta, coverUrl, status, editHref, canEdit, isPubli
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function CategoryViews({ options, value, onChange }: { options: { value: string; label: string; count: number }[]; value: string; onChange: (v: string) => void }) {
-  return (
-    <div role="tablist" aria-label="Category" className="flex flex-wrap gap-2 border-b border-ui-divider pb-3">
-      {options.map(o => {
-        const active = o.value === value;
-        return (
-          <button
-            key={o.value} type="button" role="tab" aria-selected={active} onClick={() => onChange(o.value)}
-            className={cn(
-              'inline-flex h-[38px] items-center gap-2 rounded-[6px] border-0 px-4 text-[13px] transition-colors',
-              active ? 'bg-ui-selected-bg font-semibold' : 'bg-ui-page-bg font-medium hover:bg-ui-hover-bg',
-              HEADING,
-            )}
-          >
-            {o.label}
-            <span className="text-[12px] font-normal leading-[1.4] text-ui-text-secondary">{o.count}</span>
-          </button>
-        );
-      })}
     </div>
   );
 }
