@@ -99,7 +99,7 @@ export function ProductVideosClient() {
 
   return (
     <div className="flex w-full flex-col gap-[30px] pb-12">
-      <LibraryHeader crumb="Design / Product Videos" title="Product Videos"
+      <LibraryHeader href="/design/videos" title="Product Videos"
         subtitle="Each product’s packaging sticker and its installation video. The sticker’s QR code opens a public page (no login) with the video. Files live in Dropbox under /Design/Product Videos."
         action={<Button onClick={() => setForm('new')} disabled={!!notReady}><Plus /> Add product</Button>} />
       {notReady && <NotReady message={notReady} />}
