@@ -325,14 +325,15 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
     }
   }, [assigned]);
   const assignCtx = React.useMemo(() => ({ options: assignOptions, canAssign, assigned, assign }), [assignOptions, canAssign, assigned, assign]);
-  const [openOpportunityId, setOpenOpportunityId] = React.useState<string | null>(null);
+  // A Clients Opportunity card is an Opportunity or a Potential — the popup must load the right one.
+  const [openDeal, setOpenDeal] = React.useState<{ id: string; kind: 'opportunity' | 'potential' } | null>(null);
   const [dateFrom, setDateFrom] = React.useState('');
   const [dateTo, setDateTo] = React.useState('');
   const [preset, setPreset] = React.useState<Preset>('');
 
   const handleOpen = (item: BoardCardItem) => {
     if (item.kind === 'project') setOpenProjectId(item.id);
-    else if (item.kind === 'opportunity') setOpenOpportunityId(item.id);
+    else if (item.kind === 'opportunity') setOpenDeal({ id: item.id, kind: item.assign?.kind === 'potential' ? 'potential' : 'opportunity' });
   };
 
   const filteredColumns = React.useMemo(() => {
@@ -382,13 +383,13 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
         </div>
       )}
       <ProjectQuickView projectId={openProjectId} onClose={() => setOpenProjectId(null)} />
-      {openOpportunityId && (
+      {openDeal && (
         <OpportunityQuickView
-          opportunityId={openOpportunityId}
-          kind="opportunity"
+          opportunityId={openDeal.id}
+          kind={openDeal.kind}
           assignees={assignees}
           canEdit={canEdit}
-          onClose={() => setOpenOpportunityId(null)}
+          onClose={() => setOpenDeal(null)}
         />
       )}
     </AssignContext.Provider>
