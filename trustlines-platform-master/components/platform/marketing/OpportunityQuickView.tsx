@@ -918,7 +918,7 @@ function Sel({ value, onChange, opts, emphasize }: { value: string; onChange: (v
         className="qv-input"
         style={{
           ...fieldBox, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, cursor: 'pointer',
-          ...(emphasize && { borderColor: 'var(--status-warning)', background: 'var(--status-warning-bg)' }),
+          ...(emphasize && { border: '1px solid var(--status-warning)', background: 'var(--status-warning-bg)' }),
         }}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{current}</span>

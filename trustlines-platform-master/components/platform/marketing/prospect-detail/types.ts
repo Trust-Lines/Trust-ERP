@@ -73,9 +73,6 @@ export interface HistoricalProject {
   site_location: string | null; categories: string[]; actual_delivery_date: string | null; created_at: string;
 }
 
-export const NEED_CLASSIFICATION_VARIANT: Record<NeedClassification, 'neutral' | 'warning' | 'info' | 'danger'> = {
-  unclassified: 'neutral', potential: 'warning', opportunity: 'info', disqualified: 'danger',
-};
 export const NEED_CLASSIFICATION_LABEL: Record<NeedClassification, string> = {
   unclassified: 'Unclassified', potential: 'Potential', opportunity: 'Opportunity', disqualified: 'Disqualified',
 };

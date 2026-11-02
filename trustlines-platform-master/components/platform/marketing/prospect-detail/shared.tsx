@@ -1,19 +1,30 @@
 'use client';
 
-import { Building2, X } from 'lucide-react';
+import { Building2, CircleCheck, CircleDashed, CircleX, X, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DetailCard, FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { cn } from '@/lib/utils';
-import { Pill } from '@/components/platform/shared/Pill';
 import type { NeedClassification } from '@/types/database';
-import { NEED_CLASSIFICATION_LABEL, NEED_CLASSIFICATION_VARIANT } from './types';
+import { NEED_CLASSIFICATION_LABEL } from './types';
 
 export const HEADING = 'text-[var(--color-secondary-700)] dark:text-[var(--color-secondary-50)]';
 /** Small status/tag chip, same shape as the customer page's project stage chips. */
 export const CHIP = 'inline-flex h-[26px] items-center rounded-[4px] px-2.5 text-[11px] font-medium leading-4';
 
+const NEED_TONE: Record<NeedClassification, { tone: string; icon: LucideIcon }> = {
+  unclassified: { tone: 't0', icon: CircleDashed },
+  potential: { tone: 't7', icon: CircleCheck },
+  opportunity: { tone: 't2', icon: CircleCheck },
+  disqualified: { tone: 't10', icon: CircleX },
+};
+
 export function NeedClassificationPill({ c }: { c: NeedClassification }) {
-  return <Pill variant={NEED_CLASSIFICATION_VARIANT[c]}>{NEED_CLASSIFICATION_LABEL[c]}</Pill>;
+  const { tone, icon: Icon } = NEED_TONE[c];
+  return (
+    <span className={cn(CHIP, 'gap-1')} style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}>
+      <Icon size={14} aria-hidden /> {NEED_CLASSIFICATION_LABEL[c]}
+    </span>
+  );
 }
 
 export function Field({ label, value }: { label: string; value: string | null }) {
