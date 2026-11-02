@@ -9,7 +9,6 @@ import { AI_STATE_EVENT, TrustLinesAI } from '@/components/platform/ai/TrustLine
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types/database';
 
-const FULL_WIDTH_ROUTES = ['/production', '/leads', '/sales-tasks', '/sales-projects', '/sales-dashboard', '/marketing/prospects', '/marketing/opportunities', '/marketing/campaigns', '/dashboard', '/my-tasks'];
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -33,10 +32,6 @@ export function AppShell({
   notificationCount,
 }: AppShellProps) {
   const pathname = usePathname();
-  // '/marketing' (Marketing Home) is exact-only — it must NOT widen every /marketing/*
-  // sub-route via the prefix match below (Campaigns, prospect detail, etc. aren't designed
-  // for full width; only Contacts/Potentials and Home itself are).
-  const fullWidth = pathname === '/marketing' || FULL_WIDTH_ROUTES.some(r => pathname === r || pathname?.startsWith(`${r}/`));
   const isHome = pathname === '/home' || pathname === '/';
   // While the docked Trust Lines AI panel (383px, under the top bar) is open, the main area
   // reserves that width so the page reflows beside it instead of being covered. Below lg the
@@ -81,14 +76,8 @@ export function AppShell({
 
         {/* Main Content Area — sized to its own content now, not forced to viewport height */}
         <main className={cn('min-w-0 bg-[var(--bg-subtle)] dark:bg-ui-page-bg transition-[margin] duration-200', aiOpen && 'lg:mr-[383px]')}>
-          <div
-            className={fullWidth ? 'main-inner main-inner--full p-4 sm:p-6' : 'main-inner w-full'}
-            style={{
-              maxWidth: fullWidth ? '100%' : 1200,
-              margin: '0 auto',
-              padding: '24px',
-            }}
-          >
+          {/* Every page uses the full width of the screen (it used to stop at 1200px, centred). */}
+          <div className="main-inner main-inner--full w-full" style={{ padding: '24px' }}>
             {children}
           </div>
         </main>

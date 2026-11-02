@@ -4,7 +4,9 @@ import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowDown, ArrowDownUp, ChevronDown, Ellipsis, Pencil, Search, Trash2, UserRoundPlus, Users, X } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowDown, ArrowDownUp, ChevronDown, Ellipsis, Pencil, Search, Trash2, UserRound, UserRoundPlus, Users, X } from 'lucide-react';
+import { Avatar } from '@/components/ui/avatar';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
@@ -805,7 +807,10 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
                         />
                       </td>
                       <td className="max-w-0 px-2.5">
-                        <p className={cn('m-0 truncate text-[13px] font-semibold', HEADING)}>{p.full_name || '—'}</p>
+                        <Link href={`/team/${p.id}`} className="flex min-w-0 items-center gap-2.5 no-underline hover:underline">
+                          <Avatar size="sm" name={name} userId={p.id} />
+                          <span className={cn('truncate text-[13px] font-semibold', HEADING)}>{p.full_name || '—'}</span>
+                        </Link>
                       </td>
                       <td className="max-w-0 px-2.5"><p className="m-0 truncate text-[13px] text-ui-body">{p.email}</p></td>
                       <td className="px-2"><RoleBadge role={p.role} roleMap={roleMap} /></td>
@@ -839,6 +844,9 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
                               <>
                                 <div className="fixed inset-0 z-20" onClick={() => setMenuId(null)} />
                                 <div role="menu" className="absolute right-2 top-full z-30 mt-1 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
+                                  <Link href={`/team/${p.id}`} role="menuitem" className={MENU_ITEM} onClick={() => setMenuId(null)}>
+                                    <UserRound aria-hidden /> View profile
+                                  </Link>
                                   <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { setMenuId(null); setEditTarget(p); }}>
                                     <Pencil aria-hidden /> Edit member
                                   </button>
