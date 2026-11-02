@@ -114,7 +114,9 @@ export default async function DashboardPage() {
   const loadClientOpps = async (): Promise<ClientOpportunityRow[]> => {
     try {
       const r = await loadClientOpportunities(admin);
-      return Object.values(r.regions).flat().filter(o => !!o.region && regionCodes.includes(o.region));
+      // Only deals with a project number, like the PROJECTS PROGRESS sheet — a numberless
+      // Potential is too early for the board.
+      return Object.values(r.regions).flat().filter(o => !!o.region && regionCodes.includes(o.region) && !!o.projectNo);
     } catch (e) {
       console.error('[dashboard] client opportunities unavailable (migration 134?):', e instanceof Error ? e.message : e);
       return [];
