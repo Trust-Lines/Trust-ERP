@@ -52,7 +52,7 @@ export function MaterialsClient() {
 
   return (
     <div className="flex w-full flex-col gap-[30px] pb-12">
-      <LibraryHeader crumb="Design / Materials & Finishes" title="Materials & Finishes"
+      <LibraryHeader href="/design/materials" title="Materials & Finishes"
         subtitle="The catalogue designers specify from: laminates, paints, woods, metals… with the supplier code and price. A design job lists the materials it uses, so Supply knows what to order."
         action={<Button onClick={() => setEditing('new')} disabled={!!notReady}><Plus /> Add material</Button>} />
       {notReady && <NotReady message={notReady} />}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { Select } from '@/components/platform/shared/Select';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ArrowLeft, Trash2, ExternalLink } from 'lucide-react';
@@ -118,10 +119,10 @@ export function PostEditorClient({ initial, canEdit, siteUrl }: Props) {
               <div style={{ fontSize: 11.5, color: 'var(--fg-subtle)', marginTop: 3 }}>A future date hides the post until then.</div>
             </div>
             <div style={{ marginTop: 14 }}>{label('Category')}
-              <select className="form-select" style={{ width: '100%' }} disabled={ro} value={post.category} onChange={e => set('category', e.target.value)}>
+              <Select className="form-input" style={{ width: '100%' }} disabled={ro} value={post.category} onChange={e => set('category', e.target.value)}>
                 <option value="">Select…</option>
                 {BLOG_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
+              </Select>
             </div>
             <div style={{ marginTop: 14 }}>{label('Author')}
               <input className="form-input" style={{ width: '100%' }} disabled={ro} value={post.author} placeholder="Jane Doe" onChange={e => set('author', e.target.value)} />

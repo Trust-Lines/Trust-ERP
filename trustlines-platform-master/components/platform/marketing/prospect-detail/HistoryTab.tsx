@@ -19,10 +19,8 @@ export function HistoryTab({ canEdit, addingHistoricalProject, setAddingHistoric
         Work Trust-Lines already completed for this Contact, logged for the record — not a live pipeline item.
       </p>
       {addingHistoricalProject && canEdit && (
-        <div className="card" style={{ marginBottom: 12 }}>
-          <div className="card-body">
-            <HistoricalProjectForm onSave={onSave} onCancel={() => setAddingHistoricalProject(false)} />
-          </div>
+        <div className="mb-3">
+          <HistoricalProjectForm onSave={onSave} onCancel={() => setAddingHistoricalProject(false)} />
         </div>
       )}
       {!historicalProjectsLoaded ? (

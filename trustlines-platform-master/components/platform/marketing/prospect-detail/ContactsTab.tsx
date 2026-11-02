@@ -1,7 +1,9 @@
 'use client';
 
 import type { Dispatch, SetStateAction } from 'react';
-import { Star, Pencil, Trash2, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
+import { Star, Pencil, Trash2, Users, Plus } from 'lucide-react';
 import { ContactForm } from './ContactForm';
 import type { Contact } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -24,7 +26,7 @@ export function ContactsTab({
     <div>
       {canEdit && (
         <div style={{ marginBottom: 12 }}>
-          <button className="btn btn-primary btn-sm" onClick={() => setAddingContact(s => !s)}>+ Add contact</button>
+          <Button className={FORM_SUBMIT} onClick={() => setAddingContact(s => !s)}><Plus aria-hidden /> Add Contact</Button>
         </div>
       )}
       {addingContact && canEdit && (

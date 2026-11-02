@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowUp, ArrowDown, Trash2, ExternalLink, ImagePlus, Images,
 import { PROJECT_CATEGORIES, slugify, thumb } from '@/lib/web-cms/config';
 import { ImageField } from './ImageField';
 import { MediaPicker } from './MediaPicker';
+import { Select } from '@/components/platform/shared/Select';
 import { uploadMany } from './imagekitClient';
 import { WorkTypeTile } from './WorkTypeTile';
 import type { WorkTypeRow } from '@/lib/web-cms/workTypes';
@@ -133,10 +134,10 @@ export function ProjectEditorClient({ initial, canEdit, siteUrl, workTypes }: Pr
                   value={project.title} onChange={e => onTitle(e.target.value)} />
               )}</div>
               <div>{label('Category')}
-                <select className="form-select" style={{ width: '100%' }} disabled={ro} value={project.category} onChange={e => set('category', e.target.value)}>
+                <Select className="form-input" style={{ width: '100%' }} disabled={ro} value={project.category} onChange={e => set('category', e.target.value)}>
                   <option value="">Select…</option>
                   {PROJECT_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                </select>
+                </Select>
               </div>
               <div>{label('Location')}{input('location', 'Milford, CT, USA')}</div>
               <div>{label('Project type')}{input('project_type', 'C Store Remodel')}</div>

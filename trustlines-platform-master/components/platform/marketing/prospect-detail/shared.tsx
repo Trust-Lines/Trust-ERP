@@ -1,6 +1,9 @@
 'use client';
 
 import { Building2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { DetailCard, FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
+import { cn } from '@/lib/utils';
 import { Pill } from '@/components/platform/shared/Pill';
 import type { NeedClassification } from '@/types/database';
 import { NEED_CLASSIFICATION_LABEL, NEED_CLASSIFICATION_VARIANT } from './types';
@@ -20,26 +23,36 @@ export function Field({ label, value }: { label: string; value: string | null })
 
 export function FormShell({ title, onCancel, children, footer }: { title: string; onCancel: () => void; children: React.ReactNode; footer: React.ReactNode }) {
   return (
-    <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.04)' }}>
-      <div style={{ height: 3, background: 'linear-gradient(90deg, var(--brand-navy), var(--brand-teal-600, var(--brand-navy)))' }} />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg-default)' }}>{title}</span>
-        <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 2, display: 'flex' }} aria-label="Cancel">
-          <X size={15} />
-        </button>
-      </div>
-      <div style={{ padding: 16 }}>{children}</div>
-      <div style={{ display: 'flex', gap: 8, padding: '12px 16px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>{footer}</div>
-    </div>
+    <DetailCard
+      title={title}
+      action={<Button variant="ghost" size="icon" onClick={onCancel} aria-label="Cancel"><X aria-hidden /></Button>}
+    >
+      <div>{children}</div>
+      <div className="flex gap-2">{footer}</div>
+    </DetailCard>
+  );
+}
+
+/** One choice in a pill row (project type, timing): navy when chosen, outline otherwise. */
+export function OptionButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <Button
+      variant={active ? 'primary' : 'outline'}
+      aria-pressed={active}
+      className={cn('rounded-[6px] font-medium', active && FORM_SUBMIT, active && 'h-8 px-3')}
+      onClick={onClick}
+    >
+      {children}
+    </Button>
   );
 }
 
 export function FieldSection({ icon: Icon, title, children }: { icon: typeof Building2; title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 8, padding: 14, marginBottom: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-        <Icon size={13} style={{ color: 'var(--brand-navy)' }} />
-        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{title}</span>
+    <div className="mb-3 rounded-[6px] border border-ui-divider bg-ui-surface p-3.5">
+      <div className="mb-3 flex items-center gap-1.5">
+        <Icon size={13} className="text-ui-nav-active" />
+        <span className="text-[11px] font-bold uppercase tracking-[0.4px] text-ui-text-secondary">{title}</span>
       </div>
       {children}
     </div>

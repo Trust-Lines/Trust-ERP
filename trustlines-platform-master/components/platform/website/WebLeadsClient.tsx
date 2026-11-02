@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { Inbox, Mail, Phone, Building2, MapPin, Trash2, UserPlus, X, Loader2 } from 'lucide-react';
 import { LEAD_STATUSES, LEAD_STATUS_LABEL, type LeadStatus } from '@/lib/web-cms/leads';
+import { Select } from '@/components/platform/shared/Select';
 
 export interface WebLeadRow {
   id: string; kind: 'contact' | 'newsletter'; name: string | null; phone: string | null; email: string | null;
@@ -97,11 +98,11 @@ export function WebLeadsClient({ initial, canEdit, loadError }: { initial: WebLe
         {chip(statusFilter === 'all', `All (${leads.length})`, () => setStatusFilter('all'))}
         {LEAD_STATUSES.map(s => chip(statusFilter === s, `${LEAD_STATUS_LABEL[s]} (${count(s)})`, () => setStatusFilter(s)))}
         <span style={{ flex: 1 }} />
-        <select className="form-select" value={kindFilter} onChange={e => setKindFilter(e.target.value as typeof kindFilter)} style={{ width: 170 }}>
+        <Select className="form-input" value={kindFilter} onChange={e => setKindFilter(e.target.value as typeof kindFilter)} style={{ width: 170 }}>
           <option value="all">Contact form + Newsletter</option>
           <option value="contact">Contact form only</option>
           <option value="newsletter">Newsletter only</option>
-        </select>
+        </Select>
       </div>
 
       {shown.length === 0 ? (

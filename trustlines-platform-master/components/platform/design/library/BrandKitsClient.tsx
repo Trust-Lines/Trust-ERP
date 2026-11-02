@@ -46,7 +46,7 @@ export function BrandKitsClient() {
 
   return (
     <div className="flex w-full flex-col gap-[30px] pb-12">
-      <LibraryHeader crumb="Design / Brand Kits" title="Brand Kits"
+      <LibraryHeader href="/design/brands" title="Brand Kits"
         subtitle="Each customer brand in one place — logo files, colour codes, fonts and the rules. A kit linked to a customer shows up on that customer's design jobs."
         action={<Button onClick={() => setCreating(true)} disabled={!!notReady}><Plus /> New brand kit</Button>} />
       {notReady && <NotReady message={notReady} />}

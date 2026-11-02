@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { Building2, Users, Globe, Tag } from 'lucide-react';
 import { SourceSelect } from '../SourceSelect';
 import { TagMultiSelect } from '../TagMultiSelect';
@@ -74,8 +77,8 @@ export function ProfileForm({ prospect, primaryContact, onSave, onSaveContact, o
       title="Edit profile"
       onCancel={onCancel}
       footer={<>
-        <button className="btn btn-primary btn-sm" onClick={submit} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={saving}>{'Save changes'}</Button>
+        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
       </>}
     >
       <FieldSection icon={Building2} title="Identity">
@@ -125,7 +128,7 @@ export function ProfileForm({ prospect, primaryContact, onSave, onSaveContact, o
                 <input className="form-input" value={company2Phone} onChange={e => setCompany2Phone(e.target.value)} /></div>
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
-              <input type="checkbox" checked={whatsapp} onChange={e => setWhatsapp(e.target.checked)} /> WhatsApp available
+              <Checkbox checked={whatsapp} onCheckedChange={v => setWhatsapp(v)} /> WhatsApp available
             </label>
           </>
         )}
