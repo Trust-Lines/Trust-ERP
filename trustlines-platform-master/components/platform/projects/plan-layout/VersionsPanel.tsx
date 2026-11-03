@@ -6,6 +6,7 @@ import { DropboxSyncBtn } from '../ProjectWorkflow';
 import { DocStatusBadge, DropboxIcon, type ILVer } from './shared';
 import { feedback } from '@/components/ui/feedback-toast';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 
 /** Left column: Dropbox sync, Item List → pricing shortcuts, version pills and the file list. */
 export function VersionsPanel({
@@ -47,13 +48,9 @@ export function VersionsPanel({
         {(dropboxRootPath || isGeneratable) && (
           <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
             {isGeneratable && docType === 'item_list' && (
-              <button
-                onClick={onCreateItemList}
-                className="btn btn-primary"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '5px 12px' }}
-              >
-                <FilePlus2 size={13} /> Create Item List
-              </button>
+              <Button onClick={onCreateItemList}>
+                <FilePlus2 /> Create Item List
+              </Button>
             )}
             {dropboxRootPath && (
               <div style={{ marginLeft: 'auto' }}>

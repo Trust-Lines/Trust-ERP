@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, Circle, Contact, X, Plus, ClipboardCheck, Users } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Circle, CircleCheck, Contact, Hand, Hourglass, X, Plus, ClipboardCheck, Users, Zap, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { HandoverChecklistItem, ProjectHandover } from '@/types/database';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 
 interface Summary {
   tlines_pm: string | null; trustlines_pm: string | null; ops_manager: string | null; pm_supervisor: string | null;
@@ -26,6 +27,21 @@ interface Props {
   initialAttached: Attached[];
   contactMap: Record<string, ContactInfo>;
   initialAvailable: AvailContact[];
+}
+
+/** Status-chip look (same tone tokens + icon + label as <StatusBadge>) for states with no status group. */
+function ToneChip({ tone, icon: Icon, size = 'md', children }: { tone: string; icon: LucideIcon; size?: 'sm' | 'md'; children: React.ReactNode }) {
+  return (
+    <span
+      className={size === 'sm'
+        ? 'ml-0.5 inline-flex h-5 shrink-0 items-center gap-1 rounded-tag px-2 text-[10px] font-medium leading-[1.5] whitespace-nowrap [&_svg]:size-3'
+        : 'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-tag px-3 text-[12px] font-medium leading-[1.5] whitespace-nowrap [&_svg]:size-3.5'}
+      style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}
+    >
+      <Icon aria-hidden />
+      {children}
+    </span>
+  );
 }
 
 export function HandoverClient(props: Props) {
@@ -93,9 +109,9 @@ export function HandoverClient(props: Props) {
           <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Project Handover</h1>
           <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>{projectCode} — {projectName}</p>
         </div>
-        <span className="pill" style={{ background: complete ? 'var(--status-success-bg)' : 'var(--bg-sunken)', color: complete ? 'var(--status-success-fg)' : 'var(--fg-subtle)', fontSize: 11 }}>
-          {complete ? 'Handover complete' : `In progress · ${doneCount}/${checklist.length}`}
-        </span>
+        {complete
+          ? <ToneChip tone="t9" icon={CircleCheck}>Handover complete</ToneChip>
+          : <ToneChip tone="t2" icon={Hourglass}>In progress · {doneCount}/{checklist.length}</ToneChip>}
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
@@ -121,8 +137,8 @@ export function HandoverClient(props: Props) {
         <div className="card-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div className="form-section-title">Handover checklist</div>
           {canEdit && (complete
-            ? <button className="btn btn-ghost btn-sm" onClick={() => patch({ reopen: true })} disabled={busy}>Reopen</button>
-            : <button className="btn btn-primary btn-sm" onClick={() => patch({ complete: true })} disabled={busy}><ClipboardCheck size={13} /> Mark complete</button>)}
+            ? <Button variant="secondary" onClick={() => patch({ reopen: true })} disabled={busy}>Reopen</Button>
+            : <Button onClick={() => patch({ complete: true })} disabled={busy}><ClipboardCheck /> Mark complete</Button>)}
         </div>
         <div style={{ padding: '10px 18px 0', fontSize: 12, color: 'var(--fg-subtle)' }}>
           Most items tick themselves from the project’s data — <strong>Auto</strong> items turn green the moment the fact
@@ -140,8 +156,8 @@ export function HandoverClient(props: Props) {
                   {item.done ? <CheckCircle2 size={17} style={{ color: 'var(--status-success-fg, #15803d)', flexShrink: 0 }} /> : <Circle size={17} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />}
                   <span style={{ color: item.done ? 'var(--fg-subtle)' : 'var(--fg-default)', textDecoration: item.done ? 'line-through' : 'none' }}>{item.label}</span>
                   {isAuto
-                    ? <span className="pill" style={{ fontSize: 9, marginLeft: 2, background: 'var(--bg-sunken)', color: 'var(--fg-subtle)' }}>Auto</span>
-                    : <span className="pill" style={{ fontSize: 9, marginLeft: 2, background: 'var(--status-warning-bg, #fef3c7)', color: 'var(--status-warning-fg, #92400e)' }}>Manual</span>}
+                    ? <ToneChip tone="t0" icon={Zap} size="sm">Auto</ToneChip>
+                    : <ToneChip tone="t7" icon={Hand} size="sm">Manual</ToneChip>}
                 </button>
               );
             })}
