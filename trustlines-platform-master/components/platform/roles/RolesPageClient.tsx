@@ -6,7 +6,7 @@ import { Switch as SwitchPrimitive } from '@base-ui/react/switch';
 import { Plus, Trash2, ShieldCheck, Monitor, ToggleRight, ToggleLeft, SquarePen, PenLine, Signature, Eye, Bell, TrendingUp, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
-import { PERMISSION_GROUPS, effectivePermissions, pageAllowed, pageInherited, type PermCategory } from '@/lib/permissions/catalog';
+import { PERMISSION_GROUPS, effectivePermissions, hasDefault, pageAllowed, pageInherited, type PermCategory } from '@/lib/permissions/catalog';
 
 export interface RoleDefinition {
   name:        string;
@@ -143,7 +143,7 @@ function PermissionEditor({
   const isAll = !!perms['all'];
   // Pages use the same rule as the app (pageAllowed): a page the role hasn't set yet follows its
   // parent page / old default, so the switch shows what the role can really open today.
-  const isOn = (category: string, key: string) => (category === 'page' ? pageAllowed(roleName, perms, key) : !!perms[key]);
+  const isOn = (category: string, key: string) => (category === 'page' || hasDefault(key) ? pageAllowed(roleName, perms, key) : !!perms[key]);
 
   function set(key: string, val: boolean) { onChange({ ...perms, [key]: val }); }
 
@@ -192,7 +192,7 @@ function PermissionEditor({
             <div className="flex flex-col gap-2">
               {group.perms.map(p => {
                 const on = isOn(group.category, p.key);
-                const inherited = group.category === 'page' && pageInherited(perms, p.key);
+                const inherited = pageInherited(perms, p.key);
                 return (
                   <div key={p.key} className="flex items-center justify-between gap-3 rounded-[6px] border border-ui-divider bg-ui-surface px-6 py-4">
                     <div className="min-w-0">

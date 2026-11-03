@@ -1,5 +1,6 @@
 import { SALES_HANDOFF_ROLES, SALES_INTAKE_ROLES, SALES_TEAM_ADMIN_ROLES } from '@/lib/sales/roles';
 import { TLINES_DASHBOARD_ROLES } from '@/lib/keyClients/roles';
+import { PROJECT_FINANCE_READ_ROLES } from '@/lib/finance/projectTotals';
 
 export type PermCategory = 'page' | 'edit' | 'sign' | 'view' | 'notify' | 'progress';
 
@@ -181,6 +182,18 @@ export const PERMISSION_GROUPS: PermGroup[] = [
     ],
   },
   {
+    // The tabs of the popup a Dashboard card opens (components/platform/dashboard/BoardItemView).
+    category: 'view', title: 'Dashboard project popup', icon: '🗂️',
+    perms: [
+      { key: 'view.card_deal',         label: 'Potential & Opportunity', hint: 'The deal tabs and its details' },
+      { key: 'view.card_finalization', label: 'Finalization', hint: 'The project’s code, stage, site and dates' },
+      { key: 'view.card_po_pf',        label: 'PO + PF', hint: 'PF codes and PF / PO signatures per type' },
+      { key: 'view.card_production',   label: 'Production', hint: 'Production status per type' },
+      { key: 'view.card_shipping',     label: 'Shipping', hint: 'Containers and shipping dates per type' },
+      { key: 'view.card_finance',      label: 'Finance', hint: 'PF, invoices, expenses and supplier balances' },
+    ],
+  },
+  {
     category: 'notify', title: 'Notifications', icon: '🔔',
     perms: [
       { key: 'notify.approval_request',  label: 'Approval needed (my signature)', hint: 'Emailed when a document is waiting for my role to sign' },
@@ -246,7 +259,12 @@ export const PAGE_LEGACY_ROLES: Record<string, string[]> = {
   'page.sales_dashboard': SALES_TEAM_ADMIN_ROLES,
   'page.sales_team': SALES_TEAM_ADMIN_ROLES,
   'page.tlines_dashboard': TLINES_DASHBOARD_ROLES,
+  // Dashboard popup: Finance followed who could read project finance (lib/finance/projectTotals).
+  'view.card_finance': [...PROJECT_FINANCE_READ_ROLES],
 };
+
+/** Keys every role has until an admin switches them off — the popup tabs everyone saw at first. */
+export const PERM_DEFAULT_ON = new Set(['view.card_deal', 'view.card_finalization', 'view.card_po_pf', 'view.card_production', 'view.card_shipping']);
 
 /** Whether `role` (with its effective permission map) may open the page behind `key`. */
 export function pageAllowed(role: string | null | undefined, perms: PermMap | null | undefined, key: string): boolean {
@@ -255,14 +273,18 @@ export function pageAllowed(role: string | null | undefined, perms: PermMap | nu
   if (key in perms) return perms[key] === true;
   const parent = PAGE_PARENT[key];
   if (parent) return pageAllowed(role, perms, parent);
+  if (PERM_DEFAULT_ON.has(key)) return true;
   const legacy = PAGE_LEGACY_ROLES[key];
   return !!role && !!legacy && legacy.includes(role);
 }
 
 /** True when the role hasn't set this page itself and is following its parent / old default. */
 export function pageInherited(perms: PermMap | null | undefined, key: string): boolean {
-  return !!perms && perms.all !== true && !(key in perms) && (key in PAGE_PARENT || key in PAGE_LEGACY_ROLES);
+  return !!perms && perms.all !== true && !(key in perms) && hasDefault(key);
 }
+
+/** Keys whose "not set" means a default (parent, old role list, or on) rather than off. */
+export const hasDefault = (key: string) => key in PAGE_PARENT || key in PAGE_LEGACY_ROLES || PERM_DEFAULT_ON.has(key);
 
 const ALL: PermMap = { all: true };
 const on = (...keys: string[]): PermMap => Object.fromEntries(keys.map(k => [k, true]));

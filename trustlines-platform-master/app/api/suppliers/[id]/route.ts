@@ -57,9 +57,30 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { user, admin, deny } = await requireRole([...SUPPLIER_WRITE_ROLES]);
   if (deny) return deny;
 
-  const { data, error } = await admin.from('suppliers').update({ is_active: false }).eq('id', id).select('code, name').single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const { data: s } = await admin.from('suppliers').select('code, name').eq('id', id).maybeSingle();
+  if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  await logAudit({ actorId: user.id, action: 'supplier.deactivated', resource: `${data.code} — ${data.name}` });
-  return NextResponse.json({ ok: true });
+  // Deleted only when nothing points at it — production items, invoices, payments, expenses and
+  // design materials keep their supplier. Otherwise it's set inactive and the caller is told why.
+  const links: string[] = [];
+  for (const [table, col, label] of [
+    ['production_items', 'vendor_id', 'production items'], ['supplier_invoices', 'supplier_id', 'invoices'],
+    ['supplier_payments', 'supplier_id', 'payments'], ['trust_expenses', 'supplier_id', 'expenses'], ['design_materials', 'supplier_id', 'design materials'],
+  ]) {
+    const { count, error } = await admin.from(table).select('id', { count: 'exact', head: true }).eq(col, id);
+    if (error || (count ?? 0) > 0) links.push(error ? label : `${count} ${label}`);
+  }
+
+  if (!links.length) {
+    const { error } = await admin.from('suppliers').delete().eq('id', id);
+    if (!error) {
+      await logAudit({ actorId: user.id, action: 'supplier.deleted', resource: `${s.code} — ${s.name}` });
+      return NextResponse.json({ ok: true, deleted: true });
+    }
+    links.push('other records');
+  }
+  const { error } = await admin.from('suppliers').update({ is_active: false }).eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit({ actorId: user.id, action: 'supplier.deactivated', resource: `${s.code} — ${s.name}`, newValue: { linked: links } });
+  return NextResponse.json({ ok: true, deleted: false, linked: links });
 }

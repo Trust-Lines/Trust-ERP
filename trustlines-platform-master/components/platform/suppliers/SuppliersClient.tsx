@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, Package, Plus } from 'lucide-react';
+import { Search, Package, Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import type { CurrencyTotals } from '@/lib/suppliers/config';
 import { CURRENCIES } from '@/lib/suppliers/config';
@@ -73,6 +73,21 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
       s.name.toLowerCase().includes(q) || (s.code ?? '').toLowerCase().includes(q));
   }, [suppliers, query]);
 
+  // The Trust System's Production vendors → Suppliers (adds + updates; app/api/suppliers/sync-trust).
+  const [syncing, setSyncing] = useState(false);
+  async function syncFromTrust() {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/suppliers/sync-trust', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(b.error ?? 'Could not update from Trust'); return; }
+      const changed = b.added.length + b.updated.length;
+      toast.success(changed ? `${b.added.length} added, ${b.updated.length} updated from Trust` : 'Already up to date with Trust');
+      if (changed) router.refresh();
+    } catch { toast.error('Could not update from Trust'); }
+    finally { setSyncing(false); }
+  }
+
   async function handleCreate() {
     if (!name.trim()) { toast.error('Supplier name is required'); return; }
     setSaving(true);
@@ -89,13 +104,25 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
   }
 
   return (
-    <div className="flex flex-col gap-[30px]">
-      <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <PageCrumbs items={[{ label: 'Operations', href: '/production' }, { label: 'Suppliers', href: '/suppliers' }]} />
-        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Suppliers</h1>
-        <p className="m-0 text-[13px] text-ui-body">
-          {suppliers.length} supplier{suppliers.length !== 1 ? 's' : ''} · vendor invoices &amp; payments
-        </p>
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Suppliers &amp; finance</h1>
+          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
+            {suppliers.length} supplier{suppliers.length !== 1 ? 's' : ''} · vendor invoices &amp; payments
+          </p>
+        </div>
+        {canEdit && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button size="md" variant="secondary" onClick={() => void syncFromTrust()} disabled={syncing}
+              title="Bring in the Trust System's Production vendors (also runs every night)">
+              <RefreshCw className={syncing ? 'animate-spin' : undefined} /> Update from Trust
+            </Button>
+            <Button size="md" onClick={() => setShowForm(v => !v)} aria-expanded={showForm}>
+              <Plus /> New supplier
+            </Button>
+          </div>
+        )}
       </div>
 
       {schemaError && (

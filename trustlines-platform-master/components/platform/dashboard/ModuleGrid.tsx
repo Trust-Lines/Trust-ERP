@@ -90,7 +90,7 @@ export function ModuleGrid({
     : visibleModules;
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-7 select-none font-sans text-slate-800 py-3 px-1">
+    <div className="w-full space-y-7 select-none font-sans text-slate-800 py-3 px-1">
       {/* ── Page Greeting Header (Matching the Photo) ────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2">
         <div>

@@ -15,6 +15,8 @@ export interface TrustItem {
   type: string | null;
   status: string | null;
   pfCode: string | null;
+  pfSignStatus?: string | null;
+  poSignStatus?: string | null;
   containerNo: string | null;
   containerDate: string | null;
 }
@@ -40,8 +42,8 @@ export interface TrustBoardEntry {
 }
 
 /** Production statuses at or past "ordered" (before it leaves on a container). */
-const PAST_ORDERED = new Set(['ORDERED', 'BOOKS_IN_PROGRESS', 'HOLD_BOOKS', 'READY', 'READY_TO_RECEIVE', 'RECEIVED', 'SENT_TO_TLINES', 'PARTIAL_SENT', 'SENT']);
-const HOLD = new Set(['HOLD_T', 'HOLD_PM']);
+export const PAST_ORDERED = new Set(['ORDERED', 'BOOKS_IN_PROGRESS', 'HOLD_BOOKS', 'READY', 'READY_TO_RECEIVE', 'RECEIVED', 'SENT_TO_TLINES', 'PARTIAL_SENT', 'SENT']);
+export const HOLD = new Set(['HOLD_T', 'HOLD_PM']);
 
 export function typeLabel(type: string | null): string | null {
   if (!type) return null;
@@ -95,7 +97,11 @@ const clean = (v: string | undefined) => v?.trim().replace(/^["']|["']$/g, '').t
  * Every live Trust project (not finished, not deleted). Never throws: when the Trust System
  * can't be read, `error` says why (missing env, HTTP status, network) so the board can show it.
  */
-export async function loadTrustProjects(): Promise<{ projects: TrustProject[]; error: string | null }> {
+/**
+ * The Trust System API's base URL (ending in /api), its key and a "host, key variable" label for
+ * messages — or why it isn't configured. Server-side only (the key never reaches the browser).
+ */
+export function trustConnection(): { base: string; key: string; where: string } | { error: string } {
   let raw = clean(process.env.TRUST_API_URL)?.replace(/\/+$/, '');
   // A value that isn't a web address (prod once had an email address here) falls back to the
   // Trust System's own address instead of leaving the board empty.
@@ -105,14 +111,20 @@ export async function loadTrustProjects(): Promise<{ projects: TrustProject[]; e
   }
   const keyName = clean(process.env.TRUST_API_KEY) ? 'TRUST_API_KEY' : 'INTEGRATION_API_KEY';
   const key = clean(process.env[keyName]);
-  if (!raw || !key) return { projects: [], error: `not configured (${!raw ? 'TRUST_API_URL' : 'TRUST_API_KEY'} missing)` };
+  if (!raw || !key) return { error: `not configured (${!raw ? 'TRUST_API_URL' : 'TRUST_API_KEY'} missing)` };
   // The API lives under /api — accept the URL with or without it.
   const base = /\/api$/.test(raw) ? raw : `${raw}/api`;
   // Named in every message (host + which key variable) — not secret, and it's what tells a
   // wrong deployment / wrong key apart when prod differs from local.
   let host = raw;
   try { host = new URL(base).host; } catch { /* keep raw */ }
-  const where = `${host}, ${keyName}`;
+  return { base, key, where: `${host}, ${keyName}` };
+}
+
+export async function loadTrustProjects({ includeDone = false }: { includeDone?: boolean } = {}): Promise<{ projects: TrustProject[]; error: string | null }> {
+  const conn = trustConnection();
+  if ('error' in conn) return { projects: [], error: conn.error };
+  const { base, key, where } = conn;
   const all: TrustProject[] = [];
   try {
     for (let page = 1; page <= 50; page++) {
@@ -132,7 +144,8 @@ export async function loadTrustProjects(): Promise<{ projects: TrustProject[]; e
     console.error('[trust board] projects unavailable:', msg);
     return { projects: [], error: `${msg} — ${where}` };
   }
-  const live = all.filter(p => !p.deletedAt && p.status !== 'DONE');
+  // Finished (DONE) projects only when asked — e.g. a supplier's work history.
+  const live = all.filter(p => !p.deletedAt && (includeDone || p.status !== 'DONE'));
   if (!live.length) return { projects: [], error: `no projects returned (${all.length} in total) — ${where}` };
   return { projects: live, error: null };
 }
