@@ -934,7 +934,7 @@ export function ApprovalsPageClient() {
   }
 
   return (
-    <div className="w-full max-w-[1380px] mx-auto px-4 py-6 md:px-6 md:py-8 font-sans text-slate-800">
+    <div className="w-full px-4 py-6 md:px-6 md:py-8 font-sans text-slate-800">
       {/* ── 1. HEADER SECTION ────────────────────────────────────────── */}
       <div className="mb-6">
         {/* Breadcrumbs */}

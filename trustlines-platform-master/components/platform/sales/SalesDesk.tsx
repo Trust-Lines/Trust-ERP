@@ -344,7 +344,7 @@ export function SalesDesk({ data }: { data: SalesDashboardData }) {
   if (data.activeDeals > 0 && data.silentOver30 > 0) notes.push(`${n(data.silentOver30)} of ${n(data.activeDeals)} deals that should be moving haven’t had an update in over 30 days.`);
 
   return (
-    <div className="sd" style={{ maxWidth: 1480, margin: '0 auto' }}>
+    <div className="sd">
       <style>{CSS}</style>
 
       <header style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', paddingBottom: 26 }}>

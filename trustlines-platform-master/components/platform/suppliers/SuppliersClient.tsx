@@ -104,13 +104,13 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
         </div>
         {canEdit && (
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-secondary" onClick={() => void syncFromTrust()} disabled={syncing}
+            <Button size="md" variant="secondary" onClick={() => void syncFromTrust()} disabled={syncing}
               title="Bring in the Trust System's Production vendors (also runs every night)">
-              <RefreshCw size={15} className={syncing ? 'animate-spin' : undefined} /> Update from Trust
-            </button>
-            <button className="btn btn-primary" onClick={() => setShowForm(v => !v)}>
-              <Plus size={15} /> New supplier
-            </button>
+              <RefreshCw className={syncing ? 'animate-spin' : undefined} /> Update from Trust
+            </Button>
+            <Button size="md" onClick={() => setShowForm(v => !v)} aria-expanded={showForm}>
+              <Plus /> New supplier
+            </Button>
           </div>
         )}
       </div>
@@ -135,7 +135,7 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
             Country
             <input className="form-input" value={country} onChange={e => setCountry(e.target.value)} />
           </label>
-          <button className="btn btn-primary" onClick={handleCreate} disabled={saving}>{saving ? 'Saving…' : 'Create'}</button>
+          <Button size="md" onClick={handleCreate} loading={saving}>Create</Button>
         </div>
       )}
 

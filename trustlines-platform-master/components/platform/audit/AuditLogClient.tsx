@@ -43,6 +43,11 @@ export function fmtAction(action: string): string {
   return action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+// The design's Date column is the day only ("8/10/2026"); the full time stays in the cell's tooltip.
+function fmtDay(d: string) {
+  return new Date(d).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+}
+
 function fmtDate(d: string) {
   return new Date(d).toLocaleString('en-US', {
     month: 'numeric', day: 'numeric', year: 'numeric',
@@ -129,8 +134,8 @@ function LogRow({ entry }: { entry: AuditEntry }) {
           <p className="m-0 truncate text-[13px] text-ui-body">{entry.resource ?? '—'}</p>
         </td>
 
-        <td className="whitespace-nowrap px-2 pr-4 text-[12px] text-ui-body">
-          {fmtDate(entry.created_at)}
+        <td className="whitespace-nowrap px-2 pr-4 text-[12px] text-ui-body" title={fmtDate(entry.created_at)}>
+          {fmtDay(entry.created_at)}
         </td>
       </tr>
 
@@ -217,11 +222,11 @@ export function AuditLogClient({ logs }: { logs: AuditEntry[] }) {
                 <thead>
                   <tr className="h-[46px] border-b border-ui-divider bg-[var(--ui-table-head-bg,var(--ui-surface))]">
                     <th className="w-6" />
-                    <th className={cn(TH, 'w-[440px] pl-[15px]')}>Action</th>
-                    <th className={cn(TH, 'w-[250px]')}>User</th>
-                    <th className={cn(TH, 'w-[250px]')}>Project</th>
+                    <th className={cn(TH, 'w-[472px] pl-[15px]')}>Action</th>
+                    <th className={cn(TH, 'w-[274px]')}>User</th>
+                    <th className={cn(TH, 'w-[268px]')}>Project</th>
                     <th className={TH}>Resource</th>
-                    <th className={cn(TH, 'w-[190px]')}>Date</th>
+                    <th className={cn(TH, 'w-[192px]')}>Date</th>
                   </tr>
                 </thead>
                 <tbody>

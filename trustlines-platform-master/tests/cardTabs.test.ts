@@ -33,3 +33,13 @@ describe('buildCardTabs', () => {
     expect(tabs.map(t => [t.title, t.chip.label])).toEqual([['Finalization', 'In progress'], ['Finance', 'PF $1,200']]);
   });
 });
+
+describe('buildCardTabs — Roles page switches', () => {
+  it('leaves out the tabs the role may not see', () => {
+    const tabs = buildCardTabs({
+      deals: [deal('opportunity', '2026-02-01')], project, finance: null, today: '2026-11-02', allowed: ['finalization', 'production'],
+      trustItems: [item({ status: 'ORDERED', pfCode: 'PF-1' })],
+    });
+    expect(tabs.map(t => t.title)).toEqual(['Finalization', 'Production']);
+  });
+});

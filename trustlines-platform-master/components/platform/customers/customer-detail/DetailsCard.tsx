@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import type { Customer } from './types';
 import { DetailCard, HEADING } from './ui';
 
@@ -147,18 +148,8 @@ function CustomerEditForm({ customer, onSave, onCancel }: { customer: Customer; 
       </div>
 
       <div className="flex items-center justify-between gap-3 border-t border-ui-divider pt-5">
-        <button
-          type="button" onClick={onCancel}
-          className="inline-flex h-9 items-center rounded-[6px] border border-ui-divider bg-ui-input-bg px-8 text-[13px] font-medium text-ui-body transition-colors hover:bg-ui-hover-bg"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit" disabled={!f.name.trim() || saving}
-          className="inline-flex h-9 items-center rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-8 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950"
-        >
-          {saving ? 'Saving…' : 'Save changes'}
-        </button>
+        <Button type="button" variant="secondary" size="md" onClick={onCancel} disabled={saving}>Cancel</Button>
+        <Button type="submit" size="md" disabled={!f.name.trim()} loading={saving}>Save changes</Button>
       </div>
     </form>
   );

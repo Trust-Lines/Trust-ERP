@@ -232,7 +232,7 @@ export function IntakeForm({ intakeId, assignees, leadName }: Props) {
 
   // Figma "New lead" (node 290:36781): heading, six step tabs, form card + Lead Preview.
   return (
-    <div className="mx-auto flex w-full max-w-[1416px] flex-col gap-6 pb-16">
+    <div className="flex w-full flex-col gap-6 pb-16">
       <div className="flex flex-col gap-[18px]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-col gap-[5px] leading-[1.35]">
