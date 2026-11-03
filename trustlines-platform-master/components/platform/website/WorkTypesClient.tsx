@@ -12,6 +12,7 @@ import { uploadToImageKit } from './imagekitClient';
 import { MediaPicker } from './MediaPicker';
 import { feedback } from '@/components/ui/feedback-toast';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Props {
   initial: WorkTypeRow[];
@@ -157,12 +158,13 @@ export function WorkTypesClient({ initial, canEdit, siteUrl, loadError }: Props)
                     </label>
                     <Button variant="outline" className={MEDIA_BTN} onClick={() => setPickingFor(t.id)} title="Pick from library"><Images aria-hidden /> Library</Button>
                     {t.icon_url && (
-                      <button className="btn btn-ghost btn-sm" onClick={() => patch(t, { icon_url: '' })} title="Back to built-in icon"><X size={13} /></button>
+                      <Button variant="ghost" size="icon-sm" onClick={() => patch(t, { icon_url: '' })} title="Back to built-in icon" aria-label="Back to built-in icon"><X /></Button>
                     )}
-                    <button className="btn btn-ghost btn-sm" disabled={i === 0} onClick={() => moveBy(i, -1)}><ArrowUp size={13} /></button>
-                    <button className="btn btn-ghost btn-sm" disabled={i === types.length - 1} onClick={() => moveBy(i, 1)}><ArrowDown size={13} /></button>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, marginLeft: 6, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={t.is_active} onChange={e => patch(t, { is_active: e.target.checked })} /> Active
+                    <Button variant="ghost" size="icon-sm" disabled={i === 0} onClick={() => moveBy(i, -1)} title="Move up" aria-label={`Move ${t.label} up`}><ArrowUp /></Button>
+                    <Button variant="ghost" size="icon-sm" disabled={i === types.length - 1} onClick={() => moveBy(i, 1)} title="Move down" aria-label={`Move ${t.label} down`}><ArrowDown /></Button>
+                    {/* Platform checkbox (Figma Form Components › Checkbox). */}
+                    <label className="ml-1.5 flex cursor-pointer items-center gap-2 text-[12px] text-ui-body">
+                      <Checkbox checked={t.is_active} onCheckedChange={c => patch(t, { is_active: !!c })} /> Active
                     </label>
                   </div>
                 )}
