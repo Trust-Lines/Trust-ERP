@@ -10,6 +10,7 @@ import {
 } from '@/lib/regions';
 import { buildDropboxProjectPath } from '@/lib/dropbox/paths';
 import { createProjectFolders } from '@/lib/dropbox/upload';
+import { reserveFreeProjectNumber } from '@/lib/projects/number';
 
 
 function composeAddress(city?: string | null, street?: string | null, state?: string | null): string {
@@ -121,9 +122,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!row?.project_id && block1Ready) {
 
 
-    const { data: reserved, error: rErr } = await admin.rpc('reserve_global_number');
-    if (rErr) return NextResponse.json({ error: rErr.message }, { status: 500 });
-    reservedNumber = reserved as number;
+    try { reservedNumber = await reserveFreeProjectNumber(admin); }
+    catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : 'Could not reserve a project number' }, { status: 503 }); }
 
     const code = composeProjectCode(next.service_line, next.region, reservedNumber);
     const addr = composeAddress(next.city, next.street, next.state);

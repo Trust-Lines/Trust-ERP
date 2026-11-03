@@ -234,13 +234,13 @@ export function NewProjectForm({
   useEffect(() => {
     if (!autoCodeMode) { setTrustAutoNumber(null); return; }
     let cancelled = false;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).rpc('peek_global_number')
-      .then(({ data, error }: { data: number | null; error: unknown }) => {
-        if (!cancelled && !error) setTrustAutoNumber((data as number) ?? null);
-      });
+    // The next FREE number — used ones (Trust, ClickUp, ours) are skipped (app/api/projects/number).
+    fetch('/api/projects/number')
+      .then(r => (r.ok ? r.json() : null))
+      .then((b: { number?: number } | null) => { if (!cancelled && b?.number) setTrustAutoNumber(b.number); })
+      .catch(() => {});
     return () => { cancelled = true; };
-  }, [autoCodeMode, supabase]);
+  }, [autoCodeMode]);
 
   useEffect(() => {
     if (autoCodeMode && trustAutoNumber != null) {
@@ -351,10 +351,10 @@ export function NewProjectForm({
       let regionForInsert: string | null = null;
       let serviceLineForInsert: string | null = null;
       if (autoCodeMode && !importFromDropboxPath && derivedServiceLine) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: num, error } = await (supabase as any).rpc('reserve_global_number');
-        if (error) throw new Error(error.message);
-        code = composeProjectCode(derivedServiceLine, trustRegion, num as number);
+        const res = await fetch('/api/projects/number', { method: 'POST' });
+        const b = await res.json().catch(() => ({}));
+        if (!res.ok || !b.number) throw new Error(b.error ?? 'Could not reserve a project number');
+        code = composeProjectCode(derivedServiceLine, trustRegion, b.number as number);
         regionForInsert = trustRegion;
         serviceLineForInsert = derivedServiceLine;
       }

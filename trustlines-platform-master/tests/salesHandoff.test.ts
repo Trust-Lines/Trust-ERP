@@ -5,25 +5,32 @@ import {
 } from '@/lib/marketing/salesHandoff';
 
 vi.mock('@/lib/audit/log', () => ({ logAudit: vi.fn(async () => {}) }));
+// Numbers come from the counter here (the used-number check reads the Trust System).
+vi.mock('@/lib/projects/number', () => ({
+  reserveFreeProjectNumber: vi.fn(async (admin: any) => (await admin.rpc('reserve_global_number')).data),
+}));
+const trustCreate = vi.fn(async () => ({ ok: true, existed: false }));
+vi.mock('@/lib/trust/createProject', () => ({ createTrustProject: (...a: unknown[]) => trustCreate(...(a as [])) }));
 vi.mock('@/lib/dropbox/upload', () => ({
   createProjectFolders: vi.fn(async () => ({ rootPath: '/fake', subFolders: [], alreadyExists: false })),
 }));
 
 function makeFakeAdmin(seed: {
   opportunities?: any[]; prospects?: any[]; customers?: any[]; projects?: any[];
-  prospect_needs?: any[]; prospect_locations?: any[];
+  prospect_needs?: any[]; prospect_locations?: any[]; profiles?: any[];
   onReserveNumber?: (db: Record<string, any[]>) => void;
 } = {}) {
   const db: Record<string, any[]> = {
     opportunities: seed.opportunities ?? [], prospects: seed.prospects ?? [],
     customers: seed.customers ?? [], projects: seed.projects ?? [],
     prospect_needs: seed.prospect_needs ?? [], prospect_locations: seed.prospect_locations ?? [],
+    profiles: seed.profiles ?? [],
   };
   let idCounter = 1;
   let rpcCallCount = 0;
 
   function from(table: string) {
-    const rows = db[table];
+    const rows = (db[table] ??= []);
     let filtered = rows;
     let pendingInsert: Record<string, unknown> | null = null;
     let pendingUpdate: Record<string, unknown> | null = null;
@@ -34,7 +41,10 @@ function makeFakeAdmin(seed: {
       is: (f: string, v: unknown) => { filtered = filtered.filter(r => (v === null ? r[f] == null : r[f] === v)); return builder; },
       ilike: (f: string, v: string) => { filtered = filtered.filter(r => String(r[f] ?? '').toLowerCase() === String(v).toLowerCase()); return builder; },
       limit: () => builder,
-      insert: (row: Record<string, unknown>) => {
+      order: () => builder,
+      in: (f: string, v: unknown[]) => { filtered = filtered.filter(r => v.includes(r[f])); return builder; },
+      insert: (row: Record<string, unknown> | Record<string, unknown>[]) => {
+        if (Array.isArray(row)) { for (const r of row) rows.push({ id: `${table}-${idCounter++}`, ...r }); return builder; }
         pendingInsert = { id: `${table}-${idCounter++}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ...row };
         return builder;
       },
@@ -45,7 +55,11 @@ function makeFakeAdmin(seed: {
         return { data: filtered[0] ?? null, error: null };
       },
       single: async () => builder.maybeSingle(),
-      then: (resolve: (v: { data: unknown; error: null }) => void) => { builder.maybeSingle().then(resolve); },
+      // Awaiting a plain select gives every matching row, like PostgREST; a write gives its row.
+      then: (resolve: (v: { data: unknown; error: null }) => void) => {
+        if (pendingInsert || pendingUpdate) builder.maybeSingle().then(resolve);
+        else resolve({ data: filtered, error: null });
+      },
     };
     return builder;
   }
@@ -88,34 +102,27 @@ describe('initiateHandoff', () => {
   });
 });
 
-describe('acceptOpportunity — idempotent, creates exactly one Project', () => {
-  it('creates a Project, reserves a number once, and moves the Opportunity to sales_accepted', async () => {
+describe('acceptOpportunity — Sales takes it on, no project yet', () => {
+  it('moves the Opportunity to sales_accepted without opening a project or using a number', async () => {
     const fake = makeFakeAdmin({ opportunities: [{ ...baseOpp, stage: 'sales_handoff' }] });
-    const result = await acceptOpportunity(fake.admin, 'o1', 'u1', acceptInput);
+    const result = await acceptOpportunity(fake.admin, 'o1', 'u1');
     expect(result.alreadyAccepted).toBe(false);
     expect(result.opportunity.stage).toBe('sales_accepted');
-    expect(result.opportunity.project_id).toBe(result.project.id);
-    expect(fake.db.projects).toHaveLength(1);
-    expect(fake.rpcCallCount).toBe(1);
+    expect(result.opportunity.sales_owner_id).toBe('u1');
+    expect(fake.db.projects).toHaveLength(0);
+    expect(fake.rpcCallCount).toBe(0);
   });
 
-  it('calling accept twice never reserves a second number or creates a second Project', async () => {
-    const { admin, db } = makeFakeAdmin({ opportunities: [{ ...baseOpp, stage: 'sales_handoff' }] });
-    const first = await acceptOpportunity(admin, 'o1', 'u1', acceptInput);
-    const second = await acceptOpportunity(admin, 'o1', 'u2', acceptInput);
+  it('accepting twice is a no-op', async () => {
+    const { admin } = makeFakeAdmin({ opportunities: [{ ...baseOpp, stage: 'sales_handoff' }] });
+    await acceptOpportunity(admin, 'o1', 'u1');
+    const second = await acceptOpportunity(admin, 'o1', 'u2');
     expect(second.alreadyAccepted).toBe(true);
-    expect(second.project.id).toBe(first.project.id);
-    expect(db.projects).toHaveLength(1);
   });
 
   it('rejects accepting an Opportunity that was never handed off', async () => {
     const { admin } = makeFakeAdmin({ opportunities: [{ ...baseOpp, stage: 'new' }] });
-    await expect(acceptOpportunity(admin, 'o1', 'u1', acceptInput)).rejects.toThrow(HandoffError);
-  });
-
-  it('rejects an invalid region or service line', async () => {
-    const { admin } = makeFakeAdmin({ opportunities: [{ ...baseOpp, stage: 'sales_handoff' }] });
-    await expect(acceptOpportunity(admin, 'o1', 'u1', { ...acceptInput, region: 'NOT_A_REGION' })).rejects.toThrow(HandoffError);
+    await expect(acceptOpportunity(admin, 'o1', 'u1')).rejects.toThrow(HandoffError);
   });
 });
 
@@ -139,23 +146,50 @@ describe('returnOpportunity', () => {
   });
 });
 
-describe('closeWon', () => {
-  it('requires the Opportunity to already have an accepted Project', async () => {
-    const { admin } = makeFakeAdmin({ opportunities: [{ ...baseOpp, stage: 'sales_accepted', project_id: null }] });
-    await expect(closeWon(admin, 'o1', 'u1')).rejects.toThrow(HandoffError);
+describe('closeWon — the project opens when the deal is won', () => {
+  const prospect = { id: 'p1', customer_id: null, display_name: 'ZZTEST Acme', main_email: 'a@x.com', main_phone: '555' };
+
+  it('needs the project details when there is no project yet and the Need does not hold them', async () => {
+    const { admin } = makeFakeAdmin({ opportunities: [{ ...baseOpp, stage: 'negotiation' }], prospects: [{ ...prospect }] });
+    await expect(closeWon(admin, 'o1', 'u1')).rejects.toThrow(/project details/);
   });
 
-  it('creates a Customer from the Prospect and links it to the Opportunity + Project', async () => {
+  it('opens the project with one number, links the customer, opens it in Trust and gives it to the region PM', async () => {
+    trustCreate.mockClear();
+    const fake = makeFakeAdmin({
+      opportunities: [{ ...baseOpp, stage: 'negotiation' }], prospects: [{ ...prospect }],
+      profiles: [{ id: 'pm1', full_name: 'Amira', role: 'tlines_pm', is_active: true, assigned_regions: ['TLINES_NE'] }],
+    });
+    const result = await closeWon(fake.admin, 'o1', 'u1', acceptInput);
+    expect(result.stage).toBe('closed_won');
+    expect(fake.rpcCallCount).toBe(1);
+    expect(fake.db.projects).toHaveLength(1);
+    const project = fake.db.projects[0];
+    expect(fake.db.opportunities[0].project_id).toBe(project.id);
+    expect(project.customer_id).toBe(fake.db.customers[0].id);
+    expect(project.tlines_pm_id).toBe('pm1');
+    expect(trustCreate).toHaveBeenCalledWith(expect.objectContaining({ region: 'TLINES_NE', projectNo: 101, name: 'ZZTEST Customer' }));
+  });
+
+  it('flags ops when no single T-Lines PM covers the region (the win still goes through)', async () => {
+    const fake = makeFakeAdmin({
+      opportunities: [{ ...baseOpp, stage: 'negotiation' }], prospects: [{ ...prospect }],
+      profiles: [{ id: 'ops1', role: 'ops_manager', is_active: true }],
+    });
+    const result = await closeWon(fake.admin, 'o1', 'u1', acceptInput);
+    expect(result.stage).toBe('closed_won');
+    expect(fake.db.projects[0].tlines_pm_id).toBeUndefined();
+    expect(fake.db.notifications.some((n: any) => n.user_id === 'ops1' && /T-Lines PM/.test(n.body))).toBe(true);
+  });
+
+  it('an Opportunity that already has a project keeps it — no second number', async () => {
     const { admin, db } = makeFakeAdmin({
       opportunities: [{ ...baseOpp, stage: 'sales_accepted', project_id: 'proj-1' }],
-      prospects: [{ id: 'p1', customer_id: null, display_name: 'ZZTEST Acme', main_email: 'a@x.com', main_phone: '555' }],
-      projects: [{ id: 'proj-1', customer_id: null }],
+      prospects: [{ ...prospect }], projects: [{ id: 'proj-1', customer_id: null, code: 'STNE 1' }],
     });
     const result = await closeWon(admin, 'o1', 'u1');
     expect(result.stage).toBe('closed_won');
-    expect(result.customer_id).toBeTruthy();
-    expect(db.customers).toHaveLength(1);
-    expect(db.prospects[0].customer_id).toBe(result.customer_id);
+    expect(db.projects).toHaveLength(1);
     expect(db.projects[0].customer_id).toBe(result.customer_id);
   });
 

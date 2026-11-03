@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
+import { peekFreeProjectNumber } from '@/lib/projects/number';
 
 const MANAGE_ROLES = ['sales_marketing_manager', 'ops_manager', 'general_manager'];
 
@@ -7,10 +8,9 @@ export async function GET() {
   const { admin, deny } = await requireRole(MANAGE_ROLES);
   if (deny) return deny;
 
-  const { data, error } = await admin.rpc('peek_global_number');
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  return NextResponse.json({ nextNumber: (data as number) ?? 1 });
+  // The next FREE number — used ones (Trust, ClickUp, ours) are skipped (lib/projects/number).
+  try { return NextResponse.json({ nextNumber: await peekFreeProjectNumber(admin) }); }
+  catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : 'Could not read the next number' }, { status: 503 }); }
 }
 
 export async function POST(req: NextRequest) {
@@ -32,5 +32,7 @@ export async function POST(req: NextRequest) {
     new_value: { next_number: Math.trunc(next) },
   });
 
-  return NextResponse.json({ ok: true, nextNumber: (data as number) });
+  // What the next project will really get: the number set here, or the first free one after it.
+  const nextNumber = await peekFreeProjectNumber(admin).catch(() => data as number);
+  return NextResponse.json({ ok: true, nextNumber });
 }

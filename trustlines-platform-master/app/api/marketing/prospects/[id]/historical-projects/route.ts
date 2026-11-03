@@ -6,6 +6,7 @@ import { assertProspectAccess } from '@/lib/marketing/prospectAccess';
 import { REGION_CODES, SERVICE_LINE_VALUES, composeProjectCode } from '@/lib/regions';
 import { PROJECT_TYPES, PROJECT_TYPE_LABEL } from '@/lib/marketing/classification';
 import type { ProjectType } from '@/types/database';
+import { reserveFreeProjectNumber } from '@/lib/projects/number';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -42,9 +43,10 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { data: prospect } = await admin.from('prospects').select('display_name').eq('id', id).maybeSingle();
   if (!prospect) return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
 
-  const { data: reserved, error: rErr } = await admin.rpc('reserve_global_number');
-  if (rErr) return NextResponse.json({ error: rErr.message }, { status: 500 });
-  const code = composeProjectCode(body.service_line, body.region, reserved as number);
+  let reserved: number;
+  try { reserved = await reserveFreeProjectNumber(admin); }
+  catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : 'Could not reserve a project number' }, { status: 503 }); }
+  const code = composeProjectCode(body.service_line, body.region, reserved);
   const name = `${code} - ${body.title.trim()}`;
 
   const { data: project, error: pErr } = await admin.from('projects').insert({
