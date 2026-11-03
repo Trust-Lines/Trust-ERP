@@ -104,25 +104,13 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
   }
 
   return (
-    <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Suppliers &amp; finance</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
-            {suppliers.length} supplier{suppliers.length !== 1 ? 's' : ''} · vendor invoices &amp; payments
-          </p>
-        </div>
-        {canEdit && (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button size="md" variant="secondary" onClick={() => void syncFromTrust()} disabled={syncing}
-              title="Bring in the Trust System's Production vendors (also runs every night)">
-              <RefreshCw className={syncing ? 'animate-spin' : undefined} /> Update from Trust
-            </Button>
-            <Button size="md" onClick={() => setShowForm(v => !v)} aria-expanded={showForm}>
-              <Plus /> New supplier
-            </Button>
-          </div>
-        )}
+    <div className="flex flex-col gap-[30px]">
+      <div className="flex flex-col gap-[5px] leading-[1.35]">
+        <PageCrumbs items={[{ label: 'Operations', href: '/production' }, { label: 'Suppliers', href: '/suppliers' }]} />
+        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Suppliers</h1>
+        <p className="m-0 text-[13px] text-ui-body">
+          {suppliers.length} supplier{suppliers.length !== 1 ? 's' : ''} · vendor invoices &amp; payments
+        </p>
       </div>
 
       {schemaError && (
@@ -137,9 +125,15 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
           <input type="search" aria-label="Search suppliers" className={cn(FIELD, 'pl-[34px]')} placeholder="Search suppliers…" value={query} onChange={e => setQuery(e.target.value)} />
         </div>
         {canEdit && (
-          <Button size="md" className={ACCENT_BTN} onClick={() => setShowForm(v => !v)} aria-expanded={showForm}>
-            <Plus className="size-4" /> New Supplier
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="md" variant="secondary" onClick={() => void syncFromTrust()} disabled={syncing}
+              title="Bring in the Trust System's Production vendors (also runs every night)">
+              <RefreshCw className={syncing ? 'animate-spin' : undefined} /> Update from Trust
+            </Button>
+            <Button size="md" className={ACCENT_BTN} onClick={() => setShowForm(v => !v)} aria-expanded={showForm}>
+              <Plus className="size-4" /> New Supplier
+            </Button>
+          </div>
         )}
       </div>
 
