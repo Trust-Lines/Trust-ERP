@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useFixedMenu } from '@/hooks/use-fixed-menu';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { BanknoteCheck, BanknoteX, CircleDollarSign, Ellipsis, Plus, Receipt, Trash2, Check, Undo2, type LucideIcon } from 'lucide-react';
@@ -75,17 +76,9 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
   const [category, setCategory] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [menuId, setMenuId] = useState<string | null>(null);
-  const [menuPos, setMenuPos] = useState<React.CSSProperties>({});
+  // Row "…" menu, pinned to the window so the table's scroll box can't clip it.
+  const menu = useFixedMenu();
   const [removing, setRemoving] = useState<TrustExpense | null>(null);
-  // The menu is pinned to the window, so close it when the page scrolls or resizes under it.
-  useEffect(() => {
-    if (!menuId) return;
-    const close = () => setMenuId(null);
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-    return () => { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close); };
-  }, [menuId]);
   const [f, setF] = useState({ category: 'other', description: '', currency: 'USD', amount: '', expense_date: '', project_id: '', supplier_id: '', is_paid: false });
 
   const projById = useMemo(() => new Map(projects.map(p => [p.id, p])), [projects]);
@@ -226,28 +219,19 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
                       {canEdit && (
                         <td className="relative pr-3 text-center">
                           <Button
-                            variant="ghost" size="icon-sm" aria-label="Expense actions" aria-expanded={menuId === e.id}
-                            onClick={ev => {
-                              if (menuId === e.id) { setMenuId(null); return; }
-                              // Fixed to the window so the table's scroll box can't clip it; flips up near the bottom.
-                              const r = ev.currentTarget.getBoundingClientRect();
-                              const right = window.innerWidth - r.right;
-                              setMenuPos(r.bottom + 96 > window.innerHeight
-                                ? { right, bottom: window.innerHeight - r.top + 4 }
-                                : { right, top: r.bottom + 4 });
-                              setMenuId(e.id);
-                            }}
+                            variant="ghost" size="icon-sm" aria-label="Expense actions" aria-expanded={menu.openId === e.id}
+                            onClick={ev => menu.toggle(e.id, ev.currentTarget)}
                           >
                             <Ellipsis />
                           </Button>
-                          {menuId === e.id && (
+                          {menu.openId === e.id && (
                             <>
-                              <div className="fixed inset-0 z-20" onClick={() => setMenuId(null)} />
-                              <div role="menu" style={menuPos} className="fixed z-30 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
-                                <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { setMenuId(null); void togglePaid(e); }}>
+                              <div className="fixed inset-0 z-20" onClick={() => menu.close()} />
+                              <div role="menu" style={menu.style} className="fixed z-30 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
+                                <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { menu.close(); void togglePaid(e); }}>
                                   {e.is_paid ? <><Undo2 aria-hidden /> Mark unpaid</> : <><Check aria-hidden /> Mark paid</>}
                                 </button>
-                                <button type="button" role="menuitem" className={cn(MENU_ITEM, 'text-error-normal')} onClick={() => { setMenuId(null); setRemoving(e); }}>
+                                <button type="button" role="menuitem" className={cn(MENU_ITEM, 'text-error-normal')} onClick={() => { menu.close(); setRemoving(e); }}>
                                   <Trash2 aria-hidden /> Delete
                                 </button>
                               </div>
