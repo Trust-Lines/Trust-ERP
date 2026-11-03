@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import type { CurrencyTotals } from '@/lib/suppliers/config';
 import { CURRENCIES } from '@/lib/suppliers/config';
 import { EmptyState } from '@/components/ui/empty-state';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 
 export interface SupplierRow {
@@ -182,9 +183,7 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
                     <td style={{ padding: '10px 14px' }}>{s.country}</td>
                     <td style={{ padding: '10px 14px', textAlign: 'right' }}><BalanceCell totals={s.totals} /></td>
                     <td style={{ padding: '10px 14px' }}>
-                      <span className="pill" style={{ fontSize: 10, background: s.is_active ? 'var(--status-success-bg)' : 'var(--bg-sunken)', color: s.is_active ? 'var(--status-success-fg)' : 'var(--fg-subtle)' }}>
-                        {s.is_active ? 'Active' : 'Inactive'}
-                      </span>
+                      <StatusBadge group="record_state" status={s.is_active ? 'active' : 'inactive'} />
                     </td>
                   </tr>
                 ))}

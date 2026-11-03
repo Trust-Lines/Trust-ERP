@@ -10,6 +10,7 @@ import type { CurrencyTotals } from '@/lib/suppliers/config';
 import { CURRENCIES, PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '@/lib/suppliers/config';
 import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 
 interface Props {
@@ -40,7 +41,7 @@ export function SupplierDetailClient({ supplier, initialInvoices, initialPayment
           <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>{supplier.name}</h1>
           <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
             {supplier.code ?? '—'} · {supplier.country}
-            {!supplier.is_active && <span className="pill" style={{ marginLeft: 8, fontSize: 10, background: 'var(--bg-sunken)', color: 'var(--fg-subtle)' }}>Inactive</span>}
+            {!supplier.is_active && <StatusBadge group="record_state" status="inactive" size="sm" className="ml-2 align-middle" />}
           </p>
         </div>
       </div>

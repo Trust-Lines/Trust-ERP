@@ -215,6 +215,15 @@ export const STATUS_TAGS = {
       { key: 'expired',            label: 'Expired',     tone: 't0',  icon: ClockAlert },
     ],
   },
+  // Not in the Figma Status Language table: a plain on/off record flag (clients, suppliers).
+  // Tones follow the Status Chip rule — Success (T9) for in use, Neutral (T0) for idle.
+  record_state: {
+    title: 'Active / Inactive',
+    tags: [
+      { key: 'active',   label: 'Active',   tone: 't9', icon: CircleCheck },
+      { key: 'inactive', label: 'Inactive', tone: 't0', icon: CircleOff },
+    ],
+  },
 } as const satisfies Record<string, { title: string; tags: readonly StatusTag[] }>;
 
 export type StatusGroup = keyof typeof STATUS_TAGS;
