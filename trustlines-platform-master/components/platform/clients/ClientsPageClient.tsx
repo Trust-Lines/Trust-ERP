@@ -275,13 +275,14 @@ export function ClientsPageClient({ initialClients, userRole, canEdit }: Props) 
             const isOpen = expanded.has(client.id);
             const count = client.companies.length;
             return (
-              <div key={client.id} className="overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg">
+              // No overflow-hidden: it would clip the "…" menus at the card edge (header rounds its own corners).
+              <div key={client.id} className="rounded-[8px] border border-ui-divider bg-ui-page-bg">
                 {/* ── Client header ── */}
                 <div
                   role="button" tabIndex={0} aria-expanded={isOpen}
                   onClick={() => toggleExpand(client.id)}
                   onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleExpand(client.id); } }}
-                  className={cn('flex cursor-pointer flex-wrap items-center justify-between gap-3 bg-ui-surface px-2 py-4 outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ui-focus-ring', isOpen && 'border-b border-ui-divider')}
+                  className={cn('flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-t-[7px] bg-ui-surface px-2 py-4 outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ui-focus-ring', isOpen ? 'border-b border-ui-divider' : 'rounded-b-[7px]')}
                 >
                   <div className="flex min-w-0 items-center">
                     <ChevronDown size={24} aria-hidden className={cn('shrink-0 text-ui-body transition-transform', !isOpen && '-rotate-90')} />

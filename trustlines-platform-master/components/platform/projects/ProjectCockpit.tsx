@@ -52,10 +52,11 @@ const SUBPHASE_TONE: Record<TypeSubPhase, 't2' | 't7' | 't0'> = {
   ON_HOLD: 't7', ASSEMBLY: 't0',
 };
 
-// Figma "Project Detail" (node 245:28820).
+// Figma "Project Detail" (node 445:7500, was 245:28820): one grey panel above the tabs — the
+// lifecycle strip, then counts | Next actions | Types side by side on white tiles.
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD_TITLE = cn('m-0 text-[20px] font-semibold tracking-[0.4px]', HEADING);
-const CARD = 'flex flex-col gap-3.5 rounded-[8px] border border-ui-divider bg-ui-page-bg p-4';
+const CARD = 'flex min-w-0 flex-col gap-[22px] rounded-[8px] bg-ui-page-bg pb-5 pl-4 pr-[18px] pt-3.5';
 const RAIL_CHIP = 'inline-flex items-center justify-center gap-1 rounded-[4px] py-4 pl-4 pr-5 text-[12px] font-medium leading-4 whitespace-nowrap';
 
 export function ProjectCockpit({
@@ -65,8 +66,8 @@ export function ProjectCockpit({
   const mismatch = blockers.find(b => b.code === 'stage_mismatch');
 
   return (
-    <section aria-label="Project cockpit" className="flex flex-col gap-[18px]">
-      <div className="rounded-[8px] border border-ui-selected-bg px-2.5 py-2">
+    <section aria-label="Project cockpit" className="flex flex-col gap-4 rounded-[8px] border border-ui-divider bg-ui-surface p-4">
+      <div className="rounded-[8px] bg-ui-page-bg px-2.5 py-2">
         <div className="flex flex-wrap items-center gap-2.5">
           {rail.map(s => (
             <span
@@ -99,13 +100,13 @@ export function ProjectCockpit({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-[18px]">
-        <PendingPill label="Open Approvals" value={pending.openApprovals} href="/approvals" />
-        <PendingPill label="Open change requests" value={pending.openChangeRequests} href={`/projects/${projectId}/finalization`} />
-        <PendingPill label="Overdue follow-ups" value={pending.overdueFollowUps} href={`/projects/${projectId}/finalization`} />
-      </div>
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-[259px_minmax(0,1fr)] xl:grid-cols-[259px_minmax(0,1.8fr)_minmax(0,1fr)]">
+        <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+          <PendingPill label="Open Approvals" value={pending.openApprovals} href="/approvals" />
+          <PendingPill label="Open change requests" value={pending.openChangeRequests} href={`/projects/${projectId}/finalization`} />
+          <PendingPill label="Overdue follow-ups" value={pending.overdueFollowUps} href={`/projects/${projectId}/finalization`} />
+        </div>
 
-      <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-2">
         <div className={CARD}>
           <h2 className={CARD_TITLE}>Next actions</h2>
           {nextActions.length === 0 ? (
@@ -130,7 +131,7 @@ export function ProjectCockpit({
           )}
         </div>
 
-        <div className={CARD}>
+        <div className={cn(CARD, 'gap-4 lg:col-span-2 xl:col-span-1')}>
           <h2 className={CARD_TITLE}>Types</h2>
           {perType.length === 0 ? (
             <EmptyState size="sm" className="py-0" icon={<Layers />} title="No types defined yet." />
@@ -173,7 +174,7 @@ function PendingPill({ label, value, href }: { label: string; value: number; hre
   return (
     <Link
       href={href}
-      className={cn('flex min-w-[220px] flex-1 items-center justify-center gap-1 rounded-[8px] bg-ui-selected-bg py-4 pl-4 pr-5 leading-4 no-underline whitespace-nowrap transition-opacity hover:opacity-85', HEADING)}
+      className={cn('flex min-w-0 flex-1 items-center justify-center gap-1 rounded-[8px] bg-ui-page-bg py-4 pl-4 pr-5 leading-4 no-underline whitespace-nowrap transition-opacity hover:opacity-85', HEADING)}
     >
       <span className="text-[20px] font-semibold">{value}</span>
       <span className="text-[12px] font-medium">{label}</span>
