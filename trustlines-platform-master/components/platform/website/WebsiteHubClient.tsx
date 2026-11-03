@@ -46,6 +46,11 @@ interface Props {
 const projectCat = (v: string) => PROJECT_CATEGORIES.find(c => c.value === v)?.label ?? v;
 const blogCat = (v: string) => BLOG_CATEGORIES.find(c => c.value === v)?.label ?? v;
 const today = () => new Date().toISOString().slice(0, 10);
+// "2023-06-09" → "6/9/2023", as on the design's blog cards. Split by hand so no timezone shifts the day.
+const usDate = (iso: string) => {
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return y && m && d ? `${Number(m)}/${Number(d)}/${y}` : iso;
+};
 
 // Figma "Website (Store Maker) hub" (node 316:16157).
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
@@ -83,7 +88,8 @@ function ContentCard({ title, meta, coverUrl, status, editHref, canEdit, isPubli
       <div className="flex flex-1 flex-col gap-4 bg-ui-surface p-4">
         <div className="flex items-start gap-4">
           <div className="flex min-w-0 flex-1 flex-col gap-[3px] leading-[1.4]">
-            <p className={cn('m-0 truncate text-[16px] font-semibold', HEADING)}>{title}</p>
+            {/* Figma 316:16935: long blog titles wrap to two lines instead of cutting off at one. */}
+            <p className={cn('m-0 line-clamp-2 break-words text-[16px] font-semibold', HEADING)} title={title}>{title}</p>
             <p className="m-0 truncate text-[13px] tracking-[0.39px] text-ui-text-secondary">{meta}</p>
           </div>
           <StatusChip status={status} />
@@ -265,7 +271,7 @@ export function WebsiteHubClient({
                 <ContentCard
                   key={p.id}
                   title={p.title}
-                  meta={`${blogCat(p.category)} · ${p.published_at}${p.author ? ` · ${p.author}` : ''}`}
+                  meta={`${blogCat(p.category)} · ${usDate(p.published_at)}${p.author ? ` · ${p.author}` : ''}`}
                   coverUrl={p.cover_image_url}
                   status={scheduled ? 'scheduled' : p.is_published ? 'published' : 'draft'}
                   editHref={`/marketing/website/blog/${p.id}`}
