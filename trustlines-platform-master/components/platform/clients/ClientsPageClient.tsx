@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ChevronDown, MoreHorizontal, Plus, Building2, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
-import { Pill } from '@/components/platform/shared/Pill';
+import { StatusBadge } from '@/components/ui/status-badge';
 import type { UserRole } from '@/types/database';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
@@ -50,7 +50,7 @@ function CodePill({ code }: { code: string | null }) {
 }
 
 function StatusPill({ active }: { active: boolean }) {
-  return <Pill variant={active ? 'success' : 'neutral'}>{active ? 'Active' : 'Inactive'}</Pill>;
+  return <StatusBadge group="record_state" status={active ? 'active' : 'inactive'} />;
 }
 
 function InlineForm({
