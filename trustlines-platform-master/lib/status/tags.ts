@@ -265,7 +265,7 @@ export const QC_BUCKET_TAG: Record<string, string> = {
 export const CONTAINER_STATUS_TAG: Record<string, string> = {
   PLANNING: 'booked',
   BOOKED: 'booked',
-  WAITING_LOADING: 'loading',
+  WAITING_LOADING: 'delayed',   // Figma 394:74647 draws "Waiting Loading" in T7 (waiting on someone)
   LOADING: 'loading',
   DEPARTED: 'in_transit',
   IN_TRANSIT: 'in_transit',
