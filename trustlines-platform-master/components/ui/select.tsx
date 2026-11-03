@@ -91,7 +91,8 @@ function Select({
             data-slot="select-content"
             className={cn(popupBase, "min-w-(--anchor-width)", popupClassName)}
           >
-            <SelectPrimitive.List className={cn("max-h-(--available-height) overflow-y-auto p-1.5", listClassName)}>
+            {/* Long lists stop at ~10 rows and scroll, instead of running down the whole screen. */}
+            <SelectPrimitive.List className={cn("max-h-[min(380px,var(--available-height))] overflow-y-auto p-1.5", listClassName)}>
               {items.map((o) => (
                 <SelectPrimitive.Item
                   key={o.value}

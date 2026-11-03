@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { ArrowDown, ArrowDownUp, ChevronDown, Ellipsis, Pencil, Search, Trash2, UserRound, UserRoundPlus, Users, X } from 'lucide-react';
+import { ArrowDown, ArrowDownUp, Building2, ChevronDown, Ellipsis, Handshake, Megaphone, Pencil, Search, Trash2, UserRound, UserRoundPlus, Users, X, type LucideIcon } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -20,6 +20,7 @@ import type { UserRole } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
+import { useFixedMenu } from '@/hooks/use-fixed-menu';
 
 interface ProfileRow {
   id: string;
@@ -135,6 +136,62 @@ function regionText(codes: string[] | null | undefined): string {
   return shorts.length ? `T Lines (${shorts.join(', ')})` : '—';
 }
 
+/** The row's Region chip edits only the T-Lines regions (assigned_regions) — not the whole member. */
+function RegionPicker({ profile, style, onClose, onSaved }: {
+  profile: ProfileRow;
+  style: React.CSSProperties;
+  onClose: () => void;
+  onSaved: (patch: Partial<ProfileRow>) => void;
+}) {
+  const [picked, setPicked] = useState<string[]>(profile.assigned_regions ?? []);
+  const [saving, setSaving] = useState(false);
+  const flip = (code: string) => setPicked(p => (p.includes(code) ? p.filter(c => c !== code) : [...p, code]));
+
+  async function save() {
+    setSaving(true);
+    const res = await fetch(`/api/team/${profile.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assigned_regions: picked }),
+    });
+    setSaving(false);
+    if (!res.ok) { const e = await res.json().catch(() => ({})) as { error?: string }; toast.error(e.error ?? 'Failed to update region'); return; }
+    toast.success('Region updated');
+    onSaved({ assigned_regions: picked });
+    onClose();
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-20" onClick={onClose} />
+      <div
+        role="dialog" aria-label={`Regions for ${profile.full_name}`} style={style}
+        className="fixed z-30 flex w-64 flex-col gap-2.5 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-3 text-left shadow-03"
+      >
+        <p className={cn('m-0 text-[13px] font-semibold', HEADING)}>T-Lines regions</p>
+        <div className="flex flex-col gap-1.5">
+          {REGIONS.map(r => (
+            <label key={r.code} className="flex cursor-pointer items-center gap-2 text-[13px] text-ui-body">
+              <Checkbox checked={picked.includes(r.code)} onCheckedChange={() => flip(r.code)} /> {r.label}
+            </label>
+          ))}
+        </div>
+        <p className="m-0 text-[11px] text-ui-text-secondary">None ticked = sees every region.</p>
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button onClick={save} loading={saving}>Save</Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// Invite type tabs: Lucide icons (same set as the sidebar) instead of emoji.
+const INVITE_TYPES: { key: 'internal' | 'client_pm' | 'sales'; label: string; icon: LucideIcon }[] = [
+  { key: 'internal',  label: 'Internal',  icon: Building2 },
+  { key: 'client_pm', label: 'Client PM', icon: Handshake },
+  { key: 'sales',     label: 'Sales',     icon: Megaphone },
+];
+
 function InviteModal({
   clients,
   franchises,
@@ -215,20 +272,19 @@ function InviteModal({
         </div>
 
         <div className="modal-body">
-          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-            {(['internal', 'client_pm', 'sales'] as const).map(t => (
+          <div role="group" aria-label="Member type" className="mb-5 flex gap-2">
+            {INVITE_TYPES.map(({ key: t, label, icon: Icon }) => (
               <button
-                key={t} type="button"
+                key={t} type="button" aria-pressed={type === t}
                 onClick={() => { setType(t); setRole(t === 'sales' ? defaultSalesRole : defaultInternalRole); setSelectedClientId(''); setIsGeneralPm(false); }}
-                style={{
-                  flex: 1, padding: '9px 10px', borderRadius: 6, cursor: 'pointer',
-                  fontSize: 12.5, fontWeight: 600,
-                  border: `1.5px solid ${type === t ? 'var(--brand-teal)' : 'var(--border-default)'}`,
-                  background: type === t ? 'var(--brand-teal-100)' : 'var(--bg-surface)',
-                  color: type === t ? 'var(--brand-teal)' : 'var(--fg-muted)',
-                }}
+                className={cn(
+                  'flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-[6px] border px-2.5 py-2.5 text-[13px] font-semibold transition-colors [&_svg]:size-4',
+                  type === t
+                    ? 'border-[var(--color-secondary-500)] bg-ui-selected-bg text-[var(--color-secondary-700)] dark:text-ui-heading'
+                    : 'border-ui-divider bg-ui-input-bg text-ui-body hover:bg-ui-hover-bg',
+                )}
               >
-                {t === 'internal' ? '🏢  Internal' : t === 'client_pm' ? '🤝  Client PM' : '📣  Sales'}
+                <Icon aria-hidden /> {label}
               </button>
             ))}
           </div>
@@ -638,6 +694,8 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
   const [profiles, setProfiles]     = useState<ProfileRow[]>(init);
   const [showInvite, setShowInvite] = useState(false);
   const [editTarget, setEditTarget] = useState<ProfileRow | null>(null);
+  // Region chip → small region picker, pinned to the window (300px tall) so the table can't clip it.
+  const regionMenu = useFixedMenu(300);
   const [deleteTarget, setDeleteTarget] = useState<ProfileRow | null>(null);
   const [query, setQuery]           = useState('');
   const [sortBy, setSortBy]         = useState<SortKey>('newest');
@@ -797,7 +855,8 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
                       <td className="px-2">
                         {isOps ? (
                           <button
-                            type="button" onClick={() => setEditTarget(p)} title="Change region in Edit member"
+                            type="button" title="Change region" aria-haspopup="dialog" aria-expanded={regionMenu.openId === p.id}
+                            onClick={e => (metadataReady ? regionMenu.toggle(p.id, e.currentTarget) : setEditTarget(p))}
                             className="inline-flex h-9 max-w-full items-center gap-4 rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg pl-4 pr-2.5 text-[13px] font-medium text-[var(--color-secondary-700)] hover:bg-ui-hover-bg dark:text-ui-heading"
                           >
                             <span className="truncate">{regionText(p.assigned_regions)}</span>
@@ -805,6 +864,9 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
                           </button>
                         ) : (
                           <span className="text-[13px] font-medium text-[var(--color-secondary-700)] dark:text-ui-heading">{regionText(p.assigned_regions)}</span>
+                        )}
+                        {regionMenu.openId === p.id && (
+                          <RegionPicker profile={p} style={regionMenu.style} onClose={regionMenu.close} onSaved={patch => handleSaved(p.id, patch)} />
                         )}
                       </td>
                       <td className="max-w-0 px-2"><p className="m-0 truncate text-[12px] text-ui-body">{(p.manager_id && nameById.get(p.manager_id)) || '—'}</p></td>

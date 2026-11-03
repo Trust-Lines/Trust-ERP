@@ -10,8 +10,8 @@ export const fieldGroupBase =
 
 /** Popup panel for select / combobox / date picker (Figma "Option 1-3" list). */
 export const popupBase =
-  "rounded-[4px] border border-primary-700 dark:border-[var(--ui-divider-strong)] bg-primary-50 dark:bg-ui-surface-elevated dark:shadow-[0_16px_40px_rgba(0,0,0,0.5)] dark:p-1 text-[11px] leading-[1.5] text-primary-700 dark:text-primary-100 shadow-md outline-none origin-(--transform-origin) transition-[scale,opacity] duration-100 data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0"
+  "rounded-[4px] border border-primary-700 dark:border-[var(--ui-divider-strong)] bg-primary-50 dark:bg-ui-surface-elevated dark:shadow-[0_16px_40px_rgba(0,0,0,0.5)] dark:p-1 text-[13px] leading-[1.4] text-primary-700 dark:text-primary-100 shadow-md outline-none origin-(--transform-origin) transition-[scale,opacity] duration-100 data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0"
 
 /** One option row inside popupBase. */
 export const optionBase =
-  "flex cursor-default items-center gap-2 rounded-[2px] px-2 py-[3px] outline-none select-none data-highlighted:bg-primary-700 data-highlighted:text-primary-50 data-selected:font-semibold dark:rounded-[4px] dark:data-highlighted:bg-white/10 dark:data-highlighted:text-primary-50 dark:data-selected:bg-[var(--ui-menu-active-bg)] dark:data-selected:text-[var(--ui-menu-active-fg)] data-disabled:text-grey-200"
+  "flex cursor-default items-center gap-2 rounded-[2px] px-2.5 py-1.5 outline-none select-none data-highlighted:bg-primary-700 data-highlighted:text-primary-50 data-selected:font-semibold dark:rounded-[4px] dark:data-highlighted:bg-white/10 dark:data-highlighted:text-primary-50 dark:data-selected:bg-[var(--ui-menu-active-bg)] dark:data-selected:text-[var(--ui-menu-active-fg)] data-disabled:text-grey-200"
