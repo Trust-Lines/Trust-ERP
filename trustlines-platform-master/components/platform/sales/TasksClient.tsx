@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { findStatusTag } from '@/lib/status/tags';
 import { cn } from '@/lib/utils';
+import { useFixedMenu } from '@/hooks/use-fixed-menu';
 import { PersonFace } from '@/components/ui/avatar-directory';
 import type { TaskQuickFilter } from '@/lib/sales/taskFilters';
 
@@ -102,7 +103,9 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
   const [fToday, setFToday] = useState(initialFilter === 'today');
   const [openDealId, setOpenDealId] = useState<string | null>(null); // deal shown in the progress pop-up
   const [syncing, setSyncing] = useState(false);
-  const [menuId, setMenuId] = useState<string | null>(null);
+  // Row "…" menu, pinned to the window so the table's scroll box can't clip it.
+  const menu = useFixedMenu();
+  const menuId = menu.openId;
   const [creating, setCreating] = useState(false);
   useEffect(() => { setTasks(initial); }, [initial]);
 
@@ -372,25 +375,25 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
                       <td className="relative pr-2 text-center">
                         <button
                           type="button" aria-label={`Actions for ${t.title}`} aria-expanded={menuId === t.id}
-                          onClick={() => setMenuId(id => (id === t.id ? null : t.id))}
+                          onClick={e => menu.toggle(t.id, e.currentTarget)}
                           className="inline-grid size-7 place-items-center rounded-[4px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
                         >
                           <Ellipsis size={16} />
                         </button>
                         {menuId === t.id && (
                           <>
-                            <div className="fixed inset-0 z-20" onClick={() => setMenuId(null)} />
-                            <div role="menu" className="absolute right-2 top-full z-30 mt-1 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
+                            <div className="fixed inset-0 z-20" onClick={() => menu.close()} />
+                            <div role="menu" style={menu.style} className="fixed z-30 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
                               {t.kind === 'opportunity' ? (
-                                <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { setMenuId(null); setOpenDealId(t.lead_id); }}>
+                                <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { menu.close(); setOpenDealId(t.lead_id); }}>
                                   <ExternalLink aria-hidden /> Open deal
                                 </button>
                               ) : (
-                                <Link href={taskHref(t)} role="menuitem" className={MENU_ITEM} onClick={() => setMenuId(null)}>
+                                <Link href={taskHref(t)} role="menuitem" className={MENU_ITEM} onClick={() => menu.close()}>
                                   <ExternalLink aria-hidden /> Open lead
                                 </Link>
                               )}
-                              <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { setMenuId(null); toggleDone(); }}>
+                              <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { menu.close(); toggleDone(); }}>
                                 {done ? <><RotateCcw aria-hidden /> Re-open</> : <><Check aria-hidden /> Mark done</>}
                               </button>
                             </div>
