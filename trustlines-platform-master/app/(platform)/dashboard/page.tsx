@@ -14,6 +14,9 @@ import { KEY_CLIENT_ADMIN_ROLES } from '@/lib/keyClients/roles';
 import { classifyTrustProject, loadTrustProjects, typeLabel, typeStatuses, type TrustStage } from '@/lib/trust/board';
 import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem } from '@/components/platform/dashboard/BranchBoard';
 import { TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
+import { DashboardSwitch } from '@/components/platform/dashboard/DashboardSwitch';
+import { defaultCompanySideForRole } from '@/lib/profile/metadata';
+import { trustDashboard } from '@/lib/dashboard/trustView';
 
 // Same set /marketing/opportunities uses to gate its own quick-view edits — reused here so
 // the popup opened from the dashboard board follows the exact same edit rule, not a new one.
@@ -75,7 +78,7 @@ function opportunityBadge(externalProjectCode: string | null): [string, string] 
   return i === -1 ? [externalProjectCode, ''] : [externalProjectCode.slice(0, i), externalProjectCode.slice(i + 1)];
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) nextRedirect('/login');
@@ -83,9 +86,17 @@ export default async function DashboardPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
 
-  const { data: profileData } = await supabase.from('profiles').select('role, full_name').eq('id', user.id).single();
-  const profile = profileData as { role: string | null; full_name: string | null } | null;
+  const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+  const profile = profileData as { role: string | null; full_name: string | null; company_side?: string | null } | null;
   const userRole = profile?.role ?? 'ops_manager';
+
+  // One page, two dashboards — by the company the person works for (Team → company side):
+  // T-Lines (the branch board below) or Trust Lines (lib/dashboard/trustView: the Trust System's
+  // production stages). The General Manager sees both and switches between them.
+  const side = profile?.company_side ?? defaultCompanySideForRole(userRole);
+  const seesBoth = userRole === 'general_manager';
+  const { view: viewParam } = await searchParams;
+  const view: 'tlines' | 'trust' = seesBoth ? (viewParam === 'trust' ? 'trust' : 'tlines') : side === 'trust_lines' ? 'trust' : 'tlines';
 
   // Same T-Lines-side boundary as the old dashboard (AGENTS.md §2) — send marketing accounts
   // to their own scoped landing page instead of the branch board.
@@ -124,7 +135,8 @@ export default async function DashboardPage() {
     }
   };
   // Finalization → Shipped come from the Trust System, by project number (lib/trust/board.ts).
-  const [{ data: projectRows }, opportunities, trust] = regionCodes.length === 0
+  // The Trust Lines dashboard shows every branch; the T-Lines one only the viewer's regions.
+  const [{ data: projectRows }, opportunities, trust] = regionCodes.length === 0 && view === 'tlines'
     ? [{ data: [] }, [] as ClientOpportunityRow[], { projects: [], error: null }]
     : await Promise.all([projectQuery, loadClientOpps(), loadTrustProjects()]);
   const trustProjects = trust.projects;
@@ -142,7 +154,7 @@ export default async function DashboardPage() {
   // The popup's PO + PF / Production / Shipping tabs: the Trust types of the card's project number.
   const trustByNo = new Map(trustProjects.map(p => [p.projectNo, p.items ?? []]));
   const trustToday = new Date().toISOString().slice(0, 10);
-  const trustCards = trustProjects.filter(p => regionCodes.includes(p.bucket)).map(p => {
+  const allTrustCards = trustProjects.map(p => {
     const e = classifyTrustProject(p, trustToday);
     const item: BoardCardItem = {
       id: p.id, kind: 'trust',
@@ -163,6 +175,28 @@ export default async function DashboardPage() {
     };
     return { region: p.bucket, stage: e.stage, item, createdAt: p.createdAt };
   });
+  const trustCards = allTrustCards.filter(c => regionCodes.includes(c.region));
+
+  // ── Trust Lines dashboard: every branch's Trust System projects by production stage ──────
+  if (view === 'trust') {
+    const weekAgoIso = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+    const t = trustDashboard({ projects: trustProjects, cards: allTrustCards, weekAgo: weekAgoIso });
+    return (
+      <BranchBoard
+        heading="Trust Lines Dashboard"
+        subheading="Every branch's projects in the Trust System, by production stage."
+        columns={t.columns}
+        assignees={[]}
+        canEdit={false}
+        canCreateTask={false}
+        trustError={trust.error}
+        users={allUsers ?? []}
+        canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
+        top={<div key="top-summary">{seesBoth && <DashboardSwitch view="trust" />}<TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={t.kpis} /></div>}
+      />
+    );
+  }
+
   const trustItems = (region: string, stage: TrustStage) =>
     trustCards.filter(c => c.region === region && c.stage === stage).map(c => c.item);
 
@@ -364,7 +398,7 @@ export default async function DashboardPage() {
       canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
       // A server element passed as a prop into a client component is checked like a list child in
       // dev (React 19 / Next 16) — the key only silences that false "unique key" warning.
-      top={<TopSummaryRow key="top-summary" fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} />}
+      top={<div key="top-summary">{seesBoth && <DashboardSwitch view="tlines" />}<TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} /></div>}
     />
   );
 }

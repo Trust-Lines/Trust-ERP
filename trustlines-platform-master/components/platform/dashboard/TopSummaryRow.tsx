@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { BriefcaseBusiness, CalendarDays, CircleCheck, DraftingCompass, Factory, Hammer, type LucideIcon } from 'lucide-react';
+import { BriefcaseBusiness, CalendarDays, CircleCheck, DraftingCompass, Factory, Hammer, PenLine, Pause, Ship, PackageOpen, type LucideIcon } from 'lucide-react';
 import { roleLabel } from '@/components/platform/shell/Sidebar';
 import { cn } from '@/lib/utils';
 import { MyDayCard } from './MyDayCard';
@@ -18,7 +18,7 @@ export interface ApprovalSummaryItem {
 }
 
 export interface KpiItem {
-  key: 'active' | 'design' | 'production' | 'finalizing' | 'approvals';
+  key: 'active' | 'design' | 'production' | 'finalizing' | 'approvals' | 'to_sign' | 'to_order' | 'on_hold' | 'shipped';
   label: string;
   value: number;
   href: string;
@@ -27,6 +27,7 @@ export interface KpiItem {
 
 const KPI_ICON: Record<KpiItem['key'], LucideIcon> = {
   active: BriefcaseBusiness, design: DraftingCompass, production: Factory, finalizing: Hammer, approvals: CircleCheck,
+  to_sign: PenLine, to_order: PackageOpen, on_hold: Pause, shipped: Ship,
 };
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 

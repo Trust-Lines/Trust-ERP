@@ -106,6 +106,8 @@ export interface BoardColumn {
   logoCode: string;
   headerColor: string;
   sections: BoardSection[];
+  /** A text header instead of the branch logo (the Trust Lines dashboard's stage columns). */
+  title?: string;
 }
 
 // The source PNGs (public/TLINES LOGOS PNG) are 4500x4500 canvases with a lot of transparent
@@ -237,16 +239,16 @@ function presetRange(p: Preset): [string, string] {
 }
 
 // Figma "Page heading" (node 376:31511).
-function PageHead({ from, to, preset, canCreateTask, onFrom, onTo, onPreset }: {
-  from: string; to: string; preset: Preset; canCreateTask: boolean;
+function PageHead({ from, to, preset, canCreateTask, onFrom, onTo, onPreset, heading = 'Dashboard', subheading = 'Keep handoffs moving. Clear the blockers before they affect delivery.' }: {
+  from: string; to: string; preset: Preset; canCreateTask: boolean; heading?: string; subheading?: string;
   onFrom: (v: string) => void; onTo: (v: string) => void; onPreset: (p: Preset) => void;
 }) {
   return (
     <div className="mb-[30px] flex flex-wrap items-center justify-between gap-4">
       <div className="flex flex-col gap-[5px] leading-[1.35]">
         <PageCrumbs items={[{ label: 'General', href: '/dashboard' }, { label: 'Dashboard', href: '/dashboard' }]} />
-        <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">Dashboard</h1>
-        <p className="m-0 text-[13px] text-ui-body">Keep handoffs moving. Clear the blockers before they affect delivery.</p>
+        <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">{heading}</h1>
+        <p className="m-0 text-[13px] text-ui-body">{subheading}</p>
       </div>
       <div
         className="flex flex-wrap items-end gap-3"
@@ -278,7 +280,9 @@ function Column({ column, onOpen }: { column: BoardColumn; onOpen: OpenCard }) {
   return (
     <div className="flex flex-col gap-2.5 rounded-[16px] bg-ui-surface p-2.5">
       <div className="flex h-[105px] items-center justify-center rounded-[11px] py-[13px]" style={{ background: column.headerColor }}>
-        <CroppedLogo src={column.logoSrc} code={column.logoCode} className="h-[62px]" />
+        {column.title
+          ? <span className="px-3 text-center text-[20px] font-semibold leading-tight text-white">{column.title}</span>
+          : <CroppedLogo src={column.logoSrc} code={column.logoCode} className="h-[62px]" />}
       </div>
       {/* No fixed/stretched height — each column is exactly as tall as its own content. */}
       <div className="flex flex-col gap-4 rounded-[11px] bg-ui-surface-elevated px-3 pb-3.5 pt-2">
@@ -290,7 +294,10 @@ function Column({ column, onOpen }: { column: BoardColumn; onOpen: OpenCard }) {
   );
 }
 
-export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false }: {
+export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading }: {
+  /** Page title / sub-line (the Trust Lines dashboard has its own). */
+  heading?: string;
+  subheading?: string;
   columns: BoardColumn[];
   /** Everyone who can be picked in a Trust card's "Assign to", and whether this viewer may. */
   users?: { id: string; full_name: string }[];
@@ -355,6 +362,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   return (
     <AssignContext.Provider value={assignCtx}>
       <PageHead
+        heading={heading} subheading={subheading}
         from={dateFrom} to={dateTo} preset={preset} canCreateTask={canCreateTask} onPreset={applyPreset}
         onFrom={v => { setDateFrom(v); setPreset(''); }} onTo={v => { setDateTo(v); setPreset(''); }}
       />
@@ -373,7 +381,10 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
         />
       ) : (
         // items-start: columns must NOT stretch to match the tallest one (grid's default).
-        <div className="grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+        <div
+          className="grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2 xl:[grid-template-columns:repeat(var(--board-cols),minmax(0,1fr))]"
+          style={{ '--board-cols': columns.length } as React.CSSProperties}
+        >
           {filteredColumns.map(column => (
             <Column key={column.regionCode} column={column} onOpen={handleOpen} />
           ))}
