@@ -164,6 +164,22 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
     finally { setSaving(false); }
   }
 
+  // Potential → Opportunity, handed to Sales (app/api/marketing/potentials/[id]/convert).
+  const [converting, setConverting] = useState(false);
+  async function convert() {
+    if (!window.confirm('Convert this Potential to an Opportunity? It goes to Sales → Handoffs to be accepted.')) return;
+    setConverting(true);
+    try {
+      const res = await fetch(`/api/marketing/potentials/${opportunityId}/convert`, { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(body.error ?? 'Could not convert'); return; }
+      setOpp(prev => (prev ? { ...prev, status: 'converted', converted_opportunity_id: body.opportunity?.id } : prev));
+      onChanged?.({ status: 'converted', converted_opportunity_id: body.opportunity?.id });
+      toast.success(body.alreadyConverted ? 'Already converted' : 'Converted — it is now with Sales');
+    } catch { toast.error('Could not convert'); }
+    finally { setConverting(false); }
+  }
+
   function changeStage(next: string) {
     if (next === opp?.stage) return;
     const reason = window.prompt(`Move to "${OPPORTUNITY_STAGE_LABEL[next as OpportunityStage]}" — why?`);
@@ -324,6 +340,17 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
           </div>
           <div className="flex shrink-0 items-center gap-2.5">
             {saving && <Loader2 size={16} className="qv-spin text-ui-text-secondary" aria-label="Saving" />}
+            {/* Marketing → Sales: the Potential becomes an Opportunity on Sales → Handoffs. */}
+            {kind === 'potential' && canEdit && opp && !opp.converted_opportunity_id && !['lost', 'cancelled'].includes(String(opp.status)) && (
+              <button
+                type="button" onClick={() => void convert()} disabled={converting}
+                className="inline-flex h-10 items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent px-5 text-[13px] font-medium text-ui-btn-accent-fg transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                {converting ? <Loader2 size={16} className="qv-spin" aria-hidden /> : <SendHorizontal size={16} aria-hidden />}
+                Convert to Opportunity
+              </button>
+            )}
+            {kind === 'potential' && !!opp?.converted_opportunity_id && <Chip tone="t9" icon={CircleCheck}>Converted — with Sales</Chip>}
             {opp?.prospect_id ? (
               <Link
                 href={`/marketing/prospects/${opp.prospect_id}`}

@@ -5,6 +5,7 @@ import { dropboxRegionFolder, composeProjectCode } from '@/lib/regions';
 import { runClassificationForNeed } from './opportunityEngine';
 import { buildNeedFilesPath } from './needFiles';
 import type { ScopeType } from '@/types/database';
+import { reserveFreeProjectNumber } from '@/lib/projects/number';
 
 function buildMarketingEvidencePath(region: string, code: string, address: string): string {
   return `/Marketing/${dropboxRegionFolder(region)}/${code} - ${address}`;
@@ -41,9 +42,9 @@ export async function ensureProjectForNeed(admin: any, needId: string, actorId: 
   }
   if (!city) throw new NeedDocumentError('This Need has no linked Location with a City set — add one before adding a document', 409);
 
-  const { data: reserved, error: rErr } = await admin.rpc('reserve_global_number');
-  if (rErr) throw new NeedDocumentError(rErr.message, 500);
-  const reservedNumber = reserved as number;
+  let reservedNumber: number;
+  try { reservedNumber = await reserveFreeProjectNumber(admin); }
+  catch (e) { throw new NeedDocumentError(e instanceof Error ? e.message : 'Could not reserve a project number', 503); }
 
   const code = composeProjectCode(need.service_line, need.region, reservedNumber);
   const addr = composeAddress(city, null, need.state);

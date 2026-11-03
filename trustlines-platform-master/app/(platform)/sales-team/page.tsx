@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { SalesTeamClient, type SalesRepRow, type RegionClient } from '@/components/platform/team/SalesTeamClient';
 import { SALES_TEAM_ADMIN_ROLES } from '@/lib/sales/roles';
 import { fetchInChunks } from '@/lib/supabase/chunkedIn';
+import { peekFreeProjectNumber } from '@/lib/projects/number';
 
 export default async function SalesTeamPage() {
   // Roles & Permissions switch (catalog.ts PAGE_LEGACY_ROLES keeps the old role list as default).
@@ -34,7 +35,8 @@ export default async function SalesTeamPage() {
 
   const baseReps = (repsRes.data ?? []) as Omit<SalesRepRow, 'project_count'>[];
   const regionClients = (clientsRes.data ?? []) as RegionClient[];
-  const nextNumber = (peekRes.data as number) ?? 1;
+  // The next FREE number — used ones (Trust, ClickUp, ours) are skipped (lib/projects/number).
+  const nextNumber = await peekFreeProjectNumber(adm).catch(() => (peekRes.data as number) ?? 1);
 
   // "Assigned to" = distinct projects a rep owns: Opportunities where they're the Sales owner plus
   // CRM leads assigned to them, counted once per project_id.

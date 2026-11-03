@@ -189,7 +189,9 @@ export async function runClassificationForNeed(admin: any, needId: string, actor
         primary_contact_id: primaryContactId, project_type_raw: projectTypeRawFor(n.project_types ?? []),
       }).eq('id', existingPotential.id).select().maybeSingle();
       potential = data; potentialAction = 'updated';
-    } else {
+    } else if (!(await hasOpenOpportunity(admin, needId))) {
+      // Not when the Need already went on as an Opportunity (e.g. Marketing's "Convert to
+      // Opportunity", lib/marketing/convertPotential) — a fresh Potential would duplicate it.
       const { data } = await admin.from('prospect_potentials').insert({
         need_id: needId, prospect_id: n.prospect_id, title: titleFor(displayName, n, locationAddress),
         status: 'identified', target_contact_date: contactDate,
@@ -220,4 +222,11 @@ export async function runClassificationForNeed(admin: any, needId: string, actor
   await rollupProspectStatus(admin, n.prospect_id);
 
   return { classification, needClassification, opportunity, opportunityAction, potential, potentialAction };
+}
+
+/** Whether the Need has an open (not won / lost) Opportunity, made by the engine or by hand. */
+async function hasOpenOpportunity(admin: any, needId: string): Promise<boolean> {
+  const { data } = await admin.from('opportunities').select('id').eq('need_id', needId).is('deleted_at', null)
+    .not('stage', 'in', '(closed_won,closed_lost)').limit(1);
+  return Array.isArray(data) && data.length > 0;
 }
