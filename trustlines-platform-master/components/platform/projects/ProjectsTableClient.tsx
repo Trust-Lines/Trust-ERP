@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Trash2, Loader2, FolderKanban, Plus, Search, UserRoundPen, SquareDashed, Eye,
-  ChevronDown, ChevronRight, ArrowDown, ArrowUp, Calendar, CalendarClock,
+  ChevronDown, ChevronRight, ArrowDown, ArrowUp, Calendar, CalendarClock, MapPin, Pause,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { buttonVariants } from '@/components/ui/button';
 import Link from 'next/link';
 import { PersonFace } from '@/components/ui/avatar-directory';
+import { TRUST_STAGE_LABEL, TRUST_STAGE_ORDER } from '@/lib/projects/listInfo';
+import type { TrustStage } from '@/lib/trust/board';
 
 interface Props {
   projects: ProjectRow[];
@@ -26,14 +28,26 @@ interface Props {
 }
 
 type SavedView = 'all' | 'waiting' | 'blocked';
-type OptionalColumn = 'customer' | 'type' | 'owner' | 'due' | 'value' | 'margin';
+type OptionalColumn = 'region' | 'type' | 'owner' | 'due' | 'value' | 'margin';
 
 const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', EUR: '€', TRY: '₺' };
 const PAGE_SIZES = [14, 25, 50];
 
 const COLUMN_LABEL: Record<OptionalColumn, string> = {
-  customer: 'Customer', type: 'Type', owner: 'Owner', due: 'Due date', value: 'Value', margin: 'Margin',
+  region: 'Region', type: 'Types', owner: 'Owner', due: 'Due date', value: 'Value', margin: 'Margin',
 };
+
+// The dashboard's branch colours (its column headers) and stage colours (its sections).
+const REGION_COLOR: Record<string, string> = { TLINES_NE: '#465B6D', TLINES_SE: '#3B472B', TLINES_NW: '#2E5BA3', CVW: '#7A655E' };
+const REGION_SHORT: Record<string, string> = { TLINES_NE: 'NE', TLINES_SE: 'SE', TLINES_NW: 'NW', CVW: 'West' };
+const STAGE_TONE: Record<TrustStage, { fg: string; bg: string }> = {
+  finalization: { fg: 'var(--stage-finalization-fg)', bg: 'var(--stage-finalization-bg)' },
+  technical: { fg: 'var(--stage-technical-fg)', bg: 'var(--stage-technical-bg)' },
+  to_production: { fg: 'var(--stage-to-production-fg)', bg: 'var(--stage-to-production-bg)' },
+  in_production: { fg: 'var(--stage-production-fg)', bg: 'var(--stage-production-bg)' },
+  shipped: { fg: 'var(--stage-shipped-fg)', bg: 'var(--stage-shipped-bg)' },
+};
+const ink = (c: string) => `color-mix(in srgb, ${c} 70%, black)`;
 
 // Unique stages for the "Add filter" stage picker (closed_deal / finalization share a label).
 const STAGE_OPTIONS = STAGES_FULL.filter(s => s.stage !== 'closed_deal');
@@ -72,6 +86,8 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
   const [query, setQuery]             = useState('');
   const [ownerFilter, setOwnerFilter] = useState('');
   const [stageFilter, setStageFilter] = useState('');
+  const [trustStage, setTrustStage]   = useState<TrustStage | 'none' | ''>('');
+  const [regionFilter, setRegionFilter] = useState('');
   const [sortDesc, setSortDesc]       = useState(true);
   const [pageSize, setPageSize]       = useState(PAGE_SIZES[0]);
   const [page, setPage]               = useState(1);
@@ -114,9 +130,19 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
       .filter(p => view === 'all' || viewNotes[p.id]?.view === view)
       .filter(p => !ownerFilter || p.owner?.full_name === ownerFilter)
       .filter(p => stageMatch(p.current_stage))
-      .filter(p => !q || [p.code, p.name, p.client?.name].some(v => v?.toLowerCase().includes(q)))
-      .sort((a, b) => (sortDesc ? -1 : 1) * (a.code ?? '').localeCompare(b.code ?? ''));
-  }, [projects, view, viewNotes, ownerFilter, stageFilter, query, sortDesc]);
+      .filter(p => !trustStage || (trustStage === 'none' ? !p.trust : p.trust?.stage === trustStage))
+      .filter(p => !regionFilter || p.region === regionFilter)
+      .filter(p => !q || [p.code, p.name, p.client?.name, p.address].some(v => v?.toLowerCase().includes(q)))
+      .sort((a, b) => (sortDesc ? -1 : 1) * (a.code ?? '').localeCompare(b.code ?? '', undefined, { numeric: true }));
+  }, [projects, view, viewNotes, ownerFilter, stageFilter, trustStage, regionFilter, query, sortDesc]);
+
+  // The stage cards on top: how many projects are at each Trust System stage.
+  const stageCounts = useMemo(() => {
+    const c: Record<string, number> = { none: 0 };
+    for (const p of projects) { const k = p.trust?.stage ?? 'none'; c[k] = (c[k] ?? 0) + 1; }
+    return c;
+  }, [projects]);
+  const regions = useMemo(() => [...new Set(projects.map(p => p.region).filter(Boolean) as string[])].sort(), [projects]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -125,7 +151,7 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
   const to = Math.min(currentPage * pageSize, filtered.length);
 
   // Any filter change starts again from page 1 and drops selections that may now be hidden.
-  useEffect(() => { setPage(1); setSelected(new Set()); }, [view, query, ownerFilter, stageFilter, pageSize]);
+  useEffect(() => { setPage(1); setSelected(new Set()); }, [view, query, ownerFilter, stageFilter, trustStage, regionFilter, pageSize]);
 
   const show = (c: OptionalColumn) => !hidden.has(c) && !(hideSensitive && c === 'margin');
   const allOnPageSelected = pageRows.length > 0 && pageRows.every(p => selected.has(p.id));
@@ -200,6 +226,27 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
 
   return (
     <>
+      {/* Stage cards: where every project is in the Trust System — click one to show only those. */}
+      <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
+        {([...TRUST_STAGE_ORDER, 'none'] as (TrustStage | 'none')[]).map(k => {
+          const tone = k === 'none' ? { fg: 'var(--ui-text-secondary)', bg: 'var(--ui-surface)' } : STAGE_TONE[k];
+          const on = trustStage === k;
+          return (
+            <button
+              key={k} type="button" aria-pressed={on} onClick={() => setTrustStage(on ? '' : k)}
+              className={cn('flex cursor-pointer flex-col gap-1 rounded-[10px] border border-solid px-4 py-3 text-left transition-[box-shadow]', on ? 'shadow-[0_0_0_2px_currentColor]' : 'hover:shadow-[0_1px_6px_rgba(0,0,0,0.08)]')}
+              style={{ background: tone.bg, borderColor: `color-mix(in srgb, ${tone.fg} 30%, transparent)`, color: ink(tone.fg) }}
+            >
+              <span className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide">
+                <span aria-hidden className="size-2 rounded-full" style={{ background: tone.fg }} />
+                {k === 'none' ? 'Not in Trust' : TRUST_STAGE_LABEL[k]}
+              </span>
+              <span className="text-[28px] font-semibold leading-none">{stageCounts[k] ?? 0}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <div role="tablist" aria-label="Saved views" className="mb-[18px] flex gap-2 border-b border-ui-divider pb-3">
         {SAVED_VIEWS.map(v => {
           const active = view === v.key;
@@ -250,6 +297,16 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
           </div>
 
           <div className={CONTROL}>
+            <MapPin aria-hidden />
+            <span>Region: {regionFilter ? REGION_SHORT[regionFilter] ?? regionFilter : 'All'}</span>
+            <ChevronDown aria-hidden />
+            <select aria-label="Filter by region" value={regionFilter} onChange={e => setRegionFilter(e.target.value)} className={NATIVE_SELECT_OVERLAY}>
+              <option value="">All regions</option>
+              {regions.map(r => <option key={r} value={r}>{REGION_SHORT[r] ?? r}</option>)}
+            </select>
+          </div>
+
+          <div className={CONTROL}>
             <SquareDashed aria-hidden />
             <span>
               {stageFilter ? `Stage: ${STAGE_OPTIONS.find(s => s.stage === stageFilter)?.label}` : 'Add filter'}
@@ -265,10 +322,10 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
             </select>
           </div>
 
-          {(ownerFilter || stageFilter || query) && (
+          {(ownerFilter || stageFilter || query || trustStage || regionFilter) && (
             <button
               className="btn btn-ghost btn-sm"
-              onClick={() => { setOwnerFilter(''); setStageFilter(''); setQuery(''); }}
+              onClick={() => { setOwnerFilter(''); setStageFilter(''); setQuery(''); setTrustStage(''); setRegionFilter(''); }}
             >
               Clear
             </button>
@@ -331,21 +388,20 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                 <th className={cn(TH_CLS, 'w-9 pl-[18px]')}>
                   <Checkbox checked={allOnPageSelected} onChange={togglePage} label="Select all on this page" />
                 </th>
-                <th className={cn(TH_CLS, 'w-[116px]')}>
+                <th className={cn(TH_CLS, 'min-w-[320px]')}>
                   <button
                     onClick={() => setSortDesc(d => !d)}
                     className="inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 font-[inherit] text-[inherit]"
                     aria-label={`Sort by project no, ${sortDesc ? 'descending' : 'ascending'}`}
                   >
-                    Project no
+                    Project
                     {sortDesc ? <ArrowDown aria-hidden className="size-3" /> : <ArrowUp aria-hidden className="size-3" />}
                   </button>
                 </th>
-                <th className={TH_CLS}>Name</th>
-                {show('customer') && <th className={cn(TH_CLS, 'w-[190px]')}>Customer</th>}
-                {show('type') && <th className={cn(TH_CLS, 'w-[112px]')}>Type</th>}
-                <th className={cn(TH_CLS, 'w-[150px]')}>Stage</th>
-                {show('owner') && <th className={cn(TH_CLS, 'w-[160px]')}>Owner</th>}
+                {show('region') && <th className={cn(TH_CLS, 'w-[90px]')}>Region</th>}
+                {show('type') && <th className={TH_CLS}>Types</th>}
+                <th className={cn(TH_CLS, 'w-[180px]')}>Stage</th>
+                {show('owner') && <th className={cn(TH_CLS, 'w-[180px]')}>Owner</th>}
                 {show('due') && <th className={cn(TH_CLS, 'w-[138px]')}>Due date</th>}
                 {show('value') && <th className={cn(TH_CLS, 'w-[130px] text-right')}>Value</th>}
                 {show('margin') && <th className={cn(TH_CLS, 'w-[90px] text-right')}>Margin</th>}
@@ -373,7 +429,12 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                         86400000,
                     )
                   : 0;
-                const subline = viewNotes[p.id]?.hint ?? (p.categories ?? []).join(' · ');
+                // The next step / blocker only in its own view — on "All" every row would repeat it.
+                const hint = view !== 'all' ? viewNotes[p.id]?.hint : null;
+                const regionColor = (p.region && REGION_COLOR[p.region]) || 'var(--color-secondary-700)';
+                const due = p.est_delivery_date ?? p.trust?.etd ?? null;
+                const dueIsEtd = !p.est_delivery_date && !!p.trust?.etd;
+                const types = p.trust?.types.length ? p.trust.types : (p.categories ?? []).map(c => ({ type: c, status: null as string | null }));
 
                 return (
                   <tr
@@ -387,37 +448,70 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                     <td className={cn(TD_CLS, 'pl-[18px]')}>
                       <Checkbox checked={selected.has(p.id)} onChange={() => toggleRow(p.id)} label={`Select ${p.name}`} />
                     </td>
-                    <td className={cn(TD_CLS, 'whitespace-nowrap text-[12px] font-medium text-[var(--color-secondary-700)] dark:text-ui-heading')}>
-                      {p.code}
-                    </td>
-                    <td className={cn(TD_CLS, 'max-w-0')}>
-                      <div className="flex min-w-0 flex-col gap-1">
-                        <span className="truncate text-[13px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">
-                          {p.name}
+                    <td className={cn(TD_CLS, 'max-w-0 py-3')}>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className="inline-flex h-7 min-w-[84px] shrink-0 items-center justify-center rounded-[6px] px-2 text-[12px] font-semibold text-white"
+                          style={{ background: regionColor }}
+                        >
+                          {p.code}
                         </span>
-                        {subline && (
-                          <span className="truncate text-[11px] text-ui-text-secondary">{subline}</span>
-                        )}
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="truncate text-[14px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">
+                              {p.client?.name ?? p.address}
+                            </span>
+                            {p.trust?.onHold && (
+                              <span className="inline-flex h-5 shrink-0 items-center gap-1 rounded-[4px] px-1.5 text-[11px] font-semibold" style={{ background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}>
+                                <Pause aria-hidden className="size-3" /> On Hold
+                              </span>
+                            )}
+                          </span>
+                          <span className="truncate text-[12px] text-ui-text-secondary">{p.client ? p.address : null}</span>
+                          {hint && <span className="truncate text-[11px] font-medium text-[var(--status-t7-fg)]">{hint}</span>}
+                        </div>
                       </div>
                     </td>
-                    {show('customer') && (
-                      <td className={cn(TD_CLS, 'max-w-[190px] truncate')}>
-                        {p.client?.name ?? <span className="text-ui-text-disabled">—</span>}
+                    {show('region') && (
+                      <td className={TD_CLS}>
+                        {p.region ? (
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] font-medium">
+                            <span aria-hidden className="size-2 rounded-full" style={{ background: regionColor }} />
+                            {REGION_SHORT[p.region] ?? p.region}
+                          </span>
+                        ) : <span className="text-ui-text-disabled">—</span>}
                       </td>
                     )}
                     {show('type') && (
-                      <td className={cn(TD_CLS, 'whitespace-nowrap')}>
-                        {p.categories?.[0] ?? <span className="text-ui-text-disabled">—</span>}
-                        {(p.categories ?? []).length > 1 && (
-                          <span className="ml-1 text-[11px] text-ui-text-secondary">+{p.categories.length - 1}</span>
-                        )}
+                      <td className={cn(TD_CLS, 'py-3')}>
+                        {types.length ? (
+                          <span className="flex flex-wrap gap-1">
+                            {types.slice(0, 3).map(t => (
+                              <span key={t.type} className="inline-flex h-[22px] items-center gap-1 whitespace-nowrap rounded-[4px] bg-ui-surface px-2 text-[11px] text-ui-body">
+                                <span className="font-semibold">{t.type}</span>
+                                {t.status && <span className="text-ui-text-secondary">· {t.status}</span>}
+                              </span>
+                            ))}
+                            {types.length > 3 && <span className="self-center text-[11px] text-ui-text-secondary">+{types.length - 3}</span>}
+                          </span>
+                        ) : <span className="text-ui-text-disabled">—</span>}
                       </td>
                     )}
                     <td className={TD_CLS}>
-                      <StageBadge
-                        stage={p.current_stage as ProjectStage}
-                        className="h-[22px] gap-1 rounded-[4px] pl-2 pr-2.5 text-[12px] leading-4 [&_svg]:size-3.5"
-                      />
+                      {p.trust ? (
+                        <span
+                          className="inline-flex h-[24px] items-center gap-1.5 whitespace-nowrap rounded-[4px] px-2.5 text-[12px] font-semibold"
+                          style={{ background: STAGE_TONE[p.trust.stage].bg, color: ink(STAGE_TONE[p.trust.stage].fg) }}
+                        >
+                          <span aria-hidden className="size-1.5 rounded-full" style={{ background: STAGE_TONE[p.trust.stage].fg }} />
+                          {TRUST_STAGE_LABEL[p.trust.stage]}
+                        </span>
+                      ) : (
+                        <StageBadge
+                          stage={p.current_stage as ProjectStage}
+                          className="h-[22px] gap-1 rounded-[4px] pl-2 pr-2.5 text-[12px] leading-4 [&_svg]:size-3.5"
+                        />
+                      )}
                     </td>
                     {show('owner') && (
                       <td className={TD_CLS}>
@@ -426,7 +520,10 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                             <span aria-hidden className="grid size-[26px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold leading-[1.4] text-ui-body">
                               <PersonFace name={p.owner.full_name} fallback={initials(p.owner.full_name)} />
                             </span>
-                            {p.owner.full_name}
+                            <span className="flex flex-col leading-tight">
+                              {p.owner.full_name}
+                              {p.ownerFromBoard && <span className="text-[10px] text-ui-text-secondary">Assigned on the dashboard</span>}
+                            </span>
                           </span>
                         ) : (
                           <span className="text-ui-text-disabled">—</span>
@@ -435,7 +532,7 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                     )}
                     {show('due') && (
                       <td className={TD_CLS}>
-                        {p.est_delivery_date ? (
+                        {due ? (
                           <span
                             className={cn('flex flex-col gap-[3px] text-[12px]', isOverdue ? 'text-[var(--status-t7-fg)]' : 'text-ui-body')}
                           >
@@ -443,8 +540,9 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                               {isOverdue
                                 ? <CalendarClock aria-hidden className="size-3.5 shrink-0" />
                                 : <Calendar aria-hidden className="size-3.5 shrink-0" />}
-                              {formatDate(p.est_delivery_date)}
+                              {formatDate(due)}
                             </span>
+                            {dueIsEtd && <span className="text-[10px] text-ui-text-secondary">ETD · Trust System</span>}
                             {isOverdue && (
                               <span className="text-[10px]">
                                 {daysLate} day{daysLate !== 1 ? 's' : ''} overdue
