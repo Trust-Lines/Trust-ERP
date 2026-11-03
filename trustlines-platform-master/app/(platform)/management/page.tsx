@@ -11,7 +11,7 @@ import type { UserRole } from '@/types/database';
 
 const MANAGEMENT_ROLES = ['ops_manager', 'general_manager'];
 
-// Figma "ops_manager" (node 178:29671): heading, two "Pattern surface" cards with value bars
+// Figma "ops_manager" (nodes 178:29671 / 174:27458): heading, two "Pattern surface" cards with value bars
 // (178:30300), then the project table (178:29818). Only data this page already had is shown —
 // the frame's date range, "Create task" and revenue chart have no backing feature here.
 const SURFACE = 'flex min-w-0 flex-col gap-5 rounded-[10px] border border-ui-divider bg-ui-surface-elevated p-6';
@@ -181,12 +181,13 @@ function Bar({ label, detail, value, max, tone }: { label: string; detail?: stri
       <div className="flex items-start justify-between gap-3 text-[13px] text-ui-body">
         <p className="m-0 min-w-0 truncate">
           {label}
-          {detail && <span className="text-ui-text-disabled"> · {detail}</span>}
+          {detail && <span className="text-ui-text-secondary"> · {detail}</span>}
         </p>
         <p className="m-0 shrink-0 font-semibold tabular-nums">{value}</p>
       </div>
       <div className="relative h-3.5 w-full overflow-hidden rounded-[3px] bg-ui-surface" role="img" aria-label={`${label}: ${value} of ${max}`}>
-        <div className="absolute inset-y-0 left-0 rounded-[3px]" style={{ width: `${pct}%`, background: `var(--status-${tone}-bg)` }} />
+        {/* Figma 174:27458 "Stage bar": the saturated tone (t1 #2398B2, t2 #2366B2, …), not the chip fill. */}
+        <div className="absolute inset-y-0 left-0 rounded-[3px]" style={{ width: `${pct}%`, background: `var(--status-${tone}-fg)` }} />
       </div>
     </div>
   );
