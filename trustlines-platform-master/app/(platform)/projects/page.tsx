@@ -7,6 +7,9 @@ import { loadPortfolio } from '@/lib/workspace/portfolio';
 import { PHASE_LABELS } from '@/lib/lifecycle/projectLifecycle';
 import { toRows } from '@/lib/workspace/rows';
 import type { UserRole } from '@/types/database';
+import { loadTrustProjects } from '@/lib/trust/board';
+import { projectNumber } from '@/lib/keyClients/match';
+import { addressFromName, brandFromDropboxPath, trustRowInfo, type TrustRowInfo } from '@/lib/projects/listInfo';
 
 // User feedback, 2026-08-28: a separate /supply page next to "All Projects" was one extra
 // destination too many — "fazladan sayfa lazım değil, yeterli sayfada lazım." Folded the same
@@ -40,7 +43,7 @@ export default async function ProjectsPage() {
 
   const { data: rows, error: rowsError } = await supabase
     .from('projects')
-    .select('id, code, name, current_stage, categories, deal_value, currency, margin_target_pct, est_delivery_date, client_id, trustlines_pm_id')
+    .select('id, code, name, current_stage, categories, deal_value, currency, margin_target_pct, est_delivery_date, client_id, trustlines_pm_id, region, site_location, customer_id, dropbox_root_path')
     .neq('is_archived', true)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
@@ -52,21 +55,38 @@ export default async function ProjectsPage() {
     categories: string[]; deal_value: number | null; currency: string;
     margin_target_pct: number | null; est_delivery_date: string | null;
     client_id: string | null; trustlines_pm_id: string | null;
+    region: string | null; site_location: string | null; customer_id: string | null; dropbox_root_path: string | null;
   }[];
 
-  const clientIds = [...new Set(projectList.map(p => p.client_id).filter(Boolean))] as string[];
-  const pmIds     = [...new Set(projectList.map(p => p.trustlines_pm_id).filter(Boolean))] as string[];
+  const today = new Date().toISOString().split('T')[0];
 
-  const [clientsRes, profilesRes] = await Promise.all([
-    clientIds.length > 0
-      ? supabase.from('clients').select('id, name').in('id', clientIds)
+  // The Trust System's view of each project, by its number (lib/projects/listInfo) — stage,
+  // per-type status, ETD — and the dashboard's "Assign to" for that stage as the owner when the
+  // project has no PM set. Read-only.
+  const trust = await loadTrustProjects();
+  const trustByNo = new Map(trust.projects.map(p => [p.projectNo, p]));
+  const trustOf = (code: string) => { const no = projectNumber(code); return no ? trustByNo.get(no) ?? null : null; };
+  const trustInfo = new Map(projectList.map(p => { const t = trustOf(p.code); return [p.id, t ? { project: t, info: trustRowInfo(t, today) } : null]; }));
+  const assignKeys = [...trustInfo.values()].filter(Boolean).map(t => t!.project.id);
+  const { data: assignRows } = assignKeys.length
+    ? await admin.from('board_assignees').select('item_id, stage, user_id').eq('item_kind', 'trust').in('item_id', assignKeys)
+    : { data: [] };
+  const assigneeOf = new Map(((assignRows ?? []) as { item_id: string; stage: string; user_id: string }[]).map(a => [`${a.item_id}:${a.stage}`, a.user_id]));
+  const assignedId = (projectId: string) => { const t = trustInfo.get(projectId); return t ? assigneeOf.get(`${t.project.id}:${t.info.stage}`) ?? null : null; };
+
+  const customerIds = [...new Set(projectList.map(p => p.customer_id).filter(Boolean))] as string[];
+  const pmIds = [...new Set([...projectList.map(p => p.trustlines_pm_id), ...projectList.map(p => assignedId(p.id))].filter(Boolean))] as string[];
+
+  const [customersRes, profilesRes] = await Promise.all([
+    customerIds.length > 0
+      ? admin.from('customers').select('id, name').in('id', customerIds)
       : Promise.resolve({ data: [] as { id: string; name: string }[] }),
     pmIds.length > 0
       ? supabase.from('profiles').select('id, full_name').in('id', pmIds)
       : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
   ]);
 
-  const clientMap = new Map((clientsRes.data ?? []).map(c => [c.id, c]));
+  const customerMap = new Map(((customersRes.data ?? []) as { id: string; name: string }[]).map(c => [c.id, c.name]));
   const ownerMap  = new Map((profilesRes.data ?? []).map(p => [p.id, p]));
 
   const projects: ProjectRow[] = projectList.map(r => ({
@@ -79,11 +99,14 @@ export default async function ProjectsPage() {
     currency:         r.currency,
     margin_target_pct: r.margin_target_pct,
     est_delivery_date: r.est_delivery_date,
-    client: r.client_id ? (clientMap.get(r.client_id) ?? null) : null,
-    owner:  r.trustlines_pm_id ? (ownerMap.get(r.trustlines_pm_id) ?? null) : null,
+    // The client: its customer record, else the brand folder its Dropbox folder sits in.
+    client: (() => { const n = (r.customer_id && customerMap.get(r.customer_id)) || brandFromDropboxPath(r.dropbox_root_path); return n ? { name: n } : null; })(),
+    owner: (() => { const id = r.trustlines_pm_id ?? assignedId(r.id); return id ? (ownerMap.get(id) ?? null) : null; })(),
+    ownerFromBoard: !r.trustlines_pm_id && !!assignedId(r.id),
+    region: r.region,
+    address: r.site_location || addressFromName(r.name, r.code),
+    trust: trustInfo.get(r.id)?.info ?? null,
   }));
-
-  const today = new Date().toISOString().split('T')[0];
 
   // Saved views ("All / Waiting on me / Blocked") filter the one table below; the hint is the
   // next action or blocker, shown as the row's sub-line (Figma "Projects · Desktop").
@@ -147,4 +170,10 @@ export interface ProjectRow {
   est_delivery_date: string | null;
   client: { name: string } | null;
   owner: { full_name: string } | null;
+  /** The owner is the dashboard card's "Assign to" (no PM set on the project). */
+  ownerFromBoard: boolean;
+  region: string | null;
+  address: string;
+  /** The Trust System's stage / types / ETD for this project's number, when it's there. */
+  trust: TrustRowInfo | null;
 }
