@@ -26,6 +26,14 @@ const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
 const FILTER = 'inline-flex h-10 w-auto cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-5 pr-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:pl-5 dark:pr-3 dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading [&_svg]:size-3.5';
 
+// The action list runs to ~60 entries: readable 13px rows, a wider popup and a capped height
+// (~10 rows) instead of a full-screen column of 11px text.
+const FILTER_LIST = {
+  popupClassName: 'min-w-[260px] text-[13px] leading-[1.4]',
+  listClassName: 'max-h-[min(380px,var(--available-height))] p-1',
+  optionClassName: 'px-2.5 py-1.5',
+};
+
 /** Status tone per action family; the design's default (updates) is t4. */
 export function actionTone(action: string): string {
   const a = action.toLowerCase();
@@ -191,12 +199,12 @@ export function AuditLogClient({ logs }: { logs: AuditEntry[] }) {
           />
         </div>
         <FilterSelect
-          aria-label="Filter by action" className={FILTER}
+          aria-label="Filter by action" className={FILTER} {...FILTER_LIST}
           value={filterAction} onValueChange={v => setFilterAction(v ?? '')}
           options={[{ value: '', label: 'All Actions' }, ...actions.map(a => ({ value: a, label: fmtAction(a) }))]}
         />
         <FilterSelect
-          aria-label="Filter by user" className={FILTER}
+          aria-label="Filter by user" className={FILTER} {...FILTER_LIST}
           value={filterActor} onValueChange={v => setFilterActor(v ?? '')}
           options={[{ value: '', label: 'All Users' }, ...actors.map(a => ({ value: a, label: a }))]}
         />

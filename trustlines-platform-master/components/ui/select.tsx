@@ -25,6 +25,10 @@ type SelectProps = {
   "aria-invalid"?: boolean
   /** Draw an option (trigger + list) yourself, e.g. as a <StatusBadge>. Defaults to its label. */
   renderOption?: (option: SelectOption) => React.ReactNode
+  /** Extra classes for the open list — e.g. larger text and a capped height for long lists. */
+  popupClassName?: string
+  listClassName?: string
+  optionClassName?: string
 }
 
 /** Figma "Dropdown": single choice from a fixed list. Keyboard: Space/Enter opens, arrows move, Enter picks, Esc closes. */
@@ -39,6 +43,9 @@ function Select({
   id,
   className,
   renderOption,
+  popupClassName,
+  listClassName,
+  optionClassName,
   ...aria
 }: SelectProps) {
   // base-ui treats "" as "nothing selected" (shows the placeholder), but filters commonly use
@@ -82,9 +89,9 @@ function Select({
         <SelectPrimitive.Positioner className="z-[10050] outline-none" sideOffset={2} alignItemWithTrigger={false}>
           <SelectPrimitive.Popup
             data-slot="select-content"
-            className={cn(popupBase, "min-w-(--anchor-width)")}
+            className={cn(popupBase, "min-w-(--anchor-width)", popupClassName)}
           >
-            <SelectPrimitive.List className="max-h-(--available-height) overflow-y-auto p-1.5">
+            <SelectPrimitive.List className={cn("max-h-(--available-height) overflow-y-auto p-1.5", listClassName)}>
               {items.map((o) => (
                 <SelectPrimitive.Item
                   key={o.value}
@@ -96,6 +103,7 @@ function Select({
                     // A drawn option (e.g. a status chip) keeps its own colours: a light hover row, not the
                     // solid dark highlight that plain-text options use.
                     renderOption && "py-1 data-highlighted:bg-ui-hover-bg data-highlighted:text-inherit dark:data-highlighted:bg-white/10 dark:data-highlighted:text-inherit dark:data-selected:bg-ui-hover-bg dark:data-selected:text-inherit",
+                    optionClassName,
                   )}
                 >
                   <SelectPrimitive.ItemText>
