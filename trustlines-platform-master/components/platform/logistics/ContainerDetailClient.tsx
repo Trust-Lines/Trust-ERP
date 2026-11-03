@@ -229,14 +229,15 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
           </div>
           <div className={cn(SURFACE, 'flex flex-col gap-4')}>
             {docForm.open && canEdit && (
-              <div className="grid grid-cols-1 items-end gap-3 rounded-[6px] border border-ui-divider bg-ui-surface p-3 md:grid-cols-[1.6fr_1fr_2fr_auto]">
+              // Half-width card: Name + Type on one row, the link full width, buttons under it.
+              <div className="grid grid-cols-1 gap-3 rounded-[6px] border border-ui-divider bg-ui-surface p-3 sm:grid-cols-[minmax(0,1fr)_180px]">
                 {field('Name', <input className={INPUT} value={docForm.name} onChange={e => setDocForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. BL-12345" />)}
                 {field('Type', (
                   <Select aria-label="Type" className={SELECT} value={docForm.doc_type} onValueChange={v => setDocForm(f => ({ ...f, doc_type: v ?? 'other' }))}
                     options={DOC_TYPES.map(t => ({ value: t, label: statusLabel(t) }))} />
                 ))}
-                {field('Link (URL or Dropbox path)', <input className={INPUT} value={docForm.url} onChange={e => setDocForm(f => ({ ...f, url: e.target.value }))} placeholder="https://…" />)}
-                <div className="flex gap-2">
+                {field('Link (URL or Dropbox path)', <input className={INPUT} value={docForm.url} onChange={e => setDocForm(f => ({ ...f, url: e.target.value }))} placeholder="https://…" />, 'sm:col-span-2')}
+                <div className="flex gap-2 sm:col-span-2">
                   <Button size="md" onClick={addDoc}>Save</Button>
                   <Button size="md" variant="ghost" onClick={() => setDocForm(f => ({ ...f, open: false }))}>Cancel</Button>
                 </div>
