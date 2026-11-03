@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Ship } from 'lucide-react';
+import { Plus, Ship } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Pill } from '@/components/platform/shared/Pill';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { CONTAINER_STATUS_TAG, statusLabel } from '@/lib/status/tags';
 
 export interface ContainerRow {
   id: string; container_no: string | null; booking_no: string | null; carrier: string | null;
@@ -15,15 +17,9 @@ export interface ContainerRow {
 
 interface Props { initialContainers: ContainerRow[]; canEdit: boolean }
 
-const STATUS_VARIANT: Record<string, 'neutral' | 'warning' | 'info' | 'success'> = {
-  PLANNING: 'neutral', BOOKED: 'neutral', WAITING_LOADING: 'warning', LOADING: 'warning',
-  DEPARTED: 'info', IN_TRANSIT: 'info', ARRIVED_PORT: 'info', CUSTOMS: 'warning', RELEASED: 'info',
-  WAREHOUSE: 'success', COMPLETED: 'success', CANCELLED: 'neutral',
-};
-const cap = (s: string) => s.replace(/_/g, ' ');
-
-function StatusPill({ status }: { status: string }) {
-  return <Pill variant={STATUS_VARIANT[status] ?? 'neutral'}><span style={{ textTransform: 'capitalize' }}>{cap(status.toLowerCase())}</span></Pill>;
+/** Platform status chip (lib/status/tags.ts "container" tone + icon), keeping the container's own label. */
+export function ContainerStatusBadge({ status }: { status: string }) {
+  return <StatusBadge group="container" status={CONTAINER_STATUS_TAG[status] ?? status} label={statusLabel(status)} />;
 }
 
 export function LogisticsClient({ initialContainers, canEdit }: Props) {
@@ -49,7 +45,7 @@ export function LogisticsClient({ initialContainers, canEdit }: Props) {
           <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}><Ship size={20} /> Containers</h1>
           <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>{containers.length} active container{containers.length !== 1 ? 's' : ''}</p>
         </div>
-        {canEdit && <button className="btn btn-primary" onClick={() => setShowForm(s => !s)}>+ New container</button>}
+        {canEdit && <Button size="md" onClick={() => setShowForm(s => !s)} aria-expanded={showForm}><Plus /> New container</Button>}
       </div>
 
       {showForm && canEdit && (
@@ -81,7 +77,7 @@ export function LogisticsClient({ initialContainers, canEdit }: Props) {
                   <td style={{ padding: '11px 14px', color: 'var(--fg-subtle)' }}>{[c.origin_port, c.destination_port].filter(Boolean).join(' → ') || '—'}</td>
                   <td style={{ padding: '11px 14px', color: 'var(--fg-subtle)' }}>{c.actual_arrival_date || c.estimated_arrival_date || '—'}</td>
                   <td style={{ padding: '11px 14px' }}>{c.item_count}</td>
-                  <td style={{ padding: '11px 14px' }}><StatusPill status={c.status} /></td>
+                  <td style={{ padding: '11px 14px' }}><ContainerStatusBadge status={c.status} /></td>
                 </tr>
               ))}
             </tbody>
@@ -111,8 +107,8 @@ function ContainerForm({ onSave, onCancel }: { onSave: (p: Record<string, unknow
         <div><label className="form-label" style={{ fontSize: 12 }}>ETA</label><input type="date" className="form-input" value={f.estimated_arrival_date} onChange={set('estimated_arrival_date')} /></div>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn-primary btn-sm" onClick={submit} disabled={saving}>{saving ? 'Saving…' : 'Create container'}</button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+        <Button onClick={submit} loading={saving}>Create container</Button>
+        <Button variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button>
       </div>
     </div>
   );

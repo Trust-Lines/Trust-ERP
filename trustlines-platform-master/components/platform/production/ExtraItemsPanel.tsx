@@ -8,6 +8,8 @@ import type { Vendor } from './AddVendorModal';
 import { STATUS_CHAIN } from '@/lib/production/board';
 import { Select } from '@/components/platform/shared/Select';
 import { Button } from '@/components/ui/button';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { PRODUCTION_ITEM_STATUS_TAG, statusLabel } from '@/lib/status/tags';
 
 const TYPES = ['Millwork', 'Shelving', 'Ceiling', 'Image', 'Furniture', 'Decoration'];
 const STATUSES = [...STATUS_CHAIN, 'HOLD_T', 'HOLD_PM', 'ASSEMBLY'];
@@ -157,7 +159,7 @@ export function ExtraItemsPanel({ source, label, canEdit, onChanged }: {
                         <Select className="form-input" value={r.status} onChange={e => patchRow(r.id, { status: e.target.value })} style={{ fontSize: 11 }}>
                           {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                         </Select>
-                      ) : r.status}
+                      ) : <StatusBadge group="production" status={PRODUCTION_ITEM_STATUS_TAG[r.status] ?? r.status} label={statusLabel(r.status)} />}
                     </td>
                     {canEdit && <td style={{ padding: '8px 10px', textAlign: 'right' }}><Button variant="ghost" size="icon" className="text-error-normal" onClick={() => removeRow(r.id)} title="Delete" aria-label="Delete row"><Trash2 aria-hidden /></Button></td>}
                   </tr>

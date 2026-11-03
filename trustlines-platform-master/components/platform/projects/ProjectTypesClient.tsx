@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 import { STATUS_CHAIN } from '@/lib/production/board';
 import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { PRODUCTION_ITEM_STATUS_TAG, statusLabel } from '@/lib/status/tags';
 
 const STATUSES = [...STATUS_CHAIN, 'HOLD_T', 'HOLD_PM', 'ASSEMBLY'];
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
@@ -27,10 +29,6 @@ interface Props {
 }
 
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const STATUS_TONE: Record<string, string> = {
-  NOT_ORDERED: 'var(--fg-subtle)', SENT: 'var(--status-success-fg)', READY: 'var(--status-success-fg)',
-  HOLD_T: 'var(--status-danger-fg, #b91c1c)', HOLD_PM: 'var(--status-danger-fg, #b91c1c)',
-};
 const PRIORITY_TONE: Record<string, string> = {
   urgent: 'var(--status-danger-fg, #b91c1c)', high: 'var(--status-warning-fg, #92400e)',
   medium: 'var(--fg-default)', low: 'var(--fg-subtle)',
@@ -92,7 +90,7 @@ export function ProjectTypesClient({ projectId, projectCode, projectName, canEdi
                     <Select className="form-input" value={r.status} disabled={busy === r.id + 'status'} onChange={e => patch(r.id, 'status', e.target.value)}>
                       {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                     </Select>
-                  ) : <span style={{ color: STATUS_TONE[r.status] ?? 'var(--fg-default)', fontWeight: 600 }}>{r.status}</span>}
+                  ) : <StatusBadge group="production" status={PRODUCTION_ITEM_STATUS_TAG[r.status] ?? r.status} label={statusLabel(r.status)} />}
                 </Field>
 
                 <Field label="Owner">

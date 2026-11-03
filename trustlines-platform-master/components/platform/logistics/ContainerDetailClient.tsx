@@ -7,6 +7,10 @@ import { toast } from 'sonner';
 import { CONTAINER_STATUSES } from '@/lib/logistics/containers';
 import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ContainerStatusBadge } from './LogisticsClient';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { PRODUCTION_ITEM_STATUS_TAG, statusLabel } from '@/lib/status/tags';
 
 interface Container {
   id: string; container_no: string | null; booking_no: string | null; carrier: string | null; vessel_name: string | null;
@@ -112,13 +116,13 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
 
   return (
     <>
-      <Link href="/logistics" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--fg-subtle)', marginBottom: 16, textDecoration: 'none' }}>
-        <ArrowLeft size={14} /> All containers
+      <Link href="/logistics" className={buttonVariants({ variant: 'secondary', size: 'sm', className: 'mb-4 no-underline' })}>
+        <ArrowLeft /> All containers
       </Link>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
         <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: 0 }}>{c.container_no || 'Container'}</h1>
-        <span className="pill" style={{ fontSize: 11, textTransform: 'capitalize' }}>{cap(c.status.toLowerCase())}</span>
+        <ContainerStatusBadge status={c.status} />
         {c.tracking_url && <a href={c.tracking_url} target="_blank" rel="noreferrer" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 3 }}>Track <ExternalLink size={12} /></a>}
       </div>
 
@@ -158,7 +162,7 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="card-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div className="form-section-title">Documents ({docs.length})</div>
-          {canEdit && !docForm.open && <button className="btn btn-ghost btn-sm" onClick={() => setDocForm(f => ({ ...f, open: true }))}><Plus size={13} /> Attach</button>}
+          {canEdit && !docForm.open && <Button variant="secondary" onClick={() => setDocForm(f => ({ ...f, open: true }))}><Plus /> Attach</Button>}
         </div>
         <div className="card-body">
           {docForm.open && canEdit && (
@@ -166,7 +170,7 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
               {field('Name', <input className="form-input" style={{ fontSize: 13 }} value={docForm.name} onChange={e => setDocForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. BL-12345" />)}
               {field('Type', <Select className="form-input" style={{ fontSize: 13 }} value={docForm.doc_type} onChange={e => setDocForm(f => ({ ...f, doc_type: e.target.value }))}>{DOC_TYPES.map(t => <option key={t} value={t}>{cap(t)}</option>)}</Select>)}
               {field('Link (URL or Dropbox path)', <input className="form-input" style={{ fontSize: 13 }} value={docForm.url} onChange={e => setDocForm(f => ({ ...f, url: e.target.value }))} placeholder="https://…" />)}
-              <button className="btn btn-primary btn-sm" onClick={addDoc}>Save</button>
+              <Button onClick={addDoc}>Save</Button>
             </div>
           )}
           {docs.length === 0 ? (
@@ -180,7 +184,7 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
                     {d.url && <a href={d.url} target="_blank" rel="noreferrer" style={{ marginLeft: 8, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 3 }}>Open <ExternalLink size={11} /></a>}
                     {!d.url && d.dropbox_path && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--fg-subtle)', fontFamily: 'monospace' }}>{d.dropbox_path}</span>}
                   </div>
-                  {canEdit && <button className="btn btn-ghost btn-sm" style={{ padding: '3px 6px', color: 'var(--status-danger)' }} onClick={() => removeDoc(d.id)} aria-label="Remove"><Trash2 size={13} /></button>}
+                  {canEdit && <Button variant="ghost" size="icon" className="text-error-normal" onClick={() => removeDoc(d.id)} title="Remove document" aria-label="Remove document"><Trash2 className="size-4" /></Button>}
                 </div>
               ))}
             </div>
@@ -191,7 +195,7 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
       <div className="card">
         <div className="card-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div className="form-section-title">Loaded items ({items.length})</div>
-          {canEdit && !adding && <button className="btn btn-ghost btn-sm" onClick={() => { setAdding(true); searchAvailable(''); }}><Plus size={13} /> Load item</button>}
+          {canEdit && !adding && <Button variant="secondary" onClick={() => { setAdding(true); searchAvailable(''); }}><Plus /> Load item</Button>}
         </div>
         <div className="card-body">
           {adding && canEdit && (
@@ -202,12 +206,13 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
               </div>
               <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {avail.length === 0 ? <div style={{ fontSize: 12, color: 'var(--fg-faint)' }}>No available production items match.</div> : avail.map(a => (
-                  <button key={a.id} className="btn btn-ghost btn-sm" style={{ justifyContent: 'flex-start', border: '1px solid var(--border-subtle)', fontSize: 12 }} disabled={busy} onClick={() => loadItem(a)}>
-                    <Plus size={11} /> <strong>{a.pf_code || a.type}</strong>&nbsp;· {a.type}{a.project_code ? ` · ${a.project_code}` : ''} · {cap(a.status.toLowerCase())}
-                  </button>
+                  <Button key={a.id} variant="ghost" className="w-full justify-start border-ui-divider font-normal" disabled={busy} onClick={() => loadItem(a)}>
+                    <Plus /> <strong className="font-semibold">{a.pf_code || a.type}</strong>· {a.type}{a.project_code ? ` · ${a.project_code}` : ''}
+                    <StatusBadge group="production" status={PRODUCTION_ITEM_STATUS_TAG[a.status] ?? a.status} label={statusLabel(a.status)} size="sm" className="ml-auto" />
+                  </Button>
                 ))}
               </div>
-              <button className="btn btn-ghost btn-sm" style={{ marginTop: 6 }} onClick={() => setAdding(false)}>Done</button>
+              <Button variant="secondary" className="mt-2" onClick={() => setAdding(false)}>Done</Button>
             </div>
           )}
           {items.length === 0 ? (
@@ -226,7 +231,7 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
                     <td style={{ padding: '8px' }}>{i.package_count ?? '—'}</td>
                     <td style={{ padding: '8px' }}>{i.pallet_count ?? '—'}</td>
                     <td style={{ padding: '8px' }}>{i.volume_cbm ?? '—'}</td>
-                    <td style={{ padding: '8px', textAlign: 'right' }}>{canEdit && <button className="btn btn-ghost btn-sm" style={{ padding: '3px 6px', color: 'var(--status-danger)' }} onClick={() => unload(i.id)} aria-label="Unload"><Trash2 size={13} /></button>}</td>
+                    <td style={{ padding: '8px', textAlign: 'right' }}>{canEdit && <Button variant="ghost" size="icon" className="text-error-normal" onClick={() => unload(i.id)} title="Unload item" aria-label="Unload item"><Trash2 className="size-4" /></Button>}</td>
                   </tr>
                 ))}
               </tbody>

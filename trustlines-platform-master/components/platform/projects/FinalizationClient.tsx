@@ -4,7 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Trash2, CheckCircle2, Circle, CalendarClock, FilePen, Activity } from 'lucide-react';
 import { toast } from 'sonner';
-import { Pill } from '@/components/platform/shared/Pill';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { CHANGE_REQUEST_STATUS_TAG, statusLabel } from '@/lib/status/tags';
 import type { ChangeRequest, SiteReadiness, SiteReadinessItem } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -34,9 +35,8 @@ const OPEN_CR = new Set(['open', 'under_review']);
 const cap = (s: string) => s.replace(/_/g, ' ');
 
 function CrStatusPill({ status }: { status: string }) {
-  const good = ['approved', 'implemented'].includes(status);
-  const warn = ['rejected', 'cancelled', 'open'].includes(status);
-  return <Pill variant={good ? 'success' : warn ? 'warning' : 'neutral'}><span style={{ textTransform: 'capitalize' }}>{cap(status)}</span></Pill>;
+  // Figma Status Language "Change Request": tone + icon + label from lib/status/tags.ts.
+  return <StatusBadge group="change_request" status={CHANGE_REQUEST_STATUS_TAG[status] ?? status} label={CHANGE_REQUEST_STATUS_TAG[status] ? undefined : statusLabel(status)} />;
 }
 
 export function FinalizationClient({
