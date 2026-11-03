@@ -9,8 +9,6 @@ import type { Supplier, SupplierInvoice, SupplierPayment } from '@/types/databas
 import type { CurrencyTotals } from '@/lib/suppliers/config';
 import { CURRENCIES, PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '@/lib/suppliers/config';
 import { Select } from '@/components/platform/shared/Select';
-import { EmptyState } from '@/components/ui/empty-state';
-import { StatusBadge } from '@/components/ui/status-badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import type { VendorWork } from '@/lib/suppliers/trustWork';
 
@@ -26,28 +24,85 @@ interface Props {
   workError: string | null;
 }
 
+// Figma "Supplier detail" (node 427:16507). The frame's Delete button and per-row edit pencils
+// have no UI feature here: the existing soft Deactivate / Reactivate takes the Delete slot,
+// invoices and payments keep add + delete.
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const CARD = 'flex flex-col gap-5 rounded-[8px] border border-ui-divider px-5 pb-5 pt-4';
+const CARD_TITLE = cn('m-0 text-[20px] font-semibold leading-[1.35]', HEADING);
+const FIELD = 'h-10 w-full min-w-0 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
+const FORM_LABEL = 'flex min-w-0 flex-col gap-1 text-[12px] font-medium text-ui-body';
+const ACCENT_BTN = 'gap-2 bg-ui-btn-accent pl-3.5 pr-6 text-[13px] font-medium text-ui-btn-accent-fg hover:bg-ui-btn-accent hover:opacity-90 dark:bg-ui-btn-accent dark:text-ui-btn-accent-fg dark:hover:bg-ui-btn-accent';
+const TONE_BTN = 'h-10 gap-2 border pl-3.5 pr-6 text-[13px] font-medium hover:opacity-85';
+// Figma row delete: 32px, T10 fill + border.
+const ROW_DELETE = 'size-8 rounded-[6px] border border-[var(--status-t10-fg)] bg-[var(--status-t10-bg)] text-[var(--status-t10-fg)] hover:bg-[var(--status-t10-bg)] hover:opacity-85 dark:border-[var(--status-t10-fg)] dark:bg-[var(--status-t10-bg)]';
+const AMOUNT = 'inline-flex items-center rounded-[4px] bg-[var(--status-t6-bg)] py-1 pl-2 pr-2.5 text-[16px] font-medium leading-4 tabular-nums text-[var(--status-t9-fg)]';
+// Invoice settlement keeps its own colour in the row's meta line.
+const INVOICE_STATUS_TONE: Record<string, string> = { unpaid: 't10', partial: 't7', paid: 't9' };
+
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const STATUS_COLOR: Record<string, string> = { unpaid: 'var(--status-danger-fg, #b91c1c)', partial: 'var(--status-warning-fg, #92400e)', paid: 'var(--status-success-fg)' };
+/** "2026-10-26" → "26/10/2026" (the design's day-first date), no timezone shift. */
+const dayFirst = (iso: string | null) => {
+  if (!iso) return null;
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return y && m && d ? `${Number(d)}/${Number(m)}/${y}` : iso;
+};
 
 export function SupplierDetailClient({ supplier, initialInvoices, initialPayments, totals, projects, canEdit, work, workError }: Props) {
   const router = useRouter();
   const projById = new Map(projects.map(p => [p.id, p]));
   const activeCurrencies = CURRENCIES.filter(c => totals[c].invoiced !== 0 || totals[c].paid !== 0);
+  const [toggling, setToggling] = useState(false);
+
+  // Soft toggle only (is_active) — invoices, payments and history are kept.
+  async function toggleActive() {
+    const activate = !supplier.is_active;
+    if (!activate && !confirm(`Deactivate ${supplier.name}? It will no longer be offered as a vendor. Invoices and payments are kept.`)) return;
+    setToggling(true);
+    const res = await fetch(`/api/suppliers/${supplier.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: activate }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setToggling(false);
+    if (!res.ok) { toast.error(body.error ?? 'Failed to update supplier'); return; }
+    toast.success(activate ? 'Supplier reactivated' : 'Supplier deactivated'); router.refresh();
+  }
 
   return (
-    <>
-      <Link href="/suppliers" className={buttonVariants({ variant: 'secondary', size: 'sm', className: 'mb-4 no-underline' })}>
-        <ArrowLeft size={14} /> All suppliers
+    <div className="flex flex-col gap-6">
+      <Link href="/suppliers" className={buttonVariants({ variant: 'secondary', size: 'sm', className: 'w-fit no-underline' })}>
+        <ArrowLeft /> All suppliers
       </Link>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>{supplier.name}</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
-            {supplier.code ?? '—'} · {supplier.country}
-            {!supplier.is_active && <StatusBadge group="record_state" status="inactive" size="sm" className="ml-2 align-middle" />}
-          </p>
+      {/* ── Page heading ── */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col gap-[5px]">
+          <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>{supplier.name}</h1>
+          <div className="flex items-center gap-[5px] text-[13px] leading-[1.35] text-ui-body">
+            <span>{supplier.code ?? '—'}</span><span>·</span><span>{supplier.country}</span>
+            <StatusBadge
+              group="record_state" status={supplier.is_active ? 'active' : 'inactive'} showIcon={false}
+              className="ml-1 h-5 rounded-[4px] border border-current px-2 text-[12px] uppercase leading-4"
+            />
+          </div>
         </div>
+        {canEdit && (
+          supplier.is_active ? (
+            <Button
+              onClick={toggleActive} loading={toggling}
+              className={cn(TONE_BTN, 'border-[var(--status-t10-bg)] bg-[var(--status-t10-bg)] text-[var(--status-t10-fg)] hover:bg-[var(--status-t10-bg)] dark:border-[var(--status-t10-bg)] dark:bg-[var(--status-t10-bg)] dark:text-[var(--status-t10-fg)]')}
+            >
+              <Power className="size-4" /> Deactivate
+            </Button>
+          ) : (
+            <Button
+              onClick={toggleActive} loading={toggling}
+              className={cn(TONE_BTN, 'border-[var(--status-t9-bg)] bg-[var(--status-t9-bg)] text-[var(--status-t9-fg)] hover:bg-[var(--status-t9-bg)] dark:border-[var(--status-t9-bg)] dark:bg-[var(--status-t9-bg)] dark:text-[var(--status-t9-fg)]')}
+            >
+              <Power className="size-4" /> Reactivate
+            </Button>
+          )
+        )}
       </div>
 
       <WorkSection work={work} error={workError} />
@@ -67,21 +122,59 @@ export function SupplierDetailClient({ supplier, initialInvoices, initialPayment
               <span>Paid {fmt(totals[c].paid)}</span>
             </div>
           </div>
-        ))}
+          {activeCurrencies.length === 0 ? (
+            <p className={cn('m-0 my-auto py-10 text-center text-[16px] font-medium leading-[1.35]', HEADING)}>No invoices or payments yet.</p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {activeCurrencies.map(c => {
+                const t = totals[c];
+                return (
+                  <div key={c} className="flex flex-col gap-1">
+                    <span className="text-[12px] font-medium leading-4 text-ui-body">Balance ({c})</span>
+                    <span
+                      className="text-[22px] font-semibold tabular-nums"
+                      style={{ color: t.balance > 0.005 ? 'var(--status-t7-fg)' : 'var(--status-t9-fg)' }}
+                    >
+                      {fmt(t.balance)}
+                    </span>
+                    <div className="flex justify-between text-[12px] text-ui-text-secondary">
+                      <span>Invoiced {fmt(t.invoiced)}</span>
+                      <span>Paid {fmt(t.paid)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <ProfileCard supplier={supplier} canEdit={canEdit} onSaved={() => router.refresh()} />
       </div>
 
-      <ProfileCard supplier={supplier} canEdit={canEdit} onSaved={() => router.refresh()} />
+      {/* ── Invoices + payments ── */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 xl:items-start">
+        <InvoicesSection
+          supplierId={supplier.id} invoices={initialInvoices} projById={projById}
+          canEdit={canEdit} onChange={() => router.refresh()}
+        />
+        <PaymentsSection
+          supplierId={supplier.id} payments={initialPayments} invoices={initialInvoices}
+          projById={projById} canEdit={canEdit} onChange={() => router.refresh()}
+        />
+      </div>
+    </div>
+  );
+}
 
-      <InvoicesSection
-        supplierId={supplier.id} invoices={initialInvoices} projById={projById}
-        canEdit={canEdit} onChange={() => router.refresh()}
-      />
-
-      <PaymentsSection
-        supplierId={supplier.id} payments={initialPayments} invoices={initialInvoices}
-        projById={projById} canEdit={canEdit} onChange={() => router.refresh()}
-      />
-    </>
+function CardHeader({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex min-h-10 items-center justify-between gap-3">
+        <h2 className={CARD_TITLE}>{title}</h2>
+        {action}
+      </div>
+      <div className="h-px w-full bg-ui-divider" />
+    </div>
   );
 }
 
@@ -134,9 +227,9 @@ function ProfileCard({ supplier, canEdit, onSaved }: { supplier: Supplier; canEd
   }
 
   const Row = ({ label, value }: { label: string; value: string | null }) => (
-    <div style={{ display: 'flex', gap: 8, fontSize: 13, padding: '4px 0' }}>
-      <span style={{ color: 'var(--fg-subtle)', minWidth: 120 }}>{label}</span>
-      <span>{value || '—'}</span>
+    <div className="flex flex-col">
+      <span className="text-[12px] font-medium leading-4 text-ui-body">{label}</span>
+      <span className={cn('whitespace-pre-wrap break-words text-[14px] font-medium leading-[1.5]', HEADING)}>{value || '-'}</span>
     </div>
   );
 
@@ -155,14 +248,14 @@ function ProfileCard({ supplier, canEdit, onSaved }: { supplier: Supplier; canEd
             </Button>
           </div>
         )}
-      </div>
+      />
       {!edit ? (
-        <div>
+        <div className="flex flex-col gap-4">
           <Row label="Email" value={supplier.email} />
           <Row label="Phone" value={supplier.phone} />
           <Row label="Address" value={supplier.address} />
-          <Row label="Tax office" value={supplier.tax_office} />
-          <Row label="Tax number" value={supplier.tax_number} />
+          <Row label="Tax Office" value={supplier.tax_office} />
+          <Row label="Tax #" value={supplier.tax_number} />
           <Row label="Payment terms" value={supplier.payment_terms} />
           <Row label="Notes" value={supplier.notes} />
         </div>
@@ -171,24 +264,46 @@ function ProfileCard({ supplier, canEdit, onSaved }: { supplier: Supplier; canEd
           {([['name', 'Name'], ['country', 'Country'], ['email', 'Email'], ['phone', 'Phone'], ['tax_office', 'Tax office'], ['tax_number', 'Tax number'], ['payment_terms', 'Payment terms']] as const).map(([k, label]) => (
             <label key={k} style={{ display: 'grid', gap: 4, fontSize: 12 }}>
               {label}
-              <input className="form-input" value={f[k]} onChange={e => setF({ ...f, [k]: e.target.value })} />
+              <input className={FIELD} value={f[k]} onChange={e => setF({ ...f, [k]: e.target.value })} />
             </label>
           ))}
-          <label style={{ display: 'grid', gap: 4, fontSize: 12, gridColumn: '1 / -1' }}>
+          <label className={cn(FORM_LABEL, 'md:col-span-2')}>
             Address
-            <input className="form-input" value={f.address} onChange={e => setF({ ...f, address: e.target.value })} />
+            <input className={FIELD} value={f.address} onChange={e => setF({ ...f, address: e.target.value })} />
           </label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 12, gridColumn: '1 / -1' }}>
+          <label className={cn(FORM_LABEL, 'md:col-span-2')}>
             Notes
-            <textarea className="form-input" rows={2} value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} />
+            <textarea className={cn(FIELD, 'h-auto min-h-[72px] resize-y py-2')} rows={2} value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} />
           </label>
-          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>
-            <Button onClick={save} loading={saving}>Save</Button>
-            <Button variant="secondary" onClick={() => setEdit(false)} disabled={saving}>Cancel</Button>
+          <div className="flex gap-2 md:col-span-2">
+            <Button size="md" onClick={save} loading={saving}>Save</Button>
+            <Button size="md" variant="secondary" onClick={() => setEdit(false)} disabled={saving}>Cancel</Button>
           </div>
         </div>
       )}
-    </div>
+    </section>
+  );
+}
+
+/** One invoice / payment line: title + amount chip, meta line, delete. */
+function LedgerRow({ title, titleClass, amount, meta, onDelete, deleteLabel }: {
+  title: React.ReactNode; titleClass: string; amount: string; meta: React.ReactNode; onDelete?: () => void; deleteLabel: string;
+}) {
+  return (
+    <li className="flex items-center gap-3 border-b border-ui-divider px-1 py-3 last:border-b-0">
+      <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className={cn('truncate leading-[1.4]', titleClass)}>{title}</span>
+          <span className={AMOUNT}>{amount}</span>
+        </div>
+        <p className="m-0 truncate text-[11px] leading-[1.4] text-ui-text-secondary">{meta}</p>
+      </div>
+      {onDelete && (
+        <Button variant="ghost" size="icon" className={ROW_DELETE} onClick={onDelete} title={deleteLabel} aria-label={deleteLabel}>
+          <Trash2 className="size-4" />
+        </Button>
+      )}
+    </li>
   );
 }
 
@@ -222,57 +337,48 @@ function InvoicesSection({ supplierId, invoices, projById, canEdit, onChange }: 
   }
 
   return (
-    <div className="card" style={{ padding: 16, marginBottom: 20 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}><FileText size={15} /> Invoices ({invoices.length})</h2>
-        {canEdit && <Button variant="secondary" onClick={() => setAdding(v => !v)} aria-expanded={adding}><Plus /> Add</Button>}
-      </div>
+    <section className={cn(CARD, 'bg-ui-page-bg')}>
+      <CardHeader
+        title={`Invoices (${invoices.length})`}
+        action={canEdit && <Button size="md" className={ACCENT_BTN} onClick={() => setAdding(v => !v)} aria-expanded={adding}><Plus className="size-4" /> Add Invoice</Button>}
+      />
 
       {adding && canEdit && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 90px 1fr 2fr auto', gap: 8, alignItems: 'end', marginBottom: 12 }}>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Invoice #<input className="form-input" value={f.invoice_number} onChange={e => setF({ ...f, invoice_number: e.target.value })} /></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Date<input className="form-input" type="date" value={f.invoice_date} onChange={e => setF({ ...f, invoice_date: e.target.value })} /></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Cur.<Select className="form-input" value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</Select></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Amount<input className="form-input" type="number" step="0.01" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Description<input className="form-input" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>
-          <Button onClick={add} loading={saving}>Save</Button>
+        <div className="grid grid-cols-2 items-end gap-2 rounded-[6px] border border-ui-divider bg-ui-surface p-3 md:grid-cols-[1fr_1fr_90px_1fr_2fr_auto]">
+          <label className={FORM_LABEL}>Invoice #<input className={FIELD} value={f.invoice_number} onChange={e => setF({ ...f, invoice_number: e.target.value })} /></label>
+          <label className={FORM_LABEL}>Date<input className={FIELD} type="date" value={f.invoice_date} onChange={e => setF({ ...f, invoice_date: e.target.value })} /></label>
+          <label className={FORM_LABEL}>Cur.<Select className={FIELD} value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</Select></label>
+          <label className={FORM_LABEL}>Amount<input className={FIELD} type="number" step="0.01" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></label>
+          <label className={FORM_LABEL}>Description<input className={FIELD} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>
+          <Button size="md" onClick={add} loading={saving}>Save</Button>
         </div>
       )}
 
       {invoices.length === 0 ? (
-        <p style={{ color: 'var(--fg-subtle)', fontSize: 13, margin: 0 }}>No invoices recorded.</p>
+        <p className="m-0 text-[13px] text-ui-text-secondary">No invoices recorded.</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ textAlign: 'left', color: 'var(--fg-subtle)', borderBottom: '1px solid var(--border)' }}>
-                <th style={{ padding: '8px 10px' }}>Invoice #</th>
-                <th style={{ padding: '8px 10px' }}>Date</th>
-                <th style={{ padding: '8px 10px' }}>Project</th>
-                <th style={{ padding: '8px 10px', textAlign: 'right' }}>Amount</th>
-                <th style={{ padding: '8px 10px' }}>Status</th>
-                {canEdit && <th />}
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map(inv => {
-                const p = inv.project_id ? projById.get(inv.project_id) : null;
-                return (
-                  <tr key={inv.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '8px 10px' }}>{inv.invoice_number || '—'}{inv.description && <div style={{ color: 'var(--fg-subtle)', fontSize: 11 }}>{inv.description}</div>}</td>
-                    <td style={{ padding: '8px 10px' }}>{inv.invoice_date ?? '—'}</td>
-                    <td style={{ padding: '8px 10px' }}>{p ? <Link href={`/projects/${inv.project_id}`}>{p.code}</Link> : '—'}</td>
-                    <td style={{ padding: '8px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmt(Number(inv.amount))} <small style={{ color: 'var(--fg-subtle)' }}>{inv.currency}</small></td>
-                    <td style={{ padding: '8px 10px' }}><span className="pill" style={{ fontSize: 10, color: STATUS_COLOR[inv.status], background: 'var(--bg-sunken)', textTransform: 'capitalize' }}>{inv.status}</span></td>
-                    {canEdit && <td style={{ padding: '8px 10px', textAlign: 'right' }}><Button variant="ghost" size="icon" onClick={() => remove(inv.id)} title="Delete invoice" aria-label="Delete invoice"><Trash2 className="size-4" /></Button></td>}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <ul className="m-0 flex list-none flex-col p-0">
+          {invoices.map(inv => {
+            const p = inv.project_id ? projById.get(inv.project_id) : null;
+            return (
+              <LedgerRow
+                key={inv.id}
+                title={inv.invoice_number ? `#${inv.invoice_number}` : '—'}
+                titleClass={cn('text-[16px] font-semibold', HEADING)}
+                amount={`${fmt(Number(inv.amount))} ${inv.currency}`}
+                meta={<>
+                  {[dayFirst(inv.invoice_date), inv.description].filter(Boolean).join('  ·  ') || '—'}
+                  {p && <>{'  ·  '}<Link href={`/projects/${inv.project_id}`} className="text-inherit underline-offset-2 hover:underline">{p.code}</Link></>}
+                  {'  ·  '}<span style={{ color: `var(--status-${INVOICE_STATUS_TONE[inv.status] ?? 't0'}-fg)` }}>{statusLabel(inv.status)}</span>
+                </>}
+                onDelete={canEdit ? () => remove(inv.id) : undefined}
+                deleteLabel="Delete invoice"
+              />
+            );
+          })}
+        </ul>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -307,59 +413,51 @@ function PaymentsSection({ supplierId, payments, invoices, projById, canEdit, on
   }
 
   const invLabel = (inv: SupplierInvoice) => `${inv.invoice_number || inv.id.slice(0, 8)} · ${fmt(Number(inv.amount))} ${inv.currency}`;
+  const invById = new Map(invoices.map(i => [i.id, i]));
 
   return (
-    <div className="card" style={{ padding: 16, marginBottom: 20 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}><Wallet size={15} /> Payments ({payments.length})</h2>
-        {canEdit && <Button variant="secondary" onClick={() => setAdding(v => !v)} aria-expanded={adding}><Plus /> Add</Button>}
-      </div>
+    <section className={cn(CARD, 'bg-ui-page-bg')}>
+      <CardHeader
+        title={`Payments (${payments.length})`}
+        action={canEdit && <Button size="md" className={ACCENT_BTN} onClick={() => setAdding(v => !v)} aria-expanded={adding}><Plus className="size-4" /> Add payment</Button>}
+      />
 
       {adding && canEdit && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 1fr 1fr 1.4fr auto', gap: 8, alignItems: 'end', marginBottom: 12 }}>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Amount<input className="form-input" type="number" step="0.01" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Cur.<Select className="form-input" value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</Select></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Method<Select className="form-input" value={f.method} onChange={e => setF({ ...f, method: e.target.value })}>{PAYMENT_METHODS.map(m => <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>)}</Select></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Date<input className="form-input" type="date" value={f.paid_at} onChange={e => setF({ ...f, paid_at: e.target.value })} /></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Against invoice<Select className="form-input" value={f.invoice_id} onChange={e => setF({ ...f, invoice_id: e.target.value })}><option value="">On account</option>{invoices.map(inv => <option key={inv.id} value={inv.id}>{invLabel(inv)}</option>)}</Select></label>
-          <Button onClick={add} loading={saving}>Save</Button>
+        <div className="grid grid-cols-2 items-end gap-2 rounded-[6px] border border-ui-divider bg-ui-surface p-3 md:grid-cols-[1fr_80px_1fr_1fr_1.4fr_auto]">
+          <label className={FORM_LABEL}>Amount<input className={FIELD} type="number" step="0.01" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></label>
+          <label className={FORM_LABEL}>Cur.<Select className={FIELD} value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</Select></label>
+          <label className={FORM_LABEL}>Method<Select className={FIELD} value={f.method} onChange={e => setF({ ...f, method: e.target.value })}>{PAYMENT_METHODS.map(m => <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>)}</Select></label>
+          <label className={FORM_LABEL}>Date<input className={FIELD} type="date" value={f.paid_at} onChange={e => setF({ ...f, paid_at: e.target.value })} /></label>
+          <label className={FORM_LABEL}>Against invoice<Select className={FIELD} value={f.invoice_id} onChange={e => setF({ ...f, invoice_id: e.target.value })}><option value="">On account</option>{invoices.map(inv => <option key={inv.id} value={inv.id}>{invLabel(inv)}</option>)}</Select></label>
+          <Button size="md" onClick={add} loading={saving}>Save</Button>
         </div>
       )}
 
       {payments.length === 0 ? (
-        <p style={{ color: 'var(--fg-subtle)', fontSize: 13, margin: 0 }}>No payments recorded.</p>
+        <p className="m-0 text-[13px] text-ui-text-secondary">No payments recorded.</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ textAlign: 'left', color: 'var(--fg-subtle)', borderBottom: '1px solid var(--border)' }}>
-                <th style={{ padding: '8px 10px' }}>Date</th>
-                <th style={{ padding: '8px 10px' }}>Method</th>
-                <th style={{ padding: '8px 10px' }}>Project</th>
-                <th style={{ padding: '8px 10px' }}>Reference</th>
-                <th style={{ padding: '8px 10px', textAlign: 'right' }}>Amount</th>
-                {canEdit && <th />}
-              </tr>
-            </thead>
-            <tbody>
-              {payments.map(pay => {
-                const p = pay.project_id ? projById.get(pay.project_id) : null;
-                return (
-                  <tr key={pay.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '8px 10px' }}>{pay.paid_at ?? '—'}</td>
-                    <td style={{ padding: '8px 10px' }}>{PAYMENT_METHOD_LABELS[pay.method] ?? pay.method}</td>
-                    <td style={{ padding: '8px 10px' }}>{p ? <Link href={`/projects/${pay.project_id}`}>{p.code}</Link> : '—'}</td>
-                    <td style={{ padding: '8px 10px', color: 'var(--fg-subtle)' }}>{pay.reference || '—'}</td>
-                    <td style={{ padding: '8px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmt(Number(pay.amount))} <small style={{ color: 'var(--fg-subtle)' }}>{pay.currency}</small></td>
-                    {canEdit && <td style={{ padding: '8px 10px', textAlign: 'right' }}><Button variant="ghost" size="icon" onClick={() => remove(pay.id)} title="Delete payment" aria-label="Delete payment"><Trash2 className="size-4" /></Button></td>}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <ul className="m-0 flex list-none flex-col p-0">
+          {payments.map(pay => {
+            const p = pay.project_id ? projById.get(pay.project_id) : null;
+            const inv = pay.invoice_id ? invById.get(pay.invoice_id) : null;
+            return (
+              <LedgerRow
+                key={pay.id}
+                title={PAYMENT_METHOD_LABELS[pay.method] ?? pay.method}
+                titleClass="text-[14px] font-normal text-ui-body"
+                amount={`${fmt(Number(pay.amount))} ${pay.currency}`}
+                meta={<>
+                  {[inv ? `Invoice ${inv.invoice_number || inv.id.slice(0, 8)}` : 'On Account', dayFirst(pay.paid_at), pay.reference].filter(Boolean).join('  ·  ')}
+                  {p && <>{'  ·  '}<Link href={`/projects/${pay.project_id}`} className="text-inherit underline-offset-2 hover:underline">{p.code}</Link></>}
+                </>}
+                onDelete={canEdit ? () => remove(pay.id) : undefined}
+                deleteLabel="Delete payment"
+              />
+            );
+          })}
+        </ul>
       )}
-    </div>
+    </section>
   );
 }
 

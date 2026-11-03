@@ -1,11 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Plus, Ship } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
+import { cn } from '@/lib/utils';
 import { CONTAINER_STATUS_TAG, statusLabel } from '@/lib/status/tags';
 
 export interface ContainerRow {
@@ -17,9 +21,26 @@ export interface ContainerRow {
 
 interface Props { initialContainers: ContainerRow[]; canEdit: boolean }
 
-/** Platform status chip (lib/status/tags.ts "container" tone + icon), keeping the container's own label. */
-export function ContainerStatusBadge({ status }: { status: string }) {
-  return <StatusBadge group="container" status={CONTAINER_STATUS_TAG[status] ?? status} label={statusLabel(status)} />;
+/** Platform status chip (lib/status/tags.ts "container" tone + icon), keeping the container's own label.
+ *  `outlined` = the Figma table chip (node 394:74647): 36px, 1px tone border, 32px side padding. */
+export function ContainerStatusBadge({ status, outlined }: { status: string; outlined?: boolean }) {
+  return (
+    <StatusBadge
+      group="container" status={CONTAINER_STATUS_TAG[status] ?? status} label={statusLabel(status)}
+      className={outlined ? 'h-9 gap-1.5 rounded-[4px] border border-current px-8 text-[12px] leading-4 [&_svg]:size-3.5' : undefined}
+    />
+  );
+}
+
+// Figma "Logistics — containers" (node 394:74525). The frame's search box and "Newest" sort
+// have no backing feature here — the list is already newest first (page.tsx orders by created_at).
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
+
+/** "2026-08-10" → "8/10/2026" without a timezone shifting the day. */
+function usDate(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return y && m && d ? `${Number(m)}/${Number(d)}/${y}` : iso;
 }
 
 export function LogisticsClient({ initialContainers, canEdit }: Props) {
@@ -39,52 +60,76 @@ export function LogisticsClient({ initialContainers, canEdit }: Props) {
   }
 
   return (
-    <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}><Ship size={20} /> Containers</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>{containers.length} active container{containers.length !== 1 ? 's' : ''}</p>
-        </div>
-        {canEdit && <Button size="md" onClick={() => setShowForm(s => !s)} aria-expanded={showForm}><Plus /> New container</Button>}
+    <div className="flex flex-col gap-[30px]">
+      <div className="flex flex-col gap-[5px] leading-[1.35]">
+        <PageCrumbs items={[{ label: 'Operations', href: '/production' }, { label: 'Containers', href: '/logistics' }]} />
+        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Containers</h1>
+        <p className="m-0 text-[13px] text-ui-body">{containers.length} Active Container{containers.length !== 1 ? 's' : ''}</p>
       </div>
 
+      {canEdit && (
+        <div className="flex justify-end">
+          <Button
+            size="md" onClick={() => setShowForm(s => !s)} aria-expanded={showForm}
+            className="gap-2 bg-ui-btn-accent px-8 text-[13px] font-medium text-ui-btn-accent-fg hover:bg-ui-btn-accent hover:opacity-90 dark:bg-ui-btn-accent dark:text-ui-btn-accent-fg dark:hover:bg-ui-btn-accent"
+          >
+            <Plus className="size-4" /> New Container
+          </Button>
+        </div>
+      )}
+
       {showForm && canEdit && (
-        <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card">
           <div className="card-head"><div className="form-section-title">New container</div></div>
           <div className="card-body"><ContainerForm onSave={create} onCancel={() => setShowForm(false)} /></div>
         </div>
       )}
 
       {containers.length === 0 ? (
-        <div className="card"><div className="card-body" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--fg-subtle)' }}>
-          <Ship size={28} style={{ opacity: 0.4, marginBottom: 8 }} /><div>No active containers.{canEdit && ' Create one to start loading production items.'}</div>
-        </div></div>
+        <div className="rounded-[8px] border border-ui-divider bg-ui-page-bg">
+          <EmptyState icon={<Ship />} title="No active containers." description={canEdit ? 'Create one to start loading production items.' : undefined} />
+        </div>
       ) : (
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr style={{ textAlign: 'left', color: 'var(--fg-subtle)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-              <th style={{ padding: '10px 14px' }}>Container</th><th style={{ padding: '10px 14px' }}>Route</th>
-              <th style={{ padding: '10px 14px' }}>ETA</th><th style={{ padding: '10px 14px' }}>Items</th><th style={{ padding: '10px 14px' }}>Status</th>
-            </tr></thead>
-            <tbody>
-              {containers.map(c => (
-                <tr key={c.id} onClick={() => router.push(`/logistics/${c.id}`)} style={{ borderTop: '1px solid var(--border-subtle)', cursor: 'pointer' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <td style={{ padding: '11px 14px' }}>
-                    <div style={{ fontWeight: 600 }}>{c.container_no || '— no number —'}</div>
-                    <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>{[c.carrier, c.vessel_name].filter(Boolean).join(' · ') || (c.booking_no ? `Booking ${c.booking_no}` : '')}</div>
-                  </td>
-                  <td style={{ padding: '11px 14px', color: 'var(--fg-subtle)' }}>{[c.origin_port, c.destination_port].filter(Boolean).join(' → ') || '—'}</td>
-                  <td style={{ padding: '11px 14px', color: 'var(--fg-subtle)' }}>{c.actual_arrival_date || c.estimated_arrival_date || '—'}</td>
-                  <td style={{ padding: '11px 14px' }}>{c.item_count}</td>
-                  <td style={{ padding: '11px 14px' }}><ContainerStatusBadge status={c.status} /></td>
+        <div className="overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1000px] border-collapse">
+              <thead>
+                <tr className="h-[46px] border-b border-ui-divider bg-ui-surface">
+                  <th className={cn(TH, 'w-[22%] pl-[18px]')}>Container</th>
+                  <th className={cn(TH, 'w-[24%]')}>Route</th>
+                  <th className={cn(TH, 'w-[22%]')}>ETA</th>
+                  <th className={cn(TH, 'w-[17%]')}>Items</th>
+                  <th className={TH}>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {containers.map(c => {
+                  const sub = [c.carrier, c.vessel_name].filter(Boolean).join(' · ') || (c.booking_no ? `Booking ${c.booking_no}` : '');
+                  const eta = c.actual_arrival_date || c.estimated_arrival_date;
+                  return (
+                    <tr
+                      key={c.id} onClick={() => router.push(`/logistics/${c.id}`)}
+                      className="h-16 cursor-pointer border-b border-ui-divider last:border-b-0 hover:bg-ui-hover-bg/50"
+                    >
+                      <td className="max-w-0 py-0 pl-[18px] pr-2.5">
+                        <Link href={`/logistics/${c.id}`} onClick={e => e.stopPropagation()} className={cn('block truncate text-[13px] font-semibold no-underline hover:underline', HEADING)}>
+                          {c.container_no || '— no number —'}
+                        </Link>
+                        {sub && <p className="m-0 mt-1 truncate text-[11px] text-ui-body">{sub}</p>}
+                      </td>
+                      <td className="max-w-0 px-2.5"><p className="m-0 truncate text-[13px] text-ui-body">{[c.origin_port, c.destination_port].filter(Boolean).join(' → ') || '—'}</p></td>
+                      <td className="px-2 text-[13px] whitespace-nowrap text-ui-body">{eta ? usDate(eta) : '—'}</td>
+                      <td className="px-2 text-[13px] text-ui-body">{c.item_count}</td>
+                      <td className="px-2"><ContainerStatusBadge status={c.status} outlined /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 

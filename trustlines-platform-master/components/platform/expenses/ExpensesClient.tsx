@@ -3,12 +3,17 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Receipt, Plus, Trash2, Check } from 'lucide-react';
+import { BanknoteCheck, BanknoteX, CircleDollarSign, Ellipsis, Plus, Receipt, Trash2, Check, Undo2, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { TrustExpense } from '@/types/database';
 import type { CurrencyTotals } from '@/lib/expenses/config';
 import { CURRENCIES, EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from '@/lib/expenses/config';
 import { Select } from '@/components/platform/shared/Select';
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
+import { CategoryViews } from '@/components/platform/website/CategoryViews';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { cn } from '@/lib/utils';
 
 interface Proj { id: string; code: string; name: string }
 interface Sup { id: string; code: string | null; name: string }
@@ -22,7 +27,44 @@ interface Props {
   schemaError: string | null;
 }
 
+// Figma "Expenses" (node 427:18378). The frame has no "New expense" action; the existing
+// one stays (orange, like the other list pages). Row "…" holds the existing actions.
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
+const CELL_STRONG = cn('text-[15px] font-semibold', HEADING);
+const FIELD = 'h-10 w-full min-w-0 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
+const FORM_LABEL = 'flex min-w-0 flex-col gap-1 text-[12px] font-medium text-ui-body';
+const ACCENT_BTN = 'gap-2 bg-ui-btn-accent px-8 text-[13px] font-medium text-ui-btn-accent-fg hover:bg-ui-btn-accent hover:opacity-90 dark:bg-ui-btn-accent dark:text-ui-btn-accent-fg dark:hover:bg-ui-btn-accent';
+const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body hover:bg-ui-hover-bg [&_svg]:size-3.5 [&_svg]:shrink-0';
+
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** "2026-08-10" → "8/10/2026", no timezone shift. */
+const usDate = (iso: string | null) => {
+  if (!iso) return '—';
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return y && m && d ? `${Number(m)}/${Number(d)}/${y}` : iso;
+};
+
+/** Figma summary card: tinted 16px-radius tile, white icon square, label, big amount + currency tag. */
+function SummaryCard({ tone, icon: Icon, label, rows }: { tone: string; icon: LucideIcon; label: string; rows: { currency: string; value: number }[] }) {
+  const fg = `var(--status-${tone}-fg)`;
+  return (
+    <div className="flex min-h-[165px] flex-col justify-between gap-4 rounded-[16px] py-3.5 pl-3.5 pr-4" style={{ background: `var(--status-${tone}-bg)` }}>
+      <span className="grid size-[49px] place-items-center rounded-[8px] bg-ui-surface-elevated" style={{ color: fg }}>
+        <Icon size={24} aria-hidden />
+      </span>
+      <div className="flex flex-col gap-1 pl-0.5">
+        <p className="m-0 text-[14px] leading-[1.5]" style={{ color: fg }}>{label}</p>
+        {rows.map(r => (
+          <div key={r.currency} className="flex items-center justify-between gap-3">
+            <span className="text-[30px] font-semibold leading-[1.5] tracking-[0.6px] tabular-nums" style={{ color: fg }}>{fmt(r.value)}</span>
+            <span className="rounded-[4px] bg-ui-surface-elevated px-2.5 py-0.5 text-[14px] font-medium leading-[1.5] tracking-[0.56px]" style={{ color: fg }}>{r.currency}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function ExpensesClient({ initialExpenses, totals, canEdit, projects, suppliers, schemaError }: Props) {
   const router = useRouter();
@@ -32,6 +74,7 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
   const [category, setCategory] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [menuId, setMenuId] = useState<string | null>(null);
   const [f, setF] = useState({ category: 'other', description: '', currency: 'USD', amount: '', expense_date: '', project_id: '', supplier_id: '', is_paid: false });
 
   const projById = useMemo(() => new Map(projects.map(p => [p.id, p])), [projects]);
@@ -39,6 +82,11 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
 
   const filtered = useMemo(() => category === 'all' ? expenses : expenses.filter(e => e.category === category), [expenses, category]);
   const activeCurrencies = CURRENCIES.filter(c => totals[c].total !== 0);
+  const shown = activeCurrencies.length ? activeCurrencies : ['USD' as const];
+  const views = [
+    { value: 'all', label: 'All', count: expenses.length },
+    ...EXPENSE_CATEGORIES.map(c => ({ value: c as string, label: EXPENSE_CATEGORY_LABELS[c], count: expenses.filter(e => e.category === c).length })),
+  ];
 
   async function create() {
     if (!f.amount || Number(f.amount) <= 0) { toast.error('Enter a positive amount'); return; }
@@ -68,75 +116,79 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
     toast.success('Expense deleted'); router.refresh();
   }
 
+  const paidChip = (paid: boolean) => {
+    const tone = paid ? 't9' : 't10';
+    return (
+      <span
+        className="inline-flex items-center rounded-[4px] border px-4 py-1 text-[12px] font-medium leading-4 whitespace-nowrap"
+        style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)`, borderColor: `var(--status-${tone}-fg)` }}
+      >
+        {paid ? 'Paid' : 'Unpaid'}
+      </span>
+    );
+  };
+
   return (
-    <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Trust Expenses</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>{expenses.length} expense{expenses.length !== 1 ? 's' : ''} · internal operational spend</p>
+    <div className="flex flex-col gap-[30px]">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col gap-[5px] leading-[1.35]">
+          <PageCrumbs items={[{ label: 'Finance' }, { label: 'Expenses', href: '/expenses' }]} />
+          <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Expenses</h1>
+          <p className="m-0 text-[13px] text-ui-body">{expenses.length} expense{expenses.length !== 1 ? 's' : ''} · internal operational spend</p>
         </div>
-        {canEdit && <button className="btn btn-primary" onClick={() => setShowForm(v => !v)}><Plus size={15} /> New expense</button>}
+        {canEdit && (
+          <Button size="md" className={ACCENT_BTN} onClick={() => setShowForm(v => !v)} aria-expanded={showForm}>
+            <Plus className="size-4" /> New Expense
+          </Button>
+        )}
       </div>
 
       {schemaError && (
-        <div className="card" style={{ padding: 12, marginBottom: 16, borderColor: 'var(--status-warning-fg, #92400e)', fontSize: 13 }}>⚠️ {schemaError}</div>
+        <div className="rounded-[8px] border border-warning-normal bg-ui-surface px-4 py-3 text-[13px] text-ui-body">⚠️ {schemaError}</div>
       )}
 
-      {activeCurrencies.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginBottom: 20 }}>
-          {activeCurrencies.map(c => (
-            <div key={c} className="card" style={{ padding: 16 }}>
-              <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 8 }}>Total spend ({c})</div>
-              <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmt(totals[c].total)}</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--fg-subtle)', marginTop: 8 }}>
-                <span>Paid {fmt(totals[c].paid)}</span>
-                <span style={{ color: totals[c].unpaid > 0.005 ? 'var(--status-warning-fg, #92400e)' : undefined }}>Unpaid {fmt(totals[c].unpaid)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {showForm && canEdit && (
-        <div className="card" style={{ padding: 16, marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 80px 1fr 1fr 1.4fr 1.4fr auto', gap: 8, alignItems: 'end' }}>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Category<Select className="form-input" value={f.category} onChange={e => setF({ ...f, category: e.target.value })}>{EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{EXPENSE_CATEGORY_LABELS[c]}</option>)}</Select></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Cur.<Select className="form-input" value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</Select></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Amount<input className="form-input" type="number" step="0.01" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Date<input className="form-input" type="date" value={f.expense_date} onChange={e => setF({ ...f, expense_date: e.target.value })} /></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Project<Select className="form-input" value={f.project_id} onChange={e => setF({ ...f, project_id: e.target.value })}><option value="">—</option>{projects.map(p => <option key={p.id} value={p.id}>{p.code}</option>)}</Select></label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Supplier<Select className="form-input" value={f.supplier_id} onChange={e => setF({ ...f, supplier_id: e.target.value })}><option value="">—</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></label>
-          <button className="btn btn-primary btn-sm" onClick={create} disabled={saving}>{saving ? '…' : 'Save'}</button>
-          <label style={{ gridColumn: '1 / -1', display: 'flex', gap: 12, alignItems: 'center', fontSize: 12 }}>
-            <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={f.is_paid} onChange={e => setF({ ...f, is_paid: e.target.checked })} /> Already paid</span>
-            <input className="form-input" style={{ flex: 1 }} placeholder="Description (optional)" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} />
-          </label>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-        <FilterChip label="All" active={category === 'all'} onClick={() => setCategory('all')} />
-        {EXPENSE_CATEGORIES.map(c => <FilterChip key={c} label={EXPENSE_CATEGORY_LABELS[c]} active={category === c} onClick={() => setCategory(c)} />)}
+      <div className="grid grid-cols-1 gap-[22px] md:grid-cols-3">
+        <SummaryCard tone="t2" icon={CircleDollarSign} label="Total Spent" rows={shown.map(c => ({ currency: c, value: totals[c].total }))} />
+        <SummaryCard tone="t6" icon={BanknoteCheck} label="Paid" rows={shown.map(c => ({ currency: c, value: totals[c].paid }))} />
+        <SummaryCard tone="t10" icon={BanknoteX} label="Unpaid" rows={shown.map(c => ({ currency: c, value: totals[c].unpaid }))} />
       </div>
 
+      {showForm && canEdit && (
+        <div className="grid grid-cols-2 items-end gap-2 rounded-[8px] border border-ui-divider bg-ui-page-bg p-4 md:grid-cols-[1fr_80px_1fr_1fr_1.4fr_1.4fr_auto]">
+          <label className={FORM_LABEL}>Category<Select className={FIELD} value={f.category} onChange={e => setF({ ...f, category: e.target.value })}>{EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{EXPENSE_CATEGORY_LABELS[c]}</option>)}</Select></label>
+          <label className={FORM_LABEL}>Cur.<Select className={FIELD} value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</Select></label>
+          <label className={FORM_LABEL}>Amount<input className={FIELD} type="number" step="0.01" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></label>
+          <label className={FORM_LABEL}>Date<input className={FIELD} type="date" value={f.expense_date} onChange={e => setF({ ...f, expense_date: e.target.value })} /></label>
+          <label className={FORM_LABEL}>Project<Select className={FIELD} value={f.project_id} onChange={e => setF({ ...f, project_id: e.target.value })}><option value="">—</option>{projects.map(p => <option key={p.id} value={p.id}>{p.code}</option>)}</Select></label>
+          <label className={FORM_LABEL}>Supplier<Select className={FIELD} value={f.supplier_id} onChange={e => setF({ ...f, supplier_id: e.target.value })}><option value="">—</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></label>
+          <Button size="md" onClick={create} loading={saving}>Save</Button>
+          <div className="col-span-full flex flex-wrap items-center gap-3 text-[12px] text-ui-body">
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={f.is_paid} onChange={e => setF({ ...f, is_paid: e.target.checked })} /> Already paid</label>
+            <input className={cn(FIELD, 'flex-1')} placeholder="Description (optional)" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} />
+          </div>
+        </div>
+      )}
+
+      <CategoryViews options={views} value={category} onChange={setCategory} label="Expense category" />
+
       {filtered.length === 0 ? (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--fg-subtle)' }}>
-          <Receipt size={28} style={{ opacity: 0.4 }} />
-          <p style={{ margin: '12px 0 0', fontSize: 14 }}>No expenses recorded.</p>
+        <div className="rounded-[8px] border border-ui-divider bg-ui-page-bg">
+          <EmptyState icon={<Receipt />} title="No expenses recorded." />
         </div>
       ) : (
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <div className="overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1100px] border-collapse">
               <thead>
-                <tr style={{ textAlign: 'left', color: 'var(--fg-subtle)', borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ padding: '10px 14px' }}>Date</th>
-                  <th style={{ padding: '10px 14px' }}>Category</th>
-                  <th style={{ padding: '10px 14px' }}>Description</th>
-                  <th style={{ padding: '10px 14px' }}>Project</th>
-                  <th style={{ padding: '10px 14px' }}>Supplier</th>
-                  <th style={{ padding: '10px 14px', textAlign: 'right' }}>Amount</th>
-                  <th style={{ padding: '10px 14px' }}>Paid</th>
-                  {canEdit && <th />}
+                <tr className="h-[46px] border-b border-ui-divider bg-ui-surface">
+                  <th className={cn(TH, 'w-[14%] pl-[18px]')}>Date</th>
+                  <th className={cn(TH, 'w-[9%]')}>Category</th>
+                  <th className={cn(TH, 'w-[26%]')}>Description</th>
+                  <th className={cn(TH, 'w-[15%]')}>Project</th>
+                  <th className={cn(TH, 'w-[13%]')}>Supplier</th>
+                  <th className={cn(TH, 'w-[11%]')}>Amount</th>
+                  <th className={TH}>Paid</th>
+                  {canEdit && <th className="w-12"><span className="sr-only">Actions</span></th>}
                 </tr>
               </thead>
               <tbody>
@@ -144,25 +196,45 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
                   const p = e.project_id ? projById.get(e.project_id) : null;
                   const s = e.supplier_id ? supById.get(e.supplier_id) : null;
                   return (
-                    <tr key={e.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '10px 14px' }}>{e.expense_date ?? '—'}</td>
-                      <td style={{ padding: '10px 14px' }}><span className="pill" style={{ fontSize: 10, background: 'var(--bg-sunken)', color: 'var(--fg-subtle)' }}>{EXPENSE_CATEGORY_LABELS[e.category] ?? e.category}</span></td>
-                      <td style={{ padding: '10px 14px', color: 'var(--fg-subtle)' }}>{e.description || '—'}</td>
-                      <td style={{ padding: '10px 14px' }}>{p ? <Link href={`/projects/${e.project_id}`}>{p.code}</Link> : '—'}</td>
-                      <td style={{ padding: '10px 14px' }}>{s ? <Link href={`/suppliers/${e.supplier_id}`}>{s.name}</Link> : '—'}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmt(Number(e.amount))} <small style={{ color: 'var(--fg-subtle)' }}>{e.currency}</small></td>
-                      <td style={{ padding: '10px 14px' }}>
-                        {canEdit ? (
-                          <button className="btn btn-ghost btn-sm" onClick={() => togglePaid(e)} title={e.is_paid ? 'Mark unpaid' : 'Mark paid'}>
-                            <span className="pill" style={{ fontSize: 10, background: e.is_paid ? 'var(--status-success-bg)' : 'var(--bg-sunken)', color: e.is_paid ? 'var(--status-success-fg)' : 'var(--fg-subtle)' }}>
-                              {e.is_paid ? <><Check size={10} /> Paid</> : 'Unpaid'}
-                            </span>
-                          </button>
-                        ) : (
-                          <span className="pill" style={{ fontSize: 10, background: e.is_paid ? 'var(--status-success-bg)' : 'var(--bg-sunken)', color: e.is_paid ? 'var(--status-success-fg)' : 'var(--fg-subtle)' }}>{e.is_paid ? 'Paid' : 'Unpaid'}</span>
-                        )}
+                    <tr key={e.id} className="h-16 border-b border-ui-divider last:border-b-0">
+                      <td className={cn('py-2 pl-[18px] pr-2.5 whitespace-nowrap', CELL_STRONG)}>{usDate(e.expense_date)}</td>
+                      <td className={cn('max-w-0 truncate px-2.5 py-2', CELL_STRONG)}>{EXPENSE_CATEGORY_LABELS[e.category] ?? e.category}</td>
+                      <td className="max-w-0 px-2 py-2"><p className="m-0 truncate text-[13px] text-ui-body" title={e.description ?? undefined}>{e.description || '-'}</p></td>
+                      <td className="max-w-0 truncate px-2 py-2 text-[13px] text-ui-body">{p ? <Link href={`/projects/${e.project_id}`} className="text-inherit hover:underline">{p.code}</Link> : '-'}</td>
+                      <td className="max-w-0 truncate px-2 py-2 text-[13px] text-ui-body">{s ? <Link href={`/suppliers/${e.supplier_id}`} className="text-inherit hover:underline">{s.name}</Link> : '-'}</td>
+                      <td className={cn('px-2.5 py-2 whitespace-nowrap tabular-nums', CELL_STRONG)}>
+                        {fmt(Number(e.amount))} <small className="text-[11px] font-normal text-ui-text-secondary">{e.currency}</small>
                       </td>
-                      {canEdit && <td style={{ padding: '10px 14px', textAlign: 'right' }}><button className="btn btn-ghost btn-sm" onClick={() => remove(e.id)} title="Delete"><Trash2 size={14} /></button></td>}
+                      <td className="px-2 py-2">
+                        {canEdit ? (
+                          <button type="button" className="cursor-pointer border-0 bg-transparent p-0" onClick={() => togglePaid(e)} title={e.is_paid ? 'Mark unpaid' : 'Mark paid'}>
+                            {paidChip(e.is_paid)}
+                          </button>
+                        ) : paidChip(e.is_paid)}
+                      </td>
+                      {canEdit && (
+                        <td className="relative pr-3 text-center">
+                          <Button
+                            variant="ghost" size="icon-sm" aria-label="Expense actions" aria-expanded={menuId === e.id}
+                            onClick={() => setMenuId(id => (id === e.id ? null : e.id))}
+                          >
+                            <Ellipsis />
+                          </Button>
+                          {menuId === e.id && (
+                            <>
+                              <div className="fixed inset-0 z-20" onClick={() => setMenuId(null)} />
+                              <div role="menu" className="absolute right-3 top-full z-30 mt-1 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
+                                <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { setMenuId(null); void togglePaid(e); }}>
+                                  {e.is_paid ? <><Undo2 aria-hidden /> Mark unpaid</> : <><Check aria-hidden /> Mark paid</>}
+                                </button>
+                                <button type="button" role="menuitem" className={cn(MENU_ITEM, 'text-error-normal')} onClick={() => { setMenuId(null); void remove(e.id); }}>
+                                  <Trash2 aria-hidden /> Delete
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -171,16 +243,6 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
           </div>
         </div>
       )}
-    </>
-  );
-}
-
-function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="pill" style={{
-      fontSize: 11, cursor: 'pointer', border: '1px solid var(--border)',
-      background: active ? 'var(--brand-teal)' : 'transparent',
-      color: active ? 'white' : 'var(--fg-subtle)',
-    }}>{label}</button>
+    </div>
   );
 }
