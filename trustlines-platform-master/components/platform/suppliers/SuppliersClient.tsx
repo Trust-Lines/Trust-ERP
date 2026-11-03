@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Package, Plus } from 'lucide-react';
+import { Search, Package, Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import type { CurrencyTotals } from '@/lib/suppliers/config';
 import { CURRENCIES } from '@/lib/suppliers/config';
@@ -63,6 +63,21 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
       s.name.toLowerCase().includes(q) || (s.code ?? '').toLowerCase().includes(q));
   }, [suppliers, query]);
 
+  // The Trust System's Production vendors → Suppliers (adds + updates; app/api/suppliers/sync-trust).
+  const [syncing, setSyncing] = useState(false);
+  async function syncFromTrust() {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/suppliers/sync-trust', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(b.error ?? 'Could not update from Trust'); return; }
+      const changed = b.added.length + b.updated.length;
+      toast.success(changed ? `${b.added.length} added, ${b.updated.length} updated from Trust` : 'Already up to date with Trust');
+      if (changed) router.refresh();
+    } catch { toast.error('Could not update from Trust'); }
+    finally { setSyncing(false); }
+  }
+
   async function handleCreate() {
     if (!name.trim()) { toast.error('Supplier name is required'); return; }
     setSaving(true);
@@ -88,9 +103,15 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
           </p>
         </div>
         {canEdit && (
-          <button className="btn btn-primary" onClick={() => setShowForm(v => !v)}>
-            <Plus size={15} /> New supplier
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-secondary" onClick={() => void syncFromTrust()} disabled={syncing}
+              title="Bring in the Trust System's Production vendors (also runs every night)">
+              <RefreshCw size={15} className={syncing ? 'animate-spin' : undefined} /> Update from Trust
+            </button>
+            <button className="btn btn-primary" onClick={() => setShowForm(v => !v)}>
+              <Plus size={15} /> New supplier
+            </button>
+          </div>
         )}
       </div>
 
