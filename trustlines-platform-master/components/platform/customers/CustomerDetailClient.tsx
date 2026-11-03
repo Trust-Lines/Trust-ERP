@@ -169,7 +169,7 @@ export function CustomerDetailClient({
   // Figma "Customer detail" (node 304:2563): heading, then a 3-card row
   // (Details · Follow-ups · Project History) over a 3-card row (Contacts · Addresses · Meetings).
   return (
-    <div className="mx-auto flex w-full max-w-[1416px] flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-[5px]">
           <Link href="/customers" className="w-fit text-[11px] font-semibold text-ui-nav-active no-underline hover:underline">
