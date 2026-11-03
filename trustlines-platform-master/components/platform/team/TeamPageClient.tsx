@@ -211,7 +211,7 @@ function InviteModal({
 
         <div className="modal-head">
           <span style={{ fontSize: 15, fontWeight: 600 }}>Invite team member</span>
-          <button className="btn btn-ghost btn-sm" style={{ padding: '4px 8px' }} onClick={onClose}>✕</button>
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close"><X /></Button>
         </div>
 
         <div className="modal-body">
@@ -280,7 +280,7 @@ function InviteModal({
               </div>
 
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', border: `1px solid ${isGeneralPm ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, borderRadius: 8, marginBottom: 12, cursor: 'pointer', background: isGeneralPm ? 'var(--brand-teal-100)' : 'var(--bg-surface)' }}>
-                <input type="checkbox" checked={isGeneralPm} onChange={e => { setIsGeneralPm(e.target.checked); if (e.target.checked) setSelectedClientId(''); }} style={{ marginTop: 2 }} />
+                <Checkbox className="mt-0.5" checked={isGeneralPm} onCheckedChange={c => { setIsGeneralPm(!!c); if (c) setSelectedClientId(''); }} />
                 <span style={{ fontSize: 12.5 }}>
                   <b>General PM — Project Management Supervisor</b>
                   <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1 }}>Sees all regions; signs the PO Project Management Supervisor box. Only one person.</div>
@@ -307,14 +307,10 @@ function InviteModal({
         </div>
 
         <div className="modal-foot">
-          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button
-            className="btn btn-primary"
-            disabled={!fullName.trim() || !email.trim() || sending}
-            onClick={handleSend}
-          >
-            {sending ? 'Sending…' : 'Send invite'}
-          </button>
+          <Button variant="secondary" size="md" onClick={onClose} disabled={sending}>Cancel</Button>
+          <Button size="md" disabled={!fullName.trim() || !email.trim()} loading={sending} onClick={handleSend}>
+            Send invite
+          </Button>
         </div>
       </div>
     </div>
@@ -337,7 +333,7 @@ function ToggleChip({ on, onToggle, children }: { on: boolean; onToggle: () => v
           : 'border-ui-divider bg-ui-input-bg text-ui-body hover:bg-ui-hover-bg',
       )}
     >
-      <input type="checkbox" checked={on} onChange={onToggle} className="m-0 accent-[var(--color-secondary-700)]" />
+      <Checkbox checked={on} onCheckedChange={() => onToggle()} />
       {children}
     </label>
   );
@@ -555,9 +551,9 @@ function EditModal({
                   isGeneralPm ? 'border-[var(--color-secondary-500)] bg-ui-selected-bg' : 'border-ui-divider bg-ui-input-bg',
                 )}
               >
-                <input
-                  type="checkbox" checked={isGeneralPm} className="mt-0.5 accent-[var(--color-secondary-700)]"
-                  onChange={e => { setIsGeneralPm(e.target.checked); if (e.target.checked) setPmClientId(''); }}
+                <Checkbox
+                  className="mt-0.5" checked={isGeneralPm}
+                  onCheckedChange={c => { setIsGeneralPm(!!c); if (c) setPmClientId(''); }}
                 />
                 <span className="text-[13px] text-ui-body">
                   <b className={HEADING}>General PM — Project Management Supervisor</b>
@@ -578,7 +574,7 @@ function EditModal({
           )}
 
           <label className="flex cursor-pointer items-center gap-2 text-[13px] font-medium text-ui-body">
-            <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="m-0 accent-[var(--color-secondary-700)]" />
+            <Checkbox checked={isActive} onCheckedChange={c => setIsActive(!!c)} />
             Active account
           </label>
         </div>
@@ -620,7 +616,7 @@ function DeleteConfirm({
       <div className="modal-box" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
         <div className="modal-head">
           <span style={{ fontSize: 15, fontWeight: 600 }}>Delete member</span>
-          <button className="btn btn-ghost btn-sm" style={{ padding: '4px 8px' }} onClick={onClose}>✕</button>
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close"><X /></Button>
         </div>
         <div className="modal-body">
           <p style={{ fontSize: 13, color: 'var(--fg-default)', margin: 0 }}>
@@ -629,15 +625,8 @@ function DeleteConfirm({
           </p>
         </div>
         <div className="modal-foot">
-          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button
-            className="btn"
-            style={{ background: 'var(--status-danger)', color: 'white', border: 'none' }}
-            disabled={deleting}
-            onClick={handleDelete}
-          >
-            {deleting ? 'Deleting…' : 'Delete'}
-          </button>
+          <Button variant="secondary" size="md" onClick={onClose} disabled={deleting}>Cancel</Button>
+          <Button variant="destructive" size="md" loading={deleting} onClick={handleDelete}>Delete</Button>
         </div>
       </div>
     </div>
