@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Trash2, FileText, Wallet, Receipt } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, FileText, Wallet, Receipt, Factory } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Supplier, SupplierInvoice, SupplierPayment } from '@/types/database';
 import type { CurrencyTotals } from '@/lib/suppliers/config';
@@ -12,6 +12,7 @@ import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button, buttonVariants } from '@/components/ui/button';
+import type { VendorWork } from '@/lib/suppliers/trustWork';
 
 interface Props {
   supplier: Supplier;
@@ -20,12 +21,15 @@ interface Props {
   totals: CurrencyTotals;
   projects: { id: string; code: string; name: string }[];
   canEdit: boolean;
+  /** Its work in the Trust System (lib/suppliers/trustWork); workError = why Trust couldn't be read. */
+  work: VendorWork;
+  workError: string | null;
 }
 
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const STATUS_COLOR: Record<string, string> = { unpaid: 'var(--status-danger-fg, #b91c1c)', partial: 'var(--status-warning-fg, #92400e)', paid: 'var(--status-success-fg)' };
 
-export function SupplierDetailClient({ supplier, initialInvoices, initialPayments, totals, projects, canEdit }: Props) {
+export function SupplierDetailClient({ supplier, initialInvoices, initialPayments, totals, projects, canEdit, work, workError }: Props) {
   const router = useRouter();
   const projById = new Map(projects.map(p => [p.id, p]));
   const activeCurrencies = CURRENCIES.filter(c => totals[c].invoiced !== 0 || totals[c].paid !== 0);
@@ -45,6 +49,8 @@ export function SupplierDetailClient({ supplier, initialInvoices, initialPayment
           </p>
         </div>
       </div>
+
+      <WorkSection work={work} error={workError} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginBottom: 20 }}>
         {activeCurrencies.length === 0 && (
@@ -81,7 +87,9 @@ export function SupplierDetailClient({ supplier, initialInvoices, initialPayment
 
 function ProfileCard({ supplier, canEdit, onSaved }: { supplier: Supplier; canEdit: boolean; onSaved: () => void }) {
   const [edit, setEdit] = useState(false);
+  const router = useRouter();
   const [f, setF] = useState({
+    name: supplier.name ?? '', country: supplier.country ?? '',
     email: supplier.email ?? '', phone: supplier.phone ?? '', address: supplier.address ?? '',
     tax_office: supplier.tax_office ?? '', tax_number: supplier.tax_number ?? '',
     payment_terms: supplier.payment_terms ?? '', notes: supplier.notes ?? '',
@@ -113,6 +121,18 @@ function ProfileCard({ supplier, canEdit, onSaved }: { supplier: Supplier; canEd
     toast.success(activate ? 'Supplier reactivated' : 'Supplier deactivated'); onSaved();
   }
 
+  // Deleted when nothing points at it; otherwise the API sets it inactive and says what's linked.
+  async function remove() {
+    if (!confirm(`Delete ${supplier.name}? If invoices, payments or production items point at it, it is set inactive instead so they keep their supplier.`)) return;
+    setSaving(true);
+    const res = await fetch(`/api/suppliers/${supplier.id}`, { method: 'DELETE' });
+    const body = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) { toast.error(body.error ?? 'Could not delete the supplier'); return; }
+    if (body.deleted) { toast.success(`${supplier.name} deleted`); router.push('/suppliers'); router.refresh(); return; }
+    toast.info(`Set inactive instead — linked to ${(body.linked ?? []).join(', ')}`); onSaved();
+  }
+
   const Row = ({ label, value }: { label: string; value: string | null }) => (
     <div style={{ display: 'flex', gap: 8, fontSize: 13, padding: '4px 0' }}>
       <span style={{ color: 'var(--fg-subtle)', minWidth: 120 }}>{label}</span>
@@ -130,6 +150,9 @@ function ProfileCard({ supplier, canEdit, onSaved }: { supplier: Supplier; canEd
               {supplier.is_active ? 'Deactivate' : 'Reactivate'}
             </Button>
             <Button variant="secondary" onClick={() => setEdit(true)}>Edit</Button>
+            <Button variant="secondary" onClick={() => void remove()} disabled={saving} style={{ color: 'var(--status-t10-fg)' }}>
+              <Trash2 /> Delete
+            </Button>
           </div>
         )}
       </div>
@@ -145,7 +168,7 @@ function ProfileCard({ supplier, canEdit, onSaved }: { supplier: Supplier; canEd
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          {([['email', 'Email'], ['phone', 'Phone'], ['tax_office', 'Tax office'], ['tax_number', 'Tax number'], ['payment_terms', 'Payment terms']] as const).map(([k, label]) => (
+          {([['name', 'Name'], ['country', 'Country'], ['email', 'Email'], ['phone', 'Phone'], ['tax_office', 'Tax office'], ['tax_number', 'Tax number'], ['payment_terms', 'Payment terms']] as const).map(([k, label]) => (
             <label key={k} style={{ display: 'grid', gap: 4, fontSize: 12 }}>
               {label}
               <input className="form-input" value={f[k]} onChange={e => setF({ ...f, [k]: e.target.value })} />
@@ -332,6 +355,78 @@ function PaymentsSection({ supplierId, payments, invoices, projById, canEdit, on
                   </tr>
                 );
               })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// What we've worked on with this supplier in the Trust System: every project type given to it,
+// when, and what was paid. PF amounts are what we owe it; paid = the item's paid USD/TL fields.
+function WorkSection({ work, error }: { work: VendorWork; error: string | null }) {
+  const d = (v: string | null) => (v ? new Date(`${v}T00:00:00`).toLocaleDateString('en-US') : '—');
+  const money = (usd: number, tl: number) => [usd && `$${fmt(usd)}`, tl && `${fmt(tl)} TL`].filter(Boolean).join(' · ') || '—';
+  const label = (s: string | null) => (s ? s.toLowerCase().replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()) : '—');
+  const t = work.totals;
+  const stats: [string, string][] = [
+    ['Projects', String(work.projects)],
+    ['Jobs', String(work.rows.length)],
+    ['Worked with', work.firstAt ? `${d(work.firstAt)} – ${d(work.lastAt)}` : '—'],
+    ['Total PF', money(t.pfUsd, t.pfTl)],
+    ['Paid', money(t.paidUsd, t.paidTl)],
+    ['Still to pay', money(t.dueUsd, t.dueTl)],
+  ];
+  const TH: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', fontSize: 12, fontWeight: 600, color: 'var(--fg-subtle)', whiteSpace: 'nowrap' };
+  const TD: React.CSSProperties = { padding: '8px 10px', fontSize: 13, whiteSpace: 'nowrap' };
+
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 20 }}>
+      <h2 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Factory size={15} /> Work with this supplier
+        <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--fg-subtle)' }}>· from the Trust System Production board</span>
+      </h2>
+      {error && <p style={{ fontSize: 13, color: 'var(--status-t10-fg)', margin: '0 0 12px' }}>Trust System couldn’t be read: {error}</p>}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
+        {stats.map(([k, v]) => (
+          <div key={k} style={{ background: 'var(--bg-sunken)', borderRadius: 8, padding: '10px 12px' }}>
+            <div style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>{k}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums', marginTop: 2, color: k === 'Still to pay' && (t.dueUsd > 0.005 || t.dueTl > 0.005) ? 'var(--status-warning-fg, #92400e)' : undefined }}>{v}</div>
+          </div>
+        ))}
+      </div>
+      {work.rows.length === 0 ? (
+        !error && <EmptyState size="sm" icon={<Factory />} title="No work with this supplier in the Trust System yet." />
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
+                {['Project', 'Type', 'PF code', 'Status', 'Started', 'Ready', 'Sent', 'Last payment', 'PF', 'Paid', 'Still to pay'].map(h => (
+                  <th key={h} style={{ ...TH, textAlign: ['PF', 'Paid', 'Still to pay'].includes(h) ? 'right' : 'left' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {work.rows.map((r, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <td style={{ ...TD, whiteSpace: 'normal', minWidth: 200 }}>
+                    <span style={{ fontWeight: 600 }}>#{r.projectNo}</span> {r.projectName}
+                    {r.projectDone && <span className="pill" style={{ marginLeft: 6, fontSize: 10, background: 'var(--bg-sunken)', color: 'var(--fg-subtle)' }}>Done</span>}
+                  </td>
+                  <td style={TD}>{label(r.type)}</td>
+                  <td style={TD}>{r.pfCode ?? '—'}</td>
+                  <td style={TD}>{label(r.status)}</td>
+                  <td style={TD}>{d(r.startedAt)}</td>
+                  <td style={TD}>{d(r.readyAt)}</td>
+                  <td style={TD}>{d(r.sentAt)}</td>
+                  <td style={TD}>{d(r.lastPaidAt)}</td>
+                  <td style={{ ...TD, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{money(r.pfUsd, r.pfTl)}</td>
+                  <td style={{ ...TD, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{money(r.paidUsd, r.paidTl)}</td>
+                  <td style={{ ...TD, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{money(r.pfUsd - r.paidUsd, r.pfTl - r.paidTl)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
