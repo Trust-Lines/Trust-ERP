@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, Package, Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,6 +10,8 @@ import { CURRENCIES } from '@/lib/suppliers/config';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
+import { cn } from '@/lib/utils';
 
 export interface SupplierRow {
   id: string;
@@ -30,19 +33,25 @@ interface Props {
 
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// Figma "Suppliers" (node 427:15814). The frame's "Country" filter has no backing feature here.
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
+const ACCENT_BTN = 'gap-2 bg-ui-btn-accent px-8 text-[13px] font-medium text-ui-btn-accent-fg hover:bg-ui-btn-accent hover:opacity-90 dark:bg-ui-btn-accent dark:text-ui-btn-accent-fg dark:hover:bg-ui-btn-accent';
+// Figma table chip: 36px, 1px tone border, 32px side padding, uppercase label.
+const STATE_CHIP = 'h-9 gap-1.5 rounded-[4px] border border-current px-8 text-[12px] uppercase leading-4 [&_svg]:size-3.5';
+const FIELD = 'h-10 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
+
+/** One line per currency in use: "25,000.00 USD". */
 function BalanceCell({ totals }: { totals: CurrencyTotals }) {
   const active = CURRENCIES.filter(c => totals[c].invoiced !== 0 || totals[c].paid !== 0);
-  if (!active.length) return <span style={{ color: 'var(--fg-subtle)' }}>—</span>;
+  if (!active.length) return <span className="text-ui-text-secondary">—</span>;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {active.map(c => {
-        const bal = totals[c].balance;
-        return (
-          <span key={c} style={{ fontVariantNumeric: 'tabular-nums', color: bal > 0.005 ? 'var(--status-warning-fg, #92400e)' : 'var(--status-success-fg)' }}>
-            {fmt(bal)} <small style={{ color: 'var(--fg-subtle)' }}>{c}</small>
-          </span>
-        );
-      })}
+    <div className="flex flex-col gap-0.5">
+      {active.map(c => (
+        <span key={c} className="text-[13px] tabular-nums text-ui-body">
+          {fmt(totals[c].balance)} <small className="text-ui-text-secondary">{c}</small>
+        </span>
+      ))}
     </div>
   );
 }
@@ -80,52 +89,53 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
   }
 
   return (
-    <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Suppliers &amp; finance</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>
-            {suppliers.length} supplier{suppliers.length !== 1 ? 's' : ''} · vendor invoices &amp; payments
-          </p>
-        </div>
-        {canEdit && (
-          <Button size="md" onClick={() => setShowForm(v => !v)} aria-expanded={showForm}>
-            <Plus /> New supplier
-          </Button>
-        )}
+    <div className="flex flex-col gap-[30px]">
+      <div className="flex flex-col gap-[5px] leading-[1.35]">
+        <PageCrumbs items={[{ label: 'Operations', href: '/production' }, { label: 'Suppliers', href: '/suppliers' }]} />
+        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Suppliers</h1>
+        <p className="m-0 text-[13px] text-ui-body">
+          {suppliers.length} supplier{suppliers.length !== 1 ? 's' : ''} · vendor invoices &amp; payments
+        </p>
       </div>
 
       {schemaError && (
-        <div className="card" style={{ padding: 12, marginBottom: 16, borderColor: 'var(--status-warning-fg, #92400e)', fontSize: 13 }}>
+        <div className="rounded-[8px] border border-warning-normal bg-ui-surface px-4 py-3 text-[13px] text-ui-body">
           ⚠️ {schemaError}
         </div>
       )}
 
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="relative w-[380px] max-w-full">
+          <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" />
+          <input type="search" aria-label="Search suppliers" className={cn(FIELD, 'pl-[34px]')} placeholder="Search suppliers…" value={query} onChange={e => setQuery(e.target.value)} />
+        </div>
+        {canEdit && (
+          <Button size="md" className={ACCENT_BTN} onClick={() => setShowForm(v => !v)} aria-expanded={showForm}>
+            <Plus className="size-4" /> New Supplier
+          </Button>
+        )}
+      </div>
+
       {showForm && canEdit && (
-        <div className="card" style={{ padding: 16, marginBottom: 16, display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 10, alignItems: 'end' }}>
-          <label style={{ display: 'grid', gap: 4, fontSize: 12 }}>
+        <div className="grid grid-cols-1 items-end gap-3 rounded-[8px] border border-ui-divider bg-ui-page-bg p-4 md:grid-cols-[2fr_1fr_1fr_auto]">
+          <label className="flex flex-col gap-1 text-[12px] font-medium text-ui-body">
             Name
-            <input className="form-input" value={name} onChange={e => setName(e.target.value)} placeholder="Supplier name" autoFocus />
+            <input className={FIELD} value={name} onChange={e => setName(e.target.value)} placeholder="Supplier name" autoFocus />
           </label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 12 }}>
+          <label className="flex flex-col gap-1 text-[12px] font-medium text-ui-body">
             Code (optional)
-            <input className="form-input" value={code} onChange={e => setCode(e.target.value)} placeholder="AUTO" />
+            <input className={FIELD} value={code} onChange={e => setCode(e.target.value)} placeholder="AUTO" />
           </label>
-          <label style={{ display: 'grid', gap: 4, fontSize: 12 }}>
+          <label className="flex flex-col gap-1 text-[12px] font-medium text-ui-body">
             Country
-            <input className="form-input" value={country} onChange={e => setCountry(e.target.value)} />
+            <input className={FIELD} value={country} onChange={e => setCountry(e.target.value)} />
           </label>
           <Button size="md" onClick={handleCreate} loading={saving}>Create</Button>
         </div>
       )}
 
-      <div style={{ position: 'relative', marginBottom: 16, maxWidth: 340 }}>
-        <Search size={15} style={{ position: 'absolute', left: 10, top: 9, color: 'var(--fg-subtle)' }} />
-        <input className="form-input" style={{ paddingLeft: 32 }} placeholder="Search suppliers…" value={query} onChange={e => setQuery(e.target.value)} />
-      </div>
-
       {filtered.length === 0 ? (
-        <div className="card">
+        <div className="rounded-[8px] border border-ui-divider bg-ui-page-bg">
           {suppliers.length === 0 ? (
             <EmptyState
               icon={<Package />}
@@ -138,16 +148,16 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
           )}
         </div>
       ) : (
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <div className="overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[960px] border-collapse">
               <thead>
-                <tr style={{ textAlign: 'left', color: 'var(--fg-subtle)', borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ padding: '10px 14px' }}>Code</th>
-                  <th style={{ padding: '10px 14px' }}>Supplier</th>
-                  <th style={{ padding: '10px 14px' }}>Country</th>
-                  <th style={{ padding: '10px 14px', textAlign: 'right' }}>Outstanding balance</th>
-                  <th style={{ padding: '10px 14px' }}>Status</th>
+                <tr className="h-[46px] border-b border-ui-divider bg-ui-surface">
+                  <th className={cn(TH, 'w-[24%] pl-[18px]')}>Code</th>
+                  <th className={cn(TH, 'w-[25%]')}>Supplier</th>
+                  <th className={cn(TH, 'w-[21%]')}>Country</th>
+                  <th className={cn(TH, 'w-[17%]')}>Outstanding Balance</th>
+                  <th className={TH}>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -155,14 +165,18 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
                   <tr
                     key={s.id}
                     onClick={() => router.push(`/suppliers/${s.id}`)}
-                    style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                    className="h-16 cursor-pointer border-b border-ui-divider last:border-b-0 hover:bg-ui-hover-bg/50"
                   >
-                    <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono, monospace)', color: 'var(--fg-subtle)' }}>{s.code ?? '—'}</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 600 }}>{s.name}</td>
-                    <td style={{ padding: '10px 14px' }}>{s.country}</td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right' }}><BalanceCell totals={s.totals} /></td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <StatusBadge group="record_state" status={s.is_active ? 'active' : 'inactive'} />
+                    <td className={cn('max-w-0 truncate py-2 pl-[18px] pr-2.5 text-[15px] font-semibold', HEADING)}>{s.code ?? '—'}</td>
+                    <td className="max-w-0 px-2.5 py-2">
+                      <Link href={`/suppliers/${s.id}`} onClick={e => e.stopPropagation()} className={cn('block truncate text-[15px] font-semibold no-underline hover:underline', HEADING)}>
+                        {s.name}
+                      </Link>
+                    </td>
+                    <td className="px-2 py-2 text-[13px] text-ui-body">{s.country}</td>
+                    <td className="px-2 py-2"><BalanceCell totals={s.totals} /></td>
+                    <td className="px-2 py-2">
+                      <StatusBadge group="record_state" status={s.is_active ? 'active' : 'inactive'} className={STATE_CHIP} />
                     </td>
                   </tr>
                 ))}
@@ -171,6 +185,6 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
