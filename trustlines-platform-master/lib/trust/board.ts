@@ -121,7 +121,7 @@ export function trustConnection(): { base: string; key: string; where: string } 
   return { base, key, where: `${host}, ${keyName}` };
 }
 
-export async function loadTrustProjects(): Promise<{ projects: TrustProject[]; error: string | null }> {
+export async function loadTrustProjects({ includeDone = false }: { includeDone?: boolean } = {}): Promise<{ projects: TrustProject[]; error: string | null }> {
   const conn = trustConnection();
   if ('error' in conn) return { projects: [], error: conn.error };
   const { base, key, where } = conn;
@@ -144,7 +144,8 @@ export async function loadTrustProjects(): Promise<{ projects: TrustProject[]; e
     console.error('[trust board] projects unavailable:', msg);
     return { projects: [], error: `${msg} — ${where}` };
   }
-  const live = all.filter(p => !p.deletedAt && p.status !== 'DONE');
+  // Finished (DONE) projects only when asked — e.g. a supplier's work history.
+  const live = all.filter(p => !p.deletedAt && (includeDone || p.status !== 'DONE'));
   if (!live.length) return { projects: [], error: `no projects returned (${all.length} in total) — ${where}` };
   return { projects: live, error: null };
 }

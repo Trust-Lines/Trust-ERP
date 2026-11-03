@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePage } from '@/lib/permissions/requirePage';
 import { SupplierDetailClient } from '@/components/platform/suppliers/SupplierDetailClient';
 import { SUPPLIER_WRITE_ROLES, computeTotals } from '@/lib/suppliers/config';
+import { loadTrustProjects } from '@/lib/trust/board';
+import { vendorWork, type TrustVendorProject } from '@/lib/suppliers/trustWork';
 import type { UserRole } from '@/types/database';
 
 export default async function SupplierDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -34,6 +36,11 @@ export default async function SupplierDetailPage({ params }: { params: Promise<{
   const payments = payRes.data ?? [];
   const totals = computeTotals(invoices, payments);
 
+  // What this supplier did for us in the Trust System — every Production item given to it,
+  // finished projects included (lib/suppliers/trustWork).
+  const trust = await loadTrustProjects({ includeDone: true });
+  const work = vendorWork(trust.projects as unknown as TrustVendorProject[], supplier.code);
+
   const projectIds = Array.from(new Set([...invoices, ...payments].map(r => r.project_id).filter(Boolean)));
   let projects: { id: string; code: string; name: string }[] = [];
   if (projectIds.length) {
@@ -46,6 +53,7 @@ export default async function SupplierDetailPage({ params }: { params: Promise<{
       <SupplierDetailClient
         supplier={supplier} initialInvoices={invoices} initialPayments={payments}
         totals={totals} projects={projects} canEdit={canEdit}
+        work={work} workError={trust.error}
       />
     </div>
   );
