@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   CheckCircle2, Circle, Clock, XCircle, ExternalLink,
-  ThumbsUp, Loader2, ChevronDown, ChevronRight, RefreshCw,
+  ThumbsUp, Loader2, ChevronDown, ChevronRight, RefreshCw, Check, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -16,6 +16,7 @@ import type { ProjectCategory } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { feedback } from '@/components/ui/feedback-toast';
+import { Button } from '@/components/ui/button';
 
 export interface DocSummary {
   id: string;
@@ -54,21 +55,10 @@ function ViewBtn({ documentId, dropboxVersion }: { documentId: string; dropboxVe
     finally { setLoading(false); }
   }
   return (
-    <button
-      onClick={open} disabled={loading}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 4,
-        padding: '3px 9px', borderRadius: 4,
-        fontSize: 11, fontWeight: 600, cursor: 'pointer',
-        background: 'var(--brand-teal-100)', color: 'var(--brand-teal-600)',
-        border: '1px solid #9ecfcf',
-      }}
-    >
-      {loading
-        ? <Loader2 size={10} style={{ animation: 'spin 1s linear infinite' }} />
-        : <ExternalLink size={10} />}
+    <Button variant="secondary" size="xs" onClick={open} disabled={loading}>
+      {loading ? <Loader2 className="animate-spin" /> : <ExternalLink />}
       View V{dropboxVersion ?? 0}
-    </button>
+    </Button>
   );
 }
 
@@ -110,37 +100,19 @@ function ApproveArea({
             </Select>
           </>
         )}
-        <button
-          onClick={() => { onApprove(stepDef.requiresVersionSelect ? ver : undefined); setOpen(false); }}
-          style={{
-            padding: '3px 9px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-            background: 'var(--phase-done)', color: 'white', border: 'none', cursor: 'pointer',
-          }}
-        >
-          ✓ Confirm
-        </button>
-        <button
-          onClick={() => setOpen(false)}
-          style={{ padding: '2px 6px', borderRadius: 4, fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-subtle)' }}
-        >×</button>
+        <Button size="xs" onClick={() => { onApprove(stepDef.requiresVersionSelect ? ver : undefined); setOpen(false); }}>
+          <Check /> Confirm
+        </Button>
+        <Button variant="ghost" size="icon-xs" onClick={() => setOpen(false)} aria-label="Cancel approval"><X /></Button>
       </span>
     );
   }
 
   return (
-    <button
-      onClick={() => setOpen(true)}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 3,
-        padding: '3px 9px', borderRadius: 4,
-        fontSize: 11, fontWeight: 600, cursor: 'pointer',
-        background: 'var(--status-success-bg)', color: 'var(--status-success-fg)',
-        border: '1px solid #a7e3be',
-      }}
-    >
-      <ThumbsUp size={10} />
+    <Button size="xs" onClick={() => setOpen(true)}>
+      <ThumbsUp />
       {stepDef.requiresVersionSelect ? 'Select & Approve' : 'Approve'}
-    </button>
+    </Button>
   );
 }
 
@@ -238,32 +210,18 @@ export function DropboxSyncBtn({
 
   return (
     <>
-      <button
-        ref={triggerRef}
+      <Button
+        ref={triggerRef} variant="secondary" size="xs" aria-expanded={open}
         onClick={handleOpen}
         title="Dropbox versiyonlarını gör"
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
-          fontSize: 11, fontWeight: 600,
-          background: open ? '#e1f0f0' : 'var(--bg-subtle)',
-          color: open ? '#1a6b6b' : 'var(--fg-muted)',
-          border: `1px solid ${open ? '#9ecfcf' : 'var(--border-default)'}`,
-          transition: 'all 100ms',
-        }}
+        className={open ? 'bg-ui-hover-bg' : undefined}
       >
-        {scanning
-          ? <Loader2 size={10} style={{ animation: 'spin 1s linear infinite' }} />
-          : <RefreshCw size={10} />}
+        {scanning ? <Loader2 className="animate-spin" /> : <RefreshCw />}
         Dropbox
         {results !== null && totalFiles > 0 && (
-          <span style={{
-            marginLeft: 2, padding: '0 5px', borderRadius: 99,
-            fontSize: 9, fontWeight: 800,
-            background: '#1a6b6b', color: 'white',
-          }}>{totalFiles}</span>
+          <span className="ml-0.5 rounded-full bg-[var(--color-secondary-700)] px-1.5 text-[9px] font-extrabold text-white dark:bg-primary-50 dark:text-primary-950">{totalFiles}</span>
         )}
-      </button>
+      </Button>
 
       {open && (
         <div
@@ -490,18 +448,9 @@ function StepRow({
             )}
 
             {!stepDef.hasDocument && !stepDef.requiresApproval && !stepDef.requiresVersionSelect && !isDone && (
-              <button
-                onClick={onMarkDone}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 3,
-                  padding: '3px 9px', borderRadius: 4,
-                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                  background: 'var(--bg-subtle)', color: 'var(--fg-muted)',
-                  border: '1px solid var(--border-default)',
-                }}
-              >
-                <CheckCircle2 size={10} /> Done
-              </button>
+              <Button variant="secondary" size="xs" onClick={onMarkDone}>
+                <CheckCircle2 /> Done
+              </Button>
             )}
           </>
         )}
