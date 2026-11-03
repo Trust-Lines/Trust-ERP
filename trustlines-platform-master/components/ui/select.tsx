@@ -90,7 +90,13 @@ function Select({
                   key={o.value}
                   value={o.value}
                   disabled={o.disabled}
-                  className={cn(optionBase, "justify-between")}
+                  className={cn(
+                    optionBase,
+                    "justify-between",
+                    // A drawn option (e.g. a status chip) keeps its own colours: a light hover row, not the
+                    // solid dark highlight that plain-text options use.
+                    renderOption && "py-1 data-highlighted:bg-ui-hover-bg data-highlighted:text-inherit dark:data-highlighted:bg-white/10 dark:data-highlighted:text-inherit dark:data-selected:bg-ui-hover-bg dark:data-selected:text-inherit",
+                  )}
                 >
                   <SelectPrimitive.ItemText>
                     {renderOption ? renderOption({ ...o, value: o.value === EMPTY ? "" : o.value }) : o.label}
