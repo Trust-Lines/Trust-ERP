@@ -250,6 +250,65 @@ export const QC_BUCKET_TAG: Record<string, string> = {
   completed: 'passed',
 };
 
+/** containers.status (lib/logistics/containers.ts CONTAINER_STATUSES) → container tag. Logistics keeps
+ *  its own labels ("Waiting Loading", "Released"…); the tag only gives the tone + icon.
+ *  CANCELLED has no tag on purpose: it renders neutral (T0) with its own label. */
+export const CONTAINER_STATUS_TAG: Record<string, string> = {
+  PLANNING: 'booked',
+  BOOKED: 'booked',
+  WAITING_LOADING: 'loading',
+  LOADING: 'loading',
+  DEPARTED: 'in_transit',
+  IN_TRANSIT: 'in_transit',
+  ARRIVED_PORT: 'at_port_customs',
+  CUSTOMS: 'at_port_customs',
+  RELEASED: 'at_port_customs',
+  WAREHOUSE: 'delivered',
+  COMPLETED: 'delivered',
+};
+
+/** change_requests.status (migration 055) → change_request tag. */
+export const CHANGE_REQUEST_STATUS_TAG: Record<string, string> = {
+  open: 'requested',
+  under_review: 'under_review',
+  approved: 'approved',
+  implementing: 'implementing',
+  implemented: 'implemented',
+  rejected: 'rejected',
+  cancelled: 'withdrawn',
+};
+
+/** production_items.status (lib/production/board.ts STATUS_CHAIN + HOLD_T / HOLD_PM / ASSEMBLY) →
+ *  production tag. Production keeps its own labels ("Waiting Payment", "Hold / PM"…). */
+export const PRODUCTION_ITEM_STATUS_TAG: Record<string, string> = {
+  NOT_ORDERED: 'not_started',
+  ORDERED: 'scheduled',
+  WAITING_PAYMENT: 'on_hold',
+  HOLD_T: 'on_hold',
+  HOLD_PM: 'on_hold',
+  READY_TO_RECEIVE: 'in_production',
+  RECEIVED: 'in_production',
+  ASSEMBLY: 'in_production',
+  READY: 'completed',
+  SENT_TO_TLINES: 'completed',
+  PARTIAL_SENT: 'completed',
+  SENT: 'completed',
+};
+
+/** opportunities.stage (lib/marketing/classification.ts OpportunityStage) → closest lead_stage tag.
+ *  The label stays the Opportunity stage name. */
+export const OPPORTUNITY_STAGE_TAG: Record<string, string> = {
+  new: 'new_lead', marketing_qualification: 'qualification', qualified_for_sales: 'qualified',
+  sales_handoff: 'qualified', sales_accepted: 'contacted', discovery: 'discovery', sales_design: 'proposal_preparation',
+  working_on_it_trust: 'proposal_preparation', proposal: 'proposal_sent', negotiation: 'negotiation',
+  closed_won: 'won', closed_lost: 'lost', on_hold: 'decision_pending',
+};
+
+/** "WAITING_PAYMENT" / "under_review" → "Waiting Payment" / "Under Review". */
+export function statusLabel(value: string): string {
+  return value.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 /** lead_intake.opportunity_status (CRM / ClickUp stages) → lead_stage tag. CRM keeps its own labels. */
 export const OPPORTUNITY_STATUS_TAG: Record<string, string> = {
   potential: 'new_lead',

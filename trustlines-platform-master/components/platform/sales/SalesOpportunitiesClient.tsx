@@ -12,6 +12,7 @@ import type { OpportunityStage, ProjectType, ScopeType } from '@/types/database'
 import { Select } from '@/components/platform/shared/Select';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { OPPORTUNITY_STAGE_TAG } from '@/lib/status/tags';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { feedback } from '@/components/ui/feedback-toast';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -61,19 +62,13 @@ interface Props {
 }
 
 // Each Opportunity stage borrows the tone + icon of the closest lead-stage status tag
-// (lib/status/tags.ts); the label stays the Opportunity stage name.
-const STAGE_TAG: Record<OpportunityStage, string> = {
-  new: 'new_lead', marketing_qualification: 'qualification', qualified_for_sales: 'qualified',
-  sales_handoff: 'qualified', sales_accepted: 'contacted', discovery: 'discovery', sales_design: 'proposal_preparation',
-  working_on_it_trust: 'proposal_preparation', proposal: 'proposal_sent', negotiation: 'negotiation',
-  closed_won: 'won', closed_lost: 'lost', on_hold: 'decision_pending',
-};
+// (OPPORTUNITY_STAGE_TAG in lib/status/tags.ts); the label stays the Opportunity stage name.
 const CLOSABLE_STAGES: OpportunityStage[] = ['sales_accepted', 'discovery', 'sales_design', 'proposal', 'negotiation'];
 const CLOSED_STAGES: OpportunityStage[] = ['closed_won', 'closed_lost'];
 function OpportunityStagePill({ stage }: { stage: OpportunityStage }) {
   return (
     <StatusBadge
-      group="lead_stage" status={STAGE_TAG[stage]} label={OPPORTUNITY_STAGE_LABEL[stage]}
+      group="lead_stage" status={OPPORTUNITY_STAGE_TAG[stage]} label={OPPORTUNITY_STAGE_LABEL[stage]}
       className="h-auto gap-1 py-[3px] pl-2 pr-2.5 text-[12px] leading-4 [&_svg]:size-3.5"
     />
   );

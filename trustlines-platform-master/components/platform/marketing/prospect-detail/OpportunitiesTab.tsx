@@ -4,6 +4,8 @@ import { Target } from 'lucide-react';
 import { TaskList } from '@/components/platform/shared/TaskList';
 import { ActivityFeed } from '@/components/platform/shared/ActivityFeed';
 import { OPPORTUNITY_STAGE_LABEL } from '@/lib/marketing/classification';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { OPPORTUNITY_STAGE_TAG } from '@/lib/status/tags';
 import type { OpportunityRow } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
 
@@ -39,7 +41,7 @@ export function OpportunitiesTab({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     <div style={{ fontWeight: 600, fontSize: 13 }}>{o.title}</div>
-                    <span className="pill" style={{ background: 'var(--bg-subtle)', fontSize: 10.5 }}>{OPPORTUNITY_STAGE_LABEL[o.stage]}</span>
+                    <StatusBadge group="lead_stage" status={OPPORTUNITY_STAGE_TAG[o.stage] ?? o.stage} label={OPPORTUNITY_STAGE_LABEL[o.stage]} size="sm" />
                     {/* /marketing/opportunities is Potentials-only now — this Opportunity has
                         nowhere else to "open" to, Sales's /leads board is where it actually
                         lives once handed off. */}
