@@ -93,8 +93,8 @@ function InlineForm({
         )}
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={!name.trim() || saving}>{saving ? 'Saving…' : saveLabel}</button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+        <Button onClick={handleSave} disabled={!name.trim()} loading={saving}>{saveLabel}</Button>
+        <Button variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button>
       </div>
     </div>
   );
@@ -114,9 +114,12 @@ function ContextMenu({ isActive, onEdit, onDeactivate, onReactivate, onDelete }:
   );
   return (
     <div style={{ position: 'relative' }}>
-      <button className="btn btn-ghost btn-sm" style={{ padding: '3px 6px', color: 'var(--fg-subtle)' }} onClick={e => { e.stopPropagation(); setOpen(o => !o); }}>
-        <MoreHorizontal size={14} />
-      </button>
+      <Button
+        variant="ghost" size="icon-sm" aria-label="More actions" aria-expanded={open}
+        onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
+      >
+        <MoreHorizontal />
+      </Button>
       {open && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setOpen(false)} />
@@ -223,7 +226,7 @@ export function ClientsPageClient({ initialClients, userRole, canEdit }: Props) 
           <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Clients</h1>
           <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>{clients.length} client{clients.length !== 1 ? 's' : ''}</p>
         </div>
-        {isOps && <button className="btn btn-primary" onClick={() => setShowAddClient(s => !s)}>+ Add client</button>}
+        {isOps && <Button size="md" onClick={() => setShowAddClient(s => !s)} aria-expanded={showAddClient}><Plus /> Add client</Button>}
       </div>
 
       {showAddClient && isOps && (
@@ -313,9 +316,9 @@ export function ClientsPageClient({ initialClients, userRole, canEdit }: Props) 
                           onSave={(name, code, margin) => handleAddCompany(client.id, name, code, margin)} onCancel={() => setAddCompanyFor(null)} />
                       </div>
                     ) : (
-                      <button className="btn btn-ghost btn-sm" style={{ marginTop: 10, fontSize: 12, color: 'var(--brand-teal)', padding: '4px 8px' }} onClick={() => setAddCompanyFor(client.id)}>
-                        <Plus size={11} /> Add service
-                      </button>
+                      <Button variant="ghost" className="mt-2.5" onClick={() => setAddCompanyFor(client.id)}>
+                        <Plus /> Add service
+                      </Button>
                     ))}
                   </div>
                 )}
@@ -362,8 +365,8 @@ function AddClientForm({ onSave, onCancel, initialName = '', initialCode = '', i
         <textarea className="form-input" rows={2} placeholder="Optional notes..." value={notes} onChange={e => setNotes(e.target.value)} style={{ resize: 'vertical' }} />
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={!name.trim() || saving}>{saving ? 'Saving…' : saveLabel}</button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+        <Button onClick={handleSave} disabled={!name.trim()} loading={saving}>{saveLabel}</Button>
+        <Button variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button>
       </div>
     </div>
   );

@@ -88,9 +88,9 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
           </p>
         </div>
         {canEdit && (
-          <button className="btn btn-primary" onClick={() => setShowForm(v => !v)}>
-            <Plus size={15} /> New supplier
-          </button>
+          <Button size="md" onClick={() => setShowForm(v => !v)} aria-expanded={showForm}>
+            <Plus /> New supplier
+          </Button>
         )}
       </div>
 
@@ -114,7 +114,7 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
             Country
             <input className="form-input" value={country} onChange={e => setCountry(e.target.value)} />
           </label>
-          <button className="btn btn-primary" onClick={handleCreate} disabled={saving}>{saving ? 'Saving…' : 'Create'}</button>
+          <Button size="md" onClick={handleCreate} loading={saving}>Create</Button>
         </div>
       )}
 
