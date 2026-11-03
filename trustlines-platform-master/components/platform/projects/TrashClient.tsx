@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Trash2, RotateCcw, Search, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ConfirmModal } from '@/components/ui/modal';
 
 interface TrashedProject {
   id: string;
@@ -33,7 +35,8 @@ const DELETE_BTN = 'inline-flex shrink-0 items-center rounded-[6px] border-0 px-
 const DELETE_STYLE: React.CSSProperties = { background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' };
 const TH_CLS = 'whitespace-nowrap px-2.5 py-2.5 text-left text-[12px] font-medium text-ui-text-secondary first:pl-3 last:pr-3';
 const TD_CLS = 'px-2.5 py-3.5 align-middle text-[12px] leading-[1.45] text-ui-body first:pl-3 last:pr-3';
-const CHECKBOX_CLS = 'size-4 cursor-pointer accent-[var(--color-secondary-700)]';
+// Platform checkbox (Figma Form Components › Checkbox), a touch smaller to fit the 12px rows.
+const CHECKBOX_CLS = 'size-4 cursor-pointer [&>span]:size-3';
 
 const DATE_TIME = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 const DATE_ONLY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -53,6 +56,7 @@ export function TrashClient({ projects, purgeDays }: { projects: TrashedProject[
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy]         = useState(false);
   const [conflict, setConflict] = useState<ConflictState | null>(null);
+  const [purging, setPurging]   = useState<TrashedProject[] | null>(null);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -79,12 +83,11 @@ export function TrashClient({ projects, purgeDays }: { projects: TrashedProject[
 
   // Runs the existing per-project endpoints one by one — they carry their own authorization and
   // audit logging. A restore that hits a code conflict (409) opens the conflict dialog instead.
-  async function run(targets: TrashedProject[], kind: 'restore' | 'purge') {
+  // A purge first asks in the platform confirm popup; `confirmed` skips that (the popup itself, or
+  // the code-conflict dialog, which is already a confirmation).
+  async function run(targets: TrashedProject[], kind: 'restore' | 'purge', confirmed = false) {
     if (targets.length === 0) return;
-    if (kind === 'purge') {
-      const label = targets.length === 1 ? `"${targets[0].name}"` : `${targets.length} projects`;
-      if (!window.confirm(`Permanently delete ${label}? This cannot be undone.`)) return;
-    }
+    if (kind === 'purge' && !confirmed) { setPurging(targets); return; }
     setBusy(true);
     let failed = 0;
     let lastError = '';
@@ -155,7 +158,7 @@ export function TrashClient({ projects, purgeDays }: { projects: TrashedProject[
                 onClick={async () => {
                   const target = projects.find(p => p.id === conflict.projectId);
                   setConflict(null);
-                  if (target) await run([target], 'purge');
+                  if (target) await run([target], 'purge', true);
                 }}
               >
                 Delete trashed version forever
@@ -200,7 +203,7 @@ export function TrashClient({ projects, purgeDays }: { projects: TrashedProject[
               <thead>
                 <tr className="bg-ui-surface">
                   <th className={cn(TH_CLS, 'w-9')}>
-                    <input type="checkbox" className={CHECKBOX_CLS} checked={allSelected} onChange={toggleAll} aria-label="Select all" />
+                    <Checkbox className={CHECKBOX_CLS} checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all" />
                   </th>
                   <th className={TH_CLS}>Item</th>
                   <th className={cn(TH_CLS, 'w-[150px]')}>Deleted by</th>
@@ -217,7 +220,7 @@ export function TrashClient({ projects, purgeDays }: { projects: TrashedProject[
                   return (
                     <tr key={p.id} className={cn('border-b border-ui-divider', isSelected ? 'bg-ui-selected-bg' : 'bg-ui-surface-elevated')}>
                       <td className={TD_CLS}>
-                        <input type="checkbox" className={CHECKBOX_CLS} checked={isSelected} onChange={() => toggle(p.id)} aria-label={`Select ${p.name}`} />
+                        <Checkbox className={CHECKBOX_CLS} checked={isSelected} onCheckedChange={() => toggle(p.id)} aria-label={`Select ${p.name}`} />
                       </td>
                       <td className={TD_CLS}>
                         <div className="flex flex-col gap-1">
@@ -252,6 +255,14 @@ export function TrashClient({ projects, purgeDays }: { projects: TrashedProject[
           {projects.length} deleted item{projects.length === 1 ? '' : 's'} · Restored items return to their original location and retain their history.
         </p>
       </div>
+
+      <ConfirmModal
+        open={!!purging} onOpenChange={o => { if (!o) setPurging(null); }} tone="destructive"
+        title={purging && purging.length === 1 ? `Permanently delete “${purging[0].name}”?` : `Permanently delete ${purging?.length ?? 0} projects?`}
+        description="This cannot be undone. The project, its tasks and its files are removed for good."
+        confirmLabel="Delete forever"
+        onConfirm={async () => { if (purging) await run(purging, 'purge', true); }}
+      />
     </div>
   );
 }
