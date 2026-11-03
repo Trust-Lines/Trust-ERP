@@ -8,6 +8,8 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import type { UserRole } from '@/types/database';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
+import { cn } from '@/lib/utils';
 
 async function auditLog(action: string, resource: string, newValue?: unknown) {
   await fetch('/api/audit', {
@@ -40,17 +42,34 @@ interface Props {
   canEdit?: boolean;
 }
 
-function CodePill({ code }: { code: string | null }) {
-  if (!code) return null;
+// Figma "Clients (T-Lines regions)" (node 442:1088): one bordered card per client, a grey
+// header row (chevron, name, state, service count, Add Service, "…") and 64px service rows.
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const FIELD = 'h-10 w-full min-w-0 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
+const FORM_LABEL = 'flex min-w-0 flex-col gap-1 text-[12px] font-medium text-ui-body';
+const ACCENT_BTN = 'gap-2 bg-ui-btn-accent px-8 text-[13px] font-medium text-ui-btn-accent-fg hover:bg-ui-btn-accent hover:opacity-90 dark:bg-ui-btn-accent dark:text-ui-btn-accent-fg dark:hover:bg-ui-btn-accent';
+
+/** Figma table chip: outlined, uppercase ACTIVE (T9) / INACTIVE (T0). */
+function StateChip({ active }: { active: boolean }) {
   return (
-    <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: 'var(--bg-sunken)', color: 'var(--fg-subtle)', border: '1px solid var(--border-subtle)', fontFamily: 'var(--font-mono)' }}>
-      {code}
-    </span>
+    <StatusBadge
+      group="record_state" status={active ? 'active' : 'inactive'} showIcon={false}
+      className="h-auto rounded-[4px] border border-current px-4 py-1 text-[12px] uppercase leading-4"
+    />
   );
 }
 
-function StatusPill({ active }: { active: boolean }) {
-  return <StatusBadge group="record_state" status={active ? 'active' : 'inactive'} />;
+/** Price multiplier, e.g. "X 1.5": error-red outline while the service is active, grey when not. */
+function MarginChip({ value, active }: { value: number; active: boolean }) {
+  return (
+    <span
+      className={cn('inline-flex items-center rounded-[4px] border px-4 py-1 text-[15px] font-medium leading-4 tabular-nums whitespace-nowrap',
+        active ? 'border-error-normal text-error-normal' : 'border-[var(--status-t0-fg)] text-[var(--status-t0-fg)]')}
+      title="Price multiplier — PO price = list price × this"
+    >
+      X {value}
+    </span>
+  );
 }
 
 function InlineForm({
@@ -75,24 +94,24 @@ function InlineForm({
   }
 
   return (
-    <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '12px 14px', marginTop: 8 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: showMargin ? '1fr 100px 90px' : '1fr 120px', gap: 8, marginBottom: 10 }}>
-        <div>
-          <label className="form-label" style={{ fontSize: 11 }}>Service *</label>
-          <input className="form-input" style={{ fontSize: 13 }} placeholder={placeholder1} value={name} onChange={e => setName(e.target.value)} autoFocus />
-        </div>
-        <div>
-          <label className="form-label" style={{ fontSize: 11 }}>Code</label>
-          <input className="form-input" style={{ fontSize: 13 }} placeholder={placeholder2} value={code} onChange={e => setCode(e.target.value)} />
-        </div>
+    <div className="rounded-[6px] border border-ui-divider bg-ui-surface p-3">
+      <div className={cn('mb-2.5 grid gap-2', showMargin ? 'grid-cols-[1fr_100px_90px]' : 'grid-cols-[1fr_120px]')}>
+        <label className={FORM_LABEL}>
+          Service *
+          <input className={FIELD} placeholder={placeholder1} value={name} onChange={e => setName(e.target.value)} autoFocus />
+        </label>
+        <label className={FORM_LABEL}>
+          Code
+          <input className={FIELD} placeholder={placeholder2} value={code} onChange={e => setCode(e.target.value)} />
+        </label>
         {showMargin && (
-          <div>
-            <label className="form-label" style={{ fontSize: 11 }}>Margin ×</label>
-            <input className="form-input" style={{ fontSize: 13 }} type="number" placeholder="1.0" value={margin} onChange={e => setMargin(e.target.value)} min="0" step="0.05" title="Price multiplier — e.g. 1.5 means PO price = list price × 1.5" />
-          </div>
+          <label className={FORM_LABEL}>
+            Margin ×
+            <input className={FIELD} type="number" placeholder="1.0" value={margin} onChange={e => setMargin(e.target.value)} min="0" step="0.05" title="Price multiplier — e.g. 1.5 means PO price = list price × 1.5" />
+          </label>
         )}
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div className="flex gap-1.5">
         <Button onClick={handleSave} disabled={!name.trim()} loading={saving}>{saveLabel}</Button>
         <Button variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button>
       </div>
@@ -106,29 +125,29 @@ function ContextMenu({ isActive, onEdit, onDeactivate, onReactivate, onDelete }:
   const [open, setOpen] = useState(false);
   const menuBtn = (label: string, onClick: () => void, danger = false) => (
     <button
-      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', fontSize: 13, border: 'none', background: 'transparent', cursor: 'pointer', color: danger ? 'var(--status-danger)' : 'var(--fg-default)' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = danger ? 'var(--status-danger-bg)' : 'var(--bg-subtle)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+      type="button" role="menuitem"
+      className={cn('block w-full cursor-pointer rounded-[4px] border-0 bg-transparent px-3 py-2 text-left text-[13px] hover:bg-ui-hover-bg', danger ? 'text-error-normal' : 'text-ui-body')}
       onClick={() => { setOpen(false); onClick(); }}
     >{label}</button>
   );
+  const divider = <div className="my-0.5 h-px bg-ui-divider" />;
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="relative w-12 text-center" onClick={e => e.stopPropagation()}>
       <Button
         variant="ghost" size="icon-sm" aria-label="More actions" aria-expanded={open}
-        onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
+        onClick={() => setOpen(o => !o)}
       >
         <MoreHorizontal />
       </Button>
       {open && (
         <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setOpen(false)} />
-          <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 20, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 6, boxShadow: 'var(--shadow-sm)', minWidth: 140, overflow: 'hidden' }}>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div role="menu" className="absolute right-0 top-full z-20 mt-1 min-w-[140px] rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
             {onEdit && menuBtn('Edit', onEdit)}
-            {onEdit && <div style={{ height: 1, background: 'var(--border-subtle)', margin: '2px 0' }} />}
+            {onEdit && divider}
             {isActive
               ? menuBtn('Deactivate', onDeactivate, true)
-              : <>{menuBtn('Reactivate', onReactivate)}<div style={{ height: 1, background: 'var(--border-subtle)', margin: '2px 0' }} />{menuBtn('Delete', onDelete, true)}</>}
+              : <>{menuBtn('Reactivate', onReactivate)}{divider}{menuBtn('Delete', onDelete, true)}</>}
           </div>
         </>
       )}
@@ -220,26 +239,29 @@ export function ClientsPageClient({ initialClients, userRole, canEdit }: Props) 
   }
 
   return (
-    <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Clients</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>{clients.length} client{clients.length !== 1 ? 's' : ''}</p>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col gap-[5px] leading-[1.35]">
+          <PageCrumbs items={[{ label: 'Operations', href: '/production' }, { label: 'Clients', href: '/clients' }]} />
+          <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Clients</h1>
+          <p className="m-0 text-[13px] text-ui-body">{clients.length} Client{clients.length !== 1 ? 's' : ''}</p>
         </div>
-        {isOps && <Button size="md" onClick={() => setShowAddClient(s => !s)} aria-expanded={showAddClient}><Plus /> Add client</Button>}
+        {isOps && (
+          <Button size="md" className={ACCENT_BTN} onClick={() => setShowAddClient(s => !s)} aria-expanded={showAddClient}>
+            <Plus className="size-4" /> Add Client
+          </Button>
+        )}
       </div>
 
       {showAddClient && isOps && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <div className="card-head"><div className="form-section-title">New client</div></div>
-          <div className="card-body">
-            <AddClientForm onSave={handleAddClient} onCancel={() => setShowAddClient(false)} />
-          </div>
+        <div className="rounded-[8px] border border-ui-divider bg-ui-page-bg p-4">
+          <p className={cn('m-0 mb-3 text-[16px] font-semibold', HEADING)}>New client</p>
+          <AddClientForm onSave={handleAddClient} onCancel={() => setShowAddClient(false)} />
         </div>
       )}
 
       {clients.length === 0 ? (
-        <div className="card">
+        <div className="rounded-[8px] border border-ui-divider bg-ui-page-bg">
           <EmptyState
             icon={<Building2 />}
             title="No clients yet"
@@ -248,78 +270,98 @@ export function ClientsPageClient({ initialClients, userRole, canEdit }: Props) 
           />
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="flex flex-col gap-6">
           {clients.map(client => {
             const isOpen = expanded.has(client.id);
+            const count = client.companies.length;
             return (
-              <div key={client.id} className="card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', cursor: 'pointer', borderBottom: isOpen ? '1px solid var(--border-subtle)' : 'none' }} onClick={() => toggleExpand(client.id)}>
-                  <ChevronDown size={16} style={{ color: 'var(--fg-subtle)', transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms', flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 15, fontWeight: 600 }}>{client.name}</span>
-                      <CodePill code={client.code} />
-                      <StatusPill active={client.is_active} />
+              <div key={client.id} className="overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg">
+                {/* ── Client header ── */}
+                <div
+                  role="button" tabIndex={0} aria-expanded={isOpen}
+                  onClick={() => toggleExpand(client.id)}
+                  onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleExpand(client.id); } }}
+                  className={cn('flex cursor-pointer flex-wrap items-center justify-between gap-3 bg-ui-surface px-2 py-4 outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ui-focus-ring', isOpen && 'border-b border-ui-divider')}
+                >
+                  <div className="flex min-w-0 items-center">
+                    <ChevronDown size={24} aria-hidden className={cn('shrink-0 text-ui-body transition-transform', !isOpen && '-rotate-90')} />
+                    <div className="flex min-w-0 flex-col pl-4 pr-2">
+                      <span className={cn('truncate text-[16px] font-semibold', HEADING)}>
+                        {client.name}
+                        {client.code && <span className="ml-2 text-[13px] font-normal text-ui-text-secondary">{client.code}</span>}
+                      </span>
+                      {client.notes && <span className="truncate text-[12px] text-ui-text-secondary">{client.notes}</span>}
                     </div>
-                    {client.notes && <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 2 }}>{client.notes}</div>}
+                    <div className="px-2"><StateChip active={client.is_active} /></div>
                   </div>
-                  <span style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>{client.companies.length} service{client.companies.length !== 1 ? 's' : ''}</span>
-                  {isOps && (
-                    <div onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-4">
+                    <span className="text-[16px] font-semibold text-ui-text-secondary">{count} Service{count !== 1 ? 's' : ''}</span>
+                    {isOps && (
+                      <Button
+                        className="h-[38px] gap-2 pl-3 pr-5 text-[13px] font-medium"
+                        onClick={e => { e.stopPropagation(); setAddCompanyFor(client.id); setExpanded(prev => new Set([...prev, client.id])); }}
+                      >
+                        <Plus className="size-4" /> Add Service
+                      </Button>
+                    )}
+                    {isOps && (
                       <ContextMenu isActive={client.is_active}
                         onEdit={() => { setEditClientFor(client.id); setExpanded(prev => new Set([...prev, client.id])); }}
                         onDeactivate={() => deactivateClient(client.id)} onReactivate={() => reactivateClient(client.id)} onDelete={() => deleteClient(client.id, client.name)} />
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
                 {editClientFor === client.id && isOps && (
-                  <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <div className="border-b border-ui-divider p-4">
                     <AddClientForm initialName={client.name} initialCode={client.code ?? ''} initialNotes={client.notes ?? ''} saveLabel="Save changes"
                       onSave={(name, code, notes) => updateClient(client.id, name, code, notes)} onCancel={() => setEditClientFor(null)} />
                   </div>
                 )}
 
+                {/* ── Services ── */}
                 {isOpen && (
-                  <div style={{ padding: '8px 18px 16px' }}>
-                    {client.companies.length === 0 && (
-                      <EmptyState size="sm" className="pl-1" icon={<Briefcase />} title="No services yet." description="Add Store Maker, Premium Fitout, T Shop, Design & Build…" />
+                  <div>
+                    {count === 0 && addCompanyFor !== client.id && (
+                      <EmptyState size="sm" className="px-5 py-4" icon={<Briefcase />} title="No services yet." description="Add Store Maker, Premium Fitout, T Shop, Design & Build…" />
                     )}
-                    {client.companies.map((company, ci) => (
-                      <div key={company.id}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 8, paddingBottom: 8, borderBottom: ci < client.companies.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-                          <div style={{ width: 2, height: 16, background: 'var(--border-default)', borderRadius: 1, flexShrink: 0 }} />
-                          <span style={{ fontSize: 14, fontWeight: 500, color: company.is_active ? 'var(--fg-default)' : 'var(--fg-subtle)' }}>{company.name}</span>
-                          <CodePill code={company.code} />
-                          {!company.is_active && <StatusPill active={false} />}
-                          {company.margin_pct != null && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--status-danger)' }}>×{company.margin_pct}</span>}
-                          <div style={{ flex: 1 }} />
-                          {isOps && (
-                            <ContextMenu isActive={company.is_active}
-                              onEdit={() => setEditCompanyFor(editCompanyFor === company.id ? null : company.id)}
-                              onDeactivate={() => deactivateCompany(client.id, company.id)} onReactivate={() => reactivateCompany(client.id, company.id)} onDelete={() => deleteCompany(client.id, company.id, company.name)} />
+                    {client.companies.map(company => {
+                      const muted = !company.is_active;
+                      const text = cn('truncate text-[15px] font-semibold', muted ? 'text-[var(--status-t0-fg)]' : HEADING);
+                      return (
+                        <div key={company.id} className="border-b border-ui-divider last:border-b-0">
+                          <div className="flex min-h-16 items-center justify-between gap-3 px-2">
+                            <div className="flex min-w-0 items-center">
+                              <span className={cn('w-[215px] px-2.5', text)}>{company.name}</span>
+                              <span className={cn('w-[142px] px-2.5', text)}>{company.code ?? '—'}</span>
+                              <span className="px-2">{company.margin_pct != null && <MarginChip value={company.margin_pct} active={company.is_active} />}</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="px-2"><StateChip active={company.is_active} /></div>
+                              {isOps ? (
+                                <ContextMenu isActive={company.is_active}
+                                  onEdit={() => setEditCompanyFor(editCompanyFor === company.id ? null : company.id)}
+                                  onDeactivate={() => deactivateCompany(client.id, company.id)} onReactivate={() => reactivateCompany(client.id, company.id)} onDelete={() => deleteCompany(client.id, company.id, company.name)} />
+                              ) : <span className="w-12" />}
+                            </div>
+                          </div>
+                          {editCompanyFor === company.id && isOps && (
+                            <div className="px-4 pb-4">
+                              <InlineForm placeholder1="e.g. Store Maker" placeholder2="e.g. SM"
+                                initialName={company.name} initialCode={company.code ?? ''} initialMargin={company.margin_pct != null ? String(company.margin_pct) : ''} saveLabel="Save changes"
+                                onSave={(name, code, margin) => updateCompany(client.id, company.id, name, code, margin)} onCancel={() => setEditCompanyFor(null)} />
+                            </div>
                           )}
                         </div>
-                        {editCompanyFor === company.id && isOps && (
-                          <div style={{ paddingLeft: 10, paddingTop: 4, paddingBottom: 4 }}>
-                            <InlineForm placeholder1="e.g. Store Maker" placeholder2="e.g. SM"
-                              initialName={company.name} initialCode={company.code ?? ''} initialMargin={company.margin_pct != null ? String(company.margin_pct) : ''} saveLabel="Save changes"
-                              onSave={(name, code, margin) => updateCompany(client.id, company.id, name, code, margin)} onCancel={() => setEditCompanyFor(null)} />
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
 
-                    {isOps && (addCompanyFor === client.id ? (
-                      <div style={{ paddingTop: 8 }}>
+                    {isOps && addCompanyFor === client.id && (
+                      <div className={cn('p-4', count > 0 && 'border-t border-ui-divider')}>
                         <InlineForm placeholder1="e.g. Store Maker" placeholder2="e.g. SM"
                           onSave={(name, code, margin) => handleAddCompany(client.id, name, code, margin)} onCancel={() => setAddCompanyFor(null)} />
                       </div>
-                    ) : (
-                      <Button variant="ghost" className="mt-2.5" onClick={() => setAddCompanyFor(client.id)}>
-                        <Plus /> Add service
-                      </Button>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>
@@ -327,7 +369,7 @@ export function ClientsPageClient({ initialClients, userRole, canEdit }: Props) 
           })}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -349,22 +391,22 @@ function AddClientForm({ onSave, onCancel, initialName = '', initialCode = '', i
   }
 
   return (
-    <div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 10, marginBottom: 10 }}>
-        <div>
-          <label className="form-label required" style={{ fontSize: 12 }}>Client name</label>
-          <input className="form-input" placeholder="e.g. TLines NE" value={name} onChange={e => setName(e.target.value)} autoFocus />
-        </div>
-        <div>
-          <label className="form-label" style={{ fontSize: 12 }}>Code</label>
-          <input className="form-input" placeholder="e.g. NE" value={code} onChange={e => setCode(e.target.value)} />
-        </div>
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-[1fr_100px] gap-2.5">
+        <label className={FORM_LABEL}>
+          Client name *
+          <input className={FIELD} placeholder="e.g. TLines NE" value={name} onChange={e => setName(e.target.value)} autoFocus />
+        </label>
+        <label className={FORM_LABEL}>
+          Code
+          <input className={FIELD} placeholder="e.g. NE" value={code} onChange={e => setCode(e.target.value)} />
+        </label>
       </div>
-      <div style={{ marginBottom: 12 }}>
-        <label className="form-label" style={{ fontSize: 12 }}>Notes (optional)</label>
-        <textarea className="form-input" rows={2} placeholder="Optional notes..." value={notes} onChange={e => setNotes(e.target.value)} style={{ resize: 'vertical' }} />
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <label className={FORM_LABEL}>
+        Notes (optional)
+        <textarea className={cn(FIELD, 'h-auto min-h-[64px] resize-y py-2')} rows={2} placeholder="Optional notes..." value={notes} onChange={e => setNotes(e.target.value)} />
+      </label>
+      <div className="flex gap-2">
         <Button onClick={handleSave} disabled={!name.trim()} loading={saving}>{saveLabel}</Button>
         <Button variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button>
       </div>
