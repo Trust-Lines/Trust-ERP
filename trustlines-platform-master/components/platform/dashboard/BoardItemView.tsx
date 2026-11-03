@@ -32,7 +32,7 @@ const TONE_ICON: Record<ChipTone, LucideIcon | 'in-review'> = { t0: CircleDashed
 
 const notYet = () => toast.info('Not connected yet');
 
-interface CardData { project: CardProject | null; deals: CardDeal[]; finance: ProjectFinance | null }
+interface CardData { project: CardProject | null; deals: CardDeal[]; finance: ProjectFinance | null; allowed: string[] }
 
 export function BoardItemView({ item, section, assignees, canEdit, onClose }: {
   item: BoardCardItem;
@@ -66,7 +66,7 @@ export function BoardItemView({ item, section, assignees, canEdit, onClose }: {
 
   const today = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
   const tabs = React.useMemo(
-    () => (data ? buildCardTabs({ deals: data.deals, project: data.project, trustItems: item.trustItems ?? null, finance: data.finance, today }) : []),
+    () => (data ? buildCardTabs({ deals: data.deals, project: data.project, trustItems: item.trustItems ?? null, finance: data.finance, today, allowed: data.allowed }) : []),
     [data, item.trustItems, today],
   );
   // Opens on the stage the card sits in: its deal, else the furthest stage reached.
