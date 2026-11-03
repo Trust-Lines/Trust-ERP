@@ -17,6 +17,7 @@ import { REGIONS } from '@/lib/regions';
 import type { UserRole } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 
 interface ProfileRow {
   id: string;
@@ -581,18 +582,8 @@ function EditModal({
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t border-ui-divider pt-5">
-          <button
-            type="button" onClick={onClose}
-            className="inline-flex h-9 items-center rounded-[6px] border border-ui-divider bg-ui-input-bg px-8 text-[13px] font-medium text-ui-body transition-colors hover:bg-ui-hover-bg"
-          >
-            Cancel
-          </button>
-          <button
-            type="button" disabled={!fullName.trim() || saving} onClick={handleSave}
-            className="inline-flex h-9 items-center rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-8 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950"
-          >
-            {saving ? 'Saving…' : 'Save changes'}
-          </button>
+          <Button variant="secondary" size="md" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button size="md" onClick={handleSave} disabled={!fullName.trim()} loading={saving}>Save changes</Button>
         </div>
       </div>
     </div>

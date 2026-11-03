@@ -10,6 +10,7 @@ import type { CurrencyTotals } from '@/lib/suppliers/config';
 import { CURRENCIES, PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '@/lib/suppliers/config';
 import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Button, buttonVariants } from '@/components/ui/button';
 
 interface Props {
   supplier: Supplier;
@@ -30,7 +31,7 @@ export function SupplierDetailClient({ supplier, initialInvoices, initialPayment
 
   return (
     <>
-      <Link href="/suppliers" className="btn btn-secondary btn-sm" style={{ marginBottom: 16 }}>
+      <Link href="/suppliers" className={buttonVariants({ variant: 'secondary', size: 'sm', className: 'mb-4 no-underline' })}>
         <ArrowLeft size={14} /> All suppliers
       </Link>
 
@@ -124,10 +125,10 @@ function ProfileCard({ supplier, canEdit, onSaved }: { supplier: Supplier; canEd
         <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Profile</h2>
         {canEdit && !edit && (
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-secondary btn-sm" onClick={toggleActive} disabled={saving}>
+            <Button variant="secondary" onClick={toggleActive} disabled={saving}>
               {supplier.is_active ? 'Deactivate' : 'Reactivate'}
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={() => setEdit(true)}>Edit</button>
+            </Button>
+            <Button variant="secondary" onClick={() => setEdit(true)}>Edit</Button>
           </div>
         )}
       </div>
@@ -158,8 +159,8 @@ function ProfileCard({ supplier, canEdit, onSaved }: { supplier: Supplier; canEd
             <textarea className="form-input" rows={2} value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} />
           </label>
           <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>
-            <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => setEdit(false)}>Cancel</button>
+            <Button onClick={save} loading={saving}>Save</Button>
+            <Button variant="secondary" onClick={() => setEdit(false)} disabled={saving}>Cancel</Button>
           </div>
         </div>
       )}
@@ -200,7 +201,7 @@ function InvoicesSection({ supplierId, invoices, projById, canEdit, onChange }: 
     <div className="card" style={{ padding: 16, marginBottom: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}><FileText size={15} /> Invoices ({invoices.length})</h2>
-        {canEdit && <button className="btn btn-secondary btn-sm" onClick={() => setAdding(v => !v)}><Plus size={14} /> Add</button>}
+        {canEdit && <Button variant="secondary" onClick={() => setAdding(v => !v)} aria-expanded={adding}><Plus /> Add</Button>}
       </div>
 
       {adding && canEdit && (
@@ -210,7 +211,7 @@ function InvoicesSection({ supplierId, invoices, projById, canEdit, onChange }: 
           <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Cur.<Select className="form-input" value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</Select></label>
           <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Amount<input className="form-input" type="number" step="0.01" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></label>
           <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Description<input className="form-input" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>
-          <button className="btn btn-primary btn-sm" onClick={add} disabled={saving}>{saving ? '…' : 'Save'}</button>
+          <Button onClick={add} loading={saving}>Save</Button>
         </div>
       )}
 
@@ -239,7 +240,7 @@ function InvoicesSection({ supplierId, invoices, projById, canEdit, onChange }: 
                     <td style={{ padding: '8px 10px' }}>{p ? <Link href={`/projects/${inv.project_id}`}>{p.code}</Link> : '—'}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmt(Number(inv.amount))} <small style={{ color: 'var(--fg-subtle)' }}>{inv.currency}</small></td>
                     <td style={{ padding: '8px 10px' }}><span className="pill" style={{ fontSize: 10, color: STATUS_COLOR[inv.status], background: 'var(--bg-sunken)', textTransform: 'capitalize' }}>{inv.status}</span></td>
-                    {canEdit && <td style={{ padding: '8px 10px', textAlign: 'right' }}><button className="btn btn-ghost btn-sm" onClick={() => remove(inv.id)} title="Delete"><Trash2 size={14} /></button></td>}
+                    {canEdit && <td style={{ padding: '8px 10px', textAlign: 'right' }}><Button variant="ghost" size="icon" onClick={() => remove(inv.id)} title="Delete invoice" aria-label="Delete invoice"><Trash2 className="size-4" /></Button></td>}
                   </tr>
                 );
               })}
@@ -287,7 +288,7 @@ function PaymentsSection({ supplierId, payments, invoices, projById, canEdit, on
     <div className="card" style={{ padding: 16, marginBottom: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}><Wallet size={15} /> Payments ({payments.length})</h2>
-        {canEdit && <button className="btn btn-secondary btn-sm" onClick={() => setAdding(v => !v)}><Plus size={14} /> Add</button>}
+        {canEdit && <Button variant="secondary" onClick={() => setAdding(v => !v)} aria-expanded={adding}><Plus /> Add</Button>}
       </div>
 
       {adding && canEdit && (
@@ -297,7 +298,7 @@ function PaymentsSection({ supplierId, payments, invoices, projById, canEdit, on
           <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Method<Select className="form-input" value={f.method} onChange={e => setF({ ...f, method: e.target.value })}>{PAYMENT_METHODS.map(m => <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>)}</Select></label>
           <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Date<input className="form-input" type="date" value={f.paid_at} onChange={e => setF({ ...f, paid_at: e.target.value })} /></label>
           <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Against invoice<Select className="form-input" value={f.invoice_id} onChange={e => setF({ ...f, invoice_id: e.target.value })}><option value="">On account</option>{invoices.map(inv => <option key={inv.id} value={inv.id}>{invLabel(inv)}</option>)}</Select></label>
-          <button className="btn btn-primary btn-sm" onClick={add} disabled={saving}>{saving ? '…' : 'Save'}</button>
+          <Button onClick={add} loading={saving}>Save</Button>
         </div>
       )}
 
@@ -326,7 +327,7 @@ function PaymentsSection({ supplierId, payments, invoices, projById, canEdit, on
                     <td style={{ padding: '8px 10px' }}>{p ? <Link href={`/projects/${pay.project_id}`}>{p.code}</Link> : '—'}</td>
                     <td style={{ padding: '8px 10px', color: 'var(--fg-subtle)' }}>{pay.reference || '—'}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmt(Number(pay.amount))} <small style={{ color: 'var(--fg-subtle)' }}>{pay.currency}</small></td>
-                    {canEdit && <td style={{ padding: '8px 10px', textAlign: 'right' }}><button className="btn btn-ghost btn-sm" onClick={() => remove(pay.id)} title="Delete"><Trash2 size={14} /></button></td>}
+                    {canEdit && <td style={{ padding: '8px 10px', textAlign: 'right' }}><Button variant="ghost" size="icon" onClick={() => remove(pay.id)} title="Delete payment" aria-label="Delete payment"><Trash2 className="size-4" /></Button></td>}
                   </tr>
                 );
               })}
