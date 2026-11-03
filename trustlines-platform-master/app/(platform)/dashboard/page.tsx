@@ -362,7 +362,9 @@ export default async function DashboardPage() {
       trustError={trust.error}
       users={allUsers ?? []}
       canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
-      top={<TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} />}
+      // A server element passed as a prop into a client component is checked like a list child in
+      // dev (React 19 / Next 16) — the key only silences that false "unique key" warning.
+      top={<TopSummaryRow key="top-summary" fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} />}
     />
   );
 }
