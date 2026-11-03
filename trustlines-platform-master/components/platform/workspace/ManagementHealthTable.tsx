@@ -36,12 +36,12 @@ const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] b
 
 function formatLate(days: number | null): string {
   if (days === null) return '—';
-  if (days === 0) return 'On time';
+  if (days === 0) return '0 Days';
   if (days % 7 === 0) return `${days / 7} ${days === 7 ? 'Week' : 'Weeks'}`;
   return `${days} ${days === 1 ? 'Day' : 'Days'}`;
 }
 
-// Figma "ops_manager" project table (node 178:29818): sortable headers, 36px rows, "…" actions.
+// Figma "ops_manager" project table (nodes 178:29818 / 174:27618): sortable headers, 36px rows, "…" actions.
 export function ManagementHealthTable({ rows, emptyLabel }: { rows: HealthRow[]; emptyLabel: string }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'blockers', dir: -1 });
   const [menuId, setMenuId] = useState<string | null>(null);
@@ -93,7 +93,7 @@ export function ManagementHealthTable({ rows, emptyLabel }: { rows: HealthRow[];
             <tr className="h-[50px] border-b border-ui-divider bg-ui-surface">
               {header('project', 'Project', 'w-[300px] pl-5')}
               {header('status', 'Status', 'w-[220px]')}
-              {header('blockers', 'Blockers')}
+              {header('blockers', 'Risk')}
               {header('late', 'Days Late', 'w-[140px]')}
               {header('owner', 'Owner', 'w-[180px]')}
               <th className="w-[56px]"><span className="sr-only">Actions</span></th>
@@ -127,13 +127,18 @@ export function ManagementHealthTable({ rows, emptyLabel }: { rows: HealthRow[];
                     </span>
                   </td>
                   <td className="max-w-0 px-2.5" title={r.blockers.map(b => b.message).join('\n')}>
+                    {/* Figma "Risk": Critical (chevrons-up, error) / At Risk (chevron-up, warning); blockers stay as muted detail. */}
                     <span className={cn('flex min-w-0 items-center gap-1.5 text-[13px] leading-[1.4]', severe ? 'text-error-normal' : 'text-warning-normal')}>
                       <RiskIcon size={13} aria-hidden className="shrink-0" />
-                      <span className="shrink-0">{r.blockers.length} {r.blockers.length === 1 ? 'blocker' : 'blockers'}</span>
-                      {r.blockers[0] && <span className="truncate text-ui-text-secondary">· {r.blockers[0].message}</span>}
+                      <span className="shrink-0">{severe ? 'Critical' : 'At Risk'}</span>
+                      {r.blockers[0] && (
+                        <span className="truncate text-ui-text-secondary">
+                          · {r.blockers[0].message}{r.blockers.length > 1 && ` +${r.blockers.length - 1}`}
+                        </span>
+                      )}
                     </span>
                   </td>
-                  <td className={cn('px-2.5 text-[13px] whitespace-nowrap', (r.daysLate ?? 0) > 0 ? 'text-error-normal' : 'text-ui-text-secondary')}>
+                  <td className="px-2.5 text-[13px] whitespace-nowrap text-ui-text-secondary">
                     {formatLate(r.daysLate)}
                   </td>
                   <td className="max-w-0 px-2.5">
