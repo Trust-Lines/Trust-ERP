@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { BanknoteCheck, BanknoteX, CircleDollarSign, Ellipsis, Plus, Receipt, Trash2, Check, Undo2, type LucideIcon } from 'lucide-react';
@@ -13,6 +13,7 @@ import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { CategoryViews } from '@/components/platform/website/CategoryViews';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ConfirmModal } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 
 interface Proj { id: string; code: string; name: string }
@@ -75,6 +76,16 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<React.CSSProperties>({});
+  const [removing, setRemoving] = useState<TrustExpense | null>(null);
+  // The menu is pinned to the window, so close it when the page scrolls or resizes under it.
+  useEffect(() => {
+    if (!menuId) return;
+    const close = () => setMenuId(null);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close); };
+  }, [menuId]);
   const [f, setF] = useState({ category: 'other', description: '', currency: 'USD', amount: '', expense_date: '', project_id: '', supplier_id: '', is_paid: false });
 
   const projById = useMemo(() => new Map(projects.map(p => [p.id, p])), [projects]);
@@ -109,10 +120,10 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
     router.refresh();
   }
 
+  // Called from the confirm popup; throwing keeps the popup open so the user can retry.
   async function remove(id: string) {
-    if (!confirm('Delete this expense?')) return;
     const res = await fetch(`/api/expenses/${id}`, { method: 'DELETE' });
-    if (!res.ok) { const b = await res.json().catch(() => ({})); toast.error(b.error ?? 'Failed'); return; }
+    if (!res.ok) { const b = await res.json().catch(() => ({})); toast.error(b.error ?? 'Failed'); throw new Error('delete failed'); }
     toast.success('Expense deleted'); router.refresh();
   }
 
@@ -216,18 +227,27 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
                         <td className="relative pr-3 text-center">
                           <Button
                             variant="ghost" size="icon-sm" aria-label="Expense actions" aria-expanded={menuId === e.id}
-                            onClick={() => setMenuId(id => (id === e.id ? null : e.id))}
+                            onClick={ev => {
+                              if (menuId === e.id) { setMenuId(null); return; }
+                              // Fixed to the window so the table's scroll box can't clip it; flips up near the bottom.
+                              const r = ev.currentTarget.getBoundingClientRect();
+                              const right = window.innerWidth - r.right;
+                              setMenuPos(r.bottom + 96 > window.innerHeight
+                                ? { right, bottom: window.innerHeight - r.top + 4 }
+                                : { right, top: r.bottom + 4 });
+                              setMenuId(e.id);
+                            }}
                           >
                             <Ellipsis />
                           </Button>
                           {menuId === e.id && (
                             <>
                               <div className="fixed inset-0 z-20" onClick={() => setMenuId(null)} />
-                              <div role="menu" className="absolute right-3 top-full z-30 mt-1 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
+                              <div role="menu" style={menuPos} className="fixed z-30 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
                                 <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { setMenuId(null); void togglePaid(e); }}>
                                   {e.is_paid ? <><Undo2 aria-hidden /> Mark unpaid</> : <><Check aria-hidden /> Mark paid</>}
                                 </button>
-                                <button type="button" role="menuitem" className={cn(MENU_ITEM, 'text-error-normal')} onClick={() => { setMenuId(null); void remove(e.id); }}>
+                                <button type="button" role="menuitem" className={cn(MENU_ITEM, 'text-error-normal')} onClick={() => { setMenuId(null); setRemoving(e); }}>
                                   <Trash2 aria-hidden /> Delete
                                 </button>
                               </div>
@@ -243,6 +263,16 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!removing} onOpenChange={o => { if (!o) setRemoving(null); }} tone="destructive"
+        title="Delete this expense?"
+        description={removing
+          ? `${EXPENSE_CATEGORY_LABELS[removing.category] ?? removing.category} · ${fmt(Number(removing.amount))} ${removing.currency}${removing.expense_date ? ` · ${usDate(removing.expense_date)}` : ''}. This can't be undone.`
+          : undefined}
+        confirmLabel="Delete"
+        onConfirm={async () => { if (removing) await remove(removing.id); }}
+      />
     </div>
   );
 }
