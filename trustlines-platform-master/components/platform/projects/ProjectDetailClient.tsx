@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, Copy, FolderInput, StickyNote, Trash } from 'lucide-react';
+import { ChevronRight, Copy, FolderInput, Trash } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -21,7 +21,6 @@ import { permCan } from '@/lib/permissions/catalog';
 import { can } from '@/lib/permissions/can';
 import type { ProjectStage, ProjectPhase } from '@/types/database';
 import type { StepRecord } from '@/lib/workflow/steps';
-import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 
 // Figma "Project Detail" (node 245:28820).
@@ -133,95 +132,6 @@ const FIXED_TABS = [
 
 export interface DerivedTeamPerson { id: string; full_name: string; role: string; reasons: string[] }
 
-function InternalNotesCard({ projectId, userId, initialNotes }: {
-  projectId: string; userId: string; initialNotes: NoteRow[];
-}) {
-  const supabase = createClient();
-  const [notesList, setNotesList] = useState<NoteRow[]>(initialNotes);
-  const [showInput, setShowInput] = useState(false);
-  const [text, setText] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  function relTime(d: string) {
-    const diff = Date.now() - new Date(d).getTime();
-    const h = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    if (h < 1) return 'just now';
-    if (h < 24) return `${h}h ago`;
-    if (days < 30) return `${days}d ago`;
-    return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  }
-
-  async function handleSave() {
-    if (!text.trim()) return;
-    setSaving(true);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
-      .from('project_notes')
-      .insert({ project_id: projectId, author_id: userId, content: text.trim(), is_internal: true })
-      .select('*, author:profiles(full_name)')
-      .single();
-    if (error) { toast.error('Failed to save note'); setSaving(false); return; }
-    setNotesList(prev => [data as NoteRow, ...prev]);
-    setText(''); setShowInput(false); setSaving(false);
-  }
-
-  return (
-    <div className="card" style={{ marginBottom: 14 }}>
-      <div className="card-head" style={{ justifyContent: 'space-between' }}>
-        <div>
-          <div className="text-eyebrow">Internal only</div>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Internal Notes</h3>
-        </div>
-        {!showInput && (
-          <button className="btn btn-ghost btn-sm" style={{ color: 'var(--brand-teal)' }} onClick={() => setShowInput(true)}>
-            + Add note
-          </button>
-        )}
-      </div>
-
-      {showInput && (
-        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-subtle)' }}>
-          <textarea
-            className="form-input"
-            rows={3}
-            placeholder="Write a note..."
-            style={{ resize: 'vertical', fontSize: 13, marginBottom: 8 }}
-            value={text}
-            onChange={e => setText(e.target.value)}
-            autoFocus
-          />
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={!text.trim() || saving}>
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => { setShowInput(false); setText(''); }}>Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {notesList.length === 0 && !showInput ? (
-        <div className="card-body"><EmptyState size="sm" className="py-0" icon={<StickyNote />} title="No notes yet." /></div>
-      ) : (
-        notesList.slice(0, 5).map((note, i) => (
-          <div key={note.id} style={{
-            padding: '10px 18px',
-            borderBottom: i < Math.min(notesList.length, 5) - 1 ? '1px solid var(--border-subtle)' : 'none',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: 12, fontWeight: 600 }}>{note.author?.full_name ?? 'Unknown'}</span>
-              <span style={{ fontSize: 11, color: 'var(--fg-faint)' }}>{relTime(note.created_at)}</span>
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--fg-muted)', lineHeight: 1.4 }}>
-              {note.content.length > 200 ? `${note.content.slice(0, 200)}…` : note.content}
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
 function FinanceCard({ project, documents, userRole }: {
   project: FullProject;
   documents: DocumentRow[];
@@ -241,11 +151,20 @@ function FinanceCard({ project, documents, userRole }: {
   const note = (text: string) => <span className="text-[14px] font-normal tracking-normal">{text}</span>;
 
   return (
-    <div className="flex flex-col gap-3.5 rounded-[8px] border border-ui-divider bg-ui-page-bg p-4">
+    <div className="flex flex-col gap-2.5 rounded-[8px] border border-ui-divider bg-ui-page-bg pb-5 pl-4 pr-[18px] pt-3.5">
       <h2 className={cn('m-0 text-[20px] font-semibold tracking-[0.4px]', HEADING)}>Finance</h2>
-      <div className="grid flex-1 grid-cols-1 gap-x-[22px] gap-y-2.5 sm:grid-cols-2">
+      {/* Figma 445:7500: one row — EST. Value, Total PF, Total PO, Margin. */}
+      <div className="grid grid-cols-1 gap-[22px] sm:grid-cols-2 2xl:grid-cols-4">
         <FinanceTile label="EST. Value" currency={currency}>
           {project.deal_value != null ? fmt(project.deal_value) : noValue}
+        </FinanceTile>
+        <FinanceTile label="Total PF" currency={hideSensitive ? undefined : currency}>
+          {hideSensitive
+            ? <PermissionShield label="Restricted" />
+            : hasPFSigned ? noValue : note('No PF yet')}
+        </FinanceTile>
+        <FinanceTile label="Total PO" currency={currency}>
+          {hasPOSigned ? noValue : note('No PO yet')}
         </FinanceTile>
         <FinanceTile label="Margin">
           {hideSensitive
@@ -260,14 +179,6 @@ function FinanceCard({ project, documents, userRole }: {
               )
               : noValue}
         </FinanceTile>
-        <FinanceTile label="Total PO" currency={currency}>
-          {hasPOSigned ? noValue : note('No PO yet')}
-        </FinanceTile>
-        <FinanceTile label="Total PF" currency={hideSensitive ? undefined : currency}>
-          {hideSensitive
-            ? <PermissionShield label="Restricted" />
-            : hasPFSigned ? noValue : note('No PF yet')}
-        </FinanceTile>
       </div>
     </div>
   );
@@ -276,7 +187,7 @@ function FinanceCard({ project, documents, userRole }: {
 function FinanceTile({ label, currency, children }: { label: string; currency?: string; children: React.ReactNode }) {
   return (
     <div
-      className="flex min-h-[140px] flex-col justify-end gap-1 rounded-[16px] py-3.5 pl-4 pr-4"
+      className="flex min-w-0 flex-col justify-center gap-1 rounded-[8px] py-3.5 pl-4 pr-4"
       style={{ background: 'var(--status-t6-bg)', color: 'var(--status-t6-fg)' }}
     >
       <p className="m-0 text-[14px] leading-[1.5] tracking-[-0.308px]">{label}</p>
@@ -579,6 +490,9 @@ export function ProjectDetailClient({
           </div>
         </div>
 
+        {/* Figma 445:7500: the cockpit (lifecycle, counts, next actions, types) sits above the tabs. */}
+        {topSlot}
+
         {/* ── Saved views (underline tabs, 48px, 3px active border) ── */}
         <div role="tablist" aria-label="Project sections" className="flex h-12 items-stretch gap-8 overflow-x-auto border-b border-ui-divider">
           {allTabs.map(tab => {
@@ -601,59 +515,49 @@ export function ProjectDetailClient({
       </div>
 
       {activeTab === 'Overview' ? (
-        <>
-        {topSlot}
+        <div className="flex flex-col gap-[18px]">
+          <ProjectWorkflow
+            projectId={project.id}
+            projectCode={project.code}
+            dropboxRootPath={project.dropbox_root_path}
+            categories={project.categories as never}
+            userRole={userRole}
+            userId={userId}
+            initialSteps={steps}
+            documents={(documents as never[])}
+            onRequestUpload={(stepKey, phase, catGroup, docType) =>
+              setWorkflowUpload({ stepKey, phase, catGroup, docType })
+            }
+            onStepsChanged={() => router.refresh()}
+          />
 
-        <div className="mb-[18px] grid grid-cols-1 items-stretch gap-[18px] xl:grid-cols-[minmax(0,1fr)_400px]">
-          <FinanceCard project={project} documents={documents} userRole={userRole} />
-          <AuditTrail events={auditEvents} userRole={userRole} userId={userId} />
-        </div>
-
-        <div className="detail-grid">
-          <div>
-            <ProjectWorkflow
-              projectId={project.id}
-              projectCode={project.code}
-              dropboxRootPath={project.dropbox_root_path}
-              categories={project.categories as never}
-              userRole={userRole}
-              userId={userId}
-              initialSteps={steps}
-              documents={(documents as never[])}
-              onRequestUpload={(stepKey, phase, catGroup, docType) =>
-                setWorkflowUpload({ stepKey, phase, catGroup, docType })
-              }
-              onStepsChanged={() => router.refresh()}
-            />
-
-            <DatesCard project={project} stageHistory={stageHistory} />
-
-            {userRole !== 'tlines_pm' && (
-              <InternalNotesCard projectId={project.id} userId={userId} initialNotes={notes} />
-            )}
-
-            <DocumentTable
-              documents={documents}
-              userRole={userRole}
-              projectId={project.id}
-              projectCode={project.code}
-              dropboxRootPath={project.dropbox_root_path}
-              onRefresh={() => router.refresh()}
-            />
+          {/* Figma 445:7500: Finance over Team / Time Line / Internal Notes / Integration, Activity on the right. */}
+          <div className="grid grid-cols-1 items-stretch gap-[18px] xl:grid-cols-[minmax(0,1fr)_398px]">
+            <div className="flex min-w-0 flex-col gap-5">
+              <FinanceCard project={project} documents={documents} userRole={userRole} />
+              <ProjectRail
+                project={project}
+                userRole={userRole}
+                userId={userId}
+                notes={notes}
+                stageHistory={stageHistory}
+                team={team}
+              />
+            </div>
+            <AuditTrail events={auditEvents} userRole={userRole} userId={userId} />
           </div>
 
-          <div className="detail-rail">
-            <ProjectRail
-              project={project}
-              userRole={userRole}
-              userId={userId}
-              notes={notes}
-              stageHistory={stageHistory}
-              team={team}
-            />
-          </div>
+          {/* Not in the frame, kept: key dates and the project's documents. */}
+          <DatesCard project={project} stageHistory={stageHistory} />
+          <DocumentTable
+            documents={documents}
+            userRole={userRole}
+            projectId={project.id}
+            projectCode={project.code}
+            dropboxRootPath={project.dropbox_root_path}
+            onRefresh={() => router.refresh()}
+          />
         </div>
-        </>
       ) : activeTab === 'Plan Layout' ? (
         <PlanLayoutTab
           projectId={project.id}

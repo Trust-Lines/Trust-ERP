@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, StickyNote, GitCommitHorizontal } from 'lucide-react';
+import { Users, StickyNote, GitCommitHorizontal, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
@@ -8,6 +8,8 @@ import { Avatar } from '@/components/platform/shared/Avatar';
 import { PermissionShield } from '@/components/platform/shared/PermissionShield';
 import type { ProfileSnippet, NoteRow, StageTransitionRow } from './ProjectDetailClient';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface FullProject {
   id: string;
@@ -40,46 +42,44 @@ interface Props {
   team: DerivedTeamPerson[];
 }
 
-function RailCard({ title, children }: { title: string; children: React.ReactNode }) {
+// Figma "Project Detail" (node 445:7500): Team / Time Line / Internal Notes / Integration as a
+// row of bordered cards under Finance.
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const ROW = 'border-b border-ui-divider py-2.5 first:pt-0 last:border-b-0 last:pb-0';
+
+function RailCard({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="rail-card">
-      <h4>{title}</h4>
+    <section className="flex min-w-0 flex-col gap-3 rounded-[8px] border border-ui-divider bg-ui-page-bg px-4 pb-4 pt-3.5">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className={cn('m-0 text-[20px] font-semibold tracking-[0.4px]', HEADING)}>{title}</h3>
+        {action}
+      </div>
       {children}
-    </div>
+    </section>
   );
 }
 
 function TeamCard({ team }: { team: DerivedTeamPerson[] }) {
-  if (team.length === 0) {
-    return (
-      <RailCard title="Team">
-        <EmptyState size="sm" className="py-0" icon={<Users />} title="No one yet." description="People appear automatically once a PM is set or a member's skill matches a project type." />
-      </RailCard>
-    );
-  }
-
   return (
     <RailCard title="Team">
-      {team.map((p, i) => (
-        <div
-          key={p.id}
-          className="meta-person"
-          style={{ alignItems: 'flex-start', borderBottom: i < team.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}
-        >
-          <Avatar name={p.full_name} size="sm" colorIndex={i} />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 500 }}>{p.full_name}</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 2 }}>
-              {p.reasons.map(r => (
-                <span key={r} style={{
-                  fontSize: 10, padding: '1px 6px', borderRadius: 'var(--radius-pill)',
-                  background: 'var(--bg-sunken)', color: 'var(--fg-subtle)', whiteSpace: 'nowrap',
-                }}>{r}</span>
-              ))}
+      {team.length === 0 ? (
+        <EmptyState size="sm" className="py-0" icon={<Users />} title="No one yet." description="People appear automatically once a PM is set or a member's skill matches a project type." />
+      ) : (
+        <div className="flex flex-col">
+          {team.map((p, i) => (
+            <div key={p.id} className={cn('flex items-center gap-3', ROW)}>
+              <Avatar name={p.full_name} size="sm" colorIndex={i} />
+              <div className="min-w-0 flex-1">
+                <p className={cn('m-0 truncate text-[14px] font-semibold leading-[1.3]', HEADING)}>{p.full_name}</p>
+                <p className="m-0 truncate text-[12px] text-ui-body">{p.role.replace(/_/g, ' ')}</p>
+              </div>
+              {p.reasons.length > 0 && (
+                <span className="max-w-[45%] truncate text-right text-[14px] text-ui-body" title={p.reasons.join(', ')}>{p.reasons.join(', ')}</span>
+              )}
             </div>
-          </div>
+          ))}
         </div>
-      ))}
+      )}
     </RailCard>
   );
 }
@@ -115,58 +115,53 @@ function InternalNotesCard({ projectId, userId, initialNotes }: {
 
   function fmtDate(d: string) {
     const diff = Date.now() - new Date(d).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 60) return `${Math.max(m, 1)}m ago`;
     const h = Math.floor(diff / 3600000);
     if (h < 24) return `${h}h ago`;
-    const days = Math.floor(diff / 86400000);
-    return `${days}d ago`;
+    return `${Math.floor(diff / 86400000)}d ago`;
   }
 
   return (
-    <RailCard title="Internal Notes">
-      {notes.length === 0 && !showInput && (
-        <EmptyState size="sm" className="mb-2 py-0" icon={<StickyNote />} title="No notes yet." />
+    <RailCard
+      title="Internal Notes"
+      action={!showInput && (
+        <Button variant="ghost" size="icon-sm" aria-label="Add note" title="Add note" onClick={() => setShowInput(true)}><Plus /></Button>
       )}
-
-      {notes.slice(0, 5).map(note => (
-        <div key={note.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
-            <span style={{ fontWeight: 600, color: 'var(--fg-default)' }}>
-              {note.author?.full_name ?? 'Unknown'}
-            </span>
-            <span style={{ color: 'var(--fg-faint)', fontSize: 11 }}>{fmtDate(note.created_at)}</span>
-          </div>
-          <div style={{ color: 'var(--fg-muted)', lineHeight: 1.4 }}>
-            {note.content.length > 120 ? `${note.content.slice(0, 120)}…` : note.content}
-          </div>
-        </div>
-      ))}
-
-      {showInput ? (
-        <div style={{ marginTop: 8 }}>
+    >
+      {showInput && (
+        <div className="flex flex-col gap-1.5">
           <textarea
-            className="form-input"
+            className="min-h-[72px] w-full resize-y rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-2.5 py-2 text-[12px] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
             rows={3}
-            style={{ resize: 'vertical', fontSize: 12 }}
             placeholder="Write a note..."
             value={text}
             onChange={e => setText(e.target.value)}
             autoFocus
           />
-          <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-            <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={!text.trim() || saving}>
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => { setShowInput(false); setText(''); }}>Cancel</button>
+          <div className="flex gap-1.5">
+            <Button onClick={handleSave} disabled={!text.trim()} loading={saving}>Save</Button>
+            <Button variant="ghost" onClick={() => { setShowInput(false); setText(''); }} disabled={saving}>Cancel</Button>
           </div>
         </div>
+      )}
+
+      {notes.length === 0 && !showInput ? (
+        <EmptyState size="sm" className="py-0" icon={<StickyNote />} title="No notes yet." />
       ) : (
-        <button
-          className="btn btn-ghost btn-sm"
-          style={{ color: 'var(--brand-teal)', padding: '4px 0', marginTop: 6, fontSize: 12 }}
-          onClick={() => setShowInput(true)}
-        >
-          + Add note
-        </button>
+        <div className="flex flex-col">
+          {notes.slice(0, 5).map(note => (
+            <div key={note.id} className={ROW}>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className={cn('truncate text-[14px] font-semibold', HEADING)}>{note.author?.full_name ?? 'Unknown'}</span>
+                <span className="shrink-0 text-[11px] text-ui-text-secondary">{fmtDate(note.created_at)}</span>
+              </div>
+              <p className="m-0 text-[12px] leading-[1.4] text-ui-body">
+                {note.content.length > 120 ? `${note.content.slice(0, 120)}…` : note.content}
+              </p>
+            </div>
+          ))}
+        </div>
       )}
     </RailCard>
   );
@@ -182,41 +177,31 @@ const STAGE_DISPLAY: Record<string, { label: string; num: number }> = {
 
 function StageTimelineCard({ stageHistory }: { stageHistory: StageTransitionRow[] }) {
   function fmtDate(d: string) {
-    return new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+    return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase();
   }
 
   const rows = stageHistory.filter(t => t.to_stage && STAGE_DISPLAY[t.to_stage]);
 
   return (
-    <RailCard title="Timeline">
+    <RailCard title="Time Line">
       {rows.length === 0 ? (
         <EmptyState size="sm" className="py-0" icon={<GitCommitHorizontal />} title="No stage transitions yet." />
       ) : (
-        <div style={{ position: 'relative', paddingLeft: 18 }}>
-          <div style={{
-            position: 'absolute', left: 5, top: 6, bottom: 6,
-            width: 2, background: 'var(--border-subtle)', borderRadius: 2,
-          }} />
-          {rows.map((t, i) => {
+        <ol className="m-0 flex list-none flex-col gap-3 border-l border-ui-divider p-0 pl-3">
+          {rows.map(t => {
             const info = STAGE_DISPLAY[t.to_stage];
             return (
-              <div key={t.id} style={{ position: 'relative', marginBottom: i < rows.length - 1 ? 14 : 0 }}>
-                <div style={{
-                  position: 'absolute', left: -14, top: 3,
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: 'var(--brand-teal)', border: '2px solid var(--bg-surface)',
-                }} />
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-default)', lineHeight: 1.3 }}>
-                  {info.num} · {info.label}
+              <li key={t.id} className="relative">
+                <span aria-hidden className="absolute -left-[15.5px] top-[7px] size-1.5 rounded-full bg-[var(--color-secondary-700)] dark:bg-ui-heading" />
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className={cn('text-[14px] font-semibold', HEADING)}>{info.num}. {info.label}</span>
+                  <span className="shrink-0 text-[10px] text-ui-text-secondary">{fmtDate(t.created_at)}</span>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1 }}>
-                  {fmtDate(t.created_at)}
-                  {t.actor?.full_name && ` · ${t.actor.full_name}`}
-                </div>
-              </div>
+                {t.actor?.full_name && <p className="m-0 text-[12px] text-ui-body">{t.actor.full_name}</p>}
+              </li>
             );
           })}
-        </div>
+        </ol>
       )}
     </RailCard>
   );
@@ -224,63 +209,24 @@ function StageTimelineCard({ stageHistory }: { stageHistory: StageTransitionRow[
 
 export function IntegrationsCard({ project, userRole }: { project: FullProject; userRole: string }) {
   const hideSensitive = userRole === 'tlines_pm';
+  const line = (label: string, value: React.ReactNode) => (
+    <div className={cn('flex items-center justify-between gap-2', ROW)}>
+      <span className={cn('text-[14px] font-semibold', HEADING)}>{label}</span>
+      <span className="min-w-0 truncate text-[14px] text-ui-body">{value}</span>
+    </div>
+  );
 
   return (
-    <RailCard title="Integrations">
-      <div className="meta-row">
-        <span className="k">Dropbox</span>
-        {project.dropbox_root_path ? (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <a
-              href={`https://www.dropbox.com/home${project.dropbox_root_path}`}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: 'var(--brand-teal)', fontSize: 12, fontFamily: 'var(--font-mono)' }}
-            >
-              Open ↗
-            </a>
-            <span className="pill" style={{ background: 'var(--status-success-bg)', color: 'var(--status-success-fg)', fontSize: 9 }}>
-              Synced
-            </span>
-          </span>
-        ) : (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 12, color: 'var(--fg-faint)' }}>Not set</span>
-            <span className="pill" style={{ background: 'var(--bg-sunken)', color: 'var(--fg-subtle)', fontSize: 9 }}>
-              Not set
-            </span>
-          </span>
-        )}
+    <RailCard title="Integration">
+      <div className="flex flex-col">
+        {line('Dropbox', project.dropbox_root_path ? (
+          <a href={`https://www.dropbox.com/home${project.dropbox_root_path}`} target="_blank" rel="noreferrer" className="text-ui-link">Open ↗</a>
+        ) : 'Not Set')}
+        {line('Clickup', project.clickup_task_id ? (
+          <a href={`https://app.clickup.com/t/${project.clickup_task_id}`} target="_blank" rel="noreferrer" className="text-ui-link">{project.clickup_task_id}</a>
+        ) : '-')}
+        {line('Quickbooks', hideSensitive ? <PermissionShield label="Restricted" /> : (project.quickbooks_ref ?? '-'))}
       </div>
-
-      <div className="meta-row">
-        <span className="k">ClickUp</span>
-        {project.clickup_task_id ? (
-          <a
-            href={`https://app.clickup.com/t/${project.clickup_task_id}`}
-            target="_blank"
-            rel="noreferrer"
-            style={{ color: 'var(--brand-teal)', fontSize: 12 }}
-          >
-            {project.clickup_task_id}
-          </a>
-        ) : (
-          <span style={{ color: 'var(--fg-faint)', fontSize: 12 }}>—</span>
-        )}
-      </div>
-
-      {!hideSensitive && (
-        <div className="meta-row">
-          <span className="k">QuickBooks</span>
-          <span style={{ fontSize: 12 }}>{project.quickbooks_ref ?? '—'}</span>
-        </div>
-      )}
-      {hideSensitive && (
-        <div className="meta-row">
-          <span className="k">QuickBooks</span>
-          <PermissionShield label="Restricted" />
-        </div>
-      )}
     </RailCard>
   );
 }
@@ -289,13 +235,13 @@ export function ProjectRail({ project, userRole, userId, notes, stageHistory, te
   const hideNotes = userRole === 'tlines_pm';
 
   return (
-    <div>
-      <IntegrationsCard project={project} userRole={userRole} />
+    <div className={cn('grid grid-cols-1 gap-2 sm:grid-cols-2', hideNotes ? 'xl:grid-cols-3' : 'xl:grid-cols-[1fr_1fr_1.1fr_0.8fr]')}>
       <TeamCard team={team} />
       <StageTimelineCard stageHistory={stageHistory} />
       {!hideNotes && (
         <InternalNotesCard projectId={project.id} userId={userId} initialNotes={notes} />
       )}
+      <IntegrationsCard project={project} userRole={userRole} />
     </div>
   );
 }

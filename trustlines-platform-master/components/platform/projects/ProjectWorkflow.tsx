@@ -413,9 +413,9 @@ function StepRow({
     <div
       style={{
         display: 'flex', alignItems: 'flex-start', gap: 10,
-        padding: '8px 16px',
-        borderBottom: '1px solid var(--border-subtle)',
-        background: (isDone || isApproved) ? 'rgba(22,163,74,0.025)'
+        padding: '10px 20px',
+        borderBottom: '1px solid var(--ui-divider)',
+        background: (isDone || isApproved) ? 'var(--status-t9-bg)'
           : isWaiting  ? 'rgba(245,158,11,0.04)'
           : isRejected ? 'rgba(220,38,38,0.03)'
           : 'var(--bg-surface)',
@@ -524,41 +524,45 @@ function ProgressBar({ done, total, color }: { done: number; total: number; colo
   );
 }
 
+// Figma "Project Detail" (node 445:7500) phase card: big done/total, "Phase N" over the title,
+// chevron, a 10px progress bar; opening it lists the steps under a divider.
 function AccordionSection({
-  id, label, color, bg, done, total, isOpen, onToggle, children,
+  id, phaseNo, title, color, done, total, isOpen, onToggle, children,
 }: {
-  id: string; label: string; color: string; bg: string;
+  id: string; phaseNo: string; title: string; color: string;
   done: number; total: number; isOpen: boolean;
   onToggle: () => void; children: React.ReactNode;
 }) {
   const allDone = done === total && total > 0;
+  const tone = allDone ? 'var(--status-t9-fg)' : color;
+  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
   return (
-    <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 6, marginBottom: 8 }}>
+    // No overflow-hidden: a step's Dropbox menu must be able to open past the card edge.
+    <div className="rounded-[8px] border border-ui-divider bg-ui-surface">
       <button
-        onClick={onToggle}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-          padding: '10px 16px',
-          background: isOpen ? bg : allDone ? 'rgba(22,163,74,0.04)' : 'var(--bg-subtle)',
-          border: 'none', cursor: 'pointer', textAlign: 'left',
-          borderBottom: isOpen ? `2px solid ${color}` : 'none',
-          borderRadius: isOpen ? '6px 6px 0 0' : 6,
-          transition: 'background 120ms',
-        }}
+        type="button" onClick={onToggle} aria-expanded={isOpen} aria-controls={`wf-${id}`}
+        className="flex w-full cursor-pointer flex-col gap-4 border-0 bg-transparent px-2 pb-4 pt-5 text-left"
       >
-        <span style={{ color: allDone ? 'var(--phase-done)' : color, flexShrink: 0, lineHeight: 0 }}>
-          {isOpen
-            ? <ChevronDown size={14} strokeWidth={2.5} />
-            : <ChevronRight size={14} strokeWidth={2.5} />}
+        <span className="flex w-full items-center gap-5 px-4" style={{ color: tone }}>
+          <span className="shrink-0 whitespace-nowrap font-semibold leading-none">
+            <span className="text-[32px]">{done}</span><span className="text-[20px] font-normal">/{total}</span>
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="text-[14px]">{phaseNo}</span>
+            <span className="text-[20px] font-semibold leading-5">{title}</span>
+          </span>
+          {isOpen ? <ChevronDown size={22} aria-hidden className="shrink-0" /> : <ChevronRight size={22} aria-hidden className="shrink-0" />}
         </span>
-        <span style={{ flex: 1, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: allDone ? 'var(--phase-done)' : color }}>
-          {label}
+        <span
+          role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label={`${title}: ${done} of ${total} steps done`}
+          className="block h-2.5 w-full overflow-hidden rounded-[2px] bg-ui-divider"
+        >
+          <span className="block h-full rounded-[2px] transition-[width] duration-300" style={{ width: `${pct}%`, background: tone }} />
         </span>
-        <ProgressBar done={done} total={total} color={color} />
       </button>
 
       {isOpen && (
-        <div>{children}</div>
+        <div id={`wf-${id}`} className="border-t border-ui-divider [&>*:last-child]:rounded-b-[7px]">{children}</div>
       )}
     </div>
   );
@@ -573,9 +577,21 @@ export function ProjectWorkflow({
 
   useEffect(() => { setSteps(initialSteps); }, [initialSteps]);
 
-  const [openSections, setOpenSections] = useState<Set<string>>(
-    new Set(['phase1', 'phase2', 'phase3', 'delivery']),
-  );
+  // Figma 445:7500 shows one phase open: start on the first phase that still has open steps.
+  const [openSections, setOpenSections] = useState<Set<string>>(() => {
+    const doneIn = (defs: StepDef[], phase: string, cat: string | null = null) => defs.every(s => {
+      const r = findStep(initialSteps, phase, s.key, cat);
+      return r?.status === 'done' || r?.status === 'approved';
+    });
+    const groups = getActiveCategoryGroups(categories);
+    const order: [string, boolean][] = [
+      ['phase1', doneIn(PHASE1_STEPS, 'phase1')],
+      ['phase2', doneIn(PHASE2_STEPS, 'phase2')],
+      ['phase3', groups.every(g => doneIn(CATEGORY_STEPS, 'phase3', g))],
+      ['delivery', doneIn(DELIVERY_STEPS, 'delivery')],
+    ];
+    return new Set([order.find(([, d]) => !d)?.[0] ?? 'delivery']);
+  });
   const [openCategories, setOpenCategories] = useState<Set<string>>(
     new Set(['millwork', 'shelving', 'ceiling', 'image']),
   );
@@ -661,25 +677,22 @@ export function ProjectWorkflow({
   const p3Done  = activeGroups.reduce((s, g) => s + countDone(CATEGORY_STEPS, 'phase3', g), 0);
 
   return (
-    <div className="card">
-      <div className="card-head" style={{ justifyContent: 'space-between' }}>
-        <div>
-          <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--fg-faint)', margin: '0 0 2px' }}>Workflow</p>
-          <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg-default)', margin: 0 }}>Project checklist</p>
-        </div>
+    <section className="flex flex-col gap-8 rounded-[8px] border border-ui-divider bg-ui-page-bg px-[18px] pb-8 pt-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="m-0 text-[20px] font-semibold tracking-[0.4px] text-[var(--color-secondary-700)] dark:text-ui-heading">Workflow</h2>
         {saving && (
-          <span style={{ fontSize: 12, color: 'var(--fg-subtle)', display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Saving…
+          <span className="flex items-center gap-1.5 text-[12px] text-ui-text-secondary">
+            <Loader2 size={12} className="animate-spin" aria-hidden /> Saving…
           </span>
         )}
       </div>
 
-      <div style={{ padding: '12px 14px' }}>
+      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 2xl:grid-cols-4">
 
         <AccordionSection
           id="phase1"
-          label="Phase 1 · Finalization"
-          color="var(--phase-1)" bg="var(--phase-1-bg)"
+          phaseNo="Phase 1" title="Finalization"
+          color="var(--color-secondary-700)"
           done={countDone(PHASE1_STEPS, 'phase1')}
           total={PHASE1_STEPS.length}
           isOpen={openSections.has('phase1')}
@@ -690,8 +703,8 @@ export function ProjectWorkflow({
 
         <AccordionSection
           id="phase2"
-          label="Phase 2 · Construction Documents"
-          color="var(--phase-2)" bg="var(--phase-2-bg)"
+          phaseNo="Phase 2" title="Construction Documents"
+          color="var(--status-t2-fg)"
           done={countDone(PHASE2_STEPS, 'phase2')}
           total={PHASE2_STEPS.length}
           isOpen={openSections.has('phase2')}
@@ -702,8 +715,8 @@ export function ProjectWorkflow({
 
         <AccordionSection
           id="phase3"
-          label="Phase 3 · Production"
-          color="var(--phase-5)" bg="var(--phase-5-bg)"
+          phaseNo="Phase 3" title="Production"
+          color="var(--status-t4-fg)"
           done={p3Done}
           total={p3Total}
           isOpen={openSections.has('phase3')}
@@ -757,8 +770,8 @@ export function ProjectWorkflow({
 
         <AccordionSection
           id="delivery"
-          label="Delivery"
-          color="var(--phase-6)" bg="var(--phase-6-bg)"
+          phaseNo="Phase 4" title="Delivery"
+          color="var(--status-t8-fg)"
           done={countDone(DELIVERY_STEPS, 'delivery')}
           total={DELIVERY_STEPS.length}
           isOpen={openSections.has('delivery')}
@@ -768,6 +781,6 @@ export function ProjectWorkflow({
         </AccordionSection>
 
       </div>
-    </div>
+    </section>
   );
 }
