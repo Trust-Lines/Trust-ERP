@@ -43,6 +43,7 @@ import { feedback } from '@/components/ui/feedback-toast';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { modalSecondaryButtonClass } from '@/components/ui/modal';
+import { Select as FilterSelect } from '@/components/ui/select';
 
 // Tab text per design: active = Primary-button colour, 600; inactive = Secondary-text colour, 400.
 // Dark: light-blue active text with a soft glowing underline (Figma dark tabs).
@@ -152,6 +153,10 @@ const DEFAULT_VISIBLE_COLUMNS = {
 };
 
 const STATUS_OPTIONS: StatusType[] = ['Planning', 'Design', 'Production', 'Quality Control', 'Installation', 'Completed'];
+
+// Platform <Select> drawn like this page's outlined controls (overrides fieldBase's own light/dark look).
+const CHIP_SELECT =
+  'w-auto cursor-pointer gap-2 rounded-md bg-ui-surface-elevated text-[13px] font-semibold text-[var(--ui-body)] dark:rounded-md dark:border-[var(--ui-divider-strong)] dark:bg-ui-surface-elevated dark:text-[var(--ui-body)] [&_svg]:size-3.5';
 
 // Phone-size outlined buttons (view picker, layout toggle, paging).
 const MOBILE_BTN =
@@ -635,7 +640,7 @@ export function ApprovalsPageClient() {
   function renderPriority(priority: PriorityLevel) {
     if (priority === 'High') {
       return (
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-[#dc2626]">
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-[#dc2626] dark:text-error-light">
           <ChevronsUp className="w-3.5 h-3.5" />
           High
         </span>
@@ -643,14 +648,14 @@ export function ApprovalsPageClient() {
     }
     if (priority === 'Medium') {
       return (
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-[#64748b]">
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-[#475569] dark:text-ui-body">
           <Equal className="w-3.5 h-3.5" />
           Medium
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 text-xs font-medium text-[#94a3b8]">
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-[#64748b] dark:text-ui-text-secondary">
         <ChevronsDown className="w-3.5 h-3.5" />
         Low
       </span>
@@ -1151,19 +1156,13 @@ export function ApprovalsPageClient() {
               </div>
 
               <div className="flex items-center gap-2 mb-3">
-                <div className="relative">
-                  <select
-                    value={draftField}
-                    onChange={e => changeDraftField(e.target.value as FilterField)}
-                    aria-label="Filter field"
-                    className="appearance-none h-[34px] pl-3 pr-8 rounded-md border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated font-semibold text-[var(--ui-body)] cursor-pointer focus:outline-none focus:border-[var(--color-secondary-700)]"
-                  >
-                    {(Object.keys(FILTER_FIELD_LABEL) as FilterField[]).map(f => (
-                      <option key={f} value={f}>{FILTER_FIELD_LABEL[f]}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-[var(--ui-body)] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
+                <FilterSelect
+                  aria-label="Filter field"
+                  value={draftField}
+                  onValueChange={v => { if (v) changeDraftField(v as FilterField); }}
+                  options={(Object.keys(FILTER_FIELD_LABEL) as FilterField[]).map(f => ({ value: f, label: FILTER_FIELD_LABEL[f] }))}
+                  className={`${CHIP_SELECT} h-[34px] border-[var(--color-primary-100)] pl-3 pr-2.5 dark:pl-3 dark:pr-2.5`}
+                />
                 {/* Only operator for now */}
                 <div className="inline-flex h-[34px] items-center px-3 rounded-md border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] font-semibold text-[var(--ui-body)]">
                   is any of
@@ -1578,17 +1577,13 @@ export function ApprovalsPageClient() {
               >
                 {sortAsc ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
               </button>
-              <select
-                value={sortField}
-                onChange={e => setSortField(e.target.value as typeof sortField)}
+              <FilterSelect
                 aria-label="Sort by"
-                className="h-full appearance-none bg-transparent pl-1 pr-7 outline-none"
-              >
-                {(['updated', 'request', 'owner', 'status', 'priority', 'amount'] as const).map(f => (
-                  <option key={f} value={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 w-4 h-4" />
+                value={sortField}
+                onValueChange={v => { if (v) setSortField(v as typeof sortField); }}
+                options={(['updated', 'request', 'owner', 'status', 'priority', 'amount'] as const).map(f => ({ value: f, label: f.charAt(0).toUpperCase() + f.slice(1) }))}
+                className={`${CHIP_SELECT} h-full border-0 bg-transparent pl-1 pr-2.5 hover:border-0 dark:border-0 dark:bg-transparent dark:pl-1 dark:pr-2.5`}
+              />
             </div>
           </div>
 
@@ -1662,14 +1657,13 @@ export function ApprovalsPageClient() {
             <span>
               {displayedRows.length === 0 ? 0 : pageStart + 1}–{pageStart + pageRows.length} of {plural(displayedRows.length)}
             </span>
-            <select
-              value={pageSize}
-              onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+            <FilterSelect
               aria-label="Requests per page"
-              className="h-9 rounded-md border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated px-2.5 font-semibold text-[var(--ui-body)]"
-            >
-              {[10, 25, 50].map(n => <option key={n} value={n}>{n} per page</option>)}
-            </select>
+              value={String(pageSize)}
+              onValueChange={v => { if (v) { setPageSize(Number(v)); setPage(1); } }}
+              options={[10, 25, 50].map(n => ({ value: String(n), label: `${n} per page` }))}
+              className={`${CHIP_SELECT} h-9 border-[var(--color-primary-100)] px-2.5 dark:px-2.5`}
+            />
           </div>
           <div className="mt-3 flex items-center justify-between gap-3">
             <button
