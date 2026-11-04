@@ -11,6 +11,9 @@ import { SURVEY_TEMPLATE_LABELS, type SurveyTemplate } from '@/lib/marketing/sur
 import type { RecentSubmissionRow } from '@/lib/marketing/campaigns';
 import type { CampaignStatus, CampaignType, LeadSource } from '@/types/database';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ConfirmModal } from '@/components/ui/modal';
+
+type CampaignAction = 'activate' | 'pause' | 'close' | 'trash';
 import { formatDateTime } from '@/lib/formatDate';
 
 export interface CampaignDetail {
@@ -94,6 +97,7 @@ export function CampaignDetailClient({ campaign, ownerName, canEdit, stats, rece
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState<CampaignAction | null>(null);
   const [today] = useState(() => DATE_SHORT.format(new Date()));
 
   useEffect(() => {
@@ -122,26 +126,57 @@ export function CampaignDetailClient({ campaign, ownerName, canEdit, stats, rece
   }
 
   // Same endpoints as before (activate / pause / close) plus the list page's trash endpoint.
-  async function runAction(action: 'activate' | 'pause' | 'close' | 'trash', confirmMessage: string) {
-    if (!window.confirm(confirmMessage)) return;
+  // Called from the confirm popup; throwing keeps the popup open so the user can retry.
+  async function runAction(action: CampaignAction) {
     setBusy(true);
+    let ok = false;
     try {
       const res = await fetch(`/api/marketing/campaigns/${campaign.id}/${action}`, { method: 'POST' });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(body.error ?? 'Could not update campaign'); return; }
-      if (action === 'trash') {
-        toast.success('Campaign deleted');
-        router.push('/marketing/campaigns');
-      } else {
-        toast.success('Campaign updated');
+      if (!res.ok) { toast.error(body.error ?? 'Could not update campaign'); }
+      else {
+        ok = true;
+        if (action === 'trash') {
+          toast.success('Campaign deleted');
+          router.push('/marketing/campaigns');
+        } else {
+          toast.success(action === 'close' ? 'Campaign closed' : action === 'pause' ? 'Campaign made inactive' : 'Campaign made active');
+        }
+        router.refresh();
       }
-      router.refresh();
     } catch {
       toast.error('Could not update campaign');
     } finally {
       setBusy(false);
     }
+    if (!ok) throw new Error('campaign action failed');
   }
+
+  const CONFIRM: Record<CampaignAction, { title: string; description: string; confirmLabel: string; tone?: 'destructive'; warning?: string }> = {
+    trash: {
+      title: `Delete "${campaign.name}"?`,
+      description: 'It stays in the database (recoverable), but disappears everywhere in the UI.',
+      warning: 'Its public survey link stops working immediately.',
+      confirmLabel: 'Delete', tone: 'destructive',
+    },
+    pause: {
+      title: 'Make this campaign inactive?',
+      description: 'The survey link stops accepting responses until it is made active again.',
+      confirmLabel: 'Make Inactive',
+    },
+    activate: {
+      title: 'Make this campaign active?',
+      description: 'The survey link will start accepting responses.',
+      confirmLabel: 'Make Active',
+    },
+    close: {
+      title: 'Close this campaign permanently?',
+      description: 'Submissions already received are kept.',
+      warning: 'This cannot be undone — the survey link will stop accepting responses for good.',
+      confirmLabel: 'Close Campaign', tone: 'destructive',
+    },
+  };
+  const confirmCfg = confirming ? CONFIRM[confirming] : null;
 
   const isClosed = campaign.status === 'closed';
   const subtitle = [
@@ -185,7 +220,7 @@ export function CampaignDetailClient({ campaign, ownerName, canEdit, stats, rece
             <button
               type="button" className={TONE_BTN} disabled={busy}
               style={{ background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' }}
-              onClick={() => runAction('trash', `Delete "${campaign.name}"? Its public survey link stops working immediately. It stays in the database (recoverable), but disappears everywhere in the UI.`)}
+              onClick={() => setConfirming('trash')}
             >
               <Trash2 aria-hidden /> Delete
             </button>
@@ -193,7 +228,7 @@ export function CampaignDetailClient({ campaign, ownerName, canEdit, stats, rece
               <button
                 type="button" className={TONE_BTN} disabled={busy}
                 style={{ background: 'var(--status-t7-bg)', color: 'var(--status-t7-fg)' }}
-                onClick={() => runAction('pause', 'Make this campaign inactive? The survey link stops accepting responses until it is made active again.')}
+                onClick={() => setConfirming('pause')}
               >
                 <ToggleLeft aria-hidden /> Make Inactive
               </button>
@@ -201,7 +236,7 @@ export function CampaignDetailClient({ campaign, ownerName, canEdit, stats, rece
               <button
                 type="button" className={TONE_BTN} disabled={busy}
                 style={{ background: 'var(--status-t6-bg)', color: 'var(--status-t6-fg)' }}
-                onClick={() => runAction('activate', 'Make this campaign active? The survey link will start accepting responses.')}
+                onClick={() => setConfirming('activate')}
               >
                 <ToggleRight aria-hidden /> Make Active
               </button>
@@ -209,7 +244,7 @@ export function CampaignDetailClient({ campaign, ownerName, canEdit, stats, rece
             <button
               type="button" className={cn(TONE_BTN, 'border border-ui-input-border bg-ui-input-bg text-ui-body')} disabled={busy}
               title="Close permanently — the survey link stops accepting responses for good"
-              onClick={() => runAction('close', 'Close this campaign permanently? This cannot be undone — the survey link will stop accepting responses for good.')}
+              onClick={() => setConfirming('close')}
             >
               <Lock aria-hidden /> Close
             </button>
@@ -342,6 +377,16 @@ export function CampaignDetailClient({ campaign, ownerName, canEdit, stats, rece
           )}
         </section>
       </div>
+
+      <ConfirmModal
+        open={!!confirming} onOpenChange={o => { if (!o) setConfirming(null); }}
+        title={confirmCfg?.title ?? ''}
+        description={confirmCfg?.description}
+        warning={confirmCfg?.warning}
+        confirmLabel={confirmCfg?.confirmLabel}
+        tone={confirmCfg?.tone ?? 'default'}
+        onConfirm={async () => { if (confirming) await runAction(confirming); }}
+      />
     </div>
   );
 }

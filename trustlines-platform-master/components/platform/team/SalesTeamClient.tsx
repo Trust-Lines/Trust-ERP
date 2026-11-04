@@ -41,7 +41,7 @@ const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-
 const ROW_SELECT = 'inline-flex h-9 w-[233px] max-w-full cursor-pointer items-center gap-4 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-4 pr-2.5 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:pl-4 dark:pr-2.5 dark:text-ui-heading [&_svg]:size-3.5';
 const FORM_SELECT = 'inline-flex h-10 w-full cursor-pointer items-center rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] font-normal text-ui-heading dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading [&_svg]:size-3.5';
 const FIELD = 'h-10 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
-const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-3.5';
+const MENU_ITEM = 'flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-[4px] border-0 bg-transparent px-3 text-left text-[13px] leading-none text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-4 [&_svg]:shrink-0';
 
 const regionLabel = (c: RegionClient) => `${c.name}${c.code ? ` (${c.code})` : ''}`;
 const fmtDate = (iso: string | null) => {
@@ -58,6 +58,15 @@ export function SalesTeamClient({ reps, regionClients, nextNumber }: Props) {
   const [query, setQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortKey>('newest');
   const [menuId, setMenuId] = useState<string | null>(null);
+  // The row menu is position: fixed so the table's overflow-x scroller can't clip it.
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  useEffect(() => {
+    if (!menuId) return;
+    const close = () => setMenuId(null);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close); };
+  }, [menuId]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -220,15 +229,19 @@ export function SalesTeamClient({ reps, regionClients, nextNumber }: Props) {
                     <td className="relative pr-2 text-center">
                       <button
                         type="button" aria-label={`Actions for ${r.full_name}`} aria-expanded={menuId === r.id}
-                        onClick={() => setMenuId(id => (id === r.id ? null : r.id))}
+                        onClick={e => {
+                          const b = e.currentTarget.getBoundingClientRect();
+                          setMenuPos({ top: b.bottom + 4, right: window.innerWidth - b.right });
+                          setMenuId(id => (id === r.id ? null : r.id));
+                        }}
                         className="inline-grid size-7 place-items-center rounded-[4px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
                       >
                         <Ellipsis size={16} />
                       </button>
-                      {menuId === r.id && (
+                      {menuId === r.id && menuPos && (
                         <>
                           <div className="fixed inset-0 z-20" onClick={() => setMenuId(null)} />
-                          <div role="menu" className="absolute right-2 top-full z-30 mt-1 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
+                          <div role="menu" style={{ top: menuPos.top, right: menuPos.right }} className="fixed z-30 flex w-44 flex-col gap-1 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1.5 text-left shadow-03">
                             <a href={`mailto:${r.email}`} role="menuitem" className={MENU_ITEM} onClick={() => setMenuId(null)}>
                               <Mail aria-hidden /> Send email
                             </a>
