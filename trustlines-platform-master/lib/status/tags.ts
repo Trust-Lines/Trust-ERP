@@ -17,7 +17,7 @@ export type StatusTone = 't0' | 't1' | 't2' | 't3' | 't4' | 't5' | 't6' | 't7' |
 /** Light-mode background / text hex per tone — for code that needs raw hex (contrast maths in ColorSelect). Same values as globals.css. */
 export const TONE_HEX: Record<StatusTone, { bg: string; fg: string }> = {
   t0: { bg: '#DDDDDD', fg: '#787881' },
-  t1: { bg: '#D2F7FF', fg: '#2398B2' },
+  t1: { bg: '#D2F7FF', fg: '#1B7589' },
   t2: { bg: '#D2E6FF', fg: '#2366B2' },
   t3: { bg: '#FDDBFF', fg: '#B93FBF' },
   t4: { bg: '#EEDDFF', fg: '#74489D' },

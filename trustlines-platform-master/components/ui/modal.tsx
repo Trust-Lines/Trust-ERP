@@ -96,6 +96,8 @@ type ConfirmModalProps = {
   children?: React.ReactNode
   /** May be async; the confirm button shows a spinner until it settles, then the dialog closes. Throw to keep it open. */
   onConfirm: () => void | Promise<void>
+  /** Extra classes on the backdrop and popup — e.g. a higher z-index when opened from an overlay that sits above z-50. */
+  layerClassName?: string
 }
 
 /**
@@ -114,6 +116,7 @@ function ConfirmModal({
   warning,
   children,
   onConfirm,
+  layerClassName,
 }: ConfirmModalProps) {
   const [openState, setOpenState] = React.useState(false)
   const open = openProp ?? openState
@@ -139,8 +142,8 @@ function ConfirmModal({
     <AlertDialogPrimitive.Root open={open} onOpenChange={(o) => !busy && setOpen(o)}>
       {trigger && <AlertDialogPrimitive.Trigger render={trigger} />}
       <AlertDialogPrimitive.Portal>
-        <AlertDialogPrimitive.Backdrop className={backdropClass} />
-        <AlertDialogPrimitive.Popup data-slot="confirm-modal" className={popupVariants({ size: "sm" })}>
+        <AlertDialogPrimitive.Backdrop className={cn(backdropClass, layerClassName)} />
+        <AlertDialogPrimitive.Popup data-slot="confirm-modal" className={cn(popupVariants({ size: "sm" }), layerClassName)}>
           <div className="flex items-start gap-3 px-5 pt-5 pb-3">
             <div className="min-w-0 flex-1 space-y-1">
               <AlertDialogPrimitive.Title className={titleClass}>{title}</AlertDialogPrimitive.Title>

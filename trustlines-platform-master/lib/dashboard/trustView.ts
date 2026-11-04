@@ -8,12 +8,14 @@ import type { TrustProject, TrustStage } from '@/lib/trust/board';
 
 export interface TrustCard { region: string; stage: TrustStage; item: BoardCardItem; createdAt: string }
 
-const STAGES: { key: TrustStage; label: string; accent: string; bg: string }[] = [
-  { key: 'finalization',  label: 'Finalization',           accent: 'var(--stage-finalization-fg)', bg: 'var(--stage-finalization-bg)' },
-  { key: 'technical',     label: 'Technical / PO + PF',    accent: 'var(--stage-technical-fg)', bg: 'var(--stage-technical-bg)' },
-  { key: 'to_production', label: 'To Production',          accent: 'var(--stage-to-production-fg)', bg: 'var(--stage-to-production-bg)' },
-  { key: 'in_production', label: 'Production In Progress', accent: 'var(--stage-production-fg)', bg: 'var(--stage-production-bg)' },
-  { key: 'shipped',       label: 'Shipped',                accent: 'var(--stage-shipped-fg)', bg: 'var(--stage-shipped-bg)' },
+// `solid` fills the column header under white text: the strong shade in both themes
+// (accent flips to the pale shade in dark mode, which left the white title unreadable).
+const STAGES: { key: TrustStage; label: string; accent: string; bg: string; solid: string }[] = [
+  { key: 'finalization',  label: 'Finalization',           accent: 'var(--stage-finalization-fg)', bg: 'var(--stage-finalization-bg)', solid: 'var(--stage-finalization-solid)' },
+  { key: 'technical',     label: 'Technical / PO + PF',    accent: 'var(--stage-technical-fg)', bg: 'var(--stage-technical-bg)', solid: 'var(--stage-technical-solid)' },
+  { key: 'to_production', label: 'To Production',          accent: 'var(--stage-to-production-fg)', bg: 'var(--stage-to-production-bg)', solid: 'var(--stage-to-production-solid)' },
+  { key: 'in_production', label: 'Production In Progress', accent: 'var(--stage-production-fg)', bg: 'var(--stage-production-bg)', solid: 'var(--stage-production-solid)' },
+  { key: 'shipped',       label: 'Shipped',                accent: 'var(--stage-shipped-fg)', bg: 'var(--stage-shipped-bg)', solid: 'var(--stage-shipped-solid)' },
 ];
 const REGION_SHORT: Record<string, string> = { TLINES_NE: 'NE', TLINES_SE: 'SE', TLINES_NW: 'NW', CVW: 'West' };
 
@@ -33,7 +35,7 @@ export function trustDashboard({ projects, cards, weekAgo }: { projects: TrustPr
       .map(c => ({ ...c.item, category: [REGION_SHORT[c.region] ?? c.region, c.item.category].filter(Boolean).join(' · ') }))
       .sort(byDate);
     return {
-      regionCode: s.key, logoSrc: '', logoCode: '', headerColor: s.accent, title: s.label,
+      regionCode: s.key, logoSrc: '', logoCode: '', headerColor: s.solid, title: s.label,
       sections: [{ key: s.key, label: `${items.length} project${items.length === 1 ? '' : 's'}`, accent: s.accent, bg: s.bg, items, emptyLabel: 'No projects at this stage' }],
     };
   });

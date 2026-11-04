@@ -6,6 +6,7 @@ import { requirePage } from '@/lib/permissions/requirePage';
 import { roleCan } from '@/lib/permissions/server';
 import { ProductionClient } from '@/components/platform/production/ProductionClient';
 import { TrustProjectsBoard } from '@/components/platform/production/TrustProjectsBoard';
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -32,7 +33,7 @@ export default async function ProductionPage({ searchParams }: { searchParams: P
     <div className="flex w-full flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-4 px-7 pt-7">
         <div className="flex flex-col gap-[5px] leading-[1.35]">
-          <p className="m-0 text-[11px] font-semibold text-ui-nav-active">Operations / Production</p>
+          <PageCrumbs items={[{ label: 'Operations', href: '/production' }, { label: 'Production', href: '/production' }]} />
           <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Production</h1>
           <p className="m-0 text-[13px] text-ui-body">
             {tracker ? 'Production statuses tracked in T-ERP.' : 'The Trust System Projects board — the same live data, edited here or there.'}

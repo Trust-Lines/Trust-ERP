@@ -22,7 +22,7 @@ export function LeadSummary({ projectCode, rows, missing }: {
       {rows.map(r => (
         <div key={r.label} className="flex min-w-0 flex-col gap-1">
           <span className="text-[12px] font-medium leading-4 text-ui-body">{r.label}</span>
-          <span className={cn('break-words text-[14px] font-medium leading-[1.5] tracking-[-0.308px]', r.value ? 'text-[var(--color-secondary-700)] dark:text-ui-heading' : 'text-ui-text-disabled')}>
+          <span className={cn('break-words text-[14px] font-medium leading-[1.5] tracking-[-0.308px]', r.value ? 'text-[var(--color-secondary-700)] dark:text-ui-heading' : 'text-ui-text-secondary')}>
             {r.value || '-'}
           </span>
         </div>

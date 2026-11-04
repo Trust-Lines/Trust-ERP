@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { buttonVariants } from '@/components/ui/button';
 import Link from 'next/link';
 import { PersonFace } from '@/components/ui/avatar-directory';
+import { Select as FilterSelect } from '@/components/ui/select';
 import { TRUST_STAGE_LABEL, TRUST_STAGE_ORDER } from '@/lib/projects/listInfo';
 import type { TrustStage } from '@/lib/trust/board';
 
@@ -54,7 +55,15 @@ const STAGE_OPTIONS = STAGES_FULL.filter(s => s.stage !== 'closed_deal');
 
 // Figma "Projects · Desktop" (node 217:6440) styling.
 const CONTROL = 'relative inline-flex h-10 shrink-0 items-center gap-2 rounded-[6px] border border-ui-input-border bg-ui-input-bg px-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:text-ui-heading [&>svg]:size-3.5 [&>svg]:shrink-0';
-const NATIVE_SELECT_OVERLAY = 'absolute inset-0 cursor-pointer opacity-0';
+// Platform <Select> sitting inside a CONTROL chip: no box of its own, takes the chip's text colour.
+const CHIP_SELECT = 'h-full w-auto gap-2 border-0 bg-transparent px-0 text-[13px] font-medium text-inherit hover:border-0 dark:rounded-none dark:border-0 dark:bg-transparent dark:px-0 dark:text-inherit [&_svg]:size-3.5';
+
+// A click on the chip's icon or "Owner:" text opens its list too. Not a <label>: a label re-clicks the
+// trigger after the press has already opened it, which closes the list again.
+function openChipSelect(e: React.MouseEvent<HTMLDivElement>) {
+  if ((e.target as Element).closest('[data-slot=select-trigger]')) return;
+  e.currentTarget.querySelector<HTMLElement>('[data-slot=select-trigger]')?.click();
+}
 const TH_CLS = 'h-[46px] whitespace-nowrap px-2.5 text-left text-[12px] font-semibold leading-[1.4] text-ui-body';
 const TD_CLS = 'px-2.5 text-[13px] text-ui-body';
 const PAGE_BTN = 'inline-flex h-[34px] items-center justify-center rounded-[6px] border border-ui-input-border bg-ui-input-bg px-[14px] text-[13px] font-semibold text-[var(--color-secondary-700)] disabled:opacity-50 dark:text-ui-heading';
@@ -262,7 +271,7 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
               )}
             >
               {v.label}
-              <span className="text-[12px] font-normal leading-[1.4] text-ui-text-secondary">{viewCounts[v.key]}</span>
+              <span className="text-[12px] font-normal leading-[1.4]">{viewCounts[v.key]}</span>
             </button>
           );
         })}
@@ -281,45 +290,43 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
             />
           </label>
 
-          <div className={CONTROL}>
+          <div className={cn(CONTROL, 'cursor-pointer')} onClick={openChipSelect}>
             <UserRoundPen aria-hidden />
-            <span>Owner: {ownerFilter || 'Anyone'}</span>
-            <ChevronDown aria-hidden />
-            <select
+            <span>Owner:</span>
+            <FilterSelect
               aria-label="Filter by owner"
               value={ownerFilter}
-              onChange={e => setOwnerFilter(e.target.value)}
-              className={NATIVE_SELECT_OVERLAY}
-            >
-              <option value="">Anyone</option>
-              {owners.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
+              onValueChange={v => setOwnerFilter(v ?? '')}
+              options={[{ value: '', label: 'Anyone' }, ...owners.map(o => ({ value: o, label: o }))]}
+              className={CHIP_SELECT}
+              popupClassName="min-w-[200px]"
+            />
           </div>
 
-          <div className={CONTROL}>
+          <div className={cn(CONTROL, 'cursor-pointer')} onClick={openChipSelect}>
             <MapPin aria-hidden />
-            <span>Region: {regionFilter ? REGION_SHORT[regionFilter] ?? regionFilter : 'All'}</span>
-            <ChevronDown aria-hidden />
-            <select aria-label="Filter by region" value={regionFilter} onChange={e => setRegionFilter(e.target.value)} className={NATIVE_SELECT_OVERLAY}>
-              <option value="">All regions</option>
-              {regions.map(r => <option key={r} value={r}>{REGION_SHORT[r] ?? r}</option>)}
-            </select>
+            <span>Region:</span>
+            <FilterSelect
+              aria-label="Filter by region"
+              value={regionFilter}
+              onValueChange={v => setRegionFilter(v ?? '')}
+              options={[{ value: '', label: 'All regions' }, ...regions.map(r => ({ value: r, label: REGION_SHORT[r] ?? r }))]}
+              className={CHIP_SELECT}
+              popupClassName="min-w-[160px]"
+            />
           </div>
 
-          <div className={CONTROL}>
+          <div className={cn(CONTROL, 'cursor-pointer')} onClick={openChipSelect}>
             <SquareDashed aria-hidden />
-            <span>
-              {stageFilter ? `Stage: ${STAGE_OPTIONS.find(s => s.stage === stageFilter)?.label}` : 'Add filter'}
-            </span>
-            <select
+            <span>Stage:</span>
+            <FilterSelect
               aria-label="Filter by stage"
               value={stageFilter}
-              onChange={e => setStageFilter(e.target.value)}
-              className={NATIVE_SELECT_OVERLAY}
-            >
-              <option value="">Any stage</option>
-              {STAGE_OPTIONS.map(s => <option key={s.stage} value={s.stage}>{s.number}. {s.label}</option>)}
-            </select>
+              onValueChange={v => setStageFilter(v ?? '')}
+              options={[{ value: '', label: 'Any stage' }, ...STAGE_OPTIONS.map(s => ({ value: s.stage, label: `${s.number}. ${s.label}` }))]}
+              className={CHIP_SELECT}
+              popupClassName="min-w-[220px]"
+            />
           </div>
 
           {(ownerFilter || stageFilter || query || trustStage || regionFilter) && (
@@ -479,7 +486,7 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                             <span aria-hidden className="size-2 rounded-full" style={{ background: regionColor }} />
                             {REGION_SHORT[p.region] ?? p.region}
                           </span>
-                        ) : <span className="text-ui-text-disabled">—</span>}
+                        ) : <span className="text-ui-text-secondary">—</span>}
                       </td>
                     )}
                     {show('type') && (
@@ -494,7 +501,7 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                             ))}
                             {types.length > 3 && <span className="self-center text-[11px] text-ui-text-secondary">+{types.length - 3}</span>}
                           </span>
-                        ) : <span className="text-ui-text-disabled">—</span>}
+                        ) : <span className="text-ui-text-secondary">—</span>}
                       </td>
                     )}
                     <td className={TD_CLS}>
@@ -526,7 +533,7 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                             </span>
                           </span>
                         ) : (
-                          <span className="text-ui-text-disabled">—</span>
+                          <span className="text-ui-text-secondary">—</span>
                         )}
                       </td>
                     )}
@@ -550,7 +557,7 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                             )}
                           </span>
                         ) : (
-                          <span className="text-ui-text-disabled">—</span>
+                          <span className="text-ui-text-secondary">—</span>
                         )}
                       </td>
                     )}
@@ -561,7 +568,7 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                         ) : p.deal_value != null ? (
                           `${CURRENCY_SYMBOL[p.currency] ?? ''}${p.deal_value.toLocaleString('en-US')}${CURRENCY_SYMBOL[p.currency] ? '' : ` ${p.currency}`}`
                         ) : (
-                          <span className="text-ui-text-disabled">—</span>
+                          <span className="text-ui-text-secondary">—</span>
                         )}
                       </td>
                     )}
@@ -574,7 +581,7 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                           }}>
                             {p.margin_target_pct}%
                           </span>
-                        ) : <span className="text-ui-text-disabled">—</span>}
+                        ) : <span className="text-ui-text-secondary">—</span>}
                       </td>
                     )}
                     <td className={cn(TD_CLS, 'pr-[18px]')}>
@@ -592,18 +599,13 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
             Showing {from}–{to} of {filtered.length} project{filtered.length !== 1 ? 's' : ''}
           </span>
           <div className="flex items-center gap-3 text-[12px] leading-[1.4] text-ui-body">
-            <label className="relative inline-flex cursor-pointer items-center gap-3">
-              {pageSize} per page
-              <ChevronDown aria-hidden className="size-3" />
-              <select
-                aria-label="Projects per page"
-                value={pageSize}
-                onChange={e => setPageSize(Number(e.target.value))}
-                className={NATIVE_SELECT_OVERLAY}
-              >
-                {PAGE_SIZES.map(n => <option key={n} value={n}>{n} per page</option>)}
-              </select>
-            </label>
+            <FilterSelect
+              aria-label="Projects per page"
+              value={String(pageSize)}
+              onValueChange={v => { if (v) setPageSize(Number(v)); }}
+              options={PAGE_SIZES.map(n => ({ value: String(n), label: `${n} per page` }))}
+              className={cn(CHIP_SELECT, 'text-[12px] text-ui-body dark:text-ui-body [&_svg]:size-3')}
+            />
             <button className={PAGE_BTN} disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>
               Previous
             </button>

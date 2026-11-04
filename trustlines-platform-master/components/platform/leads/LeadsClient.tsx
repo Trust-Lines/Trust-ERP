@@ -36,6 +36,8 @@ import { REGIONS } from '@/lib/regions';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select } from '@/components/ui/select';
 import { feedback } from '@/components/ui/feedback-toast';
+import { ConfirmModal } from '@/components/ui/modal';
+import { Textarea } from '@/components/ui/textarea';
 import { StatCard } from '@/components/platform/shared/StatCard';
 import { cn } from '@/lib/utils';
 
@@ -101,6 +103,10 @@ export function LeadsClient({
 
   const [view, setView] = useState<ViewMode>('list');
   const [search, setSearch] = useState('');
+  // Status change waiting for its reason, and the lead waiting for the trash question.
+  const [statusMove, setStatusMove] = useState<{ id: string; name: string; status: OpportunityStatus; stage: string } | null>(null);
+  const [statusReason, setStatusReason] = useState('');
+  const [trashing, setTrashing] = useState<Lead | null>(null);
   const [fPriority, setFPriority] = useState('');
   const [fAssignee, setFAssignee] = useState('');
   const [fRegion, setFRegion] = useState('');
@@ -164,9 +170,9 @@ export function LeadsClient({
       if (status === lead.opportunity_status) return;
       const nextStage = STATUS_TO_STAGE[status];
       if (!nextStage) { toast.error(`"${STATUS_META[status].label}" isn't available for Marketing-origin deals yet`); return; }
-      const reason = window.prompt(`Move "${lead.name}" to "${STATUS_META[status].label}" — why?`);
-      if (!reason?.trim()) return;
-      patchOpportunity(id, { opportunity_status: status }, { stage: nextStage, admin_correction_reason: reason.trim() });
+      // Asked in the platform popup below; confirmStatusMove saves it with the reason.
+      setStatusReason('');
+      setStatusMove({ id, name: lead.name, status, stage: nextStage });
       return;
     }
 
@@ -188,6 +194,13 @@ export function LeadsClient({
       toast.error('Could not save status');
       if (prevStatus) setLeads(prev => prev.map(l => (l.id === id ? { ...l, opportunity_status: prevStatus } : l)));
     });
+  }
+
+  // Called from the status popup; throwing keeps it open until a reason is typed.
+  function confirmStatusMove() {
+    if (!statusMove) return;
+    if (!statusReason.trim()) { toast.error('Add a reason for the status change'); throw new Error('reason required'); }
+    patchOpportunity(statusMove.id, { opportunity_status: statusMove.status }, { stage: statusMove.stage, admin_correction_reason: statusReason.trim() });
   }
 
   function handleIndustryChange(id: string, industry: string) {
@@ -268,9 +281,8 @@ export function LeadsClient({
     });
   }
 
+  // Called from the trash popup.
   async function trashLead(lead: Lead) {
-    setMenu(null);
-    if (!window.confirm('Move "' + lead.name + '" to trash? It stays there for 30 days.')) return;
     setLeads(prev => prev.filter(l => l.id !== lead.id));
     const res = await fetch('/api/leads/' + lead.id + '/trash', { method: 'POST' }).catch(() => null);
     if (!res || !res.ok) { toast.error('Could not move to trash'); router.refresh(); return; }
@@ -647,11 +659,31 @@ export function LeadsClient({
             {menu.lead.archived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
             {menu.lead.archived ? 'Unarchive' : 'Archive'}
           </button>
-          <button onClick={() => trashLead(menu.lead)} style={{ ...ctxItem, color: 'var(--status-danger)' }}>
+          <button onClick={() => { setTrashing(menu.lead); setMenu(null); }} style={{ ...ctxItem, color: 'var(--status-danger)' }}>
             <Trash2 size={14} /> Move to trash
           </button>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!statusMove} onOpenChange={o => { if (!o) setStatusMove(null); }}
+        title={statusMove ? `Move "${statusMove.name}" to "${STATUS_META[statusMove.status].label}"?` : 'Change status?'}
+        description="The reason is saved with the status change."
+        confirmLabel="Change status"
+        onConfirm={confirmStatusMove}
+      >
+        <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-ui-heading">
+          Reason (required)
+          <Textarea rows={3} className="min-h-0" value={statusReason} onChange={e => setStatusReason(e.target.value)} placeholder="Why is the status changing?" autoFocus />
+        </label>
+      </ConfirmModal>
+      <ConfirmModal
+        open={!!trashing} onOpenChange={o => { if (!o) setTrashing(null); }} tone="destructive"
+        title={trashing ? `Move "${trashing.name}" to trash?` : 'Move to trash?'}
+        description="It stays in Trash for 30 days and can be restored from there."
+        confirmLabel="Move to trash"
+        onConfirm={async () => { if (trashing) await trashLead(trashing); }}
+      />
     </div>
   );
 }
