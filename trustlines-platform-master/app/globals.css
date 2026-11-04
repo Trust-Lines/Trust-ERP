@@ -1981,6 +1981,25 @@ html[data-hide-amounts] [data-money] { -webkit-text-security: disc; text-securit
 
 /* Form fields in dark: a slightly sunken well with a visible border (matches the search box). */
 .dark .form-input { background-color: var(--bg-sunken); border-color: var(--ui-divider-strong); }
+
+/* Dark mode: the native unchecked checkbox is a near-black square that disappears on the navy
+   cards, so draw it as an outlined box. Checked/indeterminate keep the native box + accent colour.
+   In the base layer so w-4/h-4/rounded utilities on the input still win. */
+@layer base {
+  .dark input[type='checkbox']:not(:checked):not(:indeterminate) {
+    appearance: none;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    background-color: transparent;
+    border: 1.5px solid var(--ui-row-locked-check);
+    border-radius: 4px;
+    vertical-align: middle;
+  }
+  .dark input[type='checkbox']:not(:checked):not(:indeterminate):not(:disabled):hover {
+    border-color: var(--ui-heading);
+  }
+}
 .dark .form-input::placeholder { color: var(--ui-text-secondary); }
 .dark .form-input:disabled { background-color: var(--bg-subtle); color: var(--ui-text-secondary); }
 .dark .form-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239AA6B6' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); }
