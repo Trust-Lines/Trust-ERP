@@ -56,7 +56,8 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
       aria-label={label}
       className="inline-flex h-7 w-[54px] shrink-0 cursor-pointer items-center rounded-[8px] bg-ui-selected-bg p-[3px] outline-none transition-colors focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring data-checked:bg-[var(--color-secondary-700)] dark:data-checked:bg-[var(--color-secondary-50)]"
     >
-      <SwitchPrimitive.Thumb className="h-[22px] w-[23px] rounded-[4px] bg-ui-page-bg transition-transform duration-150 data-checked:translate-x-[25px]" />
+      {/* Figma 35:4841 — enabled thumb: secondary-100 fill with a 1px primary-700 border. */}
+      <SwitchPrimitive.Thumb className="h-[22px] w-[23px] rounded-[4px] border border-transparent bg-ui-page-bg transition-transform duration-150 data-checked:translate-x-[25px] data-checked:border-[var(--color-primary-700)] data-checked:bg-[var(--color-secondary-100)]" />
     </SwitchPrimitive.Root>
   );
 }
