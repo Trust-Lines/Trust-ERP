@@ -2,6 +2,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { ensureProjectForNeed, addNeedDocument, NeedDocumentError } from '@/lib/marketing/needDocuments';
 
 vi.mock('@/lib/audit/log', () => ({ logAudit: vi.fn(async () => {}) }));
+// Numbers come from the counter here (the used-number check reads the Trust System).
+vi.mock('@/lib/projects/number', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  reserveFreeProjectNumber: vi.fn(async (admin: any) => (await admin.rpc('reserve_global_number')).data),
+}));
 vi.mock('@/lib/dropbox/upload', () => ({
   createProjectFolders: vi.fn(async () => ({ rootPath: '/fake', subFolders: [], alreadyExists: false })),
 }));

@@ -91,7 +91,7 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
   const router = useRouter();
   const [openId, setOpenId] = useState<string | null>(null); // deal shown in the progress pop-up
   const [opportunities, setOpportunities] = useState<SalesOpportunityRow[]>(initialOpportunities);
-  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [winningId, setWinningId] = useState<string | null>(null); // Close Won form open (no project yet)
   const [returningId, setReturningId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -128,15 +128,12 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
     }
   }
 
-  async function doAccept(id: string, form: { region: string; service_line: string; city: string; street: string; state: string; customer_name: string }) {
-    const { ok, body } = await act(id, 'accept', form);
+  // Sales takes it on — the project opens later, when the deal is won.
+  async function doAccept(id: string) {
+    const { ok, body } = await act(id, 'accept');
     if (!ok) { toast.error(body.error ?? 'Failed to accept'); return; }
-    updateRow(id, { stage: body.opportunity.stage, project_id: body.opportunity.project_id });
-    setAcceptingId(null);
-    feedback.success(body.alreadyAccepted ? 'Already accepted' : 'Project created', {
-      description: body.project?.code ? `${body.project.code} is ready for the delivery team.` : undefined,
-      action: body.project?.id ? { label: 'View project', href: `/projects/${body.project.id}` } : undefined,
-    });
+    updateRow(id, { stage: body.opportunity.stage });
+    toast.success(body.alreadyAccepted ? 'Already accepted' : 'Accepted — it is yours. Start Design when the customer’s files are in.');
   }
 
   async function doReturn(id: string, reason: string) {
@@ -148,14 +145,18 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
     toast.success('Returned to Marketing');
   }
 
-  async function doCloseWon(o: SalesOpportunityRow) {
-    // Closing Won hands the project to delivery and notifies the PMs — not a one-click accident.
-    if (!window.confirm(`Close "${o.title}" as Won? The project moves on to the delivery team.`)) return;
-    const id = o.id;
-    const { ok, body } = await act(id, 'close-won');
+  // Closing Won opens the project (with the form's details when it has none yet), gives it to
+  // the region's T-Lines PM and opens it in the Trust System — not a one-click accident.
+  async function doCloseWon(o: SalesOpportunityRow, form?: ProjectFormValues) {
+    if (!form && !window.confirm(`Close "${o.title}" as Won? The project moves on to the T-Lines PM and the Trust Lines team.`)) return;
+    const { ok, body } = await act(o.id, 'close-won', form);
     if (!ok) { toast.error(body.error ?? 'Failed to close won'); return; }
-    updateRow(id, { stage: body.opportunity.stage });
-    toast.success('Closed Won');
+    updateRow(o.id, { stage: body.opportunity.stage, project_id: body.opportunity.project_id });
+    setWinningId(null);
+    feedback.success('Closed Won', {
+      description: body.project?.code ? `${body.project.code} is open for the T-Lines PM and the Trust Lines team.` : undefined,
+      action: body.project?.id ? { label: 'View project', href: `/projects/${body.project.id}` } : undefined,
+    });
   }
 
   async function doStartDesign(id: string) {
@@ -285,10 +286,10 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
                     </div>
 
                     <div className="flex flex-wrap items-center justify-end gap-3.5">
-                      {o.stage === 'sales_handoff' && acceptingId !== o.id && returningId !== o.id && (
+                      {o.stage === 'sales_handoff' && returningId !== o.id && (
                         <>
                           <button type="button" className={ACTION_NEUTRAL} onClick={() => setReturningId(o.id)}>Return to Marketing</button>
-                          <button type="button" className={ACTION_PRIMARY} onClick={() => setAcceptingId(o.id)}>Accept</button>
+                          <button type="button" className={ACTION_PRIMARY} disabled={busy} onClick={() => doAccept(o.id)}>Accept</button>
                         </>
                       )}
                       {o.project_id && (
@@ -318,17 +319,16 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
                             <button type="button" className={ACTION_NEUTRAL} disabled={busy} onClick={() => doNegotiate(o.id)}>Move to Negotiation</button>
                           )}
                           <button type="button" className={ACTION_LOST} disabled={busy} onClick={() => doCloseLost(o.id)}>Close Lost</button>
-                          {/* Close Won needs the Project that Accept creates (lib/marketing/salesHandoff.ts → 409) — QA DEF-17. */}
-                          <button type="button" className={ACTION_WON} disabled={busy || !o.project_id}
-                            title={o.project_id ? undefined : 'Accept the Opportunity first — Close Won needs a Project'}
-                            onClick={() => doCloseWon(o)}>Close Won</button>
+                          {/* No project yet → the form opens it on the win (lib/marketing/salesHandoff.ts). */}
+                          <button type="button" className={ACTION_WON} disabled={busy}
+                            onClick={() => (o.project_id ? doCloseWon(o) : setWinningId(id => (id === o.id ? null : o.id)))}>Close Won</button>
                         </>
                       )}
                     </div>
                   </div>
 
-                  {o.stage === 'sales_handoff' && acceptingId === o.id && (
-                    <AcceptForm busy={busy} defaultCustomer={o.lead_display_name} onSave={form => doAccept(o.id, form)} onCancel={() => setAcceptingId(null)} />
+                  {winningId === o.id && !o.project_id && (
+                    <ProjectForm busy={busy} defaultCustomer={o.lead_display_name} onSave={form => doCloseWon(o, form)} onCancel={() => setWinningId(null)} />
                   )}
                   {o.stage === 'sales_handoff' && returningId === o.id && (
                     <ReturnForm busy={busy} onSave={reason => doReturn(o.id, reason)} onCancel={() => setReturningId(null)} />
@@ -351,7 +351,10 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
   );
 }
 
-function AcceptForm({ busy, defaultCustomer = '', onSave, onCancel }: { busy: boolean; defaultCustomer?: string; onSave: (f: { region: string; service_line: string; city: string; street: string; state: string; customer_name: string }) => void; onCancel: () => void }) {
+type ProjectFormValues = { region: string; service_line: string; city: string; street: string; state: string; customer_name: string };
+
+// Close Won → the project's details: it opens with the next free number, in this region's folder.
+function ProjectForm({ busy, defaultCustomer = '', onSave, onCancel }: { busy: boolean; defaultCustomer?: string; onSave: (f: ProjectFormValues) => void; onCancel: () => void }) {
   const [region, setRegion] = useState('');
   const [serviceLine, setServiceLine] = useState('');
   const [city, setCity] = useState('');
@@ -390,7 +393,7 @@ function AcceptForm({ busy, defaultCustomer = '', onSave, onCancel }: { busy: bo
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn btn-primary btn-sm" disabled={!canSubmit || busy}
           onClick={() => onSave({ region, service_line: serviceLine, city, street, state, customer_name: customerName })}>
-          {busy ? 'Creating project…' : 'Accept & create project'}
+          {busy ? 'Opening the project…' : 'Close Won & open project'}
         </button>
         <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
       </div>

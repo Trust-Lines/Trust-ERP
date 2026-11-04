@@ -11,6 +11,7 @@ import { loadPotentialLeadRows } from '@/lib/marketing/potentialRows';
 import { getAssignedRegions } from '@/lib/access/regionScope';
 import { fetchInChunks } from '@/lib/supabase/chunkedIn';
 import type { ProjectStage } from '@/types/database';
+import { peekFreeProjectNumber } from '@/lib/projects/number';
 
 // CRM Board is the Sales team's own pipeline (lead_intake + the Opportunities/Potentials merged
 // in below). Marketing has its own separate board at /marketing/opportunities — they must not land
@@ -131,8 +132,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
 
     canManageNumber = ['sales_marketing_manager', 'ops_manager', 'general_manager'].includes(role);
     if (canManageNumber) {
-      const { data } = await adm.rpc('peek_global_number');
-      nextNumber = (data as number) ?? 1;
+      // The next FREE number — used ones (Trust, ClickUp, ours) are skipped (lib/projects/number).
+      nextNumber = await peekFreeProjectNumber(adm).catch(async () => ((await adm.rpc('peek_global_number')).data as number) ?? 1);
     }
   }
 
