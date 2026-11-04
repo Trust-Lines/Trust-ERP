@@ -27,7 +27,7 @@ export async function uploadTargetIn(folder: string, fileName: string): Promise<
 }
 
 /** `folder/name`, or "name (2).ext", "name (3).ext"… when that's taken. */
-async function freePath(folder: string, name: string): Promise<string> {
+export async function freePath(folder: string, name: string): Promise<string> {
   const dot = name.lastIndexOf('.');
   const [base, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ''];
   for (let n = 1; n < 100; n++) {

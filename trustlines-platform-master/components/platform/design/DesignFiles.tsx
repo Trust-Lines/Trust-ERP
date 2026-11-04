@@ -27,7 +27,7 @@ async function postFiles(jobId: string, body: Record<string, unknown>) {
  * the file landed inside a version folder (the caller then syncs versions).
  */
 export async function uploadToDesignFolder(jobId: string, root: string, folder: string, file: File): Promise<{ inVersion: boolean }> {
-  const { link } = await postFiles(jobId, { action: 'upload-link', path: folder, fileName: file.name });
+  const { link, path: target } = await postFiles(jobId, { action: 'upload-link', path: folder, fileName: file.name });
   let stored: string | null = null;
   // Documented content type first; if the browser's CORS preflight rejects it the link is still
   // unused, so retry with Dropbox's no-preflight type.
@@ -36,10 +36,12 @@ export async function uploadToDesignFolder(jobId: string, root: string, folder: 
       const up = await fetch(link, { method: 'POST', headers: { 'Content-Type': contentType }, body: file });
       if (!up.ok) throw new Error(`Dropbox rejected ${file.name}`);
       const meta = await up.json().catch(() => null) as { path_lower?: string; path_display?: string } | null;
-      stored = meta?.path_display ?? meta?.path_lower ?? null;
+      // A one-shot link's reply is just { "content-hash" } — the path is the one the API picked.
+      stored = meta?.path_display ?? meta?.path_lower ?? (typeof target === 'string' ? target : null);
       break;
     } catch (e) {
-      if (contentType.startsWith('text/plain')) throw e;
+      // Its reply may be lost after the file landed — the picked path is still where it went.
+      if (contentType.startsWith('text/plain')) { if (typeof target === 'string') { stored = target; break; } throw e; }
     }
   }
   if (!stored) throw new Error(`Could not upload ${file.name}`);

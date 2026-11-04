@@ -29,8 +29,10 @@ export async function uploadViaLink(
     try {
       const up = await fetch(b.link, { method: 'POST', headers: { 'Content-Type': contentType }, body: file });
       if (!up.ok) throw new Error(`Dropbox rejected ${file.name}`);
+      // A one-shot link's reply is just { "content-hash" } — no path. The API picked the path
+      // (a free name, so Dropbox doesn't rename it): that's where the file is.
       const meta = await up.json().catch(() => null) as { path_display?: string; path_lower?: string } | null;
-      const path = meta?.path_display ?? meta?.path_lower;
+      const path = meta?.path_display ?? meta?.path_lower ?? (typeof b.path === 'string' ? b.path : null);
       if (!path) throw new Error(`Could not upload ${file.name}`);
       return path;
     } catch (e) {
