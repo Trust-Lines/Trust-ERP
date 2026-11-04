@@ -232,10 +232,11 @@ export const CAT_GROUP_LABELS: Record<CategoryGroup, string> = {
 };
 
 export const CAT_GROUP_COLORS: Record<CategoryGroup, { color: string; bg: string; border: string }> = {
-  millwork: { color: '#1a6b6b', bg: '#e1f0f0', border: '#9ecfcf' },
-  shelving: { color: '#155f5f', bg: '#d5eaea', border: '#8bbfbf' },
-  ceiling:  { color: '#a84623', bg: '#fbe6dc', border: '#f0b9a0' },
-  image:    { color: '#8c3a1d', bg: '#f5ddd3', border: '#e8ab90' },
+  // Theme tokens in globals.css (light + .dark).
+  millwork: { color: 'var(--cat-millwork-fg)', bg: 'var(--cat-millwork-bg)', border: 'var(--cat-millwork-border)' },
+  shelving: { color: 'var(--cat-shelving-fg)', bg: 'var(--cat-shelving-bg)', border: 'var(--cat-shelving-border)' },
+  ceiling:  { color: 'var(--cat-ceiling-fg)',  bg: 'var(--cat-ceiling-bg)',  border: 'var(--cat-ceiling-border)' },
+  image:    { color: 'var(--cat-image-fg)',    bg: 'var(--cat-image-bg)',    border: 'var(--cat-image-border)' },
 };
 
 export function getActiveCategoryGroups(

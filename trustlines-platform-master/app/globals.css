@@ -379,6 +379,13 @@
   --phase-done: #16A34A;
   --phase-done-bg: #E7F6EC;
 
+  /* Project workflow — Phase 1 card tone + Phase 3 production category rows. */
+  --wf-phase1-fg: var(--color-secondary-700);
+  --cat-millwork-fg: #1a6b6b; --cat-millwork-bg: #e1f0f0; --cat-millwork-border: #9ecfcf;
+  --cat-shelving-fg: #155f5f; --cat-shelving-bg: #d5eaea; --cat-shelving-border: #8bbfbf;
+  --cat-ceiling-fg: #a84623;  --cat-ceiling-bg: #fbe6dc;  --cat-ceiling-border: #f0b9a0;
+  --cat-image-fg: #8c3a1d;    --cat-image-bg: #f5ddd3;    --cat-image-border: #e8ab90;
+
   /* TYPOGRAPHY */
   --font-ui: var(--font-instrument-sans), "Instrument Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-brand: "Montserrat", "Inter", system-ui, sans-serif;
@@ -479,6 +486,13 @@
   --status-t9-fg: var(--color-success-light);
   --status-t10-bg: var(--color-error-dark);
   --status-t10-fg: var(--color-error-light);
+
+  /* Project workflow — Dark: light text on tinted dark rows. */
+  --wf-phase1-fg: var(--color-primary-50);
+  --cat-millwork-fg: #BFE6E6; --cat-millwork-bg: color-mix(in srgb, #1a6b6b 35%, var(--color-primary-800)); --cat-millwork-border: #2F7F7F;
+  --cat-shelving-fg: #B3DCDC; --cat-shelving-bg: color-mix(in srgb, #155f5f 35%, var(--color-primary-800)); --cat-shelving-border: #2A6F6F;
+  --cat-ceiling-fg: #FFD4C0;  --cat-ceiling-bg: color-mix(in srgb, #a84623 35%, var(--color-primary-800));  --cat-ceiling-border: #A85634;
+  --cat-image-fg: #F7C9B5;    --cat-image-bg: color-mix(in srgb, #8c3a1d 35%, var(--color-primary-800));    --cat-image-border: #96482B;
 
   /* Dashboard board stages + greeting card — Dark (Figma node 384:41126). */
   --stage-opportunity-fg: #DAE6F0;
