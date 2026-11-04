@@ -33,14 +33,14 @@ export function MarketingPipelineNav(props: Props) {
         const inner = (
           <>
             {s.label}
-            {count !== '' && <span className="text-[11px] opacity-75">({count})</span>}
+            {count !== '' && <span className="text-[11px] font-normal">({count})</span>}
           </>
         );
         const cls = cn(
           'flex items-center gap-1.5 border-b-[3px] text-[13px] leading-[1.4] no-underline',
           isCurrent
             ? 'border-[var(--color-secondary-700)] font-semibold text-[var(--color-secondary-700)] dark:border-ui-heading dark:text-ui-heading'
-            : 'border-transparent text-ui-text-secondary hover:text-ui-body',
+            : 'border-transparent text-ui-body hover:text-[var(--color-secondary-700)] dark:hover:text-ui-heading',
         );
         return isCurrent ? (
           <span key={s.key} aria-current="page" className={cls}>{inner}</span>

@@ -244,7 +244,7 @@
   --status-t0-bg: #DDDDDD;
   --status-t0-fg: #787881;
   --status-t1-bg: #D2F7FF;
-  --status-t1-fg: #2398B2;
+  --status-t1-fg: #1B7589; /* Figma #2398B2, darkened for 4.5:1 on the pale fill */
   --status-t2-bg: #D2E6FF;
   --status-t2-fg: #2366B2;
   --status-t3-bg: #FDDBFF;
@@ -264,20 +264,29 @@
   --status-t10-bg: var(--color-error-light);
   --status-t10-fg: var(--color-error-dark);
 
-  /* Dashboard board stages + greeting card (Figma "ops_manager", node 376:31396). */
-  --stage-opportunity-fg: #678FAF;
+  /* Dashboard board stages + greeting card (Figma "ops_manager", node 376:31396).
+     Strong shades are the Figma hues darkened just enough for 4.5:1 text on the pale fill
+     (Figma: opportunity/to-production #678FAF, finalization #C48A28, technical #8064BA,
+     production #2A6FBE, shipped #C46A43). Dark mode uses the same shades as the fill. */
+  --stage-opportunity-fg: #4B6880;
   --stage-opportunity-bg: #DAE6F0;
-  --stage-finalization-fg: #C48A28;
+  --stage-finalization-fg: #93671E;
   --stage-finalization-bg: #FFF6E8;
-  --stage-finalization-label: #C48A28;
-  --stage-technical-fg: #8064BA;
+  --stage-finalization-label: #93671E;
+  --stage-technical-fg: #6F57A2;
   --stage-technical-bg: #E9DFFF;
-  --stage-to-production-fg: #678FAF;
+  --stage-to-production-fg: #4B6880;
   --stage-to-production-bg: #D7EDFF;
-  --stage-production-fg: #2A6FBE;
+  --stage-production-fg: #2768B3;
   --stage-production-bg: #D7EAFF;
-  --stage-shipped-fg: #C46A43;
+  --stage-shipped-fg: #9B5435;
   --stage-shipped-bg: #FFE3D7;
+  /* Strong shade in both themes — fills under white text (Trust board column headers). */
+  --stage-finalization-solid: #93671E;
+  --stage-technical-solid: #6F57A2;
+  --stage-to-production-solid: #4B6880;
+  --stage-production-solid: #2768B3;
+  --stage-shipped-solid: #9B5435;
   --stage-ready-fg: #216B2E;
   --stage-ready-bg: #CFF6D6;
   --dash-hero-bg: radial-gradient(circle at 22% 54%, #4C5767 0%, #2B3D55 70%);
@@ -470,7 +479,7 @@
   /* Status tones T0–T10 — Dark: strong colour as background, light colour as text. */
   --status-t0-bg: #787881;
   --status-t0-fg: #DDDDDD;
-  --status-t1-bg: #2398B2;
+  --status-t1-bg: #1B7589; /* Figma #2398B2, darkened for 4.5:1 under the light text */
   --status-t1-fg: #D2F7FF;
   --status-t2-bg: #2366B2;
   --status-t2-fg: #D2E6FF;
@@ -503,17 +512,17 @@
 
   /* Dashboard board stages + greeting card — Dark (Figma node 384:41126). */
   --stage-opportunity-fg: #DAE6F0;
-  --stage-opportunity-bg: #678FAF;
+  --stage-opportunity-bg: #4B6880;
   --stage-finalization-fg: #FFF6E8;
-  --stage-finalization-bg: #C48A28;
+  --stage-finalization-bg: #93671E;
   --stage-technical-fg: #E9DFFF;
-  --stage-technical-bg: #8064BA;
+  --stage-technical-bg: #6F57A2;
   --stage-to-production-fg: #D7EDFF;
-  --stage-to-production-bg: #678FAF;
+  --stage-to-production-bg: #4B6880;
   --stage-production-fg: #D7EAFF;
-  --stage-production-bg: #2A6FBE;
+  --stage-production-bg: #2768B3;
   --stage-shipped-fg: #FFE3D7;
-  --stage-shipped-bg: #C46A43;
+  --stage-shipped-bg: #9B5435;
   --stage-ready-fg: #CFF6D6;
   --stage-ready-bg: #216B2E;
   --dash-hero-bg: radial-gradient(circle at 22% 54%, #B7C2D1 0%, #CCD7E5 70%);

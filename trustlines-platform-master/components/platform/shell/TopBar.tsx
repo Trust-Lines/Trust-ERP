@@ -35,6 +35,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/sales-projects': 'Sales Handoffs',
   '/marketing/prospects': 'Lead Cloud',
   '/marketing/potentials': 'Potentials',
+  '/marketing/opportunities': 'Potentials',
   '/marketing/campaigns': 'Campaigns & Surveys',
   '/design': 'Design & Assets',
   '/pm': 'PM · Millwork & Ceiling',

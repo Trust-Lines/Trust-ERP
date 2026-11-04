@@ -26,6 +26,8 @@ import type { OpportunityStage, PotentialStatus, LeadTiming } from '@/types/data
 import { feedback } from '@/components/ui/feedback-toast';
 import { DealDocuments } from '@/components/platform/sales/DealDocuments';
 import { DealDesign } from '@/components/platform/sales/DealDesign';
+import { ConfirmModal } from '@/components/ui/modal';
+import { Textarea } from '@/components/ui/textarea';
 
 type Deal = Record<string, unknown>;
 interface ProspectInfo { display_name: string; industry: string | null; brand_name: string | null }
@@ -77,6 +79,13 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
   const [files, setFiles] = useState<NeedFile[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Stage change waiting for its reason, and the Convert question — both asked in platform popups.
+  const [pendingStage, setPendingStage] = useState<string | null>(null);
+  const [stageReason, setStageReason] = useState('');
+  const [askConvert, setAskConvert] = useState(false);
+  const [deletingNote, setDeletingNote] = useState<NeedNote | null>(null);
+  const [removingFile, setRemovingFile] = useState<NeedFile | null>(null);
+  const popupOpen = pendingStage !== null || askConvert || !!deletingNote || !!removingFile;
   const [imageLinks, setImageLinks] = useState<Record<string, string>>({});
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -142,12 +151,13 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      if (popupOpen) return; // the open popup closes itself on Esc
       if (lightbox) { setLightbox(null); return; }
       onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, lightbox]);
+  }, [onClose, lightbox, popupOpen]);
 
   async function saveField(name: string, value: unknown, extra?: Record<string, unknown>) {
     setOpp(prev => (prev ? { ...prev, [name]: value, ...extra } : prev));
@@ -166,25 +176,30 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
 
   // Potential → Opportunity, handed to Sales (app/api/marketing/potentials/[id]/convert).
   const [converting, setConverting] = useState(false);
+  // Called from the Convert popup; throwing keeps the popup open so the user can retry.
   async function convert() {
-    if (!window.confirm('Convert this Potential to an Opportunity? It goes to Sales → Handoffs to be accepted.')) return;
     setConverting(true);
     try {
-      const res = await fetch(`/api/marketing/potentials/${opportunityId}/convert`, { method: 'POST' });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(body.error ?? 'Could not convert'); return; }
+      const res = await fetch(`/api/marketing/potentials/${opportunityId}/convert`, { method: 'POST' }).catch(() => null);
+      const body = res ? await res.json().catch(() => ({})) : {};
+      if (!res?.ok) { toast.error(body.error ?? 'Could not convert'); throw new Error('convert failed'); }
       setOpp(prev => (prev ? { ...prev, status: 'converted', converted_opportunity_id: body.opportunity?.id } : prev));
       onChanged?.({ status: 'converted', converted_opportunity_id: body.opportunity?.id });
       toast.success(body.alreadyConverted ? 'Already converted' : 'Converted — it is now with Sales');
-    } catch { toast.error('Could not convert'); }
-    finally { setConverting(false); }
+    } finally { setConverting(false); }
   }
 
   function changeStage(next: string) {
     if (next === opp?.stage) return;
-    const reason = window.prompt(`Move to "${OPPORTUNITY_STAGE_LABEL[next as OpportunityStage]}" — why?`);
-    if (!reason?.trim()) return;
-    saveField('stage', next, { admin_correction_reason: reason.trim() });
+    setStageReason('');
+    setPendingStage(next);
+  }
+
+  // Called from the stage popup; throwing keeps it open until a reason is typed.
+  async function confirmStage() {
+    if (!pendingStage) return;
+    if (!stageReason.trim()) { toast.error('Add a reason for the stage change'); throw new Error('reason required'); }
+    await saveField('stage', pendingStage, { admin_correction_reason: stageReason.trim() });
   }
 
   async function postComment() {
@@ -224,10 +239,10 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
     } finally { setPosting(false); }
   }
 
+  // Called from the confirm popup; throwing keeps the popup open so the user can retry.
   async function deleteNote(n: NeedNote) {
-    if (!window.confirm('Permanently delete this comment? This cannot be undone.')) return;
     const res = await fetch(`${apiBase}/notes/${n.id}`, { method: 'DELETE' });
-    if (!res.ok) { const body = await res.json().catch(() => ({})); toast.error(body.error ?? 'Could not delete'); return; }
+    if (!res.ok) { const body = await res.json().catch(() => ({})); toast.error(body.error ?? 'Could not delete'); throw new Error('delete failed'); }
     setNotes(prev => prev.filter(x => x.id !== n.id));
   }
 
@@ -259,10 +274,10 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
+  // Called from the confirm popup; throwing keeps the popup open so the user can retry.
   async function deleteFile(f: NeedFile) {
-    if (!window.confirm(`Remove "${f.file_name}" from this ${kind === 'potential' ? 'Potential' : 'Opportunity'}? (file itself stays in Dropbox)`)) return;
     const res = await fetch(`${apiBase}/files/${f.id}`, { method: 'DELETE' });
-    if (!res.ok) { const body = await res.json().catch(() => ({})); toast.error(body.error ?? 'Could not remove'); return; }
+    if (!res.ok) { const body = await res.json().catch(() => ({})); toast.error(body.error ?? 'Could not remove'); throw new Error('remove failed'); }
     setFiles(prev => prev.filter(x => x.id !== f.id));
   }
 
@@ -343,7 +358,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
             {/* Marketing → Sales: the Potential becomes an Opportunity on Sales → Handoffs. */}
             {kind === 'potential' && canEdit && opp && !opp.converted_opportunity_id && !['lost', 'cancelled'].includes(String(opp.status)) && (
               <button
-                type="button" onClick={() => void convert()} disabled={converting}
+                type="button" onClick={() => setAskConvert(true)} disabled={converting}
                 className="inline-flex h-10 items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent px-5 text-[13px] font-medium text-ui-btn-accent-fg transition-opacity hover:opacity-90 disabled:opacity-60"
               >
                 {converting ? <Loader2 size={16} className="qv-spin" aria-hidden /> : <SendHorizontal size={16} aria-hidden />}
@@ -626,7 +641,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                               </div>
                               <Chip tone="t9" icon={CircleCheck}>Complete</Chip>
                               {canEdit && (
-                                <button type="button" onClick={() => deleteFile(f)} aria-label={`Remove ${f.file_name}`} title="Remove"
+                                <button type="button" onClick={() => setRemovingFile(f)} aria-label={`Remove ${f.file_name}`} title="Remove"
                                   className="flex shrink-0 border-0 bg-transparent p-0 text-ui-text-secondary hover:text-error-normal">
                                   <Trash2 size={14} />
                                 </button>
@@ -672,7 +687,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                         {n.source_created_at ? new Date(n.source_created_at).toLocaleDateString('en-US') : ''}
                       </span>
                       {canEdit && (
-                        <button type="button" onClick={() => deleteNote(n)} title="Delete" aria-label="Delete comment"
+                        <button type="button" onClick={() => setDeletingNote(n)} title="Delete" aria-label="Delete comment"
                           className="flex border-0 bg-transparent p-0 text-ui-text-secondary hover:text-error-normal">
                           <Trash2 size={12} />
                         </button>
@@ -769,6 +784,45 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
           <img src={lightbox} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 8 }} onClick={e => e.stopPropagation()} />
         </div>
       )}
+
+      {/* Above the quick view's own z-index 10000. */}
+      <ConfirmModal
+        open={pendingStage !== null} onOpenChange={o => { if (!o) setPendingStage(null); }}
+        layerClassName="z-[10002]"
+        title={pendingStage ? `Move to "${OPPORTUNITY_STAGE_LABEL[pendingStage as OpportunityStage]}"?` : 'Change stage?'}
+        description="The reason is saved with the stage change."
+        confirmLabel="Change stage"
+        onConfirm={confirmStage}
+      >
+        <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-ui-heading">
+          Reason (required)
+          <Textarea rows={3} className="min-h-0" value={stageReason} onChange={e => setStageReason(e.target.value)} placeholder="Why is the stage changing?" autoFocus />
+        </label>
+      </ConfirmModal>
+      <ConfirmModal
+        open={askConvert} onOpenChange={setAskConvert}
+        layerClassName="z-[10002]"
+        title="Convert this Potential to an Opportunity?"
+        description="It goes to Sales → Handoffs to be accepted."
+        confirmLabel="Convert"
+        onConfirm={convert}
+      />
+      <ConfirmModal
+        open={!!deletingNote} onOpenChange={o => { if (!o) setDeletingNote(null); }} tone="destructive"
+        layerClassName="z-[10002]"
+        title="Delete this comment?"
+        description="It is removed permanently. This can't be undone."
+        confirmLabel="Delete"
+        onConfirm={async () => { if (deletingNote) await deleteNote(deletingNote); }}
+      />
+      <ConfirmModal
+        open={!!removingFile} onOpenChange={o => { if (!o) setRemovingFile(null); }} tone="destructive"
+        layerClassName="z-[10002]"
+        title={removingFile ? `Remove "${removingFile.file_name}"?` : 'Remove this file?'}
+        description={`It is taken off this ${kind === 'potential' ? 'Potential' : 'Opportunity'}. The file itself stays in Dropbox.`}
+        confirmLabel="Remove"
+        onConfirm={async () => { if (removingFile) await deleteFile(removingFile); }}
+      />
     </div>
   );
 }
