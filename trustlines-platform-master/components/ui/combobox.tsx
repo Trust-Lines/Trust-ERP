@@ -56,7 +56,7 @@ function Combobox({
           placeholder={placeholder}
           aria-label={aria["aria-label"]}
           aria-invalid={aria["aria-invalid"]}
-          className="h-full min-w-0 flex-1 bg-transparent px-2 outline-none placeholder:text-primary-700"
+          className="h-full min-w-0 flex-1 bg-transparent px-2 outline-none placeholder:text-primary-700 dark:placeholder:text-primary-400"
         />
         <ComboboxPrimitive.Clear aria-label="Clear" className="grid size-6 place-items-center rounded-[2px] hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring">
           <XIcon className="size-3.5" />

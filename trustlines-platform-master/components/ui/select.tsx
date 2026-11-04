@@ -72,7 +72,7 @@ function Select({
       >
         <SelectPrimitive.Value
           placeholder={placeholder}
-          className="truncate data-placeholder:text-primary-700"
+          className="truncate data-placeholder:text-primary-700 dark:data-placeholder:text-primary-400"
         >
           {renderOption
             ? (v: string | null) => {
