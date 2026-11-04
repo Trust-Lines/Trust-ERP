@@ -77,7 +77,7 @@ export function ApprovalActionBar({
     return (
       <div style={{ marginTop: 8 }}>
         {isFinalStage && (
-          <div style={{ fontSize: 10, color: 'var(--status-warning-fg)', background: 'var(--status-warning-bg)', border: '1px solid #fcd34d', borderRadius: 5, padding: '5px 8px', marginBottom: 5 }}>
+          <div style={{ fontSize: 10, color: 'var(--status-warning-fg)', background: 'var(--status-warning-bg)', border: '1px solid color-mix(in srgb, var(--status-warning-fg) 45%, transparent)', borderRadius: 5, padding: '5px 8px', marginBottom: 5 }}>
             ⚠️ Final-stage rejection opens the next version
             {versionNum != null ? ` (V${versionNum + 1})` : ''} for the whole document set.
           </div>
@@ -89,8 +89,9 @@ export function ApprovalActionBar({
           rows={2}
           style={{
             width: '100%', fontSize: md ? 12 : 11, padding: '6px 8px',
-            border: `1px solid ${rejectNote.trim() ? 'var(--border-default)' : '#fca5a5'}`,
+            border: `1px solid ${rejectNote.trim() ? 'var(--border-default)' : 'var(--status-danger-fg)'}`,
             borderRadius: 5, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
+            background: 'var(--ui-input-bg)', color: 'var(--fg-default)',
           }}
         />
         <div style={{ display: 'flex', gap: 5, marginTop: 5, alignItems: 'center' }}>
@@ -99,7 +100,8 @@ export function ApprovalActionBar({
             disabled={acting || !rejectNote.trim()}
             style={{
               padding: padBtn, borderRadius: 5, fontSize: fsBtn, fontWeight: 600,
-              background: rejectNote.trim() ? '#dc2626' : '#fca5a5', color: 'white', border: 'none',
+              background: rejectNote.trim() ? 'var(--color-error-normal)' : 'var(--ui-divider)',
+              color: rejectNote.trim() ? '#FFFFFF' : 'var(--ui-text-secondary)', border: 'none',
               cursor: rejectNote.trim() ? 'pointer' : 'not-allowed',
             }}
           >
@@ -127,7 +129,7 @@ export function ApprovalActionBar({
         <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={userSignature} alt="Your signature" style={{ height: md ? 26 : 22, maxWidth: 110, objectFit: 'contain', border: '1px solid var(--border-default)', borderRadius: 3, background: 'var(--bg-surface)', padding: '1px 3px' }} />
-          <span style={{ fontSize: md ? 11 : 10, color: '#16a34a' }}>will be stamped on PDF</span>
+          <span style={{ fontSize: md ? 11 : 10, color: 'var(--status-success-fg)' }}>will be stamped on PDF</span>
         </div>
       )}
       <div style={{ display: 'flex', gap: 6 }}>
@@ -137,7 +139,8 @@ export function ApprovalActionBar({
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
             padding: padBtn, borderRadius: 5, fontSize: fsBtn, fontWeight: 600, cursor: 'pointer',
-            background: '#dcfce7', color: '#16a34a', border: '1px solid #86efac',
+            background: 'var(--status-success-bg)', color: 'var(--status-success-fg)',
+            border: '1px solid color-mix(in srgb, var(--status-success-fg) 45%, transparent)',
           }}
         >
           {acting ? <Loader2 size={icon} style={{ animation: 'spin 1s linear infinite' }} /> : <ThumbsUp size={icon} />}
@@ -149,7 +152,8 @@ export function ApprovalActionBar({
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
             padding: padBtn, borderRadius: 5, fontSize: fsBtn, fontWeight: 600, cursor: 'pointer',
-            background: 'var(--status-danger-bg)', color: '#dc2626', border: '1px solid #fca5a5',
+            background: 'var(--status-danger-bg)', color: 'var(--status-danger-fg)',
+            border: '1px solid color-mix(in srgb, var(--status-danger-fg) 45%, transparent)',
           }}
         >
           <ThumbsDown size={icon} /> Reject
