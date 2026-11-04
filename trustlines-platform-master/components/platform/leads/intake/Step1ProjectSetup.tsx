@@ -64,7 +64,7 @@ export function Step1ProjectSetup({ form, setForm, generatedProjectCode, formatt
         <div className="flex min-h-[42px] items-center rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 font-mono text-[11px] font-semibold tracking-[0.2em] text-[var(--color-secondary-700)] dark:text-ui-heading">
           {form.region ? generatedProjectCode : '_ _ _  _ _ _  _ _ _ _'}
         </div>
-        <p className="mt-[7px] text-[12px] font-medium leading-4 text-ui-text-disabled">
+        <p className="mt-[7px] text-[12px] font-medium leading-4 text-ui-body">
           Auto-generated: company + region + running number (e.g. STW 460).
         </p>
       </div>

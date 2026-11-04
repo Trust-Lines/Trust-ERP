@@ -43,7 +43,7 @@ export function StepNav({ activeStep, onSelect, isStepDone }: {
               <span className={cn('truncate font-semibold', isActive || isDone ? 'text-[var(--color-secondary-700)] dark:text-ui-heading' : 'text-ui-body')}>
                 {s.title}
               </span>
-              <span className={cn('truncate', isActive || isDone ? 'text-ui-body' : 'text-ui-text-disabled')}>{s.subtitle}</span>
+              <span className={cn('truncate', isActive ? 'text-[var(--color-secondary-700)] dark:text-ui-body' : 'text-ui-body')}>{s.subtitle}</span>
             </span>
           </button>
         );
