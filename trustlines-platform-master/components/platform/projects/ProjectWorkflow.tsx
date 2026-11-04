@@ -641,7 +641,7 @@ export function ProjectWorkflow({
         <AccordionSection
           id="phase1"
           phaseNo="Phase 1" title="Finalization"
-          color="var(--color-secondary-700)"
+          color="var(--wf-phase1-fg)"
           done={countDone(PHASE1_STEPS, 'phase1')}
           total={PHASE1_STEPS.length}
           isOpen={openSections.has('phase1')}
