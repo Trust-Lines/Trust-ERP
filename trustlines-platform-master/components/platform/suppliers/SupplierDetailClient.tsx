@@ -13,6 +13,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { statusLabel } from '@/lib/status/tags';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ConfirmModal } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 import type { VendorWork } from '@/lib/suppliers/trustWork';
 
@@ -57,29 +58,35 @@ export function SupplierDetailClient({ supplier, initialInvoices, initialPayment
   const projById = new Map(projects.map(p => [p.id, p]));
   const activeCurrencies = CURRENCIES.filter(c => totals[c].invoiced !== 0 || totals[c].paid !== 0);
   const [toggling, setToggling] = useState(false);
+  const [confirming, setConfirming] = useState<'deactivate' | 'delete' | null>(null);
+
+  // Reactivating needs no question; deactivating asks in the confirm popup first.
+  function toggleActive() {
+    if (supplier.is_active) setConfirming('deactivate');
+    else void setActive(true);
+  }
 
   // Soft toggle only (is_active) — invoices, payments and history are kept.
-  async function toggleActive() {
-    const activate = !supplier.is_active;
-    if (!activate && !confirm(`Deactivate ${supplier.name}? It will no longer be offered as a vendor. Invoices and payments are kept.`)) return;
+  // Called from the confirm popup too; throwing keeps the popup open so the user can retry.
+  async function setActive(activate: boolean) {
     setToggling(true);
     const res = await fetch(`/api/suppliers/${supplier.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: activate }),
     });
     const body = await res.json().catch(() => ({}));
     setToggling(false);
-    if (!res.ok) { toast.error(body.error ?? 'Failed to update supplier'); return; }
+    if (!res.ok) { toast.error(body.error ?? 'Failed to update supplier'); throw new Error('update failed'); }
     toast.success(activate ? 'Supplier reactivated' : 'Supplier deactivated'); router.refresh();
   }
 
   // Deleted when nothing points at it; otherwise the API sets it inactive and says what's linked.
+  // Called from the confirm popup; throwing keeps the popup open so the user can retry.
   async function remove() {
-    if (!confirm(`Delete ${supplier.name}? If invoices, payments or production items point at it, it is set inactive instead so they keep their supplier.`)) return;
     setToggling(true);
     const res = await fetch(`/api/suppliers/${supplier.id}`, { method: 'DELETE' });
     const body = await res.json().catch(() => ({}));
     setToggling(false);
-    if (!res.ok) { toast.error(body.error ?? 'Could not delete the supplier'); return; }
+    if (!res.ok) { toast.error(body.error ?? 'Could not delete the supplier'); throw new Error('delete failed'); }
     if (body.deleted) { toast.success(`${supplier.name} deleted`); router.push('/suppliers'); router.refresh(); return; }
     toast.info(`Set inactive instead — linked to ${(body.linked ?? []).join(', ')}`); router.refresh();
   }
@@ -109,7 +116,7 @@ export function SupplierDetailClient({ supplier, initialInvoices, initialPayment
             </Button>
             {/* Figma Delete: soft T10 fill. */}
             <Button
-              onClick={() => void remove()} disabled={toggling}
+              onClick={() => setConfirming('delete')} disabled={toggling}
               className={cn(TONE_BTN, 'border-[var(--status-t10-bg)] bg-[var(--status-t10-bg)] text-[var(--status-t10-fg)] hover:bg-[var(--status-t10-bg)] dark:border-[var(--status-t10-bg)] dark:bg-[var(--status-t10-bg)] dark:text-[var(--status-t10-fg)]')}
             >
               <Trash2 className="size-4" /> Delete
@@ -167,6 +174,21 @@ export function SupplierDetailClient({ supplier, initialInvoices, initialPayment
           projById={projById} canEdit={canEdit} onChange={() => router.refresh()}
         />
       </div>
+
+      <ConfirmModal
+        open={confirming === 'deactivate'} onOpenChange={o => { if (!o) setConfirming(null); }}
+        title={`Deactivate ${supplier.name}?`}
+        description="It will no longer be offered as a vendor. Invoices, payments and history are kept, and you can reactivate it any time."
+        confirmLabel="Deactivate"
+        onConfirm={() => setActive(false)}
+      />
+      <ConfirmModal
+        open={confirming === 'delete'} onOpenChange={o => { if (!o) setConfirming(null); }} tone="destructive"
+        title={`Delete ${supplier.name}?`}
+        description="If invoices, payments or production items point at it, it is set inactive instead so they keep their supplier."
+        confirmLabel="Delete"
+        onConfirm={remove}
+      />
     </div>
   );
 }
@@ -286,6 +308,7 @@ function InvoicesSection({ supplierId, invoices, projById, canEdit, onChange }: 
   const [adding, setAdding] = useState(false);
   const [f, setF] = useState({ invoice_number: '', invoice_date: '', currency: 'USD', amount: '', description: '' });
   const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState<SupplierInvoice | null>(null);
 
   async function add() {
     if (!f.amount || Number(f.amount) <= 0) { toast.error('Enter a positive amount'); return; }
@@ -301,10 +324,10 @@ function InvoicesSection({ supplierId, invoices, projById, canEdit, onChange }: 
     onChange();
   }
 
+  // Called from the confirm popup; throwing keeps the popup open so the user can retry.
   async function remove(invId: string) {
-    if (!confirm('Delete this invoice?')) return;
     const res = await fetch(`/api/suppliers/${supplierId}/invoices/${invId}`, { method: 'DELETE' });
-    if (!res.ok) { const b = await res.json().catch(() => ({})); toast.error(b.error ?? 'Failed'); return; }
+    if (!res.ok) { const b = await res.json().catch(() => ({})); toast.error(b.error ?? 'Failed'); throw new Error('delete failed'); }
     toast.success('Invoice deleted'); onChange();
   }
 
@@ -343,13 +366,23 @@ function InvoicesSection({ supplierId, invoices, projById, canEdit, onChange }: 
                   {p && <>{'  ·  '}<Link href={`/projects/${inv.project_id}`} className="text-inherit underline-offset-2 hover:underline">{p.code}</Link></>}
                   {'  ·  '}<span style={{ color: `var(--status-${INVOICE_STATUS_TONE[inv.status] ?? 't0'}-fg)` }}>{statusLabel(inv.status)}</span>
                 </>}
-                onDelete={canEdit ? () => remove(inv.id) : undefined}
+                onDelete={canEdit ? () => setRemoving(inv) : undefined}
                 deleteLabel="Delete invoice"
               />
             );
           })}
         </ul>
       )}
+
+      <ConfirmModal
+        open={!!removing} onOpenChange={o => { if (!o) setRemoving(null); }} tone="destructive"
+        title="Delete this invoice?"
+        description={removing
+          ? `${removing.invoice_number ? `#${removing.invoice_number}` : 'No number'} · ${fmt(Number(removing.amount))} ${removing.currency}${removing.invoice_date ? ` · ${dayFirst(removing.invoice_date)}` : ''}. This can't be undone.`
+          : undefined}
+        confirmLabel="Delete"
+        onConfirm={async () => { if (removing) await remove(removing.id); }}
+      />
     </section>
   );
 }
@@ -361,6 +394,7 @@ function PaymentsSection({ supplierId, payments, invoices, projById, canEdit, on
   const [adding, setAdding] = useState(false);
   const [f, setF] = useState({ amount: '', currency: 'USD', method: 'bank_transfer', paid_at: '', invoice_id: '', reference: '' });
   const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState<SupplierPayment | null>(null);
 
   async function add() {
     if (!f.amount || Number(f.amount) <= 0) { toast.error('Enter a positive amount'); return; }
@@ -377,10 +411,10 @@ function PaymentsSection({ supplierId, payments, invoices, projById, canEdit, on
     onChange();
   }
 
+  // Called from the confirm popup; throwing keeps the popup open so the user can retry.
   async function remove(payId: string) {
-    if (!confirm('Delete this payment?')) return;
     const res = await fetch(`/api/suppliers/${supplierId}/payments/${payId}`, { method: 'DELETE' });
-    if (!res.ok) { const b = await res.json().catch(() => ({})); toast.error(b.error ?? 'Failed'); return; }
+    if (!res.ok) { const b = await res.json().catch(() => ({})); toast.error(b.error ?? 'Failed'); throw new Error('delete failed'); }
     toast.success('Payment deleted'); onChange();
   }
 
@@ -422,13 +456,23 @@ function PaymentsSection({ supplierId, payments, invoices, projById, canEdit, on
                   {[inv ? `Invoice ${inv.invoice_number || inv.id.slice(0, 8)}` : 'On Account', dayFirst(pay.paid_at), pay.reference].filter(Boolean).join('  ·  ')}
                   {p && <>{'  ·  '}<Link href={`/projects/${pay.project_id}`} className="text-inherit underline-offset-2 hover:underline">{p.code}</Link></>}
                 </>}
-                onDelete={canEdit ? () => remove(pay.id) : undefined}
+                onDelete={canEdit ? () => setRemoving(pay) : undefined}
                 deleteLabel="Delete payment"
               />
             );
           })}
         </ul>
       )}
+
+      <ConfirmModal
+        open={!!removing} onOpenChange={o => { if (!o) setRemoving(null); }} tone="destructive"
+        title="Delete this payment?"
+        description={removing
+          ? `${PAYMENT_METHOD_LABELS[removing.method] ?? removing.method} · ${fmt(Number(removing.amount))} ${removing.currency}${removing.paid_at ? ` · ${dayFirst(removing.paid_at)}` : ''}. This can't be undone.`
+          : undefined}
+        confirmLabel="Delete"
+        onConfirm={async () => { if (removing) await remove(removing.id); }}
+      />
     </section>
   );
 }
