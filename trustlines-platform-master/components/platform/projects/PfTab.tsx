@@ -485,7 +485,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
       </div>
 
       {!canCreatePf && (
-        <div style={{ margin: '0 14px 12px', padding: '10px 14px', background: 'var(--status-warning-bg)', border: '1px solid #fcd34d', borderRadius: 8 }}>
+        <div style={{ margin: '0 14px 12px', padding: '10px 14px', background: 'var(--status-warning-bg)', border: '1px solid color-mix(in srgb, var(--status-warning-fg) 45%, transparent)', borderRadius: 8 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--status-warning-fg)' }}>Drafts OK — signing locked until these are approved</div>
           <div style={{ fontSize: 11, color: 'var(--status-warning-fg)', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {pendingPrereqs.map(p => (
@@ -535,7 +535,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                 onClick={() => { if (activeVendor) { const f = filterSectionsByVendor(itemList, activeVendor); const ft = activeType ? f.filter(s => (s.typeLabel?.trim() || '') === activeType) : f; setEditSections(ft.length ? enrichPrices(ft) : blankSections(catGroup, activeVendor)); } setShowEditor(true); setSelectedDocId(null); }}
                 style={{
                   width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: '9px 12px', borderRadius: 8, border: 'none', background: '#1a2b4b', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  padding: '9px 12px', borderRadius: 8, border: 'none', background: 'var(--ui-btn-solid)', color: 'var(--ui-btn-solid-fg)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                 }}><Plus size={14} /> New PF</button>
             </div>
             <div style={{ overflowY: 'auto', flex: 1, padding: 8 }}>
@@ -561,11 +561,11 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                       <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{code}</span>
                       <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--brand-teal, #1a6b6b)', flexShrink: 0 }}>V{v}</span>
                     </div>
-                    {tlabel && <div style={{ marginTop: 3, fontSize: 9, fontWeight: 700, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: 0.2 }}>{tlabel}</div>}
+                    {tlabel && <div style={{ marginTop: 3, fontSize: 9, fontWeight: 700, color: 'var(--status-danger-fg)', textTransform: 'uppercase', letterSpacing: 0.2 }}>{tlabel}</div>}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
-                      <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 99, background: d.status === 'approved' ? '#dcfce7' : '#fef3c7', color: d.status === 'approved' ? '#15803d' : '#b45309' }}>{d.status === 'draft' ? 'DRAFT' : d.status.toUpperCase()}</span>
+                      <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 99, background: d.status === 'approved' ? 'var(--status-success-bg)' : 'var(--status-warning-bg)', color: d.status === 'approved' ? 'var(--status-success-fg)' : 'var(--status-warning-fg)' }}>{d.status === 'draft' ? 'DRAFT' : d.status.toUpperCase()}</span>
                       {d.status !== 'approved' && (
-                        <button onClick={e => { e.stopPropagation(); void deletePf(d.id, code); }} title="Delete this PF" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: 2, lineHeight: 0 }}>
+                        <button onClick={e => { e.stopPropagation(); void deletePf(d.id, code); }} title="Delete this PF" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger-fg)', padding: 2, lineHeight: 0 }}>
                           <Trash2 size={13} />
                         </button>
                       )}
@@ -607,7 +607,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                           style={{
                             width: '100%', textAlign: 'left', display: 'block',
                             padding: '6px 9px', marginBottom: 3, borderRadius: 5, cursor: statusBusy ? 'default' : 'pointer',
-                            border: `1px solid ${active ? '#111' : 'var(--border-subtle)'}`,
+                            border: `1px solid ${active ? 'var(--ui-heading)' : 'var(--border-subtle)'}`,
                             background: active && css ? css.bg : 'var(--bg-surface)', color: active && css ? css.fg : 'var(--fg-default)',
                           }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -624,7 +624,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                       </button>
                     )}
                     {pfStatus === 'RECEIVED' && (
-                      <button onClick={() => toast.info('QC step — coming soon')} style={{ width: '100%', marginTop: 6, padding: '7px 9px', borderRadius: 6, border: '1px solid #d97706', background: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                      <button onClick={() => toast.info('QC step — coming soon')} style={{ width: '100%', marginTop: 6, padding: '7px 9px', borderRadius: 6, border: '1px solid var(--status-warning-fg)', background: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                         ✅ QC (quality check)
                       </button>
                     )}
@@ -672,7 +672,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
             <span style={{ color: 'var(--fg-muted)', fontWeight: 600 }}>Type</span>
-            <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 99, background: 'var(--status-danger-bg)', color: '#b91c1c', border: '1px solid #fca5a5' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 99, background: 'var(--status-danger-bg)', color: 'var(--status-danger-fg)', border: '1px solid color-mix(in srgb, var(--status-danger-fg) 45%, transparent)' }}>
               {activeType || catGroup.toUpperCase()}
             </span>
             <span style={{ fontSize: 10, color: 'var(--fg-faint)' }}>from the Item List section · drives the PF number</span>
@@ -690,7 +690,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
             )}
             <button onClick={generate} disabled={generating || !itemCount} style={{
               display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 7, border: 'none',
-              background: itemCount ? '#1a2b4b' : '#cbd5e1', color: '#fff', fontSize: 13, fontWeight: 700,
+              background: itemCount ? 'var(--ui-btn-solid)' : 'var(--ui-divider)', color: itemCount ? 'var(--ui-btn-solid-fg)' : 'var(--ui-text-secondary)', fontSize: 13, fontWeight: 700,
               cursor: (generating || !itemCount) ? 'default' : 'pointer',
             }}>
               {generating ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <FileText size={13} />}
@@ -733,7 +733,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                                 <td style={pfTd}><input value={it.description} onChange={e => updItem(si, ci, sbi, gi, ii, { description: e.target.value })} style={{ ...pfInput, color: 'var(--fg-default)', fontWeight: 600 }} placeholder="Description" /></td>
                                 <td style={pfTd}><input type="number" min={0} value={it.quantity || ''} onChange={e => updItem(si, ci, sbi, gi, ii, { quantity: parseInt(e.target.value) || 0 })} style={{ ...pfInput, textAlign: 'center' }} /></td>
                                 <td style={pfTd}><input type="number" min={0} value={it.unitPrice ?? ''} onChange={e => updItem(si, ci, sbi, gi, ii, { unitPrice: e.target.value === '' ? null : parseFloat(e.target.value) })} style={{ ...pfInput, textAlign: 'right' }} placeholder="0.00" /></td>
-                                <td style={{ ...pfTd, textAlign: 'center' }}><button onClick={() => removeItem(si, ci, sbi, gi, ii)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: 2 }}><X size={12} /></button></td>
+                                <td style={{ ...pfTd, textAlign: 'center' }}><button onClick={() => removeItem(si, ci, sbi, gi, ii)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger-fg)', padding: 2 }}><X size={12} /></button></td>
                               </tr>
                             ))}
                           </tbody>
@@ -771,7 +771,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
               <button
                 onClick={async () => { if (!etdValue) { toast.error('Pick an ETD'); return; } await applyStatus('ORDERED', etdValue); setEtdOpen(false); }}
                 disabled={statusBusy || !etdValue}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 7, border: 'none', background: (statusBusy || !etdValue) ? '#cbd5e1' : '#1a2b4b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: (statusBusy || !etdValue) ? 'default' : 'pointer' }}>
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 7, border: 'none', background: (statusBusy || !etdValue) ? 'var(--ui-divider)' : 'var(--ui-btn-solid)', color: (statusBusy || !etdValue) ? 'var(--ui-text-secondary)' : 'var(--ui-btn-solid-fg)', fontSize: 13, fontWeight: 700, cursor: (statusBusy || !etdValue) ? 'default' : 'pointer' }}>
                 {statusBusy ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : null} Confirm ORDERED
               </button>
             </div>
