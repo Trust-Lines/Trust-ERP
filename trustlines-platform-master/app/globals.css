@@ -379,6 +379,10 @@
   --phase-done: #16A34A;
   --phase-done-bg: #E7F6EC;
 
+  /* Solid navy button for inline-styled screens (same as the Tailwind secondary-700 / dark:primary-50 buttons). */
+  --ui-btn-solid: var(--color-secondary-700);
+  --ui-btn-solid-fg: #FFFFFF;
+
   /* Project workflow — Phase 1 card tone + Phase 3 production category rows. */
   --wf-phase1-fg: var(--color-secondary-700);
   --cat-millwork-fg: #1a6b6b; --cat-millwork-bg: #e1f0f0; --cat-millwork-border: #9ecfcf;
@@ -486,6 +490,9 @@
   --status-t9-fg: var(--color-success-light);
   --status-t10-bg: var(--color-error-dark);
   --status-t10-fg: var(--color-error-light);
+
+  --ui-btn-solid: var(--color-primary-50);
+  --ui-btn-solid-fg: var(--color-primary-950);
 
   /* Project workflow — Dark: light text on tinted dark rows. */
   --wf-phase1-fg: var(--color-primary-50);

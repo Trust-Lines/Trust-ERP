@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 import type { DocumentRow } from './ProjectDetailClient';
 import { DocumentApprovalRail } from '../approvals/DocumentApprovalRail';
 import { approvalStagesFor } from '@/lib/approvals/stageConfig';
+import { ConfirmModal } from '@/components/ui/modal';
+import { Textarea } from '@/components/ui/textarea';
 
 const SignaturePad = dynamic(() => import('../SignaturePad').then(m => ({ default: m.SignaturePad })), { ssr: false });
 
@@ -30,6 +32,8 @@ export function PoTab({ projectId, userId, userRole, userPerms, catGroup, catego
   const [holding, setHolding] = useState(false);
   const [onHold, setOnHold] = useState(false);
   const [holdNote, setHoldNote] = useState<string | null>(null);
+  const [holdOpen, setHoldOpen] = useState(false);
+  const [holdReason, setHoldReason] = useState('');
   const [ordered, setOrdered] = useState(false);
   const pendingApproveRef = useRef<(() => void) | null>(null);
 
@@ -96,14 +100,18 @@ export function PoTab({ projectId, userId, userRole, userPerms, catGroup, catego
     finally { setGenerating(false); }
   }
 
-  async function holdT(release: boolean) {
-    let note: string | null = null;
-    if (!release) {
-      if (ordered && !window.confirm('⚠️ This order is already ORDERED. Putting it on HOLD / T will alert the team (Trust PM, Client PM, Production Manager, General Manager). Continue?')) return;
-      note = window.prompt('Reason for HOLD / T (required) — saved as a note, shown on the production board, and emailed to the people on this project:', holdNote ?? '');
-      if (note === null) return;
-      if (!note.trim()) { toast.error('A reason is required to hold'); return; }
-    }
+  function openHold() {
+    setHoldReason(holdNote ?? '');
+    setHoldOpen(true);
+  }
+
+  // Called from the HOLD popup; throwing keeps the popup open so the user can fix the reason or retry.
+  async function confirmHold() {
+    if (!holdReason.trim()) { toast.error('A reason is required to hold'); throw new Error('reason required'); }
+    if (!await holdT(false, holdReason)) throw new Error('hold failed');
+  }
+
+  async function holdT(release: boolean, note: string | null = null): Promise<boolean> {
     setHolding(true);
     try {
       const res = await fetch(`/api/projects/${projectId}/po-hold`, {
@@ -117,7 +125,8 @@ export function PoTab({ projectId, userId, userRole, userPerms, catGroup, catego
       setHoldNote(release ? null : (note?.trim() ?? null));
       onSynced?.();
       loadHold();
-    } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed'); }
+      return true;
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed'); return false; }
     finally { setHolding(false); }
   }
 
@@ -150,7 +159,7 @@ export function PoTab({ projectId, userId, userRole, userPerms, catGroup, catego
               {canHold && (
                 <>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => holdT(false)} disabled={holding} title="Put the order on HOLD / T (a reason is required)" style={{
+                    <button onClick={openHold} disabled={holding} title="Put the order on HOLD / T (a reason is required)" style={{
                       flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 8px', borderRadius: 7,
                       border: '1px solid #dc2626', fontSize: 11, fontWeight: 700, cursor: 'pointer',
                       background: onHold ? '#dc2626' : '#fff', color: onHold ? '#fff' : '#dc2626',
@@ -235,6 +244,22 @@ export function PoTab({ projectId, userId, userRole, userPerms, catGroup, catego
           onClose={() => { setShowSigPad(false); pendingApproveRef.current = null; }}
         />
       )}
+
+      <ConfirmModal
+        open={holdOpen}
+        onOpenChange={setHoldOpen}
+        title="Put this order on HOLD / T?"
+        description="The reason is saved as a note, shown on the production board, and emailed to the people on this project."
+        confirmLabel="Put on HOLD / T"
+        tone="destructive"
+        warning={ordered ? 'This order is already ORDERED. Putting it on HOLD / T alerts the Trust PM, Client PM, Production Manager and General Manager.' : undefined}
+        onConfirm={confirmHold}
+      >
+        <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-ui-heading">
+          Reason (required)
+          <Textarea rows={3} className="min-h-0" value={holdReason} onChange={e => setHoldReason(e.target.value)} placeholder="Why is this order on hold?" autoFocus />
+        </label>
+      </ConfirmModal>
     </div>
   );
 }

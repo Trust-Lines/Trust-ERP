@@ -297,7 +297,7 @@ export function DropboxSyncBtn({
                         {f.name}
                       </div>
                       {alreadyLinked && (
-                        <div style={{ fontSize: 10, color: '#16a34a', marginTop: 1 }}>✓ Linked</div>
+                        <div style={{ fontSize: 10, color: 'var(--status-success-fg)', marginTop: 1 }}>✓ Linked</div>
                       )}
                     </div>
 
@@ -308,8 +308,8 @@ export function DropboxSyncBtn({
                           display: 'inline-flex', alignItems: 'center', gap: 3,
                           padding: '3px 8px', borderRadius: 4,
                           fontSize: 10, fontWeight: 600, cursor: 'pointer',
-                          background: '#d1fae5', color: '#065f46',
-                          border: '1px solid #6ee7b7', flexShrink: 0,
+                          background: 'var(--status-success-bg)', color: 'var(--status-success-fg)',
+                          border: '1px solid color-mix(in srgb, var(--status-success-fg) 45%, transparent)', flexShrink: 0,
                         }}
                       >
                         <ExternalLink size={9} /> View
@@ -323,7 +323,7 @@ export function DropboxSyncBtn({
                           padding: '3px 8px', borderRadius: 4,
                           fontSize: 10, fontWeight: 600, cursor: isSyncing ? 'wait' : 'pointer',
                           background: 'var(--brand-teal-100)', color: 'var(--brand-teal)',
-                          border: '1px solid #9ecfcf', flexShrink: 0,
+                          border: '1px solid color-mix(in srgb, var(--brand-teal) 45%, transparent)', flexShrink: 0,
                         }}
                       >
                         {isSyncing
@@ -380,7 +380,7 @@ function StepRow({
         transition: 'background 120ms',
       }}
     >
-      <span style={{ fontSize: 10, color: 'var(--fg-faint)', fontWeight: 700, width: 14, textAlign: 'right', flexShrink: 0, marginTop: 2 }}>
+      <span style={{ fontSize: 10, color: (isDone || isApproved) ? 'var(--status-t9-fg)' : 'var(--fg-faint)', fontWeight: 700, width: 14, textAlign: 'right', flexShrink: 0, marginTop: 2 }}>
         {num}
       </span>
 
@@ -388,21 +388,21 @@ function StepRow({
         {(isDone || isApproved)
           ? <CheckCircle2 size={15} color="var(--phase-done)" strokeWidth={2} />
           : isWaiting
-            ? <Clock size={15} color="#f59e0b" strokeWidth={1.5} />
+            ? <Clock size={15} color="var(--status-warning-fg)" strokeWidth={1.5} />
             : isRejected
-              ? <XCircle size={15} color="#dc2626" strokeWidth={1.5} />
+              ? <XCircle size={15} color="var(--status-danger-fg)" strokeWidth={1.5} />
               : <Circle size={15} color="var(--border-strong)" strokeWidth={1.5} />}
       </span>
 
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ fontSize: 13, color: (isDone || isApproved) ? 'var(--fg-subtle)' : 'var(--fg-default)', fontWeight: (isDone || isApproved) ? 400 : 500 }}>
+        <span style={{ fontSize: 13, color: (isDone || isApproved) ? 'var(--status-t9-fg)' : 'var(--fg-default)', fontWeight: (isDone || isApproved) ? 400 : 500 }}>
           {stepDef.label}
           {stepDef.isOptional && (
             <span style={{ fontSize: 10, color: 'var(--fg-faint)', fontWeight: 400, marginLeft: 5 }}>optional</span>
           )}
         </span>
         {isDone && (stepRecord?.completed_at || stepRecord?.approved_at) && (
-          <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: 11, color: 'var(--status-t9-fg)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
             {new Date((stepRecord.approved_at ?? stepRecord.completed_at)!).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
             {stepRecord?.version_approved != null && (
               <span style={{ fontWeight: 700, color: 'var(--phase-done)', fontSize: 10 }}>V{stepRecord.version_approved}</span>
@@ -410,13 +410,13 @@ function StepRow({
           </div>
         )}
         {isWaiting && stepRecord?.notes && (
-          <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ fontSize: 11, color: 'var(--status-warning-fg)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
             <Clock size={9} />
             {stepRecord.notes}
           </div>
         )}
         {isRejected && stepRecord?.notes && (
-          <div style={{ fontSize: 11, color: '#dc2626', marginTop: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ fontSize: 11, color: 'var(--status-danger-fg)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
             <XCircle size={9} />
             {stepRecord.notes}
           </div>
@@ -492,11 +492,11 @@ function AccordionSection({
         type="button" onClick={onToggle} aria-expanded={isOpen} aria-controls={`wf-${id}`}
         className="flex w-full cursor-pointer flex-col gap-4 border-0 bg-transparent px-2 pb-4 pt-5 text-left"
       >
-        <span className="flex w-full items-center gap-5 px-4" style={{ color: tone }}>
+        <span className="flex w-full items-center gap-4 px-4" style={{ color: tone }}>
           <span className="shrink-0 whitespace-nowrap font-semibold leading-none">
             <span className="text-[32px]">{done}</span><span className="text-[20px] font-normal">/{total}</span>
           </span>
-          <span className="flex min-w-0 flex-1 flex-col">
+          <span className="flex min-w-0 flex-1 flex-col break-words">
             <span className="text-[14px]">{phaseNo}</span>
             <span className="text-[20px] font-semibold leading-5">{title}</span>
           </span>
@@ -626,7 +626,7 @@ export function ProjectWorkflow({
   const p3Done  = activeGroups.reduce((s, g) => s + countDone(CATEGORY_STEPS, 'phase3', g), 0);
 
   return (
-    <section className="flex flex-col gap-8 rounded-[8px] border border-ui-divider bg-ui-page-bg px-[18px] pb-8 pt-4">
+    <section className="@container flex flex-col gap-8 rounded-[8px] border border-ui-divider bg-ui-page-bg px-[18px] pb-8 pt-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="m-0 text-[20px] font-semibold tracking-[0.4px] text-[var(--color-secondary-700)] dark:text-ui-heading">Workflow</h2>
         {saving && (
@@ -636,7 +636,9 @@ export function ProjectWorkflow({
         )}
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 2xl:grid-cols-4">
+      {/* Columns follow the Workflow box's own width (the right rail makes it narrow on any screen),
+          so each phase card stays wide enough for "Construction Documents" beside its count and chevron. */}
+      <div className="grid grid-cols-1 items-start gap-4 @xl:grid-cols-2 @6xl:grid-cols-4">
 
         <AccordionSection
           id="phase1"
