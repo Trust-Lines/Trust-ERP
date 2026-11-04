@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { canEditEntry, requireDesignPage } from '@/lib/design/access';
-import { dropboxError, fileIn, listFiles, temporaryLink, uploadLinkIn } from '@/lib/design/dropboxDirect';
+import { dropboxError, fileIn, listFiles, temporaryLink, uploadTargetIn } from '@/lib/design/dropboxDirect';
 import { brandKitFolder, cleanColors, cleanFonts } from '@/lib/design/libraryPaths';
 
 type Params = { params: Promise<{ id: string }> };
@@ -37,8 +37,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   try {
     if (body.action === 'upload-link') {
       if (!canEditEntry(kit, user.id, isManager)) return NextResponse.json({ error: 'Only the kit owner or a manager can add files' }, { status: 403 });
-      const link = await uploadLinkIn(folderOf(kit), String(body.fileName ?? ''));
-      return link ? NextResponse.json({ link }) : NextResponse.json({ error: 'Invalid file name' }, { status: 400 });
+      const target = await uploadTargetIn(folderOf(kit), String(body.fileName ?? ''));
+      // The path too: when Dropbox's reply to the upload is lost, the browser still knows where it went.
+      return target ? NextResponse.json(target) : NextResponse.json({ error: 'Invalid file name' }, { status: 400 });
     }
     if (body.action === 'open') {
       const file = await fileIn(folderOf(kit), String(body.path ?? ''));

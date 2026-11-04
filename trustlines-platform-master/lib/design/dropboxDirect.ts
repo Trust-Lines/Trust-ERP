@@ -2,22 +2,40 @@
 // and checking that an uploaded path really is a file inside that folder before it's indexed.
 import { getDropboxClient } from '@/lib/dropbox/client';
 import { relativeTo, safeSegment } from '@/lib/sales/designPaths';
+import { signUploadTicket } from './uploadTicket';
 
 /** Upload link for `folder/fileName` — add + autorename, never overwrites. Dropbox creates missing parent folders. */
 export async function uploadLinkIn(folder: string, fileName: string): Promise<string | null> {
   return (await uploadTargetIn(folder, fileName))?.link ?? null;
 }
 
-/** uploadLinkIn plus the path the file lands at (unless a file there already makes Dropbox rename it). */
-export async function uploadTargetIn(folder: string, fileName: string): Promise<{ link: string; path: string } | null> {
+/**
+ * uploadLinkIn plus the exact path the file lands at. A name already taken in the folder gets
+ * " (2)", " (3)"… here, before the upload — so the path the browser is given back is the real one
+ * even when Dropbox's own reply to the upload is lost (lib/client/designUpload falls back to it).
+ */
+export async function uploadTargetIn(folder: string, fileName: string): Promise<{ link: string; path: string; ticket: string } | null> {
   const name = safeSegment(fileName, '');
   if (!name) return null;
-  const path = `${folder}/${name}`;
+  const path = await freePath(folder, name);
   const res = await getDropboxClient().filesGetTemporaryUploadLink({
     commit_info: { path, mode: { '.tag': 'add' }, autorename: true },
     duration: 3600,
   });
-  return { link: res.result.link, path };
+  // The ticket lets a file over 150 MB go up in chunks to this same path (app/api/public/design-upload).
+  return { link: res.result.link, path, ticket: signUploadTicket(path) };
+}
+
+/** `folder/name`, or "name (2).ext", "name (3).ext"… when that's taken. */
+async function freePath(folder: string, name: string): Promise<string> {
+  const dot = name.lastIndexOf('.');
+  const [base, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ''];
+  for (let n = 1; n < 100; n++) {
+    const path = `${folder}/${n === 1 ? name : `${base} (${n})${ext}`}`;
+    try { await getDropboxClient().filesGetMetadata({ path }); }
+    catch { return path; } // not found — free
+  }
+  return `${folder}/${base} (${Date.now()})${ext}`;
 }
 
 /** The file's metadata when `path` is a file somewhere under `folder`, else null. */

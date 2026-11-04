@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { NOT_READY, requireDesignPage, tableMissing } from '@/lib/design/access';
-import { dropboxError, fileIn, uploadLinkIn } from '@/lib/design/dropboxDirect';
+import { dropboxError, fileIn, uploadTargetIn } from '@/lib/design/dropboxDirect';
 import { ASSET_KINDS, LIBRARY_ROOT, assetFolder, parseTags } from '@/lib/design/libraryPaths';
 
 const COLS = 'id, kind, title, description, tags, dropbox_path, file_name, size_bytes, created_by, created_at, updated_at';
@@ -34,8 +34,9 @@ export async function POST(req: NextRequest) {
 
   if (body.action === 'upload-link') {
     try {
-      const link = await uploadLinkIn(assetFolder(kind), String(body.fileName ?? ''));
-      return link ? NextResponse.json({ link }) : NextResponse.json({ error: 'Invalid file name' }, { status: 400 });
+      const target = await uploadTargetIn(assetFolder(kind), String(body.fileName ?? ''));
+      // The path too: when Dropbox's reply to the upload is lost, the browser still knows where it went.
+      return target ? NextResponse.json(target) : NextResponse.json({ error: 'Invalid file name' }, { status: 400 });
     } catch (e) { return NextResponse.json({ error: `Dropbox: ${dropboxError(e)}` }, { status: 502 }); }
   }
 
