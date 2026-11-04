@@ -805,8 +805,10 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
         ) : filtered.length === 0 ? (
           <EmptyState icon={<Search />} title="No matching members" description={`Nothing matches “${query}”.`} />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1200px] border-collapse">
+          <div className="relative overflow-x-auto">
+            {/* relative: keeps the sr-only header labels inside the scroller instead of widening the page.
+                table-fixed + min-w: the header widths add up to 1618px, so Name and Email never get squeezed. */}
+            <table className="w-full min-w-[1618px] table-fixed border-collapse">
               <thead>
                 <tr className="h-[46px] border-b border-ui-divider bg-[var(--ui-table-head-bg,var(--ui-surface))]">
                   <th className="w-[44px] pl-[18px] pr-2.5">
@@ -816,7 +818,7 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
                       onCheckedChange={on => setSelected(on ? new Set(filtered.map(p => p.id)) : new Set())}
                     />
                   </th>
-                  <th className={cn(TH, 'w-[186px]')}>
+                  <th className={cn(TH, 'w-[286px]')}>
                     <span className="inline-flex items-center gap-0.5">Name<ArrowDown size={12} aria-hidden /></span>
                   </th>
                   <th className={cn(TH, 'w-[326px]')}>Email</th>
@@ -824,7 +826,7 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
                   <th className={cn(TH, 'w-[194px]')}>Region</th>
                   <th className={cn(TH, 'w-[142px]')}>Manager</th>
                   <th className={cn(TH, 'w-[195px]')}>Joined Date</th>
-                  <th className={cn(TH, 'w-[267px]')}>Status</th>
+                  <th className={cn(TH, 'w-[167px]')}>Status</th>
                   <th className="w-[48px]"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>

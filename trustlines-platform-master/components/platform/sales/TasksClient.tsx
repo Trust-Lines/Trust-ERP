@@ -270,15 +270,18 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
               : 'Try another search or clear the filters.'}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1200px] border-collapse">
+          <div className="relative overflow-x-auto">
+            {/* relative: keeps the sr-only header labels inside the scroller instead of widening the page.
+                table-fixed + min-w: the fixed columns add up to 1052px and Assignee takes 16% (250px at the minimum),
+                so Task always keeps at least 258px; on wide screens Assignee and Task both grow. */}
+            <table className="w-full min-w-[1560px] table-fixed border-collapse">
               <thead>
                 <tr className="h-[46px] border-b border-ui-divider bg-[var(--ui-table-head-bg,var(--ui-surface))]">
                   <th className={cn(TH, 'w-[44px] pl-[18px]')}><span className="sr-only">Done</span></th>
                   <th className={TH}>Task</th>
                   <th className={cn(TH, 'w-[300px]')}>Deal/Lead</th>
                   <th className={cn(TH, 'w-[110px]')}>Deal Date</th>
-                  <th className={cn(TH, 'w-[180px]')}>Assignee</th>
+                  <th className={cn(TH, 'w-[16%]')}>Assignee</th>
                   <th className={cn(TH, 'w-[150px]')}>Status</th>
                   <th className={cn(TH, 'w-[160px]')}>Due</th>
                   <th className={cn(TH, 'w-[120px]')}>Created</th>
