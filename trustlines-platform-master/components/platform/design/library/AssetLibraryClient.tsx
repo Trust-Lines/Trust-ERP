@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, FileText, Library, Pencil, Search, Trash2, Upload } from 'lucide-react';
+import { Aperture, ArrowDownUp, Box, FileText, LayoutTemplate, Library, Pencil, Ruler, Search, Trash2, Upload, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { formatDate } from '@/lib/formatDate';
 import { cn } from '@/lib/utils';
 import { ASSET_KINDS } from '@/lib/design/libraryPaths';
 import { openFetchedLink, uploadViaLink } from '@/lib/client/designUpload';
-import { HEADING, formatBytes } from '../designShared';
+import { FILTER_CLS, HEADING, formatBytes } from '../designShared';
 import { LibraryHeader, NotReady } from './LibraryShell';
 
 interface Asset {
@@ -21,6 +21,84 @@ interface Asset {
   file_name: string; size_bytes: number | null; created_by: string | null; created_by_name: string | null; created_at: string;
 }
 const API = '/api/design/assets';
+type SortKey = 'newest' | 'oldest' | 'name';
+
+// Figma "Asset Library" (node 515:5495): title-case view labels, singular chip on each card.
+const VIEW_LABEL: Record<string, string> = { template: 'Templates', cad_block: 'CAD Blocks', render: 'Render Setups', detail: 'Standard Details', other: 'Other' };
+const KIND_CHIP: Record<string, string> = { template: 'Template', cad_block: 'CAD Block', render: 'Render Setup', detail: 'Standard Detail', other: 'Other' };
+const KIND_ICON: Record<string, LucideIcon> = { template: LayoutTemplate, cad_block: Box, render: Aperture, detail: Ruler, other: FileText };
+const IMAGE_EXT = /\.(png|jpe?g|webp|gif|avif|bmp)$/i;
+const fileExt = (name: string) => (name.match(/\.([a-z0-9]{1,6})$/i)?.[1] ?? '').toUpperCase();
+
+async function fetchLink(id: string): Promise<string | null> {
+  const res = await fetch(`${API}/${id}`, { method: 'POST' }).catch(() => null);
+  const b = res ? await res.json().catch(() => ({})) : {};
+  return res?.ok && typeof b.link === 'string' ? b.link : null;
+}
+
+/** Card: 278px preview, then title, tag/date, type chip and file-type badge. Click opens the file. */
+function AssetCard({ asset: a, editable, onEdit, onRemove }: { asset: Asset; editable: boolean; onEdit: () => void; onRemove: () => void }) {
+  const isImage = IMAGE_EXT.test(a.file_name);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const ref = useRef<HTMLElement>(null);
+  // Image files load a Dropbox temporary link once the card scrolls into view.
+  useEffect(() => {
+    if (!isImage || preview || failed || !ref.current) return;
+    const el = ref.current;
+    let live = true;
+    const io = new IntersectionObserver(entries => {
+      if (!entries.some(e => e.isIntersecting)) return;
+      io.disconnect();
+      void fetchLink(a.id).then(l => { if (!live) return; if (l) setPreview(l); else setFailed(true); });
+    }, { rootMargin: '200px' });
+    io.observe(el);
+    return () => { live = false; io.disconnect(); };
+  }, [a.id, isImage, preview, failed]);
+
+  const open = () => void openFetchedLink(async () => {
+    const l = await fetchLink(a.id);
+    if (!l) toast.error('Could not open the file');
+    return l;
+  });
+  const Icon = KIND_ICON[a.kind] ?? FileText;
+  const ext = fileExt(a.file_name);
+  const meta = [a.tags[0] ?? kindLabel(a.kind), formatDate(a.created_at)].join(' · ');
+
+  return (
+    <article ref={ref} className="group relative flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg">
+      <button type="button" onClick={open} aria-label={`Open ${a.title}`}
+        className="flex flex-1 flex-col border-0 bg-transparent p-0 text-left outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring">
+        <span className="grid h-[278px] w-full place-items-center border-b border-ui-divider bg-white">
+          {preview && !failed
+            // Short-lived Dropbox link — not a next/image remote pattern.
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={preview} alt="" loading="lazy" className="size-full object-contain" onError={() => setFailed(true)} />
+            : <Icon aria-hidden className="size-16 text-primary-300" strokeWidth={1.25} />}
+        </span>
+        <span className="flex flex-1 flex-col gap-4 bg-ui-surface p-4">
+          <span className="flex min-w-0 flex-col">
+            <span className={cn('truncate text-[20px] font-semibold', HEADING)} title={a.title}>{a.title}</span>
+            <span className="truncate text-[16px] tracking-[0.48px] text-ui-text-secondary" title={a.description ?? a.file_name}>{meta}</span>
+          </span>
+          <span className="flex items-center justify-between gap-2">
+            <span className="inline-flex h-7 items-center rounded-[6px] bg-[var(--color-secondary-700)] px-6 text-[13px] font-semibold text-white dark:bg-primary-50 dark:text-primary-950">{KIND_CHIP[a.kind] ?? 'Other'}</span>
+            {ext && (
+              <span title={`${a.file_name}${a.size_bytes ? ` · ${formatBytes(a.size_bytes)}` : ''}`}
+                className="inline-flex h-7 items-center rounded-[6px] bg-[var(--status-t9-fg)] px-6 text-[13px] font-semibold text-[var(--status-t9-bg)]">{ext}</span>
+            )}
+          </span>
+        </span>
+      </button>
+      {editable && (
+        <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+          <Button variant="outline" size="icon-sm" aria-label={`Edit ${a.title}`} className="bg-ui-page-bg" onClick={onEdit}><Pencil /></Button>
+          <Button variant="outline" size="icon-sm" aria-label={`Remove ${a.title}`} className="bg-ui-page-bg" onClick={onRemove}><Trash2 /></Button>
+        </div>
+      )}
+    </article>
+  );
+}
 const kindLabel = (k: string) => ASSET_KINDS.find(x => x.value === k)?.label ?? 'Other';
 
 export function AssetLibraryClient() {
@@ -43,11 +121,14 @@ export function AssetLibraryClient() {
   useEffect(() => { void load(); }, []);
 
   const allTags = useMemo(() => [...new Set((assets ?? []).flatMap(a => a.tags))].sort(), [assets]);
+  const [sortBy, setSortBy] = useState<SortKey>('newest');
   const visible = useMemo(() => {
     const s = q.trim().toLowerCase();
     return (assets ?? []).filter(a => (!kind || a.kind === kind) && (!tag || a.tags.includes(tag))
-      && (!s || `${a.title} ${a.description ?? ''} ${a.file_name} ${a.tags.join(' ')}`.toLowerCase().includes(s)));
-  }, [assets, kind, tag, q]);
+      && (!s || `${a.title} ${a.description ?? ''} ${a.file_name} ${a.tags.join(' ')}`.toLowerCase().includes(s)))
+      .sort((x, y) => sortBy === 'name' ? x.title.localeCompare(y.title)
+        : sortBy === 'oldest' ? x.created_at.localeCompare(y.created_at) : y.created_at.localeCompare(x.created_at));
+  }, [assets, kind, tag, q, sortBy]);
 
   async function remove(a: Asset) {
     const res = await fetch(`${API}/${a.id}`, { method: 'DELETE' }).catch(() => null);
@@ -61,28 +142,49 @@ export function AssetLibraryClient() {
     <div className="flex w-full flex-col gap-[30px] pb-12">
       <LibraryHeader href="/design/assets" title="Asset Library"
         subtitle="Templates, CAD blocks, render setups and standard details the whole team reuses. Files live in Dropbox under /Design/Library."
-        action={<Button onClick={() => setUploadOpen(true)} disabled={!!notReady}><Upload /> Upload assets</Button>} />
+        action={
+          <button type="button" onClick={() => setUploadOpen(true)} disabled={!!notReady}
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-3 rounded-[6px] border-0 bg-ui-btn-accent pl-[34px] pr-[41px] text-[13px] font-semibold text-ui-btn-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring disabled:cursor-not-allowed disabled:opacity-50">
+            <Upload size={16} aria-hidden /> Upload Assets
+          </button>
+        } />
       {notReady && <NotReady message={notReady} />}
 
-      <div className="flex flex-wrap items-center gap-2.5">
-        <div className="relative w-[285px] max-w-full">
-          <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" />
-          <input type="search" aria-label="Search assets" placeholder="Search title, tag, file…" value={q} onChange={e => setQ(e.target.value)}
-            className="h-9 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-2.5 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring" />
+      <div className="flex flex-col gap-6">
+        {/* ── Search + sort ── */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative w-[285px] max-w-full">
+            <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" />
+            <input type="search" aria-label="Search assets" placeholder="Search files…" value={q} onChange={e => setQ(e.target.value)}
+              className="h-9 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-2.5 text-[13px] leading-[1.45] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring" />
+          </div>
+          <div className="relative">
+            <ArrowDownUp aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-[1] size-3.5 -translate-y-1/2 text-[var(--color-secondary-700)] dark:text-ui-heading" />
+            <Select aria-label="Sort" className={cn(FILTER_CLS, 'gap-2 pl-[34px] dark:pl-[34px] dark:pr-2')} value={sortBy}
+              onValueChange={v => setSortBy((v ?? 'newest') as SortKey)}
+              options={[{ value: 'newest', label: 'Newest' }, { value: 'oldest', label: 'Oldest' }, { value: 'name', label: 'Name' }]} />
+          </div>
+          {allTags.length > 0 && (
+            <Select aria-label="Tag" className={FILTER_CLS} value={tag} onValueChange={v => setTag(v ?? '')}
+              options={[{ value: '', label: 'All tags' }, ...allTags.map(t => ({ value: t, label: `#${t}` }))]} />
+          )}
         </div>
-        {[{ value: '', label: 'All' }, ...ASSET_KINDS].map(k => {
-          const n = k.value ? (assets ?? []).filter(a => a.kind === k.value).length : (assets ?? []).length;
-          return (
-            <button key={k.value} type="button" aria-pressed={kind === k.value} onClick={() => setKind(k.value)}
-              className="h-9 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-body hover:bg-ui-hover-bg aria-pressed:border-[var(--color-secondary-700)] aria-pressed:bg-ui-selected-bg aria-pressed:font-semibold dark:aria-pressed:border-ui-heading">
-              {k.label} · {n}
-            </button>
-          );
-        })}
-        {allTags.length > 0 && (
-          <Select aria-label="Tag" className="h-9 w-[160px]" value={tag} onValueChange={v => setTag(v ?? '')}
-            options={[{ value: '', label: 'All tags' }, ...allTags.map(t => ({ value: t, label: `#${t}` }))]} />
-        )}
+
+        {/* ── Type views ── */}
+        <div role="group" aria-label="Asset type" className="flex flex-wrap gap-2 border-b border-ui-divider pb-3">
+          {[{ value: '', label: 'All' }, ...ASSET_KINDS].map(k => {
+            const n = k.value ? (assets ?? []).filter(a => a.kind === k.value).length : (assets ?? []).length;
+            const on = kind === k.value;
+            return (
+              <button key={k.value} type="button" aria-pressed={on} onClick={() => setKind(k.value)}
+                className={cn('inline-flex h-[38px] items-center gap-2 rounded-[6px] border-0 px-4 text-[13px] transition-colors focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring', HEADING,
+                  on ? 'bg-ui-selected-bg font-semibold' : 'bg-ui-page-bg font-medium hover:bg-ui-hover-bg')}>
+                {VIEW_LABEL[k.value] ?? k.label}
+                <span className="text-[12px] font-normal leading-[1.4] text-ui-text-secondary">{n}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {assets === null ? <p className="m-0 text-[13px] text-ui-text-secondary">Loading…</p> : visible.length === 0 ? (
@@ -92,36 +194,11 @@ export function AssetLibraryClient() {
             action={!assets.length && !notReady ? <Button size="sm" onClick={() => setUploadOpen(true)}><Upload /> Upload assets</Button> : undefined} />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {visible.map(a => {
-            const editable = isManager || a.created_by === me;
-            return (
-              <article key={a.id} className="flex flex-col gap-2.5 rounded-[8px] bg-ui-surface p-4">
-                <div className="flex items-start gap-3">
-                  <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-[6px] bg-ui-surface-elevated text-ui-text-secondary"><FileText size={18} /></span>
-                  <div className="min-w-0 flex-1">
-                    <h3 className={cn('m-0 truncate text-[14px] font-semibold', HEADING)} title={a.title}>{a.title}</h3>
-                    <p className="m-0 truncate text-[11px] text-ui-text-secondary" title={a.file_name}>{kindLabel(a.kind)} · {a.file_name} {a.size_bytes ? `· ${formatBytes(a.size_bytes)}` : ''}</p>
-                  </div>
-                </div>
-                {a.description && <p className="m-0 line-clamp-2 text-[12px] text-ui-body">{a.description}</p>}
-                {a.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {a.tags.map(t => <button key={t} type="button" onClick={() => setTag(t)} className="rounded-[4px] border-0 bg-[var(--status-t0-bg)] px-1.5 py-0.5 text-[11px] text-[var(--status-t0-fg)]">#{t}</button>)}
-                  </div>
-                )}
-                <div className="mt-auto flex items-center gap-1 pt-1">
-                  <span className="flex-1 truncate text-[11px] text-ui-text-secondary">{a.created_by_name ?? '—'} · {formatDate(a.created_at)}</span>
-                  {editable && <Button variant="ghost" size="icon-sm" aria-label={`Edit ${a.title}`} onClick={() => setEditing(a)}><Pencil /></Button>}
-                  {editable && <Button variant="ghost" size="icon-sm" aria-label={`Remove ${a.title}`} onClick={() => setRemoving(a)}><Trash2 /></Button>}
-                  <Button variant="outline" size="sm" onClick={() => void openFetchedLink(async () => {
-                    const res = await fetch(`${API}/${a.id}`, { method: 'POST' }); const b = await res.json().catch(() => ({}));
-                    if (!res.ok) { toast.error(b.error ?? 'Could not open'); return null; } return b.link;
-                  })}><Download /> Open</Button>
-                </div>
-              </article>
-            );
-          })}
+        <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {visible.map(a => (
+            <AssetCard key={a.id} asset={a} editable={isManager || a.created_by === me}
+              onEdit={() => setEditing(a)} onRemove={() => setRemoving(a)} />
+          ))}
         </div>
       )}
 
