@@ -7,6 +7,7 @@ import {
   ClipboardCheck, DraftingCompass, Ellipsis, Equal, ExternalLink, Factory, Hammer, Handshake, Target, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFixedMenu } from '@/hooks/use-fixed-menu';
 import type { PortfolioRow } from '@/lib/workspace/rows';
 
 export interface HealthRow extends PortfolioRow {
@@ -44,7 +45,9 @@ function formatLate(days: number | null): string {
 // Figma "ops_manager" project table (nodes 178:29818 / 174:27618): sortable headers, 36px rows, "…" actions.
 export function ManagementHealthTable({ rows, emptyLabel }: { rows: HealthRow[]; emptyLabel: string }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'blockers', dir: -1 });
-  const [menuId, setMenuId] = useState<string | null>(null);
+  // Pinned to the window: the table scroller clipped an in-flow menu, so the last rows' "…" did nothing visible.
+  const menu = useFixedMenu(220); // room for "Open project" + a few next actions before flipping up
+  const menuId = menu.openId;
 
   const sorted = useMemo(() => {
     const cmp: Record<SortKey, (a: HealthRow, b: HealthRow) => number> = {
@@ -149,20 +152,20 @@ export function ManagementHealthTable({ rows, emptyLabel }: { rows: HealthRow[];
                   <td className="relative pr-5 text-center">
                     <button
                       type="button" aria-label={`Actions for ${r.code ?? r.name ?? 'project'}`} aria-expanded={menuId === r.projectId}
-                      onClick={() => setMenuId(id => (id === r.projectId ? null : r.projectId))}
+                      onClick={e => menu.toggle(r.projectId, e.currentTarget)}
                       className="inline-grid size-7 place-items-center rounded-[4px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
                     >
                       <Ellipsis size={16} />
                     </button>
                     {menuId === r.projectId && (
                       <>
-                        <div className="fixed inset-0 z-20" onClick={() => setMenuId(null)} />
-                        <div role="menu" className="absolute right-4 top-full z-30 mt-1 w-64 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
-                          <Link href={`/projects/${r.projectId}`} role="menuitem" className={MENU_ITEM} onClick={() => setMenuId(null)}>
+                        <div className="fixed inset-0 z-20" onClick={menu.close} />
+                        <div role="menu" style={menu.style} className="fixed z-30 w-64 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
+                          <Link href={`/projects/${r.projectId}`} role="menuitem" className={MENU_ITEM} onClick={menu.close}>
                             <ExternalLink aria-hidden /> Open project
                           </Link>
                           {r.myActions.map(a => (
-                            <Link key={a.code} href={a.href} role="menuitem" className={MENU_ITEM} onClick={() => setMenuId(null)}>
+                            <Link key={a.code} href={a.href} role="menuitem" className={MENU_ITEM} onClick={menu.close}>
                               <ArrowRight aria-hidden /> <span className="truncate">{a.action}</span>
                             </Link>
                           ))}
