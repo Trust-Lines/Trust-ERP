@@ -171,14 +171,19 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
               canEdit={canEdit}
               onClose={onClose}
               aside={(
-                <div style={{ width: 360, flexShrink: 0, borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', background: 'var(--bg-subtle)' }}>
-                <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border-subtle)', fontWeight: 700, fontSize: 14 }}>Activity</div>
-                  <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'grid', gap: 10, alignContent: 'start' }}>
+                // Figma 336:22028 Activity panel: own bordered card, "• Activity" header, slate body, composer.
+                <div className="flex w-[320px] shrink-0 flex-col overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg">
+                  <div className="flex h-16 shrink-0 items-center gap-2 border-b border-ui-divider px-4">
+                    <span aria-hidden className="size-1.5 rounded-full bg-[var(--color-secondary-700)] dark:bg-ui-heading" />
+                    <p className="m-0 flex-1 text-[16px] font-semibold leading-[1.45] text-[var(--color-secondary-700)] dark:text-ui-heading">Activity</p>
+                    {notes.length > 0 && <span className="text-[12px] font-semibold text-ui-text-secondary">{notes.length}</span>}
+                  </div>
+                  <div className="grid min-h-0 flex-1 content-start gap-2.5 overflow-y-auto border-b border-ui-divider bg-ui-surface p-2">
                   {notes.length === 0 && !loading && (
                     <EmptyState size="sm" className="mt-6 justify-center" icon={<Activity />} title="No activity yet." />
                   )}
                   {notes.map(n => (
-                    <div key={n.id} style={{ background: 'var(--bg-surface)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border-subtle)' }}>
+                    <div key={n.id} className="rounded-[8px] border border-ui-divider bg-ui-page-bg px-3 py-2.5 text-ui-body">
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
                         <span style={{ fontWeight: 600, fontSize: 12.5 }}>{n.author_name || 'Unknown'}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -247,7 +252,7 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
                 </div>
 
                 {canEdit && (
-                  <div style={{ borderTop: '1px solid var(--border-subtle)', padding: 12, background: 'var(--bg-surface)' }}>
+                  <div className="shrink-0 py-3 pl-4 pr-2">
                     {draftImage && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--fg-subtle)', marginBottom: 6 }}>
                         <ImageIcon size={12} /> {draftImage.name}
@@ -256,27 +261,28 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
                         </button>
                       </div>
                     )}
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}>
+                    <div className="flex items-stretch gap-2">
                       <textarea
-                        className="form-input"
-                        placeholder="Write a comment…"
+                        aria-label="Write a comment"
+                        placeholder="Type here.."
                         value={draft}
                         onChange={e => setDraft(e.target.value)}
-                        rows={2}
-                        style={{ flex: 1, resize: 'none', fontSize: 12.5 }}
+                        className="h-20 min-w-0 flex-1 resize-none rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg p-3 text-[14px] leading-[1.4] text-ui-body outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
                       />
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div className="flex w-[74px] shrink-0 flex-col justify-center gap-2">
                         <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
                           onChange={async e => {
                             const picked = e.target.files?.[0];
                             originalImageRef.current = picked ?? null; // full-quality original for the direct Dropbox upload
                             setDraftImage(picked ? await compressImage(picked) : null); // small copy = fallback upload
                           }} />
-                        <button className="btn btn-ghost btn-sm" onClick={() => fileInputRef.current?.click()} title="Attach image">
-                          <Paperclip size={14} />
+                        <button type="button" onClick={() => fileInputRef.current?.click()} title="Attach image" aria-label="Attach image"
+                          className="flex cursor-pointer items-center justify-center rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent py-2.5 text-[var(--color-secondary-700)] transition-colors hover:bg-ui-hover-bg dark:border-ui-heading dark:text-ui-heading">
+                          <Paperclip size={16} />
                         </button>
-                        <button className="btn btn-primary btn-sm" onClick={postComment} disabled={posting || (!draft.trim() && !draftImage)} title="Post">
-                          {posting ? <Loader2 size={14} className="qv-spin" /> : <Send size={14} />}
+                        <button type="button" onClick={postComment} disabled={posting || (!draft.trim() && !draftImage)} title="Post" aria-label="Post comment"
+                          className="flex cursor-pointer items-center justify-center rounded-[6px] border-0 bg-[var(--color-secondary-700)] py-2.5 text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950">
+                          {posting ? <Loader2 size={16} className="qv-spin" /> : <Send size={16} />}
                         </button>
                       </div>
                     </div>
