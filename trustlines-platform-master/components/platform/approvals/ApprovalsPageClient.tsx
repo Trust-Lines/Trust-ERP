@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
   FileCheck2,
@@ -44,11 +43,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { modalSecondaryButtonClass } from '@/components/ui/modal';
 import { Select as FilterSelect } from '@/components/ui/select';
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 
-// Tab text per design: active = Primary-button colour, 600; inactive = Secondary-text colour, 400.
-// Dark: light-blue active text with a soft glowing underline (Figma dark tabs).
-const TAB_ACTIVE = 'border-[var(--color-secondary-700)] font-semibold text-[var(--color-secondary-700)] dark:border-[var(--ui-tab-active)] dark:text-[var(--ui-tab-active)] dark:shadow-[0_8px_14px_-8px_var(--ui-tab-active)]';
-const TAB_INACTIVE = 'border-transparent font-normal text-[var(--ui-text-secondary)] hover:text-[var(--ui-body)]';
 
 export interface MyApproval {
   approvalId:   string;
@@ -637,6 +633,31 @@ export function ApprovalsPageClient() {
     );
   }
 
+  // Card text per Figma 481:23066. Real approvals: project / document type / stage / project code;
+  // sample rows (shown only when there are no real approvals): amount / title / request code.
+  function cardFields(row: UnifiedRequestRow): { kicker: string; headline: string; ref: string; code: string | null } {
+    const a = row.approvalData;
+    if (a) {
+      const kind = a.catGroup ? a.catGroup.charAt(0).toUpperCase() + a.catGroup.slice(1) : (DOC_LABELS[a.docType] ?? a.docType);
+      return { kicker: a.projectName, headline: kind, ref: `Stage ${a.stage}/${a.totalStages}`, code: a.projectCode || null };
+    }
+    return { kicker: formatAmount(row.amount), headline: row.title, ref: row.code, code: null };
+  }
+
+  // Figma card priority: filled chip, chevrons + label (High t10, Medium t7, Low t0).
+  function renderPriorityChip(priority: PriorityLevel) {
+    const tone = priority === 'High' ? 't10' : priority === 'Medium' ? 't7' : 't0';
+    const Icon = priority === 'High' ? ChevronsUp : priority === 'Medium' ? Equal : ChevronsDown;
+    return (
+      <span
+        className="inline-flex h-[33px] shrink-0 items-center gap-1 rounded-[4px] pl-2 pr-2.5 text-[16px] leading-[1.4]"
+        style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}
+      >
+        <Icon className="size-[17px]" aria-hidden />{priority}
+      </span>
+    );
+  }
+
   function renderPriority(priority: PriorityLevel) {
     if (priority === 'High') {
       return (
@@ -943,41 +964,19 @@ export function ApprovalsPageClient() {
       {/* ── 1. HEADER SECTION ────────────────────────────────────────── */}
       <div className="mb-6">
         {/* Breadcrumbs */}
-        <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-1.5 text-xs text-slate-400 font-normal mb-3">
-          {/* Operations has no page of its own: its module card on the Dashboard opens Requests. */}
-          <Link
-            href="/dashboard"
-            className="text-[13px] font-semibold leading-[1.4] no-underline hover:underline"
-            style={{
-              color: 'var(--fg-subtle, #5E6F87)',
-              fontFamily: 'var(--font-instrument-sans), "Instrument Sans", sans-serif',
-            }}
-          >
-            Tlines NE / Operations
-          </Link>
-          <span aria-hidden>&gt;</span>
-          <Link href="/approvals" aria-current="page" className="text-slate-600 font-medium no-underline hover:underline">Requests</Link>
-        </nav>
-
-        {/* Title, Count, Description & Actions */}
+        {/* Figma "Approvals" (481:22900): crumb, title + count pill, description; Export + New request. */}
         <div className="flex items-start justify-between gap-4 md:items-center">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1
-                className="text-[32px] font-semibold"
-                style={{
-                  color: 'var(--fg-subtle, #5E6F87)',
-                  fontFamily: 'var(--font-instrument-sans), "Instrument Sans", sans-serif',
-                  lineHeight: 'normal',
-                }}
-              >
-                Requests
+          <div className="flex flex-col gap-[5px]">
+            <PageCrumbs className="hidden md:block" items={[{ label: 'Supply', href: '/projects' }, { label: 'Approvals', href: '/approvals' }]} />
+            <div className="flex items-center gap-2">
+              <h1 className="m-0 font-[family-name:var(--font-ui)] text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">
+                Approvals
               </h1>
-              <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+              <span className="hidden md:inline-flex items-center rounded-full bg-ui-surface px-[9px] py-[3px] text-[12px] font-semibold leading-[1.4] text-[var(--color-secondary-700)] dark:text-ui-heading">
                 {totalCount}
               </span>
             </div>
-            <p className="hidden md:block text-sm text-slate-500 mt-1">
+            <p className="hidden md:block m-0 text-[13px] leading-[1.35] text-ui-body">
               Track work, review approvals, and keep every request moving.
             </p>
             <p className="md:hidden mt-1 font-[family-name:var(--font-ui)] text-[13px] text-[var(--ui-text-secondary)]">
@@ -985,20 +984,20 @@ export function ApprovalsPageClient() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <button
               onClick={handleExport}
-              className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-700 bg-ui-surface-elevated border border-slate-200 rounded-lg hover:bg-slate-50 shadow-xs transition-colors"
+              className="hidden md:inline-flex h-9 items-center gap-2 rounded-[6px] border border-ui-divider bg-ui-surface-elevated px-3 text-[13px] font-semibold leading-[1.4] text-ui-body hover:bg-ui-hover-bg transition-colors"
             >
-              <Download className="w-4 h-4 text-slate-500" />
+              <Download className="size-3.5" />
               Export
             </button>
             <button
               onClick={() => toast.info('New request workflow is linked to project creation.')}
               aria-label="New request"
-              className="inline-flex size-11 justify-center items-center gap-1.5 md:size-auto md:px-4 md:py-2 text-sm font-semibold text-white bg-[#f95721] hover:bg-[#ea4913] rounded-lg shadow-xs transition-colors"
+              className="inline-flex size-11 justify-center items-center gap-2 md:size-auto md:h-9 md:px-3 text-[13px] font-semibold leading-[1.4] text-ui-btn-accent-fg bg-ui-btn-accent hover:opacity-90 rounded-[6px] transition-opacity"
             >
-              <Plus className="w-5 h-5 md:w-4 md:h-4" />
+              <Plus className="w-5 h-5 md:size-3.5" />
               <span className="hidden md:inline">New request</span>
             </button>
           </div>
@@ -1044,67 +1043,21 @@ export function ApprovalsPageClient() {
         </button>
       </div>
 
-      <div className="hidden md:flex items-center justify-between border-b border-slate-200 mb-4 pb-0">
-        <div className="flex items-center gap-6">
-          <button
-            onClick={() => setActiveTab('open')}
-            className={`flex items-center gap-2 pb-3 font-[family-name:var(--font-ui)] text-[13px] leading-[1.4] border-b-2 transition-colors ${
-              activeTab === 'open' ? TAB_ACTIVE : TAB_INACTIVE
-            }`}
-          >
-            {/* list-filter icon (design export) */}
-            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" className={`shrink-0 ${activeTab === 'open' ? 'text-[var(--ui-body)] dark:text-[var(--ui-tab-active)]' : 'text-current'}`}>
-              <path d="M1.1662 2.91626H12.8338M3.49972 7.00006H10.5003M5.24986 11.0839H8.75014" strokeWidth="1.6" strokeLinecap="round" stroke="currentColor" />
-            </svg>
-            Open requests
-            <span className="dark:rounded-md dark:bg-[var(--ui-tab-badge)] dark:px-1.5 dark:text-[12px] dark:leading-5 dark:text-white">{totalCount}</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('assigned')}
-            className={`pb-3 font-[family-name:var(--font-ui)] text-[13px] leading-[1.4] border-b-2 transition-colors ${
-              activeTab === 'assigned' ? TAB_ACTIVE : TAB_INACTIVE
-            }`}
-          >
-            Assigned to me
-          </button>
-
-          <button
-            onClick={() => setActiveTab('needs_approval')}
-            className={`pb-3 font-[family-name:var(--font-ui)] text-[13px] leading-[1.4] border-b-2 transition-colors ${
-              activeTab === 'needs_approval' ? TAB_ACTIVE : TAB_INACTIVE
-            }`}
-          >
-            Needs approval
-          </button>
-
-          <div className="relative mb-2">
-            <button
-              onClick={() => setShowAllViewsMenu(!showAllViewsMenu)}
-              className="flex h-[30px] items-center justify-center gap-2 px-[9px] rounded-md border border-[var(--color-primary-100)] dark:border-[var(--ui-body)] dark:bg-transparent dark:text-[var(--ui-heading)] bg-ui-surface-elevated font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-[var(--ui-body)] hover:bg-[var(--color-primary-50)] dark:hover:bg-white/5 transition-colors"
-            >
-              All views
-              <ChevronDown className="w-3.5 h-3.5" />
-            </button>
-            {savedViewsMenu}
-          </div>
-        </div>
-
-        <span className="text-xs text-slate-400 pb-3">Saved just now</span>
-      </div>
 
       {/* ── 3. CONTROLS: SEARCH, FILTERS & VIEW OPTIONS ───────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         {/* Left: Search input, filter chip, Add filter button */}
         <div className="flex w-full sm:w-auto flex-wrap items-center gap-2">
-          <div className="relative w-full sm:w-auto sm:min-w-[220px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          {/* Figma 481:23044: 36px search, 278px wide. */}
+          <div className="relative w-full sm:w-[278px]">
+            <Search className="size-4 text-ui-body absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search requests..."
-              className="w-full pl-9 pr-3 py-1.5 text-sm bg-ui-surface-elevated dark:bg-[var(--bg-sunken)] border border-slate-200 dark:border-[var(--ui-divider-strong)] rounded-md placeholder-slate-400 text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-300 transition-all"
+              aria-label="Search requests"
+              className="h-9 w-full rounded-[6px] border border-ui-input-border bg-ui-input-bg pl-[38px] pr-3 text-[13px] text-ui-heading placeholder:text-ui-text-secondary outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
             />
           </div>
 
@@ -1212,8 +1165,8 @@ export function ApprovalsPageClient() {
           </div>
         </div>
 
-        {/* Right: Columns dropdown & Density dropdown (desktop) */}
-        <div className="hidden md:flex items-center gap-2">
+        {/* Right: Columns dropdown & Density dropdown (desktop table view only) */}
+        <div className={`${mobileView === 'table' ? 'hidden md:flex' : 'hidden'} items-center gap-2`}>
           {/* Columns Selector */}
           <div className="relative">
             <button
@@ -1297,8 +1250,37 @@ export function ApprovalsPageClient() {
         </div>
       </div>
 
+      {/* Figma 481:23055 "Saved views": filled pill tabs with counts, under the filters; view toggle on the right. */}
+      <div className="hidden md:flex items-center justify-between gap-3 border-b border-ui-divider pb-3 mb-6">
+        <div role="tablist" aria-label="Saved views" className="flex items-center gap-2">
+          {SAVED_VIEWS.map(v => {
+            const on = activeTab === v.key;
+            return (
+              <button
+                key={v.key} type="button" role="tab" aria-selected={on} onClick={() => setActiveTab(v.key)}
+                className={`inline-flex h-[38px] items-center gap-2 rounded-[6px] px-4 font-[family-name:var(--font-ui)] text-[13px] leading-normal text-[var(--color-secondary-700)] dark:text-ui-heading transition-colors ${
+                  on ? 'bg-ui-selected-bg font-semibold' : 'bg-ui-page-bg font-medium hover:bg-ui-hover-bg'
+                }`}
+              >
+                {v.key === 'open' ? 'All' : v.label}
+                <span className="text-[12px] font-normal leading-[1.4] text-ui-text-secondary">{tabCounts[v.key]}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-1" role="group" aria-label="Layout">
+          {([['cards', LayoutGrid, 'Cards'], ['table', Rows3, 'Table']] as const).map(([k, Icon, label]) => (
+            <button
+              key={k} type="button" onClick={() => setMobileView(k)} aria-pressed={mobileView === k} title={`${label} view`} aria-label={`${label} view`}
+              className={`grid size-9 place-items-center rounded-[6px] border transition-colors ${mobileView === k ? 'border-ui-divider bg-ui-selected-bg text-[var(--color-secondary-700)] dark:text-ui-heading' : 'border-transparent text-ui-body hover:bg-ui-hover-bg'}`}
+            >
+              <Icon className="size-4" />
+            </button>
+          ))}
+        </div>
+      </div>
       {/* ── 4. TABLE CONTAINER ────────────────────────────────────────── */}
-      <div className={`border border-slate-200 rounded-xl bg-ui-surface-elevated shadow-2xs ${mobileView === 'cards' ? 'hidden md:block' : ''}`}>
+      <div className={`border border-slate-200 rounded-xl bg-ui-surface-elevated shadow-2xs ${mobileView === 'cards' ? 'hidden' : ''}`}>
         {bulkBar}
 
         {/* Scrolls inside the card; column headings stay pinned (sticky th). */}
@@ -1557,7 +1539,7 @@ export function ApprovalsPageClient() {
 
       {/* ── 4b. MOBILE CARD LIST ───────────────────────────────────────── */}
       {mobileView === 'cards' && (
-        <div className="md:hidden font-[family-name:var(--font-ui)]">
+        <div className="font-[family-name:var(--font-ui)]">
           <div className="flex items-center justify-between gap-3 mb-3">
             <label className="flex items-center gap-2 text-[13px] text-[var(--ui-text-secondary)]">
               <input
@@ -1592,62 +1574,52 @@ export function ApprovalsPageClient() {
           {pageRows.length === 0 ? (
             <div className="rounded-xl border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated">{noMatchState}</div>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {pageRows.map(row => {
                 const isSelected = !!selectedIds[row.id];
                 const isExpanded = expandedId === row.id;
+                const c = cardFields(row);
                 return (
-                  <div
-                    key={row.id}
-                    className={`rounded-xl border p-4 ${
-                      isSelected ? 'border-[var(--color-secondary-200)] bg-[var(--ui-selected-bg)]' : 'border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <label className="flex min-w-0 items-center gap-3 text-[13px] text-[var(--ui-text-secondary)]">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => setSelectedIds(prev => ({ ...prev, [row.id]: !prev[row.id] }))}
-                          aria-label={`Select request ${row.code}`}
-                          className="w-4 h-4 shrink-0 rounded accent-[var(--color-secondary-700)] dark:accent-[var(--ui-tab-badge)]"
-                        />
-                        <span className="truncate">{row.code}</span>
-                      </label>
-                      <button
-                        onClick={() => setExpandedId(isExpanded ? null : row.id)}
-                        aria-label={isExpanded ? 'Hide details' : 'Show details'}
-                        aria-expanded={isExpanded}
-                        className="-mr-1 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                      >
-                        <MoreHorizontal className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    <h3 className="mt-3 text-[18px] font-semibold leading-[1.3] text-[var(--ui-heading)]">{row.title}</h3>
-
-                    <div className="mt-3 flex items-center justify-between gap-3">
-                      {renderStatusPill(row.status)}
-                      {renderPriority(row.priority)}
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] pt-4 text-[13px]">
-                      <div className="min-w-0">
-                        <div className="text-[var(--ui-text-secondary)]">Owner</div>
-                        <div className="mt-0.5 truncate text-[15px] text-[var(--ui-body)]">{row.ownerName}</div>
+                  <React.Fragment key={row.id}>
+                    {/* Figma 481:23066 request card: kicker + status chip + ref chip / big headline + code / waiting on + priority. */}
+                    <div
+                      role="button" tabIndex={0} aria-expanded={isExpanded}
+                      onClick={() => setExpandedId(isExpanded ? null : row.id)}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedId(isExpanded ? null : row.id); } }}
+                      className={`flex min-h-[191px] cursor-pointer flex-col justify-between gap-4 rounded-[16px] border py-3.5 pl-3.5 pr-4 text-left outline-none transition-colors focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring ${
+                        isSelected ? 'border-[var(--color-secondary-200)] bg-[var(--ui-selected-bg)]' : isExpanded ? 'border-[var(--color-secondary-700)] bg-ui-surface dark:border-ui-heading' : 'border-ui-divider bg-ui-surface hover:border-ui-text-secondary'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-4">
+                          <input
+                            type="checkbox" checked={isSelected}
+                            onClick={e => e.stopPropagation()}
+                            onChange={() => setSelectedIds(prev => ({ ...prev, [row.id]: !prev[row.id] }))}
+                            aria-label={`Select request ${row.code}`}
+                            className="size-4 shrink-0 rounded accent-[var(--color-secondary-700)] dark:accent-[var(--ui-tab-badge)]"
+                          />
+                          <span className="truncate text-[16px] font-medium tracking-[0.64px] text-[var(--color-secondary-700)] dark:text-ui-heading">{c.kicker}</span>
+                          <span className="shrink-0">{renderStatusPill(row.status)}</span>
+                        </div>
+                        <span className="shrink-0 rounded-[4px] bg-ui-surface-elevated px-2.5 py-0.5 text-[14px] font-medium leading-[1.5] tracking-[0.56px] text-[var(--color-secondary-700)] dark:text-ui-heading">{c.ref}</span>
                       </div>
-                      <div className="text-right">
-                        <div className="text-[var(--ui-text-secondary)]">Amount</div>
-                        <div className="mt-0.5 text-[15px] font-semibold text-[var(--ui-body)]">{formatAmount(row.amount)}</div>
+
+                      <div className="flex min-w-0 items-center justify-between gap-4 text-[clamp(22px,2.1vw,32px)] font-medium leading-normal tracking-[0.04em] text-[var(--color-secondary-700)] dark:text-ui-heading">
+                        <span className="min-w-0 truncate">{c.headline}</span>
+                        {c.code && <span className="shrink-0">{c.code}</span>}
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 flex-col">
+                          <span className="text-[12px] tracking-[0.48px] text-ui-text-secondary">Waiting on:</span>
+                          <span className="truncate text-[16px] font-medium tracking-[0.64px] text-[var(--color-secondary-700)] dark:text-ui-heading">{row.ownerName}</span>
+                        </div>
+                        {renderPriorityChip(row.priority)}
                       </div>
                     </div>
-
-                    <p className="mt-3 text-[13px] text-[var(--ui-text-secondary)]">
-                      Updated {row.updatedLabel.charAt(0).toLowerCase() + row.updatedLabel.slice(1)}
-                    </p>
-
-                    {isExpanded && <div className="mt-4">{renderDetails(row)}</div>}
-                  </div>
+                    {isExpanded && <div className="col-span-full rounded-[16px] border border-ui-divider bg-ui-surface-elevated p-5">{renderDetails(row)}</div>}
+                  </React.Fragment>
                 );
               })}
             </div>
@@ -1686,7 +1658,7 @@ export function ApprovalsPageClient() {
       )}
 
       {/* ── 5. FOOTER SORT CAPTION (desktop) ───────────────────────────── */}
-      {selectedCount > 0 || editingId ? (
+      {mobileView !== 'table' ? null : selectedCount > 0 || editingId ? (
         <div className="hidden md:flex items-center gap-2 mt-3 text-xs text-slate-400 select-none">
           <CornerDownLeft className="w-3.5 h-3.5 text-slate-400" />
           <span>Enter to save · Esc to cancel · Focus stays in the edited cell. Bulk actions apply only to selected requests.</span>
