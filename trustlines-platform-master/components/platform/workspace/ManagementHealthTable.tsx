@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowDown, ArrowRight, ArrowUp, Boxes, ChevronsUpDown, ChevronUp, ChevronsUp, CircleCheck, CircleDashed,
-  ClipboardCheck, DraftingCompass, Ellipsis, ExternalLink, Factory, Hammer, Handshake, Target, type LucideIcon,
+  ClipboardCheck, DraftingCompass, Ellipsis, Equal, ExternalLink, Factory, Hammer, Handshake, Target, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { PortfolioRow } from '@/lib/workspace/rows';
@@ -103,8 +103,10 @@ export function ManagementHealthTable({ rows, emptyLabel }: { rows: HealthRow[];
             {sorted.map(r => {
               const chip = PHASE_CHIP[r.phase] ?? { tone: 't0', icon: CircleDashed };
               const ChipIcon = chip.icon;
-              const severe = r.blockers.length > 1 || (r.daysLate ?? 0) > 0;
-              const RiskIcon = severe ? ChevronsUp : ChevronUp;
+              const late = (r.daysLate ?? 0) > 0;
+              const onTrack = r.blockers.length === 0 && !late;
+              const severe = r.blockers.length > 1 || late;
+              const RiskIcon = onTrack ? Equal : severe ? ChevronsUp : ChevronUp;
               return (
                 <tr key={r.projectId} className="h-[37px] border-b border-ui-divider last:border-b-0">
                   <td className="max-w-0 pl-5 pr-2.5">
@@ -127,10 +129,10 @@ export function ManagementHealthTable({ rows, emptyLabel }: { rows: HealthRow[];
                     </span>
                   </td>
                   <td className="max-w-0 px-2.5" title={r.blockers.map(b => b.message).join('\n')}>
-                    {/* Figma "Risk": Critical (chevrons-up, error) / At Risk (chevron-up, warning); blockers stay as muted detail. */}
-                    <span className={cn('flex min-w-0 items-center gap-1.5 text-[13px] leading-[1.4]', severe ? 'text-error-normal' : 'text-warning-normal')}>
+                    {/* Figma "Risk": Critical (chevrons-up, error) / At Risk (chevron-up, warning) / On Track (equal, body); blockers stay as muted detail. */}
+                    <span className={cn('flex min-w-0 items-center gap-1.5 text-[13px] leading-[1.4]', onTrack ? 'text-ui-body' : severe ? 'text-error-normal' : 'text-warning-normal')}>
                       <RiskIcon size={13} aria-hidden className="shrink-0" />
-                      <span className="shrink-0">{severe ? 'Critical' : 'At Risk'}</span>
+                      <span className="shrink-0">{onTrack ? 'On Track' : severe ? 'Critical' : 'At Risk'}</span>
                       {r.blockers[0] && (
                         <span className="truncate text-ui-text-secondary">
                           · {r.blockers[0].message}{r.blockers.length > 1 && ` +${r.blockers.length - 1}`}
