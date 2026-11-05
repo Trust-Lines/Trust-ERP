@@ -5,8 +5,6 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import {
-  FileCheck2,
-  ExternalLink,
   ChevronDown,
   Download,
   Plus,
@@ -32,11 +30,10 @@ import {
   ArrowUpDown,
   ArrowDown,
   ArrowUp,
-  Maximize2,
   Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { ApprovalActionBar } from './ApprovalActionBar';
+import { ApprovalReviewDialog } from './ApprovalReviewDialog';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { feedback } from '@/components/ui/feedback-toast';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -78,13 +75,6 @@ const DOC_LABELS: Record<string, string> = {
   po_bo: 'Purchase Order',
   pf: 'Production Form',
 };
-
-function fileType(name: string): 'pdf' | 'image' | 'other' {
-  const ext = name.split('.').pop()?.toLowerCase() ?? '';
-  if (ext === 'pdf') return 'pdf';
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return 'image';
-  return 'other';
-}
 
 type TabKey = 'open' | 'assigned' | 'needs_approval';
 type PriorityLevel = 'High' | 'Medium' | 'Low';
@@ -645,15 +635,15 @@ export function ApprovalsPageClient() {
   }
 
   // Figma card priority: filled chip, chevrons + label (High t10, Medium t7, Low t0).
-  function renderPriorityChip(priority: PriorityLevel) {
+  function renderPriorityChip(priority: PriorityLevel, small = false) {
     const tone = priority === 'High' ? 't10' : priority === 'Medium' ? 't7' : 't0';
     const Icon = priority === 'High' ? ChevronsUp : priority === 'Medium' ? Equal : ChevronsDown;
     return (
       <span
-        className="inline-flex h-[33px] shrink-0 items-center gap-1 rounded-[4px] pl-2 pr-2.5 text-[16px] leading-[1.4]"
+        className={small ? 'inline-flex shrink-0 items-center gap-1 rounded-[4px] py-[3px] pl-2.5 pr-4 text-[12px] font-medium leading-4' : 'inline-flex h-[33px] shrink-0 items-center gap-1 rounded-[4px] pl-2 pr-2.5 text-[16px] leading-[1.4]'}
         style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}
       >
-        <Icon className="size-[17px]" aria-hidden />{priority}
+        <Icon className={small ? 'size-3.5' : 'size-[17px]'} aria-hidden />{priority}
       </span>
     );
   }
@@ -849,113 +839,33 @@ export function ApprovalsPageClient() {
     </div>
   );
 
-  function renderDetails(row: UnifiedRequestRow) {
+  // Figma 481:23499: a request opens in a centred pop-up (was an inline drawer under the row / card).
+  const reviewRow = expandedId ? allRows.find(r => r.id === expandedId) ?? null : null;
+  function renderReviewDialog(row: UnifiedRequestRow) {
+    const c = cardFields(row);
+    const a = row.approvalData;
     return (
-      <div className="bg-ui-surface-elevated border border-slate-200 rounded-xl p-5 shadow-xs">
-        {row.isRealApproval && row.approvalData ? (
-          <div>
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <FileCheck2 className="w-5 h-5 text-blue-600" />
-                <div>
-                  <div className="font-semibold text-slate-900 text-sm">
-                    {row.approvalData.fileName}
-                  </div>
-                  <div className="text-xs text-slate-400">
-                    Stage {row.approvalData.stage} of {row.approvalData.totalStages} · {row.approvalData.stageLabel}
-                  </div>
-                </div>
-              </div>
-              <a
-                href={`/projects/${row.approvalData.projectId}`}
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-teal-700 hover:text-teal-800"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open in project <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-
-            {/* Document Preview */}
-            <div className="bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center min-h-[360px] mb-4">
-              {fileType(row.approvalData.fileName) === 'pdf' ? (
-                <iframe
-                  key={proxyUrl(row.approvalData)}
-                  src={proxyUrl(row.approvalData)}
-                  className="w-full h-[520px] border-none"
-                  title={row.approvalData.fileName}
-                />
-              ) : fileType(row.approvalData.fileName) === 'image' ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={proxyUrl(row.approvalData)}
-                  src={proxyUrl(row.approvalData)}
-                  alt={row.approvalData.fileName}
-                  className="max-w-full max-h-[520px] object-contain"
-                />
-              ) : (
-                <div className="p-8 text-center text-slate-400 text-xs">
-                  <Maximize2 className="w-5 h-5 mx-auto mb-2" />
-                  Preview not available directly — open in project to view file.
-                </div>
-              )}
-            </div>
-
-            {/* Live Approval Action Bar */}
-            <div className="flex justify-end pt-2">
-              <ApprovalActionBar
-                approvalId={row.approvalData.approvalId}
-                projectId={row.approvalData.projectId}
-                isFinalStage={row.approvalData.isFinalStage}
-                versionNum={row.approvalData.versionNum}
-                userSignature={userSignature}
-                size="md"
-                onNeedSignature={resume => {
-                  pendingApproveRef.current = resume;
-                  setShowSignaturePad(true);
-                }}
-                onPdfSigned={() =>
-                  setCacheBust(p => ({
-                    ...p,
-                    [row.approvalData!.approvalId]: Date.now(),
-                  }))
-                }
-                onDone={afterAction}
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="font-semibold text-slate-900 text-sm">{row.title}</div>
-              <span className="text-xs font-mono text-slate-400">{row.code}</span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs py-2">
-              <div>
-                <span className="text-slate-400 block">Assigned Owner</span>
-                <span className="font-medium text-slate-800">{row.ownerName}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Current Status</span>
-                <span className="font-medium text-slate-800">{row.status}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Priority</span>
-                <span className="font-medium text-slate-800">{row.priority}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Estimated Amount</span>
-                <span className="font-medium text-slate-800">
-                  ${row.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-            </div>
-            <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-500">
-              This request is tracked under regional operations workflow. Changes are automatically synchronized across project documents.
-            </div>
-          </div>
-        )}
-      </div>
+      <ApprovalReviewDialog
+        key={row.id}
+        subtitle={a ? `${a.projectName} - ${c.ref}` : `${c.kicker} - ${row.code}`}
+        title={c.code ? `${c.headline} - ${c.code}` : c.headline}
+        chips={<>{renderStatusPill(row.status)}{renderPriorityChip(row.priority, true)}</>}
+        approval={a ? {
+          approvalId: a.approvalId, projectId: a.projectId, fileName: a.fileName, isFinalStage: a.isFinalStage,
+          versionNum: a.versionNum, version: a.version, stage: a.stage, totalStages: a.totalStages, stageLabel: a.stageLabel,
+        } : null}
+        previewUrl={a ? proxyUrl(a) : null}
+        uploadedLabel={a ? row.updatedLabel.charAt(0).toLowerCase() + row.updatedLabel.slice(1) : `Updated ${row.updatedLabel.charAt(0).toLowerCase() + row.updatedLabel.slice(1)}`}
+        details={a ? undefined : [
+          { label: 'Owner', value: row.ownerName }, { label: 'Status', value: row.status },
+          { label: 'Priority', value: row.priority }, { label: 'Amount', value: formatAmount(row.amount) },
+        ]}
+        userSignature={userSignature}
+        onNeedSignature={resume => { pendingApproveRef.current = resume; setShowSignaturePad(true); }}
+        onPdfSigned={() => { if (a) setCacheBust(p => ({ ...p, [a.approvalId]: Date.now() })); }}
+        onDone={() => { setExpandedId(null); afterAction(); }}
+        onClose={() => setExpandedId(null)}
+      />
     );
   }
 
@@ -1520,14 +1430,6 @@ export function ApprovalsPageClient() {
                         </td>
                       </tr>
 
-                      {/* Expanded View Drawer / Details & Approval Workflow */}
-                      {isExpanded && (
-                        <tr className="bg-slate-50/60 border-b border-slate-200">
-                          <td colSpan={8} className="p-5">
-                            {renderDetails(row)}
-                          </td>
-                        </tr>
-                      )}
                     </React.Fragment>
                   );
                 })
@@ -1618,7 +1520,6 @@ export function ApprovalsPageClient() {
                         {renderPriorityChip(row.priority)}
                       </div>
                     </div>
-                    {isExpanded && <div className="col-span-full rounded-[16px] border border-ui-divider bg-ui-surface-elevated p-5">{renderDetails(row)}</div>}
                   </React.Fragment>
                 );
               })}
@@ -1669,6 +1570,8 @@ export function ApprovalsPageClient() {
           <span>Updated, newest first · Click a column header to sort</span>
         </div>
       )}
+
+      {reviewRow && renderReviewDialog(reviewRow)}
 
       {/* ── 6. SIGNATURE PAD MODAL ─────────────────────────────────────── */}
       {showSignaturePad && (

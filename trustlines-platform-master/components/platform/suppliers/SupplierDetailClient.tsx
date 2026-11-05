@@ -30,8 +30,8 @@ interface Props {
 }
 
 // Figma "Supplier detail" (node 427:16507). Delete (soft T10) and Deactivate / Reactivate sit in
-// the heading; the per-row edit pencils have no UI feature here, so invoices and payments keep
-// add + delete. The Trust System work history (PR #70) sits under the profile.
+// the heading; each invoice / payment row has delete + edit (edit uses the existing PATCH routes,
+// app/api/suppliers/[id]/invoices|payments/[…]). The Trust System work history (PR #70) sits under the profile.
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD = 'flex flex-col gap-5 rounded-[8px] border border-ui-divider px-5 pb-5 pt-4';
 const CARD_TITLE = cn('m-0 text-[20px] font-semibold leading-[1.35]', HEADING);
@@ -41,7 +41,9 @@ const ACCENT_BTN = 'gap-2 bg-ui-btn-accent pl-3.5 pr-6 text-[13px] font-medium t
 const TONE_BTN = 'h-10 gap-2 border pl-3.5 pr-6 text-[13px] font-medium hover:opacity-85';
 // Figma row delete: 32px, T10 fill + border.
 const ROW_DELETE = 'size-8 rounded-[6px] border border-[var(--status-t10-fg)] bg-[var(--status-t10-bg)] text-[var(--status-t10-fg)] hover:bg-[var(--status-t10-bg)] hover:opacity-85 dark:border-[var(--status-t10-fg)] dark:bg-[var(--status-t10-bg)]';
-const AMOUNT = 'inline-flex items-center rounded-[4px] bg-[var(--status-t6-bg)] py-1 pl-2 pr-2.5 text-[16px] font-medium leading-4 tabular-nums text-[var(--status-t9-fg)]';
+// Figma row edit: 32px navy (primary) square with a pencil.
+const ROW_EDIT = 'size-8 rounded-[6px]';
+const AMOUNT ='inline-flex items-center rounded-[4px] bg-[var(--status-t6-bg)] py-1 pl-2 pr-2.5 text-[16px] font-medium leading-4 tabular-nums text-[var(--status-t9-fg)]';
 // Invoice settlement keeps its own colour in the row's meta line.
 const INVOICE_STATUS_TONE: Record<string, string> = { unpaid: 't10', partial: 't7', paid: 't9' };
 
@@ -279,9 +281,10 @@ function ProfileCard({ supplier, canEdit, onSaved }: { supplier: Supplier; canEd
   );
 }
 
-/** One invoice / payment line: title + amount chip, meta line, delete. */
-function LedgerRow({ title, titleClass, amount, meta, onDelete, deleteLabel }: {
+/** One invoice / payment line: title + amount chip, meta line, delete + edit (Figma 427:16507). */
+function LedgerRow({ title, titleClass, amount, meta, onDelete, deleteLabel, onEdit, editLabel, editing }: {
   title: React.ReactNode; titleClass: string; amount: string; meta: React.ReactNode; onDelete?: () => void; deleteLabel: string;
+  onEdit?: () => void; editLabel?: string; editing?: boolean;
 }) {
   return (
     <li className="flex items-center gap-3 border-b border-ui-divider px-1 py-3 last:border-b-0">
@@ -292,10 +295,19 @@ function LedgerRow({ title, titleClass, amount, meta, onDelete, deleteLabel }: {
         </div>
         <p className="m-0 truncate text-[11px] leading-[1.4] text-ui-text-secondary">{meta}</p>
       </div>
-      {onDelete && (
-        <Button variant="ghost" size="icon" className={ROW_DELETE} onClick={onDelete} title={deleteLabel} aria-label={deleteLabel}>
-          <Trash2 className="size-4" />
-        </Button>
+      {(onDelete || onEdit) && (
+        <div className="flex shrink-0 items-center gap-2">
+          {onDelete && (
+            <Button variant="ghost" size="icon" className={ROW_DELETE} onClick={onDelete} title={deleteLabel} aria-label={deleteLabel}>
+              <Trash2 className="size-4" />
+            </Button>
+          )}
+          {onEdit && (
+            <Button size="icon" className={ROW_EDIT} onClick={onEdit} title={editLabel} aria-label={editLabel} aria-pressed={editing}>
+              <Pencil className="size-4" />
+            </Button>
+          )}
+        </div>
       )}
     </li>
   );
@@ -305,22 +317,39 @@ function InvoicesSection({ supplierId, invoices, projById, canEdit, onChange }: 
   supplierId: string; invoices: SupplierInvoice[]; projById: Map<string, { code: string; name: string }>;
   canEdit: boolean; onChange: () => void;
 }) {
+  const EMPTY = { invoice_number: '', invoice_date: '', currency: 'USD', amount: '', description: '' };
   const [adding, setAdding] = useState(false);
-  const [f, setF] = useState({ invoice_number: '', invoice_date: '', currency: 'USD', amount: '', description: '' });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [f, setF] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState<SupplierInvoice | null>(null);
 
+  function toggleAdd() {
+    if (adding && !editingId) { setAdding(false); return; }
+    setEditingId(null); setF(EMPTY); setAdding(true);
+  }
+  function startEdit(inv: SupplierInvoice) {
+    if (editingId === inv.id) { setEditingId(null); setAdding(false); return; }
+    setEditingId(inv.id);
+    setF({
+      invoice_number: inv.invoice_number ?? '', invoice_date: inv.invoice_date?.slice(0, 10) ?? '',
+      currency: inv.currency, amount: String(inv.amount), description: inv.description ?? '',
+    });
+    setAdding(true);
+  }
+
+  // Add → POST; edit → the existing PATCH route (same fields).
   async function add() {
     if (!f.amount || Number(f.amount) <= 0) { toast.error('Enter a positive amount'); return; }
     setSaving(true);
-    const res = await fetch(`/api/suppliers/${supplierId}/invoices`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...f, amount: Number(f.amount) }),
+    const res = await fetch(editingId ? `/api/suppliers/${supplierId}/invoices/${editingId}` : `/api/suppliers/${supplierId}/invoices`, {
+      method: editingId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...f, amount: Number(f.amount) }),
     });
     const body = await res.json().catch(() => ({}));
     setSaving(false);
     if (!res.ok) { toast.error(body.error ?? 'Failed'); return; }
-    toast.success('Invoice added'); setAdding(false);
-    setF({ invoice_number: '', invoice_date: '', currency: 'USD', amount: '', description: '' });
+    toast.success(editingId ? 'Invoice updated' : 'Invoice added'); setAdding(false); setEditingId(null);
+    setF(EMPTY);
     onChange();
   }
 
@@ -335,17 +364,21 @@ function InvoicesSection({ supplierId, invoices, projById, canEdit, onChange }: 
     <section className={cn(CARD, 'bg-ui-page-bg')}>
       <CardHeader
         title={`Invoices (${invoices.length})`}
-        action={canEdit && <Button size="md" className={ACCENT_BTN} onClick={() => setAdding(v => !v)} aria-expanded={adding}><Plus className="size-4" /> Add Invoice</Button>}
+        action={canEdit && <Button size="md" className={ACCENT_BTN} onClick={toggleAdd} aria-expanded={adding && !editingId}><Plus className="size-4" /> Add Invoice</Button>}
       />
 
       {adding && canEdit && (
         <div className="grid grid-cols-2 items-end gap-2 rounded-[6px] border border-ui-divider bg-ui-surface p-3 md:grid-cols-[1fr_1fr_90px_1fr_2fr_auto]">
+          {editingId && <p className="col-span-full m-0 text-[12px] font-semibold text-ui-body">Editing invoice {f.invoice_number ? `#${f.invoice_number}` : ''}</p>}
           <label className={FORM_LABEL}>Invoice #<input className={FIELD} value={f.invoice_number} onChange={e => setF({ ...f, invoice_number: e.target.value })} /></label>
           <label className={FORM_LABEL}>Date<input className={FIELD} type="date" value={f.invoice_date} onChange={e => setF({ ...f, invoice_date: e.target.value })} /></label>
           <label className={FORM_LABEL}>Cur.<Select className={FIELD} value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</Select></label>
           <label className={FORM_LABEL}>Amount<input className={FIELD} type="number" step="0.01" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></label>
           <label className={FORM_LABEL}>Description<input className={FIELD} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>
-          <Button size="md" onClick={add} loading={saving}>Save</Button>
+          <div className="flex gap-2">
+            <Button size="md" onClick={add} loading={saving}>Save</Button>
+            {editingId && <Button size="md" variant="secondary" onClick={() => { setEditingId(null); setAdding(false); }} disabled={saving}>Cancel</Button>}
+          </div>
         </div>
       )}
 
@@ -368,6 +401,9 @@ function InvoicesSection({ supplierId, invoices, projById, canEdit, onChange }: 
                 </>}
                 onDelete={canEdit ? () => setRemoving(inv) : undefined}
                 deleteLabel="Delete invoice"
+                onEdit={canEdit ? () => startEdit(inv) : undefined}
+                editLabel="Edit invoice"
+                editing={editingId === inv.id}
               />
             );
           })}
@@ -391,23 +427,40 @@ function PaymentsSection({ supplierId, payments, invoices, projById, canEdit, on
   supplierId: string; payments: SupplierPayment[]; invoices: SupplierInvoice[];
   projById: Map<string, { code: string; name: string }>; canEdit: boolean; onChange: () => void;
 }) {
+  const EMPTY = { amount: '', currency: 'USD', method: 'bank_transfer', paid_at: '', invoice_id: '', reference: '' };
   const [adding, setAdding] = useState(false);
-  const [f, setF] = useState({ amount: '', currency: 'USD', method: 'bank_transfer', paid_at: '', invoice_id: '', reference: '' });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [f, setF] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState<SupplierPayment | null>(null);
 
+  function toggleAdd() {
+    if (adding && !editingId) { setAdding(false); return; }
+    setEditingId(null); setF(EMPTY); setAdding(true);
+  }
+  function startEdit(pay: SupplierPayment) {
+    if (editingId === pay.id) { setEditingId(null); setAdding(false); return; }
+    setEditingId(pay.id);
+    setF({
+      amount: String(pay.amount), currency: pay.currency, method: pay.method, paid_at: pay.paid_at?.slice(0, 10) ?? '',
+      invoice_id: pay.invoice_id ?? '', reference: pay.reference ?? '',
+    });
+    setAdding(true);
+  }
+
+  // Add → POST; edit → the existing PATCH route (same fields).
   async function add() {
     if (!f.amount || Number(f.amount) <= 0) { toast.error('Enter a positive amount'); return; }
     setSaving(true);
     const payload = { ...f, amount: Number(f.amount), invoice_id: f.invoice_id || null };
-    const res = await fetch(`/api/suppliers/${supplierId}/payments`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    const res = await fetch(editingId ? `/api/suppliers/${supplierId}/payments/${editingId}` : `/api/suppliers/${supplierId}/payments`, {
+      method: editingId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
     });
     const body = await res.json().catch(() => ({}));
     setSaving(false);
     if (!res.ok) { toast.error(body.error ?? 'Failed'); return; }
-    toast.success('Payment recorded'); setAdding(false);
-    setF({ amount: '', currency: 'USD', method: 'bank_transfer', paid_at: '', invoice_id: '', reference: '' });
+    toast.success(editingId ? 'Payment updated' : 'Payment recorded'); setAdding(false); setEditingId(null);
+    setF(EMPTY);
     onChange();
   }
 
@@ -425,17 +478,21 @@ function PaymentsSection({ supplierId, payments, invoices, projById, canEdit, on
     <section className={cn(CARD, 'bg-ui-page-bg')}>
       <CardHeader
         title={`Payments (${payments.length})`}
-        action={canEdit && <Button size="md" className={ACCENT_BTN} onClick={() => setAdding(v => !v)} aria-expanded={adding}><Plus className="size-4" /> Add payment</Button>}
+        action={canEdit && <Button size="md" className={ACCENT_BTN} onClick={toggleAdd} aria-expanded={adding && !editingId}><Plus className="size-4" /> Add payment</Button>}
       />
 
       {adding && canEdit && (
         <div className="grid grid-cols-2 items-end gap-2 rounded-[6px] border border-ui-divider bg-ui-surface p-3 md:grid-cols-[1fr_80px_1fr_1fr_1.4fr_auto]">
+          {editingId && <p className="col-span-full m-0 text-[12px] font-semibold text-ui-body">Editing payment</p>}
           <label className={FORM_LABEL}>Amount<input className={FIELD} type="number" step="0.01" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></label>
           <label className={FORM_LABEL}>Cur.<Select className={FIELD} value={f.currency} onChange={e => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</Select></label>
           <label className={FORM_LABEL}>Method<Select className={FIELD} value={f.method} onChange={e => setF({ ...f, method: e.target.value })}>{PAYMENT_METHODS.map(m => <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>)}</Select></label>
           <label className={FORM_LABEL}>Date<input className={FIELD} type="date" value={f.paid_at} onChange={e => setF({ ...f, paid_at: e.target.value })} /></label>
           <label className={FORM_LABEL}>Against invoice<Select className={FIELD} value={f.invoice_id} onChange={e => setF({ ...f, invoice_id: e.target.value })}><option value="">On account</option>{invoices.map(inv => <option key={inv.id} value={inv.id}>{invLabel(inv)}</option>)}</Select></label>
-          <Button size="md" onClick={add} loading={saving}>Save</Button>
+          <div className="flex gap-2">
+            <Button size="md" onClick={add} loading={saving}>Save</Button>
+            {editingId && <Button size="md" variant="secondary" onClick={() => { setEditingId(null); setAdding(false); }} disabled={saving}>Cancel</Button>}
+          </div>
         </div>
       )}
 
@@ -458,6 +515,9 @@ function PaymentsSection({ supplierId, payments, invoices, projById, canEdit, on
                 </>}
                 onDelete={canEdit ? () => setRemoving(pay) : undefined}
                 deleteLabel="Delete payment"
+                onEdit={canEdit ? () => startEdit(pay) : undefined}
+                editLabel="Edit payment"
+                editing={editingId === pay.id}
               />
             );
           })}
