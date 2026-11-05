@@ -145,7 +145,7 @@ function QuietList({ rows }: { rows: SilentDeal[] }) {
       <div className="flex min-w-[560px] flex-col">
         <div className="flex h-7 items-center gap-3 text-[11px] leading-[1.4] text-ui-text-secondary">
           <span className="min-w-0 flex-1">Deal / stage / region</span>
-          <span className="flex w-[122px] shrink-0 items-center gap-[5px]"><UserRound size={14} aria-hidden />Owner</span>
+          <span className="flex w-[122px] shrink-0 items-center gap-[5px]"><UserRound size={14} aria-hidden />Last touch by</span>
           <span className="w-[87px] shrink-0 text-right">Value (USD)</span>
           <span className="w-[133px] shrink-0 text-right">Days since last touch</span>
           <span className="size-4 shrink-0" />
@@ -163,7 +163,8 @@ function QuietList({ rows }: { rows: SilentDeal[] }) {
                 <span className="truncate text-[13px] font-semibold text-ui-nav-active group-hover:underline">{r.title}</span>
                 <span className="truncate text-[10px] text-ui-text-secondary">{where}</span>
               </span>
-              <span className="w-[122px] shrink-0 truncate text-[12px] leading-[1.4]">{r.ownerName ?? 'Unassigned'}</span>
+              {/* Figma's "Owner" slot: the data has who last touched the deal, not its owner. */}
+              <span className="w-[122px] shrink-0 truncate text-[12px] leading-[1.4]">{r.lastBy ?? <span className="text-ui-text-secondary">—</span>}</span>
               <span className="w-[87px] shrink-0 text-right text-[12px] leading-[1.4] tabular-nums">
                 {r.dealSize ? n(r.dealSize) : <span className="text-ui-text-secondary">—</span>}
               </span>
