@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Inbox, Mail, Phone, Building2, MapPin, Trash2, UserPlus, X, Loader2 } from 'lucide-react';
+import { Inbox, Mail, Phone, Building2, MapPin, Trash2, UserPlus, X, Loader2, Download } from 'lucide-react';
 import { LEAD_STATUSES, LEAD_STATUS_LABEL, type LeadStatus } from '@/lib/web-cms/leads';
 import { Select } from '@/components/platform/shared/Select';
 import { CategoryViews } from './CategoryViews';
@@ -100,11 +100,16 @@ export function WebLeadsClient({ initial, canEdit, loadError }: { initial: WebLe
           ]}
           onChange={v => setStatusFilter(v as typeof statusFilter)}
         />
-        <Select className="form-input" value={kindFilter} onChange={e => setKindFilter(e.target.value as typeof kindFilter)} style={{ width: 170 }}>
-          <option value="all">Contact form + Newsletter</option>
-          <option value="contact">Contact form only</option>
-          <option value="newsletter">Newsletter only</option>
-        </Select>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Select className="form-input" value={kindFilter} onChange={e => setKindFilter(e.target.value as typeof kindFilter)} style={{ width: 170 }}>
+            <option value="all">Contact form + Newsletter</option>
+            <option value="contact">Contact form only</option>
+            <option value="newsletter">Newsletter only</option>
+          </Select>
+          <a href="/api/web-cms/leads/export" download className="btn btn-secondary btn-sm" title="Download every website submission with all fields">
+            <Download size={13} style={{ marginRight: 4 }} /> Export to Excel
+          </a>
+        </div>
       </div>
 
       {shown.length === 0 ? (
