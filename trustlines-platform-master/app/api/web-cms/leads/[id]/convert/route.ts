@@ -57,7 +57,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (lead.store_location) {
     await admin.from('prospect_locations').insert({
       prospect_id: prospectId, address_line_1: lead.store_location, location_type: lead.store_type,
-      notes: [lead.store_condition && `Store condition: ${lead.store_condition}`, lead.message].filter(Boolean).join('\n') || null,
+      notes: [lead.store_condition && `Store condition: ${lead.store_condition}`, lead.message, lead.notes && `Notes: ${lead.notes}`].filter(Boolean).join('\n') || null,
       is_active: true,
     });
   }

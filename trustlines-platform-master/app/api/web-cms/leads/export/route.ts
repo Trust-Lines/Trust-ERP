@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 interface LeadRow {
   id: string; kind: string; name: string | null; phone: string | null; email: string | null;
   company: string | null; store_location: string | null; store_condition: string | null; store_type: string | null;
-  message: string | null; consent_accepted: boolean; consent_text_version: string | null; consent_at: string | null;
+  message: string | null; notes?: string | null; consent_accepted: boolean; consent_text_version: string | null; consent_at: string | null;
   source_page: string | null; utm: Record<string, string> | null; status: LeadStatus; internal_note: string | null;
   prospect_id: string | null; handled_by: string | null; handled_at: string | null; created_at: string; updated_at: string | null;
 }
@@ -67,6 +67,7 @@ export async function GET() {
     { header: 'Store Condition', width: 16, get: l => l.store_condition ?? '' },
     { header: 'Store Type', width: 14, get: l => l.store_type ?? '' },
     { header: 'Message', width: 50, wrap: true, get: l => l.message ?? '' },
+    { header: 'Notes', width: 40, wrap: true, get: l => l.notes ?? '' },
     { header: 'Internal Note', width: 36, wrap: true, get: l => l.internal_note ?? '' },
     { header: 'Linked Contact', width: 24, get: l => (l.prospect_id ? prospectName.get(l.prospect_id) ?? l.prospect_id : '') },
     { header: 'Handled By', width: 18, get: l => (l.handled_by ? handlerName.get(l.handled_by) ?? '' : '') },
