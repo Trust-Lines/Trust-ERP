@@ -1,6 +1,8 @@
 # Trust-Lines Platform — Current System State
 
-> Bu belge mevcut kod tabanının ayrıntılı envanteridir. Hedef ürün kararları için `PROJECT-MASTER-PLAN.md`, uygulama kuralları için `CLAUDE.md` ve `AGENTS.md` önceliklidir. Kod tabanının tamamı (263 kaynak dosya, 44 migration, ~75 API route, `SYSTEM_ARCHITECTURE.md`) incelenerek yazılmıştır.
+> Bu belge mevcut kod tabanının ayrıntılı envanteridir. Hedef ürün kararları için `PROJECT-MASTER-PLAN.md`, uygulama kuralları için `CLAUDE.md` ve `AGENTS.md` önceliklidir. Eski `SYSTEM_ARCHITECTURE.md` bu belgeyle birleştirildi; bu dosya onun güncel halidir.
+>
+> Kodda ve tablolarda geçen `client` ifadeleri iş anlamında end customer değildir: `clients` = T-Lines bölgesi, `client_companies` = service line. Trust Lines = iç supply/production; T-Lines = sabit kurumsal müşteri; Customer = T-Lines'ın gerçek son müşterisi.
 >
 > Hazırlanma tarihi: 2026-07-10 · Konum: `C:\Users\Trust\Desktop\Trust\trustlines-platform`
 
