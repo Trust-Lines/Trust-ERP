@@ -10,5 +10,9 @@ export const SMTP_PRESETS = [
     value: 'microsoft', label: 'Microsoft 365 / Outlook', host: 'smtp.office365.com', port: 587, secure: false, dailyLimit: 400,
     help: 'Your admin must allow “Authenticated SMTP” for your mailbox. With MFA on, use an app password.',
   },
+  {
+    value: 'purelymail', label: 'Purelymail', host: 'smtp.purelymail.com', port: 465, secure: true, dailyLimit: 300,
+    help: 'Use the mailbox address as the username and its password (or an app password from Purelymail → Security).',
+  },
   { value: 'custom', label: 'Other (custom SMTP)', host: '', port: 587, secure: false, dailyLimit: 300, help: 'Ask your email provider for the SMTP server, port and security type.' },
 ] as const;
