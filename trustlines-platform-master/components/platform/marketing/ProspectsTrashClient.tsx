@@ -31,7 +31,8 @@ const NEED_CLASSIFICATION_LABEL: Record<string, string> = {
   opportunity: 'Opportunity', potential: 'Potential', disqualified: 'Disqualified', unclassified: 'Unclassified',
 };
 
-// Figma "Marketing Trash" (node 244:21085) styling.
+// Figma "Marketing Trash" (nodes 244:21085 / 292:4267): Lead + Type columns. The Contacts / Needs tabs
+// and the "only Marketing managers" wording stay from the code (the frame shows Contacts only).
 const HEADING_TEXT = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const RESTORE_BTN = 'inline-flex shrink-0 items-center gap-[7px] rounded-[6px] border border-ui-divider bg-ui-input-bg px-2.5 py-[7px] text-[13px] font-medium text-ui-body hover:bg-ui-hover-bg disabled:opacity-50 [&_svg]:size-4';
 const DELETE_BTN = 'inline-flex shrink-0 items-center rounded-[6px] border-0 px-2.5 py-[7px] text-[13px] font-medium hover:brightness-95 disabled:opacity-50';
@@ -46,7 +47,10 @@ type Tab = 'contacts' | 'needs';
 interface TrashItem {
   id: string;
   title: string;
-  subtitle: string;
+  /** Figma "Type" column: Person / Organization, or what the Need was. */
+  type: string;
+  /** Muted second line under the title (Needs only: which Contact it belonged to). */
+  subtitle: string | null;
   deleted_at: string;
   deleted_by: string | null;
   daysLeft: number;
@@ -73,7 +77,8 @@ export function ProspectsTrashClient({ rows, needRows, canPurge, purgeDays }: { 
     ? rows.map(r => ({
       id: r.id,
       title: r.display_name,
-      subtitle: `Contact · ${r.entity_type === 'person' ? 'Person' : 'Organization'} · restores its Needs and Potentials`,
+      type: r.entity_type === 'person' ? 'Person' : 'Organization',
+      subtitle: null,
       deleted_at: r.deleted_at, deleted_by: r.deleted_by, daysLeft: r.daysLeft,
       restoreUrl: `/api/marketing/prospects/${r.id}/restore`,
       purgeUrl: `/api/marketing/prospects/${r.id}/permanent-delete`,
@@ -81,7 +86,8 @@ export function ProspectsTrashClient({ rows, needRows, canPurge, purgeDays }: { 
     : needRows.map(n => ({
       id: n.id,
       title: n.title,
-      subtitle: `Need · ${n.prospect_name} · was ${NEED_CLASSIFICATION_LABEL[n.classification] ?? n.classification}`,
+      type: `Need · was ${NEED_CLASSIFICATION_LABEL[n.classification] ?? n.classification}`,
+      subtitle: n.prospect_name,
       deleted_at: n.deleted_at, deleted_by: n.deleted_by, daysLeft: n.daysLeft,
       restoreUrl: `/api/marketing/prospects/${n.prospect_id}/needs/${n.id}/restore`,
       purgeUrl: `/api/marketing/prospects/${n.prospect_id}/needs/${n.id}/permanent-delete`,
@@ -90,7 +96,7 @@ export function ProspectsTrashClient({ rows, needRows, canPurge, purgeDays }: { 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
-    return items.filter(i => i.title.toLowerCase().includes(q) || i.subtitle.toLowerCase().includes(q) || (i.deleted_by ?? '').toLowerCase().includes(q));
+    return items.filter(i => i.title.toLowerCase().includes(q) || i.type.toLowerCase().includes(q) || (i.subtitle ?? '').toLowerCase().includes(q) || (i.deleted_by ?? '').toLowerCase().includes(q));
   }, [items, query]);
 
   const selectedItems = visible.filter(i => selected.has(i.id));
@@ -144,10 +150,10 @@ export function ProspectsTrashClient({ rows, needRows, canPurge, purgeDays }: { 
   return (
     <div className="flex flex-col gap-[30px]">
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <PageCrumbs items={[{ label: 'Marketing', href: '/marketing' }, { label: 'Contacts', href: '/marketing/prospects' }, { label: 'Trash', href: '/marketing/prospects/trash' }]} />
-        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Trash</h1>
+        <PageCrumbs items={[{ label: 'Marketing', href: '/marketing' }, { label: 'Trash', href: '/marketing/prospects/trash' }]} />
+        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Marketing Trash</h1>
         <p className="m-0 text-[13px] text-ui-body">
-          Deleted items remain here for {purgeDays} days. Restoring a Contact also restores its Needs and Potentials.
+          Deleted Contacts and Needs (Potentials/Opportunities) are kept for {purgeDays} days, then permanently removed. Restoring a Contact brings back its Needs and Potentials too.
         </p>
       </div>
 
@@ -219,7 +225,8 @@ export function ProspectsTrashClient({ rows, needRows, canPurge, purgeDays }: { 
                   <th className={cn(TH_CLS, 'w-9')}>
                     <input type="checkbox" className={CHECKBOX_CLS} checked={allSelected} onChange={toggleAll} aria-label="Select all" />
                   </th>
-                  <th className={TH_CLS}>Item</th>
+                  <th className={TH_CLS}>{tab === 'contacts' ? 'Lead' : 'Need'}</th>
+                  <th className={cn(TH_CLS, 'w-[160px]')}>Type</th>
                   <th className={cn(TH_CLS, 'w-[150px]')}>Deleted by</th>
                   <th className={cn(TH_CLS, 'w-[190px]')}>Deleted at</th>
                   <th className={cn(TH_CLS, 'w-[150px]')}>Auto-delete date</th>
@@ -237,9 +244,10 @@ export function ProspectsTrashClient({ rows, needRows, canPurge, purgeDays }: { 
                       <td className={TD_CLS}>
                         <div className="flex flex-col gap-1">
                           <span className="text-[13px] font-medium text-ui-body">{i.title}</span>
-                          <span className="text-[11px] text-ui-text-secondary">{i.subtitle}</span>
+                          {i.subtitle && <span className="text-[11px] text-ui-text-secondary">{i.subtitle}</span>}
                         </div>
                       </td>
+                      <td className={TD_CLS}>{i.type}</td>
                       <td className={TD_CLS}>{i.deleted_by ?? '—'}</td>
                       <td className={TD_CLS}>{DATE_TIME.format(new Date(i.deleted_at))}</td>
                       <td className={TD_CLS}>
