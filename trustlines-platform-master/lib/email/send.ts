@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export async function sendEmail(to: string, subject: string, html: string) {
+export async function sendEmail(to: string, subject: string, html: string, opts: { replyTo?: string } = {}) {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.warn('[email] SMTP credentials not set — skipping email to', to);
     return;
@@ -20,6 +20,7 @@ export async function sendEmail(to: string, subject: string, html: string) {
     to,
     subject,
     html,
+    ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
   });
 }
 

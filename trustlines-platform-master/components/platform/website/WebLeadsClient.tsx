@@ -11,7 +11,7 @@ import { CategoryViews } from './CategoryViews';
 export interface WebLeadRow {
   id: string; kind: 'contact' | 'newsletter'; name: string | null; phone: string | null; email: string | null;
   company: string | null; store_location: string | null; store_condition: string | null; store_type: string | null;
-  message: string | null; consent_accepted: boolean; consent_text_version: string | null; consent_at: string | null;
+  message: string | null; notes?: string | null; consent_accepted: boolean; consent_text_version: string | null; consent_at: string | null;
   source_page: string | null; utm: Record<string, string> | null;
   status: LeadStatus; internal_note: string | null; prospect_id: string | null; created_at: string;
 }
@@ -147,6 +147,12 @@ export function WebLeadsClient({ initial, canEdit, loadError }: { initial: WebLe
                       {l.store_location && <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}><MapPin size={13} /> {l.store_location}</div>}
                     </div>
                     {l.message && <div style={{ whiteSpace: 'pre-wrap', background: 'var(--bg-subtle, #f8fafc)', borderRadius: 8, padding: 10 }}>{l.message}</div>}
+                    {l.notes && (
+                      <div style={{ whiteSpace: 'pre-wrap', background: 'var(--bg-subtle, #f8fafc)', borderRadius: 8, padding: 10 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', marginBottom: 4 }}>NOTES</div>
+                        {l.notes}
+                      </div>
+                    )}
                     <div style={{ fontSize: 11.5, color: 'var(--fg-subtle)' }}>
                       Privacy notice accepted{l.consent_at ? ` ${fmt(l.consent_at)}` : ''}{l.consent_text_version ? ` (v${l.consent_text_version})` : ''}
                       {l.source_page ? ` · from ${l.source_page}` : ''}
