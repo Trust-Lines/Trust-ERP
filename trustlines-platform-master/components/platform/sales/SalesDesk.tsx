@@ -1,58 +1,60 @@
 'use client';
 
-import { TrendingUp } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import {
+  AlarmClock, ArrowUpRight, CalendarClock, CalendarDays, CircleCheck, CircleX, ClockAlert, FileText, Map as MapIcon,
+  TrendingUp, UserRound, UserX,
+} from 'lucide-react';
+import { useState } from 'react';
 import Link from 'next/link';
 import type { SalesDashboardData } from '@/lib/sales/dashboardData';
 import type { ClosingRow, RegionRow, SilentDeal, StageBucket } from '@/lib/sales/dashboardMetrics';
+import { regionLabel } from '@/lib/regions';
+import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { EmptyState } from '@/components/ui/empty-state';
+import { cn } from '@/lib/utils';
 
-// Sales dashboard, built around the questions a sales team actually asks:
-//   what needs doing today · where do open deals sit · which ones have gone quiet · how is each
-//   region doing · are we winning more or fewer than before.
-// Palette: one blue hue for "ours / progress" (an ordinal ramp for the stage path, validated), warm gray
-// for "lost / waiting" — colours were run through the dataviz validator. (The app has no dark theme, so
-// there is only a light palette here; add a validated dark set together with a dark theme.)
+// Sales insights (Figma "Sales insights" 210:24157): page heading, scope toolbar, then four analytics
+// cards — where the open deals sit · deals that have gone quiet · region by region · won and lost by
+// quarter closed. Every figure comes from lib/sales/dashboardData.ts; the frame's region / owner /
+// deal-type filters and "Export report" have no backing feature, so the toolbar carries the task links.
+// Dark (Figma 265:21163): same tokens; stage bars switch to the near-white heading tone like the frame.
 
-function compactMoney(v: number): string {
-  if (!v) return '$0';
-  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (v >= 1_000) return `$${Math.round(v / 1_000)}K`;
-  return `$${Math.round(v).toLocaleString('en-US')}`;
-}
 const n = (v: number) => v.toLocaleString('en-US');
-const longDate = () => new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+function usd(v: number, digits = 1): string {
+  if (v >= 1_000_000) return `USD ${(v / 1_000_000).toFixed(digits)}m`;
+  if (v >= 1_000) return `USD ${Math.round(v / 1_000)}k`;
+  return `USD ${n(Math.round(v))}`;
+}
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** 'YYYY-MM-DD' → '21 Oct 2026' without going through the timezone. */
+function dayLabel(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return y && m && d ? `${d} ${MONTHS[m - 1]} ${y}` : iso;
+}
+/** ClosingRow.key '2026-Q3' → 'Q3 2026'. */
+const quarterLabel = (key: string) => `${key.slice(5)} ${key.slice(0, 4)}`;
 const stageQuery = (status: string) => `/leads?stage=${status}`;
 
-const CSS = `
-.sd{
-  --sd-accent:#2a78d6; --sd-lost:#6f6e69; --sd-wait:#b3b2ab;
-  --sd-s1:#86b6ef; --sd-s2:#5598e7; --sd-s3:#2a78d6; --sd-s4:#1c5cab; --sd-s5:#104281;
-  --sd-s1-ink:#0b0b0b; --sd-s2-ink:#0b0b0b; --sd-s3-ink:#fff; --sd-s4-ink:#fff; --sd-s5-ink:#fff;
-  --sd-open:#b7d3f6;
-  color:var(--fg-default);
+const CARD = 'flex min-w-0 flex-col gap-[18px] rounded-[10px] border border-ui-divider bg-ui-surface-elevated p-6';
+const TITLE = 'm-0 text-[18px] font-semibold leading-[normal] text-[var(--color-secondary-700)] dark:text-ui-heading';
+const SUB = 'm-0 text-[12px] leading-[1.4] text-ui-text-secondary';
+const NOTE = 'm-0 text-[12px] leading-[1.4] text-ui-text-secondary';
+const ACTION = 'inline-flex h-9 items-center gap-2 rounded-[6px] border border-ui-divider bg-ui-surface-elevated px-3 text-[13px] font-medium leading-[1.4] whitespace-nowrap text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-4 [&_svg]:shrink-0';
+
+function CardHeading({ icon, title, sub, aside }: { icon?: React.ReactNode; title: string; sub: React.ReactNode; aside?: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex items-center gap-2 text-ui-body [&_svg]:size-[18px] [&_svg]:shrink-0">
+          {icon}
+          <h2 className={TITLE}>{title}</h2>
+        </div>
+        <div className={SUB}>{sub}</div>
+      </div>
+      {aside}
+    </div>
+  );
 }
-.sd h2{margin:0}
-.sd .sd-eyebrow{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-faint)}
-.sd .sd-section{padding:28px 0;border-top:1px solid var(--border-subtle)}
-.sd .sd-h{font-size:15px;font-weight:700;letter-spacing:-.005em}
-.sd .sd-sub{font-size:13px;color:var(--fg-subtle);margin-top:3px;line-height:1.45}
-.sd .sd-fact{display:block;text-decoration:none;color:inherit;padding:2px 0 2px 16px;border-left:2px solid var(--border-subtle);transition:border-color .12s}
-.sd a.sd-fact:hover{border-left-color:var(--sd-accent)}
-.sd .sd-fact b{display:block;font-size:30px;line-height:1.1;font-weight:700;letter-spacing:-.02em}
-.sd .sd-fact span{font-size:12.5px;color:var(--fg-subtle)}
-.sd table.sd-t{width:100%;border-collapse:collapse;font-size:13px}
-.sd .sd-t th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--fg-faint);padding:0 12px 8px 0;border-bottom:1px solid var(--border-subtle);white-space:nowrap}
-.sd .sd-t td{padding:11px 12px 11px 0;border-bottom:1px solid var(--border-subtle);vertical-align:middle;font-variant-numeric:tabular-nums}
-.sd .sd-t th.r,.sd .sd-t td.r{text-align:right}
-.sd .sd-t tr.sd-row:hover td{background:var(--bg-subtle)}
-.sd .sd-seg{display:block;height:100%;text-decoration:none;position:relative;transition:filter .12s, transform .12s}
-.sd .sd-seg:hover,.sd .sd-seg:focus-visible{filter:brightness(1.08);outline:none}
-.sd .sd-tab{font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;border:1px solid var(--border-default);background:transparent;color:var(--fg-muted);cursor:pointer}
-.sd .sd-tab[aria-pressed="true"]{background:var(--fg-default);border-color:var(--fg-default);color:var(--bg-surface)}
-.sd .sd-col:focus-visible rect.sd-hit{stroke:var(--sd-accent);stroke-width:1.5;fill:color-mix(in srgb,var(--sd-accent) 8%, transparent)}
-.sd .sd-col:hover rect.sd-hit{fill:color-mix(in srgb,var(--sd-accent) 8%, transparent)}
-`;
 
 interface Tip { x: number; y: number; head: string; rows: { key: string; label: string; value: string }[]; foot?: string }
 
@@ -61,271 +63,246 @@ function Tooltip({ tip }: { tip: Tip | null }) {
   return (
     <div
       role="status"
-      style={{
-        position: 'fixed', left: Math.min(tip.x + 14, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 250), top: tip.y + 14, zIndex: 10070,
-        pointerEvents: 'none', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 10,
-        boxShadow: '0 8px 24px rgba(0,0,0,.16)', padding: '9px 12px', minWidth: 170, fontSize: 12.5,
-      }}
+      className="pointer-events-none fixed z-[10070] min-w-[170px] rounded-[10px] border border-ui-divider bg-ui-surface-elevated px-3 py-[9px] text-[12.5px] text-ui-body shadow-03"
+      style={{ left: Math.min(tip.x + 14, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 250), top: tip.y + 14 }}
     >
-      <div style={{ fontWeight: 700, marginBottom: 6 }}>{tip.head}</div>
+      <div className="mb-1.5 font-semibold text-ui-heading">{tip.head}</div>
       {tip.rows.map(r => (
-        <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
-          <span style={{ width: 12, height: 3, borderRadius: 2, background: r.key, flexShrink: 0 }} />
-          <span style={{ fontWeight: 700 }}>{r.value}</span>
-          <span style={{ color: 'var(--fg-subtle)' }}>{r.label}</span>
+        <div key={r.label} className="mt-[3px] flex items-center gap-2">
+          <span className="h-[3px] w-3 shrink-0 rounded-[2px]" style={{ background: r.key }} />
+          <span className="font-semibold">{r.value}</span>
+          <span className="text-ui-text-secondary">{r.label}</span>
         </div>
       ))}
-      {tip.foot && <div style={{ marginTop: 6, color: 'var(--fg-subtle)', fontSize: 12 }}>{tip.foot}</div>}
+      {tip.foot && <div className="mt-1.5 text-[12px] text-ui-text-secondary">{tip.foot}</div>}
     </div>
   );
 }
 
-// ── pipeline: one bar, proportional to how many open deals sit at each step ───────────────────────
-function PipelineBar({ path, waiting }: { path: StageBucket[]; waiting: { count: number; value: number } }) {
-  const [tip, setTip] = useState<Tip | null>(null);
-  const steps = path.filter(s => s.count > 0);
-  const total = steps.reduce((a, s) => a + s.count, 0) + waiting.count;
-  if (total === 0) return <div className="sd-sub">No open deals right now.</div>;
-  const ramp = ['s1', 's2', 's3', 's4', 's5'];
-  const idx = (key: string) => path.findIndex(p => p.key === key);
-  const pct = (c: number) => (c / total) * 100;
+function niceMax(v: number, maxTicks = 4): { max: number; step: number } {
+  const steps = [1, 2, 5, 10, 15, 20, 25, 50, 100, 200, 250, 500, 1000];
+  const step = steps.find(s => v / s <= maxTicks) ?? Math.ceil(v / maxTicks / 1000) * 1000;
+  return { max: Math.max(step, Math.ceil(v / step) * step), step };
+}
 
-  const show = (e: React.PointerEvent | React.FocusEvent, label: string, key: string, count: number, value: number) => {
-    const r = 'clientX' in e ? { x: e.clientX, y: e.clientY } : (() => { const b = (e.currentTarget as HTMLElement).getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.bottom }; })();
-    setTip({ ...r, head: label, rows: [{ key, label: count === 1 ? 'deal' : 'deals', value: n(count) }], foot: value ? `${compactMoney(value)} with a deal size` : undefined });
-  };
+// ── where the open deals sit (Figma 210:24257 "Stage bar chart") ─────────────────────────────────
+function StageChart({ path, waiting }: { path: StageBucket[]; waiting: { count: number; value: number } }) {
+  const rows = [
+    ...path.map(s => ({ key: s.key, label: s.label, href: stageQuery(s.crmStatus), count: s.count, muted: false })),
+    { key: 'waiting', label: 'Waiting on the client', href: stageQuery('waiting'), count: waiting.count, muted: true },
+  ];
+  const total = rows.reduce((a, r) => a + r.count, 0);
+  if (total === 0) return <p className={NOTE}>No open deals right now.</p>;
+  const { max, step } = niceMax(Math.max(...rows.map(r => r.count)));
+  const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
 
   return (
-    <div>
-      <div style={{ display: 'flex', gap: 2, height: 34, borderRadius: 6, overflow: 'hidden' }} onPointerLeave={() => setTip(null)}>
-        {steps.map(s => {
-          const i = idx(s.key);
+    <div className="flex flex-col gap-2.5">
+      <div className="flex items-start gap-3.5 text-[11px] leading-[1.4] text-ui-text-secondary">
+        <span className="w-[152px] shrink-0">Sales stage</span>
+        <span className="min-w-0 flex-1">Open deals (count)</span>
+        <span className="w-11 shrink-0 text-right">Count</span>
+        <span className="w-[58px] shrink-0 text-right">Share</span>
+      </div>
+      {rows.map(r => (
+        <Link
+          key={r.key} href={r.href} aria-label={`${r.label}: ${r.count} open deals`}
+          className="group flex items-center gap-3.5 text-ui-body no-underline"
+        >
+          <span className="w-[152px] shrink-0 truncate text-[13px] leading-[1.4] group-hover:underline">{r.label}</span>
+          <span className="relative h-6 min-w-0 flex-1 overflow-hidden rounded-[3px] bg-ui-surface">
+            <span
+              className={cn('absolute inset-y-0 left-0 rounded-[3px] transition-[filter] group-hover:brightness-110', r.muted ? 'bg-ui-text-secondary' : 'bg-ui-btn-primary dark:bg-ui-heading')}
+              style={{ width: `${(r.count / max) * 100}%` }}
+            />
+          </span>
+          <span className="w-11 shrink-0 text-right text-[14px] font-semibold leading-[1.4] tabular-nums">{n(r.count)}</span>
+          <span className="w-[58px] shrink-0 text-right text-[12px] leading-[1.4] tabular-nums text-ui-text-secondary">
+            {((r.count / total) * 100).toFixed(1)}%
+          </span>
+        </Link>
+      ))}
+      {/* Count axis: under the bar track only (152 label + 14 gap | 14 + 44 + 14 + 58 on the right). */}
+      <div className="relative ml-[166px] mr-[130px] h-[15px] text-[11px] leading-[1.4] text-ui-text-secondary">
+        {ticks.map((t, i) => (
+          <span
+            key={t} className="absolute top-0 tabular-nums"
+            style={{ left: `${(t / max) * 100}%`, transform: i === 0 ? undefined : i === ticks.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)' }}
+          >
+            {t}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── deals that have gone quiet (Figma 210:24309 "Follow-up list") ────────────────────────────────
+function QuietList({ rows }: { rows: SilentDeal[] }) {
+  if (!rows.length) return <p className={NOTE}>Every active deal has had an update recently.</p>;
+  return (
+    <div className="overflow-x-auto">
+      <div className="flex min-w-[560px] flex-col">
+        <div className="flex h-7 items-center gap-3 text-[11px] leading-[1.4] text-ui-text-secondary">
+          <span className="min-w-0 flex-1">Deal / stage / region</span>
+          <span className="flex w-[122px] shrink-0 items-center gap-[5px]"><UserRound size={14} aria-hidden />Owner</span>
+          <span className="w-[87px] shrink-0 text-right">Value (USD)</span>
+          <span className="w-[133px] shrink-0 text-right">Days since last touch</span>
+          <span className="size-4 shrink-0" />
+        </div>
+        {rows.map(r => {
+          const overdue = r.daysSilent > 30;
+          const where = [r.stageLabel, r.region ? regionLabel(r.region) : null].filter(Boolean).join(' · ');
           return (
             <Link
-              key={s.key} href={stageQuery(s.crmStatus)} className="sd-seg" aria-label={`${s.label}: ${s.count} deals`}
-              style={{ width: `${pct(s.count)}%`, background: `var(--sd-${ramp[i]})`, color: `var(--sd-${ramp[i]}-ink)` }}
-              onPointerMove={e => show(e, s.label, `var(--sd-${ramp[i]})`, s.count, s.value)}
-              onFocus={e => show(e, s.label, `var(--sd-${ramp[i]})`, s.count, s.value)} onBlur={() => setTip(null)}
+              key={r.id} href={`/leads?open=${r.id}`}
+              title={r.lastSnippet ? `${r.lastBy ? `${r.lastBy}: ` : ''}${r.lastSnippet}` : 'Nothing since it was created'}
+              className="group flex h-[46px] items-center gap-3 border-t border-ui-divider text-ui-body no-underline hover:bg-ui-hover-bg"
             >
-              {pct(s.count) >= 6 && <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', paddingLeft: 10, fontSize: 13, fontWeight: 700 }}>{s.count}</span>}
+              <span className="flex min-w-0 flex-1 flex-col gap-px leading-[1.4]">
+                <span className="truncate text-[13px] font-semibold text-ui-nav-active group-hover:underline">{r.title}</span>
+                <span className="truncate text-[10px] text-ui-text-secondary">{where}</span>
+              </span>
+              <span className="w-[122px] shrink-0 truncate text-[12px] leading-[1.4]">{r.ownerName ?? 'Unassigned'}</span>
+              <span className="w-[87px] shrink-0 text-right text-[12px] leading-[1.4] tabular-nums">
+                {r.dealSize ? n(r.dealSize) : <span className="text-ui-text-secondary">—</span>}
+              </span>
+              <span className={cn('w-[133px] shrink-0 text-right text-[13px] font-semibold leading-[1.4] tabular-nums', overdue && 'text-error-normal')}>
+                {n(r.daysSilent)} {r.daysSilent === 1 ? 'day' : 'days'}
+              </span>
+              <ArrowUpRight size={16} aria-hidden className="shrink-0" />
             </Link>
           );
         })}
-        {waiting.count > 0 && (
-          <Link
-            href={stageQuery('waiting')} className="sd-seg" aria-label={`Waiting on the client: ${waiting.count} deals`}
-            style={{ width: `${pct(waiting.count)}%`, background: 'var(--sd-wait)', color: '#0b0b0b', marginLeft: 6 }}
-            onPointerMove={e => show(e, 'Waiting on the client', 'var(--sd-wait)', waiting.count, waiting.value)}
-            onFocus={e => show(e, 'Waiting on the client', 'var(--sd-wait)', waiting.count, waiting.value)} onBlur={() => setTip(null)}
-          >
-            {pct(waiting.count) >= 6 && <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', paddingLeft: 10, fontSize: 13, fontWeight: 700 }}>{waiting.count}</span>}
-          </Link>
-        )}
       </div>
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 28px', marginTop: 14 }}>
-        {steps.map(s => (
-          <Link key={s.key} href={stageQuery(s.crmStatus)} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span style={{ width: 12, height: 3, borderRadius: 2, background: `var(--sd-${ramp[idx(s.key)]})`, alignSelf: 'center' }} />
-            <span style={{ fontSize: 13, fontWeight: 600 }}>{s.label}</span>
-            <span style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>{s.count}{s.value ? ` · ${compactMoney(s.value)}` : ''}</span>
-          </Link>
-        ))}
-        {waiting.count > 0 && (
-          <Link href={stageQuery('waiting')} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span style={{ width: 12, height: 3, borderRadius: 2, background: 'var(--sd-wait)', alignSelf: 'center' }} />
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Waiting on the client</span>
-            <span style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>{waiting.count}{waiting.value ? ` · ${compactMoney(waiting.value)}` : ''}</span>
-          </Link>
-        )}
-      </div>
-      <Tooltip tip={tip} />
     </div>
   );
 }
 
-// ── deals that have gone quiet ────────────────────────────────────────────────────────────────────
-function quietFor(days: number): string {
-  if (days < 30) return `${days} d`;
-  if (days < 365) return `${Math.round(days / 30)} mo`;
-  const y = days / 365;
-  return `${y.toFixed(y >= 2 ? 0 : 1).replace(/\.0$/, '')} yr`;
-}
-
-function SilentTable({ rows }: { rows: SilentDeal[] }) {
-  const max = Math.max(1, ...rows.map(r => r.daysSilent));
-  if (!rows.length) return <div className="sd-sub">Every active deal has had an update recently.</div>;
-  return (
-    <div style={{ overflowX: 'auto' }}>
-      <table className="sd-t">
-        <thead>
-          <tr><th>Deal</th><th>Stage</th><th style={{ minWidth: 150 }}>Quiet for</th><th>Last update</th><th className="r">Deal size</th></tr>
-        </thead>
-        <tbody>
-          {rows.map(r => (
-            <tr key={r.id} className="sd-row">
-              <td style={{ maxWidth: 320 }}>
-                <Link href={`/leads?open=${r.id}`} style={{ color: 'var(--fg-default)', fontWeight: 600, textDecoration: 'none' }}>{r.title}</Link>
-              </td>
-              <td style={{ whiteSpace: 'nowrap', color: 'var(--fg-muted)' }}>{r.stageLabel}</td>
-              <td>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 44, fontWeight: 700 }}>{quietFor(r.daysSilent)}</span>
-                  <span style={{ flex: 1, height: 4, borderRadius: 2, background: 'var(--bg-sunken)', maxWidth: 110 }}>
-                    <span style={{ display: 'block', height: '100%', width: `${(r.daysSilent / max) * 100}%`, borderRadius: 2, background: 'var(--sd-accent)' }} />
-                  </span>
-                </div>
-              </td>
-              <td style={{ color: 'var(--fg-subtle)', maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {r.lastSnippet ? <><span style={{ color: 'var(--fg-muted)', fontWeight: 600 }}>{r.lastBy ? `${r.lastBy}: ` : ''}</span>{r.lastSnippet}</> : 'Nothing since it was created'}
-              </td>
-              <td className="r" style={{ whiteSpace: 'nowrap' }}>{r.dealSize ? compactMoney(r.dealSize) : <span style={{ color: 'var(--fg-faint)' }}>—</span>}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// ── regions ───────────────────────────────────────────────────────────────────────────────────────
+// ── region by region (Figma 210:24382 "Regional comparison table") ───────────────────────────────
 function RegionTable({ rows }: { rows: RegionRow[] }) {
+  if (!rows.length) return <p className={NOTE}>No deals with a region yet.</p>;
+  const sum = (k: 'open' | 'proposals' | 'waiting' | 'won' | 'lost') => rows.reduce((a, r) => a + r[k], 0);
+  const won = sum('won'), lost = sum('lost');
+  const rate = won + lost ? `${Math.round((won / (won + lost)) * 100)}%` : '—';
+  const cell = 'px-0 text-left font-normal';
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table className="sd-t">
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[600px] border-collapse text-[13px] leading-[1.4] tabular-nums">
         <thead>
-          <tr><th>Region</th><th className="r">Open</th><th className="r">Proposals out</th><th className="r">Waiting</th><th className="r">Won</th><th className="r">Lost</th><th style={{ minWidth: 130 }}>Win rate</th></tr>
+          <tr className="h-[38px] bg-ui-surface text-[12px] text-ui-body [&>th]:font-medium">
+            <th className={cn(cell, 'pl-3')}>Region</th>
+            <th className={cell}>Open</th>
+            <th className={cell}>Proposal Out</th>
+            <th className={cell}>Waiting</th>
+            <th className={cell}>Won</th>
+            <th className={cell}>Lost</th>
+            <th className={cn(cell, 'pr-3')}>Won rate</th>
+          </tr>
         </thead>
         <tbody>
           {rows.map(r => (
-            <tr key={r.region} className="sd-row">
-              <td style={{ fontWeight: 600 }}>{r.label}</td>
-              <td className="r">{n(r.open)}</td>
-              <td className="r">{n(r.proposals)}</td>
-              <td className="r" style={{ color: 'var(--fg-subtle)' }}>{n(r.waiting)}</td>
-              <td className="r">{n(r.won)}</td>
-              <td className="r" style={{ color: 'var(--fg-subtle)' }}>{n(r.lost)}</td>
-              <td>
-                {r.winRatePct == null ? <span style={{ color: 'var(--fg-faint)' }}>—</span> : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ width: 36, fontWeight: 700 }}>{r.winRatePct}%</span>
-                    <span style={{ flex: 1, height: 4, borderRadius: 2, background: 'var(--bg-sunken)', maxWidth: 90 }}>
-                      <span style={{ display: 'block', height: '100%', width: `${r.winRatePct}%`, borderRadius: 2, background: 'var(--sd-accent)' }} />
-                    </span>
-                  </div>
-                )}
-              </td>
+            <tr key={r.region} className="h-[49px] border-t border-ui-divider text-ui-body">
+              <td className="pl-3 font-semibold text-ui-nav-active">{r.label}</td>
+              <td>{n(r.open)}</td>
+              <td>{n(r.proposals)}</td>
+              <td>{n(r.waiting)}</td>
+              <td>{n(r.won)}</td>
+              <td>{n(r.lost)}</td>
+              <td className="pr-3">{r.winRatePct == null ? '—' : `${r.winRatePct}%`}</td>
             </tr>
           ))}
+          <tr className="h-[49px] border-t border-ui-divider bg-ui-surface font-semibold text-ui-body">
+            <td className="pl-3">All regions</td>
+            <td>{n(sum('open'))}</td>
+            <td>{n(sum('proposals'))}</td>
+            <td>{n(sum('waiting'))}</td>
+            <td>{n(won)}</td>
+            <td>{n(lost)}</td>
+            <td className="pr-3">{rate}</td>
+          </tr>
         </tbody>
       </table>
     </div>
   );
 }
 
-// ── won vs lost, by the quarter a deal closed ─────────────────────────────────────────────────────
-function niceMax(v: number): { max: number; step: number } {
-  const steps = [5, 10, 20, 25, 50, 100, 200];
-  const step = steps.find(s => v / s <= 5) ?? 500;
-  return { max: Math.max(step, Math.ceil(v / step) * step), step };
-}
-function roundedTop(x: number, y: number, w: number, h: number, r: number) {
-  const rr = Math.min(r, h, w / 2);
-  return `M${x},${y + h} L${x},${y + rr} Q${x},${y} ${x + rr},${y} L${x + w - rr},${y} Q${x + w},${y} ${x + w},${y + rr} L${x + w},${y + h} Z`;
-}
+// ── won and lost, by quarter closed (Figma 210:24426 "Quarterly grouped column chart") ────────────
+const PLOT_TOP = 26, PLOT_BASE = 180; // gridlines run 26 → 180; the headroom holds the bar labels
 
-function ClosingsChart({ rows, undated }: { rows: ClosingRow[]; undated: number }) {
-  const [view, setView] = useState<'chart' | 'table'>('chart');
+function ClosingsChart({ rows, view }: { rows: ClosingRow[]; view: 'chart' | 'table' }) {
   const [tip, setTip] = useState<Tip | null>(null);
-  const [focused, setFocused] = useState<string | null>(null);
-  const W = 640, H = 250, L = 34, B = 26, T = 14, R = 8;
-  const plotW = W - L - R, plotH = H - T - B;
-  const peak = Math.max(1, ...rows.map(r => r.total));
-  const { max, step } = niceMax(peak);
-  const ticks = useMemo(() => Array.from({ length: Math.floor(max / step) + 1 }, (_, i) => i * step), [max, step]);
-  const slot = rows.length ? plotW / rows.length : plotW;
-  const bw = Math.min(24, slot * 0.62);
-  const y = (v: number) => T + plotH - (v / max) * plotH;
-  const labelEvery = rows.length > 14 ? 2 : 1;
-  const peakKey = rows.reduce((b, r) => (r.total > (b?.total ?? -1) ? r : b), null as ClosingRow | null)?.key;
-  const lastKey = rows.at(-1)?.key;
+  if (!rows.length) return <EmptyState size="sm" icon={<TrendingUp />} title="No closed deals with a recorded close date yet." />;
 
-  const showTip = (e: React.PointerEvent | React.FocusEvent<SVGGElement>, r: ClosingRow) => {
-    const pos = 'clientX' in e ? { x: e.clientX, y: e.clientY } : (() => { const b = (e.currentTarget as SVGGElement).getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top }; })();
+  if (view === 'table') {
+    return (
+      <div className="max-h-[230px] overflow-auto">
+        <table className="w-full border-collapse text-[13px] leading-[1.4] tabular-nums text-ui-body">
+          <thead>
+            <tr className="h-[38px] bg-ui-surface text-left text-[12px] [&>th]:font-medium">
+              <th className="pl-3">Quarter</th><th>Won</th><th>Lost</th><th>Closed</th><th className="pr-3">Win rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...rows].reverse().map(r => (
+              <tr key={r.key} className="h-10 border-t border-ui-divider">
+                <td className="pl-3 font-semibold">{quarterLabel(r.key)}</td><td>{n(r.won)}</td><td>{n(r.lost)}</td>
+                <td>{n(r.total)}</td><td className="pr-3">{r.winRatePct == null ? '—' : `${r.winRatePct}%`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  const peak = Math.max(1, ...rows.map(r => Math.max(r.won, r.lost)));
+  const { max, step } = niceMax(peak);
+  const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => max - i * step);
+  const y = (v: number) => PLOT_BASE - (v / max) * (PLOT_BASE - PLOT_TOP);
+  const h = (v: number) => (v / max) * (PLOT_BASE - PLOT_TOP);
+  const crowded = rows.length > 8;
+  const labelEvery = rows.length > 12 ? 2 : 1;
+
+  const show = (e: React.PointerEvent | React.FocusEvent<HTMLElement>, r: ClosingRow) => {
+    const pos = 'clientX' in e ? { x: e.clientX, y: e.clientY } : (() => { const b = e.currentTarget.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top }; })();
     setTip({
-      ...pos, head: r.label,
-      rows: [{ key: 'var(--sd-accent)', label: 'won', value: n(r.won) }, { key: 'var(--sd-lost)', label: 'lost', value: n(r.lost) }],
+      ...pos, head: quarterLabel(r.key),
+      rows: [{ key: 'var(--color-success-normal)', label: 'won', value: n(r.won) }, { key: 'var(--color-error-normal)', label: 'lost', value: n(r.lost) }],
       foot: r.winRatePct == null ? 'Nothing closed' : `${r.winRatePct}% of what closed was won`,
     });
   };
 
-  if (!rows.length) return <EmptyState size="sm" icon={<TrendingUp />} title="No closed deals with a recorded close date yet." />;
-
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 10, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 16, fontSize: 12.5, color: 'var(--fg-muted)' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--sd-accent)' }} />Won</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--sd-lost)' }} />Lost</span>
-        </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          <button className="sd-tab" aria-pressed={view === 'chart'} onClick={() => setView('chart')}>Chart</button>
-          <button className="sd-tab" aria-pressed={view === 'table'} onClick={() => setView('table')}>Table</button>
+    <div className="flex h-[212px] items-start gap-3" onPointerLeave={() => setTip(null)}>
+      <div className="relative h-[196px] w-6 shrink-0 text-right text-[11px] leading-[1.4] tabular-nums text-ui-text-secondary" aria-hidden>
+        {ticks.map(t => <span key={t} className="absolute right-0 -translate-y-1/2" style={{ top: y(t) }}>{t}</span>)}
+      </div>
+      <div className="relative h-[212px] min-w-0 flex-1" role="img" aria-label="Deals won and lost per quarter closed">
+        {ticks.map(t => <div key={t} className="absolute inset-x-0 h-px bg-ui-divider" style={{ top: y(t) }} />)}
+        <div className={cn('relative flex h-full items-start', crowded ? 'justify-between px-2' : 'justify-between px-[30px]')}>
+          {rows.map((r, i) => (
+            <div
+              key={r.key} tabIndex={0}
+              aria-label={`${quarterLabel(r.key)}: ${r.won} won, ${r.lost} lost${r.winRatePct == null ? '' : `, ${r.winRatePct}% win rate`}`}
+              onPointerMove={e => show(e, r)} onFocus={e => show(e, r)} onBlur={() => setTip(null)}
+              className="flex min-w-0 flex-col items-center gap-2.5 rounded-[4px] outline-none focus-visible:outline-2 focus-visible:outline-ui-focus-ring"
+            >
+              <div className={cn('flex h-[180px] items-end', crowded ? 'gap-1' : 'gap-2.5')}>
+                {([['won', r.won, 'bg-success-normal'], ['lost', r.lost, 'bg-error-normal']] as const).map(([k, v, bg]) => (
+                  <div key={k} className={cn('flex h-full flex-col items-center justify-end gap-[5px]', crowded ? 'w-3' : 'w-[38px]')}>
+                    {!crowded && <span className="text-[12px] font-semibold leading-[1.4] tabular-nums text-ui-body">{v}</span>}
+                    <span className={cn('w-full rounded-t-[3px]', bg)} style={{ height: h(v) }} />
+                  </div>
+                ))}
+              </div>
+              <span className={cn('text-[12px] leading-[1.4] whitespace-nowrap text-ui-body', i % labelEvery !== 0 && 'invisible')}>
+                {crowded ? r.key.slice(5) + ' ’' + r.key.slice(2, 4) : quarterLabel(r.key)}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
-
-      {view === 'chart' ? (
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Deals won and lost per quarter, stacked" onPointerLeave={() => setTip(null)} style={{ display: 'block', overflow: 'visible' }}>
-          {ticks.map(t => (
-            <g key={t}>
-              <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="var(--border-subtle)" strokeWidth={1} />
-              <text x={L - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--fg-faint)" style={{ fontVariantNumeric: 'tabular-nums' }}>{t}</text>
-            </g>
-          ))}
-          {rows.map((r, i) => {
-            const cx = L + slot * i + slot / 2, x0 = cx - bw / 2;
-            const hWon = (r.won / max) * plotH, hLost = (r.lost / max) * plotH;
-            const gap = r.won > 0 && r.lost > 0 ? 2 : 0;
-            const yWon = y(0) - hWon, yLost = yWon - gap - hLost;
-            const isLabelled = r.key === peakKey || r.key === lastKey;
-            return (
-              <g
-                key={r.key} className="sd-col" tabIndex={0}
-                aria-label={`${r.label}: ${r.won} won, ${r.lost} lost${r.winRatePct == null ? '' : `, ${r.winRatePct}% win rate`}`}
-                onPointerMove={e => showTip(e, r)} onFocus={e => { setFocused(r.key); showTip(e, r); }} onBlur={() => { setFocused(null); setTip(null); }}
-                style={{ outline: 'none' }}
-              >
-                <rect className="sd-hit" x={L + slot * i} y={T} width={slot} height={plotH} fill="transparent" rx={4} />
-                {r.won > 0 && <path d={r.lost > 0 ? `M${x0},${yWon + hWon} L${x0},${yWon} L${x0 + bw},${yWon} L${x0 + bw},${yWon + hWon} Z` : roundedTop(x0, yWon, bw, hWon, 4)} fill="var(--sd-accent)" />}
-                {r.lost > 0 && <path d={roundedTop(x0, yLost, bw, hLost, 4)} fill="var(--sd-lost)" />}
-                {isLabelled && r.total > 0 && (
-                  <text x={cx} y={yLost - 6} textAnchor="middle" fontSize={11.5} fontWeight={700} fill="var(--fg-default)">{r.total}</text>
-                )}
-                {(i % labelEvery === 0 || focused === r.key) && (
-                  <text x={cx} y={H - 8} textAnchor="middle" fontSize={11} fill="var(--fg-subtle)">{r.label}</text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
-      ) : (
-        <div style={{ overflowX: 'auto', maxHeight: 290, overflowY: 'auto' }}>
-          <table className="sd-t">
-            <thead><tr><th>Quarter</th><th className="r">Won</th><th className="r">Lost</th><th className="r">Closed</th><th className="r">Win rate</th></tr></thead>
-            <tbody>
-              {[...rows].reverse().map(r => (
-                <tr key={r.key} className="sd-row">
-                  <td style={{ fontWeight: 600 }}>{r.label}</td><td className="r">{n(r.won)}</td><td className="r">{n(r.lost)}</td>
-                  <td className="r">{n(r.total)}</td><td className="r">{r.winRatePct == null ? '—' : `${r.winRatePct}%`}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {undated > 0 && (
-        <div className="sd-sub" style={{ marginTop: 10 }}>{n(undated)} closed deals have no recorded close date, so they aren&apos;t in this chart.</div>
-      )}
       <Tooltip tip={tip} />
     </div>
   );
@@ -334,8 +311,12 @@ function ClosingsChart({ rows, undated }: { rows: ClosingRow[]; undated: number 
 // ── page ──────────────────────────────────────────────────────────────────────────────────────────
 export function SalesDesk({ data }: { data: SalesDashboardData }) {
   const { tasks, outcomes } = data;
+  const [closingsView, setClosingsView] = useState<'chart' | 'table'>('chart');
   const proposalsOut = data.path.filter(p => p.key === 'proposal' || p.key === 'changes').reduce((a, p) => a + p.count, 0);
   const decided = outcomes.won + outcomes.lost;
+  const today = dayLabel(data.today);
+  const quietValue = data.silent.reduce((a, s) => a + (s.dealSize ?? 0), 0);
+  const firstQ = data.closings[0]?.key, lastQ = data.closings.at(-1)?.key;
 
   // Only say things that are true right now.
   const notes: string[] = [];
@@ -344,75 +325,132 @@ export function SalesDesk({ data }: { data: SalesDashboardData }) {
   if (data.activeDeals > 0 && data.silentOver30 > 0) notes.push(`${n(data.silentOver30)} of ${n(data.activeDeals)} deals that should be moving haven’t had an update in over 30 days.`);
 
   return (
-    <div className="sd">
-      <style>{CSS}</style>
-
-      <header style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', paddingBottom: 26 }}>
-        <div>
-          <div className="sd-eyebrow">Sales · {longDate()}</div>
-          <h1 style={{ margin: '6px 0 0', fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em' }}>Sales desk</h1>
-        </div>
-        <Link href="/leads" style={{ fontSize: 13, fontWeight: 600, color: 'var(--sd-accent)', textDecoration: 'none' }}>Open the CRM →</Link>
-      </header>
-
-      {/* ── now ── */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 1.1fr) minmax(300px, 1.6fr)', gap: 40, alignItems: 'start', paddingBottom: 28 }}>
-        <div>
-          <div className="sd-eyebrow">Open deals</div>
-          <div style={{ fontSize: 76, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.04em', margin: '8px 0 10px' }}>{n(data.openDeals)}</div>
-          <div style={{ fontSize: 14, color: 'var(--fg-muted)', lineHeight: 1.55 }}>
-            {data.openValue > 0 ? <><b style={{ color: 'var(--fg-default)' }}>{compactMoney(data.openValue)}</b> with a deal size · </> : null}
-            {n(data.waiting.count)} waiting on the client · {n(data.potentials)} potentials still to qualify
+    <div className="flex flex-col gap-6">
+      {/* Figma 210:24228 "Page heading and scope" */}
+      <div className="flex flex-col gap-[22px]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-col gap-[5px]">
+            <PageCrumbs className="uppercase" items={[{ label: 'Sales', href: '/leads' }, { label: 'Insights', href: '/sales-dashboard' }]} />
+            <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">Sales insights</h1>
+            <p className="m-0 text-[13px] leading-[1.4] text-ui-body">See where the pipeline stands, what needs a follow-up, and how deals close.</p>
           </div>
+          <Link href="/leads" className={ACTION}><ArrowUpRight aria-hidden />Open the CRM</Link>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 22 }}>
-          <Link href="/sales-tasks?filter=today" className="sd-fact"><b>{n(tasks.dueToday)}</b><span>tasks due today</span></Link>
-          <Link href="/sales-tasks?filter=overdue" className="sd-fact"><b style={{ color: tasks.overdue > 0 ? 'var(--status-danger)' : undefined }}>{n(tasks.overdue)}</b><span>overdue</span></Link>
-          <Link href={stageQuery('design_proposal_sent')} className="sd-fact"><b>{n(proposalsOut)}</b><span>proposals waiting for an answer</span></Link>
-          <Link href="/sales-tasks?filter=unassigned" className="sd-fact"><b>{n(tasks.unassigned)}</b><span>tasks nobody owns yet</span></Link>
-        </div>
-      </section>
-      {notes.length > 0 && (
-        <div style={{ display: 'grid', gap: 6, padding: '0 0 24px' }}>
-          {notes.map(t => (
-            <div key={t} style={{ fontSize: 13.5, color: 'var(--fg-muted)', display: 'flex', gap: 10, alignItems: 'baseline' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--sd-accent)', flexShrink: 0, transform: 'translateY(-2px)' }} />{t}
-            </div>
-          ))}
-        </div>
-      )}
 
-      {/* ── pipeline ── */}
-      <section className="sd-section">
-        <h2 className="sd-h">Where the open deals sit</h2>
-        <div className="sd-sub" style={{ marginBottom: 16 }}>Every open deal, by step. Click a step to see those deals in the CRM.</div>
-        <PipelineBar path={data.path} waiting={data.waiting} />
-      </section>
-
-      {/* ── gone quiet ── */}
-      <section className="sd-section">
-        <h2 className="sd-h">Deals that have gone quiet</h2>
-        <div className="sd-sub" style={{ marginBottom: 14 }}>
-          Deals in Ready to start, Working on it Trust, Proposal sent or Changes requested, longest without an update first. Waiting deals aren’t listed — they’re meant to sit.
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[6px] bg-ui-surface p-3">
+          <div className="flex flex-wrap gap-2.5">
+            <Link href="/sales-tasks?filter=today" className={ACTION}><CalendarClock aria-hidden />{n(tasks.dueToday)} due today</Link>
+            <Link href="/sales-tasks?filter=overdue" className={cn(ACTION, tasks.overdue > 0 && 'text-error-normal')}><AlarmClock aria-hidden />{n(tasks.overdue)} overdue</Link>
+            <Link href={stageQuery('design_proposal_sent')} className={ACTION}><FileText aria-hidden />{n(proposalsOut)} proposals out</Link>
+            <Link href="/sales-tasks?filter=unassigned" className={ACTION}><UserX aria-hidden />{n(tasks.unassigned)} unowned tasks</Link>
+          </div>
+          <span className="flex items-center gap-2 text-[12px] leading-[1.4] text-ui-body">
+            <CalendarDays size={16} aria-hidden />Current pipeline as of {today}
+          </span>
         </div>
-        <SilentTable rows={data.silent} />
-      </section>
 
-      {/* ── regions + closings ── */}
-      <section className="sd-section" style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(320px, 1fr)', gap: 48, alignItems: 'start' }}>
-        <div>
-          <h2 className="sd-h">Region by region</h2>
-          <div className="sd-sub" style={{ marginBottom: 14 }}>Win rate is won ÷ (won + lost).</div>
+        {notes.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            {notes.map(t => (
+              <p key={t} className="m-0 flex items-baseline gap-2.5 text-[13px] leading-[1.4] text-ui-body">
+                <span className="size-1.5 shrink-0 -translate-y-px rounded-full bg-ui-nav-active" />{t}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <section className={CARD}>
+          <CardHeading
+            title="Where the open deals sit"
+            sub={`Current pipeline · All regions · ${today}`}
+            aside={<span className="shrink-0 rounded-[4px] bg-ui-surface py-[3px] pl-2 pr-2.5 text-[12px] font-medium leading-4 text-ui-body">Open only</span>}
+          />
+          <div className="flex flex-wrap items-baseline gap-x-8 gap-y-1">
+            <p className="m-0 font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">
+              <span className="text-[28px]">{n(data.openDeals)}</span> <span className="text-[14px] font-normal">open deals</span>
+            </p>
+            {data.openValue > 0 && <p className="m-0 text-[14px] font-medium leading-[1.4] text-ui-body">{usd(data.openValue)} unweighted value</p>}
+            <p className={SUB}>{n(data.potentials)} potentials still to qualify</p>
+          </div>
+          <StageChart path={data.path} waiting={data.waiting} />
+          <p className={cn(NOTE, 'mt-auto')}>Stage counts are a snapshot, not conversion rates. Won and lost deals are excluded. Click a stage to open it in the CRM.</p>
+        </section>
+
+        <section className={CARD}>
+          <CardHeading
+            icon={<ClockAlert aria-hidden />}
+            title="Deals that have gone quiet"
+            sub={`${n(data.activeDeals)} active deals · Longest without an update first`}
+            aside={quietValue > 0 ? <span className="shrink-0 text-[12px] font-semibold leading-[1.4] text-ui-body">{usd(quietValue, 2)}</span> : undefined}
+          />
+          <QuietList rows={data.silent} />
+          <p className={cn(NOTE, 'mt-auto')}>
+            Last touch = a comment or logged change. Covers Ready to start, Working on it Trust, Proposal sent and Changes requested — waiting deals are meant to sit.
+          </p>
+        </section>
+
+        <section className={CARD}>
+          <CardHeading icon={<MapIcon aria-hidden />} title="Region by region" sub={`Current pipeline · All owners · ${today}`} />
           <RegionTable rows={data.regions} />
-        </div>
-        <div>
-          <h2 className="sd-h">Won and lost, by quarter closed</h2>
-          <div className="sd-sub" style={{ marginBottom: 14 }}>
-            {decided > 0 ? <>Overall <b style={{ color: 'var(--fg-default)' }}>{outcomes.winRatePct}%</b> won — {n(outcomes.won)} of {n(decided)} deals that closed.</> : 'Nothing has closed yet.'}
+          <p className={cn(NOTE, 'mt-auto')}>Potentials aren&apos;t counted until they become deals. Won rate = won ÷ (won + lost).</p>
+        </section>
+
+        <section className={CARD}>
+          <CardHeading
+            title="Won and lost, by quarter closed"
+            sub={(
+              <span className="flex items-center gap-1.5">
+                <CalendarDays size={14} aria-hidden />
+                {firstQ && lastQ ? `${quarterLabel(firstQ)} – ${quarterLabel(lastQ)} · By close date · All regions` : 'By close date · All regions'}
+              </span>
+            )}
+            aside={data.closings.length > 0 ? (
+              <div className="flex shrink-0 gap-1.5" role="group" aria-label="Show as">
+                {(['chart', 'table'] as const).map(v => (
+                  <button
+                    key={v} type="button" aria-pressed={closingsView === v} onClick={() => setClosingsView(v)}
+                    className={cn(
+                      'cursor-pointer rounded-[6px] border px-2.5 py-1 text-[12px] font-medium capitalize',
+                      closingsView === v ? 'border-ui-btn-primary bg-ui-btn-primary text-ui-btn-primary-fg' : 'border-ui-divider bg-transparent text-ui-body hover:bg-ui-hover-bg',
+                    )}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            ) : undefined}
+          />
+          {closingsView === 'chart' && data.closings.length > 0 && (
+            <div className="flex items-center justify-between text-[12px] leading-[1.4]">
+              <span className="text-ui-text-secondary">Deals (count)</span>
+              <span className="flex gap-5 font-medium">
+                <span className="flex items-center gap-1.5 text-success-normal"><CircleCheck size={14} aria-hidden />Won</span>
+                <span className="flex items-center gap-1.5 text-error-normal"><CircleX size={14} aria-hidden />Lost</span>
+              </span>
+            </div>
+          )}
+          <ClosingsChart rows={data.closings} view={closingsView} />
+          <div className="mt-auto flex flex-col gap-1.5 border-t border-ui-divider pt-3">
+            <div className="flex flex-wrap items-start justify-between gap-2 leading-[1.4]">
+              <p className="m-0 text-[13px] font-semibold text-ui-body">
+                {decided > 0 ? `${n(outcomes.won)} won · ${n(outcomes.lost)} lost · ${outcomes.winRatePct}% win rate` : 'Nothing has closed yet.'}
+              </p>
+              <p className={NOTE}>Win rate = won ÷ (won + lost)</p>
+            </div>
+            {data.closingsUndated > 0 && (
+              <p className={NOTE}>{n(data.closingsUndated)} closed deals have no recorded close date, so they aren&apos;t in this chart.</p>
+            )}
           </div>
-          <ClosingsChart rows={data.closings} undated={data.closingsUndated} />
-        </div>
-      </section>
+        </section>
+      </div>
+
+      {/* Figma 210:24494 "Reporting notes" */}
+      <div className="flex flex-wrap justify-between gap-2 text-[11px] leading-[1.4] text-ui-text-secondary">
+        <span>All amounts in USD · Pipeline counted the same way as the CRM board</span>
+        <span>Snapshot: {today}</span>
+      </div>
     </div>
   );
 }

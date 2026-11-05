@@ -122,11 +122,14 @@ export function closingsByQuarter(rows: ClosedIn[]): { rows: ClosingRow[]; undat
 // ── deals that have gone quiet ──────────────────────────────────────────────────────────────
 export interface SilentDeal {
   id: string; title: string; region: string | null; stageLabel: string; dealSize: number | null;
+  /** Sales owner (profiles.id); the loader resolves it to ownerName for the rows it shows. */
+  ownerId?: string | null; ownerName?: string | null;
   daysSilent: number; lastAt: string; lastBy: string | null; lastSnippet: string | null;
 }
 
 export interface ActiveDealIn {
   id: string; title: string; region: string | null; stageLabel: string; dealSize: number | null;
+  ownerId?: string | null;
   createdAt: string; // the deal's own date (ClickUp creation date when imported)
 }
 export interface ActivityIn { at: string; by: string | null; text: string | null }
@@ -147,7 +150,7 @@ export function silentDeals(deals: ActiveDealIn[], activityByDeal: Map<string, A
     const t = Date.parse(lastAt);
     if (Number.isNaN(t)) continue;
     out.push({
-      id: d.id, title: d.title, region: d.region, stageLabel: d.stageLabel, dealSize: d.dealSize,
+      id: d.id, title: d.title, region: d.region, stageLabel: d.stageLabel, dealSize: d.dealSize, ownerId: d.ownerId ?? null,
       daysSilent: Math.max(0, Math.floor((now.getTime() - t) / DAY)), lastAt, lastBy,
       lastSnippet: lastSnippet ? lastSnippet.replace(/\s+/g, ' ').trim().slice(0, 110) : null,
     });
