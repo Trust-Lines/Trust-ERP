@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Box, CheckCheck, ExternalLink, FileText, FolderPlus, Link2, Paperclip, RefreshCw, RotateCcw, Send, Upload } from 'lucide-react';
+import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
+import { Box, CheckCheck, ChevronsUp, ExternalLink, FileText, FolderPlus, Link2, Plus, RefreshCw, RotateCcw, Send, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
 import type { LeadBrief, IntakeFile, DesignFile, ProjectMeta } from '@/app/(platform)/design/page';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -193,129 +193,172 @@ export function DesignJobSheet(p: Props) {
   const overdue = !!p.today && !!job.due_date && job.due_date.slice(0, 10) < p.today && !['completed', 'approved_by_sales', 'cancelled'].includes(job.status);
   const site = p.brief ? [p.brief.street, p.brief.city, p.brief.state].filter(Boolean).join(', ') || p.brief.address : null;
 
+  const customer = p.brief?.customer_name?.trim() || p.brief?.brand?.trim() || null;
+  const subtitle = [customer, site].filter(Boolean).join(' - ');
+  const title = [p.brief?.project_type?.trim(), p.meta?.code].filter(Boolean).join(' - ') || p.name;
+  const team = ([['Designer', designerName], ['Requested by', p.requestedBy], ['Trust PM', p.team?.trustlinesPm ?? null], ['Client PM', p.team?.tlinesPm ?? null]] as [string, string | null][]);
+  const scope = Object.entries(p.brief?.scope_of_work ?? {}).filter(([, v]) => v).map(([k]) => k);
+  const intakeNotes = Object.entries(p.brief?.notes ?? {}).filter(([, v]) => (v ?? '').trim());
+
   return (
-    <Sheet open onOpenChange={o => { if (!o) p.onClose(); }}>
-      <SheetContent side="right" className="w-full gap-0 overflow-y-auto bg-ui-page-bg data-[side=right]:sm:max-w-[880px]">
-        <SheetHeader className="gap-1 border-b border-ui-divider px-6 pb-4 pt-5">
-          <div className="flex flex-wrap items-center gap-2 pr-8">
-            <SheetTitle className={cn('text-[20px] font-semibold', HEADING)}>{p.name}</SheetTitle>
-            <StatusBadge group="design_job" status={job.status} size="sm" />
-            {job.priority === 'high' && <span className="text-[11px] font-semibold text-error-normal">High priority</span>}
-          </div>
-          <SheetDescription className="text-[12px] text-ui-text-secondary">
-            {[p.brief?.project_type || 'Design', site, p.meta?.code].filter(Boolean).join(' · ')}
-          </SheetDescription>
-
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Field label="Status">
-              <Select aria-label="Job status" value={job.status} options={statusOptions}
-                onValueChange={v => { if (v && v !== job.status) void p.onPatchJob({ status: v }, `Moved to ${JOB_STATUS_LABEL[v] ?? cap(v)}`); }} />
-            </Field>
-            <Field label="Designer">
-              {isManager ? (
-                <Select aria-label="Designer" value={job.assigned_designer_id ?? ''}
-                  options={[{ value: '', label: 'Unassigned' }, ...p.designers.map(d => ({ value: d.id, label: d.full_name }))]}
-                  onValueChange={v => void p.onPatchJob({ assigned_designer_id: v || null }, v ? 'Assigned — the designer has been notified' : 'Unassigned')} />
-              ) : <ReadOnly>{designerName ?? 'Unassigned'}</ReadOnly>}
-            </Field>
-            <Field label="Priority">
-              {isManager ? (
-                <Select aria-label="Priority" value={job.priority}
-                  options={[{ value: 'low', label: 'Low' }, { value: 'normal', label: 'Normal' }, { value: 'high', label: 'High' }]}
-                  onValueChange={v => { if (v) void p.onPatchJob({ priority: v }); }} />
-              ) : <ReadOnly className="capitalize">{job.priority}</ReadOnly>}
-            </Field>
-            <Field label="Due date">
-              {isManager ? (
-                <DatePicker aria-label="Due date" placeholder="No due date" className={cn('w-full', overdue && 'text-error-normal dark:text-error-normal')}
-                  value={parseISODate(job.due_date)} onValueChange={d => void p.onPatchJob({ due_date: toISODate(d) })} />
-              ) : <ReadOnly className={overdue ? 'font-semibold text-error-normal' : undefined}>{job.due_date ? formatDate(job.due_date) : '—'}</ReadOnly>}
-            </Field>
-          </div>
-        </SheetHeader>
-
-        <Tabs value={tab} onValueChange={v => setTab(v as TabKey)} className="gap-5 px-6 py-5">
-          <TabsList>
-            <TabsTrigger value="brief">Brief</TabsTrigger>
-            <TabsTrigger value="notes">Notes{notes?.length ? ` · ${notes.length}` : ''}</TabsTrigger>
-            <TabsTrigger value="files">Files</TabsTrigger>
-            <TabsTrigger value="versions">Versions{p.versions.length ? ` · ${p.versions.length}` : ''}</TabsTrigger>
-            <TabsTrigger value="materials">Materials</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
-          </TabsList>
-
-          {/* ── Brief: what Sales collected ── */}
-          <TabsContent value="brief" className="flex flex-col gap-5">
-            <Card title="Customer brief — from Sales">
-              <dl className="m-0 grid grid-cols-[120px_1fr] gap-x-3 gap-y-2 text-[13px]">
-                {([['Customer', p.brief?.customer_name || p.brief?.brand], ['Site', site], ['Project type', p.brief?.project_type]] as [string, string | null | undefined][]).map(([k, v]) => (
-                  <div key={k} className="contents">
-                    <dt className="text-ui-text-secondary">{k}</dt>
-                    <dd className={cn('m-0', v ? HEADING : 'text-ui-text-secondary')}>{v || '—'}</dd>
-                  </div>
-                ))}
-                {Object.entries(p.brief?.scope_of_work ?? {}).some(([, v]) => v) && (
-                  <div className="contents">
-                    <dt className="text-ui-text-secondary">Scope</dt>
-                    <dd className="m-0 flex flex-wrap gap-1.5">
-                      {Object.entries(p.brief?.scope_of_work ?? {}).filter(([, v]) => v).map(([k]) => (
-                        <span key={k} className="rounded-[4px] bg-[var(--status-t0-bg)] px-2 py-0.5 text-[12px] capitalize text-[var(--status-t0-fg)]">{cap(k)}</span>
-                      ))}
-                    </dd>
-                  </div>
+    <DialogPrimitive.Root open onOpenChange={o => { if (!o) p.onClose(); }}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-primary-950/40 transition-opacity duration-150 data-starting-style:opacity-0 data-ending-style:opacity-0" />
+        <DialogPrimitive.Popup
+          data-slot="design-job-modal"
+          className="fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[1268px] -translate-x-1/2 -translate-y-1/2 flex-col gap-6 overflow-y-auto rounded-[11px] bg-ui-page-bg p-4 font-[family-name:var(--font-ui)] shadow-04 outline-none transition-[scale,opacity] duration-150 data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0 sm:p-8"
+        >
+          {/* ── Heading: project, job, status + priority chips ── */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-2">
+              <div className="flex min-w-0 flex-col">
+                {subtitle && <DialogPrimitive.Description className="m-0 truncate text-[16px] text-ui-text-secondary">{subtitle}</DialogPrimitive.Description>}
+                <DialogPrimitive.Title className={cn('m-0 text-[22px] font-semibold leading-[1.25] sm:text-[28px]', HEADING)}>{title}</DialogPrimitive.Title>
+              </div>
+              <div className="flex flex-wrap items-start gap-[5px]">
+                <StatusBadge group="design_job" status={job.status} className={CHIP} />
+                {job.priority === 'high' && (
+                  <span className={cn('inline-flex items-center rounded-[4px] font-medium', CHIP)} style={{ background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' }}>
+                    <ChevronsUp aria-hidden /> High
+                  </span>
                 )}
-              </dl>
-              {job.brief && <p className="m-0 mt-3 whitespace-pre-wrap text-[13px] text-ui-body">{job.brief}</p>}
-              {p.brief?.matterport_link && (
-                <a href={p.brief.matterport_link} target="_blank" rel="noreferrer" className="mt-3 inline-flex w-fit items-center gap-1.5 text-[13px] text-ui-link">
-                  <Box size={14} aria-hidden /> Open 360 walkthrough <ExternalLink size={12} aria-hidden />
-                </a>
-              )}
-              {Object.entries(p.brief?.notes ?? {}).filter(([, v]) => (v ?? '').trim()).length > 0 && (
-                <div className="mt-4 flex flex-col gap-1">
-                  <p className="m-0 text-[12px] font-semibold text-ui-text-secondary">Notes from the intake form</p>
-                  {Object.entries(p.brief?.notes ?? {}).filter(([, v]) => (v ?? '').trim()).map(([k, v]) => (
-                    <p key={k} className="m-0 text-[13px] text-ui-body"><span className="capitalize text-ui-text-secondary">{cap(k)}:</span> {v}</p>
-                  ))}
-                </div>
-              )}
-            </Card>
-
-            <Card title={`Customer files (${p.intakeFiles.length})`} icon={<Paperclip size={14} aria-hidden />}>
-              {p.intakeFiles.length === 0 ? (
-                <p className="m-0 text-[13px] text-ui-text-secondary">No files on the intake form. Sales&apos; deal files and notes are under Notes and Files.</p>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {Object.entries(p.intakeFiles.reduce<Record<string, IntakeFile[]>>((a, f) => { (a[f.category] ??= []).push(f); return a; }, {})).map(([cat, list]) => (
-                    <div key={cat} className="flex flex-col gap-1.5">
-                      <p className="m-0 text-[11px] font-semibold uppercase tracking-wide text-ui-text-secondary">{FILE_CATEGORY_LABELS[cat] ?? cap(cat)}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {list.map(f => <Button key={f.id} variant="outline" size="sm" onClick={() => void openDesignFile(f.id, 'intake')}><FileText /> {f.file_name}</Button>)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-
-            <BrandKitCard prospectId={p.brief?.prospect_id ?? null} />
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Card title="Team">
-                <Person label="Designer" name={designerName} empty="Unassigned" />
-                <Person label="Requested by" name={p.requestedBy} empty="—" />
-                <Person label="Trust PM" name={p.team?.trustlinesPm ?? null} empty="Not assigned yet" />
-                <Person label="Client PM" name={p.team?.tlinesPm ?? null} empty="Not assigned yet" />
-              </Card>
-              <Card title="Shared with Sales">
-                <p className="m-0 text-[13px] text-ui-body">The design folder is shared with Sales; they open it from the deal in the CRM.</p>
-                {sharedUrl
-                  ? <a href={sharedUrl} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1.5 text-[13px] text-ui-link"><Link2 size={14} aria-hidden /> Open shared folder</a>
-                  : <Button variant="outline" size="sm" className="w-fit" onClick={() => setTab('files')}><Link2 /> Set up in Files</Button>}
-                <p className="m-0 text-[12px] text-ui-text-secondary">Created {formatDate(job.created_at)} · updated {formatDate(job.updated_at)}</p>
-              </Card>
+              </div>
             </div>
-          </TabsContent>
+            <DialogPrimitive.Close render={<Button variant="ghost" size="icon-md" aria-label="Close" className={cn('-mr-1 shrink-0 [&_svg]:size-8', HEADING)} />}>
+              <X strokeWidth={1.5} />
+            </DialogPrimitive.Close>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            {/* ── General Info ── */}
+            <section className="flex flex-col gap-2 rounded-[8px] border border-ui-divider bg-ui-surface px-3.5 pt-3.5 pb-6">
+              <h3 className={cn('m-0 text-[16px] font-semibold leading-[1.45]', HEADING)}>General Info</h3>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <Field label="Status">
+                  <Select aria-label="Job status" className={INPUT_CLS} value={job.status} options={statusOptions}
+                    onValueChange={v => { if (v && v !== job.status) void p.onPatchJob({ status: v }, `Moved to ${JOB_STATUS_LABEL[v] ?? cap(v)}`); }} />
+                </Field>
+                <Field label="Designer">
+                  {isManager ? (
+                    <Select aria-label="Designer" className={INPUT_CLS} value={job.assigned_designer_id ?? ''}
+                      options={[{ value: '', label: 'Unassigned' }, ...p.designers.map(d => ({ value: d.id, label: d.full_name }))]}
+                      onValueChange={v => void p.onPatchJob({ assigned_designer_id: v || null }, v ? 'Assigned — the designer has been notified' : 'Unassigned')} />
+                  ) : <ReadOnly>{designerName ?? 'Unassigned'}</ReadOnly>}
+                </Field>
+                <Field label="Priority">
+                  {isManager ? (
+                    <Select aria-label="Priority" className={cn(INPUT_CLS, 'uppercase')} value={job.priority}
+                      options={[{ value: 'low', label: 'Low' }, { value: 'normal', label: 'Normal' }, { value: 'high', label: 'High' }]}
+                      onValueChange={v => { if (v) void p.onPatchJob({ priority: v }); }} />
+                  ) : <ReadOnly className="uppercase">{job.priority}</ReadOnly>}
+                </Field>
+                <Field label="Due Date">
+                  {isManager ? (
+                    <DatePicker aria-label="Due date" placeholder="No due date"
+                      className={cn(INPUT_CLS, 'w-full flex-row-reverse justify-between border-[var(--color-secondary-700)] dark:border-ui-heading [&_svg]:size-4', overdue && 'text-error-normal dark:text-error-normal')}
+                      value={parseISODate(job.due_date)} onValueChange={d => void p.onPatchJob({ due_date: toISODate(d) })} />
+                  ) : <ReadOnly className={overdue ? 'text-error-normal dark:text-error-normal' : undefined}>{job.due_date ? formatDate(job.due_date) : '—'}</ReadOnly>}
+                </Field>
+              </div>
+            </section>
+
+            <Tabs value={tab} onValueChange={v => setTab(v as TabKey)} className="gap-4">
+              <TabsList className="flex h-12 w-full gap-8 overflow-x-auto border-b border-ui-divider">
+                <TabsTrigger className={TAB_CLS} value="brief">Brief</TabsTrigger>
+                <TabsTrigger className={TAB_CLS} value="notes">Notes{notes?.length ? ` · ${notes.length}` : ''}</TabsTrigger>
+                <TabsTrigger className={TAB_CLS} value="files">Files</TabsTrigger>
+                <TabsTrigger className={TAB_CLS} value="versions">Versions{p.versions.length ? ` · ${p.versions.length}` : ''}</TabsTrigger>
+                <TabsTrigger className={TAB_CLS} value="materials">Materials</TabsTrigger>
+                <TabsTrigger className={TAB_CLS} value="activity">Activity</TabsTrigger>
+              </TabsList>
+
+              {/* ── Brief: what Sales collected ── */}
+              <TabsContent value="brief" className="flex flex-col gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <Card title="Customer Brief">
+                    <div className="flex flex-col gap-4">
+                      {([['Customer', customer], ['Site', site], ['Project Type', p.brief?.project_type]] as [string, string | null | undefined][]).map(([k, v]) => (
+                        <div key={k} className="flex min-w-0 flex-col gap-1">
+                          <span className="text-[12px] font-medium leading-4 text-ui-body">{k}</span>
+                          <span className={cn('break-words text-[13px] font-semibold leading-[1.5] tracking-[-0.286px]', HEADING)}>{v || '-'}</span>
+                        </div>
+                      ))}
+                      {scope.length > 0 && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[12px] font-medium leading-4 text-ui-body">Scope</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {scope.map(k => <span key={k} className="rounded-[4px] bg-[var(--status-t0-bg)] px-2 py-0.5 text-[12px] capitalize text-[var(--status-t0-fg)]">{cap(k)}</span>)}
+                          </div>
+                        </div>
+                      )}
+                      {job.brief && <p className="m-0 whitespace-pre-wrap text-[13px] text-ui-body">{job.brief}</p>}
+                      {p.brief?.matterport_link && (
+                        <a href={p.brief.matterport_link} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1.5 text-[13px] text-ui-link">
+                          <Box size={14} aria-hidden /> Open 360 walkthrough <ExternalLink size={12} aria-hidden />
+                        </a>
+                      )}
+                      {intakeNotes.length > 0 && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[12px] font-medium leading-4 text-ui-body">Notes from the intake form</span>
+                          {intakeNotes.map(([k, v]) => (
+                            <p key={k} className="m-0 text-[13px] text-ui-body"><span className="capitalize text-ui-text-secondary">{cap(k)}:</span> {v}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                  <Card title={`Customer Files (${p.intakeFiles.length})`}>
+                    {p.intakeFiles.length === 0 ? (
+                      <p className="m-0 text-[13px] text-ui-text-secondary">No files on the intake form. Sales&apos; deal files and notes are under Notes and Files.</p>
+                    ) : (
+                      <ul className="m-0 flex list-none flex-col p-0">
+                        {p.intakeFiles.map(f => (
+                          <li key={f.id} className="flex items-center justify-between gap-3 border-b border-ui-divider py-[5px] first:pt-0 last:border-0 last:pb-0">
+                            <div className="flex min-w-0 flex-col">
+                              <span className={cn('truncate text-[13px] font-semibold tracking-[-0.286px]', HEADING)} title={f.file_name}>{f.file_name}</span>
+                              <span className="truncate text-[10px] tracking-[-0.22px] text-ui-text-secondary">{FILE_CATEGORY_LABELS[f.category] ?? cap(f.category)}</span>
+                            </div>
+                            <Button size="icon-xs" aria-label={`Open ${f.file_name}`} onClick={() => void openDesignFile(f.id, 'intake')}><ExternalLink /></Button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+
+                  <Card title={`Team (${team.filter(([, n]) => n).length})`}>
+                    <ul className="m-0 flex list-none flex-col p-0">
+                      {team.map(([role, name]) => (
+                        <li key={role} className="flex items-center justify-between gap-3 border-b border-ui-divider py-[5px] first:pt-0 last:border-0 last:pb-0">
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <span aria-hidden className="grid size-[31px] shrink-0 place-items-center overflow-hidden rounded-[6px] bg-ui-selected-bg text-[10px] leading-[1.4] text-ui-body"><PersonFace name={name} fallback={initials(name)} /></span>
+                            <div className="flex min-w-0 flex-col">
+                              <span className={cn('truncate text-[13px] font-semibold tracking-[-0.286px]', name ? HEADING : 'text-ui-text-secondary')}>{name ?? (role === 'Designer' ? 'Unassigned' : 'Not assigned yet')}</span>
+                              <span className="truncate text-[10px] tracking-[-0.22px] text-ui-text-secondary">{role}</span>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+
+                  <BrandKitCard prospectId={p.brief?.prospect_id ?? null} />
+                </div>
+
+                <section className="flex flex-col gap-3 rounded-[8px] border border-ui-divider bg-ui-page-bg px-3.5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 flex-col leading-[1.35]">
+                    <h3 className={cn('m-0 text-[16px] font-semibold', HEADING)}>Shared with Sales</h3>
+                    <p className="m-0 text-[13px] text-ui-body">The design folder is shared with Sales; they open it from the deal in the CRM.</p>
+                  </div>
+                  {sharedUrl ? (
+                    <a href={sharedUrl} target="_blank" rel="noreferrer" className={cn(buttonVariants({ size: 'md' }), 'w-fit pl-3 pr-4 text-[13px] font-medium no-underline [&_svg]:size-4')}>
+                      <Link2 aria-hidden /> Open shared folder
+                    </a>
+                  ) : (
+                    <Button size="md" className="w-fit pl-3 pr-4 text-[13px] font-medium [&_svg]:size-4" onClick={() => setTab('files')}><Link2 /> Set up in Files</Button>
+                  )}
+                </section>
+              </TabsContent>
 
           {/* ── Notes: the deal's own notes, shared with the CRM ── */}
           <TabsContent value="notes">
@@ -404,9 +447,11 @@ export function DesignJobSheet(p: Props) {
               </ol>
             )}
           </TabsContent>
-        </Tabs>
-      </SheetContent>
-    </Sheet>
+            </Tabs>
+          </div>
+        </DialogPrimitive.Popup>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 
@@ -453,32 +498,35 @@ function NotesTab({ notes, me, onPost }: { notes: Note[] | null; me: string; onP
   );
 }
 
+// Figma "Design Workspace" job pop-up (node 499:6209).
+/** Status chip: 12px label, 14px icon, 4px radius. */
+const CHIP = 'h-[22px] gap-1 rounded-[4px] pl-2 pr-2.5 text-[12px] leading-4 [&_svg]:size-3.5';
+/** General Info inputs: 42px, white fill, 6px radius, 14px semibold. */
+const INPUT_CLS = 'h-[42px] rounded-[6px] border-ui-input-border bg-ui-input-bg px-3 text-[14px] font-semibold tracking-[-0.308px] text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading';
+/** Underline tabs: 48px row, 3px active border. */
+const TAB_CLS = 'h-full min-w-0 shrink-0 border-b-[3px] border-transparent bg-transparent px-0 text-[13px] leading-[1.4] text-ui-text-secondary hover:bg-transparent hover:text-[var(--color-secondary-700)] dark:bg-transparent dark:hover:bg-transparent dark:hover:text-ui-heading data-active:border-[var(--color-secondary-700)] data-active:text-[13px] data-active:font-semibold data-active:text-[var(--color-secondary-700)] dark:data-active:border-ui-heading dark:data-active:text-ui-heading';
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="flex min-w-0 flex-col gap-1"><span className="text-[11px] font-medium text-ui-text-secondary">{label}</span>{children}</div>;
+  return <div className="flex min-w-0 flex-col gap-[7px]"><span className="text-[12px] font-medium leading-4 text-ui-body">{label}</span>{children}</div>;
 }
 
 function ReadOnly({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <span className={cn('flex h-8 items-center text-[13px]', HEADING, className)}>{children}</span>;
+  return <span className={cn('flex h-[42px] items-center rounded-[6px] border border-ui-input-border bg-ui-input-bg px-3 text-[14px] font-semibold', HEADING, className)}>{children}</span>;
 }
 
-function Card({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
+/** White card: 16px title, divider, then content. */
+function Card({ title, action, children }: { title: string; action?: React.ReactNode; children?: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-3 rounded-[8px] bg-ui-surface p-4">
-      <h3 className={cn('m-0 flex items-center gap-1.5 text-[13px] font-semibold', HEADING)}>{icon}{title}</h3>
+    <section className="flex min-w-0 flex-col gap-4 rounded-[8px] border border-ui-divider bg-ui-page-bg px-3.5 pt-3.5 pb-4">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className={cn('m-0 text-[16px] font-semibold leading-[1.45]', HEADING)}>{title}</h3>
+          {action}
+        </div>
+        <hr className="m-0 border-0 border-t border-ui-divider" />
+      </div>
       {children}
     </section>
-  );
-}
-
-function Person({ label, name, empty }: { label: string; name: string | null; empty: string }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <span aria-hidden className={cn('grid size-[28px] shrink-0 place-items-center rounded-full bg-ui-surface-elevated text-[10px] font-semibold', HEADING)}><PersonFace name={name} fallback={initials(name)} /></span>
-      <div className="min-w-0">
-        <p className="m-0 text-[10.5px] uppercase tracking-wide text-ui-text-secondary">{label}</p>
-        <p className={cn('m-0 truncate text-[13px]', name ? HEADING : 'text-ui-text-secondary')}>{name ?? empty}</p>
-      </div>
-    </div>
   );
 }
 
@@ -491,11 +539,17 @@ function BrandKitCard({ prospectId }: { prospectId: string | null }) {
     fetch(`/api/design/brands?prospectId=${prospectId}`).then(r => (r.ok ? r.json() : { kits: [] })).then(b => { if (live) setKits(b.kits ?? []); }).catch(() => { if (live) setKits([]); });
     return () => { live = false; };
   }, [prospectId]);
-  if (!kits || (!kits.length && !prospectId)) return null;
+  const create = (
+    <Link href="/design/brands" className="inline-flex h-6 shrink-0 items-center gap-2 rounded-[6px] bg-ui-btn-accent pl-[7px] pr-3 text-[13px] font-medium text-ui-btn-accent-fg no-underline transition-opacity hover:opacity-90">
+      <Plus size={16} aria-hidden /> Create New
+    </Link>
+  );
   return (
-    <Card title="Brand kit">
-      {kits.length === 0 ? (
-        <p className="m-0 text-[13px] text-ui-text-secondary">No brand kit for this customer yet — <Link href="/design/brands" className="text-ui-link">create one</Link> with the logo, colours and fonts.</p>
+    <Card title="Brand Kit" action={create}>
+      {kits === null ? (
+        <p className="m-0 text-[13px] text-ui-text-secondary">Loading…</p>
+      ) : kits.length === 0 ? (
+        <p className="m-0 text-[13px] text-ui-text-secondary">{prospectId ? 'No brand kit for this customer yet — create one with the logo, colours and fonts.' : 'No customer linked to this job yet.'}</p>
       ) : kits.map(k => (
         <div key={k.id} className="flex flex-col gap-2">
           <p className={cn('m-0 text-[13px] font-medium', HEADING)}>{k.name}{k.fonts.length ? <span className="font-normal text-ui-text-secondary"> · {k.fonts.join(', ')}</span> : null}</p>

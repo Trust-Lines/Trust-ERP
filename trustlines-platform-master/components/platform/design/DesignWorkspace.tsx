@@ -2,11 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { CalendarClock, ChevronLeft, ChevronRight, Eye, Hourglass, Layers, Palette, Search, Send, UserPlus } from 'lucide-react';
+import {
+  ArrowDownUp, BriefcaseBusiness, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Columns2, Columns3,
+  Hourglass, Palette, Rows3, ScanEye, Search, UserPlus, UserRound, UsersRound, type LucideIcon,
+} from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
 import type { LeadBrief, IntakeFile, DesignFile, ProjectMeta } from '@/app/(platform)/design/page';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Select } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
@@ -46,6 +50,29 @@ const SCOPES: Scope[] = ['open', 'review', 'done', 'all'];
 
 const BOARD_COLUMNS = JOB_STATUS_ORDER.filter(s => s !== 'cancelled');
 
+// Figma "Design Workspace" (node 494:7479): list table columns; Job# can't be hidden.
+type ColKey = 'job' | 'type' | 'brand' | 'status' | 'assignee' | 'due' | 'version';
+const COLUMNS: { key: ColKey; label: string; width: string }[] = [
+  { key: 'job', label: 'Job#', width: 'w-[19%]' },
+  { key: 'type', label: 'Type', width: 'w-[16%]' },
+  { key: 'brand', label: 'Brand', width: 'w-[17%]' },
+  { key: 'status', label: 'Status', width: 'w-[14%]' },
+  { key: 'assignee', label: 'Assignee', width: 'w-[22%]' },
+  { key: 'due', label: 'Due Date', width: 'w-[20%]' },
+  { key: 'version', label: 'Version', width: 'w-[6%]' },
+];
+const DEFAULT_HIDDEN: ColKey[] = ['status'];
+const COLS_STORAGE = 'designWorkspace.hiddenCols.v1';
+
+type SortKey = 'newest' | 'oldest' | 'due';
+const VIEW_BUTTONS: { key: TabKey; label: string; icon: LucideIcon; managerOnly?: boolean }[] = [
+  { key: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { key: 'board', label: 'Board', icon: Columns3 },
+  { key: 'jobs', label: 'List', icon: Rows3 },
+  { key: 'team', label: 'Team', icon: UsersRound, managerOnly: true },
+];
+const NEW_WINDOW_DAYS = 7;
+
 export function DesignWorkspace(props: Props) {
   const { currentUserId, initialJobId, leadMap, designerMap, projectMeta, isManager, schemaError, designers } = props;
   const [jobs, setJobs] = useState<SalesDesignJob[]>(props.jobs);
@@ -64,6 +91,25 @@ export function DesignWorkspace(props: Props) {
     setScope(urlScope && SCOPES.includes(urlScope) ? urlScope : 'open');
   }, [urlTab, urlScope, isManager]);
   const [fDesigner, setFDesigner] = useState('');
+  const [sortBy, setSortBy] = useState<SortKey>('newest');
+  // Column visibility (Columns menu) — remembered per browser.
+  const [hiddenCols, setHiddenCols] = useState<Set<ColKey>>(new Set(DEFAULT_HIDDEN));
+  const [colsOpen, setColsOpen] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(COLS_STORAGE);
+      if (raw) setHiddenCols(new Set(JSON.parse(raw) as ColKey[]));
+    } catch { /* storage unavailable — keep defaults */ }
+  }, []);
+  function toggleCol(key: ColKey) {
+    setHiddenCols(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      try { localStorage.setItem(COLS_STORAGE, JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  }
+  const shownCols = COLUMNS.filter(c => c.key === 'job' || !hiddenCols.has(c.key));
   // Set after mount: the server renders in UTC, so "overdue" would differ from the browser's day.
   const [today, setToday] = useState('');
   useEffect(() => { setToday(localYmd()); }, []);
@@ -91,8 +137,12 @@ export function DesignWorkspace(props: Props) {
         if (!hay.includes(q)) return false;
       }
       return true;
-    }).sort((a, b) => (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999') || b.created_at.localeCompare(a.created_at));
-  }, [jobs, search, fDesigner, leadMap, projectMeta, designerMap]);
+    }).sort((a, b) => {
+      if (sortBy === 'oldest') return a.created_at.localeCompare(b.created_at);
+      if (sortBy === 'due') return (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999') || b.created_at.localeCompare(a.created_at);
+      return b.created_at.localeCompare(a.created_at);
+    });
+  }, [jobs, search, fDesigner, sortBy, leadMap, projectMeta, designerMap]);
   const visible = useMemo(() => searched.filter(j => {
     if (scope === 'open') return OPEN_STATUSES.has(j.status);
     if (scope === 'review') return ['ready_for_sales_review', 'approved_by_sales', 'presented_to_customer'].includes(j.status);
@@ -100,12 +150,21 @@ export function DesignWorkspace(props: Props) {
     return true;
   }), [searched, scope]);
 
-  const counts = useMemo(() => ({
-    open: jobs.filter(j => OPEN_STATUSES.has(j.status)).length,
-    unassigned: jobs.filter(j => j.status === 'awaiting_assignment').length,
-    review: jobs.filter(j => j.status === 'ready_for_sales_review').length,
-    customer: jobs.filter(j => j.status === 'presented_to_customer').length,
-  }), [jobs]);
+  const counts = useMemo(() => {
+    // "+N New" on each KPI: jobs in that bucket created in the last week (browser time, after mount).
+    const since = today ? new Date(Date.now() - NEW_WINDOW_DAYS * 864e5).toISOString() : null;
+    const tally = (pred: (j: SalesDesignJob) => boolean) => {
+      const list = jobs.filter(pred);
+      return { n: list.length, fresh: since ? list.filter(j => j.created_at >= since).length : 0 };
+    };
+    return {
+      open: tally(j => OPEN_STATUSES.has(j.status)),
+      unassigned: tally(j => j.status === 'awaiting_assignment'),
+      review: tally(j => j.status === 'ready_for_sales_review'),
+      customer: tally(j => j.status === 'presented_to_customer'),
+    };
+  }, [jobs, today]);
+  const newChip = (fresh: number) => (fresh > 0 ? `+${fresh} New` : undefined);
 
   const workload = useMemo(() => {
     const m = new Map<string, { open: number; overdue: number }>();
@@ -171,54 +230,102 @@ export function DesignWorkspace(props: Props) {
     <div className="flex w-full flex-col gap-[30px] pb-12">
       <div className="flex flex-col gap-[5px] leading-[1.35]">
         <PageCrumbs items={[{ label: 'Design', href: '/design' }, { label: 'Workspace', href: '/design' }]} />
-        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Design</h1>
+        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Workspace</h1>
         <p className="m-0 text-[13px] text-ui-body">
           {isManager
-            ? `${counts.open} open design job${counts.open === 1 ? '' : 's'} · notes, files and versions are shared with Sales`
-            : `${counts.open} job${counts.open === 1 ? '' : 's'} on your desk`}
+            ? `${counts.open.n} open design job${counts.open.n === 1 ? '' : 's'} · notes, files and versions are shared with Sales`
+            : `${counts.open.n} job${counts.open.n === 1 ? '' : 's'} on your desk`}
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={Layers} label="Open jobs" value={counts.open} active={scope === 'open' && tab === 'jobs'} onClick={() => { setTab('jobs'); setScope('open'); setFDesigner(''); }} />
+        <StatCard icon={BriefcaseBusiness} label="Open Jobs" value={counts.open.n} chip={newChip(counts.open.fresh)} active={scope === 'open' && tab === 'jobs'} onClick={() => { setTab('jobs'); setScope('open'); setFDesigner(''); }} />
         {isManager
-          ? <StatCard icon={Hourglass} label="Awaiting designer" value={counts.unassigned} active={tab === 'team'} onClick={() => setTab('team')} />
+          ? <StatCard icon={Hourglass} label="Awaiting Designer" value={counts.unassigned.n} chip={newChip(counts.unassigned.fresh)} active={tab === 'team'} onClick={() => setTab('team')} />
           : <StatCard icon={CalendarClock} label="Overdue" value={jobs.filter(isOverdue).length} />}
-        <StatCard icon={Eye} label="In Sales review" value={counts.review} active={scope === 'review' && tab === 'jobs'} onClick={() => { setTab('jobs'); setScope('review'); }} />
-        <StatCard icon={Send} label="With customer" value={counts.customer} />
+        <StatCard icon={ScanEye} label="In Sales Review" value={counts.review.n} chip={newChip(counts.review.fresh)} active={scope === 'review' && tab === 'jobs'} onClick={() => { setTab('jobs'); setScope('review'); }} />
+        <StatCard icon={UserRound} label="With Customer" value={counts.customer.n} chip={newChip(counts.customer.fresh)} />
       </div>
 
-      <Tabs value={tab} onValueChange={v => setTab(v as TabKey)} className="gap-5">
+      <Tabs value={tab} onValueChange={v => setTab(v as TabKey)} className="gap-[30px]">
+        {/* ── Toolbar: search + filters left, sort / columns / views right ── */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <TabsList>
-            <TabsTrigger value="jobs">{isManager ? 'All jobs' : 'My work'}</TabsTrigger>
-            <TabsTrigger value="board">Board</TabsTrigger>
-            <TabsTrigger value="calendar">Calendar</TabsTrigger>
-            {isManager && <TabsTrigger value="team">Team{counts.unassigned ? ` · ${counts.unassigned}` : ''}</TabsTrigger>}
-          </TabsList>
-          {tab !== 'team' && (
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="relative w-[260px] max-w-full">
-                <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" />
-                <input
-                  type="search" aria-label="Search design jobs" placeholder="Search customer, type, designer…"
-                  value={search} onChange={e => setSearch(e.target.value)}
-                  className="h-9 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-2.5 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
-                />
-              </div>
-              {tab === 'jobs' && (
-                <Select aria-label="Show" className={FILTER_CLS} value={scope} onValueChange={v => setScope((v ?? 'open') as Scope)}
-                  options={[{ value: 'open', label: 'Open' }, { value: 'review', label: 'Review & customer' }, { value: 'done', label: 'Finished' }, { value: 'all', label: 'All' }]} />
-              )}
-              {isManager && (
-                <Select aria-label="Designer" className={FILTER_CLS} value={fDesigner} onValueChange={v => setFDesigner(v ?? '')}
-                  options={[{ value: '', label: 'All designers' }, { value: '__none__', label: 'Unassigned' }, ...designers.map(d => ({ value: d.id, label: d.full_name }))]} />
-              )}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {tab !== 'team' && (
+              <>
+                <div className="relative w-[285px] max-w-full">
+                  <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" />
+                  <input
+                    type="search" aria-label="Search design jobs" placeholder="Search jobs…"
+                    value={search} onChange={e => setSearch(e.target.value)}
+                    className="h-9 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-2.5 text-[13px] leading-[1.45] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
+                  />
+                </div>
+                {tab === 'jobs' && (
+                  <Select aria-label="Show" className={FILTER_CLS} value={scope} onValueChange={v => setScope((v ?? 'open') as Scope)}
+                    options={[{ value: 'open', label: 'Open' }, { value: 'review', label: 'Review & customer' }, { value: 'done', label: 'Finished' }, { value: 'all', label: 'All' }]} />
+                )}
+                {isManager && (
+                  <Select aria-label="Assignee" className={FILTER_CLS} value={fDesigner} placeholder="Assignee" onValueChange={v => setFDesigner(v ?? '')}
+                    options={[{ value: '', label: 'Assignee' }, { value: '__none__', label: 'Unassigned' }, ...designers.map(d => ({ value: d.id, label: d.full_name }))]} />
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-4">
+            {tab !== 'team' && (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <ArrowDownUp aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-[1] size-3.5 -translate-y-1/2 text-[var(--color-secondary-700)] dark:text-ui-heading" />
+                    <Select aria-label="Sort" className={cn(FILTER_CLS, 'gap-2 pl-[34px] dark:pl-[34px] dark:pr-2')} value={sortBy}
+                      onValueChange={v => setSortBy((v ?? 'newest') as SortKey)}
+                      options={[{ value: 'newest', label: 'Newest' }, { value: 'oldest', label: 'Oldest' }, { value: 'due', label: 'Due date' }]} />
+                  </div>
+                  {tab === 'jobs' && (
+                    <div className="relative">
+                      <button type="button" aria-expanded={colsOpen} className={cn(FILTER_CLS, 'gap-2 px-3')} onClick={() => setColsOpen(o => !o)}>
+                        <Columns2 aria-hidden /> Columns <ChevronDown aria-hidden />
+                      </button>
+                      {colsOpen && (
+                        <>
+                          <div className="fixed inset-0 z-20" onClick={() => setColsOpen(false)} />
+                          <div className="absolute right-0 top-full z-30 mt-1.5 w-48 rounded-[8px] border border-ui-divider bg-ui-surface-elevated p-1.5 shadow-lg">
+                            {COLUMNS.map(c => (
+                              <label key={c.key} className={cn('flex items-center gap-2 rounded-[6px] px-2.5 py-1.5 text-[12px]', c.key === 'job' ? 'text-ui-text-secondary' : 'cursor-pointer text-ui-body hover:bg-ui-hover-bg')}>
+                                <Checkbox disabled={c.key === 'job'} checked={c.key === 'job' || !hiddenCols.has(c.key)} onCheckedChange={() => toggleCol(c.key)} />
+                                {c.label}
+                              </label>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <span aria-hidden className="h-9 w-px bg-ui-divider" />
+              </>
+            )}
+            <div role="group" aria-label="View" className="flex flex-wrap items-center gap-2">
+              {VIEW_BUTTONS.filter(v => !v.managerOnly || isManager).map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key} type="button" aria-pressed={tab === key} onClick={() => setTab(key)}
+                  className={cn(
+                    'inline-flex h-9 items-center justify-center gap-2 rounded-[6px] border px-8 text-[13px] font-semibold leading-[1.4] transition-colors [&_svg]:size-3.5',
+                    tab === key
+                      ? 'border-[var(--color-secondary-700)] bg-transparent text-[var(--color-secondary-700)] dark:border-ui-heading dark:text-ui-heading'
+                      : 'border-ui-divider bg-ui-surface-elevated text-ui-body hover:bg-ui-hover-bg',
+                  )}
+                >
+                  <Icon aria-hidden /> {label}{key === 'team' && counts.unassigned.n ? ` · ${counts.unassigned.n}` : ''}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* ── My work / All jobs ── */}
+        {/* ── List: the jobs table ── */}
         <TabsContent value="jobs">
           {visible.length === 0 ? (
             <div className="rounded-[8px] bg-ui-surface p-5">
@@ -231,38 +338,66 @@ export function DesignWorkspace(props: Props) {
               />
             </div>
           ) : (
-            <div className="flex flex-col gap-2.5 rounded-[8px] bg-ui-surface p-5">
-              {visible.map(j => {
-                const a = anchorId(j);
-                const latest = versionsByJob.get(j.id)?.[0];
-                const designer = j.assigned_designer_id ? designerMap[j.assigned_designer_id] : null;
-                return (
-                  <button
-                    key={j.id} type="button" onClick={() => setOpenId(j.id)}
-                    className="flex w-full flex-wrap items-center gap-x-5 gap-y-2 rounded-[6px] border-0 bg-ui-surface-elevated px-5 py-3 text-left transition-colors hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
-                  >
-                    <div className="flex min-w-[220px] flex-1 flex-col gap-[3px]">
-                      <span className={cn('text-[13px] font-semibold leading-[1.4]', HEADING)}>{nameOf(j)}</span>
-                      <span className="text-[11px] text-ui-text-secondary">
-                        {leadMap[a]?.project_type || 'Design'}
-                        {j.priority === 'high' && <span className="ml-2 font-semibold text-error-normal">High priority</span>}
-                        {projectMeta[a]?.isDraft === false && <span className="ml-2">· In Supply</span>}
-                      </span>
-                    </div>
-                    <StatusBadge group="design_job" status={j.status} size="sm" />
-                    <span className="flex w-[160px] items-center gap-2 text-[12px] text-ui-body">
-                      <span aria-hidden className={cn('grid size-[24px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold', HEADING)}><PersonFace name={designer} fallback={initials(designer)} /></span>
-                      <span className="truncate">{designer ?? 'Unassigned'}</span>
-                    </span>
-                    <span className={cn('w-[110px] text-[12px]', isOverdue(j) ? 'font-semibold text-error-normal' : 'text-ui-body')}>
-                      {j.due_date ? `Due ${formatDate(j.due_date)}` : 'No due date'}
-                    </span>
-                    <span className="w-[120px] text-[12px] text-ui-text-secondary">
-                      {latest ? `V${latest.version_no} · ${latest.status === 'submitted' ? 'sent to Sales' : latest.status.replace(/_/g, ' ')}` : 'No version yet'}
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="overflow-x-auto rounded-[8px] border border-ui-divider">
+              <table className="w-full min-w-[900px] border-collapse text-left">
+                <thead>
+                  <tr className="h-[46px] border-b border-ui-divider bg-ui-surface">
+                    {shownCols.map((c, i) => (
+                      <th key={c.key} scope="col" className={cn('px-2 text-[12px] font-semibold leading-[1.4] text-ui-body', c.width, i === 0 && 'pl-4')}>{c.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map(j => {
+                    const a = anchorId(j);
+                    const latest = versionsByJob.get(j.id)?.[0];
+                    const designer = j.assigned_designer_id ? designerMap[j.assigned_designer_id] : null;
+                    const cell: Record<ColKey, React.ReactNode> = {
+                      job: (
+                        <span className="flex min-w-0 flex-col">
+                          <span className={cn('truncate text-[13px] font-semibold leading-[1.4]', HEADING)} title={nameOf(j)}>{projectMeta[a]?.code || nameOf(j)}</span>
+                          {j.priority === 'high' && <span className="text-[11px] font-semibold text-error-normal">High priority</span>}
+                        </span>
+                      ),
+                      type: <span className={cn('block truncate text-[14px] font-semibold', HEADING)}>{leadMap[a]?.project_type || 'Design'}</span>,
+                      brand: <span className={cn('block truncate text-[14px] font-semibold', HEADING)}>{leadMap[a]?.brand || leadMap[a]?.customer_name || '—'}</span>,
+                      status: <StatusBadge group="design_job" status={j.status} size="sm" />,
+                      assignee: (
+                        <span className="flex min-w-0 items-center gap-2" onClick={e => { if (isManager) e.stopPropagation(); }} onKeyDown={e => { if (isManager) e.stopPropagation(); }}>
+                          <span aria-hidden className={cn('grid size-[26px] shrink-0 place-items-center overflow-hidden rounded-full bg-ui-surface text-[10px] font-semibold', HEADING)}><PersonFace name={designer} userId={j.assigned_designer_id ?? undefined} fallback={initials(designer)} /></span>
+                          {isManager ? (
+                            <Select
+                              aria-label={`Assignee for ${nameOf(j)}`} value={j.assigned_designer_id ?? ''}
+                              className={cn('h-7 w-auto max-w-[200px] gap-2 border-0 bg-transparent px-0 text-[13px] hover:bg-transparent dark:border-0 dark:bg-transparent dark:px-0 [&_svg]:size-3.5', HEADING)}
+                              options={[{ value: '', label: 'Unassigned' }, ...designers.map(d => ({ value: d.id, label: d.full_name }))]}
+                              onValueChange={v => { if ((v || null) !== j.assigned_designer_id) void patchJob(j, { assigned_designer_id: v || null }, v ? 'Assigned — the designer has been notified' : 'Unassigned'); }}
+                            />
+                          ) : <span className={cn('truncate text-[13px]', designer ? HEADING : 'text-ui-text-secondary')}>{designer ?? 'Unassigned'}</span>}
+                        </span>
+                      ),
+                      due: <span className={cn('text-[14px]', isOverdue(j) ? 'font-semibold text-error-normal' : 'text-ui-body')}>{j.due_date ? formatDate(j.due_date) : '—'}</span>,
+                      version: latest ? (
+                        <span title={`V${latest.version_no} · ${latest.status === 'submitted' ? 'sent to Sales' : latest.status.replace(/_/g, ' ')}`}
+                          className={cn('inline-flex items-center justify-center rounded-[4px] border border-[var(--color-secondary-700)] px-2.5 py-0.5 text-[14px] font-medium leading-[1.5] tracking-[0.56px] dark:border-ui-heading', HEADING)}>
+                          {latest.version_no}.0
+                        </span>
+                      ) : <span className="text-[13px] text-ui-text-secondary">—</span>,
+                    };
+                    return (
+                      <tr
+                        key={j.id} tabIndex={0} aria-label={`Open ${nameOf(j)}`}
+                        onClick={() => setOpenId(j.id)}
+                        onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setOpenId(j.id); } }}
+                        className="h-16 cursor-pointer border-b border-ui-divider bg-ui-page-bg outline-none transition-colors last:border-0 hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
+                      >
+                        {shownCols.map((c, i) => (
+                          <td key={c.key} className={cn('max-w-0 px-2 align-middle', i === 0 && 'pl-4', c.key === 'assignee' && 'px-2.5', c.key === 'version' && 'max-w-none pr-4')}>{cell[c.key]}</td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </TabsContent>
@@ -328,8 +463,8 @@ export function DesignWorkspace(props: Props) {
           <TabsContent value="team">
             <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
               <section className="flex flex-col gap-3 rounded-[8px] bg-ui-surface p-5">
-                <h2 className={cn('m-0 flex items-center gap-2 text-[15px] font-semibold', HEADING)}><UserPlus size={16} aria-hidden /> Needs a designer ({counts.unassigned})</h2>
-                {counts.unassigned === 0 ? (
+                <h2 className={cn('m-0 flex items-center gap-2 text-[15px] font-semibold', HEADING)}><UserPlus size={16} aria-hidden /> Needs a designer ({counts.unassigned.n})</h2>
+                {counts.unassigned.n === 0 ? (
                   <p className="m-0 text-[13px] text-ui-text-secondary">Every open job has a designer.</p>
                 ) : jobs.filter(j => j.status === 'awaiting_assignment').map(j => (
                   <div key={j.id} className="flex flex-wrap items-center gap-3 rounded-[6px] bg-ui-surface-elevated px-4 py-3">
