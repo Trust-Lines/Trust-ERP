@@ -1,17 +1,26 @@
 import { sendEmail } from '@/lib/email/send';
 import { appBaseUrl } from '@/lib/env/appUrl';
 import type { WebLeadInput } from './leads';
+import { fallbackRecipients, hasOwnSender, leadTransport, loadLeadMailSettings, type LeadMailSettings } from './leadMailSettings';
 
-// Every website submission (contact form + newsletter) is also emailed, formatted, to the
-// addresses below the moment it lands. WEB_LEAD_NOTIFY_EMAILS (comma-separated) overrides
-// the default. Reply-To is the visitor, so "Reply" in the mail client answers them directly.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-// TEMPORARY while testing the live form: goes to Hamza only. Switch back to 'al@tlines.us' after.
-const DEFAULT_RECIPIENTS = ['hamzag@trust-lines.com'];
+// Every website submission (contact form + newsletter) is also emailed, formatted, the moment
+// it lands. Who gets it and which mailbox sends it are set in Settings → Website leads
+// (web_lead_mail_settings, migration 141); until then WEB_LEAD_NOTIFY_EMAILS / al@tlines.us and
+// the app's default SMTP account are used. Reply-To is the visitor.
 
-export function webLeadRecipients(): string[] {
-  const env = process.env.WEB_LEAD_NOTIFY_EMAILS?.split(',').map(s => s.trim()).filter(Boolean);
-  return env?.length ? env : DEFAULT_RECIPIENTS;
+export function webLeadRecipients(s: LeadMailSettings | null): string[] {
+  return s?.recipients?.length ? s.recipients : fallbackRecipients();
+}
+
+/** One email through the Website-leads sender (or the default SMTP account). Throws on failure. */
+export async function sendLeadMail(s: LeadMailSettings | null, to: string, subject: string, html: string, replyTo?: string): Promise<void> {
+  if (!hasOwnSender(s)) { await sendEmail(to, subject, html, { replyTo }); return; }
+  const transport = leadTransport(s);
+  try {
+    await transport.sendMail({ from: { name: s.from_name || 'Trust-Lines', address: s.from_email }, to, subject, html, ...(replyTo ? { replyTo } : {}) });
+  } finally { transport.close(); }
 }
 
 // Everything in the mail comes from a public form — escape it all.
@@ -20,7 +29,7 @@ const EMAIL_RE = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]{2,}$/;
 
 function when(d: Date): string {
   return d.toLocaleString('en-US', {
-    timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+    timeZone: 'Europe/Istanbul', weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
   });
 }
 
@@ -96,10 +105,22 @@ export function webLeadEmail(lead: WebLeadInput, receivedAt: Date): { subject: s
 }
 
 /** Never throws — a mail failure must not fail the visitor's submission. */
-export async function emailWebLead(lead: WebLeadInput, receivedAt = new Date()): Promise<void> {
-  const { subject, html } = webLeadEmail(lead, receivedAt);
-  const replyTo = lead.email && EMAIL_RE.test(lead.email) ? lead.email : undefined;
-  await Promise.all(webLeadRecipients().map(to =>
-    sendEmail(to, subject, html, { replyTo }).catch(e => console.error('[web-leads] email to', to, 'failed:', e instanceof Error ? e.message : e)),
-  ));
+export async function emailWebLead(admin: any, lead: WebLeadInput, receivedAt = new Date()): Promise<void> {
+  try {
+    const settings = await loadLeadMailSettings(admin);
+    const { subject, html } = webLeadEmail(lead, receivedAt);
+    const replyTo = lead.email && EMAIL_RE.test(lead.email) ? lead.email : undefined;
+    const results = await Promise.all(webLeadRecipients(settings).map(to =>
+      sendLeadMail(settings, to, subject, html, replyTo).then(() => null, e => {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error('[web-leads] email to', to, 'failed:', msg);
+        return msg;
+      }),
+    ));
+    // Show a sending problem on Settings → Website leads instead of failing silently.
+    const failure = results.find(Boolean);
+    if (settings) await admin.from('web_lead_mail_settings').update({ last_error: failure ? `Last lead email failed: ${failure}`.slice(0, 500) : null }).eq('id', true);
+  } catch (e) {
+    console.error('[web-leads] email failed:', e instanceof Error ? e.message : e);
+  }
 }

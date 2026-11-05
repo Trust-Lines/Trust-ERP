@@ -63,8 +63,8 @@ export async function POST(req: NextRequest) {
     return fail(500, 'processing_error', 'Something went wrong. Please try again.');
   }
 
-  // Formatted copy of the submission to the leads mailbox (al@tlines.us). Never throws.
-  await emailWebLead(lead);
+  // Formatted copy of the submission to the addresses in Settings → Website leads. Never throws.
+  await emailWebLead(admin, lead);
 
   // Ping marketing; a failure here must never fail the visitor's submission.
   try {
