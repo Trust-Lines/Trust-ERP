@@ -75,9 +75,9 @@ async function loadTaskCounts(adm: any, today: string) {
 /** Active deals + the last thing that happened on each (comments and logged changes). */
 async function loadActiveDeals(adm: any): Promise<{ deals: ActiveDealIn[]; activity: Map<string, ActivityIn[]> }> {
   const { data } = await adm.from('opportunities')
-    .select('id, title, region, stage, need_id, estimated_value, external_created_at, created_at')
+    .select('id, title, region, stage, need_id, sales_owner_id, estimated_value, external_created_at, created_at')
     .is('deleted_at', null).in('stage', ACTIVE_STAGES).limit(1000);
-  const opps = (data ?? []) as { id: string; title: string | null; region: string | null; stage: OpportunityStage; need_id: string | null; estimated_value: number | null; external_created_at: string | null; created_at: string }[];
+  const opps = (data ?? []) as { id: string; title: string | null; region: string | null; stage: OpportunityStage; need_id: string | null; sales_owner_id: string | null; estimated_value: number | null; external_created_at: string | null; created_at: string }[];
 
   const needIds = opps.map(o => o.need_id).filter(Boolean) as string[];
   const oppIds = opps.map(o => o.id);
@@ -98,7 +98,7 @@ async function loadActiveDeals(adm: any): Promise<{ deals: ActiveDealIn[]; activ
   return {
     deals: opps.map(o => ({
       id: o.id, title: o.title?.trim() || 'Untitled', region: o.region, stageLabel: OPPORTUNITY_STAGE_LABEL[o.stage] ?? o.stage,
-      dealSize: o.estimated_value, createdAt: o.external_created_at ?? o.created_at,
+      dealSize: o.estimated_value, ownerId: o.sales_owner_id, createdAt: o.external_created_at ?? o.created_at,
     })),
     activity,
   };
@@ -125,6 +125,14 @@ export async function loadSalesDashboard(supabase: any, adm: any): Promise<Sales
 
   const open = leads.filter(isOpen);
   const silentAll = silentDeals(active.deals, active.activity, now);
+  const silent = silentAll.slice(0, 10);
+  // Owner names only for the rows the page shows.
+  const ownerIds = [...new Set(silent.map(s => s.ownerId).filter(Boolean))] as string[];
+  if (ownerIds.length) {
+    const { data: owners } = await adm.from('profiles').select('id, full_name').in('id', ownerIds);
+    const nameOf = new Map(((owners ?? []) as { id: string; full_name: string | null }[]).map(p => [p.id, p.full_name]));
+    for (const s of silent) s.ownerName = s.ownerId ? nameOf.get(s.ownerId) ?? null : null;
+  }
 
   return {
     today,
@@ -137,7 +145,7 @@ export async function loadSalesDashboard(supabase: any, adm: any): Promise<Sales
     outcomes: outcomes(leads),
     activeDeals: active.deals.length,
     silentOver30: silentAll.filter(d => d.daysSilent > 30).length,
-    silent: silentAll.slice(0, 10),
+    silent,
     regions: regionRows(leads, regionLabel),
     closings: closings.rows,
     closingsUndated: closings.undated,

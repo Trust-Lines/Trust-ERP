@@ -24,7 +24,7 @@ export default async function SalesDashboardPage() {
   const data = await loadSalesDashboard(supabase as any, adm);
 
   return (
-    <div style={{ padding: '24px 32px' }}>
+    <div style={{ padding: 28 }}>
       <SalesDesk data={data} />
     </div>
   );

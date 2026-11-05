@@ -186,8 +186,12 @@ function Bar({ label, detail, value, max, tone }: { label: string; detail?: stri
         <p className="m-0 shrink-0 font-semibold tabular-nums">{value}</p>
       </div>
       <div className="relative h-3.5 w-full overflow-hidden rounded-[3px] bg-ui-surface" role="img" aria-label={`${label}: ${value} of ${max}`}>
-        {/* Figma 174:27458 "Stage bar": the saturated tone (t1 #2398B2, t2 #2366B2, …), not the chip fill. */}
-        <div className="absolute inset-y-0 left-0 rounded-[3px]" style={{ width: `${pct}%`, background: `var(--status-${tone}-fg)` }} />
+        {/* Figma 174:27458 / 178:29671 "Stage bar": the saturated tone (t1 #2398B2, t2 #2366B2, …) in both themes —
+            light keeps it in the chip foreground, dark in the chip fill. */}
+        <div
+          className="absolute inset-y-0 left-0 rounded-[3px] bg-[var(--bar-light)] dark:bg-[var(--bar-dark)]"
+          style={{ width: `${pct}%`, '--bar-light': `var(--status-${tone}-fg)`, '--bar-dark': `var(--status-${tone}-bg)` } as React.CSSProperties}
+        />
       </div>
     </div>
   );
