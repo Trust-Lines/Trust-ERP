@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { NOT_READY, requireDesignPage, tableMissing } from '@/lib/design/access';
-import { dropboxError, uploadLinkIn } from '@/lib/design/dropboxDirect';
+import { dropboxError, uploadTargetIn } from '@/lib/design/dropboxDirect';
 import { MATERIAL_COLS, MATERIALS_ROOT, materialFields } from '@/lib/design/libraryPaths';
 
 // Materials & Finishes catalogue. ?suppliers=1 lists suppliers for the picker.
@@ -26,8 +26,9 @@ export async function POST(req: NextRequest) {
 
   if (body.action === 'upload-link') {
     try {
-      const link = await uploadLinkIn(MATERIALS_ROOT, String(body.fileName ?? ''));
-      return link ? NextResponse.json({ link }) : NextResponse.json({ error: 'Invalid file name' }, { status: 400 });
+      const target = await uploadTargetIn(MATERIALS_ROOT, String(body.fileName ?? ''));
+      // The path too: when Dropbox's reply to the upload is lost, the browser still knows where it went.
+      return target ? NextResponse.json(target) : NextResponse.json({ error: 'Invalid file name' }, { status: 400 });
     } catch (e) { return NextResponse.json({ error: `Dropbox: ${dropboxError(e)}` }, { status: 502 }); }
   }
 

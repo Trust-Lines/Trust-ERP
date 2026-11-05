@@ -150,7 +150,10 @@ function UploadAssets({ open, onOpenChange, defaultKind, onDone }: { open: boole
     for (const [i, f] of files.entries()) {
       setBusy(`Uploading ${i + 1} of ${files.length}…`);
       try {
-        const path = await uploadViaLink(API, f, { kind });
+        // Big files (over 150 MB) go in chunks — show how far along they are.
+        const path = await uploadViaLink(API, f, { kind }, {
+          onProgress: p => setBusy(`Uploading ${i + 1} of ${files.length} · ${Math.round(p * 100)}%`),
+        });
         const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
           action: 'create', kind, path, tags, description,
           title: files.length === 1 && title.trim() ? title.trim() : f.name.replace(/\.[^.]+$/, ''),

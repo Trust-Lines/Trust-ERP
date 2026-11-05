@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
+import { freePath } from '@/lib/design/dropboxDirect';
 import { logLeadActivity } from '@/lib/sales/activity';
 import { requireUserWithRole, loadDesignJobWithAccess } from '@/lib/sales/design';
 import { ensureSharedLink, resolveDesignFolder } from '@/lib/sales/designFolder';
@@ -92,11 +93,13 @@ export async function POST(req: NextRequest, { params }: Params) {
       const dir = resolveInside(root, String(body.path ?? ''));
       const name = safeSegment(String(body.fileName ?? ''), '');
       if (!dir || !name) return NextResponse.json({ error: 'Invalid folder or file name' }, { status: 400 });
+      // A free name up front, and its path back: Dropbox's reply to the upload has no path.
+      const target = await freePath(dir, name);
       const res = await dbx.filesGetTemporaryUploadLink({
-        commit_info: { path: `${dir}/${name}`, mode: { '.tag': 'add' }, autorename: true },
+        commit_info: { path: target, mode: { '.tag': 'add' }, autorename: true },
         duration: 3600,
       });
-      return NextResponse.json({ link: res.result.link });
+      return NextResponse.json({ link: res.result.link, path: target });
     }
 
     if (action === 'uploaded') {

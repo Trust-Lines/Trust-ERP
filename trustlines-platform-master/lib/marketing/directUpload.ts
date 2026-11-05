@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDropboxClient } from '@/lib/dropbox/client';
+import { freePath } from '@/lib/design/dropboxDirect';
 import { sanitizeFileName } from './prospectFiles';
 import { isImageAttachment } from './surveyAttachments';
 
@@ -22,13 +23,15 @@ export function isDirectUploadRequest(json: NoteJson): boolean {
   return json.action === 'upload-link' || typeof json.imagePath === 'string';
 }
 
-export async function createDirectUploadLink(folder: string, fileName: string): Promise<{ link: string }> {
-  const path = `${folder}/${sanitizeFileName(fileName)}`;
+// The path comes back too: Dropbox's reply to a one-shot upload has no path, and a free name is
+// picked here (not renamed by Dropbox) so this one is right (lib/client/directDropboxUpload).
+export async function createDirectUploadLink(folder: string, fileName: string): Promise<{ link: string; path: string }> {
+  const path = await freePath(folder, sanitizeFileName(fileName));
   const res = await getDropboxClient().filesGetTemporaryUploadLink({
     commit_info: { path, mode: { '.tag': 'add' }, autorename: true },
     duration: 3600,
   });
-  return { link: res.result.link };
+  return { link: res.result.link, path };
 }
 
 export async function verifyDirectUpload(folder: string, imagePath: string): Promise<string | null> {
