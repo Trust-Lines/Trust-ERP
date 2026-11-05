@@ -197,7 +197,8 @@ export function SuppliersClient({ initialSuppliers, canEdit, schemaError }: Prop
                     <td className="px-2 py-2 text-[13px] text-ui-body">{s.country}</td>
                     <td className="px-2 py-2"><BalanceCell totals={s.totals} /></td>
                     <td className="px-2 py-2">
-                      <StatusBadge group="record_state" status={s.is_active ? 'active' : 'inactive'} className={STATE_CHIP} />
+                      {/* Figma 427:15934 / 427:16132: label-only chip (no icon) in this table. */}
+                      <StatusBadge group="record_state" status={s.is_active ? 'active' : 'inactive'} showIcon={false} className={STATE_CHIP} />
                     </td>
                   </tr>
                 ))}
