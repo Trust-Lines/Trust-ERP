@@ -28,8 +28,11 @@ interface Vendor { id: string; code: string | null; name: string }
 interface SalesFile { id: string; file_name: string; dropbox_path: string; created_at: string }
 
 interface Props {
-  projectId: string; projectCode: string; projectName: string; projectStage: ProjectStage | null;
-  hiddenTabs: ProjectSubpage[]; canEdit: boolean;
+  projectId: string; projectCode: string; projectName: string; canEdit: boolean;
+  /** Optional: the page doesn't load the stage, so the chip only shows when a caller passes it. */
+  projectStage?: ProjectStage | null;
+  /** Optional: tabs to hide. Finance guards itself (redirects roles without access). */
+  hiddenTabs?: ProjectSubpage[];
   rows: Row[]; people: Person[]; vendors: Vendor[]; salesFiles: SalesFile[]; schemaError: string | null;
 }
 
@@ -51,7 +54,7 @@ const DATE_INPUT = cn(INPUT, 'flex-row-reverse justify-between [&_svg]:size-4');
 const READ = 'flex min-h-[42px] items-center text-[14px] leading-[1.4] text-[var(--color-secondary-700)] dark:text-ui-heading';
 
 export function ProjectTypesClient({
-  projectId, projectCode, projectName, projectStage, hiddenTabs, canEdit, rows, people, vendors, salesFiles, schemaError,
+  projectId, projectCode, projectName, projectStage = null, hiddenTabs = [], canEdit, rows, people, vendors, salesFiles, schemaError,
 }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -134,7 +137,8 @@ export function ProjectTypesClient({
               </Field>
 
               <Field label="PO / PF sign">
-                <span className={cn(READ, 'break-all')}>{r.po_sign_status} / {r.pf_sign_status}</span>
+                {/* Figma 467:19723 / 470:21970: an input-filled box with no border (only visible in dark). */}
+                <span className={cn(READ, 'break-all rounded-[6px] bg-ui-input-bg pr-3')}>{r.po_sign_status} / {r.pf_sign_status}</span>
               </Field>
             </div>
           </section>

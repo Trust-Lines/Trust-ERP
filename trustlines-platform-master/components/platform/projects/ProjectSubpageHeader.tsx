@@ -41,7 +41,8 @@ export function ProjectSubpageHeader({ projectId, code, name, stage, active, hid
       </nav>
 
       <div className="flex min-w-0 flex-col gap-1.5">
-        <div className="flex items-center gap-2.5 text-[30px] leading-normal" style={{ color: 'var(--status-t4-fg)' }}>
+        {/* Purple in light; the dark frame (470:21970) uses the heading white. */}
+        <div className="flex items-center gap-2.5 text-[30px] leading-normal text-[var(--status-t4-fg)] dark:text-ui-heading">
           <span># {code}</span>
           <button
             type="button" onClick={copyCode} aria-label="Copy project code"
@@ -50,7 +51,7 @@ export function ProjectSubpageHeader({ projectId, code, name, stage, active, hid
             <Copy size={26} aria-hidden />
           </button>
         </div>
-        <h1 className="m-0 text-[30px] font-semibold leading-normal" style={{ color: 'var(--status-t4-fg)' }}>{name}</h1>
+        <h1 className="m-0 text-[30px] font-semibold leading-normal text-[var(--status-t4-fg)] dark:text-ui-heading">{name}</h1>
         {stage && <div><StageBadge stage={stage} /></div>}
       </div>
 

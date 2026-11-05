@@ -145,9 +145,9 @@ export default async function ManagementPage() {
       <section className="flex flex-col gap-3">
         <div className="flex items-baseline gap-2">
           <h2 className={SURFACE_TITLE}>Project Health</h2>
-          <span className={SURFACE_SUBTITLE}>All active projects · most blocked first</span>
+          <span className={SURFACE_SUBTITLE}>Blocked projects · most blocked first</span>
         </div>
-        <ManagementHealthTable rows={rows} emptyLabel="No active projects yet." />
+        <ManagementHealthTable rows={blocked} emptyLabel="Every active project is on track." />
       </section>
     </div>
   );
