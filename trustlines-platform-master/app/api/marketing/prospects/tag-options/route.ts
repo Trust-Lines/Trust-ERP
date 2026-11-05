@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
-import { MARKETING_READ_ROLES } from '@/lib/marketing/roles';
+import { CONTACTS_READ_ROLES } from '@/lib/marketing/roles';
 
 export async function GET() {
-  const { admin, deny } = await requireRole(MARKETING_READ_ROLES);
+  const { admin, deny } = await requireRole(CONTACTS_READ_ROLES);
   if (deny) return deny;
 
   const { data, error } = await admin.from('prospects').select('tags').limit(5000);

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 import { requireRole } from '@/lib/permissions/requireApi';
-import { MARKETING_READ_ROLES } from '@/lib/marketing/roles';
+import { WEB_LEADS_ROLES } from '@/lib/marketing/roles';
 import { fetchInChunks } from '@/lib/supabase/chunkedIn';
 import { LEAD_STATUS_LABEL, type LeadStatus } from '@/lib/web-cms/leads';
 import { logAudit } from '@/lib/audit/log';
@@ -30,7 +30,7 @@ function fmt(iso: string | null | undefined): string {
 }
 
 export async function GET() {
-  const { user, admin, deny } = await requireRole(MARKETING_READ_ROLES);
+  const { user, admin, deny } = await requireRole(WEB_LEADS_ROLES);
   if (deny) return deny;
 
   const leads: LeadRow[] = [];

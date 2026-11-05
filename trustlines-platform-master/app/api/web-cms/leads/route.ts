@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
-import { MARKETING_READ_ROLES } from '@/lib/marketing/roles';
+import { WEB_LEADS_ROLES } from '@/lib/marketing/roles';
 
 export async function GET(req: NextRequest) {
-  const { admin, deny } = await requireRole(MARKETING_READ_ROLES);
+  const { admin, deny } = await requireRole(WEB_LEADS_ROLES);
   if (deny) return deny;
   const status = req.nextUrl.searchParams.get('status');
   let q = admin.from('web_leads').select('*').order('created_at', { ascending: false }).limit(500);

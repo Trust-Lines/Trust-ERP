@@ -29,6 +29,8 @@ export const PAGE_ROUTES: { key: string; route: string }[] = [
   { key: 'page.marketing_calendar', route: '/marketing/calendar' },
   { key: 'page.marketing_website', route: '/marketing/website' },
   { key: 'page.marketing_trash', route: '/marketing/prospects/trash' },
+  { key: 'page.sales_web_leads', route: '/sales-inbox' },
+  { key: 'page.sales_contacts',  route: '/sales-contacts' },
   { key: 'page.leads',           route: '/leads' },
   { key: 'page.sales_tasks',     route: '/sales-tasks' },
   { key: 'page.sales_handoffs',  route: '/sales-projects' },
@@ -86,6 +88,8 @@ export const PERMISSION_GROUPS: PermGroup[] = [
   {
     category: 'page', title: 'Pages · Sales', icon: '🎯',
     perms: [
+      { key: 'page.sales_web_leads', label: 'Store Maker Inbox', hint: 'People who wrote in through the Store Maker website' },
+      { key: 'page.sales_contacts',  label: 'Contacts', hint: 'Read-only Contact Manager (editing stays with Marketing)' },
       { key: 'page.leads',           label: 'CRM Board & Quick Deals', hint: 'Deals board, lead pages and the new-lead form' },
       { key: 'page.sales_tasks',     label: 'Sales Tasks' },
       { key: 'page.sales_handoffs',  label: 'Handoffs', hint: 'Opportunities handed from Marketing to Sales' },
@@ -252,6 +256,8 @@ export const PAGE_PARENT: Record<string, string> = {
 
 /** Sales pages were guarded by these lists in code (app/(platform)/leads, sales-*); they stay the default. */
 export const PAGE_LEGACY_ROLES: Record<string, string[]> = {
+  'page.sales_web_leads': SALES_INTAKE_ROLES,
+  'page.sales_contacts': SALES_INTAKE_ROLES,
   'page.leads': SALES_INTAKE_ROLES,
   'page.leads_trash': SALES_INTAKE_ROLES,
   'page.sales_tasks': SALES_INTAKE_ROLES,

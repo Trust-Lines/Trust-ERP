@@ -48,7 +48,7 @@ function fmtDate(iso: string | null | undefined): string {
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-export function ContactManagerClient({ canEdit }: { canEdit: boolean }) {
+export function ContactManagerClient({ canEdit, initialOpenId = null }: { canEdit: boolean; initialOpenId?: string | null }) {
   const [query, setQuery] = useState('');
   const [sourceFilters, setSourceFilters] = useState<string[]>([]);
   const [regionFilter, setRegionFilter] = useState('');
@@ -58,7 +58,7 @@ export function ContactManagerClient({ canEdit }: { canEdit: boolean }) {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [quickViewId, setQuickViewId] = useState<string | null>(null);
+  const [quickViewId, setQuickViewId] = useState<string | null>(initialOpenId);
   const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
   // Selected Contact ids (kept across pages); when any are picked, Export only writes those.
   const [selected, setSelected] = useState<Set<string>>(new Set());

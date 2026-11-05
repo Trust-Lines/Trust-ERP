@@ -32,7 +32,11 @@ function Pill({ status }: { status: LeadStatus }) {
 
 const fmt = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
-export function WebLeadsClient({ initial, canEdit, loadError }: { initial: WebLeadRow[]; canEdit: boolean; loadError: boolean }) {
+// contactBase / canDelete: Sales → Store Maker Inbox opens Contacts in its own Contact Manager
+// (`/sales-contacts?open=<id>`) and leaves permanent deletion to Marketing.
+export function WebLeadsClient({ initial, canEdit, loadError, contactBase = '/marketing/prospects/', canDelete = true }: {
+  initial: WebLeadRow[]; canEdit: boolean; loadError: boolean; contactBase?: string; canDelete?: boolean;
+}) {
   const [leads, setLeads] = useState(initial);
   const [statusFilter, setStatusFilter] = useState<'all' | LeadStatus>('new');
   const [kindFilter, setKindFilter] = useState<'all' | 'contact' | 'newsletter'>('all');
@@ -168,7 +172,7 @@ export function WebLeadsClient({ initial, canEdit, loadError }: { initial: WebLe
                         />
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           {l.prospect_id ? (
-                            <Link href={`/marketing/prospects/${l.prospect_id}`} className="btn btn-secondary btn-sm">Open Contact</Link>
+                            <Link href={`${contactBase}${l.prospect_id}`} className="btn btn-secondary btn-sm">Open Contact</Link>
                           ) : l.kind === 'contact' && l.status !== 'spam' && (
                             <button className="btn btn-primary btn-sm" onClick={() => startConvert(l)}><UserPlus size={13} style={{ marginRight: 4 }} /> Add to Contacts</button>
                           )}
@@ -179,7 +183,7 @@ export function WebLeadsClient({ initial, canEdit, loadError }: { initial: WebLe
                             <button className="btn btn-ghost btn-sm" onClick={() => patch(l, { status: 'new' })}>Mark new</button>
                           )}
                           <span style={{ flex: 1 }} />
-                          <button className="btn btn-ghost btn-sm" onClick={() => remove(l)}><Trash2 size={13} style={{ color: '#dc2626' }} /></button>
+                          {canDelete && <button className="btn btn-ghost btn-sm" onClick={() => remove(l)}><Trash2 size={13} style={{ color: '#dc2626' }} /></button>}
                         </div>
                       </>
                     )}

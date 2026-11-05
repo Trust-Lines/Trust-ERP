@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
-import { MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
+import { WEB_LEADS_ROLES } from '@/lib/marketing/roles';
 import { logAudit } from '@/lib/audit/log';
 import { normalizeEmail } from '@/lib/marketing/duplicates';
 
@@ -9,7 +9,7 @@ type Params = { params: Promise<{ id: string }> };
 // Turns a website lead into a Marketing Contact (prospect) — either a NEW one, or by attaching
 // to an EXISTING one the marketer picked after seeing the duplicate suggestions. Never automatic.
 export async function POST(req: NextRequest, { params }: Params) {
-  const { user, admin, deny } = await requireRole(MARKETING_WRITE_ROLES);
+  const { user, admin, deny } = await requireRole(WEB_LEADS_ROLES);
   if (deny) return deny;
   const { id } = await params;
   const b = (await req.json().catch(() => null)) as { prospectId?: unknown } | null;

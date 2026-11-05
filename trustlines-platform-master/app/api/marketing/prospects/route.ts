@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
 import { logAudit } from '@/lib/audit/log';
-import { MARKETING_READ_ROLES, MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
+import { CONTACTS_READ_ROLES, MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
 import { findProspectDuplicates } from '@/lib/marketing/duplicates';
 import { PROJECT_TYPES, SCOPE_TYPES, TIMINGS, ENTITY_TYPES } from '@/lib/marketing/classification';
 import { runClassificationForNeed } from '@/lib/marketing/opportunityEngine';
@@ -24,7 +24,7 @@ const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200;
 
 export async function GET(req: NextRequest) {
-  const { user, role, admin, deny } = await requireRole(MARKETING_READ_ROLES);
+  const { user, role, admin, deny } = await requireRole(CONTACTS_READ_ROLES);
   if (deny) return deny;
   const userId = user.id;
   const userRole = role;
