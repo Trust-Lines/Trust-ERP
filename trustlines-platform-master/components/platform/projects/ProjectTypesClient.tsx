@@ -1,15 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Layers, FileText } from 'lucide-react';
+import { FileText, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import { STATUS_CHAIN } from '@/lib/production/board';
-import { Select } from '@/components/platform/shared/Select';
+import { Select } from '@/components/ui/select';
+import { DatePicker } from '@/components/ui/date-picker';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { PRODUCTION_ITEM_STATUS_TAG, statusLabel } from '@/lib/status/tags';
+import { formatDate } from '@/lib/formatDate';
+import { cn } from '@/lib/utils';
+import { ProjectSubpageHeader, type ProjectSubpage } from './ProjectSubpageHeader';
+import type { ProjectStage } from '@/types/database';
 
 const STATUSES = [...STATUS_CHAIN, 'HOLD_T', 'HOLD_PM', 'ASSEMBLY'];
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
@@ -24,21 +28,35 @@ interface Vendor { id: string; code: string | null; name: string }
 interface SalesFile { id: string; file_name: string; dropbox_path: string; created_at: string }
 
 interface Props {
-  projectId: string; projectCode: string; projectName: string; canEdit: boolean;
+  projectId: string; projectCode: string; projectName: string; projectStage: ProjectStage | null;
+  hiddenTabs: ProjectSubpage[]; canEdit: boolean;
   rows: Row[]; people: Person[]; vendors: Vendor[]; salesFiles: SalesFile[]; schemaError: string | null;
 }
 
-const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const toISODate = (d: Date | null) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : null;
+const parseISODate = (s: string | null) => { if (!s) return null; const [y, m, d] = s.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
 const PRIORITY_TONE: Record<string, string> = {
-  urgent: 'var(--status-danger-fg, #b91c1c)', high: 'var(--status-warning-fg, #92400e)',
-  medium: 'var(--fg-default)', low: 'var(--fg-subtle)',
+  urgent: 'text-error-normal', high: 'text-warning-normal', medium: 'text-ui-body', low: 'text-ui-text-secondary',
 };
 
-export function ProjectTypesClient({ projectId, projectCode, projectName, canEdit, rows, people, vendors, salesFiles, schemaError }: Props) {
+// Figma "Project production types" (467:19723): one card per type (title + Vendor / PF / Budget chips,
+// then a row of 42px fields), then "Sales design files". The frame's Delete / Reset to Draft / Export
+// buttons have no action on this page, so they're left out.
+const CARD = 'flex flex-col rounded-[8px] border border-ui-divider bg-ui-page-bg p-5';
+const CARD_TITLE = 'm-0 text-[20px] font-semibold leading-[1.45] text-[var(--color-secondary-700)] dark:text-ui-heading';
+const CHIP = 'inline-flex h-[29px] items-center rounded-[6px] border border-[var(--color-secondary-700)] px-4 text-[13px] font-medium whitespace-nowrap text-[var(--color-secondary-700)] dark:border-ui-heading dark:text-ui-heading';
+const INPUT = 'h-[42px] w-full rounded-[6px] border-ui-input-border bg-ui-input-bg px-3 text-[14px] tracking-[-0.308px] text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading';
+const DATE_INPUT = cn(INPUT, 'flex-row-reverse justify-between [&_svg]:size-4');
+const READ = 'flex min-h-[42px] items-center text-[14px] leading-[1.4] text-[var(--color-secondary-700)] dark:text-ui-heading';
+
+export function ProjectTypesClient({
+  projectId, projectCode, projectName, projectStage, hiddenTabs, canEdit, rows, people, vendors, salesFiles, schemaError,
+}: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const personName = (uid: string | null) => people.find(p => p.id === uid)?.full_name ?? '—';
-  const vendorLabel = (vid: string | null) => { const v = vendors.find(x => x.id === vid); return v ? (v.code ?? v.name) : '—'; };
+  const vendorLabel = (vid: string | null) => { const v = vendors.find(x => x.id === vid); return v ? (v.code ?? v.name) : '-'; };
 
   async function patch(id: string, field: string, value: string | null) {
     setBusy(id + field);
@@ -50,101 +68,99 @@ export function ProjectTypesClient({ projectId, projectCode, projectName, canEdi
     router.refresh();
   }
 
+  const statusOptions = STATUSES.map(s => ({ value: s, label: s }));
+  const ownerOptions = [{ value: '', label: '— unassigned —' }, ...people.map(p => ({ value: p.id, label: p.full_name }))];
+  const priorityOptions = [{ value: '', label: '--' }, ...PRIORITIES.map(p => ({ value: p, label: p[0].toUpperCase() + p.slice(1) }))];
+
   return (
     <>
-      <Link href={`/projects/${projectId}`} className="btn btn-secondary btn-sm" style={{ marginBottom: 16 }}>
-        <ArrowLeft size={14} /> Back to project
-      </Link>
-
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Layers size={22} /> Supply — types
-        </h1>
-        <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}><strong>{projectCode}</strong> · {projectName} · each type has its own owner, schedule &amp; sub-status</p>
-      </div>
+      <ProjectSubpageHeader projectId={projectId} code={projectCode} name={projectName} stage={projectStage} active="types" hidden={hiddenTabs} />
 
       {schemaError && (
-        <div className="card" style={{ padding: 12, marginBottom: 16, borderColor: 'var(--status-warning-fg, #92400e)', fontSize: 13 }}>⚠️ {schemaError}</div>
+        <div className="mb-4 rounded-[8px] border border-warning-normal bg-ui-page-bg p-3 text-[13px] text-ui-body">⚠️ {schemaError}</div>
       )}
 
-      {rows.length === 0 ? (
-        <div className="card">
-          <EmptyState size="sm" className="justify-center px-4 py-8" icon={<Layers />} title="No types on this project yet." description="Types are seeded from the project's categories on the production board." />
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gap: 12 }}>
-          {rows.map(r => (
-            <div key={r.id} className="card" style={{ padding: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-                <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{r.type}</h2>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontSize: 12, color: 'var(--fg-subtle)' }}>
-                  <span>Vendor <strong style={{ color: 'var(--fg-default)' }}>{vendorLabel(r.vendor_id)}</strong></span>
-                  <span>PF <strong style={{ color: 'var(--fg-default)', fontFamily: 'monospace' }}>{r.pf_code ?? '—'}</strong></span>
-                  <span>Budget <strong style={{ color: 'var(--fg-default)', fontVariantNumeric: 'tabular-nums' }}>{fmt(Number(r.pf_usd) || 0)} USD / {fmt(Number(r.pf_tl) || 0)} TL</strong></span>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12 }}>
-                <Field label="Sub-status">
-                  {canEdit ? (
-                    <Select className="form-input" value={r.status} disabled={busy === r.id + 'status'} onChange={e => patch(r.id, 'status', e.target.value)}>
-                      {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                    </Select>
-                  ) : <StatusBadge group="production" status={PRODUCTION_ITEM_STATUS_TAG[r.status] ?? r.status} label={statusLabel(r.status)} />}
-                </Field>
-
-                <Field label="Owner">
-                  {canEdit ? (
-                    <Select className="form-input" value={r.assigned_to ?? ''} disabled={busy === r.id + 'assigned_to'} onChange={e => patch(r.id, 'assigned_to', e.target.value || null)}>
-                      <option value="">— unassigned —</option>
-                      {people.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                    </Select>
-                  ) : personName(r.assigned_to)}
-                </Field>
-
-                <Field label="Priority">
-                  {canEdit ? (
-                    <Select className="form-input" value={r.priority ?? ''} disabled={busy === r.id + 'priority'} onChange={e => patch(r.id, 'priority', e.target.value || null)}>
-                      <option value="">—</option>
-                      {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
-                    </Select>
-                  ) : <span style={{ color: PRIORITY_TONE[r.priority ?? ''] ?? 'var(--fg-subtle)', textTransform: 'capitalize' }}>{r.priority ?? '—'}</span>}
-                </Field>
-
-                <Field label="Start date">
-                  {canEdit ? <input className="form-input" type="date" value={r.start_date ?? ''} onChange={e => patch(r.id, 'start_date', e.target.value || null)} /> : (r.start_date ?? '—')}
-                </Field>
-
-                <Field label="Target date">
-                  {canEdit ? <input className="form-input" type="date" value={r.target_date ?? ''} onChange={e => patch(r.id, 'target_date', e.target.value || null)} /> : (r.target_date ?? '—')}
-                </Field>
-
-                <Field label="PO / PF sign">
-                  <span style={{ fontSize: 12 }}>{r.po_sign_status} / {r.pf_sign_status}</span>
-                </Field>
+      <div className="flex flex-col gap-[18px]">
+        {rows.length === 0 ? (
+          <div className={CARD}>
+            <EmptyState size="sm" className="justify-center px-4 py-8" icon={<Layers />} title="No types on this project yet." description="Types are seeded from the project's categories on the production board." />
+          </div>
+        ) : rows.map(r => (
+          <section key={r.id} className={cn(CARD, 'gap-8')}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className={CARD_TITLE}>{r.type}</h2>
+              <div className="flex flex-wrap items-center justify-end gap-2 tabular-nums">
+                <span className={CHIP}>Vendor: {vendorLabel(r.vendor_id)}</span>
+                <span className={cn(CHIP, 'font-mono')}>PF: {r.pf_code ?? '-'}</span>
+                <span className={CHIP}>Budget USD: $ {money(Number(r.pf_usd) || 0)}</span>
+                <span className={CHIP}>Budget TL: ₺ {money(Number(r.pf_tl) || 0)}</span>
               </div>
             </div>
-          ))}
-        </div>
-      )}
 
-      <div className="card" style={{ padding: 16, marginTop: 16 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <FileText size={15} /> Sales design files
-        </h2>
-        <p style={{ fontSize: 12, color: 'var(--fg-subtle)', margin: '0 0 12px' }}>Design output uploaded during Sales Design — the input for Supply detailing.</p>
-        {salesFiles.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>No sales design files linked to this project.</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {salesFiles.map(f => (
-              <div key={f.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
-                <strong>{f.file_name}</strong>
-                <span style={{ fontSize: 11, color: 'var(--fg-subtle)', fontFamily: 'monospace' }}>{f.dropbox_path}</span>
-              </div>
-            ))}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.06fr)_minmax(0,1.06fr)_minmax(0,0.58fr)_minmax(0,1fr)_minmax(0,1fr)_149px]">
+              <Field label="Sub-Status">
+                {canEdit ? (
+                  <Select aria-label="Sub-status" className={INPUT} options={statusOptions} value={r.status}
+                    disabled={busy === r.id + 'status'} onValueChange={v => { if (v) void patch(r.id, 'status', v); }} />
+                ) : <span className={READ}><StatusBadge group="production" status={PRODUCTION_ITEM_STATUS_TAG[r.status] ?? r.status} label={statusLabel(r.status)} /></span>}
+              </Field>
+
+              <Field label="Owner">
+                {canEdit ? (
+                  <Select aria-label="Owner" className={INPUT} options={ownerOptions} value={r.assigned_to ?? ''}
+                    disabled={busy === r.id + 'assigned_to'} onValueChange={v => void patch(r.id, 'assigned_to', v || null)} />
+                ) : <span className={READ}>{personName(r.assigned_to)}</span>}
+              </Field>
+
+              <Field label="Priority">
+                {canEdit ? (
+                  <Select aria-label="Priority" className={INPUT} options={priorityOptions} value={r.priority ?? ''}
+                    disabled={busy === r.id + 'priority'} onValueChange={v => void patch(r.id, 'priority', v || null)} />
+                ) : <span className={cn(READ, 'capitalize', PRIORITY_TONE[r.priority ?? ''])}>{r.priority ?? '—'}</span>}
+              </Field>
+
+              <Field label="Start Date">
+                {canEdit ? (
+                  <DatePicker aria-label="Start date" placeholder="No date" className={DATE_INPUT}
+                    value={parseISODate(r.start_date)} onValueChange={d => void patch(r.id, 'start_date', toISODate(d))} />
+                ) : <span className={READ}>{r.start_date ? formatDate(r.start_date) : '—'}</span>}
+              </Field>
+
+              <Field label="Target Date">
+                {canEdit ? (
+                  <DatePicker aria-label="Target date" placeholder="No date" className={DATE_INPUT}
+                    value={parseISODate(r.target_date)} onValueChange={d => void patch(r.id, 'target_date', toISODate(d))} />
+                ) : <span className={READ}>{r.target_date ? formatDate(r.target_date) : '—'}</span>}
+              </Field>
+
+              <Field label="PO / PF sign">
+                <span className={cn(READ, 'break-all')}>{r.po_sign_status} / {r.pf_sign_status}</span>
+              </Field>
+            </div>
+          </section>
+        ))}
+
+        <section className={cn(CARD, 'gap-4')}>
+          <div className="flex flex-col gap-1">
+            <h2 className={CARD_TITLE}>Sales design files</h2>
+            <p className="m-0 text-[12px] leading-[1.4] text-ui-text-secondary">Design output uploaded during Sales Design — the input for Supply detailing.</p>
           </div>
-        )}
+          {salesFiles.length === 0 ? (
+            <p className="m-0 text-[15px] font-medium leading-4 text-ui-body">No sales design files linked to this project.</p>
+          ) : (
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {salesFiles.map(f => (
+                <li key={f.id} className="flex min-h-[42px] flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-[6px] border border-ui-divider px-3 py-2">
+                  <span className="flex min-w-0 items-center gap-2 text-[14px] font-medium text-[var(--color-secondary-700)] dark:text-ui-heading">
+                    <FileText size={16} aria-hidden className="shrink-0 text-ui-body" />
+                    <span className="truncate">{f.file_name}</span>
+                  </span>
+                  <span className="min-w-0 truncate font-mono text-[11px] text-ui-text-secondary" title={f.dropbox_path}>{f.dropbox_path}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </>
   );
@@ -152,9 +168,9 @@ export function ProjectTypesClient({ projectId, projectCode, projectName, canEdi
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: 'grid', gap: 4, fontSize: 11, color: 'var(--fg-subtle)' }}>
-      {label}
-      <span style={{ fontSize: 13, color: 'var(--fg-default)' }}>{children}</span>
-    </label>
+    <div className="flex min-w-0 flex-col gap-[7px]">
+      <span className="text-[12px] font-medium leading-4 text-ui-body">{label}</span>
+      {children}
+    </div>
   );
 }
