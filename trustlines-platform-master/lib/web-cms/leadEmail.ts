@@ -6,7 +6,8 @@ import type { WebLeadInput } from './leads';
 // addresses below the moment it lands. WEB_LEAD_NOTIFY_EMAILS (comma-separated) overrides
 // the default. Reply-To is the visitor, so "Reply" in the mail client answers them directly.
 
-const DEFAULT_RECIPIENTS = ['al@tlines.us'];
+// TEMPORARY while testing the live form: goes to Hamza only. Switch back to 'al@tlines.us' after.
+const DEFAULT_RECIPIENTS = ['hamzag@trust-lines.com'];
 
 export function webLeadRecipients(): string[] {
   const env = process.env.WEB_LEAD_NOTIFY_EMAILS?.split(',').map(s => s.trim()).filter(Boolean);
