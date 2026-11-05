@@ -1,14 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, CheckCircle2, Circle, CalendarClock, FilePen, Activity } from 'lucide-react';
+import {
+  Activity, Banknote, CalendarClock, CircleHelp, FilePen, Layers, Package, PenTool, Plus, Ruler, Trash2, type LucideIcon,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { CHANGE_REQUEST_STATUS_TAG, statusLabel } from '@/lib/status/tags';
 import type { ChangeRequest, SiteReadiness, SiteReadinessItem } from '@/types/database';
-import { Select } from '@/components/platform/shared/Select';
+import { Select } from '@/components/ui/select';
+import { DatePicker } from '@/components/ui/date-picker';
+import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
+import { cn } from '@/lib/utils';
+import { ProjectSubpageHeader } from './ProjectSubpageHeader';
 
 interface Contact { id: string; name: string }
 interface TimelineEvent { kind: string; at: string; title: string; detail?: string }
@@ -22,6 +27,13 @@ interface Props {
   schemaError: string | null;
 }
 
+// Figma "PM Finalization" (481:24797): project header + tabs, then Requests | Site Readiness side by side,
+// then Communication Timeline. Frontend only — same props and the same API calls as before.
+const CARD = 'flex min-w-0 flex-col rounded-[8px] border border-ui-divider bg-ui-page-bg px-5 pb-5 pt-4';
+const TITLE = 'm-0 flex items-center gap-2 text-[20px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading';
+const SMALL_SELECT = 'h-[27px] w-auto min-w-[74px] gap-3 rounded-[6px] border-ui-input-border bg-ui-input-bg px-3 text-[12px] tracking-[-0.264px] text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading [&_svg]:size-3';
+const FIELD = 'w-full rounded-[6px] border border-ui-input-border bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
+
 const EVENT_DOT: Record<string, string> = {
   change_request: 'var(--phase-5)', meeting: 'var(--phase-3)', follow_up: 'var(--phase-6)', stage: 'var(--phase-2)',
 };
@@ -31,12 +43,31 @@ const EVENT_LABEL: Record<string, string> = {
 
 const CR_STATUSES = ['open', 'under_review', 'approved', 'rejected', 'implemented', 'cancelled'];
 const CR_CATEGORIES = ['scope', 'design', 'budget', 'timeline', 'material', 'other'];
-const OPEN_CR = new Set(['open', 'under_review']);
+const CATEGORY_ICON: Record<string, LucideIcon> = {
+  scope: Ruler, design: PenTool, budget: Banknote, timeline: CalendarClock, material: Package, other: CircleHelp,
+};
 const cap = (s: string) => s.replace(/_/g, ' ');
+const capFirst = (s: string) => { const t = cap(s); return t[0].toUpperCase() + t.slice(1); };
+const toISODate = (d: Date | null) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : null;
+const parseISODate = (s: string | null | undefined) => { if (!s) return null; const [y, m, d] = s.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
+/** '26/10/2026' like the frame. */
+const dmy = (iso: string) => { const d = new Date(iso); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; };
 
 function CrStatusPill({ status }: { status: string }) {
   // Figma Status Language "Change Request": tone + icon + label from lib/status/tags.ts.
   return <StatusBadge group="change_request" status={CHANGE_REQUEST_STATUS_TAG[status] ?? status} label={CHANGE_REQUEST_STATUS_TAG[status] ? undefined : statusLabel(status)} />;
+}
+
+function CategoryChip({ category }: { category: string }) {
+  const Icon = CATEGORY_ICON[category] ?? Layers;
+  return (
+    <span
+      className="inline-flex h-[17px] shrink-0 items-center gap-1 rounded-[3px] pl-1 pr-1.5 text-[10px] font-medium leading-4"
+      style={{ background: 'var(--status-t4-bg)', color: 'var(--status-t4-fg)' }}
+    >
+      <Icon size={10} aria-hidden />{capFirst(category)}
+    </span>
+  );
 }
 
 export function FinalizationClient({
@@ -50,7 +81,6 @@ export function FinalizationClient({
 
   const checklist = site?.checklist ?? siteTemplate;
   const siteDone = checklist.filter(i => i.done).length;
-  const openCount = crs.filter(c => OPEN_CR.has(c.status)).length;
   const nameOf = (id: string | null) => (id ? contacts.find(c => c.id === id)?.name ?? null : null);
 
   async function createCr(payload: Record<string, unknown>): Promise<boolean> {
@@ -95,114 +125,143 @@ export function FinalizationClient({
   }
 
   const siteStatus = site?.overall_status ?? 'not_ready';
+  const statusOptions = CR_STATUSES.map(s => ({ value: s, label: capFirst(s) }));
 
   return (
     <>
-      <Link href={`/projects/${projectId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--fg-subtle)', marginBottom: 16, textDecoration: 'none' }}>
-        <ArrowLeft size={14} /> Back to project
-      </Link>
-
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>PM Finalization</h1>
-        <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>{projectCode} — {projectName}</p>
-      </div>
+      <ProjectSubpageHeader projectId={projectId} code={projectCode} name={projectName} stage={null} active="finalization" />
 
       {schemaError && (
-        <div className="card" style={{ marginBottom: 20 }}><div className="card-body" style={{ fontSize: 13, color: 'var(--status-danger)', background: 'var(--status-danger-bg)', border: '1px solid var(--status-danger)', borderRadius: 6 }}>{schemaError}</div></div>
+        <div className="mb-4 rounded-[8px] border border-error-normal p-3 text-[13px] text-error-normal" style={{ background: 'var(--status-danger-bg)' }}>{schemaError}</div>
       )}
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div className="card-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div className="form-section-title">Change requests ({openCount} open)</div>
-          {canEdit && !addingCr && <button className="btn btn-ghost btn-sm" onClick={() => setAddingCr(true)}><Plus size={13} /> Add change request</button>}
-        </div>
-        <div className="card-body">
-          {addingCr && canEdit && <div style={{ marginBottom: 12 }}><CrForm contacts={contacts} onSave={createCr} onCancel={() => setAddingCr(false)} /></div>}
-          {crs.length === 0 && !addingCr ? (
-            <EmptyState size="sm" icon={<FilePen />} title="No change requests yet." />
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {crs.map(cr => (
-                <div key={cr.id} style={{ padding: '10px 12px', border: '1px solid var(--border-subtle)', borderRadius: 6, opacity: ['cancelled', 'rejected'].includes(cr.status) ? 0.6 : 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>{cr.title}</span>
-                    <CrStatusPill status={cr.status} />
-                    {cr.category && <span className="pill" style={{ fontSize: 10, textTransform: 'capitalize' }}>{cr.category}</span>}
-                    <div style={{ flex: 1 }} />
-                    {canEdit && (
-                      <>
-                        <Select className="form-input" style={{ fontSize: 12, width: 'auto', padding: '2px 6px' }} value={cr.status}
-                          onChange={e => patchCr(cr.id, { status: e.target.value })} disabled={busy} aria-label={`${cr.title} status`}>
-                          {CR_STATUSES.map(s => <option key={s} value={s}>{cap(s)}</option>)}
-                        </Select>
-                        <button className="btn btn-ghost btn-sm" style={{ padding: '3px 6px', color: 'var(--status-danger)' }} onClick={() => deleteCr(cr.id)} aria-label="Remove"><Trash2 size={13} /></button>
-                      </>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 3, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    {nameOf(cr.customer_contact_id) && <span>Requested by {nameOf(cr.customer_contact_id)}</span>}
-                    {cr.budget_impact != null && <span>Budget: {cr.currency ?? ''} {Number(cr.budget_impact).toLocaleString()}</span>}
-                    {cr.timeline_impact_days != null && <span>Timeline: {cr.timeline_impact_days > 0 ? '+' : ''}{cr.timeline_impact_days}d</span>}
-                  </div>
-                  {cr.description && <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 4 }}>{cr.description}</div>}
-                </div>
+      <div className="flex flex-col gap-[18px]">
+        <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,565fr)_minmax(0,971fr)]">
+          {/* ── Requests (Figma 481:25137) ── */}
+          <section className={CARD}>
+            <div className="flex min-h-[42px] items-center justify-between gap-3 border-b border-ui-divider pb-4">
+              <h2 className={TITLE}>Requests <span>({crs.length})</span></h2>
+              {canEdit && !addingCr && (
+                <button
+                  type="button" onClick={() => setAddingCr(true)}
+                  className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent pl-3.5 pr-6 text-[13px] font-medium text-ui-btn-accent-fg hover:opacity-90"
+                >
+                  <Plus size={16} aria-hidden /> Add Request
+                </button>
+              )}
+            </div>
+
+            {addingCr && canEdit && <div className="mt-3"><CrForm contacts={contacts} onSave={createCr} onCancel={() => setAddingCr(false)} /></div>}
+
+            {crs.length === 0 && !addingCr ? (
+              <EmptyState size="sm" className="py-8" icon={<FilePen />} title="No change requests yet." />
+            ) : (
+              <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                {crs.map(cr => {
+                  const by = nameOf(cr.customer_contact_id);
+                  const meta = [
+                    dmy(cr.created_at),
+                    cr.description,
+                    by && `Requested by ${by}`,
+                    cr.budget_impact != null && `Budget: ${cr.currency ?? ''} ${Number(cr.budget_impact).toLocaleString()}`.replace('  ', ' '),
+                    cr.timeline_impact_days != null && `Timeline: ${cr.timeline_impact_days > 0 ? '+' : ''}${cr.timeline_impact_days}d`,
+                  ].filter(Boolean).join('  ·  ');
+                  return (
+                    <li
+                      key={cr.id}
+                      className={cn('flex items-center justify-between gap-3 border-b border-ui-divider px-1 py-3 last:border-b-0', ['cancelled', 'rejected'].includes(cr.status) && 'opacity-60')}
+                    >
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <span className="truncate text-[16px] font-semibold leading-[1.4] text-[var(--color-secondary-700)] dark:text-ui-heading">{cr.title}</span>
+                          {cr.category && <CategoryChip category={cr.category} />}
+                        </div>
+                        <span className="whitespace-pre-wrap text-[11px] leading-[1.4] text-ui-text-secondary">{meta}</span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {canEdit ? (
+                          <>
+                            <Select aria-label={`${cr.title} status`} className={SMALL_SELECT} options={statusOptions} value={cr.status}
+                              disabled={busy} onValueChange={v => { if (v) void patchCr(cr.id, { status: v }); }} />
+                            <button
+                              type="button" onClick={() => deleteCr(cr.id)} aria-label={`Remove ${cr.title}`}
+                              className="grid size-7 cursor-pointer place-items-center rounded-[4px] border-0 bg-transparent text-error-normal hover:bg-ui-hover-bg"
+                            >
+                              <Trash2 size={14} aria-hidden />
+                            </button>
+                          </>
+                        ) : <CrStatusPill status={cr.status} />}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          {/* ── Site Readiness (Figma 481:24997) ── */}
+          <section className={CARD}>
+            <div className="flex min-h-[42px] flex-wrap items-center justify-between gap-3 border-b border-ui-divider pb-4">
+              <h2 className={TITLE}>
+                Site Readiness <span>({siteDone}/{checklist.length})</span>
+                <span
+                  className="rounded-[4px] px-2 py-[3px] text-[11px] font-medium capitalize leading-4"
+                  style={{
+                    background: siteStatus === 'ready' ? 'var(--status-t9-bg)' : siteStatus === 'partial' ? 'var(--status-t7-bg)' : 'var(--status-t0-bg)',
+                    color: siteStatus === 'ready' ? 'var(--status-t9-fg)' : siteStatus === 'partial' ? 'var(--status-t7-fg)' : 'var(--status-t0-fg)',
+                  }}
+                >
+                  {cap(siteStatus)}
+                </span>
+              </h2>
+              <label className="flex items-center gap-2">
+                <span className="text-[12px] font-medium leading-4 text-ui-body">Target Ready Date</span>
+                <DatePicker
+                  aria-label="Target ready date" placeholder="mm/dd/yyyy" disabled={!canEdit || busy}
+                  className="h-[42px] w-[184px] flex-row-reverse justify-between rounded-[6px] border-ui-input-border bg-ui-input-bg px-3 text-[14px] text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading [&_svg]:size-4"
+                  value={parseISODate(site?.target_ready_date)} onValueChange={d => void patchSite({ target_ready_date: toISODate(d) })}
+                />
+              </label>
+            </div>
+            <ul className="m-0 flex list-none flex-col p-0">
+              {checklist.map(item => (
+                <li key={item.key} className="border-b border-ui-divider last:border-b-0">
+                  <label className={cn('flex items-center py-2.5', canEdit && !busy ? 'cursor-pointer' : 'cursor-default')}>
+                    <span className="flex w-9 shrink-0 justify-center">
+                      <Checkbox
+                        className="size-4 rounded-[3px]" checked={item.done} disabled={!canEdit || busy}
+                        onCheckedChange={() => void patchSite({ toggle: item.key })} aria-label={item.label}
+                      />
+                    </span>
+                    <span className={cn('truncate pr-2.5 text-[12px] font-medium text-ui-body', item.done && 'text-ui-text-secondary line-through')}>{item.label}</span>
+                  </label>
+                </li>
               ))}
-            </div>
-          )}
+            </ul>
+          </section>
         </div>
-      </div>
 
-      <div className="card">
-        <div className="card-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div className="form-section-title">Site readiness</div>
-          <span className="pill" style={{ fontSize: 11, textTransform: 'capitalize',
-            background: siteStatus === 'ready' ? 'var(--status-success-bg)' : siteStatus === 'partial' ? 'var(--status-warning-bg, #fef3c7)' : 'var(--bg-sunken)',
-            color: siteStatus === 'ready' ? 'var(--status-success-fg)' : siteStatus === 'partial' ? 'var(--status-warning-fg, #92400e)' : 'var(--fg-subtle)' }}>
-            {cap(siteStatus)} · {siteDone}/{checklist.length}
-          </span>
-        </div>
-        <div className="card-body">
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {checklist.map(item => (
-              <button key={item.key} disabled={!canEdit || busy} onClick={() => patchSite({ toggle: item.key })}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 4px', border: 'none', borderBottom: '1px solid var(--border-subtle)', background: 'transparent', cursor: canEdit ? 'pointer' : 'default', textAlign: 'left', fontSize: 13 }}>
-                {item.done ? <CheckCircle2 size={17} style={{ color: 'var(--status-success-fg, #15803d)', flexShrink: 0 }} /> : <Circle size={17} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />}
-                <span style={{ color: item.done ? 'var(--fg-subtle)' : 'var(--fg-default)', textDecoration: item.done ? 'line-through' : 'none' }}>{item.label}</span>
-              </button>
-            ))}
-          </div>
-          <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '220px 1fr', gap: 12, alignItems: 'end' }}>
-            <div>
-              <label className="form-label" style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}><CalendarClock size={12} /> Target ready date</label>
-              <input type="date" className="form-input" style={{ fontSize: 13 }} disabled={!canEdit || busy}
-                defaultValue={site?.target_ready_date ?? ''} onChange={e => patchSite({ target_ready_date: e.target.value || null })} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: 20 }}>
-        <div className="card-head"><div className="form-section-title">Communication timeline</div></div>
-        <div className="card-body">
+        {/* ── Communication Timeline (Figma 481:25078) ── */}
+        <section className={cn(CARD, 'gap-4 pb-6')}>
+          <h2 className={cn(TITLE, 'leading-[1.45]')}>Communication Timeline</h2>
           {timeline.length === 0 ? (
             <EmptyState size="sm" icon={<Activity />} title="Nothing recorded yet." description="Meetings, follow-ups, change requests and stage changes show up here." />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <ul className="m-0 flex list-none flex-col gap-4 p-0">
               {timeline.map((e, i) => (
-                <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < timeline.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: EVENT_DOT[e.kind] ?? 'var(--fg-faint)', marginTop: 5, flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13 }}>{e.title}</div>
-                    <div style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 1 }}>
-                      <span style={{ textTransform: 'uppercase', letterSpacing: 0.3 }}>{EVENT_LABEL[e.kind] ?? e.kind}</span>
-                      {e.detail ? ` · ${e.detail}` : ''} · {new Date(e.at).toLocaleDateString()}
-                    </div>
+                <li key={i} className="flex items-start gap-1">
+                  <span className="mt-[5px] size-[7px] shrink-0 rounded-full" style={{ background: EVENT_DOT[e.kind] ?? 'var(--color-secondary-700)' }} aria-hidden />
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <span className="text-[14px] font-semibold tracking-[-0.308px] text-[var(--color-secondary-700)] dark:text-ui-heading">{e.title}</span>
+                    <span className="whitespace-pre-wrap text-[12px] leading-4 text-ui-body">
+                      {[EVENT_LABEL[e.kind] ?? e.kind, e.detail, new Date(e.at).toLocaleDateString()].filter(Boolean).join('  ·  ')}
+                    </span>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
-        </div>
+        </section>
       </div>
     </>
   );
@@ -211,7 +270,8 @@ export function FinalizationClient({
 function CrForm({ contacts, onSave, onCancel }: { contacts: Contact[]; onSave: (p: Record<string, unknown>) => Promise<boolean>; onCancel: () => void }) {
   const [f, setF] = useState({ title: '', description: '', category: '', customer_contact_id: '', budget_impact: '', timeline_impact_days: '' });
   const [saving, setSaving] = useState(false);
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF(p => ({ ...p, [k]: e.target.value }));
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF(p => ({ ...p, [k]: e.target.value }));
+  const pick = (k: keyof typeof f) => (v: string | null) => setF(p => ({ ...p, [k]: v ?? '' }));
 
   async function submit() {
     if (!f.title.trim()) return;
@@ -225,27 +285,49 @@ function CrForm({ contacts, onSave, onCancel }: { contacts: Contact[]; onSave: (
     setSaving(false);
   }
 
+  const label = 'text-[12px] font-medium leading-4 text-ui-body';
+  const sel = 'h-10 w-full rounded-[6px] border-ui-input-border bg-ui-input-bg px-3 text-[13px] dark:rounded-[6px]';
   return (
-    <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '12px 14px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 1fr', gap: 8, marginBottom: 8 }}>
-        <div><label className="form-label required" style={{ fontSize: 11 }}>Title</label><input className="form-input" style={{ fontSize: 13 }} placeholder="e.g. Move cashier wall" value={f.title} onChange={set('title')} autoFocus /></div>
-        <div><label className="form-label" style={{ fontSize: 11 }}>Category</label>
-          <Select className="form-input" style={{ fontSize: 13 }} value={f.category} onChange={set('category')}>
-            <option value="">—</option>{CR_CATEGORIES.map(c => <option key={c} value={c}>{cap(c)}</option>)}
-          </Select></div>
-        <div><label className="form-label" style={{ fontSize: 11 }}>Requested by</label>
-          <Select className="form-input" style={{ fontSize: 13 }} value={f.customer_contact_id} onChange={set('customer_contact_id')}>
-            <option value="">—</option>{contacts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select></div>
+    <div className="flex flex-col gap-3 rounded-[6px] border border-ui-divider bg-ui-surface p-3.5">
+      <label className="flex flex-col gap-1.5">
+        <span className={label}>Title *</span>
+        <input className={cn(FIELD, 'h-10')} placeholder="e.g. Move cashier wall" value={f.title} onChange={set('title')} autoFocus />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <span className={label}>Category</span>
+          <Select aria-label="Category" className={sel} value={f.category} onValueChange={pick('category')}
+            options={[{ value: '', label: '—' }, ...CR_CATEGORIES.map(c => ({ value: c, label: capFirst(c) }))]} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className={label}>Requested by</span>
+          <Select aria-label="Requested by" className={sel} value={f.customer_contact_id} onValueChange={pick('customer_contact_id')}
+            options={[{ value: '', label: '—' }, ...contacts.map(c => ({ value: c.id, label: c.name }))]} />
+        </div>
       </div>
-      <div style={{ marginBottom: 8 }}><label className="form-label" style={{ fontSize: 11 }}>Description</label><textarea className="form-input" rows={2} style={{ fontSize: 13, resize: 'vertical' }} value={f.description} onChange={set('description')} /></div>
-      <div style={{ display: 'grid', gridTemplateColumns: '180px 180px', gap: 8, marginBottom: 10 }}>
-        <div><label className="form-label" style={{ fontSize: 11 }}>Budget impact (Δ)</label><input type="number" step="0.01" className="form-input" style={{ fontSize: 13 }} placeholder="0" value={f.budget_impact} onChange={set('budget_impact')} /></div>
-        <div><label className="form-label" style={{ fontSize: 11 }}>Timeline impact (days)</label><input type="number" className="form-input" style={{ fontSize: 13 }} placeholder="0" value={f.timeline_impact_days} onChange={set('timeline_impact_days')} /></div>
+      <label className="flex flex-col gap-1.5">
+        <span className={label}>Description</span>
+        <textarea className={cn(FIELD, 'resize-y py-2')} rows={2} value={f.description} onChange={set('description')} />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="flex flex-col gap-1.5">
+          <span className={label}>Budget impact (Δ)</span>
+          <input type="number" step="0.01" className={cn(FIELD, 'h-10')} placeholder="0" value={f.budget_impact} onChange={set('budget_impact')} />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={label}>Timeline impact (days)</span>
+          <input type="number" className={cn(FIELD, 'h-10')} placeholder="0" value={f.timeline_impact_days} onChange={set('timeline_impact_days')} />
+        </label>
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn btn-primary btn-sm" onClick={submit} disabled={!f.title.trim() || saving}>{saving ? 'Saving…' : 'Add'}</button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+      <div className="flex gap-2">
+        <button type="button" onClick={submit} disabled={!f.title.trim() || saving}
+          className="inline-flex h-9 cursor-pointer items-center rounded-[6px] border-0 bg-ui-btn-accent px-4 text-[13px] font-medium text-ui-btn-accent-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+          {saving ? 'Saving…' : 'Add'}
+        </button>
+        <button type="button" onClick={onCancel}
+          className="inline-flex h-9 cursor-pointer items-center rounded-[6px] border border-ui-divider bg-transparent px-4 text-[13px] font-medium text-ui-body hover:bg-ui-hover-bg">
+          Cancel
+        </button>
       </div>
     </div>
   );
