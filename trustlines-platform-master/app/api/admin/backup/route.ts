@@ -50,7 +50,7 @@ export async function GET() {
       generatedAt: new Date().toISOString(),
       generatedBy: user.id,
       schemaVersion: '061',
-      note: 'Core operational snapshot. Documents = metadata only; file bytes live in the immutable Dropbox store. Not a substitute for Supabase PITR — see BACKUP_RESTORE.md.',
+      note: 'Core operational snapshot. Documents = metadata only; file bytes live in the immutable Dropbox store. Not a substitute for Supabase PITR — see docs/BACKUP_RESTORE.md.',
       counts,
     },
     tables: data,
