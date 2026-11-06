@@ -43,6 +43,22 @@ export function dropboxSectionForServiceLine(value?: string | null): string {
   return SERVICE_LINES.find(x => x.value === value)?.dropboxSection ?? '';
 }
 
+/** Our company from ClickUp's "Industry" text ("Store Maker", "Design & Build", "Premuim Store Fitout" — sic). */
+export function serviceLineFromIndustry(industry?: string | null): string | null {
+  const n = (industry ?? '').trim().toLowerCase();
+  if (!n) return null;
+  if (n.includes('store maker')) return 'store_maker';
+  if (n.includes('design')) return 'design_build';
+  if (n.includes('fitout') || n.includes('premium') || n.includes('premuim')) return 'premium_store_fitout';
+  return null;
+}
+
+/** Our company for a project / deal code: its prefix ("STSE507" → store_maker), else null. */
+export function serviceLineFromCode(code?: string | null): string | null {
+  const c = (code ?? '').trim().toUpperCase();
+  return SERVICE_LINES.find(s => c.startsWith(s.codeShort))?.value ?? null;
+}
+
 export function serviceLineLabel(value?: string | null): string {
   return SERVICE_LINES.find(x => x.value === value)?.label ?? (value ?? '');
 }

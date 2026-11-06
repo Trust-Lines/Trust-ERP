@@ -28,6 +28,7 @@ export interface ClientOpportunityRow {
   brand: string | null;        // as written on the deal ("Teddy's")
   projectNo: string | null;    // "507"
   projectCode: string | null;  // "STSE507"
+  industry: string | null;     // ClickUp's "Industry" = which of our companies ("Store Maker")
   site: string;                // title: "Chamblee, 2706 Shallowford Rd,GA"
   region: string | null;
   stage: string;               // opportunity stage / potential status
@@ -81,8 +82,8 @@ async function readAll(build: (from: number, to: number) => PromiseLike<{ data: 
   return out;
 }
 
-const OPP_COLS = 'id, prospect_id, title, brand, stage, region, external_project_code, external_stage_label, to_do_raw, next_action, next_action_date, deadline, project_types, project_type_raw, request_raw, priority, external_created_at, created_at, sales_owner_id, marketing_owner_id';
-const POT_COLS = 'id, prospect_id, title, brand, status, region, external_project_code, external_stage_label, to_do_raw, target_contact_date, due_date, project_type_raw, request_raw, priority, external_created_at, created_at, assigned_to';
+const OPP_COLS = 'id, prospect_id, title, brand, industry_raw, stage, region, external_project_code, external_stage_label, to_do_raw, next_action, next_action_date, deadline, project_types, project_type_raw, request_raw, priority, external_created_at, created_at, sales_owner_id, marketing_owner_id';
+const POT_COLS = 'id, prospect_id, title, brand, industry_raw, status, region, external_project_code, external_stage_label, to_do_raw, target_contact_date, due_date, project_type_raw, request_raw, priority, external_created_at, created_at, assigned_to';
 
 /** Every open deal of a key client, grouped by region (sheet order). */
 export async function loadClientOpportunities(admin: any): Promise<{
@@ -119,6 +120,7 @@ export async function loadClientOpportunities(admin: any): Promise<{
     const row: ClientOpportunityRow = {
       kind, id: o.id, prospectId: o.prospect_id, keyClientId: client.id, client: client.name,
       brand: o.brand ?? null, projectNo: projectNumber(o.external_project_code), projectCode: o.external_project_code ?? null,
+      industry: o.industry_raw ?? null,
       site: o.title, region: o.region ?? null, stage: isOpp ? o.stage : o.status, stageLabel: o.external_stage_label ?? null,
       toDo: o.to_do_raw ?? null, nextAction: isOpp ? o.next_action ?? null : null,
       nextActionDate: isOpp ? o.next_action_date ?? null : o.target_contact_date ?? null,

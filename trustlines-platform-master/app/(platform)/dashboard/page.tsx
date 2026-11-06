@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect as nextRedirect } from 'next/navigation';
-import { REGIONS } from '@/lib/regions';
+import { REGIONS, SERVICE_LINE_VALUES, serviceLineFromCode, serviceLineFromIndustry } from '@/lib/regions';
 import { fetchInChunks } from '@/lib/supabase/chunkedIn';
 import { regionLogoByCode } from '@/lib/regionLogo';
 import { getAssignedRegions, regionAllows } from '@/lib/access/regionScope';
@@ -112,7 +112,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   // open. tlines_pm additionally sees only projects they are assigned to.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let projectQuery = (supabase as any).from('projects')
-    .select('id, code, name, current_stage, region, site_location, est_delivery_date, closed_deal_date, created_at, categories, tlines_pm_id')
+    .select('id, code, name, current_stage, region, site_location, est_delivery_date, closed_deal_date, created_at, categories, tlines_pm_id, service_line')
     .in('region', regionCodes)
     .is('deleted_at', null)
     .neq('is_archived', true)
@@ -166,6 +166,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     ({ kind, stage, label, userId: assigneeOf.get(`${kind}:${id}:${stage}`) ?? null });
   // The popup's PO + PF / Production / Shipping tabs: the Trust types of the card's project number.
   const trustByNo = new Map(trustProjects.map(p => [p.projectNo, p.items ?? []]));
+  // A Trust System card only has a number: its company is that of our project / deal with the
+  // same number (project: service_line or code prefix; deal: ClickUp Industry or code prefix).
+  const companyByNo = new Map<string, string>();
+  for (const o of opportunities) {
+    const c = serviceLineFromIndustry(o.industry) ?? serviceLineFromCode(o.projectCode);
+    if (o.projectNo && c) companyByNo.set(o.projectNo, c);
+  }
+  for (const p of (projectRows ?? []) as { code: string; service_line: string | null }[]) {
+    const no = projectNumber(p.code);
+    const c = p.service_line && SERVICE_LINE_VALUES.includes(p.service_line) ? p.service_line : serviceLineFromCode(p.code);
+    if (no && c) companyByNo.set(no, c);
+  }
   const trustToday = new Date().toISOString().slice(0, 10);
   const allTrustCards = trustProjects.map(p => {
     const e = classifyTrustProject(p, trustToday);
@@ -175,6 +187,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       title: p.name,
       subtitle: p.address,
       account: accountOf(p.name),
+      company: companyByNo.get(p.projectNo) ?? null,
       category: (p.types ?? []).map(typeLabel).filter(Boolean).join(', ') || null,
       pmName: null, pmLabel: '',
       assign: assignFor('trust', p.id, e.stage, `#${p.projectNo}`),
@@ -219,6 +232,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     id: string; code: string; name: string; current_stage: string; region: string | null;
     site_location: string | null; est_delivery_date: string | null; closed_deal_date: string | null;
     created_at: string; categories: string[] | null; tlines_pm_id: string | null;
+    service_line: string | null;
   };
 
   const projects = (projectRows ?? []) as ProjectRow[];
@@ -264,6 +278,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         title: o.client,
         subtitle: o.site || (prospectPlace.get(o.prospectId) ?? null),
         account: accountOf(o.client, o.keyClientId, o.client),
+        // Which of our companies: ClickUp's "Industry", else the code prefix ("STSE507").
+        company: serviceLineFromIndustry(o.industry) ?? serviceLineFromCode(o.projectCode),
         category: categoryLabel(o.projectTypes.length ? o.projectTypes : o.projectTypeRaw ? [o.projectTypeRaw] : null),
         pmName: o.ownerId ? pmNames.get(o.ownerId) ?? null : null,
         pmLabel: o.ownerIsSales ? 'Sales Owner' : 'Marketing Owner',
@@ -289,6 +305,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         title: p.name,
         subtitle: p.site_location,
         account: accountOf(p.name),
+        // Which of our companies (Store Maker / Premium / Design Build): set on the project, else its code.
+        company: p.service_line && SERVICE_LINE_VALUES.includes(p.service_line) ? p.service_line : serviceLineFromCode(p.code),
         onHold: heldProjects.has(p.id),
         category: categoryLabel(p.categories),
         pmName: p.tlines_pm_id ? pmNames.get(p.tlines_pm_id) ?? null : null,
