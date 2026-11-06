@@ -36,7 +36,7 @@ export function trustDashboard({ projects, cards, weekAgo }: { projects: TrustPr
       .sort(byDate);
     return {
       regionCode: s.key, logoSrc: '', logoCode: '', headerColor: s.solid, title: s.label,
-      sections: [{ key: s.key, label: `${items.length} project${items.length === 1 ? '' : 's'}`, accent: s.accent, bg: s.bg, items, emptyLabel: 'No projects at this stage' }],
+      sections: [{ key: s.key, label: `${items.length} project${items.length === 1 ? '' : 's'}`, accent: s.accent, bg: s.bg, solid: s.solid, items, emptyLabel: 'No projects at this stage' }],
     };
   });
 

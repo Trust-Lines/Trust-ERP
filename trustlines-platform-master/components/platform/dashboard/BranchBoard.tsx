@@ -2,8 +2,9 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { MapPinOff, Pause, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Columns2, MapPinOff, Pause, Plus } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -65,29 +66,40 @@ function AssignBox({ item, section }: { item: BoardCardItem; section: BoardSecti
   const key = assignKey(item);
   const current = key in assigned ? assigned[key] : item.assign?.userId ?? null;
   const name = options.find(o => o.value === current)?.label ?? null;
-  // The card's own tone, darker for the name — not a form field.
-  const ink = `color-mix(in srgb, ${section.accent} 60%, black)`;
+  // Figma "id-badge" (node 572:29260): solid stage tone, white text.
   return (
     <span
-      className="flex w-[210px] shrink-0 flex-col rounded-[8px] px-3 pb-1.5 pt-2 leading-normal shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-      style={{ background: `color-mix(in srgb, ${section.bg} 35%, white)`, color: ink }}
+      className="flex max-w-[140px] shrink-0 flex-col justify-center rounded-[4px] px-1.5 py-0.5 leading-normal text-white"
+      style={{ background: section.solid ?? section.accent }}
       onClick={e => e.stopPropagation()}
       onKeyDown={e => e.stopPropagation()}
     >
-      <span className="text-[12px] font-medium opacity-80">Assign to</span>
+      <span className="text-[6px]">Assigned to:</span>
       {canAssign ? (
         <FilterSelect
           aria-label={`Assign ${item.assign?.label ?? ''} to`}
           options={[{ value: UNASSIGNED, label: 'Unassigned' }, ...options]}
           value={current ?? UNASSIGNED}
           onValueChange={v => assign(item, v || null)}
-          className="h-7 border-0 bg-transparent px-0 text-[16px] font-bold text-current hover:border-0 dark:border-0 dark:bg-transparent dark:px-0"
+          className="h-auto min-h-0 gap-0.5 border-0 bg-transparent p-0 text-[9px] font-semibold leading-normal text-white hover:border-0 dark:border-0 dark:bg-transparent dark:p-0 dark:text-white [&_svg]:size-2.5"
         />
       ) : (
-        <span className="truncate text-[16px] font-bold">{name ?? 'Unassigned'}</span>
+        <span className="truncate text-[9px] font-semibold">{name ?? 'Unassigned'}</span>
       )}
     </span>
   );
+}
+
+/** The person a card is filtered by under "Accounts": its board assignee, else its PM. */
+function useCardAccount() {
+  const { options, assigned } = React.useContext(AssignContext);
+  return React.useCallback((item: BoardCardItem): string | null => {
+    if (item.assign) {
+      const key = assignKey(item);
+      return key in assigned ? assigned[key] : item.assign.userId;
+    }
+    return item.pmName ? options.find(o => o.label === item.pmName)?.value ?? null : null;
+  }, [options, assigned]);
 }
 
 export interface BoardSection {
@@ -96,12 +108,16 @@ export interface BoardSection {
   accent: string;   // text, dot + badges
   labelColor?: string; // section heading, when it differs from accent
   bg: string;        // section tint
+  /** Strong shade in both themes — fills under white text (stage bar, badges). */
+  solid?: string;
   items: BoardCardItem[];
   emptyLabel: string;
 }
 
 export interface BoardColumn {
   regionCode: string;
+  /** Shown in the Columns menu (e.g. "T-Lines North East"). */
+  name?: string;
   logoSrc: string;
   logoCode: string;
   headerColor: string;
@@ -147,40 +163,42 @@ function Card({ item, section, onOpen }: {
   item: BoardCardItem; section: BoardSection; onOpen: OpenCard;
 }) {
   // Cards hold the Assign to dropdown, so no card is a <button> (a control can't sit inside one).
+  // Figma card (node 572:29240): stage tint, number badge on the top edge, 16px title, 10px meta.
+  const solid = section.solid ?? section.accent;
   return (
     <div
       role="button"
       tabIndex={0}
-      className="relative flex w-full cursor-pointer flex-col gap-1.5 rounded-[10px] border border-solid pb-3.5 pl-4 pr-3.5 pt-5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-[filter,box-shadow] hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)] hover:brightness-[0.98] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
-      style={{ background: section.bg, color: section.accent, borderColor: `color-mix(in srgb, ${section.accent} 35%, transparent)`, borderLeftWidth: 4, borderLeftColor: section.accent }}
+      className="relative flex w-full cursor-pointer flex-col gap-[3px] rounded-[8px] pb-2.5 pl-3 pr-2.5 pt-4 text-left transition-[filter,box-shadow] hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)] hover:brightness-[0.98] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
+      style={{ background: section.bg, color: section.accent }}
       onClick={() => onOpen(item, section)}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(item, section); } }}
     >
       <span
-        className="absolute -top-3.5 left-3 flex h-6 min-w-[92px] items-center justify-center rounded-[5px] px-2 text-[15px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.12)]"
-        style={{ background: section.accent, color: 'var(--ui-surface-elevated)' }}
+        className="absolute -top-3 left-[9px] flex h-5 min-w-[87px] items-center justify-center whitespace-nowrap rounded-[4px] px-1.5 py-0.5 text-[14px] font-medium leading-normal text-white"
+        style={{ background: solid }}
       >
         {[item.badgeTop, item.badgeBottom].filter(Boolean).join(' ')}
       </span>
       <span className="flex w-full items-start justify-between gap-2">
         <span className="min-w-0">
           <span className="flex items-center gap-2">
-            <span className="min-w-0 truncate text-[18px] font-bold leading-tight">{item.title}</span>
+            <span className="min-w-0 truncate text-[16px] font-bold leading-normal">{item.title}</span>
             {item.onHold && (
-              <span className="inline-flex h-5 shrink-0 items-center gap-1 rounded-[4px] px-1.5 text-[11px] font-semibold" style={{ background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}>
-                <Pause size={11} aria-hidden /> On Hold
+              <span className="inline-flex h-3.5 shrink-0 items-center gap-0.5 rounded-[2px] bg-ui-surface-elevated px-0.5 py-px text-[10px] font-medium leading-normal" style={{ color: 'var(--status-t0-fg)' }}>
+                <Pause size={10} aria-hidden /> On Hold
               </span>
             )}
           </span>
-          {item.category && <span className="mt-0.5 block truncate text-[12px] font-medium leading-normal opacity-90">{item.category}</span>}
+          {item.category && <span className="block truncate text-[10px] leading-normal">{item.category}</span>}
         </span>
-        {item.dateLabel && <span className="shrink-0 text-[12px] font-medium leading-normal">{item.dateLabel}</span>}
+        {item.dateLabel && <span className="shrink-0 text-[10px] leading-normal">{item.dateLabel}</span>}
       </span>
       {item.statuses && item.statuses.length > 0 && (
-        <span className="flex flex-wrap gap-1.5">
+        <span className="flex flex-wrap gap-1">
           {item.statuses.map(s => (
-            <span key={s} className="inline-flex h-6 items-center rounded-full px-2.5 text-[12px] font-semibold leading-none"
-              style={{ background: section.accent, color: 'var(--ui-surface-elevated)' }}>
+            <span key={s} className="inline-flex h-4 items-center rounded-full px-1.5 text-[10px] font-semibold leading-none text-white"
+              style={{ background: solid }}>
               {s}
             </span>
           ))}
@@ -188,13 +206,13 @@ function Card({ item, section, onOpen }: {
       )}
       <span className="flex w-full items-end justify-between gap-2">
         <span className="min-w-0">
-          <span className="block truncate text-[12px] leading-normal">{item.subtitle}</span>
-          {item.note && <span className="mt-0.5 block text-[12px] font-bold leading-normal">{item.note}</span>}
+          <span className="block truncate text-[10px] leading-normal">{item.subtitle}</span>
+          {item.note && <span className="block text-[10px] font-bold leading-normal">{item.note}</span>}
         </span>
         {item.assign ? <AssignBox item={item} section={section} /> : item.pmName && (
-          <span className="flex shrink-0 flex-col rounded-[4px] px-2 py-0.5 leading-normal" style={{ background: section.accent, color: 'var(--ui-surface-elevated)' }}>
-            <span className="text-[13px] font-semibold">{item.pmName}</span>
-            <span className="text-[10px]">{item.pmLabel}</span>
+          <span className="flex max-w-[140px] shrink-0 flex-col rounded-[4px] px-1.5 py-0.5 leading-normal text-white" style={{ background: solid }}>
+            <span className="text-[6px]">{item.pmLabel}:</span>
+            <span className="truncate text-[9px] font-semibold">{item.pmName}</span>
           </span>
         )}
       </span>
@@ -204,23 +222,34 @@ function Card({ item, section, onOpen }: {
 
 type OpenCard = (item: BoardCardItem, section: BoardSection) => void;
 
-function Section({ section, onOpen }: { section: BoardSection; onOpen: OpenCard }) {
+// Figma stage bar (node 572:29233): solid stage tone, dot, uppercase label, count and a chevron
+// that opens / closes the stage's cards.
+function Section({ section, open, onToggle, onOpen }: {
+  section: BoardSection; open: boolean; onToggle: () => void; onOpen: OpenCard;
+}) {
   const empty = section.items.length === 0;
+  const Chevron = open ? ChevronDown : ChevronRight;
   return (
-    <div className={`flex flex-col ${empty ? 'gap-1.5' : 'gap-7'}`}>
-      <div className="flex items-center gap-1">
-        <span className="size-2 shrink-0 rounded-full" style={{ background: section.labelColor ?? section.accent }} />
-        <span className="min-w-0 flex-1 text-[12px] font-bold uppercase tracking-wide leading-normal" style={{ color: section.labelColor ?? section.accent }}>
-          {section.label}
-        </span>
-      </div>
-      {empty ? (
-        <p className="m-0 truncate rounded-[8px] p-3 text-[12px] leading-normal" style={{ background: section.bg, color: section.accent }}>
+    <div className="flex shrink-0 flex-col gap-6">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        className="flex w-full cursor-pointer items-center gap-1 rounded-[4px] border-0 px-1 py-2 text-left text-white transition-[filter] hover:brightness-110 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
+        style={{ background: section.solid ?? section.labelColor ?? section.accent }}
+      >
+        <span aria-hidden className="size-1 shrink-0 rounded-full bg-white" />
+        <span className="min-w-0 truncate text-[14px] font-semibold uppercase leading-normal">{section.label}</span>
+        <span className="flex-1 shrink-0 text-right text-[13px] font-semibold uppercase leading-normal tracking-[1.3px]">{section.items.length}</span>
+        <Chevron size={16} aria-hidden className="shrink-0" />
+      </button>
+      {open && (empty ? (
+        <p className="-mt-4 mb-0 truncate rounded-[8px] p-3 text-[12px] leading-normal" style={{ background: section.bg, color: section.accent }}>
           {section.emptyLabel}
         </p>
       ) : (
         section.items.map(item => <Card key={item.id} item={item} section={section} onOpen={onOpen} />)
-      )}
+      ))}
     </div>
   );
 }
@@ -276,18 +305,163 @@ function PageHead({ from, to, preset, canCreateTask, onFrom, onTo, onPreset, hea
   );
 }
 
-function Column({ column, onOpen }: { column: BoardColumn; onOpen: OpenCard }) {
+function Column({ column, isOpen, onToggle, onOpen }: {
+  column: BoardColumn; isOpen: (key: string, index: number) => boolean; onToggle: (key: string, index: number) => void; onOpen: OpenCard;
+}) {
+  // A column never reaches below the bottom of the screen: its max height is the space from its
+  // own top to the screen's bottom (re-measured on scroll / resize). So whatever doesn't fit
+  // scrolls inside the hovered column, while the page and the other columns stay where they are.
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let frame = 0;
+    const fit = () => {
+      frame = 0;
+      const topBar = document.querySelector('[data-shell="topbar"]')?.getBoundingClientRect().bottom ?? 0;
+      const full = window.innerHeight - topBar - 16;
+      const room = window.innerHeight - Math.max(el.getBoundingClientRect().top, topBar) - 16;
+      el.style.maxHeight = `${Math.round(Math.min(full, Math.max(320, room)))}px`;
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(fit); };
+    fit();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
   return (
-    <div className="flex flex-col gap-2.5 rounded-[16px] bg-ui-surface p-2.5">
-      <div className="flex h-[105px] items-center justify-center rounded-[11px] py-[13px]" style={{ background: column.headerColor }}>
-        {column.title
-          ? <span className="px-3 text-center text-[20px] font-semibold leading-tight text-white">{column.title}</span>
-          : <CroppedLogo src={column.logoSrc} code={column.logoCode} className="h-[62px]" />}
+    // The whole column card (logo header + every stage) is the scroll box: the wheel over one
+    // branch scrolls only that card, and overscroll-contain keeps the page and the other
+    // columns still.
+    <div ref={ref} className="pointer-events-auto flex min-h-0 flex-col rounded-[16px] bg-ui-surface px-2.5 pb-2.5 max-h-[calc(100vh-120px)] overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-width:thin]">
+      {/* Logo header stays pinned at the top of its column; only the stages scroll under it.
+          The wrapper's own padding + background cover the cards as they pass beneath. */}
+      <div className="sticky top-0 z-10 shrink-0 bg-ui-surface pb-2.5 pt-2.5">
+        <div className="flex h-[105px] items-center justify-center rounded-[11px] py-[13px]" style={{ background: column.headerColor }}>
+          {column.title
+            ? <span className="px-3 text-center text-[20px] font-semibold leading-tight text-white">{column.title}</span>
+            : <CroppedLogo src={column.logoSrc} code={column.logoCode} className="h-[62px]" />}
+        </div>
       </div>
-      {/* No fixed/stretched height — each column is exactly as tall as its own content. */}
-      <div className="flex flex-col gap-4 rounded-[11px] bg-ui-surface-elevated px-3 pb-3.5 pt-2">
-        {column.sections.map(section => (
-          <Section key={section.key} section={section} onOpen={onOpen} />
+      <div className="flex shrink-0 flex-col gap-4 rounded-[11px] bg-ui-surface-elevated px-3 pb-3.5 pt-2">
+        {column.sections.map((section, i) => (
+          <Section key={section.key} section={section} open={isOpen(`${column.regionCode}:${section.key}`, i)} onToggle={() => onToggle(`${column.regionCode}:${section.key}`, i)} onOpen={onOpen} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Figma "View tabs" (node 572:29189) controls: same look as the Leads page filters.
+const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg pl-3 pr-2 text-[13px] font-medium leading-normal text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading [&_svg]:size-3.5';
+const HIDDEN_COLS_KEY = 'dashboard.hiddenColumns.v1';
+
+function ColumnsMenu({ columns, hidden, onToggle }: {
+  columns: BoardColumn[]; hidden: Set<string>; onToggle: (code: string) => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="relative">
+      <button type="button" aria-expanded={open} className={`${FILTER_CLS} gap-2 px-3`} onClick={() => setOpen(o => !o)}>
+        <Columns2 aria-hidden />
+        Columns
+        <ChevronDown aria-hidden />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-30 mt-1.5 max-h-80 w-56 overflow-auto rounded-xl border border-ui-divider bg-ui-surface-elevated p-1.5 shadow-lg">
+            {columns.map(c => {
+              const shown = !hidden.has(c.regionCode);
+              // At least one column always stays on the board.
+              const last = shown && columns.filter(x => !hidden.has(x.regionCode)).length === 1;
+              return (
+                <label key={c.regionCode} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-ui-body ${last ? 'opacity-60' : 'cursor-pointer hover:bg-ui-hover-bg'}`}>
+                  <Checkbox checked={shown} disabled={last} onCheckedChange={() => onToggle(c.regionCode)} />
+                  {c.name ?? c.title ?? c.regionCode}
+                </label>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Board({ columns, dateFrom, dateTo, onOpen }: {
+  columns: BoardColumn[]; dateFrom: string; dateTo: string; onOpen: OpenCard;
+}) {
+  const { options } = React.useContext(AssignContext);
+  const accountOf = useCardAccount();
+  const [account, setAccount] = React.useState('');
+  const [company, setCompany] = React.useState('');
+
+  // Columns menu — remembered per browser.
+  const [hidden, setHidden] = React.useState<Set<string>>(new Set());
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem(HIDDEN_COLS_KEY);
+      if (raw) setHidden(new Set(JSON.parse(raw) as string[]));
+    } catch { /* storage unavailable — show every column */ }
+  }, []);
+  const toggleColumn = (code: string) => setHidden(prev => {
+    const next = new Set(prev);
+    if (next.has(code)) next.delete(code); else next.add(code);
+    try { localStorage.setItem(HIDDEN_COLS_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
+    return next;
+  });
+
+  // Stage bars: the first stage starts open, the rest closed (Figma). Each bar opens and closes
+  // only its own stage in its own column — keyed by column + stage.
+  const [toggled, setToggled] = React.useState<Record<string, boolean>>({});
+  const isOpen = (key: string, index: number) => toggled[key] ?? index === 0;
+  const onToggle = (key: string, index: number) => setToggled(t => ({ ...t, [key]: !(t[key] ?? index === 0) }));
+
+  const companyOptions = React.useMemo(() => {
+    const names = new Set<string>();
+    for (const c of columns) for (const s of c.sections) for (const i of s.items) if (i.title) names.add(i.title);
+    return [{ value: '', label: 'All Companies' }, ...[...names].sort((a, b) => a.localeCompare(b)).map(n => ({ value: n, label: n }))];
+  }, [columns]);
+  const accountOptions = React.useMemo(() => [{ value: '', label: 'Accounts' }, ...options], [options]);
+
+  const visible = React.useMemo(() => {
+    const inRange = (d: string | null) => {
+      if (!dateFrom && !dateTo) return true;
+      if (!d) return false;
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
+    };
+    const keep = (i: BoardCardItem) =>
+      inRange(i.dateISO) && (!company || i.title === company) && (!account || accountOf(i) === account);
+    const shown = columns.filter(c => !hidden.has(c.regionCode));
+    return (shown.length ? shown : columns).map(column => ({
+      ...column,
+      sections: column.sections.map(s => ({ ...s, items: s.items.filter(keep) })),
+    }));
+  }, [columns, hidden, dateFrom, dateTo, company, account, accountOf]);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex min-h-12 flex-wrap items-center justify-between gap-2.5 rounded-[8px] bg-ui-surface px-2 py-1.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <FilterSelect aria-label="Accounts" value={account} options={accountOptions} onValueChange={v => setAccount(v ?? '')} className={FILTER_CLS} />
+          <FilterSelect aria-label="Companies" value={company} options={companyOptions} onValueChange={v => setCompany(v ?? '')} className={FILTER_CLS} />
+        </div>
+        <ColumnsMenu columns={columns} hidden={hidden} onToggle={toggleColumn} />
+      </div>
+      {/* items-start: columns must NOT stretch to match the tallest one (grid's default). */}
+      <div
+        className="grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2 xl:[grid-template-columns:repeat(var(--board-cols),minmax(0,1fr))]"
+        style={{ '--board-cols': visible.length } as React.CSSProperties}
+      >
+        {visible.map(column => (
+          <Column key={column.regionCode} column={column} isOpen={isOpen} onToggle={onToggle} onOpen={onOpen} />
         ))}
       </div>
     </div>
@@ -340,20 +514,6 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
 
   const handleOpen: OpenCard = (item, section) => setOpen({ item, section });
 
-  const filteredColumns = React.useMemo(() => {
-    if (!dateFrom && !dateTo) return columns;
-    const inRange = (d: string | null) => {
-      if (!d) return false;
-      if (dateFrom && d < dateFrom) return false;
-      if (dateTo && d > dateTo) return false;
-      return true;
-    };
-    return columns.map(column => {
-      const sections = column.sections.map(s => ({ ...s, items: s.items.filter(i => inRange(i.dateISO)) }));
-      return { ...column, sections };
-    });
-  }, [columns, dateFrom, dateTo]);
-
   const applyPreset = (p: Preset) => {
     const [from, to] = presetRange(p);
     setPreset(p); setDateFrom(from); setDateTo(to);
@@ -380,15 +540,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
           description="Ask an admin to set your region on the Team page."
         />
       ) : (
-        // items-start: columns must NOT stretch to match the tallest one (grid's default).
-        <div
-          className="grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2 xl:[grid-template-columns:repeat(var(--board-cols),minmax(0,1fr))]"
-          style={{ '--board-cols': columns.length } as React.CSSProperties}
-        >
-          {filteredColumns.map(column => (
-            <Column key={column.regionCode} column={column} onOpen={handleOpen} />
-          ))}
-        </div>
+        <Board columns={columns} dateFrom={dateFrom} dateTo={dateTo} onOpen={handleOpen} />
       )}
       {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} onClose={() => setOpen(null)} />}
     </AssignContext.Provider>
