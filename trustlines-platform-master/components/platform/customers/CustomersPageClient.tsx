@@ -10,6 +10,7 @@ import { Select as FilterSelect } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useFixedMenu } from '@/hooks/use-fixed-menu';
 
 export interface CustomerRow {
   id: string;
@@ -54,7 +55,9 @@ export function CustomersPageClient({ initialCustomers, canEdit }: Props) {
   const [query, setQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortKey>('newest');
   const [showForm, setShowForm] = useState(false);
-  const [menuId, setMenuId] = useState<string | null>(null);
+  // Row "…" menu pinned to the window: the table scroller clipped it on the last rows.
+  const menu = useFixedMenu(140);
+  const menuId = menu.openId;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -71,7 +74,7 @@ export function CustomersPageClient({ initialCustomers, canEdit }: Props) {
   }, [customers, query, sortBy]);
 
   async function copyEmail(email: string) {
-    setMenuId(null);
+    menu.close();
     try { await navigator.clipboard.writeText(email); toast.success('Email copied'); }
     catch { toast.error('Could not copy'); }
   }
@@ -180,21 +183,21 @@ export function CustomersPageClient({ initialCustomers, canEdit }: Props) {
                       <td className="relative pr-2 text-center" onClick={e => e.stopPropagation()}>
                         <button
                           type="button" aria-label={`Actions for ${c.name}`} aria-expanded={menuId === c.id}
-                          onClick={() => setMenuId(id => (id === c.id ? null : c.id))}
+                          onClick={e => menu.toggle(c.id, e.currentTarget)}
                           className="inline-grid size-7 place-items-center rounded-[4px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
                         >
                           <Ellipsis size={16} />
                         </button>
                         {menuId === c.id && (
                           <>
-                            <div className="fixed inset-0 z-20" onClick={() => setMenuId(null)} />
-                            <div role="menu" className="absolute right-2 top-full z-30 mt-1 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
-                              <Link href={`/customers/${c.id}`} role="menuitem" className={MENU_ITEM} onClick={() => setMenuId(null)}>
+                            <div className="fixed inset-0 z-20" onClick={() => menu.close()} />
+                            <div role="menu" style={menu.style} className="fixed z-30 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
+                              <Link href={`/customers/${c.id}`} role="menuitem" className={MENU_ITEM} onClick={() => menu.close()}>
                                 <ExternalLink aria-hidden /> Open customer
                               </Link>
                               {c.email && (
                                 <>
-                                  <a href={`mailto:${c.email}`} role="menuitem" className={MENU_ITEM} onClick={() => setMenuId(null)}>
+                                  <a href={`mailto:${c.email}`} role="menuitem" className={MENU_ITEM} onClick={() => menu.close()}>
                                     <Mail aria-hidden /> Send email
                                   </a>
                                   <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => copyEmail(c.email!)}>
