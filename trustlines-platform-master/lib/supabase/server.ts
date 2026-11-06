@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import type { Database } from '@/types/database';
 import type { User } from '@supabase/supabase-js';
+import { withViewAs } from '@/lib/viewAs';
 
 export async function getSessionUser(): Promise<User | null> {
   const supabase = await createClient();
@@ -74,5 +75,6 @@ export async function createClient() {
     const user = await getVerifiedUser();
     return { data: { user }, error: null };
   }) as typeof client.auth.getUser;
-  return client;
+  // A General Manager previewing another role sees that role on their own profile row.
+  return withViewAs(client);
 }
