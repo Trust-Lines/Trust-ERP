@@ -74,7 +74,7 @@ export function parseLeadMailSettings(raw: unknown, hasStoredPassword: boolean):
   if (!useSender) {
     return { value: { recipients, from_name: null, from_email: null, smtp_host: null, smtp_port: null, smtp_secure: true, smtp_user: null, clearSender: true } };
   }
-  const from_name = str(b.from_name) || 'Trust-Lines';
+  const from_name = str(b.from_name) || 'TLINES';
   const from_email = str(b.from_email).toLowerCase();
   if (!isEmail(from_email)) return { error: 'Enter a valid “from” email address' };
   const smtp_host = str(b.smtp_host).toLowerCase();

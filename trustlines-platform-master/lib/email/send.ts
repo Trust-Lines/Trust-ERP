@@ -10,13 +10,13 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export async function sendEmail(to: string, subject: string, html: string, opts: { replyTo?: string } = {}) {
+export async function sendEmail(to: string, subject: string, html: string, opts: { replyTo?: string; fromName?: string } = {}) {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.warn('[email] SMTP credentials not set — skipping email to', to);
     return;
   }
   await transporter.sendMail({
-    from: `"Trust-Lines" <${process.env.SMTP_FROM ?? process.env.SMTP_USER}>`,
+    from: `"${(opts.fromName ?? 'Trust-Lines').replace(/"/g, '')}" <${process.env.SMTP_FROM ?? process.env.SMTP_USER}>`,
     to,
     subject,
     html,
