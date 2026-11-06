@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
-import { MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
+import { MARKETING_WRITE_ROLES, WEB_LEADS_ROLES } from '@/lib/marketing/roles';
 import { logAudit } from '@/lib/audit/log';
 import { LEAD_STATUSES } from '@/lib/web-cms/leads';
 
@@ -8,7 +8,7 @@ type Params = { params: Promise<{ id: string }> };
 
 // Status / internal note. "converted" is set only by the convert route, so it cannot be faked here.
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const { user, admin, deny } = await requireRole(MARKETING_WRITE_ROLES);
+  const { user, admin, deny } = await requireRole(WEB_LEADS_ROLES);
   if (deny) return deny;
   const { id } = await params;
   const b = (await req.json().catch(() => null)) as { status?: unknown; internal_note?: unknown } | null;

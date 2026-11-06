@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { MARKETING_MANAGE_ROLES } from '@/lib/marketing/roles';
+import { MARKETING_MANAGE_ROLES, SALES_CONTACT_ROLES } from '@/lib/marketing/roles';
 import { getAssignedRegions, regionAllows } from '@/lib/access/regionScope';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -27,6 +27,8 @@ export async function canAccessProspect(
   mode: 'read' | 'write' = 'write',
 ): Promise<boolean> {
   if (MARKETING_MANAGE_ROLES.includes(role)) return true;
+  // Sales → Contacts (2026-11-05): Sales roles may open any Contact read-only; edits stay Marketing's.
+  if (SALES_CONTACT_ROLES.includes(role)) return mode === 'read';
   if (role !== 'marketing_pr') return false;
 
   const assignedRegions = await getAssignedRegions(admin, userId);

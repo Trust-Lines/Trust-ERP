@@ -11,7 +11,6 @@ import {
   CalendarDays,
   Trash2,
   BriefcaseBusiness,
-  CircleDollarSign,
   Send,
   CircleCheck,
   Search,
@@ -29,7 +28,6 @@ import { LeadsBoard } from './LeadsBoard';
 import { LeadsCalendar } from './LeadsCalendar';
 import { LeadQuickView } from './LeadQuickView';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
-import { formatMoney } from '@/lib/sales/format';
 import { STATUS_META, type Lead, type OpportunityStatus } from './types';
 import { STATUS_TO_STAGE } from '@/lib/marketing/opportunityRows';
 import { REGIONS } from '@/lib/regions';
@@ -369,7 +367,6 @@ export function LeadsClient({
   }, [leads]);
 
   // "In pipeline" = deals still open — closed/missed money isn't pipeline.
-  const pipelineValue = useMemo(() => leads.reduce((s, l) => s + (l.opportunity_status === 'deal_closed' || l.opportunity_status === 'deal_missed' ? 0 : (l.deal_size ?? 0)), 0), [leads]);
   const archivedCount = useMemo(() => leads.filter(l => l.archived).length, [leads]);
   const proposalSentCount = useMemo(() => (counts['design_proposal_sent'] ?? 0) + (counts['modification_request'] ?? 0), [counts]);
   const dealsClosedCount = useMemo(() => counts['deal_closed'] ?? 0, [counts]);
@@ -378,10 +375,8 @@ export function LeadsClient({
   const newCounts = useMemo(() => {
     const since = Date.now() - NEW_WINDOW_MS;
     const recent = leads.filter(l => (Date.parse(l.date_created) || 0) >= since);
-    const open = (l: Lead) => l.opportunity_status !== 'deal_closed' && l.opportunity_status !== 'deal_missed';
     return {
       all: recent.length,
-      pipeline: recent.filter(open).length,
       proposal: recent.filter(l => l.opportunity_status === 'design_proposal_sent' || l.opportunity_status === 'modification_request').length,
       closed: recent.filter(l => l.opportunity_status === 'deal_closed').length,
     };
@@ -396,7 +391,7 @@ export function LeadsClient({
           <PageCrumbs items={[{ label: 'Sales', href: '/leads' }, { label: 'CRM Board', href: '/leads' }]} />
           <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>CRM Board</h1>
           <p className="text-[13px] text-ui-body">
-            {leads.length} records · {formatMoney(pipelineValue)} open pipeline
+            {leads.length} records
           </p>
         </div>
 
@@ -418,9 +413,8 @@ export function LeadsClient({
       </div>
 
       {/* ── KPI cards ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard icon={BriefcaseBusiness} label="All Records" value={leads.length} chip={newChip(newCounts.all)} />
-        <StatCard icon={CircleDollarSign} label="Pipeline Value" value={formatMoney(pipelineValue)} chip={newChip(newCounts.pipeline)} />
         <StatCard icon={Send} label="Proposal Sent" value={proposalSentCount} chip={newChip(newCounts.proposal)}
           active={selectedStage === 'design_proposal_sent'} onClick={() => setSelectedStage(s => (s === 'design_proposal_sent' ? null : 'design_proposal_sent'))} />
         <StatCard icon={CircleCheck} label="Deals Closed" value={dealsClosedCount} chip={newChip(newCounts.closed)}

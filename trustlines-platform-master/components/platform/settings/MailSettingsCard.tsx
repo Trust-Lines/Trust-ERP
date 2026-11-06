@@ -51,7 +51,7 @@ export function MailSettingsCard({ email }: { email: string }) {
   }, [email]);
 
   const set = (patch: Partial<Form>) => setForm(f => ({ ...f, ...patch }));
-  const preset = SMTP_PRESETS.find(p => p.value === form.preset) ?? SMTP_PRESETS[2];
+  const preset = SMTP_PRESETS.find(p => p.value === form.preset) ?? SMTP_PRESETS[SMTP_PRESETS.length - 1];
 
   function pickPreset(value: string) {
     const p = SMTP_PRESETS.find(x => x.value === value);

@@ -62,12 +62,16 @@ NEXT_PUBLIC_APP_URL=
 
 | Dosya | Görevi |
 |---|---|
-| `PROJECT-MASTER-PLAN.md` | Hedef ürün, doğru iş modeli, roadmap ve Claude devam protokolü |
-| `CLAUDE.md` | Claude’un repository’ye giriş talimatı ve belge önceliği |
-| `SYSTEM_ARCHITECTURE.md` | Mevcut çalışan teknik mimari |
-| `AGENTS.md` | Zorunlu güvenlik, performans ve kodlama kuralları |
-| `CURRENT_SYSTEM_STATE.md` | Güncel ayrıntılı modül ve migration envanteri |
-| `TRUSTLINES_PLATFORM_IMPLEMENTATION.md` | Eski tarihsel plan; uygulanmaz |
+| `docs/PROJECT-MASTER-PLAN.md` | Hedef ürün, doğru iş modeli, roadmap ve Claude devam protokolü |
+| `docs/CLAUDE.md` | Claude’un repository’ye giriş talimatı ve belge önceliği |
+| `docs/AGENTS.md` | Zorunlu güvenlik, performans ve kodlama kuralları |
+| `docs/CURRENT_SYSTEM_STATE.md` | Teknik mimari, modül ve migration envanteri |
+| `CLAUDE.md`, `AGENTS.md` (kök) | Sadece yönlendirme — AI araçları bu isimleri kökte aradığı için duruyor |
+| `docs/ROADMAP-5AY.md` | 5 aylık tamamlama yol haritası (açık maddeler) |
+| `docs/BACKUP_RESTORE.md` | Yedekleme ve geri yükleme stratejisi |
+| `docs/T-ERP-INTEGRATION.md` | T-ERP ↔ Trust System (trust-excel) API entegrasyonu |
+| `docs/*.md` | ClickUp import, Google Calendar, sosyal medya, public survey API, QA checklist |
+| `docs/archive/` | Tamamlanmış faz spec'leri (00, 10, 11) ve audit raporları — yalnızca tarihsel |
 
 ## Ana iş zinciri
 

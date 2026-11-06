@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
-import { MARKETING_READ_ROLES } from '@/lib/marketing/roles';
+import { CONTACTS_READ_ROLES } from '@/lib/marketing/roles';
 import { assertProspectAccess } from '@/lib/marketing/prospectAccess';
 import { getDropboxClient } from '@/lib/dropbox/client';
 
@@ -8,7 +8,7 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const { user, role, admin, deny } = await requireRole(MARKETING_READ_ROLES);
+  const { user, role, admin, deny } = await requireRole(CONTACTS_READ_ROLES);
   if (deny) return deny;
   const denied = await assertProspectAccess(admin, id, user.id, role, 'read');
   if (denied) return denied;

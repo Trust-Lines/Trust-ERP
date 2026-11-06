@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Inbox, Mail, Phone, Building2, MapPin, Trash2, UserPlus, X, Loader2 } from 'lucide-react';
+import { Inbox, Mail, Phone, Building2, MapPin, Trash2, UserPlus, X, Loader2, Download } from 'lucide-react';
 import { LEAD_STATUSES, LEAD_STATUS_LABEL, type LeadStatus } from '@/lib/web-cms/leads';
 import { Select } from '@/components/platform/shared/Select';
 import { CategoryViews } from './CategoryViews';
@@ -11,7 +11,7 @@ import { CategoryViews } from './CategoryViews';
 export interface WebLeadRow {
   id: string; kind: 'contact' | 'newsletter'; name: string | null; phone: string | null; email: string | null;
   company: string | null; store_location: string | null; store_condition: string | null; store_type: string | null;
-  message: string | null; consent_accepted: boolean; consent_text_version: string | null; consent_at: string | null;
+  message: string | null; notes?: string | null; consent_accepted: boolean; consent_text_version: string | null; consent_at: string | null;
   source_page: string | null; utm: Record<string, string> | null;
   status: LeadStatus; internal_note: string | null; prospect_id: string | null; created_at: string;
 }
@@ -32,7 +32,11 @@ function Pill({ status }: { status: LeadStatus }) {
 
 const fmt = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
-export function WebLeadsClient({ initial, canEdit, loadError }: { initial: WebLeadRow[]; canEdit: boolean; loadError: boolean }) {
+// contactBase / canDelete: Sales → Store Maker Inbox opens Contacts in its own Contact Manager
+// (`/sales-contacts?open=<id>`) and leaves permanent deletion to Marketing.
+export function WebLeadsClient({ initial, canEdit, loadError, contactBase = '/marketing/prospects/', canDelete = true }: {
+  initial: WebLeadRow[]; canEdit: boolean; loadError: boolean; contactBase?: string; canDelete?: boolean;
+}) {
   const [leads, setLeads] = useState(initial);
   const [statusFilter, setStatusFilter] = useState<'all' | LeadStatus>('new');
   const [kindFilter, setKindFilter] = useState<'all' | 'contact' | 'newsletter'>('all');
@@ -100,11 +104,16 @@ export function WebLeadsClient({ initial, canEdit, loadError }: { initial: WebLe
           ]}
           onChange={v => setStatusFilter(v as typeof statusFilter)}
         />
-        <Select className="form-input" value={kindFilter} onChange={e => setKindFilter(e.target.value as typeof kindFilter)} style={{ width: 170 }}>
-          <option value="all">Contact form + Newsletter</option>
-          <option value="contact">Contact form only</option>
-          <option value="newsletter">Newsletter only</option>
-        </Select>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Select className="form-input" value={kindFilter} onChange={e => setKindFilter(e.target.value as typeof kindFilter)} style={{ width: 170 }}>
+            <option value="all">Contact form + Newsletter</option>
+            <option value="contact">Contact form only</option>
+            <option value="newsletter">Newsletter only</option>
+          </Select>
+          <a href="/api/web-cms/leads/export" download className="btn btn-secondary btn-sm" title="Download every website submission with all fields">
+            <Download size={13} style={{ marginRight: 4 }} /> Export to Excel
+          </a>
+        </div>
       </div>
 
       {shown.length === 0 ? (
@@ -142,6 +151,12 @@ export function WebLeadsClient({ initial, canEdit, loadError }: { initial: WebLe
                       {l.store_location && <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}><MapPin size={13} /> {l.store_location}</div>}
                     </div>
                     {l.message && <div style={{ whiteSpace: 'pre-wrap', background: 'var(--bg-subtle, #f8fafc)', borderRadius: 8, padding: 10 }}>{l.message}</div>}
+                    {l.notes && (
+                      <div style={{ whiteSpace: 'pre-wrap', background: 'var(--bg-subtle, #f8fafc)', borderRadius: 8, padding: 10 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', marginBottom: 4 }}>NOTES</div>
+                        {l.notes}
+                      </div>
+                    )}
                     <div style={{ fontSize: 11.5, color: 'var(--fg-subtle)' }}>
                       Privacy notice accepted{l.consent_at ? ` ${fmt(l.consent_at)}` : ''}{l.consent_text_version ? ` (v${l.consent_text_version})` : ''}
                       {l.source_page ? ` · from ${l.source_page}` : ''}
@@ -157,7 +172,7 @@ export function WebLeadsClient({ initial, canEdit, loadError }: { initial: WebLe
                         />
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           {l.prospect_id ? (
-                            <Link href={`/marketing/prospects/${l.prospect_id}`} className="btn btn-secondary btn-sm">Open Contact</Link>
+                            <Link href={`${contactBase}${l.prospect_id}`} className="btn btn-secondary btn-sm">Open Contact</Link>
                           ) : l.kind === 'contact' && l.status !== 'spam' && (
                             <button className="btn btn-primary btn-sm" onClick={() => startConvert(l)}><UserPlus size={13} style={{ marginRight: 4 }} /> Add to Contacts</button>
                           )}
@@ -168,7 +183,7 @@ export function WebLeadsClient({ initial, canEdit, loadError }: { initial: WebLe
                             <button className="btn btn-ghost btn-sm" onClick={() => patch(l, { status: 'new' })}>Mark new</button>
                           )}
                           <span style={{ flex: 1 }} />
-                          <button className="btn btn-ghost btn-sm" onClick={() => remove(l)}><Trash2 size={13} style={{ color: '#dc2626' }} /></button>
+                          {canDelete && <button className="btn btn-ghost btn-sm" onClick={() => remove(l)}><Trash2 size={13} style={{ color: '#dc2626' }} /></button>}
                         </div>
                       </>
                     )}

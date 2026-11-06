@@ -3,9 +3,10 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AppShell } from '@/components/platform/shell/AppShell';
 import { getRolePermissions } from '@/lib/permissions/server';
-import { regionLogoByCode, MAIN_CREATIVITY_LOGO, DEFAULT_LOGO } from '@/lib/regionLogo';
+import { regionLogoByCode, shellLogo, MAIN_CREATIVITY_LOGO, DEFAULT_LOGO } from '@/lib/regionLogo';
 import { Toaster } from 'sonner';
 import type { UserRole } from '@/types/database';
+import { getViewAs, VIEW_AS_ALLOWED } from '@/lib/viewAs';
 
 export default async function PlatformLayout({
   children,
@@ -45,6 +46,9 @@ export default async function PlatformLayout({
       .eq('is_read', false),
   ]);
   const notificationCount = unreadRes.count ?? 0;
+  // General Manager "view as role": userRole above is already the previewed one (lib/viewAs.ts).
+  const viewAs = await getViewAs();
+  const viewAsState = { canViewAs: !!viewAs || VIEW_AS_ALLOWED.includes(userRole), viewAs: viewAs?.role ?? null };
 
   let logoSrc = DEFAULT_LOGO;
   if (userRole === 'sales_marketing_manager') {
@@ -69,8 +73,9 @@ export default async function PlatformLayout({
         userPerms={userPerms}
         userName={userName}
         userEmail={userEmail}
-        logoSrc={logoSrc}
+        logoSrc={shellLogo(logoSrc)}
         notificationCount={notificationCount}
+        viewAs={viewAsState}
       >
         {children}
       </AppShell>

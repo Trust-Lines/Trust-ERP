@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronRight, Columns2, MapPinOff, Pause, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, MapPinOff, Pause, Plus } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
@@ -47,6 +47,8 @@ export interface BoardCardItem {
   projectNo?: string | null;
   /** The Trust System's types for that number (PO + PF, Production, Shipping tabs). */
   trustItems?: TrustItem[] | null;
+  /** The client this card belongs to, for the "Accounts" view (key client, else its own name). */
+  account?: { key: string; name: string };
 }
 
 const assignKey = (item: BoardCardItem) => `${item.assign?.kind}:${item.id}:${item.assign?.stage}`;
@@ -222,11 +224,17 @@ function Card({ item, section, onOpen }: {
 
 type OpenCard = (item: BoardCardItem, section: BoardSection) => void;
 
-// Figma stage bar (node 572:29233): solid stage tone, dot, uppercase label, count and a chevron
-// that opens / closes the stage's cards.
-function Section({ section, open, onToggle, onOpen }: {
-  section: BoardSection; open: boolean; onToggle: () => void; onOpen: OpenCard;
-}) {
+function ColumnHeader({ column }: { column: BoardColumn }) {
+  return (
+    <div className="flex h-[105px] items-center justify-center rounded-[11px] py-[13px]" style={{ background: column.headerColor }}>
+      {column.title
+        ? <span className="px-3 text-center text-[20px] font-semibold leading-tight text-white">{column.title}</span>
+        : <CroppedLogo src={column.logoSrc} code={column.logoCode} className="h-[62px]" />}
+    </div>
+  );
+}
+
+function Section({ section, onOpen }: { section: BoardSection; onOpen: OpenCard }) {
   const empty = section.items.length === 0;
   const Chevron = open ? ChevronDown : ChevronRight;
   return (
@@ -268,9 +276,32 @@ function presetRange(p: Preset): [string, string] {
 }
 
 // Figma "Page heading" (node 376:31511).
-function PageHead({ from, to, preset, canCreateTask, onFrom, onTo, onPreset, heading = 'Dashboard', subheading = 'Keep handoffs moving. Clear the blockers before they affect delivery.' }: {
+type BoardView = 'stages' | 'accounts';
+const VIEW_KEY = 'tl_board_view';
+
+function ViewToggle({ view, onView }: { view: BoardView; onView: (v: BoardView) => void }) {
+  const opt = (v: BoardView, label: string) => (
+    <button
+      type="button" aria-pressed={view === v} onClick={() => onView(v)}
+      className={`h-[30px] rounded-[5px] px-3 text-[13px] font-medium transition-colors ${view === v ? 'bg-ui-surface-elevated text-ui-heading shadow-[0_1px_2px_rgba(0,0,0,0.10)]' : 'text-ui-body hover:text-ui-heading'}`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div role="group" aria-label="Group cards by" className="flex h-9 items-center gap-0.5 rounded-[6px] border border-ui-divider bg-ui-input-bg p-[2px]">
+      {opt('stages', 'Stages')}
+      {opt('accounts', 'Accounts')}
+    </div>
+  );
+}
+
+function PageHead({ from, to, preset, canCreateTask, onFrom, onTo, onPreset, heading = 'Dashboard', subheading = 'Keep handoffs moving. Clear the blockers before they affect delivery.', view, onView, onCollapseAll }: {
   from: string; to: string; preset: Preset; canCreateTask: boolean; heading?: string; subheading?: string;
   onFrom: (v: string) => void; onTo: (v: string) => void; onPreset: (p: Preset) => void;
+  /** Only when the board offers the Accounts view. */
+  view?: BoardView; onView?: (v: BoardView) => void;
+  onCollapseAll?: { label: string; run: () => void } | null;
 }) {
   return (
     <div className="mb-[30px] flex flex-wrap items-center justify-between gap-4">
@@ -283,6 +314,13 @@ function PageHead({ from, to, preset, canCreateTask, onFrom, onTo, onPreset, hea
         className="flex flex-wrap items-end gap-3"
         title="Project cards: delivery date. Opportunity cards: date it became an opportunity (ClickUp creation date). Cards with no date are hidden while a filter is set."
       >
+        {view && onView && <ViewToggle view={view} onView={onView} />}
+        {onCollapseAll && (
+          <button type="button" onClick={onCollapseAll.run}
+            className="h-9 rounded-[6px] border border-ui-divider bg-ui-input-bg px-3 text-[13px] font-medium text-ui-body hover:text-ui-heading">
+            {onCollapseAll.label}
+          </button>
+        )}
         <label className="flex flex-col gap-[5px] text-[11px] leading-[1.35] text-ui-body">
           From
           <input type="date" value={from} onChange={e => onFrom(e.target.value)} className={DATE_INPUT} />
@@ -305,170 +343,92 @@ function PageHead({ from, to, preset, canCreateTask, onFrom, onTo, onPreset, hea
   );
 }
 
-function Column({ column, isOpen, onToggle, onOpen }: {
-  column: BoardColumn; isOpen: (key: string, index: number) => boolean; onToggle: (key: string, index: number) => void; onOpen: OpenCard;
-}) {
-  // A column never reaches below the bottom of the screen: its max height is the space from its
-  // own top to the screen's bottom (re-measured on scroll / resize). So whatever doesn't fit
-  // scrolls inside the hovered column, while the page and the other columns stay where they are.
-  const ref = React.useRef<HTMLDivElement>(null);
-  React.useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    let frame = 0;
-    const fit = () => {
-      frame = 0;
-      const topBar = document.querySelector('[data-shell="topbar"]')?.getBoundingClientRect().bottom ?? 0;
-      const full = window.innerHeight - topBar - 16;
-      const room = window.innerHeight - Math.max(el.getBoundingClientRect().top, topBar) - 16;
-      el.style.maxHeight = `${Math.round(Math.min(full, Math.max(320, room)))}px`;
-    };
-    const schedule = () => { if (!frame) frame = requestAnimationFrame(fit); };
-    fit();
-    window.addEventListener('scroll', schedule, { passive: true });
-    window.addEventListener('resize', schedule);
-    return () => {
-      window.removeEventListener('scroll', schedule);
-      window.removeEventListener('resize', schedule);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, []);
-  return (
-    // The whole column card (logo header + every stage) is the scroll box: the wheel over one
-    // branch scrolls only that card, and overscroll-contain keeps the page and the other
-    // columns still.
-    <div ref={ref} className="pointer-events-auto flex min-h-0 flex-col rounded-[16px] bg-ui-surface px-2.5 pb-2.5 max-h-[calc(100vh-120px)] overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-width:thin]">
-      {/* Logo header stays pinned at the top of its column; only the stages scroll under it.
-          The wrapper's own padding + background cover the cards as they pass beneath. */}
-      <div className="sticky top-0 z-10 shrink-0 bg-ui-surface pb-2.5 pt-2.5">
-        <div className="flex h-[105px] items-center justify-center rounded-[11px] py-[13px]" style={{ background: column.headerColor }}>
-          {column.title
-            ? <span className="px-3 text-center text-[20px] font-semibold leading-tight text-white">{column.title}</span>
-            : <CroppedLogo src={column.logoSrc} code={column.logoCode} className="h-[62px]" />}
-        </div>
-      </div>
-      <div className="flex shrink-0 flex-col gap-4 rounded-[11px] bg-ui-surface-elevated px-3 pb-3.5 pt-2">
-        {column.sections.map((section, i) => (
-          <Section key={section.key} section={section} open={isOpen(`${column.regionCode}:${section.key}`, i)} onToggle={() => onToggle(`${column.regionCode}:${section.key}`, i)} onOpen={onOpen} />
-        ))}
-      </div>
-    </div>
-  );
+interface AccountGroup { key: string; name: string; count: number; sections: BoardSection[] }
+
+/** One column's cards regrouped by client: most cards first, each keeping the stage order inside. */
+function accountGroups(column: BoardColumn): AccountGroup[] {
+  const groups = new Map<string, { name: string; count: number; bySection: Map<string, BoardCardItem[]> }>();
+  for (const section of column.sections) {
+    for (const item of section.items) {
+      const key = item.account?.key ?? `n:${item.title.trim().toLowerCase()}`;
+      const name = item.account?.name ?? item.title;
+      let g = groups.get(key);
+      if (!g) { g = { name, count: 0, bySection: new Map() }; groups.set(key, g); }
+      g.count += 1;
+      const list = g.bySection.get(section.key);
+      if (list) list.push(item); else g.bySection.set(section.key, [item]);
+    }
+  }
+  return [...groups.entries()]
+    .map(([key, g]) => ({
+      key, name: g.name, count: g.count,
+      sections: column.sections.filter(s => g.bySection.has(s.key)).map(s => ({ ...s, items: g.bySection.get(s.key)! })),
+    }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
-// Figma "View tabs" (node 572:29189) controls: same look as the Leads page filters.
-const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg pl-3 pr-2 text-[13px] font-medium leading-normal text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading [&_svg]:size-3.5';
-const HIDDEN_COLS_KEY = 'dashboard.hiddenColumns.v1';
-
-function ColumnsMenu({ columns, hidden, onToggle }: {
-  columns: BoardColumn[]; hidden: Set<string>; onToggle: (code: string) => void;
+function Account({ group, color, collapsed, onToggle, onOpen }: {
+  group: AccountGroup; color: string; collapsed: boolean; onToggle: () => void; onOpen: OpenCard;
 }) {
-  const [open, setOpen] = React.useState(false);
+  const Icon = collapsed ? ChevronRight : ChevronDown;
   return (
-    <div className="relative">
-      <button type="button" aria-expanded={open} className={`${FILTER_CLS} gap-2 px-3`} onClick={() => setOpen(o => !o)}>
-        <Columns2 aria-hidden />
-        Columns
-        <ChevronDown aria-hidden />
+    <div className="flex flex-col rounded-[11px] bg-ui-surface-elevated" style={{ borderLeft: `4px solid ${color}` }}>
+      <button
+        type="button" aria-expanded={!collapsed} onClick={onToggle}
+        className="flex w-full items-center gap-2 rounded-[11px] px-3 py-2.5 text-left hover:bg-ui-surface focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
+      >
+        <Icon size={16} aria-hidden className="shrink-0 text-ui-body" />
+        <span className="min-w-0 flex-1 truncate text-[15px] font-bold text-ui-heading">{group.name}</span>
+        <span className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-2 text-[12px] font-semibold text-white" style={{ background: color }}>
+          {group.count}
+        </span>
       </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-30 mt-1.5 max-h-80 w-56 overflow-auto rounded-xl border border-ui-divider bg-ui-surface-elevated p-1.5 shadow-lg">
-            {columns.map(c => {
-              const shown = !hidden.has(c.regionCode);
-              // At least one column always stays on the board.
-              const last = shown && columns.filter(x => !hidden.has(x.regionCode)).length === 1;
-              return (
-                <label key={c.regionCode} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-ui-body ${last ? 'opacity-60' : 'cursor-pointer hover:bg-ui-hover-bg'}`}>
-                  <Checkbox checked={shown} disabled={last} onCheckedChange={() => onToggle(c.regionCode)} />
-                  {c.name ?? c.title ?? c.regionCode}
-                </label>
-              );
-            })}
-          </div>
-        </>
+      {!collapsed && (
+        <div className="flex flex-col gap-4 px-3 pb-3.5 pt-1">
+          {group.sections.map(section => <Section key={section.key} section={section} onOpen={onOpen} />)}
+        </div>
       )}
     </div>
   );
 }
 
-function Board({ columns, dateFrom, dateTo, onOpen }: {
-  columns: BoardColumn[]; dateFrom: string; dateTo: string; onOpen: OpenCard;
+function Column({ column, onOpen, accounts }: {
+  column: BoardColumn; onOpen: OpenCard;
+  /** Accounts view: this column's client groups and which ones are folded. */
+  accounts?: { groups: AccountGroup[]; collapsed: Set<string>; toggle: (key: string) => void } | null;
 }) {
-  const { options } = React.useContext(AssignContext);
-  const accountOf = useCardAccount();
-  const [account, setAccount] = React.useState('');
-  const [company, setCompany] = React.useState('');
-
-  // Columns menu — remembered per browser.
-  const [hidden, setHidden] = React.useState<Set<string>>(new Set());
-  React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem(HIDDEN_COLS_KEY);
-      if (raw) setHidden(new Set(JSON.parse(raw) as string[]));
-    } catch { /* storage unavailable — show every column */ }
-  }, []);
-  const toggleColumn = (code: string) => setHidden(prev => {
-    const next = new Set(prev);
-    if (next.has(code)) next.delete(code); else next.add(code);
-    try { localStorage.setItem(HIDDEN_COLS_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
-    return next;
-  });
-
-  // Stage bars: the first stage starts open, the rest closed (Figma). Each bar opens and closes
-  // only its own stage in its own column — keyed by column + stage.
-  const [toggled, setToggled] = React.useState<Record<string, boolean>>({});
-  const isOpen = (key: string, index: number) => toggled[key] ?? index === 0;
-  const onToggle = (key: string, index: number) => setToggled(t => ({ ...t, [key]: !(t[key] ?? index === 0) }));
-
-  const companyOptions = React.useMemo(() => {
-    const names = new Set<string>();
-    for (const c of columns) for (const s of c.sections) for (const i of s.items) if (i.title) names.add(i.title);
-    return [{ value: '', label: 'All Companies' }, ...[...names].sort((a, b) => a.localeCompare(b)).map(n => ({ value: n, label: n }))];
-  }, [columns]);
-  const accountOptions = React.useMemo(() => [{ value: '', label: 'Accounts' }, ...options], [options]);
-
-  const visible = React.useMemo(() => {
-    const inRange = (d: string | null) => {
-      if (!dateFrom && !dateTo) return true;
-      if (!d) return false;
-      if (dateFrom && d < dateFrom) return false;
-      if (dateTo && d > dateTo) return false;
-      return true;
-    };
-    const keep = (i: BoardCardItem) =>
-      inRange(i.dateISO) && (!company || i.title === company) && (!account || accountOf(i) === account);
-    const shown = columns.filter(c => !hidden.has(c.regionCode));
-    return (shown.length ? shown : columns).map(column => ({
-      ...column,
-      sections: column.sections.map(s => ({ ...s, items: s.items.filter(keep) })),
-    }));
-  }, [columns, hidden, dateFrom, dateTo, company, account, accountOf]);
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex min-h-12 flex-wrap items-center justify-between gap-2.5 rounded-[8px] bg-ui-surface px-2 py-1.5">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <FilterSelect aria-label="Accounts" value={account} options={accountOptions} onValueChange={v => setAccount(v ?? '')} className={FILTER_CLS} />
-          <FilterSelect aria-label="Companies" value={company} options={companyOptions} onValueChange={v => setCompany(v ?? '')} className={FILTER_CLS} />
-        </div>
-        <ColumnsMenu columns={columns} hidden={hidden} onToggle={toggleColumn} />
+  if (accounts) {
+    return (
+      <div className="flex flex-col gap-2.5 rounded-[16px] bg-ui-surface p-2.5">
+        <ColumnHeader column={column} />
+        {accounts.groups.length === 0 ? (
+          <p className="m-0 rounded-[11px] bg-ui-surface-elevated p-3 text-[12px] text-ui-body">No Active Projects</p>
+        ) : accounts.groups.map(g => {
+          const key = `${column.regionCode}|${g.key}`;
+          return (
+            <Account key={g.key} group={g} color={column.headerColor} collapsed={accounts.collapsed.has(key)}
+              onToggle={() => accounts.toggle(key)} onOpen={onOpen} />
+          );
+        })}
       </div>
-      {/* items-start: columns must NOT stretch to match the tallest one (grid's default). */}
-      <div
-        className="grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2 xl:[grid-template-columns:repeat(var(--board-cols),minmax(0,1fr))]"
-        style={{ '--board-cols': visible.length } as React.CSSProperties}
-      >
-        {visible.map(column => (
-          <Column key={column.regionCode} column={column} isOpen={isOpen} onToggle={onToggle} onOpen={onOpen} />
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2.5 rounded-[16px] bg-ui-surface p-2.5">
+      <ColumnHeader column={column} />
+      {/* No fixed/stretched height — each column is exactly as tall as its own content. */}
+      <div className="flex flex-col gap-4 rounded-[11px] bg-ui-surface-elevated px-3 pb-3.5 pt-2">
+        {column.sections.map(section => (
+          <Section key={section.key} section={section} onOpen={onOpen} />
         ))}
       </div>
     </div>
   );
 }
 
-export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading }: {
+export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false }: {
+  /** Offer the "Accounts" view: each column's cards grouped by client, biggest client first. */
+  accounts?: boolean;
   /** Page title / sub-line (the Trust Lines dashboard has its own). */
   heading?: string;
   subheading?: string;
@@ -514,6 +474,49 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
 
   const handleOpen: OpenCard = (item, section) => setOpen({ item, section });
 
+  const filteredColumns = React.useMemo(() => {
+    if (!dateFrom && !dateTo) return columns;
+    const inRange = (d: string | null) => {
+      if (!d) return false;
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
+    };
+    return columns.map(column => {
+      const sections = column.sections.map(s => ({ ...s, items: s.items.filter(i => inRange(i.dateISO)) }));
+      return { ...column, sections };
+    });
+  }, [columns, dateFrom, dateTo]);
+
+  // Stages / Accounts, remembered per browser. Every account starts open; a click folds it.
+  const [view, setView] = React.useState<BoardView>('stages');
+  React.useEffect(() => {
+    try { if (accounts && localStorage.getItem(VIEW_KEY) === 'accounts') setView('accounts'); } catch { /* storage blocked */ }
+  }, [accounts]);
+  const changeView = (v: BoardView) => {
+    setView(v);
+    try { localStorage.setItem(VIEW_KEY, v); } catch { /* storage blocked */ }
+  };
+  const [collapsed, setCollapsed] = React.useState<Set<string>>(() => new Set());
+  const toggleAccount = React.useCallback((key: string) => setCollapsed(c => {
+    const next = new Set(c);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  }), []);
+  const showAccounts = accounts && view === 'accounts';
+  const groupsByColumn = React.useMemo(
+    () => (showAccounts ? new Map(filteredColumns.map(c => [c.regionCode, accountGroups(c)])) : null),
+    [showAccounts, filteredColumns],
+  );
+  const allKeys = React.useMemo(
+    () => (groupsByColumn ? [...groupsByColumn.entries()].flatMap(([region, gs]) => gs.map(g => `${region}|${g.key}`)) : []),
+    [groupsByColumn],
+  );
+  const allFolded = allKeys.length > 0 && allKeys.every(k => collapsed.has(k));
+  const collapseAll = groupsByColumn && allKeys.length > 0
+    ? { label: allFolded ? 'Expand all' : 'Collapse all', run: () => setCollapsed(allFolded ? new Set() : new Set(allKeys)) }
+    : null;
+
   const applyPreset = (p: Preset) => {
     const [from, to] = presetRange(p);
     setPreset(p); setDateFrom(from); setDateTo(to);
@@ -525,6 +528,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
         heading={heading} subheading={subheading}
         from={dateFrom} to={dateTo} preset={preset} canCreateTask={canCreateTask} onPreset={applyPreset}
         onFrom={v => { setDateFrom(v); setPreset(''); }} onTo={v => { setDateTo(v); setPreset(''); }}
+        view={accounts ? view : undefined} onView={accounts ? changeView : undefined} onCollapseAll={collapseAll}
       />
       {top}
       {trustError && (
@@ -540,7 +544,18 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
           description="Ask an admin to set your region on the Team page."
         />
       ) : (
-        <Board columns={columns} dateFrom={dateFrom} dateTo={dateTo} onOpen={handleOpen} />
+        // items-start: columns must NOT stretch to match the tallest one (grid's default).
+        <div
+          className="grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2 xl:[grid-template-columns:repeat(var(--board-cols),minmax(0,1fr))]"
+          style={{ '--board-cols': columns.length } as React.CSSProperties}
+        >
+          {filteredColumns.map(column => (
+            <Column
+              key={column.regionCode} column={column} onOpen={handleOpen}
+              accounts={groupsByColumn ? { groups: groupsByColumn.get(column.regionCode) ?? [], collapsed, toggle: toggleAccount } : null}
+            />
+          ))}
+        </div>
       )}
       {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} onClose={() => setOpen(null)} />}
     </AssignContext.Provider>

@@ -1,9 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
@@ -58,6 +57,7 @@ import type { UserRole } from '@/types/database';
 import { pageAllowed } from '@/lib/permissions/catalog';
 import { DEFAULT_LOGO } from '@/lib/regionLogo';
 import { UserMenu } from './UserMenu';
+import { IntentLink } from './IntentLink';
 
 // Design: Figma "TRUST-LINES ERP" → "Shell (Task 11)" (112:15713): 72px icon rail + 232px panel
 // that lists the selected group's pages; collapsing hides the panel. Light + dark.
@@ -237,7 +237,13 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
   // used to share one "CRM" nav group, which is exactly what made the sidebar hard to read. Split
   // into two groups so each team sees only its own destinations under its own name.
   const salesNav: NavItem[] = [
+    // 2026-11-05: Store Maker website submissions first — new inbound people are Sales' first job.
+    { label: 'Store Maker Inbox', href: '/sales-inbox', icon: Globe, perm: 'page.sales_web_leads' },
     ...CRM_BOARD_NAV,
+    { label: 'Contacts', href: '/sales-contacts', icon: UserSearch, perm: 'page.sales_contacts' },
+    // 2026-11-06: designs the designer sent to Sales ("Send to Sales") — the Design workspace's
+    // "In Sales Review" view, so Sales finds proposals without leaving its own menu.
+    { label: 'Design Reviews', href: '/design?scope=review', icon: Palette, perm: 'page.design' },
     ...SALES_NAV,
     { label: 'Dashboard', href: '/sales-dashboard', icon: BarChart3, perm: 'page.sales_dashboard' },
     { label: 'Sales Team', href: '/sales-team', icon: Users, perm: 'page.sales_team' },
@@ -277,6 +283,7 @@ export function Sidebar({
   logoSrc,
 }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const quickDealActive = pathname === '/leads' && searchParams?.get('view') === 'quick_deal';
 
@@ -351,7 +358,7 @@ export function Sidebar({
                   <RailTip
                     key={s.key}
                     label={s.title}
-                    render={<Link href={s.items[0].href} aria-label={s.title} aria-current={s.key === pageSectionKey ? 'page' : undefined} className={cls} />}
+                    render={<IntentLink href={s.items[0].href} aria-label={s.title} aria-current={s.key === pageSectionKey ? 'page' : undefined} className={cls} />}
                   >
                     <Icon className={RAIL_ICON} strokeWidth={1.5} />
                   </RailTip>
@@ -367,6 +374,8 @@ export function Sidebar({
                       aria-label={s.title}
                       aria-pressed={active}
                       onClick={() => { setBrowsing(s.key); if (collapsed) setCollapsedPersisted(false); }}
+                      // Hovering a group = intent to open one of its pages: warm their loading shells.
+                      onMouseEnter={() => s.items.forEach(i => router.prefetch(i.href))}
                       className={`${cls} cursor-pointer`}
                     />
                   }
@@ -381,11 +390,11 @@ export function Sidebar({
         <div className="flex w-full flex-col items-center gap-10 pt-10">
           <div className={DIVIDER} />
           <div className="flex flex-col items-center gap-[30px]">
-            <RailTip label="Notifications" render={<Link href="/notifications" aria-label="Notifications" className="text-[#787881] hover:text-secondary-700 dark:hover:text-primary-50" />}>
+            <RailTip label="Notifications" render={<IntentLink href="/notifications" aria-label="Notifications" className="text-[#787881] hover:text-secondary-700 dark:hover:text-primary-50" />}>
               <Bell className={RAIL_ICON} strokeWidth={1.5} />
             </RailTip>
             {canSettings && (
-              <RailTip label="Settings" render={<Link href="/settings" aria-label="Settings" className="text-[#787881] hover:text-secondary-700 dark:hover:text-primary-50" />}>
+              <RailTip label="Settings" render={<IntentLink href="/settings" aria-label="Settings" className="text-[#787881] hover:text-secondary-700 dark:hover:text-primary-50" />}>
                 <Settings className={RAIL_ICON} strokeWidth={1.5} />
               </RailTip>
             )}
@@ -408,7 +417,7 @@ export function Sidebar({
                   const Icon = item.icon;
                   const active = item.href === shownActiveHref;
                   return (
-                    <Link
+                    <IntentLink
                       key={item.href}
                       href={item.href}
                       aria-current={active ? 'page' : undefined}
@@ -420,7 +429,7 @@ export function Sidebar({
                     >
                       <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
                       <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                    </Link>
+                    </IntentLink>
                   );
                 })}
               </div>
@@ -461,14 +470,14 @@ function RailTip({ label, render, children }: { label: string; render: React.Rea
 function BrandLogo({ logoSrc }: { logoSrc?: string }) {
   if (!logoSrc || logoSrc === DEFAULT_LOGO) {
     return (
-      <div className="flex h-[54px] w-full items-center pl-[3px]">
+      <div className="flex h-[54px] w-full items-center justify-center">
         <Image src="/login/t-holding-logo.svg" alt="T Holding" width={130} height={54} priority className="h-[54px] w-auto dark:hidden" />
         <Image src="/login/t-holding-logo-dark.svg" alt="T Holding" width={130} height={54} priority className="hidden h-[54px] w-auto dark:block" />
       </div>
     );
   }
   return (
-    <div className="flex h-[54px] w-full items-center pl-[3px]">
+    <div className="flex h-[54px] w-full items-center justify-center">
       <Image src={logoSrc} alt="Workspace logo" width={130} height={54} priority unoptimized className="max-h-[54px] w-auto object-contain dark:brightness-0 dark:invert" />
     </div>
   );

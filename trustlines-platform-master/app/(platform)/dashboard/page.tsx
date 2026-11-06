@@ -7,8 +7,8 @@ import { regionLogoByCode } from '@/lib/regionLogo';
 import { getAssignedRegions, regionAllows } from '@/lib/access/regionScope';
 import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { SALES_HANDOFF_ROLES, SALES_INTAKE_ROLES } from '@/lib/sales/roles';
-import { loadClientOpportunities, type ClientOpportunityRow } from '@/lib/keyClients/server';
-import { projectNumber } from '@/lib/keyClients/match';
+import { loadClientOpportunities, loadKeyClients, type ClientOpportunityRow } from '@/lib/keyClients/server';
+import { buildMatcher, nameTokens, projectNumber } from '@/lib/keyClients/match';
 import { quickViewLink } from '@/lib/marketing/quickViewLink';
 import { KEY_CLIENT_ADMIN_ROLES } from '@/lib/keyClients/roles';
 import { classifyTrustProject, loadTrustProjects, typeLabel, typeStatuses, type TrustStage } from '@/lib/trust/board';
@@ -135,9 +135,23 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   };
   // Finalization → Shipped come from the Trust System, by project number (lib/trust/board.ts).
   // The Trust Lines dashboard shows every branch; the T-Lines one only the viewer's regions.
-  const [{ data: projectRows }, opportunities, trust] = regionCodes.length === 0 && view === 'tlines'
-    ? [{ data: [] }, [] as ClientOpportunityRow[], { projects: [], error: null }]
-    : await Promise.all([projectQuery, loadClientOpps(), loadTrustProjects()]);
+  // The board's "Accounts" view groups every card under its client: a key client when the name
+  // matches one (same rule as Clients Opportunity, lib/keyClients/match), else the card's own name.
+  const loadAccountMatcher = async () => {
+    try { return buildMatcher((await loadKeyClients(admin)).clients); } catch { return buildMatcher([]); }
+  };
+  const [{ data: projectRows }, opportunities, trust, accountMatcher] = regionCodes.length === 0 && view === 'tlines'
+    ? [{ data: [] }, [] as ClientOpportunityRow[], { projects: [], error: null }, buildMatcher([])]
+    : await Promise.all([projectQuery, loadClientOpps(), loadTrustProjects(), loadAccountMatcher()]);
+  const accountOf = (name: string | null | undefined, keyClientId?: string, keyClientName?: string) => {
+    if (keyClientId && keyClientName) return { key: `kc:${keyClientId}`, name: keyClientName };
+    const kc = accountMatcher.byName(name);
+    if (kc) return { key: `kc:${kc.id}`, name: kc.name };
+    // "ALBURAK 1" / "ALBURAK 2" are the same client's sites: drop a trailing site number.
+    const base = (name ?? '').trim().replace(/[\s#-]*\d+$/, '').trim() || (name ?? '').trim();
+    const tokens = nameTokens(base);
+    return { key: tokens.length ? `n:${tokens.join(' ')}` : 'n:', name: base || 'No client' };
+  };
   const trustProjects = trust.projects;
   // "Assign to" on every card, one person per card per stage (board_assignees, migration 137) —
   // empty until it's applied. Keyed "kind:id:stage".
@@ -160,6 +174,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       badgeTop: `#${p.projectNo}`, badgeBottom: '',
       title: p.name,
       subtitle: p.address,
+      account: accountOf(p.name),
       category: (p.types ?? []).map(typeLabel).filter(Boolean).join(', ') || null,
       pmName: null, pmLabel: '',
       assign: assignFor('trust', p.id, e.stage, `#${p.projectNo}`),
@@ -182,6 +197,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     const t = trustDashboard({ projects: trustProjects, cards: allTrustCards, weekAgo: weekAgoIso });
     return (
       <BranchBoard
+        accounts
         heading="Trust Lines Dashboard"
         subheading="Every branch's projects in the Trust System, by production stage."
         columns={t.columns}
@@ -247,6 +263,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         badgeTop: top, badgeBottom: bottom,
         title: o.client,
         subtitle: o.site || (prospectPlace.get(o.prospectId) ?? null),
+        account: accountOf(o.client, o.keyClientId, o.client),
         category: categoryLabel(o.projectTypes.length ? o.projectTypes : o.projectTypeRaw ? [o.projectTypeRaw] : null),
         pmName: o.ownerId ? pmNames.get(o.ownerId) ?? null : null,
         pmLabel: o.ownerIsSales ? 'Sales Owner' : 'Marketing Owner',
@@ -271,6 +288,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         id: p.id, kind: 'project', badgeTop: top, badgeBottom: bottom,
         title: p.name,
         subtitle: p.site_location,
+        account: accountOf(p.name),
         onHold: heldProjects.has(p.id),
         category: categoryLabel(p.categories),
         pmName: p.tlines_pm_id ? pmNames.get(p.tlines_pm_id) ?? null : null,
@@ -388,6 +406,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   return (
     <BranchBoard
+      accounts
       columns={columns}
       assignees={marketingAssignees ?? []}
       canEdit={canEditOpportunities}

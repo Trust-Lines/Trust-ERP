@@ -15,6 +15,8 @@ export interface WebLeadInput {
   store_condition: string | null;
   store_type: string | null;
   message: string | null;
+  /** The form's separate "Notes" box (migration 140). */
+  notes: string | null;
   consent_accepted: boolean;
   consent_text_version: string | null;
   source_page: string | null;
@@ -74,7 +76,8 @@ export function parseWebLeadBody(raw: unknown): { error: string; code: string } 
       store_location: text(pick('storeLocation', 'store_location', 'location'), 300),
       store_condition: text(pick('storeCondition', 'store_condition', 'condition'), 60),
       store_type: text(pick('storeType', 'store_type'), 60),
-      message: text(pick('message', 'notes'), 3000),
+      message: text(pick('message'), 3000),
+      notes: text(pick('notes', 'note', 'noted', 'additionalNotes', 'additional_notes', 'comments'), 3000),
       consent_accepted: true,
       consent_text_version: text(pick('consentTextVersion', 'consent_text_version'), 40),
       source_page: text(pick('sourcePage', 'source_page', 'page'), 300),

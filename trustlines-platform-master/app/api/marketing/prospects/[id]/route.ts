@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchCreatedByLabel } from '@/lib/marketing/surveyRepresentatives';
 import { requireRole } from '@/lib/permissions/requireApi';
 import { logAudit } from '@/lib/audit/log';
-import { MARKETING_READ_ROLES, MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
+import { CONTACTS_READ_ROLES, MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
 import { assertProspectAccess } from '@/lib/marketing/prospectAccess';
 import { ENTITY_TYPES } from '@/lib/marketing/classification';
 
@@ -23,7 +23,7 @@ const EDITABLE = [
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const { user, role, admin, deny } = await requireRole(MARKETING_READ_ROLES);
+  const { user, role, admin, deny } = await requireRole(CONTACTS_READ_ROLES);
   if (deny) return deny;
   const denied = await assertProspectAccess(admin, id, user.id, role, 'read');
   if (denied) return denied;

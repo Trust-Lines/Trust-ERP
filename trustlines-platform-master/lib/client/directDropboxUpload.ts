@@ -10,7 +10,7 @@ export async function uploadImageDirect(notesUrl: string, file: File): Promise<s
       body: JSON.stringify({ action: 'upload-link', fileName: file.name }),
     });
     if (!linkRes.ok) return null;
-    const { link } = await linkRes.json().catch(() => ({} as { link?: string }));
+    const { link, path } = await linkRes.json().catch(() => ({} as { link?: string; path?: string }));
     if (typeof link !== 'string' || !link.startsWith('https://')) return null;
 
     // First the documented content type; if the browser's CORS preflight rejects it the request
@@ -20,8 +20,10 @@ export async function uploadImageDirect(notesUrl: string, file: File): Promise<s
       try {
         const up = await fetch(link, { method: 'POST', headers: { 'Content-Type': contentType }, body: file });
         if (!up.ok) return null;
+        // A one-shot link's reply is just { "content-hash" } — the path is the one the API picked.
         const meta = await up.json().catch(() => null) as { path_lower?: string } | null;
-        return typeof meta?.path_lower === 'string' ? meta.path_lower : null;
+        const stored = meta?.path_lower ?? path;
+        return typeof stored === 'string' ? stored : null;
       } catch {
         continue;
       }

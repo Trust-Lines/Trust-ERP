@@ -14,6 +14,7 @@ import { PhotoCropDialog } from './PhotoCropDialog';
 import { AVATARS_CHANGED_EVENT } from '@/components/ui/avatar-directory';
 import { MailSettingsCard } from './MailSettingsCard';
 import { GoogleAccountCard } from './GoogleAccountCard';
+import { LeadMailSettingsCard } from './LeadMailSettingsCard';
 
 const MIN_PASSWORD = 8;
 
@@ -27,7 +28,7 @@ const TEXT_INPUT = 'min-h-[42px] w-full rounded-[6px] border border-solid border
 // The profile banner: secondary-700 fill under a faint radial highlight.
 const BANNER_BG = 'radial-gradient(398px 241px at 168px 95px, rgba(31,37,45,.2) 0%, rgba(53,62,74,.2) 15%, rgba(76,87,103,.2) 30%, rgba(98,111,132,.2) 46%, rgba(120,136,161,.2) 61%), var(--color-secondary-700)';
 
-type Tab = 'profile' | 'preferences';
+type Tab = 'profile' | 'preferences' | 'website_leads';
 
 /** 0–4: length, mixed case, digit, symbol — only counted once the minimum length is met. */
 function passwordScore(pw: string): number {
@@ -447,7 +448,11 @@ export function SettingsClient({ isGeneralManager, canBackUpContacts, role, full
   avatarUrl?: string | null;
 }) {
   const [tab, setTab] = useState<Tab>('profile');
-  const tabs: { key: Tab; label: string }[] = [{ key: 'profile', label: 'Profile' }, { key: 'preferences', label: 'Preferences' }];
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'profile', label: 'Profile' }, { key: 'preferences', label: 'Preferences' },
+    // Same roles as /api/web-cms/lead-mail-settings (MARKETING_MANAGE_ROLES).
+    ...(canBackUpContacts ? [{ key: 'website_leads' as Tab, label: 'Website leads' }] : []),
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -489,6 +494,7 @@ export function SettingsClient({ isGeneralManager, canBackUpContacts, role, full
           </div>
         )}
         {tab === 'preferences' && <PreferencesTab email={email} />}
+        {tab === 'website_leads' && canBackUpContacts && <LeadMailSettingsCard />}
       </div>
 
       {tab === 'profile' && <BackupCard isGeneralManager={isGeneralManager} canBackUpContacts={canBackUpContacts} />}
