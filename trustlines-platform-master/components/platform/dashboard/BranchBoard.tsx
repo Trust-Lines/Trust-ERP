@@ -276,7 +276,8 @@ function ViewToggle({ view, onView }: { view: BoardView; onView: (v: BoardView) 
   const opt = (v: BoardView, label: string) => (
     <button
       type="button" aria-pressed={view === v} onClick={() => onView(v)}
-      className={`h-[30px] rounded-[5px] px-3 text-[13px] font-medium transition-colors ${view === v ? 'bg-ui-surface-elevated text-ui-heading shadow-[0_1px_2px_rgba(0,0,0,0.10)]' : 'text-ui-body hover:text-ui-heading'}`}
+      // Selected = solid navy with white text (dark mode: the light solid), so it reads at a glance.
+      className={`h-[30px] cursor-pointer rounded-[5px] border-0 px-3 text-[13px] transition-colors ${view === v ? 'bg-[var(--ui-btn-solid)] font-semibold text-[var(--ui-btn-solid-fg)] shadow-[0_1px_2px_rgba(0,0,0,0.15)]' : 'bg-transparent font-medium text-ui-body hover:bg-ui-hover-bg hover:text-ui-heading'}`}
     >
       {label}
     </button>
@@ -371,25 +372,23 @@ function Account({ group, color, collapsed, onToggle, onOpen }: {
     if (next.has(key)) next.delete(key); else next.add(key);
     return next;
   });
+  // Same build as a stage bar (Section), in the branch colour: the client's bar, then its stages
+  // full width underneath — so the Accounts view reads exactly like the Stages view.
   return (
-    <div className="flex shrink-0 flex-col rounded-[11px] bg-ui-surface-elevated" style={{ borderLeft: `4px solid ${color}` }}>
+    <div className="flex shrink-0 flex-col gap-4">
       <button
         type="button" aria-expanded={!collapsed} onClick={onToggle}
-        className="flex w-full items-center gap-2 rounded-[11px] px-3 py-2.5 text-left hover:bg-ui-surface focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
+        className="flex w-full cursor-pointer items-center gap-1 rounded-[6px] border-0 px-2 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.18)] text-left text-white transition-[filter] hover:brightness-110 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
+        style={{ background: color }}
       >
-        <Icon size={16} aria-hidden className="shrink-0 text-ui-body" />
-        <span className="min-w-0 flex-1 truncate text-[15px] font-bold text-ui-heading">{group.name}</span>
-        <span className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-2 text-[12px] font-semibold text-white" style={{ background: color }}>
-          {group.count}
-        </span>
+        <span aria-hidden className="size-1 shrink-0 rounded-full bg-white" />
+        <span className="min-w-0 truncate text-[15px] font-bold uppercase leading-normal">{group.name}</span>
+        <span className="flex-1 shrink-0 text-right text-[13px] font-semibold uppercase leading-normal tracking-[1.3px]">{group.count}</span>
+        <Icon size={16} aria-hidden className="shrink-0" />
       </button>
-      {!collapsed && (
-        <div className="flex flex-col gap-4 px-3 pb-3.5 pt-1">
-          {group.sections.map(section => (
-            <Section key={section.key} section={section} open={!closed.has(section.key)} onToggle={() => toggleStage(section.key)} onOpen={onOpen} />
-          ))}
-        </div>
-      )}
+      {!collapsed && group.sections.map(section => (
+        <Section key={section.key} section={section} open={!closed.has(section.key)} onToggle={() => toggleStage(section.key)} onOpen={onOpen} />
+      ))}
     </div>
   );
 }
@@ -426,9 +425,10 @@ function Column({ column, isOpen, onToggle, onOpen, accounts }: {
   if (accounts) {
     return (
       <ColumnShell column={column}>
-        <div className="flex shrink-0 flex-col gap-2.5">
+        {/* One white panel, like the Stages view. */}
+        <div className="flex shrink-0 flex-col gap-4 rounded-[11px] bg-ui-surface-elevated px-3 pb-3.5 pt-2">
           {accounts.groups.length === 0 ? (
-            <p className="m-0 rounded-[11px] bg-ui-surface-elevated p-3 text-[12px] text-ui-body">No Active Projects</p>
+            <p className="m-0 p-1 text-[12px] text-ui-body">No Active Projects</p>
           ) : accounts.groups.map(g => {
             const key = `${column.regionCode}|${g.key}`;
             return (
