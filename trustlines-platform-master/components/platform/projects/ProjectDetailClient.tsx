@@ -531,8 +531,11 @@ export function ProjectDetailClient({
             onStepsChanged={() => router.refresh()}
           />
 
-          {/* Figma 445:7500: Finance over Team / Time Line / Internal Notes / Integration, Activity on the right. */}
-          <div className="grid grid-cols-1 items-stretch gap-[18px] xl:grid-cols-[minmax(0,1fr)_398px]">
+          {/* Figma 445:7500: Finance over Team / Time Line / Internal Notes / Integration, Activity on the right.
+              Key dates and Documents stay in the left column too, and Activity sticks below the top bar
+              while the page scrolls — before, they ran full width under a tall Activity column and left
+              an empty gap beside the cards. */}
+          <div className="grid grid-cols-1 items-start gap-[18px] xl:grid-cols-[minmax(0,1fr)_398px]">
             <div className="flex min-w-0 flex-col gap-5">
               <FinanceCard project={project} documents={documents} userRole={userRole} />
               <ProjectRail
@@ -543,20 +546,22 @@ export function ProjectDetailClient({
                 stageHistory={stageHistory}
                 team={team}
               />
+              {/* Not in the frame, kept: key dates and the project's documents. */}
+              <DatesCard project={project} stageHistory={stageHistory} />
+              <DocumentTable
+                documents={documents}
+                userRole={userRole}
+                projectId={project.id}
+                projectCode={project.code}
+                dropboxRootPath={project.dropbox_root_path}
+                onRefresh={() => router.refresh()}
+              />
             </div>
-            <AuditTrail events={auditEvents} userRole={userRole} userId={userId} />
+            <AuditTrail
+              events={auditEvents} userRole={userRole} userId={userId}
+              className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-120px)] xl:overflow-y-auto"
+            />
           </div>
-
-          {/* Not in the frame, kept: key dates and the project's documents. */}
-          <DatesCard project={project} stageHistory={stageHistory} />
-          <DocumentTable
-            documents={documents}
-            userRole={userRole}
-            projectId={project.id}
-            projectCode={project.code}
-            dropboxRootPath={project.dropbox_root_path}
-            onRefresh={() => router.refresh()}
-          />
         </div>
       ) : activeTab === 'Plan Layout' ? (
         <PlanLayoutTab
