@@ -34,6 +34,9 @@ const EDITABLE = [
   'to_do_raw', 'request_raw', 'project_type_raw', 'source_raw_label', 'targeted',
   'external_stage_label', 'direct_contact_raw', 'state', 'formatted_address', 'brand', 'business_types',
   'deposit', 'payment_raw', 'closed_at',
+  // The quick view's "Next Action" / "Next Action Date" fields — were missing here, so saving
+  // either one failed with "Nothing to update".
+  'next_action', 'next_action_date',
 ] as const;
 
 export async function GET(_req: NextRequest, { params }: Params) {
