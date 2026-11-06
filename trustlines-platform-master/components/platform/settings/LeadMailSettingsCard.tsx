@@ -24,11 +24,11 @@ type Form = {
 const presetOf = (host: string | null) => SMTP_PRESETS.find(p => p.host && p.host === host)?.value ?? 'custom';
 const toForm = (s: Saved | null, fallback: string[]): Form => s?.smtp_host
   ? {
-    recipients: s.recipients.join('\n'), use_sender: true, preset: presetOf(s.smtp_host), from_name: s.from_name ?? 'Trust-Lines', from_email: s.from_email ?? '',
+    recipients: s.recipients.join('\n'), use_sender: true, preset: presetOf(s.smtp_host), from_name: s.from_name ?? 'TLINES', from_email: s.from_email ?? '',
     smtp_host: s.smtp_host, smtp_port: String(s.smtp_port ?? 465), smtp_secure: s.smtp_secure, smtp_user: s.smtp_user ?? '', smtp_pass: '',
   }
   : {
-    recipients: (s?.recipients?.length ? s.recipients : fallback).join('\n'), use_sender: false, preset: 'purelymail', from_name: 'Trust-Lines',
+    recipients: (s?.recipients?.length ? s.recipients : fallback).join('\n'), use_sender: false, preset: 'purelymail', from_name: 'TLINES',
     from_email: 'info@t-lines.us', smtp_host: 'smtp.purelymail.com', smtp_port: '465', smtp_secure: true, smtp_user: 'info@t-lines.us', smtp_pass: '',
   };
 
@@ -144,7 +144,7 @@ export function LeadMailSettingsCard() {
               {form.use_sender && (
                 <>
                   <label className="flex flex-col gap-1"><span className={label}>Sender name</span>
-                    <Input value={form.from_name} placeholder="Trust-Lines" onChange={e => set({ from_name: e.target.value })} />
+                    <Input value={form.from_name} placeholder="TLINES" onChange={e => set({ from_name: e.target.value })} />
                   </label>
                   <label className="flex flex-col gap-1"><span className={label}>From address</span>
                     <Input type="email" value={form.from_email} onChange={e => set({ from_email: e.target.value, ...(form.smtp_user === form.from_email ? { smtp_user: e.target.value } : {}) })} />

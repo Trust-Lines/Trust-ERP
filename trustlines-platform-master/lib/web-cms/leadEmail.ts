@@ -10,16 +10,21 @@ import { fallbackRecipients, hasOwnSender, leadTransport, loadLeadMailSettings, 
 // (web_lead_mail_settings, migration 141); until then WEB_LEAD_NOTIFY_EMAILS / al@tlines.us and
 // the app's default SMTP account are used. Reply-To is the visitor.
 
+/** Website lead mails are always branded TLINES — an old saved "Trust-Lines" sender name included. */
+export const LEAD_BRAND = 'TLINES';
+const leadFromName = (s: LeadMailSettings | null) =>
+  s?.from_name && !/trust[s-]*lines/i.test(s.from_name) ? s.from_name : LEAD_BRAND;
+
 export function webLeadRecipients(s: LeadMailSettings | null): string[] {
   return s?.recipients?.length ? s.recipients : fallbackRecipients();
 }
 
 /** One email through the Website-leads sender (or the default SMTP account). Throws on failure. */
 export async function sendLeadMail(s: LeadMailSettings | null, to: string, subject: string, html: string, replyTo?: string): Promise<void> {
-  if (!hasOwnSender(s)) { await sendEmail(to, subject, html, { replyTo }); return; }
+  if (!hasOwnSender(s)) { await sendEmail(to, subject, html, { replyTo, fromName: leadFromName(s) }); return; }
   const transport = leadTransport(s);
   try {
-    await transport.sendMail({ from: { name: s.from_name || 'Trust-Lines', address: s.from_email }, to, subject, html, ...(replyTo ? { replyTo } : {}) });
+    await transport.sendMail({ from: { name: leadFromName(s), address: s.from_email }, to, subject, html, ...(replyTo ? { replyTo } : {}) });
   } finally { transport.close(); }
 }
 
@@ -67,7 +72,7 @@ export function webLeadEmail(lead: WebLeadInput, receivedAt: Date): { subject: s
 <body style="font-family:Inter,Arial,sans-serif;background:#f4f4f5;margin:0;padding:32px 16px;">
   <div style="max-width:580px;margin:0 auto;background:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
     <div style="background:#0d9488;padding:22px 28px;">
-      <div style="font-size:18px;font-weight:700;color:#ffffff;">Trust-Lines</div>
+      <div style="font-size:18px;font-weight:700;color:#ffffff;">TLINES</div>
       <div style="font-size:12.5px;color:rgba(255,255,255,0.85);margin-top:3px;">${isNewsletter ? 'New newsletter signup' : 'New website contact form submission'}</div>
     </div>
     <div style="padding:24px 28px 8px;">
@@ -95,7 +100,7 @@ export function webLeadEmail(lead: WebLeadInput, receivedAt: Date): { subject: s
     <div style="padding:14px 28px;border-top:1px solid #f0f0f0;font-size:11.5px;color:#9ca3af;line-height:1.6;">
       Privacy notice accepted${lead.consent_text_version ? ` (v${esc(lead.consent_text_version)})` : ''}
       ${lead.source_page ? ` · from ${esc(lead.source_page)}` : ''}${utm ? ` · ${esc(utm)}` : ''}<br />
-      Trust-Lines Design and Supply · This is an automated message.
+      TLINES · This is an automated message.
     </div>
   </div>
 </body>
