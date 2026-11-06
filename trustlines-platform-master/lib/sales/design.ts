@@ -10,6 +10,15 @@ export const DESIGN_MANAGE_ROLES = SALES_INTAKE_ROLES;
 
 export const DESIGNER_ROLES = ['designer'];
 
+/**
+ * Sales reviewers (2026-11-06): in the Design workspace they see only designs the designer has
+ * sent them, and only approve / ask for a revision — then send the approved one to the customer
+ * and download it. Ops / GM keep the full manager view.
+ */
+export const DESIGN_REVIEW_ROLES = ['sales_rep', 'sales_marketing_manager'];
+/** Version statuses a Sales reviewer can see (drafts and work in revision stay with the designer). */
+export const REVIEWABLE_VERSION_STATUSES = ['submitted', 'approved', 'presented', 'rejected'];
+
 export const DESIGNER_INVITE_ROLES = ['ops_manager', 'general_manager', 'sales_marketing_manager'];
 
 export const DESIGN_TRIGGER_STATUS = 'working_on_it_trust';

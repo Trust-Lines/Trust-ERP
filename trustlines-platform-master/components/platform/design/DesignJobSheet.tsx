@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
-import { Box, CheckCheck, ChevronsUp, ExternalLink, FileText, FolderPlus, Link2, Plus, RefreshCw, RotateCcw, Send, Upload, X } from 'lucide-react';
+import { Box, CheckCheck, ChevronsUp, Download, ExternalLink, FileText, FolderPlus, Link2, Plus, RefreshCw, RotateCcw, Send, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
 import type { LeadBrief, IntakeFile, DesignFile, ProjectMeta } from '@/app/(platform)/design/page';
@@ -42,6 +42,8 @@ interface Props {
   name: string;
   currentUserId: string;
   isManager: boolean;
+  /** Sales reviewer: approve / revise sent designs, then send to the customer and download. */
+  salesView?: boolean;
   designers: { id: string; full_name: string }[];
   designerMap: Record<string, string>;
   brief: LeadBrief | undefined;
@@ -62,7 +64,8 @@ interface Props {
 
 export function DesignJobSheet(p: Props) {
   const { job, isManager } = p;
-  const [tab, setTab] = useState<TabKey>('brief');
+  const sales = !!p.salesView;
+  const [tab, setTab] = useState<TabKey>(sales ? 'versions' : 'brief');
   const [filesPath, setFilesPath] = useState('');
   const [busy, setBusy] = useState(false);
   const [sharedUrl, setSharedUrl] = useState<string | null>(job.dropbox_shared_url ?? null);
@@ -78,7 +81,7 @@ export function DesignJobSheet(p: Props) {
       setNotes(b.notes ?? []); setActivity(b.activity ?? []);
     } catch (e) { setNotes([]); toast.error(e instanceof Error ? e.message : 'Could not load notes'); }
   }, [job.id]);
-  useEffect(() => { setNotes(null); setActivity([]); setTab('brief'); setSharedUrl(job.dropbox_shared_url ?? null); }, [job.id, job.dropbox_shared_url]);
+  useEffect(() => { setNotes(null); setActivity([]); setTab(sales ? 'versions' : 'brief'); setSharedUrl(job.dropbox_shared_url ?? null); }, [job.id, job.dropbox_shared_url, sales]);
   useEffect(() => { if ((tab === 'notes' || tab === 'activity') && notes === null) void loadFeed(); }, [tab, notes, loadFeed]);
 
   async function postNote(text: string, quiet = false): Promise<boolean> {
@@ -235,8 +238,10 @@ export function DesignJobSheet(p: Props) {
               <h3 className={cn('m-0 text-[16px] font-semibold leading-[1.45]', HEADING)}>General Info</h3>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 <Field label="Status">
-                  <Select aria-label="Job status" className={INPUT_CLS} value={job.status} options={statusOptions}
-                    onValueChange={v => { if (v && v !== job.status) void p.onPatchJob({ status: v }, `Moved to ${JOB_STATUS_LABEL[v] ?? cap(v)}`); }} />
+                  {sales ? <ReadOnly>{JOB_STATUS_LABEL[job.status] ?? cap(job.status)}</ReadOnly> : (
+                    <Select aria-label="Job status" className={INPUT_CLS} value={job.status} options={statusOptions}
+                      onValueChange={v => { if (v && v !== job.status) void p.onPatchJob({ status: v }, `Moved to ${JOB_STATUS_LABEL[v] ?? cap(v)}`); }} />
+                  )}
                 </Field>
                 <Field label="Designer">
                   {isManager ? (
@@ -266,9 +271,9 @@ export function DesignJobSheet(p: Props) {
               <TabsList className="flex h-12 w-full gap-8 overflow-x-auto border-b border-ui-divider">
                 <TabsTrigger className={TAB_CLS} value="brief">Brief</TabsTrigger>
                 <TabsTrigger className={TAB_CLS} value="notes">Notes{notes?.length ? ` · ${notes.length}` : ''}</TabsTrigger>
-                <TabsTrigger className={TAB_CLS} value="files">Files</TabsTrigger>
+                {!sales && <TabsTrigger className={TAB_CLS} value="files">Files</TabsTrigger>}
                 <TabsTrigger className={TAB_CLS} value="versions">Versions{p.versions.length ? ` · ${p.versions.length}` : ''}</TabsTrigger>
-                <TabsTrigger className={TAB_CLS} value="materials">Materials</TabsTrigger>
+                {!sales && <TabsTrigger className={TAB_CLS} value="materials">Materials</TabsTrigger>}
                 <TabsTrigger className={TAB_CLS} value="activity">Activity</TabsTrigger>
               </TabsList>
 
@@ -354,7 +359,7 @@ export function DesignJobSheet(p: Props) {
                     <a href={sharedUrl} target="_blank" rel="noreferrer" className={cn(buttonVariants({ size: 'md' }), 'w-fit pl-3 pr-4 text-[13px] font-medium no-underline [&_svg]:size-4')}>
                       <Link2 aria-hidden /> Open shared folder
                     </a>
-                  ) : (
+                  ) : !sales && (
                     <Button size="md" className="w-fit pl-3 pr-4 text-[13px] font-medium [&_svg]:size-4" onClick={() => setTab('files')}><Link2 /> Set up in Files</Button>
                   )}
                 </section>
@@ -379,21 +384,28 @@ export function DesignJobSheet(p: Props) {
           <TabsContent value="versions" className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="m-0 max-w-[460px] text-[12px] text-ui-text-secondary">
-                A version is a V1, V2… folder under Design proposal. The designer sends it to Sales; Sales approves it and sends the customer a review link.
+                {sales
+                  ? 'Designs the designer sent you. Approve one (or ask for a revision); once approved you can send it to the customer and download its files.'
+                  : 'A version is a V1, V2… folder under Design proposal. The designer sends it to Sales; Sales approves it and sends the customer a review link.'}
               </p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => void syncVersions()} disabled={busy}><RefreshCw /> Sync from Dropbox</Button>
-                <Button size="sm" onClick={newVersion} disabled={busy}><FolderPlus /> New version</Button>
-              </div>
+              {!sales && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => void syncVersions()} disabled={busy}><RefreshCw /> Sync from Dropbox</Button>
+                  <Button size="sm" onClick={newVersion} disabled={busy}><FolderPlus /> New version</Button>
+                </div>
+              )}
             </div>
             <input ref={versionUploadRef} type="file" multiple hidden onChange={e => { const fs = [...(e.target.files ?? [])]; e.target.value = ''; if (uploadFor) void uploadToVersion(uploadFor, fs); }} />
             {p.versions.length === 0 ? (
               <div className="rounded-[8px] bg-ui-surface p-5">
-                <EmptyState icon={<FolderPlus />} title="No versions yet" description="Create V1, upload the design into it, then send it to Sales." />
+                {sales
+                  ? <EmptyState icon={<FolderPlus />} title="Nothing to review yet" description="The designer has not sent a version to Sales yet." />
+                  : <EmptyState icon={<FolderPlus />} title="No versions yet" description="Create V1, upload the design into it, then send it to Sales." />}
               </div>
             ) : p.versions.map(v => {
               const files = p.designFiles[v.id] ?? [];
-              const canSend = v.status === 'draft' || v.status === 'revision_requested';
+              const canSend = !sales && (v.status === 'draft' || v.status === 'revision_requested');
+              const approved = v.status === 'approved' || v.status === 'presented';
               return (
                 <div key={v.id} className="flex flex-col gap-3 rounded-[8px] border border-ui-divider bg-ui-surface p-4">
                   <div className="flex flex-wrap items-center gap-2">
@@ -401,15 +413,15 @@ export function DesignJobSheet(p: Props) {
                     <StatusBadge group="design_version" status={v.status} size="sm" />
                     <span className="text-[11px] text-ui-text-secondary">{formatDate(v.created_at)}{v.presented_at ? ` · sent ${formatDate(v.presented_at)}` : ''}</span>
                     <div className="flex-1" />
-                    <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setUploadFor(v); versionUploadRef.current?.click(); }}><Upload /> Upload</Button>
+                    {!sales && <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setUploadFor(v); versionUploadRef.current?.click(); }}><Upload /> Upload</Button>}
                     {canSend && <Button size="sm" disabled={busy || files.length === 0} title={files.length ? undefined : 'Upload the design first'} onClick={() => void patchVersion(v, { status: 'submitted' }, 'Sent to Sales for review')}><Send /> Send to Sales</Button>}
-                    {isManager && v.status === 'submitted' && (
+                    {(isManager || sales) && v.status === 'submitted' && (
                       <>
                         <Button variant="outline" size="sm" disabled={busy} onClick={() => void requestRevision(v)}><RotateCcw /> Request revision</Button>
                         <Button size="sm" disabled={busy} onClick={() => void patchVersion(v, { status: 'approved' }, 'Design approved')}><CheckCheck /> Approve</Button>
                       </>
                     )}
-                    {isManager && (v.status === 'approved' || v.status === 'presented') && (
+                    {(isManager || sales) && approved && (
                       <Button size="sm" disabled={busy} onClick={() => void sendToCustomer(v)}><Send /> {v.status === 'presented' ? 'New customer link' : 'Send to customer'}</Button>
                     )}
                     {isManager && (
@@ -420,7 +432,7 @@ export function DesignJobSheet(p: Props) {
                   </div>
                   {files.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
-                      {files.map(f => <Button key={f.id} variant="outline" size="sm" onClick={() => void openDesignFile(f.id, 'design')}><FileText /> {f.file_name}</Button>)}
+                      {files.map(f => <Button key={f.id} variant="outline" size="sm" title={sales && approved ? 'Download' : 'Open'} onClick={() => void openDesignFile(f.id, 'design')}>{sales && approved ? <Download /> : <FileText />} {f.file_name}</Button>)}
                     </div>
                   ) : <p className="m-0 text-[12px] text-ui-text-secondary">No files in this version yet.</p>}
                   {v.notes && v.notes !== 'Auto-synced from Dropbox' && <p className="m-0 text-[12px] text-ui-body">{v.notes}</p>}

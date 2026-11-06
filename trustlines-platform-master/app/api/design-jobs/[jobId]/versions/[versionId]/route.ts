@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { emitEvent } from '@/lib/events';
 import { notifyLeadWatchers } from '@/lib/sales/notify';
-import { requireUserWithRole, loadDesignJobWithAccess, VERSION_TO_JOB_STATUS } from '@/lib/sales/design';
+import { requireUserWithRole, loadDesignJobWithAccess, VERSION_TO_JOB_STATUS, DESIGN_MANAGE_ROLES, DESIGN_REVIEW_ROLES } from '@/lib/sales/design';
 
 type Params = { params: Promise<{ jobId: string; versionId: string }> };
 const VER_COLS = 'id, job_id, version_no, status, preview_link, notes, presented_at, customer_feedback, created_at';
@@ -26,6 +26,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if ('customer_feedback' in body) patch.customer_feedback = (body.customer_feedback ?? '').trim() || null;
   if ('status' in body) {
     if (!STATUSES.includes(String(body.status))) return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    // Who may move a version where: the designer sends it (draft → submitted); Sales approves it or
+    // asks for a revision; Ops / GM can set anything.
+    const reviewer = DESIGN_REVIEW_ROLES.includes(role);
+    if (reviewer || !DESIGN_MANAGE_ROLES.includes(role)) {
+      const { data: cur } = await admin.from('sales_design_versions').select('status').eq('id', versionId).eq('job_id', jobId).maybeSingle();
+      const from = (cur as { status?: string } | null)?.status;
+      const to = String(body.status);
+      const ok = reviewer
+        ? from === 'submitted' && (to === 'approved' || to === 'revision_requested')
+        : (to === 'draft' || to === 'submitted') && from !== 'approved' && from !== 'presented';
+      if (!ok) return NextResponse.json({ error: reviewer ? 'Sales can only approve a design or ask for a revision' : 'Only Sales can approve a design' }, { status: 403 });
+    }
     patch.status = body.status;
     if (body.status === 'presented') patch.presented_at = new Date().toISOString();
   }
