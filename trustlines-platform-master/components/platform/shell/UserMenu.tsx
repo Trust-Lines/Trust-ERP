@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, LogOut, Settings, Shield } from 'lucide-react';
 import { ThemeSwitch } from '@/components/platform/shared/ThemeSync';
 import { PersonFace } from '@/components/ui/avatar-directory';
+import { ViewAsMenuItem } from './ViewAs';
 
 // Design: Figma "TRUST-LINES ERP" → "Shell (Task 11)" → "User dropdown" (99:12105), light + dark.
 export function userInitials(name: string) {
@@ -99,6 +100,8 @@ export function UserMenu({
             <p className="mb-1.5 text-[11px] font-medium text-primary-300 dark:text-primary-400">Theme</p>
             <ThemeSwitch className="w-full" />
           </div>
+
+          <ViewAsMenuItem />
 
           <Link href="/settings" role="menuitem" onClick={close} className={OPTION}>
             <Settings className={ICON} strokeWidth={1.5} aria-hidden="true" />
