@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { MapPinOff, Pause, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, MapPinOff, Pause, Plus } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Select as FilterSelect } from '@/components/ui/select';
@@ -46,6 +46,8 @@ export interface BoardCardItem {
   projectNo?: string | null;
   /** The Trust System's types for that number (PO + PF, Production, Shipping tabs). */
   trustItems?: TrustItem[] | null;
+  /** The client this card belongs to, for the "Accounts" view (key client, else its own name). */
+  account?: { key: string; name: string };
 }
 
 const assignKey = (item: BoardCardItem) => `${item.assign?.kind}:${item.id}:${item.assign?.stage}`;
@@ -204,6 +206,16 @@ function Card({ item, section, onOpen }: {
 
 type OpenCard = (item: BoardCardItem, section: BoardSection) => void;
 
+function ColumnHeader({ column }: { column: BoardColumn }) {
+  return (
+    <div className="flex h-[105px] items-center justify-center rounded-[11px] py-[13px]" style={{ background: column.headerColor }}>
+      {column.title
+        ? <span className="px-3 text-center text-[20px] font-semibold leading-tight text-white">{column.title}</span>
+        : <CroppedLogo src={column.logoSrc} code={column.logoCode} className="h-[62px]" />}
+    </div>
+  );
+}
+
 function Section({ section, onOpen }: { section: BoardSection; onOpen: OpenCard }) {
   const empty = section.items.length === 0;
   return (
@@ -239,9 +251,32 @@ function presetRange(p: Preset): [string, string] {
 }
 
 // Figma "Page heading" (node 376:31511).
-function PageHead({ from, to, preset, canCreateTask, onFrom, onTo, onPreset, heading = 'Dashboard', subheading = 'Keep handoffs moving. Clear the blockers before they affect delivery.' }: {
+type BoardView = 'stages' | 'accounts';
+const VIEW_KEY = 'tl_board_view';
+
+function ViewToggle({ view, onView }: { view: BoardView; onView: (v: BoardView) => void }) {
+  const opt = (v: BoardView, label: string) => (
+    <button
+      type="button" aria-pressed={view === v} onClick={() => onView(v)}
+      className={`h-[30px] rounded-[5px] px-3 text-[13px] font-medium transition-colors ${view === v ? 'bg-ui-surface-elevated text-ui-heading shadow-[0_1px_2px_rgba(0,0,0,0.10)]' : 'text-ui-body hover:text-ui-heading'}`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div role="group" aria-label="Group cards by" className="flex h-9 items-center gap-0.5 rounded-[6px] border border-ui-divider bg-ui-input-bg p-[2px]">
+      {opt('stages', 'Stages')}
+      {opt('accounts', 'Accounts')}
+    </div>
+  );
+}
+
+function PageHead({ from, to, preset, canCreateTask, onFrom, onTo, onPreset, heading = 'Dashboard', subheading = 'Keep handoffs moving. Clear the blockers before they affect delivery.', view, onView, onCollapseAll }: {
   from: string; to: string; preset: Preset; canCreateTask: boolean; heading?: string; subheading?: string;
   onFrom: (v: string) => void; onTo: (v: string) => void; onPreset: (p: Preset) => void;
+  /** Only when the board offers the Accounts view. */
+  view?: BoardView; onView?: (v: BoardView) => void;
+  onCollapseAll?: { label: string; run: () => void } | null;
 }) {
   return (
     <div className="mb-[30px] flex flex-wrap items-center justify-between gap-4">
@@ -254,6 +289,13 @@ function PageHead({ from, to, preset, canCreateTask, onFrom, onTo, onPreset, hea
         className="flex flex-wrap items-end gap-3"
         title="Project cards: delivery date. Opportunity cards: date it became an opportunity (ClickUp creation date). Cards with no date are hidden while a filter is set."
       >
+        {view && onView && <ViewToggle view={view} onView={onView} />}
+        {onCollapseAll && (
+          <button type="button" onClick={onCollapseAll.run}
+            className="h-9 rounded-[6px] border border-ui-divider bg-ui-input-bg px-3 text-[13px] font-medium text-ui-body hover:text-ui-heading">
+            {onCollapseAll.label}
+          </button>
+        )}
         <label className="flex flex-col gap-[5px] text-[11px] leading-[1.35] text-ui-body">
           From
           <input type="date" value={from} onChange={e => onFrom(e.target.value)} className={DATE_INPUT} />
@@ -276,14 +318,79 @@ function PageHead({ from, to, preset, canCreateTask, onFrom, onTo, onPreset, hea
   );
 }
 
-function Column({ column, onOpen }: { column: BoardColumn; onOpen: OpenCard }) {
+interface AccountGroup { key: string; name: string; count: number; sections: BoardSection[] }
+
+/** One column's cards regrouped by client: most cards first, each keeping the stage order inside. */
+function accountGroups(column: BoardColumn): AccountGroup[] {
+  const groups = new Map<string, { name: string; count: number; bySection: Map<string, BoardCardItem[]> }>();
+  for (const section of column.sections) {
+    for (const item of section.items) {
+      const key = item.account?.key ?? `n:${item.title.trim().toLowerCase()}`;
+      const name = item.account?.name ?? item.title;
+      let g = groups.get(key);
+      if (!g) { g = { name, count: 0, bySection: new Map() }; groups.set(key, g); }
+      g.count += 1;
+      const list = g.bySection.get(section.key);
+      if (list) list.push(item); else g.bySection.set(section.key, [item]);
+    }
+  }
+  return [...groups.entries()]
+    .map(([key, g]) => ({
+      key, name: g.name, count: g.count,
+      sections: column.sections.filter(s => g.bySection.has(s.key)).map(s => ({ ...s, items: g.bySection.get(s.key)! })),
+    }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+
+function Account({ group, color, collapsed, onToggle, onOpen }: {
+  group: AccountGroup; color: string; collapsed: boolean; onToggle: () => void; onOpen: OpenCard;
+}) {
+  const Icon = collapsed ? ChevronRight : ChevronDown;
+  return (
+    <div className="flex flex-col rounded-[11px] bg-ui-surface-elevated" style={{ borderLeft: `4px solid ${color}` }}>
+      <button
+        type="button" aria-expanded={!collapsed} onClick={onToggle}
+        className="flex w-full items-center gap-2 rounded-[11px] px-3 py-2.5 text-left hover:bg-ui-surface focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
+      >
+        <Icon size={16} aria-hidden className="shrink-0 text-ui-body" />
+        <span className="min-w-0 flex-1 truncate text-[15px] font-bold text-ui-heading">{group.name}</span>
+        <span className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-2 text-[12px] font-semibold text-white" style={{ background: color }}>
+          {group.count}
+        </span>
+      </button>
+      {!collapsed && (
+        <div className="flex flex-col gap-4 px-3 pb-3.5 pt-1">
+          {group.sections.map(section => <Section key={section.key} section={section} onOpen={onOpen} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Column({ column, onOpen, accounts }: {
+  column: BoardColumn; onOpen: OpenCard;
+  /** Accounts view: this column's client groups and which ones are folded. */
+  accounts?: { groups: AccountGroup[]; collapsed: Set<string>; toggle: (key: string) => void } | null;
+}) {
+  if (accounts) {
+    return (
+      <div className="flex flex-col gap-2.5 rounded-[16px] bg-ui-surface p-2.5">
+        <ColumnHeader column={column} />
+        {accounts.groups.length === 0 ? (
+          <p className="m-0 rounded-[11px] bg-ui-surface-elevated p-3 text-[12px] text-ui-body">No Active Projects</p>
+        ) : accounts.groups.map(g => {
+          const key = `${column.regionCode}|${g.key}`;
+          return (
+            <Account key={g.key} group={g} color={column.headerColor} collapsed={accounts.collapsed.has(key)}
+              onToggle={() => accounts.toggle(key)} onOpen={onOpen} />
+          );
+        })}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-2.5 rounded-[16px] bg-ui-surface p-2.5">
-      <div className="flex h-[105px] items-center justify-center rounded-[11px] py-[13px]" style={{ background: column.headerColor }}>
-        {column.title
-          ? <span className="px-3 text-center text-[20px] font-semibold leading-tight text-white">{column.title}</span>
-          : <CroppedLogo src={column.logoSrc} code={column.logoCode} className="h-[62px]" />}
-      </div>
+      <ColumnHeader column={column} />
       {/* No fixed/stretched height — each column is exactly as tall as its own content. */}
       <div className="flex flex-col gap-4 rounded-[11px] bg-ui-surface-elevated px-3 pb-3.5 pt-2">
         {column.sections.map(section => (
@@ -294,7 +401,9 @@ function Column({ column, onOpen }: { column: BoardColumn; onOpen: OpenCard }) {
   );
 }
 
-export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading }: {
+export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false }: {
+  /** Offer the "Accounts" view: each column's cards grouped by client, biggest client first. */
+  accounts?: boolean;
   /** Page title / sub-line (the Trust Lines dashboard has its own). */
   heading?: string;
   subheading?: string;
@@ -354,6 +463,35 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
     });
   }, [columns, dateFrom, dateTo]);
 
+  // Stages / Accounts, remembered per browser. Every account starts open; a click folds it.
+  const [view, setView] = React.useState<BoardView>('stages');
+  React.useEffect(() => {
+    try { if (accounts && localStorage.getItem(VIEW_KEY) === 'accounts') setView('accounts'); } catch { /* storage blocked */ }
+  }, [accounts]);
+  const changeView = (v: BoardView) => {
+    setView(v);
+    try { localStorage.setItem(VIEW_KEY, v); } catch { /* storage blocked */ }
+  };
+  const [collapsed, setCollapsed] = React.useState<Set<string>>(() => new Set());
+  const toggleAccount = React.useCallback((key: string) => setCollapsed(c => {
+    const next = new Set(c);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  }), []);
+  const showAccounts = accounts && view === 'accounts';
+  const groupsByColumn = React.useMemo(
+    () => (showAccounts ? new Map(filteredColumns.map(c => [c.regionCode, accountGroups(c)])) : null),
+    [showAccounts, filteredColumns],
+  );
+  const allKeys = React.useMemo(
+    () => (groupsByColumn ? [...groupsByColumn.entries()].flatMap(([region, gs]) => gs.map(g => `${region}|${g.key}`)) : []),
+    [groupsByColumn],
+  );
+  const allFolded = allKeys.length > 0 && allKeys.every(k => collapsed.has(k));
+  const collapseAll = groupsByColumn && allKeys.length > 0
+    ? { label: allFolded ? 'Expand all' : 'Collapse all', run: () => setCollapsed(allFolded ? new Set() : new Set(allKeys)) }
+    : null;
+
   const applyPreset = (p: Preset) => {
     const [from, to] = presetRange(p);
     setPreset(p); setDateFrom(from); setDateTo(to);
@@ -365,6 +503,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
         heading={heading} subheading={subheading}
         from={dateFrom} to={dateTo} preset={preset} canCreateTask={canCreateTask} onPreset={applyPreset}
         onFrom={v => { setDateFrom(v); setPreset(''); }} onTo={v => { setDateTo(v); setPreset(''); }}
+        view={accounts ? view : undefined} onView={accounts ? changeView : undefined} onCollapseAll={collapseAll}
       />
       {top}
       {trustError && (
@@ -386,7 +525,10 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
           style={{ '--board-cols': columns.length } as React.CSSProperties}
         >
           {filteredColumns.map(column => (
-            <Column key={column.regionCode} column={column} onOpen={handleOpen} />
+            <Column
+              key={column.regionCode} column={column} onOpen={handleOpen}
+              accounts={groupsByColumn ? { groups: groupsByColumn.get(column.regionCode) ?? [], collapsed, toggle: toggleAccount } : null}
+            />
           ))}
         </div>
       )}
