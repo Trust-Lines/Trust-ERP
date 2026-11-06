@@ -287,6 +287,8 @@
   --stage-to-production-solid: #4B6880;
   --stage-production-solid: #2768B3;
   --stage-shipped-solid: #9B5435;
+  --stage-opportunity-solid: #4B6880;
+  --stage-ready-solid: #216B2E;
   --stage-ready-fg: #216B2E;
   --stage-ready-bg: #CFF6D6;
   --dash-hero-bg: radial-gradient(circle at 22% 54%, #4C5767 0%, #2B3D55 70%);

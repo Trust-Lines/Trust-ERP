@@ -14,7 +14,6 @@ import { KEY_CLIENT_ADMIN_ROLES } from '@/lib/keyClients/roles';
 import { classifyTrustProject, loadTrustProjects, typeLabel, typeStatuses, type TrustStage } from '@/lib/trust/board';
 import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem } from '@/components/platform/dashboard/BranchBoard';
 import { TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
-import { DashboardSwitch } from '@/components/platform/dashboard/DashboardSwitch';
 import { defaultCompanySideForRole } from '@/lib/profile/metadata';
 import { trustDashboard } from '@/lib/dashboard/trustView';
 
@@ -37,13 +36,13 @@ const OPPORTUNITY_EDIT_ROLES = [...SALES_HANDOFF_ROLES, ...MARKETING_ROLES];
 // distinguishing signal in the data model yet and are always empty until that's defined.
 // Colours: Figma "ops_manager" stage variables in globals.css (node 376:32191, dark 384:41126).
 const SECTION_DEFS = [
-  { key: 'opportunity',   label: 'Clients Opportunity',    accent: 'var(--stage-opportunity-fg)', bg: 'var(--stage-opportunity-bg)' },
-  { key: 'finalization',  label: 'Finalization',           accent: 'var(--stage-finalization-fg)', bg: 'var(--stage-finalization-bg)', labelColor: 'var(--stage-finalization-label)' },
-  { key: 'technical',     label: 'Technical / PO + PF',    accent: 'var(--stage-technical-fg)', bg: 'var(--stage-technical-bg)' },
-  { key: 'to_production', label: 'To Production',          accent: 'var(--stage-to-production-fg)', bg: 'var(--stage-to-production-bg)' },
-  { key: 'in_production', label: 'Production In Progress', accent: 'var(--stage-production-fg)', bg: 'var(--stage-production-bg)' },
-  { key: 'shipped',       label: 'Shipped',                accent: 'var(--stage-shipped-fg)', bg: 'var(--stage-shipped-bg)' },
-  { key: 'ready',         label: 'Ready For Installation', accent: 'var(--stage-ready-fg)', bg: 'var(--stage-ready-bg)' },
+  { key: 'opportunity',   label: 'Clients Opportunity',    accent: 'var(--stage-opportunity-fg)', bg: 'var(--stage-opportunity-bg)', solid: 'var(--stage-opportunity-solid)' },
+  { key: 'finalization',  label: 'Finalization',           accent: 'var(--stage-finalization-fg)', bg: 'var(--stage-finalization-bg)', solid: 'var(--stage-finalization-solid)', labelColor: 'var(--stage-finalization-label)' },
+  { key: 'technical',     label: 'Technical / PO + PF',    accent: 'var(--stage-technical-fg)', bg: 'var(--stage-technical-bg)', solid: 'var(--stage-technical-solid)' },
+  { key: 'to_production', label: 'To Production',          accent: 'var(--stage-to-production-fg)', bg: 'var(--stage-to-production-bg)', solid: 'var(--stage-to-production-solid)' },
+  { key: 'in_production', label: 'Production In Progress', accent: 'var(--stage-production-fg)', bg: 'var(--stage-production-bg)', solid: 'var(--stage-production-solid)' },
+  { key: 'shipped',       label: 'Shipped',                accent: 'var(--stage-shipped-fg)', bg: 'var(--stage-shipped-bg)', solid: 'var(--stage-shipped-solid)' },
+  { key: 'ready',         label: 'Ready For Installation', accent: 'var(--stage-ready-fg)', bg: 'var(--stage-ready-bg)', solid: 'var(--stage-ready-solid)' },
 ] as const;
 
 const HEADER_COLORS: Record<string, string> = {
@@ -208,7 +207,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         trustError={trust.error}
         users={allUsers ?? []}
         canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
-        top={<div key="top-summary">{seesBoth && <DashboardSwitch view="trust" />}<TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={t.kpis} /></div>}
+        top={<div key="top-summary"><TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={t.kpis} /></div>}
       />
     );
   }
@@ -317,13 +316,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     };
 
     const sections: BoardSection[] = SECTION_DEFS.map(def => ({
-      key: def.key, label: def.label, accent: def.accent, bg: def.bg, labelColor: 'labelColor' in def ? def.labelColor : undefined,
+      key: def.key, label: def.label, accent: def.accent, bg: def.bg, solid: def.solid, labelColor: 'labelColor' in def ? def.labelColor : undefined,
       items: itemsByKey[def.key],
       emptyLabel: 'No Active Projects',
     }));
 
     return {
-      regionCode: r.code,
+      regionCode: r.code, name: r.label,
       logoSrc: regionLogoByCode(r.dropboxShort),
       logoCode: r.dropboxShort,
       headerColor: HEADER_COLORS[r.code] ?? HEADER_COLORS.TLINES_NE,
@@ -417,7 +416,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
       // A server element passed as a prop into a client component is checked like a list child in
       // dev (React 19 / Next 16) — the key only silences that false "unique key" warning.
-      top={<div key="top-summary">{seesBoth && <DashboardSwitch view="tlines" />}<TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} /></div>}
+      top={<div key="top-summary"><TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} /></div>}
     />
   );
 }
