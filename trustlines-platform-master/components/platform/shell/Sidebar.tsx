@@ -470,14 +470,14 @@ function RailTip({ label, render, children }: { label: string; render: React.Rea
 function BrandLogo({ logoSrc }: { logoSrc?: string }) {
   if (!logoSrc || logoSrc === DEFAULT_LOGO) {
     return (
-      <div className="flex h-[54px] w-full items-center pl-[3px]">
+      <div className="flex h-[54px] w-full items-center justify-center">
         <Image src="/login/t-holding-logo.svg" alt="T Holding" width={130} height={54} priority className="h-[54px] w-auto dark:hidden" />
         <Image src="/login/t-holding-logo-dark.svg" alt="T Holding" width={130} height={54} priority className="hidden h-[54px] w-auto dark:block" />
       </div>
     );
   }
   return (
-    <div className="flex h-[54px] w-full items-center pl-[3px]">
+    <div className="flex h-[54px] w-full items-center justify-center">
       <Image src={logoSrc} alt="Workspace logo" width={130} height={54} priority unoptimized className="max-h-[54px] w-auto object-contain dark:brightness-0 dark:invert" />
     </div>
   );
