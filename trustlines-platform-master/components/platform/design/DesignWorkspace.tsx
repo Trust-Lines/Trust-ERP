@@ -37,6 +37,8 @@ interface Props {
   designFiles: Record<string, DesignFile[]>;
   projectMeta: Record<string, ProjectMeta>;
   isManager: boolean;
+  /** Sales reviewer: only designs sent to Sales, list view only, approve / send to customer. */
+  salesView?: boolean;
   schemaError: string | null;
   designers: { id: string; full_name: string }[];
   projectTeam: Record<string, { trustlinesPm: string | null; tlinesPm: string | null }>;
@@ -75,6 +77,7 @@ const NEW_WINDOW_DAYS = 7;
 
 export function DesignWorkspace(props: Props) {
   const { currentUserId, initialJobId, leadMap, designerMap, projectMeta, isManager, schemaError, designers } = props;
+  const salesView = !!props.salesView;
   const [jobs, setJobs] = useState<SalesDesignJob[]>(props.jobs);
   const [versions, setVersions] = useState<SalesDesignVersion[]>(props.versions);
   const [designFiles, setDesignFiles] = useState<Record<string, DesignFile[]>>(props.designFiles);
@@ -83,13 +86,13 @@ export function DesignWorkspace(props: Props) {
   const params = useSearchParams();
   const urlTab = params?.get('tab') as TabKey | null;
   const urlScope = params?.get('scope') as Scope | null;
-  const [tab, setTab] = useState<TabKey>(urlTab && TABS.includes(urlTab) ? urlTab : 'jobs');
+  const [tab, setTab] = useState<TabKey>(!props.salesView && urlTab && TABS.includes(urlTab) ? urlTab : 'jobs');
   const [search, setSearch] = useState('');
   const [scope, setScope] = useState<Scope>(urlScope && SCOPES.includes(urlScope) ? urlScope : 'open');
   useEffect(() => {
-    setTab(urlTab && TABS.includes(urlTab) && (urlTab !== 'team' || isManager) ? urlTab : 'jobs');
+    setTab(!salesView && urlTab && TABS.includes(urlTab) && (urlTab !== 'team' || isManager) ? urlTab : 'jobs');
     setScope(urlScope && SCOPES.includes(urlScope) ? urlScope : 'open');
-  }, [urlTab, urlScope, isManager]);
+  }, [urlTab, urlScope, isManager, salesView]);
   const [fDesigner, setFDesigner] = useState('');
   const [sortBy, setSortBy] = useState<SortKey>('newest');
   // Column visibility (Columns menu) — remembered per browser.
@@ -232,7 +235,9 @@ export function DesignWorkspace(props: Props) {
         <PageCrumbs items={[{ label: 'Design', href: '/design' }, { label: 'Workspace', href: '/design' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Workspace</h1>
         <p className="m-0 text-[13px] text-ui-body">
-          {isManager
+          {salesView
+            ? `${jobs.length} design${jobs.length === 1 ? '' : 's'} sent to Sales · approve one to send it to the customer`
+            : isManager
             ? `${counts.open.n} open design job${counts.open.n === 1 ? '' : 's'} · notes, files and versions are shared with Sales`
             : `${counts.open.n} job${counts.open.n === 1 ? '' : 's'} on your desk`}
         </p>
@@ -308,7 +313,7 @@ export function DesignWorkspace(props: Props) {
               </>
             )}
             <div role="group" aria-label="View" className="flex flex-wrap items-center gap-2">
-              {VIEW_BUTTONS.filter(v => !v.managerOnly || isManager).map(({ key, label, icon: Icon }) => (
+              {VIEW_BUTTONS.filter(v => (!v.managerOnly || isManager) && (!salesView || v.key === 'jobs')).map(({ key, label, icon: Icon }) => (
                 <button
                   key={key} type="button" aria-pressed={tab === key} onClick={() => setTab(key)}
                   className={cn(
@@ -506,6 +511,7 @@ export function DesignWorkspace(props: Props) {
           name={nameOf(openJob)}
           currentUserId={currentUserId}
           isManager={isManager}
+          salesView={salesView}
           designers={designers}
           designerMap={designerMap}
           brief={leadMap[anchorId(openJob)]}

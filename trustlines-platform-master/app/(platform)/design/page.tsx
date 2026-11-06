@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePage } from '@/lib/permissions/requirePage';
-import { DESIGN_MANAGE_ROLES } from '@/lib/sales/design';
+import { DESIGN_MANAGE_ROLES, DESIGN_REVIEW_ROLES, REVIEWABLE_VERSION_STATUSES } from '@/lib/sales/design';
 import { designRootFromProjectRoot } from '@/lib/dropbox/paths';
 import { DesignWorkspace } from '@/components/platform/design/DesignWorkspace';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
@@ -35,6 +35,8 @@ export default async function DesignWorkspacePage({ searchParams }: { searchPara
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
   const role = (profile as { role: string } | null)?.role ?? '';
   const isManager = DESIGN_MANAGE_ROLES.includes(role);
+  // Sales sees only designs that were sent to it — never drafts or jobs still on the designer's desk.
+  const salesView = DESIGN_REVIEW_ROLES.includes(role);
 
   // '*' so created_by ("Requested by") and the migration-132 folder columns come along when present.
   let q = admin.from('sales_design_jobs').select('*').is('deleted_at', null);
@@ -45,16 +47,22 @@ export default async function DesignWorkspacePage({ searchParams }: { searchPara
     ? `Sales Design tables are not ready (${jobsRes.error.message}). Run migration 051_sales_design.sql.`
     : null;
   if (jobsRes.error) console.error('[design] sales_design_jobs unavailable —', jobsRes.error.message);
-  const jobs = (jobsRes.error ? [] : (jobsRes.data ?? [])) as SalesDesignJob[];
+  let jobs = (jobsRes.error ? [] : (jobsRes.data ?? [])) as SalesDesignJob[];
 
-  const jobIds = jobs.map(j => j.id);
   let versions: SalesDesignVersion[] = [];
-  if (jobIds.length) {
-    const vRes = await admin.from('sales_design_versions')
+  if (jobs.length) {
+    let vq = admin.from('sales_design_versions')
       .select('id, job_id, version_no, status, preview_link, notes, presented_at, customer_feedback, created_at')
-      .in('job_id', jobIds).order('version_no', { ascending: false });
+      .in('job_id', jobs.map(j => j.id));
+    if (salesView) vq = vq.in('status', REVIEWABLE_VERSION_STATUSES);
+    const vRes = await vq.order('version_no', { ascending: false });
     versions = vRes.error ? [] : (vRes.data ?? []);
   }
+  if (salesView) {
+    const withDesign = new Set(versions.map(v => v.job_id));
+    jobs = jobs.filter(j => withDesign.has(j.id));
+  }
+  const jobIds = jobs.map(j => j.id);
 
   const leadIds = [...new Set(jobs.filter(j => j.lead_intake_id).map(j => j.lead_intake_id!))];
   const opportunityIds = [...new Set(jobs.filter(j => j.opportunity_id).map(j => j.opportunity_id!))];
@@ -183,7 +191,7 @@ export default async function DesignWorkspacePage({ searchParams }: { searchPara
   // Roadmap Month 2, task 11 — every ACTIVE designer, not just ones already carrying a job, so a
   // manager can assign a brand-new "awaiting_assignment" job to anyone on the team.
   let designers: { id: string; full_name: string }[] = [];
-  if (isManager) {
+  if (isManager && !salesView) {
     const { data } = await admin.from('profiles').select('id, full_name')
       .eq('role', 'designer').eq('is_active', true).order('full_name');
     designers = (data ?? []) as { id: string; full_name: string }[];
@@ -196,7 +204,7 @@ export default async function DesignWorkspacePage({ searchParams }: { searchPara
         currentUserId={user.id} initialJobId={initialJobId ?? null}
         jobs={jobs} versions={versions} leadMap={leadMap} designerMap={designerMap}
         intakeFiles={intakeFiles} designFiles={designFiles} projectMeta={projectMeta}
-        isManager={isManager} schemaError={schemaError} designers={designers}
+        isManager={isManager && !salesView} salesView={salesView} schemaError={schemaError} designers={designers}
         projectTeam={projectTeam} creatorMap={creatorMap}
       />
     </div>
