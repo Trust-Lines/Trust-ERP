@@ -6,6 +6,10 @@ export async function notifyLeadWatchers(admin: any, p: {
   title: string;
   body: string;
   projectId?: string | null;
+  /** Where the notification opens; defaults to the lead / customer page. */
+  link?: string;
+  /** Also notify these people (e.g. whoever asked for the design). */
+  extraUserIds?: (string | null | undefined)[];
 }): Promise<void> {
   try {
     const ids = new Set<string>();
@@ -37,6 +41,8 @@ export async function notifyLeadWatchers(admin: any, p: {
       return;
     }
 
+    for (const id of p.extraUserIds ?? []) if (id) ids.add(id);
+    if (p.link) link = p.link;
     ids.delete(p.actorId);
     if (ids.size === 0) return;
 

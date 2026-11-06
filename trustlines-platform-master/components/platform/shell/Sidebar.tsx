@@ -241,6 +241,9 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
     { label: 'Store Maker Inbox', href: '/sales-inbox', icon: Globe, perm: 'page.sales_web_leads' },
     ...CRM_BOARD_NAV,
     { label: 'Contacts', href: '/sales-contacts', icon: UserSearch, perm: 'page.sales_contacts' },
+    // 2026-11-06: designs the designer sent to Sales ("Send to Sales") — the Design workspace's
+    // "In Sales Review" view, so Sales finds proposals without leaving its own menu.
+    { label: 'Design Reviews', href: '/design?scope=review', icon: Palette, perm: 'page.design' },
     ...SALES_NAV,
     { label: 'Dashboard', href: '/sales-dashboard', icon: BarChart3, perm: 'page.sales_dashboard' },
     { label: 'Sales Team', href: '/sales-team', icon: Users, perm: 'page.sales_team' },

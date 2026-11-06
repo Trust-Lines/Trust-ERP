@@ -40,9 +40,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     await admin.from('sales_design_jobs').update({ status: VERSION_TO_JOB_STATUS[patch.status] }).eq('id', jobId);
   }
 
-  if (patch.status === 'submitted' && job?.lead_intake_id) {
+  // Design → Sales: whoever follows the deal (lead OR opportunity) plus whoever requested the job.
+  if (patch.status === 'submitted' && job && (job.lead_intake_id || job.opportunity_id)) {
+    const { data: jobRow } = await admin.from('sales_design_jobs').select('created_by').eq('id', jobId).maybeSingle();
     await notifyLeadWatchers(admin, {
-      leadId: job.lead_intake_id, actorId: user.id,
+      leadId: job.lead_intake_id ?? undefined, opportunityId: job.lead_intake_id ? undefined : job.opportunity_id ?? undefined,
+      actorId: user.id, link: `/design?job=${jobId}`, extraUserIds: [(jobRow as { created_by?: string | null } | null)?.created_by],
       title: 'Design ready for review', body: `V${data.version_no} is ready for Sales review.`,
     });
   }
