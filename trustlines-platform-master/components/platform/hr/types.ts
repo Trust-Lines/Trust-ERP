@@ -63,3 +63,37 @@ export interface HrAction {
   href?: string;
   onClick?: () => void;
 }
+
+export type HrRequestPriority = 'important' | 'medium' | 'low';
+export type HrRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface HrRequestFile {
+  id: string;
+  name: string;
+  /** MIME type, for the preview (image / PDF). */
+  type: string;
+  /** Object URL of the file picked in this tab. */
+  url: string;
+  /** e.g. "Medical Report". */
+  label?: string | null;
+}
+
+/** A leave request (Figma "Requests" 565:15743, detail 565:17594): a sick call or vacation request. */
+export interface HrRequest extends HrPerson {
+  reason: HrAbsenceReason;
+  priority: HrRequestPriority;
+  /** First day off, YYYY-MM-DD. */
+  date: string;
+  /** Last day off, YYYY-MM-DD (same as date for one day). */
+  endDate: string;
+  description?: string | null;
+  files: HrRequestFile[];
+  status: HrRequestStatus;
+  /** Note written with the approve / reject decision. */
+  decisionNote?: string | null;
+  decidedAt?: string | null;
+  /** Person's join date (profiles.created_at), for the detail panel. */
+  joinedAt?: string | null;
+  /** ISO timestamp the request was made. */
+  createdAt: string;
+}

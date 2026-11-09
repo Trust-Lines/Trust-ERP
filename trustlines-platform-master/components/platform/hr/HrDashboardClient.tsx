@@ -5,7 +5,7 @@ import { HrBoard } from './HrBoard';
 import type { HrBirthday } from './types';
 import { byDate, localAgenda, useHrContainers, useHrLocal } from './HrData';
 import { AddUnavailableDialog, CreateEventDialog, NewOrderDialog } from './HrForms';
-import { daysUntil } from './tones';
+import { dayKey, daysUntil } from './tones';
 
 // HR dashboard (Figma "HR board", 585:3113). Containers are live (GET /api/containers); events,
 // orders and unavailable staff come from the HR forms and stay in this tab until HR has a backend.
@@ -30,9 +30,12 @@ export function HrDashboardClient() {
       agenda: [...localAgenda(local.events, today), ...containers.agenda],
       orders: upcoming(local.orders),
       birthdays: upcoming(birthdays),
-      unavailable: local.unavailable.filter(u => daysUntil(u.date, today) >= 0).sort(byDate).slice(0, UPCOMING),
+      // Leave requests (HR › Requests) count as unavailable on the day they're for.
+      unavailable: [...local.unavailable, ...local.requests.filter(r => r.status !== 'rejected' && daysUntil(r.endDate, today) >= 0)
+        .map(r => ({ id: r.id, userId: r.userId, name: r.name, role: r.role, reason: r.reason, date: daysUntil(r.date, today) < 0 ? dayKey(today) : r.date }))]
+        .filter(u => daysUntil(u.date, today) >= 0).sort(byDate).slice(0, UPCOMING),
     };
-  }, [containers, local.events, local.orders, local.unavailable, today]);
+  }, [containers, local.events, local.orders, local.unavailable, local.requests, today]);
 
   return (
     <>

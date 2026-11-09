@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import type { HrAgendaItem, HrCalendarEvent, HrContainer, HrOrder, HrUnavailable } from './types';
+import type { HrAgendaItem, HrCalendarEvent, HrContainer, HrOrder, HrRequest, HrUnavailable } from './types';
 import { dayKey, daysUntil } from './tones';
 
 // Data for the HR pages. Containers come from the existing GET /api/containers. Everything else
@@ -85,14 +85,15 @@ interface LocalState {
   events: HrLocalEvent[];
   orders: HrOrder[];
   unavailable: HrUnavailable[];
+  requests: HrRequest[];
 }
 
-let state: LocalState = { events: [], orders: [], unavailable: [] };
+let state: LocalState = { events: [], orders: [], unavailable: [], requests: [] };
 const EMPTY = state;
 const listeners = new Set<() => void>();
 const subscribe = (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn); }; };
 const setState = (next: Partial<LocalState>) => { state = { ...state, ...next }; listeners.forEach(fn => fn()); };
-const newId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+export const newId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 
 export function useHrLocal() {
   const s = useSyncExternalStore(subscribe, () => state, () => EMPTY);
@@ -101,6 +102,8 @@ export function useHrLocal() {
     addEvent: (e: Omit<HrLocalEvent, 'id'>) => setState({ events: [...state.events, { ...e, id: newId() }] }),
     addOrder: (o: Omit<HrOrder, 'id'>) => setState({ orders: [...state.orders, { ...o, id: newId() }] }),
     addUnavailable: (u: Omit<HrUnavailable, 'id'>) => setState({ unavailable: [...state.unavailable, { ...u, id: newId() }] }),
+    addRequest: (r: Omit<HrRequest, 'id' | 'createdAt' | 'status'>) => setState({ requests: [...state.requests, { ...r, id: newId(), status: 'pending', createdAt: new Date().toISOString() }] }),
+    updateRequest: (id: string, patch: Partial<Omit<HrRequest, 'id'>>) => setState({ requests: state.requests.map(r => (r.id === id ? { ...r, ...patch } : r)) }),
   };
 }
 
