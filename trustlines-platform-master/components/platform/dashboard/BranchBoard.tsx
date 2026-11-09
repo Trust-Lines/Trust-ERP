@@ -41,8 +41,9 @@ export interface BoardCardItem {
   note?: string | null;
   /** Status chips: the deal's stage, or each Trust type's production status. */
   statuses?: string[];
-  /** "Assign to": the person for this card in the stage it's in (board_assignees, per stage). */
-  assign?: { kind: string; stage: string; label: string; userId: string | null };
+  /** The card's two people for the stage it's in (board_assignees, per stage): the Trust PM
+   *  (userId) and the T-Lines PM (tlinesUserId). */
+  assign?: { kind: string; stage: string; label: string; userId: string | null; tlinesUserId?: string | null };
   /** The project number ("490") — the popup gathers everything we hold for it. */
   projectNo?: string | null;
   /** The Trust System's types for that number (PO + PF, Production, Shipping tabs). */
@@ -53,38 +54,46 @@ export interface BoardCardItem {
   company?: string | null;
 }
 
-const assignKey = (item: BoardCardItem) => `${item.assign?.kind}:${item.id}:${item.assign?.stage}`;
+/** Who a card is assigned to: its Trust PM, or its T-Lines PM. */
+type AssignRole = 'trust_pm' | 'tlines_pm';
+const ROLE_LABEL: Record<AssignRole, string> = { trust_pm: 'Trust PM', tlines_pm: 'T-Lines PM' };
+/** The stage key a role is stored under (board_assignees.stage): the Trust PM keeps the plain
+ *  stage (every assignment made before there were two), the T-Lines PM gets ":tlines_pm". */
+const roleStage = (stage: string, role: AssignRole) => (role === 'tlines_pm' ? `${stage}:tlines_pm` : stage);
+const assignKey = (item: BoardCardItem, role: AssignRole) =>
+  `${item.assign?.kind}:${item.id}:${roleStage(item.assign?.stage ?? '', role)}`;
 
 /** "Assign to" on the cards — every active user, chosen from the design-system Select. */
 const AssignContext = React.createContext<{
   options: { value: string; label: string }[];
   canAssign: boolean;
   assigned: Record<string, string | null>;
-  assign: (item: BoardCardItem, userId: string | null) => void;
+  assign: (item: BoardCardItem, role: AssignRole, userId: string | null) => void;
 }>({ options: [], canAssign: false, assigned: {}, assign: () => {} });
 
 const UNASSIGNED = '';
 
-function AssignBox({ item, section }: { item: BoardCardItem; section: BoardSection }) {
+function AssignBox({ item, section, role }: { item: BoardCardItem; section: BoardSection; role: AssignRole }) {
   const { options, canAssign, assigned, assign } = React.useContext(AssignContext);
-  const key = assignKey(item);
-  const current = key in assigned ? assigned[key] : item.assign?.userId ?? null;
+  const key = assignKey(item, role);
+  const saved = role === 'tlines_pm' ? item.assign?.tlinesUserId ?? null : item.assign?.userId ?? null;
+  const current = key in assigned ? assigned[key] : saved;
   const name = options.find(o => o.value === current)?.label ?? null;
   // Figma "id-badge" (node 572:29260): solid stage tone, white text.
   return (
     <span
-      className="flex max-w-[170px] shrink-0 flex-col justify-center rounded-[6px] px-2.5 py-1 leading-normal text-white"
+      className="flex min-w-0 max-w-[170px] shrink flex-col justify-center rounded-[6px] px-2.5 py-1 leading-normal text-white"
       style={{ background: section.solid ?? section.accent }}
       onClick={e => e.stopPropagation()}
       onKeyDown={e => e.stopPropagation()}
     >
-      <span className="text-[10px] opacity-90">Assigned to:</span>
+      <span className="text-[10px] opacity-90">{ROLE_LABEL[role]}:</span>
       {canAssign ? (
         <FilterSelect
-          aria-label={`Assign ${item.assign?.label ?? ''} to`}
+          aria-label={`${ROLE_LABEL[role]} for ${item.assign?.label ?? ''}`}
           options={[{ value: UNASSIGNED, label: 'Unassigned' }, ...options]}
           value={current ?? UNASSIGNED}
-          onValueChange={v => assign(item, v || null)}
+          onValueChange={v => assign(item, role, v || null)}
           className="h-auto min-h-0 gap-0.5 border-0 bg-transparent p-0 text-[13px] font-semibold leading-normal text-white hover:border-0 dark:border-0 dark:bg-transparent dark:p-0 dark:text-white [&_svg]:size-3.5"
         />
       ) : (
@@ -97,6 +106,8 @@ function AssignBox({ item, section }: { item: BoardCardItem; section: BoardSecti
 /** Companies filter: our own companies (lib/regions SERVICE_LINES), All Companies first, and
  *  "No company" for cards nothing tells us the company of (blank ClickUp Industry, Trust-only). */
 const NO_COMPANY = '__none';
+/** People filters: "Unassigned". */
+const NOBODY = '__nobody';
 const COMPANY_OPTIONS = [
   { value: '', label: 'All Companies' },
   ...SERVICE_LINES.map(s => ({ value: s.value, label: s.label })),
@@ -210,7 +221,12 @@ function Card({ item, section, onOpen }: {
           <span className="block truncate text-[10px] leading-normal">{item.subtitle}</span>
           {item.note && <span className="block text-[10px] font-bold leading-normal">{item.note}</span>}
         </span>
-        {item.assign ? <AssignBox item={item} section={section} /> : item.pmName && (
+        {item.assign ? (
+          <span className="flex min-w-0 shrink-0 items-end gap-1.5">
+            <AssignBox item={item} section={section} role="trust_pm" />
+            <AssignBox item={item} section={section} role="tlines_pm" />
+          </span>
+        ) : item.pmName && (
           <span className="flex max-w-[170px] shrink-0 flex-col rounded-[6px] px-2.5 py-1 leading-normal text-white" style={{ background: solid }}>
             <span className="text-[10px] opacity-90">{item.pmLabel}:</span>
             <span className="truncate text-[13px] font-semibold">{item.pmName}</span>
@@ -499,6 +515,24 @@ function Board({ columns, onOpen, accounts }: {
   // Which of our companies to show ('' = All Companies, the default).
   const [company, setCompany] = React.useState('');
 
+  // People filters: by the card's Trust PM and by its T-Lines PM ('' = everyone, NOBODY = unassigned).
+  const { options: people, assigned } = React.useContext(AssignContext);
+  const [trustPm, setTrustPm] = React.useState('');
+  const [tlinesPm, setTlinesPm] = React.useState('');
+  const trustPmOptions = React.useMemo(() => [{ value: '', label: 'All Trust PMs' }, { value: NOBODY, label: 'Unassigned' }, ...people], [people]);
+  const tlinesPmOptions = React.useMemo(() => [{ value: '', label: 'All T-Lines PMs' }, { value: NOBODY, label: 'Unassigned' }, ...people], [people]);
+  /** A card's person for a role, as shown on it now (including picks made on this page). A
+   *  project card has no Trust PM; its T-Lines PM is the project's own PM. */
+  const personOf = React.useCallback((i: BoardCardItem, role: AssignRole): string | null => {
+    if (i.assign) {
+      const key = assignKey(i, role);
+      if (key in assigned) return assigned[key];
+      return role === 'tlines_pm' ? i.assign.tlinesUserId ?? null : i.assign.userId;
+    }
+    if (role === 'tlines_pm' && i.pmName) return people.find(p => p.label === i.pmName)?.value ?? null;
+    return null;
+  }, [assigned, people]);
+
   // Columns menu — remembered per browser.
   const [hidden, setHidden] = React.useState<Set<string>>(new Set());
   React.useEffect(() => {
@@ -529,14 +563,17 @@ function Board({ columns, onOpen, accounts }: {
       if (dateTo && d > dateTo) return false;
       return true;
     };
+    const byPerson = (i: BoardCardItem, role: AssignRole, want: string) =>
+      !want || (want === NOBODY ? !personOf(i, role) : personOf(i, role) === want);
     const keep = (i: BoardCardItem) =>
-      inRange(i.dateISO) && (!company || (company === NO_COMPANY ? !i.company : i.company === company));
+      inRange(i.dateISO) && (!company || (company === NO_COMPANY ? !i.company : i.company === company))
+      && byPerson(i, 'trust_pm', trustPm) && byPerson(i, 'tlines_pm', tlinesPm);
     const shown = columns.filter(c => !hidden.has(c.regionCode));
     return (shown.length ? shown : columns).map(column => ({
       ...column,
       sections: column.sections.map(s => ({ ...s, items: s.items.filter(keep) })),
     }));
-  }, [columns, hidden, dateFrom, dateTo, company]);
+  }, [columns, hidden, dateFrom, dateTo, company, trustPm, tlinesPm, personOf]);
 
   // Stages / Accounts, remembered per browser. Every account starts open; a click folds it.
   const [view, setView] = React.useState<BoardView>('stages');
@@ -574,6 +611,8 @@ function Board({ columns, onOpen, accounts }: {
         <div className="flex flex-wrap items-center gap-2.5">
           {accounts && <ViewToggle view={view} onView={changeView} />}
           <FilterSelect aria-label="Companies" value={company} options={COMPANY_OPTIONS} onValueChange={v => setCompany(v ?? '')} className={FILTER_CLS} />
+          <FilterSelect aria-label="Trust PM" value={trustPm} options={trustPmOptions} onValueChange={v => setTrustPm(v ?? '')} className={FILTER_CLS} />
+          <FilterSelect aria-label="T-Lines PM" value={tlinesPm} options={tlinesPmOptions} onValueChange={v => setTlinesPm(v ?? '')} className={FILTER_CLS} />
           <ColumnButtons columns={columns} hidden={hidden} onToggle={toggleColumn} />
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -629,16 +668,17 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   const [open, setOpen] = React.useState<{ item: BoardCardItem; section: BoardSection } | null>(null);
   const [assigned, setAssigned] = React.useState<Record<string, string | null>>({});
   const assignOptions = React.useMemo(() => users.map(u => ({ value: u.id, label: u.full_name })), [users]);
-  const assign = React.useCallback(async (item: BoardCardItem, userId: string | null) => {
+  const assign = React.useCallback(async (item: BoardCardItem, role: AssignRole, userId: string | null) => {
     if (!item.assign) return;
-    const key = assignKey(item);
-    const before = key in assigned ? assigned[key] : item.assign.userId;
+    const key = assignKey(item, role);
+    const saved = role === 'tlines_pm' ? item.assign.tlinesUserId ?? null : item.assign.userId;
+    const before = key in assigned ? assigned[key] : saved;
     if (before === userId) return;
     setAssigned(a => ({ ...a, [key]: userId }));
     try {
       const res = await fetch('/api/tlines-dashboard/assignee', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemKind: item.assign.kind, itemId: item.id, stage: item.assign.stage, label: item.assign.label, userId }),
+        body: JSON.stringify({ itemKind: item.assign.kind, itemId: item.id, stage: item.assign.stage, role, label: item.assign.label, userId }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? 'Could not save');
     } catch (e) {
