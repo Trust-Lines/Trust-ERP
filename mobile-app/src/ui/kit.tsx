@@ -384,3 +384,16 @@ export function Timeline({ steps }: { steps: { title: string; sub?: string | nul
     </View>
   );
 }
+
+/** chips() — wrap of selectable pills; the selected one is the dark (k) chip. */
+export function Choice<K extends string>({ items, value, onChange }: { items: { key: K; label: string }[]; value: K; onChange: (k: K) => void }) {
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }} accessibilityRole="radiogroup">
+      {items.map(it => (
+        <Pressable key={it.key} onPress={() => onChange(it.key)} accessibilityRole="radio" accessibilityState={{ selected: it.key === value }}>
+          <Chip label={it.label} tone={it.key === value ? 'k' : 'n'} style={{ paddingVertical: 7, paddingHorizontal: 12 }} />
+        </Pressable>
+      ))}
+    </View>
+  );
+}

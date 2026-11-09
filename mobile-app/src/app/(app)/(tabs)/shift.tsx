@@ -2,10 +2,11 @@
 // The big button needs a long press so a pocket tap can't punch.
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
+import { router } from 'expo-router';
 import { addDays, hm, spans, startOfDay, within, type PunchKind } from '@/lib/shift';
 import { clock, dayLong } from '@/lib/format';
-import { todayTotals, useNow, useShift } from '@/features/shift';
-import { Btn, Card, ErrorView, Header, Ico, Lbl, Li, List, Loading, Muted, Note, Row, Screen, Seg, T } from '@/ui/kit';
+import { SITES, todayTotals, useNow, useShift, useWorkSite } from '@/features/shift';
+import { Btn, Card, Choice, ErrorView, Header, Ico, Lbl, Li, List, Loading, Muted, Note, Row, Screen, Seg, T } from '@/ui/kit';
 import { Icon } from '@/ui/Icon';
 import { C, UI } from '@/ui/theme';
 
@@ -14,12 +15,12 @@ const KIND_ICON = { in: 'finger', break_start: 'coffee', break_end: 'coffee', ou
 
 export default function Shift() {
   const [tab, setTab] = useState<'today' | 'sheet'>('today');
-  const shift = useShift(7);
+  const shift = useShift(31);
   const now = useNow(15_000);
 
   return (
     <Screen onRefresh={shift.reload} refreshing={shift.refreshing}>
-      <Header title="Mesai" />
+      <Header title="Mesai" icon="cal" iconLabel="Vardiya planı" onIcon={() => router.push('/hr/shifts')} />
       <Seg value={tab} onChange={setTab} items={[{ key: 'today', label: 'Bugün' }, { key: 'sheet', label: 'Puantaj' }]} />
       {shift.loading ? <Loading /> : shift.error ? <ErrorView message={shift.error} onRetry={shift.reload} /> : !shift.data ? null
         : tab === 'today' ? <Today shift={shift} now={now} /> : <Sheet shift={shift} now={now} />}
@@ -71,6 +72,12 @@ function Today({ shift, now }: { shift: ReturnType<typeof useShift>; now: number
         ) : null}
       </Card>
 
+      <SitePicker />
+      <Row style={{ gap: 10, marginBottom: 12 }}>
+        <Btn kind="s" small icon="cal" label="İzin & talepler" style={{ flex: 1 }} onPress={() => router.push('/hr/requests')} />
+        <Btn kind="s" small icon="clock" label="Kayıt düzelt" style={{ flex: 1 }} onPress={() => router.push('/hr/new-request')} />
+      </Row>
+
       <Lbl>Bugünkü kayıtlar</Lbl>
       {todays.length === 0 ? <Note>Bugün henüz kayıt yok.</Note> : (
         <List>
@@ -80,15 +87,16 @@ function Today({ shift, now }: { shift: ReturnType<typeof useShift>; now: number
           ))}
         </List>
       )}
-      <Note>Konum ve vardiya kuralları henüz tanımlı değil; kayıtlar sunucu saatiyle tutulur.</Note>
+      <Note>Konum doğrulama kuralları henüz tanımlı değil; kayıtlar sunucu saatiyle tutulur.</Note>
     </>
   );
 }
 
 function Sheet({ shift, now }: { shift: ReturnType<typeof useShift>; now: number }) {
+  const [range, setRange] = useState<'7' | '30'>('7');
   const { work, brk } = spans(shift.data!.punches, now);
   const today = startOfDay(new Date(now));
-  const days = Array.from({ length: 7 }, (_, i) => {
+  const days = Array.from({ length: Number(range) }, (_, i) => {
     const d = addDays(today, -i);
     const a = d.getTime(), z = addDays(d, 1).getTime();
     return { d, worked: within(work, a, z), brk: within(brk, a, z) };
@@ -97,8 +105,9 @@ function Sheet({ shift, now }: { shift: ReturnType<typeof useShift>; now: number
 
   return (
     <>
+      <Choice value={range} onChange={setRange} items={[{ key: '7', label: 'Son 7 gün' }, { key: '30', label: 'Son 30 gün' }]} />
       <Card style={{ backgroundColor: C.P800 }}>
-        <Muted style={{ color: 'rgba(255,255,255,0.6)' }}>Son 7 gün</Muted>
+        <Muted style={{ color: 'rgba(255,255,255,0.6)' }}>Son {range} gün · {days.filter(d => d.worked).length} iş günü</Muted>
         <Row style={{ alignItems: 'flex-end' }}>
           <T w={700} size={40} color={C.white} style={{ letterSpacing: -0.8 }}>{hm(total)}</T>
           <Muted style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>saat</Muted>
@@ -112,5 +121,17 @@ function Sheet({ shift, now }: { shift: ReturnType<typeof useShift>; now: number
         ))}
       </List>
     </>
+  );
+}
+
+function SitePicker() {
+  const [site, setSite] = useWorkSite();
+  const [open, setOpen] = useState(false);
+  return (
+    <Card>
+      <Li left={<Ico name="pin" tone={site ? 'g' : 'a'} />} title={site ?? 'Çalışma yeri seç'} sub="Bugün nerede çalışıyorsun?"
+        chevron onPress={() => setOpen(o => !o)} />
+      {open ? <Choice value={site ?? ''} onChange={v => { setSite(v); setOpen(false); }} items={SITES.map(x => ({ key: x, label: x }))} /> : null}
+    </Card>
   );
 }

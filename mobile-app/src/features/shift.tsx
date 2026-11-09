@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert as RNAlert, View } from 'react-native';
 import { router } from 'expo-router';
 import { api, ApiError } from '@/lib/api';
@@ -7,6 +8,16 @@ import { addDays, hm, spans, startOfDay, within, type PunchKind, type ShiftData 
 import { clock } from '@/lib/format';
 import { Btn, Card, Chip, Muted, Row, T } from '@/ui/kit';
 import { C } from '@/ui/theme';
+
+/** 048 · Çalışma yeri — chosen on the device, sent with every punch (punch.site). */
+export const SITE_KEY = 'tl.workSite';
+export const SITES = ['Fabrika · Gebze', 'Yükleme alanı · İzmit', 'NJ Warehouse · USA', 'Saha / job site', 'Ofis'];
+export function useWorkSite() {
+  const [site, setSite] = useState<string | null>(null);
+  useEffect(() => { AsyncStorage.getItem(SITE_KEY).then(setSite).catch(() => {}); }, []);
+  const choose = (v: string) => { setSite(v); void AsyncStorage.setItem(SITE_KEY, v).catch(() => {}); };
+  return [site, choose] as const;
+}
 
 /** Re-render every `ms` so running timers move. */
 export function useNow(ms = 30_000) {
@@ -24,7 +35,8 @@ export function useShift(days = 7) {
   async function punch(kind: PunchKind) {
     setBusy(kind);
     try {
-      await api('/api/hr/shift', { method: 'POST', body: { kind } });
+      const site = await AsyncStorage.getItem(SITE_KEY).catch(() => null);
+      await api('/api/hr/shift', { method: 'POST', body: { kind, site } });
     } catch (e) {
       RNAlert.alert('Kaydedilemedi', e instanceof Error ? e.message : 'Tekrar dene.');
       if (!(e instanceof ApiError && e.status === 409)) { setBusy(null); return; }

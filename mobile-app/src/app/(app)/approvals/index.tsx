@@ -1,14 +1,11 @@
-// 014 · Onaylar — documents waiting for MY signature (GET /api/approvals/mine). Signing needs the
-// document in view and the saved signature, so it opens on the web for now (mobile viewer + 028
-// signing come next).
-import { Linking } from 'react-native';
+// 014 · Onaylar — documents waiting for MY signature (GET /api/approvals/mine); a row opens 028.
+import { router } from 'expo-router';
 import { useApi } from '@/lib/useApi';
-import { API_URL } from '@/lib/api';
 import { ago } from '@/lib/format';
-import { Back, Chip, Empty, ErrorView, Header, Ico, Lbl, Li, List, Loading, Note, Screen } from '@/ui/kit';
+import { Back, Chip, Empty, ErrorView, Header, Ico, Lbl, Li, List, Loading, Screen } from '@/ui/kit';
 
 interface MyApproval {
-  approvalId: string; projectId: string; projectName: string; projectCode: string;
+  approvalId: string; projectId: string; projectName: string; projectCode: string; documentId: string;
   fileName: string; docType: string; stageLabel: string; stage: number; totalStages: number; createdAt: string;
 }
 
@@ -31,11 +28,12 @@ export default function Approvals() {
                 title={`${a.docType.toUpperCase()} · ${a.fileName}`}
                 sub={`${a.projectCode} · ${a.projectName} · ${ago(a.createdAt)}`}
                 right={<Chip label={`${a.stage}/${a.totalStages}`} tone="a" />}
-                label={`${a.fileName}, web'de aç`}
-                onPress={() => Linking.openURL(`${API_URL}/projects/${a.projectId}`)} />
+                chevron onPress={() => router.push({ pathname: '/approvals/[id]', params: {
+                  id: a.approvalId, projectId: a.projectId, documentId: a.documentId, fileName: a.fileName, docType: a.docType,
+                  stageLabel: a.stageLabel, stage: String(a.stage), totalStages: String(a.totalStages), project: `${a.projectCode} · ${a.projectName}`,
+                } })} />
             ))}
           </List>
-          <Note>Dokümanı görüp imzalamak için web&apos;de açılır.</Note>
         </>
       )}
     </Screen>

@@ -1321,6 +1321,13 @@ Eksik küçük detaylarda mevcut mimariye ve bu dosyaya uygun en güvenli karar 
 
 ```text
 Project architecture:
+- Mobile app (T-ERP) slice 2 (2026-11-09): every mobile-design module now has screens on real APIs — HR (leave /
+  punch-correction requests, manager approvals, team status, shift plans, monthly timesheet, work site), projects
+  (items, docs, notes / site report, punch, CRs, delivery plan + customer acceptance, contacts), product card (status,
+  shelf, history), warehouse (receiving, put-away, shelves), logistics (new container, status, loading by PF code),
+  QC photos (Dropbox, add-only), approvals (sign / revise with chain), expenses (+ paid), customers (+ visit log),
+  sales, installations, suppliers, survey QR, notifications, directory, search, AI assistant, Face ID lock.
+  Migration 145 (hr_requests, hr_shifts, warehouse_locations) is APPLIED live (verified 2026-11-09).
 - Mobile app STARTED (2026-11-09): Expo SDK 58 app in `../mobile-app/` (sibling of this repo folder), built from
   `../mobile-design/` (Trust Lines DS tokens, mockup icons/components copied 1:1). Same Supabase accounts; it calls
   this platform's `/api/*` with `Authorization: Bearer <supabase jwt>` (lib/supabase/server.ts + middleware.ts).
@@ -2157,6 +2164,11 @@ Project architecture:
        + in-app approve/reject with saved signature (028/096/097); expenses (013/029/098).
 [ ] M3 Open HR decisions before building: geofence / shift rules (003/061), leave requests (018/035/066),
        manager timesheets (064/067/068). Also: item-QR format (005/006), language (TR/EN), offline queue (015/055).
+[x] M2 Slice 2 (2026-11-09): all module screens — HR, warehouse, product card, logistics writes, QC photos, in-app
+       signing, expenses paid, visit log, survey QR, notifications, directory, search, assistant, Face ID lock.
+[ ] M3 Still open (need a decision or hardware): geofence / out-of-area (061), kiosk (063), leave entitlement balance
+       rules (035), shelf-code format, label printing (026/075), stock count sessions (038), offline queue + sync
+       conflicts (015/055), business-card OCR (102), employee documents (065), tablet two-pane layouts.
 --- start here next ---
 [ ] See ROADMAP-5AY.md for the current active task list (5-month plan, checkbox-tracked, Month 1 in progress).
 ```
@@ -2168,6 +2180,19 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-11-09 (Mobile app — slice 2: all modules) — migration 145 NEW, APPLIED live (verified)
+- Migration 145_hr_and_warehouse.sql: hr_requests (leave | correction; matches the web HR "Requests" model),
+  hr_shifts, warehouse_locations — RLS on, service-role only. types/database.ts updated.
+- New APIs: /api/hr/requests (+[id] approve/reject/cancel; an approved correction writes the punch),
+  /api/hr/shifts, /api/hr/team; /api/mobile/projects (+[id], +[id]/notes), /api/mobile/items/[id] (+location),
+  /api/mobile/warehouse, /api/mobile/deliveries, /api/mobile/notifications, /api/mobile/team, /api/mobile/search,
+  /api/mobile/qc/photos (Dropbox add-only). lib/hr/{requests,team}.ts, lib/warehouse/roles.ts; tests/hrRequests.test.ts.
+- Field safety: mobile project/item reads never return prices, invoices or PF fields to tlines_pm; internal project
+  notes are hidden from tlines_pm; search skips PF codes for tlines_pm.
+- Checks: tsc clean; vitest 724 passed (9 smoke skipped); eslint clean on changed files; build OK. Every new query
+  validated read-only against the live schema (caught customers.city → fixed). Mobile: tsc + expo lint clean, bundle OK.
+  Authenticated end-to-end run is done on the phone by the user (impersonating an account was not allowed).
+
 2026-11-09 (Mobile app — slice 1) — migration 144 NEW, NOT APPLIED
 - Decision (ROADMAP-5AY task 29): a separate Expo (React Native) app, as the mobile-design README proposed;
   it reuses this platform's API and Supabase auth — no second backend.

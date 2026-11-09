@@ -1,6 +1,6 @@
-// 005 · QR tarayıcı / 044 · Kod tanınmadı. The item-QR format is still an open decision, so this
-// resolves what exists today: platform links (→ native screen or web) and container / booking
-// numbers (→ container detail). Anything else shows the "not recognized" sheet with the raw code.
+// 005 · QR tarayıcı / 006 · ürün kartı / 044 · Kod tanınmadı. Resolves platform links (→ native screen
+// or web), production item PF codes (→ product card) and container / booking numbers (→ container).
+// Anything else shows the "not recognized" sheet with the raw code.
 import { useRef, useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
@@ -36,10 +36,14 @@ export default function Scan() {
 
     setResult({ kind: 'busy' });
     try {
-      const { containers } = await api<{ containers: Container[] }>('/api/containers?includeCompleted=1');
-      const hit = containers.find(c => norm(c.container_no) === norm(code) || norm(c.booking_no) === norm(code));
-      if (hit) { router.replace({ pathname: '/containers/[id]', params: { id: hit.id } }); return; }
-    } catch { /* no container access — fall through */ }
+      // 006: a PF code opens the product card; a container / booking number opens the container.
+      const hits = await api<{ items: { id: string; pf_code: string | null }[]; containers: Pick<Container, 'id' | 'container_no' | 'booking_no'>[] }>(
+        `/api/mobile/search?q=${encodeURIComponent(code)}`);
+      const item = hits.items.find(i => norm(i.pf_code) === norm(code));
+      if (item) { router.replace({ pathname: '/items/[id]', params: { id: item.id } }); return; }
+      const box = hits.containers.find(c => norm(c.container_no) === norm(code) || norm(c.booking_no) === norm(code));
+      if (box) { router.replace({ pathname: '/containers/[id]', params: { id: box.id } }); return; }
+    } catch { /* search failed — show the code as unrecognized */ }
     setResult({ kind: 'unknown', code });
   }
 
@@ -80,7 +84,7 @@ export default function Scan() {
             <View style={[s.corner, { left: 0, bottom: 0, borderLeftWidth: 5, borderBottomWidth: 5, borderBottomLeftRadius: 18 }]} />
             <View style={[s.corner, { right: 0, bottom: 0, borderRightWidth: 5, borderBottomWidth: 5, borderBottomRightRadius: 18 }]} />
           </View>
-          <T w={600} color={C.white} style={{ marginTop: 22, textAlign: 'center' }}>Konteyner numarası veya platform QR&apos;ı okut</T>
+          <T w={600} color={C.white} style={{ marginTop: 22, textAlign: 'center' }}>Ürün (PF kodu), konteyner veya platform QR&apos;ı okut</T>
         </View>
       </SafeAreaView>
 

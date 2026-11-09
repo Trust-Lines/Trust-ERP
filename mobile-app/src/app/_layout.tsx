@@ -6,6 +6,7 @@ import {
   useFonts, InstrumentSans_400Regular, InstrumentSans_500Medium, InstrumentSans_600SemiBold, InstrumentSans_700Bold,
 } from '@expo-google-fonts/instrument-sans';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { AppLock } from '@/lib/lock';
 import { UI } from '@/ui/theme';
 
 function RootStack() {
@@ -32,7 +33,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <StatusBar style="auto" />
-        <RootStack />
+        <AppLock><RootStack /></AppLock>
       </AuthProvider>
     </SafeAreaProvider>
   );
