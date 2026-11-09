@@ -28,6 +28,8 @@ interface TopBarProps {
 
 const ROUTE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
+  '/tlines-pm': 'T-Lines PM',
+  '/tlines-pm/installation': 'Installation Plan',
   '/leads': 'CRM Board',
   '/leads/new': 'New Opportunity',
   '/sales-dashboard': 'Sales Dashboard',
@@ -38,7 +40,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/marketing/opportunities': 'Potentials',
   '/marketing/campaigns': 'Campaigns & Surveys',
   '/design': 'Design & Assets',
-  '/pm': 'PM · Millwork & Ceiling',
+  '/pm': 'PM Workspace',
   '/projects': 'Supply Projects',
   '/approvals': 'Approvals',
   '/customers': 'Customers Directory',

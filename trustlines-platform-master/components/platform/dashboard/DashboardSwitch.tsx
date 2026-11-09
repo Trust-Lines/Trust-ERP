@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 // The General Manager sees both companies' dashboards on /dashboard — this switches between them.
 export function DashboardSwitch({ view }: { view: 'tlines' | 'trust' }) {
-  const tabs: [string, 'tlines' | 'trust', string][] = [['T-Lines', 'tlines', '/dashboard'], ['Trust Lines', 'trust', '/dashboard?view=trust']];
+  const tabs: [string, 'tlines' | 'trust', string][] = [['T-Lines', 'tlines', '/tlines-pm'], ['Trust Lines', 'trust', '/tlines-pm?view=trust']];
   return (
     <nav aria-label="Dashboard" className="mb-5 flex w-fit gap-1 rounded-[8px] bg-ui-surface p-1">
       {tabs.map(([label, key, href]) => (

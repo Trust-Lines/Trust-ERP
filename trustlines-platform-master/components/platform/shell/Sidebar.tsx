@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
+  CalendarRange,
+  HardHat,
   LayoutDashboard,
   FolderKanban,
   CheckSquare,
@@ -100,9 +102,17 @@ export const ROLE_LABELS: Record<string, string> = {
   marketing_manager: 'Marketing Manager',
 };
 
-const DASHBOARD_ITEM: NavItem = { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, perm: 'page.dashboard' };
-// Personal Google Calendar view — everyone who has the Dashboard has their own meetings.
-const MEETINGS_ITEM: NavItem = { label: 'My meetings', href: '/meetings', icon: CalendarDays, perm: 'page.dashboard' };
+// 2026-11-09: the top group is "T-Lines PM" — everything a T-Lines PM works from in one place:
+// the branch board (was "Dashboard" at /dashboard), the PM workspace (was Supply → PM) and
+// meetings. "Dashboard" will come back as separate per-section dashboards.
+const TLINES_PM_NAV: NavItem[] = [
+  { label: 'Board',        href: '/tlines-pm', icon: LayoutDashboard, perm: 'page.dashboard' },
+  { label: 'PM Workspace', href: '/pm',        icon: ClipboardList,   perm: 'page.pm' },
+  // The installation plan (was the "Installation_Planning" workbook).
+  { label: 'Installation', href: '/tlines-pm/installation', icon: CalendarRange, perm: 'page.installation' },
+  // Personal Google Calendar view — everyone who has the board has their own meetings.
+  { label: 'My meetings',  href: '/meetings',  icon: CalendarDays,    perm: 'page.dashboard' },
+];
 const CUSTOMERS_ITEM: NavItem = { label: 'Customers', href: '/customers', icon: Contact, perm: 'page.customers' };
 // Design: the jobs workspace plus the shared library around it.
 const DESIGN_NAV: NavItem[] = [
@@ -125,7 +135,6 @@ const DESIGN_NAV: NavItem[] = [
 // (tlines_pm) users exactly as before, when the whole Operations group was internal-only.
 const SUPPLY_NAV: (NavItem & { internal?: boolean })[] = [
   { label: 'Projects',  href: '/projects',  icon: FolderKanban,   perm: 'page.projects' },
-  { label: 'PM',        href: '/pm',        icon: ClipboardList,  perm: 'page.pm' },
   { label: 'Clients',   href: '/clients',   icon: Building2,      perm: 'page.clients',   internal: true },
   { label: 'Suppliers', href: '/suppliers', icon: Package,        perm: 'page.suppliers', internal: true },
   { label: 'QC',        href: '/qc',        icon: ClipboardCheck, perm: 'page.qc',        internal: true },
@@ -280,7 +289,7 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
   const salesItems = allowed(salesNav);
   const showSales = salesItems.some(i => i !== CUSTOMERS_ITEM);
   const sections: NavSection[] = [
-    { key: 'dashboard', title: 'Dashboard', icon: LayoutDashboard, items: allowed([DASHBOARD_ITEM, MEETINGS_ITEM]) },
+    { key: 'tlines-pm', title: 'T-Lines PM', icon: HardHat, items: allowed(TLINES_PM_NAV) },
     { key: 'marketing', title: 'Marketing', icon: Megaphone, items: marketingNav },
     ...(showSales ? [{ key: 'sales', title: 'Sales', icon: Target, items: salesItems, activeOverride: quickDealActive ? '/leads/new' : undefined }] : []),
     { key: 'design', title: 'Design', icon: DraftingCompass, items: allowed(DESIGN_NAV) },
