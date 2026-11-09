@@ -55,6 +55,12 @@ const ROUTE_TITLES: Record<string, string> = {
   '/settings': 'Settings & Preferences',
   '/notifications': 'Notifications',
   '/my-tasks': 'My Tasks',
+  '/hr': 'HR Dashboard',
+  '/hr/my-work': 'HR · My Work',
+  '/hr/calendar': 'HR Calendar',
+  '/hr/messages': 'HR Messages',
+  '/hr/reports': 'HR Reports',
+  '/hr/orders': 'HR Orders',
 };
 
 export function TopBar({
