@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "T-ERP",
+    "slug": "trust-lines-mobile",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.trustlines.mobile",
+      "appleTeamId": "NRPLW55QK8",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Ofis ağındaki Trust Lines sunucusuna bağlanmak için.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.trustlines.mobile"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "QR kodlarını okumak ve iş fotoğrafı çekmek için kamera gerekir.",
+          "barcodeScannerEnabled": true
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Face ID ile hızlı giriş için."
+        }
+      ]
+    ],
+    "scheme": "trustlines",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

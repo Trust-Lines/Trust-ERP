@@ -28,13 +28,24 @@ export async function middleware(request: NextRequest) {
   // getClaims() verifies the JWT signature (locally with asymmetric signing keys, otherwise via
   // the Auth server) and refreshes an expired session — same guarantees as getUser() without a
   // network round trip on every single click.
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const user = claimsData?.claims?.sub ? { id: claimsData.claims.sub } : null;
-
   const { pathname } = request.nextUrl;
+  // The mobile app calls /api/* with `Authorization: Bearer <jwt>` instead of cookies; the same
+  // signature/expiry check applies to that token.
+  const authHeader = request.headers.get('authorization') ?? '';
+  const bearer = pathname.startsWith('/api/') && authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7).trim() || undefined
+    : undefined;
+
+  const { data: claimsData } = await supabase.auth.getClaims(bearer);
+  const user = claimsData?.claims?.sub ? { id: claimsData.claims.sub } : null;
 
   const publicPaths = ['/login', '/tlines-login', '/trustlines-login', '/auth/callback', '/auth/set-password', '/auth/forgot-password', '/api/auth/forgot-password', '/review', '/survey', '/unsubscribe', '/quote', '/contract', '/install/', '/video-upload/', '/api/public', '/api/cron'];
   const isPublic = publicPaths.some(p => pathname.startsWith(p));
+
+  // An expired / forged mobile token gets a 401 the app can act on, not the web login page.
+  if (!user && bearer && !isPublic) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   // The Trust System proxy answers like an API (401), not with a login page redirect.
   if (!user && pathname.startsWith('/api/trust/')) {
