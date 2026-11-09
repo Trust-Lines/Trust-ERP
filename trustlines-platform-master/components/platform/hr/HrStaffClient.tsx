@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
-// Figma "Staff Members" (node 565:13166): HR's list of everyone on the team. Name, email, role
+// Figma "Staff Members" (node 565:13166, dark 570:23992): HR's list of everyone on the team. Name, email, role
 // and joined date are real (profiles). Birth date, vacation days and extra work hours have no
 // data source yet, so those cells show "—" until HR records exist.
 
@@ -172,10 +172,10 @@ export function HrStaffClient({ staff, canInvite }: { staff: HrStaffRow[]; canIn
                 {visible.map(s => {
                   const name = s.full_name || s.email || 'Unnamed';
                   return (
-                    <tr key={s.id} className="h-16 border-b border-ui-divider last:border-b-0">
+                    <tr key={s.id} className="h-[77px] border-b border-ui-divider last:border-b-0">
                       <td className="max-w-0 py-2 pl-2 pr-2.5">
                         <div className="flex min-w-0 items-center gap-3">
-                          <span className="flex size-[38px] shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-[var(--ui-selected-bg)] text-[12px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">
+                          <span className="flex size-[45px] shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-[var(--status-t0-fg)] text-[13px] font-semibold text-white dark:text-primary-950">
                             <PersonFace name={s.full_name} userId={s.id} fallback={initials(name)} />
                           </span>
                           <span className="flex min-w-0 flex-col leading-[1.4]">

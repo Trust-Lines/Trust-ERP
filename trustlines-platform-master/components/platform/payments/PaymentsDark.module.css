@@ -1,0 +1,39 @@
+/* Figma Payments dark mode — node 541:30608. */
+:global(.dark) :global([data-payments-page]){color:#eef2f6}
+:global(.dark) :global([data-payments-page]) h1{color:#eef2f6}
+:global(.dark) :global([data-payments-page]) header small{color:#7f9fc7}
+:global(.dark) :global([data-payments-page]) header p{color:#9aa9ba}
+:global(.dark) :global([data-payments-page]) [role="tablist"]{border-color:#34495e}
+:global(.dark) :global([data-payments-page]) [role="tab"]{color:#91a0b2}
+:global(.dark) :global([data-payments-page]) [role="tab"][aria-selected="true"]{border-color:#eef2f6;color:#eef2f6}
+:global(.dark) :global([data-payments-page]) input,
+:global(.dark) :global([data-payments-page]) select{color:#eef2f6;color-scheme:dark}
+:global(.dark) :global([data-payments-page]) input::placeholder{color:#91a0b2}
+:global(.dark) :global([data-payments-page]) label:has(input),
+:global(.dark) :global([data-payments-page]) label:has(select),
+:global(.dark) :global([data-payments-page]) div[role="tablist"]~div button{border-color:#41566d;background:#182330;color:#eef2f6}
+:global(.dark) :global([data-payments-page])>div:last-child{border-color:#34495e;background:#090d11}
+:global(.dark) :global([data-payments-page]) [class*="mainHead"]{background:#a82126;color:#fff}
+:global(.dark) :global([data-payments-page]) [class*="scheduleHead"]{background:#996000;color:#fff}
+:global(.dark) :global([data-payments-page]) [class*="paymentsHead"]{background:#3d966a;color:#fff}
+:global(.dark) :global([data-payments-page]) [class*="invoiceHead"]{background:#424348;color:#fff}
+:global(.dark) :global([data-payments-page]) [class*="projectBody"],
+:global(.dark) :global([data-payments-page]) [class*="mainItem"],
+:global(.dark) :global([data-payments-page]) [class*="scheduleItem"],
+:global(.dark) :global([data-payments-page]) [class*="paymentItem"],
+:global(.dark) :global([data-payments-page]) [class*="invoiceItem"]{border-color:#263747;background:#090d11;color:#91a0b2}
+:global(.dark) :global([data-payments-page]) [class*="mainItem"] strong{color:#eef2f6}
+:global(.dark) :global([data-payments-page]) [class*="scheduleItems"],
+:global(.dark) :global([data-payments-page]) [class*="paymentItems"],
+:global(.dark) :global([data-payments-page]) [class*="invoiceItems"]{border-color:#34495e}
+:global(.dark) :global([data-payments-page]) [class*="subhead"]{background:#414346}
+:global(.dark) :global([data-payments-page]) [class*="subhead"] span{background:#090d11;color:#eef2f6}
+:global(.dark) :global([data-payments-page]) [class*="projectBar"]{border-color:#34495e;background:#414346;color:#eef2f6}
+:global(.dark) :global([data-payments-page]) [class*="projectBar"] small{color:#c4ccd5}
+:global(.dark) :global([data-payments-page]) [class*="quickbook"]{background:#17692f;color:#eef2f6}
+:global(.dark) :global([data-payments-page]) [class*="projectTotals"]>div{border-color:#34495e;background:#848484;color:#fff}
+:global(.dark) :global([data-payments-page]) [class*="projectTotals"] [class*="usd"],
+:global(.dark) :global([data-payments-page]) [class*="projectTotals"] [class*="tl"]{border-radius:3px;background:#090d11;padding:4px 10px}
+:global(.dark) :global([data-payments-page]) [class*="usd"]{color:#28a86b}
+:global(.dark) :global([data-payments-page]) [class*="tl"]{color:#e75a18}
+:global(.dark) :global([data-payments-page]) [class*="neutral"]{background:#34495e;color:#eef2f6}
