@@ -812,6 +812,18 @@ export interface TimePunch {
   created_at: string;
 }
 
+/** Migration 145 — HR requests (leave / punch correction), shift plans, warehouse locations. */
+export interface HrRequestRow {
+  id: string; user_id: string | null; kind: 'leave' | 'correction';
+  reason: 'vacation' | 'sick' | 'personal' | null; start_date: string | null; end_date: string | null;
+  correction_kind: TimePunchKind | null; correction_at: string | null;
+  priority: 'important' | 'medium' | 'low'; description: string | null; files: unknown[];
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled'; decision_note: string | null;
+  decided_by: string | null; decided_at: string | null; created_at: string; updated_at: string;
+}
+export interface HrShift { id: string; user_id: string; shift_date: string; start_time: string; end_time: string; site: string | null; note: string | null; created_by: string | null; created_at: string }
+export interface WarehouseLocation { production_item_id: string; location: string; received_at: string | null; updated_by: string | null; updated_at: string }
+
 export interface SystemEventRow {
   id:           string;
   event_type:   string;
@@ -1531,6 +1543,9 @@ export interface Database {
       delivery_plans: { Row: DeliveryPlan; Insert: Omit<DeliveryPlan,'id'|'created_at'|'updated_at'>; Update: Partial<DeliveryPlan>; };
       punch_list_items: { Row: PunchListItem; Insert: Omit<PunchListItem,'id'|'created_at'|'updated_at'>; Update: Partial<PunchListItem>; };
       time_punches: { Row: TimePunch; Insert: Omit<TimePunch,'id'|'created_at'|'punched_at'|'source'> & { punched_at?: string; source?: string }; Update: Partial<TimePunch>; };
+      hr_requests: { Row: HrRequestRow; Insert: Partial<HrRequestRow> & Pick<HrRequestRow, 'kind'>; Update: Partial<HrRequestRow>; };
+      hr_shifts: { Row: HrShift; Insert: Omit<HrShift, 'id' | 'created_at'>; Update: Partial<HrShift>; };
+      warehouse_locations: { Row: WarehouseLocation; Insert: Omit<WarehouseLocation, 'updated_at'> & { updated_at?: string }; Update: Partial<WarehouseLocation>; };
       system_events: { Row: SystemEventRow; Insert: Omit<SystemEventRow,'id'|'created_at'|'processed_at'>; Update: Partial<SystemEventRow>; };
       prospects: { Row: Prospect; Insert: Omit<Prospect,'id'|'created_at'|'updated_at'>; Update: Partial<Prospect>; };
       prospect_contacts: { Row: ProspectContact; Insert: Omit<ProspectContact,'id'|'created_at'|'updated_at'>; Update: Partial<ProspectContact>; };

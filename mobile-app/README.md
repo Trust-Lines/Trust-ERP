@@ -20,9 +20,9 @@ Install on an iPhone over USB (Release build, JS embedded — no Metro / Expo Go
 
 ```bash
 npx expo prebuild --platform ios
-cd ios && xcodebuild -workspace TrustLines.xcworkspace -scheme TrustLines -configuration Release \
+cd ios && xcodebuild -workspace TERP.xcworkspace -scheme TERP -configuration Release \
   -destination id=<device UDID> -derivedDataPath build -allowProvisioningUpdates -allowProvisioningDeviceRegistration build
-xcrun devicectl device install app --device <CoreDevice id> build/Build/Products/Release-iphoneos/TrustLines.app
+xcrun devicectl device install app --device <CoreDevice id> build/Build/Products/Release-iphoneos/TERP.app
 ```
 
 `EXPO_PUBLIC_*` values are baked in at build time — rebuild after changing `.env.local`.
@@ -38,25 +38,26 @@ xcrun devicectl device install app --device <CoreDevice id> build/Build/Products
 | `src/features/` | per-module types + shared parts (shift card, my-day, QC, containers) |
 | `src/app/` | Expo Router screens; `(app)/` is behind sign-in |
 
-## Screens (mockup number → route → API)
+## Screens (mockup number → route)
 
-| Mockup | Route | API |
+| Module | Mockups | Routes |
 |---|---|---|
-| 001 Giriş, 046 Şifre sıfırlama | `/login`, `/forgot-password` | Supabase auth, `POST /api/auth/forgot-password` |
-| 002 / 050–053 Ana sayfa | `/` | `/api/mobile/me`, `/api/my-day`, `/api/hr/shift` |
-| 016 Görevler | `/tasks` | `/api/my-day` |
-| 003 / 017 / 062 / 004 Mesai | `/shift` | `GET/POST /api/hr/shift` (migration 144) |
-| 015 / 030 Menü, profil | `/menu` | `/api/mobile/me` |
-| 005 / 044 QR | `/scan` | platform links, container / booking numbers |
-| 007 / 008 QC | `/qc`, `/qc/[itemId]` | `/api/qc/queue`, `/api/qc/inspections` |
-| 009 / 024 Konteyner | `/containers`, `/containers/[id]` | `/api/containers…` |
-| 014 Onaylar | `/approvals` | `/api/approvals/mine` (signing opens the web) |
+| Giriş | 001, 046, 047 (Face ID lock) | `/login`, `/forgot-password`, Menu toggle |
+| Ana sayfa | 002, 050–053, 054 | `/` (shortcuts follow the role) |
+| Ortak | 049, 056, 057–059, 032, 030 | `/search`, `/assistant`, `/team`, `/team/[id]`, `/notifications`, `/menu` |
+| HR çalışan | 003, 017, 062, 004, 064, 048, 018, 034, 035, 033 | `/shift`, `/hr/requests`, `/hr/new-request`, `/hr/shifts` |
+| HR yönetici | 019, 066, 067, 068 | `/hr/team`, `/hr/approvals`, `/hr/shifts` (Ekibim) |
+| QR / ürün | 005, 006, 021, 044, 072, 020 | `/scan`, `/items/[id]`, `/search` |
+| Kalite kontrol | 007, 008, 023, 036, 076, 077 | `/qc`, `/qc/[itemId]` (photos → Dropbox) |
+| Lojistik | 009, 024, 010, 079, 080, 081, 083 | `/containers`, `/containers/new`, `/containers/[id]` |
+| Depo | 084, 011, 039, 038 (shelf view), 087 | `/warehouse`, `/items/[id]`, `/calendar` |
+| Saha / proje | 043, 027, 071, 042, 045, 012, 089, 091, 092, 093, 094, 088 | `/projects`, `/projects/[id]`, `/calendar`, `/installations` |
+| Onay & finans | 014, 028, 096, 097, 029, 013, 099 | `/approvals`, `/approvals/[id]`, `/expenses`, `/expenses/new` |
+| Satış | 101, 104, 105 | `/sales`, `/customers`, `/customers/[id]` (visit log), `/surveys` |
+
+Not built (need a decision or hardware): geofence (061), kiosk (063), leave balance rules, label printing (026/075),
+count sessions, offline queue (015/055), card OCR (102), employee documents (065), tablet two-pane layouts.
 
 Menu entries and home shortcuts follow the role's web page permissions (`pages` from `/api/mobile/me`);
 every API still authorizes on its own.
 
-## Not built yet
-
-Waiting on open decisions (`../mobile-design/README.md`): geofence/shift rules, leave requests, item-QR
-format, language, offline queue, label printer. Next slice: QC photos + checklist, document viewer and
-in-app signing, expenses. Tablet layouts (`mobile-design/tablet/`) are not done; the phone layout runs on tablets.

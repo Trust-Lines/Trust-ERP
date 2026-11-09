@@ -1,13 +1,14 @@
 // 024 · Konteyner detay / 081 belgeler — GET /api/containers/[id] (+ /documents). Read-only on
 // mobile for now; status changes stay on the web Logistics page.
 import { useState } from 'react';
-import { Linking, Pressable, View } from 'react-native';
+import { Alert as RNAlert, Linking, Pressable, View } from 'react-native';
+import { api } from '@/lib/api';
 import { useLocalSearchParams } from 'expo-router';
 import { useApi } from '@/lib/useApi';
 import { dayShort } from '@/lib/format';
 import { DOC_TR, STATUS_ORDER, STATUS_TR, statusUi, voyagePct, type Container, type ContainerDoc, type ContainerItem } from '@/features/containers';
 import { typeLabel } from '@/features/qc';
-import { Back, Btn, Card, Chip, ErrorView, KV, Lbl, Li, List, Loading, Note, Row, Screen, Timeline, Title } from '@/ui/kit';
+import { Back, Btn, Card, Chip, Choice, ErrorView, Field, KV, Lbl, Li, List, Loading, Note, Row, Screen, Timeline, Title } from '@/ui/kit';
 
 const at = (s: string) => STATUS_ORDER.indexOf(s as (typeof STATUS_ORDER)[number]);
 
@@ -16,6 +17,23 @@ export default function ContainerDetail() {
   const q = useApi<{ container: Container; items: ContainerItem[] }>(`/api/containers/${id}`);
   const docs = useApi<{ documents: ContainerDoc[] }>(`/api/containers/${id}/documents`);
   const [showItems, setShowItems] = useState(false);
+  const [next, setNext] = useState('');
+  const [pf, setPf] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function run(key: string, fn: () => Promise<unknown>) {
+    setBusy(key);
+    try { await fn(); await q.reload(); setNext(''); setPf(''); }
+    catch (e) { RNAlert.alert('Kaydedilemedi', e instanceof Error ? e.message : ''); }
+    finally { setBusy(null); }
+  }
+  // 010 · Yükleme: find the item by its PF code (QR / label), then add it to this container.
+  const load = () => run('load', async () => {
+    const { items: hits } = await api<{ items: { id: string; pf_code: string | null }[] }>(`/api/mobile/search?q=${encodeURIComponent(pf.trim())}`);
+    const hit = hits.find(h => (h.pf_code ?? '').toUpperCase() === pf.trim().toUpperCase()) ?? (hits.length === 1 ? hits[0] : null);
+    if (!hit) throw new Error('Bu PF koduyla tek bir kalem bulunamadı.');
+    await api(`/api/containers/${id}/items`, { method: 'POST', body: { productionItemId: hit.id } });
+  });
 
   if (q.loading) return <Screen><Back label="Konteynerler" /><Loading /></Screen>;
   if (q.error || !q.data) return <Screen><Back label="Konteynerler" /><ErrorView message={q.error ?? 'Bulunamadı'} onRetry={q.reload} /></Screen>;
@@ -54,6 +72,17 @@ export default function ContainerDetail() {
         ]} />
       </Card>
       <Card style={{ paddingBottom: 6 }}><Timeline steps={steps} /></Card>
+
+      <Lbl>Durumu güncelle</Lbl>
+      <Choice value={next} onChange={setNext} items={STATUS_ORDER.filter(st => st !== c.status && Math.abs(at(st) - now) <= 2).map(st => ({ key: st, label: STATUS_TR[st] ?? st }))} />
+      {next ? <Btn kind="d" label={`“${STATUS_TR[next]}” yap`} small loading={busy === 'status'} style={{ alignSelf: 'flex-start', marginBottom: 12 }}
+        onPress={() => run('status', () => api(`/api/containers/${id}`, { method: 'PATCH', body: { status: next } }))} /> : null}
+
+      <Lbl>Kalem yükle</Lbl>
+      <Row style={{ gap: 10, alignItems: 'flex-start' }}>
+        <View style={{ flex: 1 }}><Field placeholder="PF kodu" value={pf} onChangeText={setPf} autoCapitalize="characters" /></View>
+        <Btn small label="Ekle" disabled={!pf.trim()} loading={busy === 'load'} onPress={load} />
+      </Row>
 
       {docs.data?.documents.length ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>

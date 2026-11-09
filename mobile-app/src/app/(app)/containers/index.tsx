@@ -18,7 +18,7 @@ export default function Containers() {
   return (
     <Screen onRefresh={q.reload} refreshing={q.refreshing}>
       <Back label="Geri" />
-      <Header title="Konteynerler" />
+      <Header title="Konteynerler" icon="plus" iconLabel="Yeni konteyner" onIcon={() => router.push('/containers/new')} />
       <Seg value={tab} onChange={setTab} items={[
         { key: 'loading', label: 'Yükleniyor', count: count('loading') },
         { key: 'transit', label: 'Yolda', count: count('transit') },

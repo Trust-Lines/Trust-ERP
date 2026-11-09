@@ -1,20 +1,37 @@
 // 008 · QC denetim / 023 red / 076 onaylandı / 077 rework — the same actions as the web QC page:
 // open an inspection (POST), decide it pass/fail with a note (PATCH), reopen a failed one as rework.
 import { useState } from 'react';
-import { Alert as RNAlert, View } from 'react-native';
+import { Alert as RNAlert, Image, Pressable, View } from 'react-native';
+import { takePhoto } from '@/lib/photo';
+import { Icon } from '@/ui/Icon';
 import { router, useLocalSearchParams } from 'expo-router';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { ago } from '@/lib/format';
 import { findItem, typeLabel, type QcQueueData } from '@/features/qc';
 import { Alert, Back, Btn, Card, Chip, Empty, ErrorView, Field, Loading, Muted, Note, Row, Screen, T, Title } from '@/ui/kit';
-import { UI } from '@/ui/theme';
+import { C, UI } from '@/ui/theme';
 
 export default function QcInspection() {
   const { itemId } = useLocalSearchParams<{ itemId: string }>();
   const q = useApi<QcQueueData>('/api/qc/queue');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<{ uri: string; path: string }[]>([]);
+
+  // 036 · çoklu foto: each shot is uploaded to the project's Dropbox right away (add-only); the
+  // paths go into the inspection with the decision.
+  async function addPhoto(inspectionId: string) {
+    try {
+      const shot = await takePhoto();
+      if (!shot) return;
+      setBusy('photo');
+      const { path } = await api<{ path: string }>('/api/mobile/qc/photos', { method: 'POST', body: { inspectionId, image: shot.base64 } });
+      setPhotos(p => [...p, { uri: shot.uri, path }]);
+    } catch (e) {
+      RNAlert.alert('Fotoğraf yüklenemedi', e instanceof Error ? e.message : '');
+    } finally { setBusy(null); }
+  }
 
   const found = q.data ? findItem(q.data, itemId) : null;
 
@@ -58,10 +75,10 @@ export default function QcInspection() {
         <Btn kind="r" icon="x" label="Reddet" loading={busy === 'fail'} disabled={!!busy}
           onPress={() => {
             if (!notes.trim()) { RNAlert.alert('Not gerekli', 'Reddetmeden önce hatayı not olarak yaz.'); return; }
-            void call('fail', 'PATCH', { id: row.inspectionId, result: 'fail', notes: notes.trim() }, 'Kalem reddedildi');
+            void call('fail', 'PATCH', { id: row.inspectionId, result: 'fail', notes: notes.trim(), photos: photos.map(p => p.path) }, 'Kalem reddedildi');
           }} />
         <Btn kind="g" icon="check" label="Onayla" loading={busy === 'pass'} disabled={!!busy}
-          onPress={() => call('pass', 'PATCH', { id: row.inspectionId, result: 'pass', notes: notes.trim() || null }, 'Kalem onaylandı')} />
+          onPress={() => call('pass', 'PATCH', { id: row.inspectionId, result: 'pass', notes: notes.trim() || null, photos: photos.map(p => p.path) }, 'Kalem onaylandı')} />
       </Row>
     );
   } else if (can && section === 'readyForQc') {
@@ -87,8 +104,16 @@ export default function QcInspection() {
 
       {section === 'myInspections' && can ? (
         <View>
+          <T w={600} size={12} color={UI.secondary} style={{ letterSpacing: 0.72, textTransform: 'uppercase', marginBottom: 9 }}>{`Fotoğraflar · ${photos.length}`}</T>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+            {photos.map(p => <Image key={p.path} source={{ uri: p.uri }} style={{ width: 76, height: 76, borderRadius: 14 }} accessibilityLabel="QC fotoğrafı" />)}
+            <Pressable onPress={() => row.inspectionId && addPhoto(row.inspectionId)} disabled={busy === 'photo'} accessibilityRole="button" accessibilityLabel="Fotoğraf çek"
+              style={{ width: 76, height: 76, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.P200, alignItems: 'center', justifyContent: 'center', opacity: busy === 'photo' ? 0.5 : 1 }}>
+              <Icon name="camera" color={UI.secondary} />
+            </Pressable>
+          </View>
           <Field label="Not" placeholder="Bulduğun hata / açıklama… (red için zorunlu)" value={notes} onChangeText={setNotes} multiline />
-          <Note>Kontrol listesi ve fotoğraf yükleme sonraki sürümde; karar web ile aynı kayda yazılır.</Note>
+          <Note>Fotoğraflar projenin Dropbox klasörüne (QC Photos) eklenir; karar web ile aynı kayda yazılır.</Note>
         </View>
       ) : null}
       {section === 'failed' && !can ? <Alert title="Reddedildi" sub="Rework denetimi açıldığında kuyrukta görünür." tone="r" /> : null}

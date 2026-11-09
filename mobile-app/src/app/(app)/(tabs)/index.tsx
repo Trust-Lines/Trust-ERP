@@ -1,29 +1,24 @@
 // 002 / 050–053 · Ana sayfa — greeting, shift card, role-based quick actions, today's to-dos
 // (GET /api/my-day: the same role sections as the web "My Day").
 import { Pressable, View } from 'react-native';
-import { router, type Href } from 'expo-router';
+import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth';
 import { useApi } from '@/lib/useApi';
 import { openHref } from '@/lib/nav';
 import { dayLong, greeting, initials } from '@/lib/format';
 import { ShiftCard, useShift } from '@/features/shift';
 import { SECTION_UI, toneOf, type MyDay } from '@/features/myDay';
+import { MODULE_GROUPS, QUICK_ORDER, SHORT } from '@/features/modules';
 import { Chip, ErrorView, Ico, IconButton, Lbl, Li, List, Loading, Muted, Row, Screen, T } from '@/ui/kit';
-import type { IconName } from '@/ui/Icon';
-import { C, UI, type Tone } from '@/ui/theme';
-
-const QUICK: { label: string; icon: IconName; tone: Tone; href: Href; page?: string }[] = [
-  { label: 'QR Tara', icon: 'qr', tone: 'o', href: '/scan' },
-  { label: 'QC', icon: 'clip', tone: 'g', href: '/qc', page: 'page.qc' },
-  { label: 'Konteyner', icon: 'box', tone: 'i', href: '/containers', page: 'page.logistics' },
-  { label: 'Onaylar', icon: 'pen', tone: 'a', href: '/approvals', page: 'page.approvals' },
-];
+import { C, UI } from '@/ui/theme';
 
 export default function Home() {
-  const { me, can } = useAuth();
+  const { me } = useAuth();
   const shift = useShift(1);
   const day = useApi<MyDay>('/api/my-day');
-  const quick = QUICK.filter(q => !q.page || can(q.page)).slice(0, 4);
+  const mods = me ? MODULE_GROUPS.flatMap(g => g.items).filter(m => m.show(me)) : [];
+  const quick = [{ label: 'QR Tara', icon: 'qr' as const, tone: 'o' as const, href: '/scan' as const }, ...mods]
+    .filter(m => QUICK_ORDER.includes(m.label)).sort((a, b) => QUICK_ORDER.indexOf(a.label) - QUICK_ORDER.indexOf(b.label)).slice(0, 8);
   const items = (day.data?.sections ?? []).flatMap(sec => sec.items.map(it => ({ sec, it }))).slice(0, 5);
   const unread = day.data?.sections.find(s => s.key === 'notifications')?.items.length ?? 0;
   const firstName = me?.fullName.split(' ')[0] ?? '';
@@ -38,19 +33,20 @@ export default function Home() {
           <Muted>{dayLong(new Date())}</Muted>
           <T w={700} size={20} color={UI.heading}>{greeting()}{firstName ? `, ${firstName}` : ''}</T>
         </View>
+        <IconButton name="search" label="Ara" onPress={() => router.push('/search')} />
         <IconButton name="bell" label={unread ? `${unread} okunmamış bildirim` : 'Bildirimler'} dot={unread > 0}
-          onPress={() => router.push('/tasks')} />
+          onPress={() => router.push('/notifications')} />
       </Row>
 
       {shift.error ? <Muted style={{ marginBottom: 12 }}>Mesai: {shift.error}</Muted> : <ShiftCard shift={shift} />}
 
       <Lbl>Hızlı işlemler</Lbl>
-      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 12, columnGap: 10, marginBottom: 14 }}>
         {quick.map(q => (
           <Pressable key={q.label} onPress={() => router.push(q.href)} accessibilityRole="button" accessibilityLabel={q.label}
-            style={({ pressed }) => [{ flex: 1, alignItems: 'center' }, pressed && { opacity: 0.7 }]}>
+            style={({ pressed }) => [{ width: '22.5%', flexGrow: 1, alignItems: 'center' }, pressed && { opacity: 0.7 }]}>
             <Ico name={q.icon} tone={q.tone} size={62} radius={18} style={{ width: '100%' }} />
-            <T w={600} size={13} color={UI.heading} style={{ marginTop: 6 }}>{q.label}</T>
+            <T w={600} size={13} color={UI.heading} style={{ marginTop: 6 }} numberOfLines={1}>{SHORT[q.label] ?? q.label}</T>
           </Pressable>
         ))}
       </View>
