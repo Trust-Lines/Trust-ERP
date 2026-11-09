@@ -13,6 +13,7 @@ import {
   ClipboardList,
   Gauge,
   Truck,
+  Building,
   Building2,
   Contact,
   Palette,
@@ -51,6 +52,8 @@ import {
   SwatchBook,
   Layers,
   MessageSquareQuote,
+  MessagesSquare,
+  ChartNoAxesCombined,
 } from 'lucide-react';
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip';
 import type { UserRole } from '@/types/database';
@@ -149,6 +152,15 @@ const ADMIN_NAV: NavItem[] = [
   { label: 'Dropbox Wizard',      href: '/dropbox-wizard', icon: FolderSearch, perm: 'page.dropbox_wizard' },
   { label: 'Audit Log',           href: '/audit',          icon: ScrollText,   perm: 'page.audit' },
   { label: 'Settings',            href: '/settings',       icon: Settings,     perm: 'page.settings' },
+];
+
+// Human Resources (Figma "HR board", 585:3113). Same access as Team until HR has its own key.
+const HR_NAV: NavItem[] = [
+  { label: 'Dashboard', href: '/hr',          icon: LayoutDashboard,     perm: 'page.team' },
+  { label: 'My work',   href: '/hr/my-work',  icon: ClipboardList,       perm: 'page.team' },
+  { label: 'Calendar',  href: '/hr/calendar', icon: CalendarDays,        perm: 'page.team' },
+  { label: 'Messages',  href: '/hr/messages', icon: MessagesSquare,      perm: 'page.team' },
+  { label: 'Reports',   href: '/hr/reports',  icon: ChartNoAxesCombined, perm: 'page.team' },
 ];
 
 const CRM_BOARD_NAV: NavItem[] = [
@@ -270,6 +282,7 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
     { key: 'supply', title: 'Supply', icon: BriefcaseBusiness, items: allowed(SUPPLY_NAV.filter(i => isInternal || !i.internal)) },
     ...(isInternal ? [{ key: 'operations', title: 'Operations', icon: Factory, items: allowed(OPERATIONS_NAV) }] : []),
     ...(isInternal ? [{ key: 'finance', title: 'Finance', icon: Wallet, items: allowed(FINANCE_NAV) }] : []),
+    ...(isInternal ? [{ key: 'hr', title: 'Human Resources (HR)', icon: Building, items: allowed(HR_NAV) }] : []),
     ...(isInternal ? [{ key: 'admin', title: 'Admin', icon: Wrench, items: allowed(ADMIN_NAV) }] : []),
   ].filter(s => s.items.length > 0);
   return sections;

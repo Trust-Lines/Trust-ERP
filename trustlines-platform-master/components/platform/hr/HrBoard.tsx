@@ -7,7 +7,8 @@ import type { HrAction, HrAgendaItem, HrBirthday, HrCalendarEvent, HrContainer, 
 import { HrCalendar } from './HrCalendar';
 import { HrAgendaCard, HrBirthdaysCard, HrContainersCard, HrOrdersCard, HrUnavailableCard } from './HrCards';
 
-// Figma "TRUST-LINES-ERP" → "HR board" (node 555:34497), the "Dashboard content" area only —
+// Figma "TRUST-LINES-ERP" → "HR board" (node 555:34497, revised 585:3113; dark mode 565:11504 — same tokens, the
+// status/surface variables swap under .dark in globals.css), the "Dashboard content" area only —
 // the app shell (sidebar, top bar) already exists. UI only: every list comes in through props,
 // an empty list shows its empty state, and a header button shows only when it is wired.
 
@@ -51,9 +52,9 @@ export function HrBoard({
   const changeMonth = (m: Date) => { setMonth(m); onMonthChange?.(m); };
 
   return (
-    <div className={cn('flex flex-col gap-6 p-7', className)}>
+    <div className={cn('flex flex-col gap-6', className)}>
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <PageCrumbs items={[{ label: 'General' }, { label: 'Dashboard', href: '/dashboard' }]} />
+        <PageCrumbs items={[{ label: 'General' }, { label: 'Dashboard', href: '/hr' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Dashboard</h1>
         <p className="m-0 text-[13px] text-ui-body">Keep handoffs moving. Clear the blockers before they affect delivery.</p>
       </div>

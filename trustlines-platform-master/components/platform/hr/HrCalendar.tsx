@@ -62,9 +62,13 @@ export function HrCalendar({ month, onMonthChange, events, today, createEvent, l
           <select
             value={month.getMonth()}
             onChange={e => onMonthChange(new Date(month.getFullYear(), Number(e.target.value), 1))}
+            // The open list is drawn by the browser: give it the theme's own colours (it otherwise
+            // inherits the trigger's text colour on a white list, unreadable in dark mode).
             className="h-full cursor-pointer appearance-none bg-transparent pl-4 pr-10 text-[13px] font-medium leading-[1.35] text-inherit outline-none focus-visible:ring-2 focus-visible:ring-ui-focus-ring rounded-[6px]"
           >
-            {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+            {MONTHS.map((m, i) => (
+              <option key={m} value={i} className="bg-ui-surface-elevated text-ui-heading">{m}</option>
+            ))}
           </select>
           <ChevronDown size={16} aria-hidden className="pointer-events-none absolute right-4" />
         </label>
