@@ -91,16 +91,24 @@ function Body({ request: r, vacationDaysUsed, onDecide }: { request: HrRequest; 
               </div>
               {r.description && <p className="m-0 whitespace-pre-line text-[12px]">{r.description}</p>}
             </div>
-            <div className="flex gap-2" role="group" aria-label="Decision">
-              <DecisionButton
-                label="Reject" icon={X} pressed={choice === 'rejected'} disabled={decided}
-                className="bg-error-normal" onClick={() => setChoice('rejected')}
-              />
-              <DecisionButton
-                label="Approve" icon={Check} pressed={choice === 'approved'} disabled={decided}
-                className="bg-success-normal" onClick={() => setChoice('approved')}
-              />
-            </div>
+            {choice ? (
+              // Figma 570:18241: once chosen, the two actions become the outcome bar. Before the
+              // decision is signed, clicking it goes back to Reject / Approve.
+              <button
+                type="button" disabled={decided} onClick={() => setChoice(null)}
+                aria-label={decided ? STATUS[choice].label : `${STATUS[choice].label}. Change decision`}
+                title={decided ? undefined : 'Change decision'}
+                className="flex h-10 w-full cursor-pointer items-center justify-center gap-[7px] rounded-[6px] border-0 pl-8 pr-6 text-[13px] font-medium transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring disabled:cursor-default disabled:hover:opacity-100"
+                style={{ background: STATUS[choice].bg, color: STATUS[choice].fg }}
+              >
+                {STATUS[choice].label} {choice === 'approved' ? <Check size={16} aria-hidden /> : <X size={16} aria-hidden />}
+              </button>
+            ) : (
+              <div className="flex gap-2" role="group" aria-label="Decision">
+                <DecisionButton label="Reject" icon={X} className="bg-error-normal" onClick={() => setChoice('rejected')} />
+                <DecisionButton label="Approve" icon={Check} className="bg-success-normal" onClick={() => setChoice('approved')} />
+              </div>
+            )}
           </div>
 
           <form
@@ -124,7 +132,7 @@ function Body({ request: r, vacationDaysUsed, onDecide }: { request: HrRequest; 
             >
               {decided
                 ? `${STATUS[r.status as 'approved' | 'rejected'].label}${r.decidedAt ? ` · ${new Date(r.decidedAt).toLocaleDateString('en-US')}` : ''}`
-                : choice === 'approved' ? 'Confirm approval' : choice === 'rejected' ? 'Confirm rejection' : 'Reject or approve first'}
+                : choice ? 'Sign and Submit' : 'Reject or approve first'}
             </button>
           </form>
         </div>
@@ -188,17 +196,15 @@ function DayBox({ label, iso }: { label: string; iso: string }) {
   );
 }
 
-function DecisionButton({ label, icon: Icon, pressed, disabled, className, onClick }: {
-  label: string; icon: typeof X; pressed: boolean; disabled: boolean; className: string; onClick: () => void;
+function DecisionButton({ label, icon: Icon, className, onClick }: {
+  label: string; icon: typeof X; className: string; onClick: () => void;
 }) {
   return (
     <button
-      type="button" aria-pressed={pressed} disabled={disabled} onClick={onClick}
+      type="button" onClick={onClick}
       className={cn(
-        'flex h-10 flex-1 cursor-pointer items-center justify-center gap-[7px] rounded-[6px] border-0 pl-8 pr-6 text-[13px] font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring disabled:cursor-not-allowed',
+        'flex h-10 flex-1 cursor-pointer items-center justify-center gap-[7px] rounded-[6px] border-0 pl-8 pr-6 text-[13px] font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring',
         className,
-        pressed && 'ring-2 ring-current ring-offset-2 ring-offset-[var(--ui-page-bg)]',
-        disabled && !pressed && 'opacity-40',
       )}
     >
       {label} <Icon size={16} aria-hidden />
