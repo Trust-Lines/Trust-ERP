@@ -74,7 +74,7 @@ export function HrRequestsClient({ people }: { people: HrRequestPerson[] }) {
           <PageCrumbs items={[{ label: 'Human Resources', href: '/hr' }, { label: 'Requests', href: '/hr/requests' }]} />
           <h1 className={cn('m-0 flex items-center gap-2.5 text-[28px] font-semibold leading-[1.35]', HEADING)}>
             Requests
-            <span aria-label={`${activeCount} waiting`} className="inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-ui-surface px-1.5 text-[11px] font-semibold text-ui-body">
+            <span aria-label={`${activeCount} waiting`} className={cn('inline-flex min-w-[22px] items-center justify-center rounded-full bg-ui-surface px-[9px] py-[3px] text-[12px] font-semibold leading-[1.4]', HEADING)}>
               {activeCount}
             </span>
           </h1>
