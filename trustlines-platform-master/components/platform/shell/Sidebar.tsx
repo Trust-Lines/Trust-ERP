@@ -157,6 +157,7 @@ const ADMIN_NAV: NavItem[] = [
 // Human Resources (Figma "HR board", 585:3113). Same access as Team until HR has its own key.
 const HR_NAV: NavItem[] = [
   { label: 'Dashboard', href: '/hr',          icon: LayoutDashboard,     perm: 'page.team' },
+  { label: 'Staff',     href: '/hr/staff',    icon: Users,               perm: 'page.team' },
   { label: 'My work',   href: '/hr/my-work',  icon: ClipboardList,       perm: 'page.team' },
   { label: 'Calendar',  href: '/hr/calendar', icon: CalendarDays,        perm: 'page.team' },
   { label: 'Messages',  href: '/hr/messages', icon: MessagesSquare,      perm: 'page.team' },

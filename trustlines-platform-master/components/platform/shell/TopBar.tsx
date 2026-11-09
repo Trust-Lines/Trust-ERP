@@ -56,6 +56,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/notifications': 'Notifications',
   '/my-tasks': 'My Tasks',
   '/hr': 'HR Dashboard',
+  '/hr/staff': 'Staff Members',
   '/hr/my-work': 'HR · My Work',
   '/hr/calendar': 'HR Calendar',
   '/hr/messages': 'HR Messages',
