@@ -59,7 +59,7 @@
 
 ## AY 4 — Mobil/Tablet Desteği
 
-- [ ] 29. Mobil yaklaşımına karar verilmesi (bağımsız uygulama vs. mobil uyumlu site)
+- [x] 29. Mobil yaklaşımına karar verilmesi — bağımsız Expo uygulaması (`mobile-app/`), aynı API + Supabase hesapları (2026-11-09)
 - [ ] 30. Kamera ile fotoğraf yükleme — QC
 - [ ] 31. Kamera ile fotoğraf yükleme — Warehouse
 - [ ] 32. iPad/tablet tam ekran arayüzü (QC + Warehouse)

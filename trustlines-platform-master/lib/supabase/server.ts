@@ -1,12 +1,26 @@
 import { cache } from 'react';
 import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import type { Database } from '@/types/database';
 import type { User } from '@supabase/supabase-js';
 import { withViewAs } from '@/lib/viewAs';
 
+/**
+ * The mobile app (mobile-app/) has no cookies: it sends its Supabase access token as
+ * `Authorization: Bearer <jwt>`. When present, that token IS the session for this request.
+ */
+export const bearerToken = cache(async (): Promise<string | null> => {
+  try {
+    const auth = (await headers()).get('authorization') ?? '';
+    return auth.startsWith('Bearer ') ? auth.slice(7).trim() || null : null;
+  } catch {
+    return null; // outside a request (build, scripts)
+  }
+});
+
 export async function getSessionUser(): Promise<User | null> {
+  if (await bearerToken()) return getVerifiedUser();
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
   return session?.user ?? null;
@@ -21,6 +35,19 @@ export async function requireUser(): Promise<
 }
 
 async function createBaseClient() {
+  const token = await bearerToken();
+  if (token) {
+    // PostgREST runs every query as the token's user, so RLS applies exactly as on the web.
+    return createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: { getAll: () => [], setAll: () => {} },
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      },
+    );
+  }
+
   const cookieStore = await cookies();
 
   return createServerClient<Database>(
@@ -56,6 +83,12 @@ async function createBaseClient() {
  */
 export const getVerifiedUser = cache(async (): Promise<User | null> => {
   const sb = await createBaseClient();
+  const token = await bearerToken();
+  if (token) {
+    // The Auth server verifies the token (signature, expiry, revoked session).
+    const { data: { user }, error } = await sb.auth.getUser(token);
+    return error ? null : user ?? null;
+  }
   const { data, error } = await sb.auth.getClaims();
   const sub = data?.claims?.sub;
   if (error || !sub) return null;

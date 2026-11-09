@@ -1321,6 +1321,12 @@ Eksik küçük detaylarda mevcut mimariye ve bu dosyaya uygun en güvenli karar 
 
 ```text
 Project architecture:
+- Mobile app STARTED (2026-11-09): Expo SDK 58 app in `../mobile-app/` (sibling of this repo folder), built from
+  `../mobile-design/` (Trust Lines DS tokens, mockup icons/components copied 1:1). Same Supabase accounts; it calls
+  this platform's `/api/*` with `Authorization: Bearer <supabase jwt>` (lib/supabase/server.ts + middleware.ts).
+  Slice 1 screens: 001 login, 046 reset, home (my-day + shift card), tasks, Mesai (clock in/break/out + 7-day sheet),
+  menu/profile, 005/044 scan, 007/008 QC, 009/024 containers, 014 approvals (list; signing opens web).
+  ⚠️ Migration 144_time_punches.sql (Mesai) is NOT applied yet — /api/hr/shift answers 503 until it is.
 - Requests redesign typography tokens and the Design status chip now match the approved UI specification (2026-10-19).
 - Main Next.js / Supabase platform exists.
 - Auth and permissions exist.
@@ -2143,6 +2149,14 @@ Project architecture:
     live 2026-08-27). Events sub-scope closed 2026-08-28 WITHOUT a new table: `marketing_campaigns.campaign_type`
     already supported 'event' end-to-end (schema/list/detail) — the only real gap was the create/edit form
     hardcoding 'trade_fair' with no selector, fixed (see ROADMAP-5AY.md Month 1, task 9).
+--- MOBILE (mobile-app/, design: mobile-design/) ---
+[x] M1 Slice 1: Bearer auth + /api/mobile/me + /api/qc/queue + /api/hr/shift (migration 144) + Expo app with
+       login/reset, home, tasks, Mesai, menu, scan, QC, containers, approvals list. (2026-11-09)
+[x] M1a Migration 144 applied (live, 2026-11-09); first iPhone run OK.
+[ ] M2 QC photos (Dropbox upload endpoint for qc_checklists.photos) + checklist UI (008/022/036); document viewer
+       + in-app approve/reject with saved signature (028/096/097); expenses (013/029/098).
+[ ] M3 Open HR decisions before building: geofence / shift rules (003/061), leave requests (018/035/066),
+       manager timesheets (064/067/068). Also: item-QR format (005/006), language (TR/EN), offline queue (015/055).
 --- start here next ---
 [ ] See ROADMAP-5AY.md for the current active task list (5-month plan, checkbox-tracked, Month 1 in progress).
 ```
@@ -2154,6 +2168,24 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-11-09 (Mobile app — slice 1) — migration 144 NEW, NOT APPLIED
+- Decision (ROADMAP-5AY task 29): a separate Expo (React Native) app, as the mobile-design README proposed;
+  it reuses this platform's API and Supabase auth — no second backend.
+- Backend: `lib/supabase/server.ts` accepts `Authorization: Bearer <jwt>` (verified with the Auth server; PostgREST
+  runs as that user) and `middleware.ts` verifies a bearer on /api/* — cookie sessions unchanged.
+  New: `GET /api/mobile/me` (profile + allowed pages), `GET /api/qc/queue` (the /qc page data; loader moved to
+  `lib/qc/load.ts`, page uses it), `GET|POST /api/hr/shift` (own punches; order enforced by `lib/hr/shift.ts`),
+  `requireApiPage()` in `lib/permissions/requireApi.ts`, migration `144_time_punches.sql` (RLS on, service-role
+  only), `types/database.ts` (TimePunch). Tests: `tests/bearerAuth.test.ts`, `tests/hrShift.test.ts`.
+- Mobile (`../mobile-app/`): see its README. Screens 001/046/002/016/003·017·004/015·030/005·044/007·008/009·024/014.
+- Checks: tsc clean; vitest 719/719 (phase10Smoke needs .env.local — pre-existing); eslint 0 new errors (4
+  pre-existing in _probe078b.mjs); `npm run build` OK. Mobile: tsc + expo lint clean, iOS/Android bundles export,
+  expo-doctor 20/20. NOT run against the live DB (no credentials in this checkout).
+- Same day, after first device run: migration 144 APPLIED by the user (live). Installed on an iPhone (Release
+  build) against a local dev server; /api/my-day, /api/qc/queue, /api/hr/shift answered from the phone.
+  `middleware.ts`: an invalid/expired bearer on /api/* now gets 401 JSON (was a redirect to the web /login page).
+  App renamed **T-ERP** with the T Holding logo (icon + login).
+
 2026-11-02 (Roles & permissions redesign, Figma node 388:62738) — NO migration, NO API change
 - Restyled the /roles content to the Figma design: Roles list card, role colour rows, sticky selected-role banner,
   permission group cards and the 54×28 toggle. Save, discard, delete, modals and permission logic are unchanged.

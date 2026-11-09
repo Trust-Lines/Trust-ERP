@@ -795,6 +795,23 @@ export interface PunchListItem {
 
 
 
+export type TimePunchKind = 'in' | 'break_start' | 'break_end' | 'out';
+
+/** Migration 144 — one row per clock-in / break / clock-out press (mobile Mesai). Append-only. */
+export interface TimePunch {
+  id: string;
+  user_id: string | null;
+  kind: TimePunchKind;
+  punched_at: string;
+  site: string | null;
+  lat: number | null;
+  lng: number | null;
+  accuracy_m: number | null;
+  source: string;
+  note: string | null;
+  created_at: string;
+}
+
 export interface SystemEventRow {
   id:           string;
   event_type:   string;
@@ -1513,6 +1530,7 @@ export interface Database {
       container_documents: { Row: ContainerDocument; Insert: Omit<ContainerDocument,'id'|'created_at'>; Update: Partial<ContainerDocument>; };
       delivery_plans: { Row: DeliveryPlan; Insert: Omit<DeliveryPlan,'id'|'created_at'|'updated_at'>; Update: Partial<DeliveryPlan>; };
       punch_list_items: { Row: PunchListItem; Insert: Omit<PunchListItem,'id'|'created_at'|'updated_at'>; Update: Partial<PunchListItem>; };
+      time_punches: { Row: TimePunch; Insert: Omit<TimePunch,'id'|'created_at'|'punched_at'|'source'> & { punched_at?: string; source?: string }; Update: Partial<TimePunch>; };
       system_events: { Row: SystemEventRow; Insert: Omit<SystemEventRow,'id'|'created_at'|'processed_at'>; Update: Partial<SystemEventRow>; };
       prospects: { Row: Prospect; Insert: Omit<Prospect,'id'|'created_at'|'updated_at'>; Update: Partial<Prospect>; };
       prospect_contacts: { Row: ProspectContact; Insert: Omit<ProspectContact,'id'|'created_at'|'updated_at'>; Update: Partial<ProspectContact>; };
