@@ -4,9 +4,14 @@ import { requireTlinesDashboard } from '@/lib/keyClients/access';
 const KINDS = ['trust', 'opportunity', 'potential'];
 const STAGES = ['opportunity', 'finalization', 'technical', 'to_production', 'in_production', 'shipped'];
 
-// TLines dashboard → "Assign to" on a card, for the stage it is in.
-// Body: { itemKind, itemId, stage, label, userId } — userId null clears it. Stored on our side
-// (board_assignees, migration 137); the Trust System itself is never written.
+// Every card has two people per stage: its Trust PM and its T-Lines PM.
+const ROLES = ['trust_pm', 'tlines_pm'];
+
+// TLines dashboard → a card's Trust PM / T-Lines PM, for the stage it is in.
+// Body: { itemKind, itemId, stage, role, label, userId } — userId null clears it. Stored on our
+// side (board_assignees, migration 137); the Trust System itself is never written. The Trust PM
+// is stored under the plain stage (so every assignment made before there were two stays the
+// Trust PM), the T-Lines PM under "<stage>:tlines_pm" — no schema change needed.
 export async function PUT(req: Request) {
   const { user, admin, canManage, deny } = await requireTlinesDashboard();
   if (deny) return deny;
@@ -17,10 +22,11 @@ export async function PUT(req: Request) {
   const itemKind = str(body?.itemKind), itemId = str(body?.itemId), stage = str(body?.stage);
   const label = str(body?.label).slice(0, 120) || null;
   const userId = str(body?.userId) || null;
-  if (!KINDS.includes(itemKind) || !STAGES.includes(stage) || !itemId || itemId.length > 64) {
+  const role = str(body?.role) || 'trust_pm';
+  if (!KINDS.includes(itemKind) || !STAGES.includes(stage) || !ROLES.includes(role) || !itemId || itemId.length > 64) {
     return NextResponse.json({ error: 'Missing card' }, { status: 400 });
   }
-  const key = { item_kind: itemKind, item_id: itemId, stage };
+  const key = { item_kind: itemKind, item_id: itemId, stage: role === 'tlines_pm' ? `${stage}:tlines_pm` : stage };
 
   if (!userId) {
     const { error } = await admin.from('board_assignees').delete().match(key);

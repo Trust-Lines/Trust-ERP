@@ -162,8 +162,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     admin.from('profiles').select('id, full_name').eq('is_active', true).not('full_name', 'is', null).order('full_name', { ascending: true }),
   ]) as [{ item_kind: string; item_id: string; stage: string; user_id: string }[], { data: { id: string; full_name: string }[] | null }];
   const assigneeOf = new Map(assignRows.map(a => [`${a.item_kind}:${a.item_id}:${a.stage}`, a.user_id]));
-  const assignFor = (kind: string, id: string, stage: string, label: string) =>
-    ({ kind, stage, label, userId: assigneeOf.get(`${kind}:${id}:${stage}`) ?? null });
+  // Two people per card per stage: the Trust PM (plain stage) and the T-Lines PM ("<stage>:tlines_pm").
+  const assignFor = (kind: string, id: string, stage: string, label: string) => ({
+    kind, stage, label,
+    userId: assigneeOf.get(`${kind}:${id}:${stage}`) ?? null,
+    tlinesUserId: assigneeOf.get(`${kind}:${id}:${stage}:tlines_pm`) ?? null,
+  });
   // The popup's PO + PF / Production / Shipping tabs: the Trust types of the card's project number.
   const trustByNo = new Map(trustProjects.map(p => [p.projectNo, p.items ?? []]));
   // A Trust System card only has a number: its company is that of our project / deal with the
