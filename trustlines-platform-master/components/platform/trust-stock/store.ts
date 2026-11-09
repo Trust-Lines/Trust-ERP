@@ -1,0 +1,93 @@
+'use client';
+
+import { useSyncExternalStore } from 'react';
+import type { PartStatus, StockPart, TrustStock, TrustStockItem } from './types';
+
+// No Trust Stock backend yet: stocks and lines added on the page live in this tab's memory —
+// they survive moving between pages, not a reload. Nothing here is sample data.
+
+let stocks: TrustStock[] = [];
+/** Stock Overview items, by Trust Stock line id. */
+let parts: Record<string, StockPart[]> = {};
+const NO_PARTS: Record<string, StockPart[]> = {};
+const EMPTY: TrustStock[] = [];
+const listeners = new Set<() => void>();
+const subscribe = (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn); }; };
+const set = (next: TrustStock[]) => { stocks = next; listeners.forEach(fn => fn()); };
+const setParts = (next: Record<string, StockPart[]>) => { parts = next; listeners.forEach(fn => fn()); };
+export const newId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+
+export function useTrustStocks() {
+  const list = useSyncExternalStore(subscribe, () => stocks, () => EMPTY);
+  return {
+    stocks: list,
+    addStock: (code: string) => set([...stocks, { id: newId(), code, items: [] }]),
+    saveItem: (stockId: string, item: TrustStockItem) => set(stocks.map(s => s.id !== stockId ? s : {
+      ...s,
+      items: s.items.some(i => i.id === item.id) ? s.items.map(i => (i.id === item.id ? item : i)) : [...s.items, item],
+    })),
+    removeItem: (stockId: string, itemId: string) => set(stocks.map(s => s.id !== stockId ? s : { ...s, items: s.items.filter(i => i.id !== itemId) })),
+  };
+}
+
+// ── Money / totals ─────────────────────────────────────────────────────────────────────────
+const fmt = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const usd = (n: number) => `$ ${fmt.format(n || 0)}`;
+export const tl = (n: number) => `₺ ${fmt.format(n || 0)}`;
+
+export function fmtDay(iso: string | null) {
+  if (!iso) return '—';
+  const [y, m, d] = iso.split('-').map(Number);
+  return y && m && d ? `${m}/${d}/${y}` : iso;
+}
+
+export const remainingUsd = (i: TrustStockItem) => i.pfUsd - i.paid1Usd - i.paid2Usd;
+export const remainingTl = (i: TrustStockItem) => i.pfTl - i.paid1Tl - i.paid2Tl;
+
+export type AmountKey =
+  | 'pfUsd' | 'pfTl' | 'invUsd' | 'invTl'
+  | 'paid1Usd' | 'paid2Usd' | 'paid1Tl' | 'paid2Tl'
+  | 'remainingUsd' | 'remainingTl' | 'notOrderedUsd' | 'notOrderedTl';
+
+export function amount(i: TrustStockItem, key: AmountKey) {
+  if (key === 'remainingUsd') return remainingUsd(i);
+  if (key === 'remainingTl') return remainingTl(i);
+  return i[key];
+}
+
+export const sum = (items: TrustStockItem[], key: AmountKey) => items.reduce((t, i) => t + (amount(i, key) || 0), 0);
+
+export function useStockParts() {
+  const byLine = useSyncExternalStore(subscribe, () => parts, () => NO_PARTS);
+  return {
+    parts: byLine,
+    savePart: (lineId: string, part: StockPart) => {
+      const list = parts[lineId] ?? [];
+      setParts({ ...parts, [lineId]: list.some(p => p.id === part.id) ? list.map(p => (p.id === part.id ? part : p)) : [...list, part] });
+    },
+    patchPart: (lineId: string, id: string, patch: Partial<StockPart>) =>
+      setParts({ ...parts, [lineId]: (parts[lineId] ?? []).map(p => (p.id === id ? { ...p, ...patch } : p)) }),
+    removePart: (lineId: string, id: string) => setParts({ ...parts, [lineId]: (parts[lineId] ?? []).filter(p => p.id !== id) }),
+  };
+}
+
+// ── Stock maths ──
+export const onHand = (p: StockPart) => Math.max(0, (p.received ?? 0) - p.taken + p.returned);
+export const available = (p: StockPart) => Math.max(0, onHand(p) - p.reserved);
+export const used = (p: StockPart) => Math.max(0, p.taken - p.returned);
+/** On hand as a share of what was received. */
+export const remainingPct = (p: StockPart) => (p.received ? Math.round((onHand(p) / p.received) * 100) : 0);
+/** Pieces at which to reorder: reorderAt % of target. */
+export const reorderPcs = (p: StockPart) => Math.ceil((p.target * p.reorderAt) / 100);
+/** Quantity to order to get back to target, once at or below the reorder point. */
+export const toOrder = (p: StockPart) => (p.received != null && available(p) <= reorderPcs(p) ? Math.max(0, p.target - available(p)) : 0);
+
+export function partStatus(p: StockPart): PartStatus {
+  if (p.received == null) return 'pending';
+  const a = available(p);
+  if (a <= 0) return 'out';
+  const at = reorderPcs(p);
+  if (a <= at) return 'reorder';
+  if (a <= at * 1.5) return 'watch';
+  return 'healthy';
+}

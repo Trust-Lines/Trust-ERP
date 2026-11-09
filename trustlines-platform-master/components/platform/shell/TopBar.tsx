@@ -49,6 +49,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/suppliers': 'Suppliers & Vendors',
   '/expenses': 'Finance & Expenses',
   '/management': 'Operations Management',
+  '/trust-stock': 'Trust Stock',
   '/team': 'Team & Staff',
   '/roles': 'Roles & Permissions',
   '/audit': 'Audit & Security Log',
