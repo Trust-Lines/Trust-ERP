@@ -5,9 +5,10 @@ import { PROJECT_FINANCE_READ_ROLES } from '@/lib/finance/projectTotals';
 export type PermCategory = 'page' | 'edit' | 'sign' | 'view' | 'notify' | 'progress';
 
 export const PAGE_ROUTES: { key: string; route: string }[] = [
-  { key: 'page.dashboard',       route: '/dashboard' },
+  { key: 'page.dashboard',       route: '/tlines-pm' },
   { key: 'page.projects',        route: '/projects' },
   { key: 'page.pm',              route: '/pm' },
+  { key: 'page.installation',    route: '/tlines-pm/installation' },
   { key: 'page.customers',       route: '/customers' },
   { key: 'page.design',          route: '/design' },
   { key: 'page.design_assets',   route: '/design/assets' },
@@ -63,7 +64,7 @@ export const PERMISSION_GROUPS: PermGroup[] = [
   {
     category: 'page', title: 'Pages · General', icon: '🗂️',
     perms: [
-      { key: 'page.dashboard',      label: 'Dashboard' },
+      { key: 'page.dashboard',      label: 'T-Lines PM Board', hint: 'The branch board (and My meetings). Opens on login.' },
       { key: 'page.approvals',      label: 'Approvals inbox' },
       { key: 'page.notifications',  label: 'Notifications' },
       { key: 'page.settings',       label: 'Settings' },
@@ -104,6 +105,7 @@ export const PERMISSION_GROUPS: PermGroup[] = [
     perms: [
       { key: 'page.projects',       label: 'Projects' },
       { key: 'page.pm',             label: 'PM workspace', hint: 'Personal project priorities. Follows “Projects” until set separately.' },
+      { key: 'page.installation',   label: 'Installation plan', hint: 'T-Lines PM → Installation: register, dashboard, Gantt. Follows “T-Lines PM Board” until set separately.' },
       { key: 'page.design',         label: 'Design workspace', hint: 'Sales Design jobs assigned to the designer' },
       { key: 'page.design_assets',  label: 'Design · Asset Library', hint: 'Templates, CAD blocks, standard details. Follows “Design workspace” until set separately.' },
       { key: 'page.design_brands',  label: 'Design · Brand Kits', hint: 'Customer logos, colours, fonts. Follows “Design workspace” until set separately.' },
@@ -247,6 +249,7 @@ export const PAGE_PARENT: Record<string, string> = {
   'page.payments': 'page.expenses',
   'page.budgets': 'page.expenses',
   'page.pm': 'page.projects',
+  'page.installation': 'page.dashboard',
   'page.design_assets': 'page.design',
   'page.design_brands': 'page.design',
   'page.design_materials': 'page.design',
