@@ -8,14 +8,32 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --ink:#1F252D; --ink2:#343D4B; --slate:#5E6F87; --slate2:#7888A1; --line:#E3E7ED; --bg:#F0F2F5; --card:#FFFFFF;
-  --blue:#4D6E98; --blue2:#3C5577; --blue-50:#EEF2F6; --blue-100:#CCD7E5;
-  --orange:#E63700; --orange2:#FF511A; --orange-50:#FFECE5;
-  --green:#1E8E57; --green-50:#E3F4EA; --red:#D0342C; --red-50:#FCE8E6; --amber:#C98A00; --amber-50:#FFF4D6;
+  /* ===== Trust Lines Design System · Light Mode (Light Mode.tokens.json) ===== */
+  /* All Colors */
+  --P950:#0A0C0F; --P800:#1F252D; --P700:#343D4B; --P600:#495669; --P500:#5E6F87; --P400:#7888A1; --P300:#96A3B6; --P200:#B4BDCB; --P100:#D2D7E0; --P50:#F0F2F5;
+  --S950:#090C11; --S800:#1A2533; --S700:#2B3D55; --S600:#3C5577; --S500:#4D6E98; --S400:#6787B2; --S300:#88A2C3; --S200:#AABCD4; --S100:#CCD7E5; --S50:#EEF2F6;
+  --A950:#1A0600; --A800:#4D1200; --A700:#801F00; --A600:#B32B00; --A500:#E63700; --A400:#FF511A; --A300:#FF774D; --A200:#FF9E80; --A100:#FFC5B3; --A50:#FFECE5;
+  --G700:#3D3D43; --G100:#D7D7DB; --G50:#F2F2F3;
+  --success-d:#216B2E; --success:#38A648; --success-l:#E4F5E7;
+  --error-d:#922025; --error:#D52D31; --error-l:#FBE7E7;
+  --warning-d:#805000; --warning:#F4A717; --warning-l:#FFF2D8;
+  --info-d:#19477D; --info:#2A6FBE; --info-l:#E5F0FA;
+  /* Basic UI Colors */
+  --ui-page-bg:#FFFFFF; --ui-surface:var(--P50); --ui-elevated:#FFFFFF;
+  --ui-heading:var(--P500); --ui-body:var(--P500); --ui-secondary:var(--P400); --ui-disabled:var(--P300);
+  --ui-btn-primary:var(--S700); --ui-btn-primary-fg:#FFFFFF; --ui-cta:var(--A400); --ui-cta-fg:#FFFFFF;
+  --ui-link:var(--A600); --ui-nav-bg:#FFFFFF; --ui-nav-active:var(--S500); --ui-border:var(--P100);
+  --ui-input-bg:#FFFFFF; --ui-input-border:var(--P200); --ui-selected:var(--S100);
+  --ui-badge-bg:var(--A100); --ui-badge-fg:var(--A700); --ui-hover:var(--P100); --ui-focus:var(--A600);
+  /* legacy aliases used by the mockups → mapped onto tokens */
+  --ink:var(--P800); --ink2:var(--P700); --slate:var(--ui-secondary); --slate2:var(--ui-secondary); --line:var(--ui-border); --bg:var(--ui-surface); --card:var(--ui-elevated);
+  --blue:var(--S500); --blue2:var(--S600); --blue-50:var(--S50); --blue-100:var(--S100);
+  --orange:var(--ui-cta); --orange2:var(--A300); --orange-50:var(--A50);
+  --green:var(--success); --green-50:var(--success-l); --red:var(--error); --red-50:var(--error-l); --amber:var(--warning); --amber-50:var(--warning-l);
   --font:"Instrument Sans","Segoe UI",system-ui,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font);background:#D9DEE6;color:var(--ink);-webkit-font-smoothing:antialiased}
+body{font-family:var(--font);background:#D9DEE6;color:var(--ui-body);-webkit-font-smoothing:antialiased}
 svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:34px;height:34px}
 
@@ -44,9 +62,9 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
 .dark .sb{color:#fff}
 .body{flex:1;overflow:hidden;padding:0 18px}
 .hdr{display:flex;align-items:center;gap:12px;padding:8px 2px 14px}
-.hdr h2{font-size:24px;font-weight:700;letter-spacing:-.015em;flex:1}
-.hdr .ib{width:40px;height:40px;border-radius:14px;background:var(--card);display:grid;place-items:center;color:var(--ink);box-shadow:0 1px 0 var(--line)}
-.back{display:flex;align-items:center;gap:6px;color:var(--blue);font-weight:600;font-size:15px;padding:4px 0 2px}
+.hdr h2{font-size:24px;font-weight:700;letter-spacing:-.015em;flex:1;color:var(--ui-heading)}
+.hdr .ib{width:40px;height:40px;border-radius:14px;background:var(--card);display:grid;place-items:center;color:var(--ui-heading);box-shadow:0 1px 0 var(--line)}
+.back{display:flex;align-items:center;gap:6px;color:var(--ui-link);font-weight:600;font-size:15px;padding:4px 0 2px}
 .card{background:var(--card);border-radius:20px;padding:16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(20,30,45,.05)}
 .lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate2);margin:6px 2px 9px}
 .row{display:flex;align-items:center;gap:12px}
@@ -54,16 +72,18 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
 .muted{color:var(--slate);font-size:13px}
 .t15{font-size:15px;font-weight:600}
 .t13{font-size:13px}
-.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;background:var(--blue-50);color:var(--blue2);white-space:nowrap}
-.chip.g{background:var(--green-50);color:var(--green)} .chip.r{background:var(--red-50);color:var(--red)}
-.chip.a{background:var(--amber-50);color:var(--amber)} .chip.o{background:var(--orange-50);color:var(--orange)}
-.chip.k{background:var(--ink);color:#fff}
-.ico{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;flex:none;background:var(--blue-50);color:var(--blue2)}
-.ico.o{background:var(--orange-50);color:var(--orange)} .ico.g{background:var(--green-50);color:var(--green)}
-.ico.r{background:var(--red-50);color:var(--red)} .ico.a{background:var(--amber-50);color:var(--amber)} .ico.k{background:var(--ink);color:#fff}
+/* chips = System Messages Colors (Info default · Success · Error · Warning · Accent) */
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;background:var(--info-l);color:var(--info-d);white-space:nowrap}
+.chip.g{background:var(--success-l);color:var(--success-d)} .chip.r{background:var(--error-l);color:var(--error-d)}
+.chip.a{background:var(--warning-l);color:var(--warning-d)} .chip.o{background:var(--A50);color:var(--A700)}
+.chip.n{background:var(--G100);color:var(--G700)}
+.chip.k{background:var(--ui-btn-primary);color:var(--ui-btn-primary-fg)}
+.ico{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;flex:none;background:var(--S50);color:var(--S600)}
+.ico.o{background:var(--A50);color:var(--A600)} .ico.g{background:var(--success-l);color:var(--success-d)}
+.ico.r{background:var(--error-l);color:var(--error-d)} .ico.a{background:var(--warning-l);color:var(--warning-d)} .ico.k{background:var(--ui-btn-primary);color:#fff}
 .btn{height:54px;border-radius:16px;border:0;font:inherit;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:9px;width:100%}
-.btn.p{background:var(--orange);color:#fff} .btn.d{background:var(--ink);color:#fff}
-.btn.s{background:var(--card);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--line)}
+.btn.p{background:var(--ui-cta);color:var(--ui-cta-fg)} .btn.d{background:var(--ui-btn-primary);color:var(--ui-btn-primary-fg)}
+.btn.s{background:var(--card);color:var(--ui-heading);box-shadow:inset 0 0 0 1.5px var(--ui-input-border)}
 .btn.g{background:var(--green);color:#fff} .btn.r{background:var(--red);color:#fff}
 .div{height:1px;background:var(--line);margin:12px 0}
 .li{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
@@ -71,12 +91,12 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
 .li:first-child{padding-top:2px}
 .prog{height:8px;border-radius:9px;background:var(--line);overflow:hidden}
 .prog i{display:block;height:100%;background:var(--blue);border-radius:9px}
-.inp{height:50px;border-radius:14px;background:var(--card);box-shadow:inset 0 0 0 1.5px var(--line);display:flex;align-items:center;padding:0 14px;gap:10px;font-size:15px;color:var(--ink);margin-bottom:10px}
-.inp .ph{color:var(--slate2)}
+.inp{height:50px;border-radius:14px;background:var(--ui-input-bg);box-shadow:inset 0 0 0 1.5px var(--ui-input-border);display:flex;align-items:center;padding:0 14px;gap:10px;font-size:15px;color:var(--ui-heading);margin-bottom:10px}
+.inp .ph{color:var(--ui-disabled)}
 .fl{font-size:13px;font-weight:600;color:var(--slate);margin:0 2px 6px}
-.seg{display:flex;background:#E4E8EE;border-radius:14px;padding:4px;gap:4px;margin-bottom:14px}
+.seg{display:flex;background:var(--ui-hover);border-radius:14px;padding:4px;gap:4px;margin-bottom:14px}
 .seg span{flex:1;text-align:center;font-size:13px;font-weight:600;padding:8px 4px;border-radius:10px;color:var(--slate)}
-.seg span.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.seg span.on{background:#fff;color:var(--ui-heading);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .seg em{font-style:normal;font-size:11px;background:var(--line);border-radius:8px;padding:1px 6px;margin-left:4px}
 .seg span.on em{background:var(--orange);color:#fff}
 .photo{border-radius:14px;background:linear-gradient(135deg,#B9A58B,#8C7A63);position:relative;overflow:hidden}
@@ -86,12 +106,12 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
 .addph{border-radius:14px;border:2px dashed var(--blue-100);display:grid;place-items:center;color:var(--blue);background:var(--blue-50)}
 
 /* tab bar */
-.tab{flex:none;height:92px;background:rgba(255,255,255,.96);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:flex-start;padding:10px 10px 0;position:relative}
+.tab{flex:none;height:92px;background:var(--ui-nav-bg);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:flex-start;padding:10px 10px 0;position:relative}
 .tab a{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--slate2);width:64px;text-decoration:none}
-.tab a.on{color:var(--ink)}
-.tab a.on svg{color:var(--orange)}
+.tab a.on{color:var(--ui-nav-active)}
+.tab a.on svg{color:var(--ui-nav-active)}
 .tab .scan{margin-top:-30px}
-.tab .scan b{width:62px;height:62px;border-radius:22px;background:var(--orange);display:grid;place-items:center;color:#fff;box-shadow:0 10px 22px -6px rgba(230,55,0,.6);border:4px solid var(--bg)}
+.tab .scan b{width:62px;height:62px;border-radius:22px;background:var(--orange);display:grid;place-items:center;color:#fff;box-shadow:0 10px 22px -6px rgba(255,81,26,.5);border:4px solid var(--bg)}
 .home-ind{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:5px;background:var(--ink)}
 .dark .home-ind{background:#fff}
 .sticky{flex:none;padding:12px 18px 30px;background:linear-gradient(transparent,var(--bg) 22%);position:relative}
@@ -99,13 +119,13 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
 .tab a .bd{position:absolute;top:-4px;left:36px;min-width:18px;height:18px;border-radius:9px;background:var(--orange);color:#fff;font-size:10.5px;font-weight:700;display:grid;place-items:center;padding:0 5px;border:2px solid #fff}
 .dim{position:absolute;inset:0;background:rgba(15,20,28,.45);z-index:4}
 .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-radius:30px 30px 0 0;z-index:5;padding:10px 18px 34px;box-shadow:0 -10px 30px rgba(0,0,0,.2)}
-.sheet .grab{width:40px;height:5px;border-radius:5px;background:#C5CCD6;margin:0 auto 14px}
+.sheet .grab{width:40px;height:5px;border-radius:5px;background:#B4BDCB;margin:0 auto 14px}
 .tg{width:48px;height:29px;border-radius:15px;background:#D2D7E0;position:relative;flex:none}
 .tg:after{content:"";position:absolute;top:3px;left:3px;width:23px;height:23px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .tg.on{background:var(--green)} .tg.on:after{left:22px}
-.radio{width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 2px #C5CCD6;flex:none}
+.radio{width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 2px #B4BDCB;flex:none}
 .radio.on{box-shadow:inset 0 0 0 7px var(--orange)}
-.cb{width:24px;height:24px;border-radius:8px;box-shadow:inset 0 0 0 2px #C5CCD6;flex:none;display:grid;place-items:center;color:#fff}
+.cb{width:24px;height:24px;border-radius:8px;box-shadow:inset 0 0 0 2px #B4BDCB;flex:none;display:grid;place-items:center;color:#fff}
 .cb.on{background:var(--green);box-shadow:none}
 .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700;flex:none;border:2px solid #fff}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px 0;text-align:center;font-size:13px;font-weight:600}
@@ -132,7 +152,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
 .sw div{width:92px}
 .sw i{display:block;height:64px;border-radius:14px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
 .sw b{display:block;font-size:13px;margin-top:6px} .sw span{font-size:12px;color:var(--slate)}
-.sec-h{display:flex;align-items:baseline;gap:14px;margin:64px 0 0;border-top:2px solid #C5CCD6;padding-top:22px}
+.sec-h{display:flex;align-items:baseline;gap:14px;margin:64px 0 0;border-top:2px solid #B4BDCB;padding-top:22px}
 .sec-h h2{font-size:30px;font-weight:700;letter-spacing:-.01em}
 .sec-h span{font-size:17px;color:var(--slate)}
 .sec-h + .grid{margin-top:30px}
@@ -142,7 +162,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
 .home-ind{z-index:6}
 .gmode .board>h1,.gmode .board>.sub,.gmode .ds{display:none}
 .gmode .sec-h{margin-top:0;border-top:0;padding-top:0}
-.offline{display:flex;align-items:center;gap:8px;background:var(--amber-50);color:#7A5600;border-radius:12px;padding:8px 12px;font-size:12.5px;font-weight:600;margin-bottom:12px}
+.offline{display:flex;align-items:center;gap:8px;background:var(--amber-50);color:#805000;border-radius:12px;padding:8px 12px;font-size:12.5px;font-weight:600;margin-bottom:12px}
 </style>
 <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
 </head>
@@ -150,40 +170,8 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
 <div class="board">
   <h1>Trust Lines Mobil — Ekran Tasarımları (Taslak v4 · 105 ekran)</h1>
   <p class="sub">Saha ve günlük operasyon için mobil uygulama: mesai takibi, QR ile ürün bulma, QC denetimi, konteyner yükleme, depo teslim alma, saha raporu, masraf fişi ve hızlı onay. Web platformunun tamamı değil — sahada telefondan yapılması gereken işler. Aynı Supabase veritabanı ve aynı rol/izin sistemi kullanılır; fotoğraflar Dropbox'a gider.</p>
-  <div id="ds" class="ds">
-    <div>
-      <h3>Renkler</h3>
-      <div class="sw">
-        <div><i style="background:#1F252D"></i><b>Ink</b><span>#1F252D · metin, koyu buton</span></div>
-        <div><i style="background:#5E6F87"></i><b>Slate</b><span>#5E6F87 · ikincil metin</span></div>
-        <div><i style="background:#F0F2F5"></i><b>Zemin</b><span>#F0F2F5</span></div>
-        <div><i style="background:#4D6E98"></i><b>Mavi</b><span>#4D6E98 · bilgi, link</span></div>
-        <div><i style="background:#E63700"></i><b>Turuncu</b><span>#E63700 · ana aksiyon</span></div>
-        <div><i style="background:#1E8E57"></i><b>Yeşil</b><span>#1E8E57 · uygun, tamam</span></div>
-        <div><i style="background:#D0342C"></i><b>Kırmızı</b><span>#D0342C · red, hasar</span></div>
-        <div><i style="background:#C98A00"></i><b>Amber</b><span>#C98A00 · bekliyor</span></div>
-      </div>
-      <p class="muted" style="margin-top:14px;font-size:14px;line-height:1.5">Palet web platformunun <code>globals.css</code> token'larından alındı (primary / secondary / accent). Durum renkleri her yerde aynı anlamı taşır.</p>
-    </div>
-    <div>
-      <h3>Tipografi · Instrument Sans</h3>
-      <div style="font-size:34px;font-weight:700;letter-spacing:-.02em">Sayaç 34–54 / Bold</div>
-      <div style="font-size:24px;font-weight:700;margin-top:10px">Sayfa başlığı 24 / Bold</div>
-      <div style="font-size:21px;font-weight:700;margin-top:10px">Detay başlığı 21 / Bold</div>
-      <div style="font-size:15px;font-weight:600;margin-top:10px">Liste başlığı 15 / Semibold</div>
-      <div style="font-size:13px;color:var(--slate);margin-top:8px">Açıklama 13 / Regular · Slate</div>
-      <div class="lbl" style="margin:10px 0 0">Bölüm etiketi 12 / Semibold / büyük harf</div>
-      <h3 style="margin-top:28px">Ölçüler</h3>
-      <p class="muted" style="font-size:14px;line-height:1.7">Ekran 390×844 · kenar boşluğu 18 · kart radius 20 · buton 54 yükseklik, radius 16 · dokunma alanı min 44 · ikon 20 (lucide, 2px çizgi) · sekme çubuğu 92</p>
-    </div>
-    <div>
-      <h3>Bileşenler</h3>
-      <div style="display:flex;gap:10px;margin-bottom:10px"><button class="btn p" style="width:auto;padding:0 20px">Ana aksiyon</button><button class="btn d" style="width:auto;padding:0 20px">Koyu</button></div>
-      <div style="display:flex;gap:10px;margin-bottom:14px"><button class="btn s" style="width:auto;padding:0 20px">İkincil</button><button class="btn g" style="width:auto;padding:0 20px">Onayla</button><button class="btn r" style="width:auto;padding:0 20px">Reddet</button></div>
-      <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:14px"><span class="chip">Bilgi</span><span class="chip g">● Uygun</span><span class="chip r">Hatalı</span><span class="chip a">Bekliyor</span><span class="chip o">Acil</span><span class="chip k">Etiket</span></div>
-      <div class="seg" style="width:300px"><span class="on">Seçili<em>3</em></span><span>Sekme</span><span>Sekme</span></div>
-      <div class="row" style="gap:14px"><div class="tg on"></div><div class="tg"></div><div class="radio on"></div><div class="radio"></div><div class="cb on">{{check-s}}</div><div class="cb"></div></div>
-    </div>
+  <div id="ds" class="ds" style="grid-template-columns:1fr">
+    <div id="dsgen"></div>
   </div>
   <div id="sections"></div>
 </div>
@@ -220,7 +208,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
       <div class="hdr ib" style="padding:0;position:relative">{{bell}}<i style="position:absolute;top:8px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--orange)"></i></div>
     </div>
     <div class="card" style="background:var(--ink);color:#fff">
-      <div class="row"><span class="chip g" style="background:rgba(30,142,87,.25);color:#7FE0AE">● Mesaide</span><div class="sp"></div><span style="opacity:.6;font-size:13px">{{pin-s}} Fabrika · Gebze</span></div>
+      <div class="row"><span class="chip g" style="background:rgba(30,142,87,.25);color:#E4F5E7">● Mesaide</span><div class="sp"></div><span style="opacity:.6;font-size:13px">{{pin-s}} Fabrika · Gebze</span></div>
       <div class="row" style="margin-top:12px;align-items:flex-end">
         <div><div style="font-size:40px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums">03:42</div><div style="opacity:.6;font-size:13px">Giriş 08:01 · Mola 0:15</div></div>
         <div class="sp"></div>
@@ -258,7 +246,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
       <div class="muted">Pazartesi, 9 Kasım 2026</div>
       <div style="font-size:54px;font-weight:700;letter-spacing:-.03em;margin:4px 0 2px;font-variant-numeric:tabular-nums">08:00</div>
       <div class="muted">Vardiya 08:00 – 17:30 · Üretim</div>
-      <div style="width:168px;height:168px;border-radius:50%;margin:16px auto 0;background:radial-gradient(circle,var(--orange) 0 58%,var(--orange-50) 59% 100%);display:grid;place-items:center;color:#fff;box-shadow:0 18px 40px -14px rgba(230,55,0,.55)">
+      <div style="width:168px;height:168px;border-radius:50%;margin:16px auto 0;background:radial-gradient(circle,var(--orange) 0 58%,var(--orange-50) 59% 100%);display:grid;place-items:center;color:#fff;box-shadow:0 18px 40px -14px rgba(255,81,26,.45)">
         <div>{{finger-xl}}<div style="font-weight:700;font-size:20px;margin-top:6px">Giriş Yap</div><div style="font-size:12px;opacity:.85">basılı tut</div></div>
       </div>
     </div>
@@ -414,7 +402,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
       <div class="li"><div class="sp t15">Ölçüler çizime uygun</div><span class="chip g">{{check-s}} Uygun</span></div>
       <div class="li"><div class="sp t15">Renk / kaplama (Black)</div><span class="chip g">{{check-s}} Uygun</span></div>
       <div class="li" style="flex-wrap:wrap"><div class="sp t15">Yüzey / çizik kontrolü</div><span class="chip r">{{x-s}} Hatalı</span>
-        <div style="width:100%;background:var(--red-50);border-radius:12px;padding:10px 12px;font-size:13px;color:#8A1F18">Sağ yan panelde 4 cm çizik — 1 adet</div></div>
+        <div style="width:100%;background:var(--red-50);border-radius:12px;padding:10px 12px;font-size:13px;color:#922025">Sağ yan panelde 4 cm çizik — 1 adet</div></div>
       <div class="li"><div class="sp t15">LED şerit çalışıyor</div><div class="row" style="gap:6px"><span class="chip" style="padding:6px 10px">{{check-s}}</span><span class="chip" style="padding:6px 10px">{{x-s}}</span></div></div>
       <div class="li"><div class="sp t15">Etiket & paketleme</div><div class="row" style="gap:6px"><span class="chip" style="padding:6px 10px">{{check-s}}</span><span class="chip" style="padding:6px 10px">{{x-s}}</span></div></div>
     </div>
@@ -624,7 +612,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
     <div class="hdr"><h2>Görevler</h2><div class="ib">{{filter}}</div></div>
     <div class="seg"><span class="on">Bugün<em>6</em></span><span>Bu hafta<em>14</em></span><span>Gecikmiş<em>1</em></span></div>
     <div class="card row" style="background:var(--red-50);padding:12px 14px">
-      <div class="ico r" style="background:#fff">{{alert}}</div><div class="sp"><div class="t15">Rework kontrolü · FU-TB-72</div><div class="muted" style="color:#8A1F18">Dün 17:00'de bitmeliydi</div></div>{{chev}}
+      <div class="ico r" style="background:#fff">{{alert}}</div><div class="sp"><div class="t15">Rework kontrolü · FU-TB-72</div><div class="muted" style="color:#922025">Dün 17:00'de bitmeliydi</div></div>{{chev}}
     </div>
     <div class="lbl">Sabah</div>
     <div class="card" style="padding:4px 16px">
@@ -712,7 +700,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
     <div class="lbl">Bugün · Üretim</div>
     <div class="card" style="padding:4px 16px">
       <div class="li"><div class="av" style="background:#4D6E98;border:0">EŞ</div><div class="sp"><div class="t15">Emre Şahin</div><div class="muted">08:24 · 24 dk geç</div></div><span class="chip a">Geç</span></div>
-      <div class="li"><div class="av" style="background:#1E8E57;border:0">ZT</div><div class="sp"><div class="t15">Zeynep Tan</div><div class="muted">07:56 · Gebze</div></div><span class="chip g">Mesaide</span></div>
+      <div class="li"><div class="av" style="background:#216B2E;border:0">ZT</div><div class="sp"><div class="t15">Zeynep Tan</div><div class="muted">07:56 · Gebze</div></div><span class="chip g">Mesaide</span></div>
       <div class="li"><div class="av" style="background:#7888A1;border:0">BK</div><div class="sp"><div class="t15">Burak Koç</div><div class="muted">Kayıt yok · ara</div></div><span class="chip r">Gelmedi</span></div>
     </div>
   </div>
@@ -757,7 +745,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
   <div class="dim"></div>
   <div class="sheet">
     <div class="grab"></div>
-    <div class="row" style="margin-bottom:12px"><div class="sp"><div style="font-size:19px;font-weight:700">Durumu güncelle</div><div class="muted">IN-FC-48 / F12 BODY · 4 adet</div></div><div class="ib" style="width:34px;height:34px;border-radius:50%;background:#E4E8EE;display:grid;place-items:center">{{x-s}}</div></div>
+    <div class="row" style="margin-bottom:12px"><div class="sp"><div style="font-size:19px;font-weight:700">Durumu güncelle</div><div class="muted">IN-FC-48 / F12 BODY · 4 adet</div></div><div class="ib" style="width:34px;height:34px;border-radius:50%;background:#D2D7E0;display:grid;place-items:center">{{x-s}}</div></div>
     <div class="card" style="padding:4px 16px">
       <div class="li" style="opacity:.45"><div class="radio"></div><div class="sp t15">READY_TO_RECEIVE</div><span class="muted">önceki</span></div>
       <div class="li"><div class="radio"></div><div class="sp t15">RECEIVED</div><span class="chip">mevcut</span></div>
@@ -765,7 +753,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
       <div class="li"><div class="radio"></div><div class="sp t15">ASSEMBLY</div></div>
       <div class="li"><div class="radio"></div><div class="sp t15">HOLD_T · Beklemede</div><span class="chip a">sebep ister</span></div>
     </div>
-    <div class="row" style="background:var(--amber-50);border-radius:12px;padding:10px 12px;gap:8px;font-size:12.5px;color:#7A5600;margin-bottom:12px">{{alert-s}} Bu kalem için QC henüz onaylanmadı — READY'ye geçiş engellenir.</div>
+    <div class="row" style="background:var(--amber-50);border-radius:12px;padding:10px 12px;gap:8px;font-size:12.5px;color:#805000;margin-bottom:12px">{{alert-s}} Bu kalem için QC henüz onaylanmadı — READY'ye geçiş engellenir.</div>
     <button class="btn d" style="opacity:.4">Kaydet</button>
   </div>
   <div class="home-ind" style="z-index:6"></div>
@@ -892,7 +880,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
     </div>
     <div class="card" style="padding:4px 16px">
       <div class="li"><div class="ico g">{{printer}}</div><div class="sp"><div class="t15">Zebra ZQ520</div><div class="muted">Bluetooth · bağlı · 100×150 mm</div></div><span style="color:var(--blue);font-weight:600;font-size:13px">Değiştir</span></div>
-      <div class="li"><div class="sp t15">Kopya</div><div class="row" style="gap:0;background:#E4E8EE;border-radius:12px"><span style="width:38px;text-align:center;font-size:20px">−</span><b style="width:30px;text-align:center">2</b><span style="width:38px;text-align:center;font-size:20px">+</span></div></div>
+      <div class="li"><div class="sp t15">Kopya</div><div class="row" style="gap:0;background:#D2D7E0;border-radius:12px"><span style="width:38px;text-align:center;font-size:20px">−</span><b style="width:30px;text-align:center">2</b><span style="width:38px;text-align:center;font-size:20px">+</span></div></div>
     </div>
   </div>
   <div class="sticky" style="display:flex;gap:10px"><button class="btn s" style="width:45%">PDF paylaş</button><button class="btn p">{{printer}} Yazdır</button></div>
@@ -904,7 +892,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
   <div class="sb"><span>9:41</span><span class="isl"></span><span class="r">●●● <span class="bat"></span></span></div>
   <div class="body">
     <div class="back">{{chevl}} Projeler</div>
-    <div class="row" style="margin:8px 0 4px"><div class="sp"><div class="muted">PRJ-2041 · NE</div><div style="font-size:22px;font-weight:700">Brooklyn Flagship</div></div><div class="row" style="gap:0"><div class="av" style="background:#3C5577">SY</div><div class="av" style="background:#B32B00;margin-left:-8px">MD</div><div class="av" style="background:#1E8E57;margin-left:-8px">AK</div></div></div>
+    <div class="row" style="margin:8px 0 4px"><div class="sp"><div class="muted">PRJ-2041 · NE</div><div style="font-size:22px;font-weight:700">Brooklyn Flagship</div></div><div class="row" style="gap:0"><div class="av" style="background:#3C5577">SY</div><div class="av" style="background:#B32B00;margin-left:-8px">MD</div><div class="av" style="background:#216B2E;margin-left:-8px">AK</div></div></div>
     <div class="row" style="gap:3px;margin:12px 0 4px">
       <i style="flex:1;height:6px;border-radius:3px;background:var(--green)"></i><i style="flex:1;height:6px;border-radius:3px;background:var(--green)"></i><i style="flex:1;height:6px;border-radius:3px;background:var(--green)"></i><i style="flex:1;height:6px;border-radius:3px;background:var(--green)"></i><i style="flex:1;height:6px;border-radius:3px;background:var(--green)"></i><i style="flex:1;height:6px;border-radius:3px;background:var(--green)"></i><i style="flex:1;height:6px;border-radius:3px;background:var(--orange)"></i><i style="flex:1;height:6px;border-radius:3px;background:var(--line)"></i>
     </div>
@@ -942,7 +930,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
   <div class="sheet" style="padding-top:10px">
     <div class="grab"></div>
     <div class="row" style="margin-bottom:10px"><div class="sp"><div style="font-size:19px;font-weight:700">İmzanı çiz</div><div class="muted">PF · Millwork · PRJ-2041 · imza 2/3</div></div><span style="color:var(--blue);font-weight:600">Temizle</span></div>
-    <div style="height:150px;background:#fff;border-radius:18px;border:1.5px dashed #C5CCD6;position:relative;margin-bottom:10px">
+    <div style="height:150px;background:#fff;border-radius:18px;border:1.5px dashed #B4BDCB;position:relative;margin-bottom:10px">
       <svg viewBox="0 0 260 110" style="position:absolute;left:40px;top:14px;width:270px;height:116px;fill:none;stroke:#1F252D;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round"><path d="M14 74 C 26 22, 44 16, 46 58 S 66 92, 84 46 S 104 20, 108 64 C 112 86, 128 70, 138 52 S 160 40, 162 66 S 190 74, 206 40 C 214 26, 226 30, 244 34"/></svg>
       <div style="position:absolute;left:20px;right:20px;bottom:30px;height:1.5px;background:var(--line)"></div>
       <span class="muted" style="position:absolute;left:20px;bottom:8px;font-size:11px">Ayşe Kaya · 9 Kas 2026 09:41</span>
@@ -1008,7 +996,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
   <div class="body" style="padding:0 22px">
     <div style="position:relative;height:190px;margin-top:14px">
       <div style="position:absolute;left:50%;top:10px;transform:translateX(-50%);width:170px;height:170px;border-radius:50%;background:var(--orange-50)"></div>
-      <div class="ico o" style="position:absolute;left:131px;top:50px;width:84px;height:84px;border-radius:26px;background:var(--orange);color:#fff;box-shadow:0 14px 30px -10px rgba(230,55,0,.6)">{{shield-xl}}</div>
+      <div class="ico o" style="position:absolute;left:131px;top:50px;width:84px;height:84px;border-radius:26px;background:var(--orange);color:#fff;box-shadow:0 14px 30px -10px rgba(255,81,26,.5)">{{shield-xl}}</div>
       <div class="ico" style="position:absolute;left:62px;top:30px;width:48px;height:48px;background:#fff;box-shadow:0 6px 16px rgba(20,30,45,.1)">{{camera}}</div>
       <div class="ico g" style="position:absolute;right:64px;top:22px;width:48px;height:48px;background:#fff;box-shadow:0 6px 16px rgba(20,30,45,.1)">{{pin}}</div>
       <div class="ico a" style="position:absolute;right:58px;top:122px;width:48px;height:48px;background:#fff;box-shadow:0 6px 16px rgba(20,30,45,.1)">{{bell}}</div>
@@ -1019,10 +1007,10 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
       <div class="li"><div class="ico">{{camera}}</div><div class="sp"><div class="t15">Kamera</div><div class="muted">QR okutma ve fotoğraf</div></div><div class="tg on"></div></div>
       <div class="li"><div class="ico g">{{pin}}</div><div class="sp"><div class="t15">Konum</div><div class="muted">Yalnızca giriş/çıkış anında</div></div><div class="tg on"></div></div>
       <div class="li"><div class="ico a">{{bell}}</div><div class="sp"><div class="t15">Bildirimler</div><div class="muted">QC, konteyner, onaylar</div></div><div class="tg on"></div></div>
-      <div class="li"><div class="ico" style="background:#E4E8EE;color:var(--slate)">{{printer}}</div><div class="sp"><div class="t15">Bluetooth</div><div class="muted">Etiket yazıcısı · opsiyonel</div></div><div class="tg"></div></div>
+      <div class="li"><div class="ico" style="background:#D2D7E0;color:var(--slate)">{{printer}}</div><div class="sp"><div class="t15">Bluetooth</div><div class="muted">Etiket yazıcısı · opsiyonel</div></div><div class="tg"></div></div>
     </div>
   </div>
-  <div class="sticky"><div class="row" style="justify-content:center;gap:6px;margin-bottom:14px"><i style="width:7px;height:7px;border-radius:4px;background:#C5CCD6"></i><i style="width:22px;height:7px;border-radius:4px;background:var(--ink)"></i><i style="width:7px;height:7px;border-radius:4px;background:#C5CCD6"></i></div><button class="btn p">Devam et</button></div>
+  <div class="sticky"><div class="row" style="justify-content:center;gap:6px;margin-bottom:14px"><i style="width:7px;height:7px;border-radius:4px;background:#B4BDCB"></i><i style="width:22px;height:7px;border-radius:4px;background:var(--ink)"></i><i style="width:7px;height:7px;border-radius:4px;background:#B4BDCB"></i></div><button class="btn p">Devam et</button></div>
   <div class="home-ind"></div>
 </div></template>
 
@@ -1245,7 +1233,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
     </div>
     <div class="fl">Teslim alan</div>
     <div class="inp">John Miller · Store Manager</div>
-    <div style="height:92px;background:#fff;border-radius:16px;border:1.5px dashed #C5CCD6;position:relative">
+    <div style="height:92px;background:#fff;border-radius:16px;border:1.5px dashed #B4BDCB;position:relative">
       <svg viewBox="0 0 200 60" style="position:absolute;left:70px;top:14px;width:200px;height:60px;fill:none;stroke:#1F252D;stroke-width:2.6;stroke-linecap:round"><path d="M10 40 C 20 10, 34 10, 34 34 S 50 52, 62 26 S 80 12, 86 38 S 108 46, 120 24 C 128 12, 142 20, 150 30 S 176 34, 190 18"/></svg>
       <span class="muted" style="position:absolute;left:14px;bottom:8px;font-size:11px">İmza · 9 Kas 14:22 EST</span>
     </div>
@@ -1357,7 +1345,7 @@ svg.i.s{width:16px;height:16px} svg.i.l{width:26px;height:26px} svg.i.xl{width:3
   <div class="sb"><span>9:41</span><span class="isl"></span><span class="r">●●● <span class="bat"></span></span></div>
   <div class="row" style="padding:4px 18px 12px;border-bottom:1px solid var(--line);flex:none">{{chevl}}<div class="sp" style="margin-left:4px"><div class="t15">PRJ-2041 · Notlar</div><div class="muted" style="font-size:12px">7 kişi · PM, üretim, QC, lojistik</div></div>{{users}}</div>
   <div class="body" style="padding-top:12px;display:flex;flex-direction:column;gap:10px">
-    <div style="text-align:center"><span class="chip" style="background:#E4E8EE;color:var(--slate)">{{box-s}} TLNU 482193-0 · 32 kalem yüklendi · 09:10</span></div>
+    <div style="text-align:center"><span class="chip" style="background:#D2D7E0;color:var(--slate)">{{box-s}} TLNU 482193-0 · 32 kalem yüklendi · 09:10</span></div>
     <div class="row" style="align-items:flex-end;gap:8px"><div class="av" style="background:#B32B00;border:0">SY</div><div style="background:#fff;border-radius:18px 18px 18px 6px;padding:10px 13px;max-width:250px"><div style="font-size:11.5px;font-weight:700;color:var(--orange)">Selin Yurt · PM</div><div class="t13" style="margin-top:2px;line-height:1.4"><b style="color:var(--blue)">@Ayşe</b> tavan panelleri bu konteynere yetişir mi?</div></div></div>
     <div style="align-self:flex-end;background:var(--ink);color:#fff;border-radius:18px 18px 6px 18px;padding:10px 13px;max-width:250px" class="t13">40 panelin 24'ü QC'den geçti, kalanı öğlene kadar biter 👍</div>
     <div style="align-self:flex-end;width:200px"><div class="photo d" style="height:120px;border-radius:18px 18px 6px 18px"></div></div>
@@ -1411,7 +1399,7 @@ const quick=a=>grid(4,a.map(x=>`<div style="text-align:center"><div class="ico $
 const darkc=h=>card(h,'background:var(--ink);color:#fff');
 const radioCard=(on,t,s,l)=>card(`<div class="row">${l||''}<div class="sp"><div class="t15">${t}</div>${s?`<div class="muted">${s}</div>`:''}</div><div class="radio${on?' on':''}"></div></div>`,on?'box-shadow:inset 0 0 0 2px var(--orange);margin-bottom:10px':'margin-bottom:10px');
 const person=(i,c,n,r,st)=>li(`<div style="position:relative">${av(i,c)}${st?`<i style="position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;border:2px solid #fff;background:${st}"></i>`:''}</div>`,n,r,`<div class="ico" style="width:36px;height:36px;border-radius:50%">{{phone-s}}</div>`);
-const sig=(w,txt)=>`<div style="height:92px;background:#fff;border-radius:16px;border:1.5px dashed #C5CCD6;position:relative;margin-bottom:10px"><svg viewBox="0 0 200 60" style="position:absolute;left:${w||70}px;top:14px;width:200px;height:60px;fill:none;stroke:#1F252D;stroke-width:2.6;stroke-linecap:round"><path d="M10 40 C 20 10, 34 10, 34 34 S 50 52, 62 26 S 80 12, 86 38 S 108 46, 120 24 C 128 12, 142 20, 150 30 S 176 34, 190 18"/></svg><span class="muted" style="position:absolute;left:14px;bottom:8px;font-size:11px">${txt}</span></div>`;
+const sig=(w,txt)=>`<div style="height:92px;background:#fff;border-radius:16px;border:1.5px dashed #B4BDCB;position:relative;margin-bottom:10px"><svg viewBox="0 0 200 60" style="position:absolute;left:${w||70}px;top:14px;width:200px;height:60px;fill:none;stroke:#1F252D;stroke-width:2.6;stroke-linecap:round"><path d="M10 40 C 20 10, 34 10, 34 34 S 50 52, 62 26 S 80 12, 86 38 S 108 46, 120 24 C 128 12, 142 20, 150 30 S 176 34, 190 18"/></svg><span class="muted" style="position:absolute;left:14px;bottom:8px;font-size:11px">${txt}</span></div>`;
 const corners=(sz,c)=>{const b=`position:absolute;width:40px;height:40px;border:5px solid ${c};`;return `<i style="${b}left:0;top:0;border-right:0;border-bottom:0;border-radius:16px 0 0 0"></i><i style="${b}right:0;top:0;border-left:0;border-bottom:0;border-radius:0 16px 0 0"></i><i style="${b}left:0;bottom:0;border-right:0;border-top:0;border-radius:0 0 0 16px"></i><i style="${b}right:0;bottom:0;border-left:0;border-top:0;border-radius:0 0 16px 0"></i>`;};
 const locp=t=>`<div style="min-width:64px;height:40px;border-radius:12px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px;flex:none">${t}</div>`;
 function fakeqr(px,seed){const n=25;let r=seed||7;const rnd=()=>{r=(r*9301+49297)%233280;return r/233280;};let s='';
@@ -1423,20 +1411,20 @@ function fakeqr(px,seed){const n=25;let r=seed||7;const rnd=()=>{r=(r*9301+49297
  return `<div style="width:${px}px;height:${px}px;display:grid;grid-template-columns:repeat(${n},1fr);grid-template-rows:repeat(${n},1fr);background:#fff;flex:none">${s}</div>`;}
 const tlS=(t,s,c,ex)=>`<div class="st ${c||''}"><div class="t15"${c==='nx'?' style="color:var(--slate)"':''}>${t}</div>${s?`<div class="muted">${s}</div>`:''}${ex||''}</div>`;
 const tl=a=>`<div class="tl">${a.join('')}</div>`;
-const stepper=n=>`<div class="row" style="gap:0;background:#E4E8EE;border-radius:12px"><span style="width:38px;text-align:center;font-size:20px">−</span><b style="width:30px;text-align:center">${n}</b><span style="width:38px;text-align:center;font-size:20px">+</span></div>`;
+const stepper=n=>`<div class="row" style="gap:0;background:#D2D7E0;border-radius:12px"><span style="width:38px;text-align:center;font-size:20px">−</span><b style="width:30px;text-align:center">${n}</b><span style="width:38px;text-align:center;font-size:20px">+</span></div>`;
 const sheet=(h)=>`<div class="dim"></div><div class="sheet"><div class="grab"></div>${h}</div>`;
-const sheetTitle=(t,s)=>`<div class="row" style="margin-bottom:12px"><div class="sp"><div style="font-size:19px;font-weight:700">${t}</div>${s?`<div class="muted">${s}</div>`:''}</div><div style="width:34px;height:34px;border-radius:50%;background:#E4E8EE;display:grid;place-items:center">{{x-s}}</div></div>`;
+const sheetTitle=(t,s)=>`<div class="row" style="margin-bottom:12px"><div class="sp"><div style="font-size:19px;font-weight:700">${t}</div>${s?`<div class="muted">${s}</div>`:''}</div><div style="width:34px;height:34px;border-radius:50%;background:#D2D7E0;display:grid;place-items:center">{{x-s}}</div></div>`;
 const docBg=`<div style="background:#fff;border-radius:6px;height:420px;margin:0 22px;padding:22px 20px;display:flex;flex-direction:column;gap:9px"><div class="row"><b style="font-size:12px">PRODUCTION FORM · MILLWORK</b><span class="sp"></span><span class="muted" style="font-size:10px">Rev 3 · 3/4</span></div><i style="height:6px;width:80%;background:var(--line);border-radius:3px"></i><i style="height:6px;width:95%;background:var(--line);border-radius:3px"></i><div style="height:90px;border:1px solid var(--line);border-radius:4px;margin:6px 0"></div><i style="height:6px;width:70%;background:var(--line);border-radius:3px"></i></div>`;
 const wk=(sel)=>`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:14px;text-align:center">${[['Pzt',9],['Sal',10],['Çar',11],['Per',12],['Cum',13],['Cmt',14],['Paz',15]].map((d,i)=>i===sel?`<div style="background:var(--ink);color:#fff;border-radius:14px;padding:8px 0"><div style="font-size:11px;opacity:.6">${d[0]}</div><b>${d[1]}</b></div>`:`<div class="card" style="margin:0;padding:8px 0;border-radius:14px"><div class="muted" style="font-size:11px">${d[0]}</div><b>${d[1]}</b></div>`).join('')}</div>`;
 
 /* ---- Başlangıç & giriş ---- */
 T['46']=scr({body:back('Giriş')+big('Şifreni sıfırla','Kurumsal e-posta adresini gir, sıfırlama bağlantısı gönderelim.')+fl('E-posta')+inp('{{user}}ayse.kaya@trust-lines.com',0,'box-shadow:inset 0 0 0 2px var(--blue)')+alertc('Bağlantı gönderildi','Gelen kutunu kontrol et · 15 dk geçerli','g','check')+note(`Hesabın yoksa yöneticin web'den davet gönderir.`),
  sticky:btn('Tekrar gönder · 0:42','s')+`<div style="height:10px"></div>`+btn('Girişe dön','d')});
-T['47']=scr({body:`<div style="text-align:center;margin-top:28px"><div class="ico o" style="width:64px;height:64px;border-radius:20px;margin:0 auto">{{lock-l}}</div><div style="font-size:24px;font-weight:700;margin-top:16px">Hızlı giriş PIN'i</div><div class="muted" style="font-size:14px;margin-top:6px">Eldivenle bile hızlı girmek için 4 haneli PIN belirle</div><div class="row" style="justify-content:center;gap:18px;margin:26px 0 28px">${[1,1,0,0].map(f=>`<i style="width:18px;height:18px;border-radius:50%;${f?'background:var(--ink)':'box-shadow:inset 0 0 0 2px #C5CCD6'}"></i>`).join('')}</div></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:0 8px">${['1','2','3','4','5','6','7','8','9','','0','⌫'].map(k=>k?`<div style="height:62px;border-radius:20px;${k==='⌫'?'':'background:#fff;box-shadow:0 1px 2px rgba(20,30,45,.08);'}display:grid;place-items:center;font-size:26px;font-weight:600">${k}</div>`:'<div></div>').join('')}</div><div class="row" style="margin-top:22px;padding:0 6px"><div class="sp t15">Face ID'yi de kullan</div><div class="tg on"></div></div>`});
+T['47']=scr({body:`<div style="text-align:center;margin-top:28px"><div class="ico o" style="width:64px;height:64px;border-radius:20px;margin:0 auto">{{lock-l}}</div><div style="font-size:24px;font-weight:700;margin-top:16px">Hızlı giriş PIN'i</div><div class="muted" style="font-size:14px;margin-top:6px">Eldivenle bile hızlı girmek için 4 haneli PIN belirle</div><div class="row" style="justify-content:center;gap:18px;margin:26px 0 28px">${[1,1,0,0].map(f=>`<i style="width:18px;height:18px;border-radius:50%;${f?'background:var(--ink)':'box-shadow:inset 0 0 0 2px #B4BDCB'}"></i>`).join('')}</div></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:0 8px">${['1','2','3','4','5','6','7','8','9','','0','⌫'].map(k=>k?`<div style="height:62px;border-radius:20px;${k==='⌫'?'':'background:#fff;box-shadow:0 1px 2px rgba(20,30,45,.08);'}display:grid;place-items:center;font-size:26px;font-weight:600">${k}</div>`:'<div></div>').join('')}</div><div class="row" style="margin-top:22px;padding:0 6px"><div class="sp t15">Face ID'yi de kullan</div><div class="tg on"></div></div>`});
 T['48']=scr({body:big('Bugün nerede çalışıyorsun?','Mesai doğrulaması, varsayılan depo ve görev listen buna göre ayarlanır.')+radioCard(true,'Fabrika · Gebze','Üretim · QC · atölye · <b style="color:var(--green)">buradasın</b>',ico('warehouse','g'))+radioCard(false,'Yükleme alanı · İzmit','Konteyner yükleme',ico('anchor'))+radioCard(false,'NJ Warehouse · USA','Teslim alma · raf · sevkiyat',ico('warehouse','a'))+radioCard(false,'Saha / job site','Projeye göre konum doğrulanır',ico('pin','o'))+note(`Varsayılan yerini yöneticin web'den belirler.`),sticky:btn('Devam','p')});
 
 /* ---- Ana sayfa (role göre) ---- */
-T['50']=scr({tab:'home',en:true,bd:{tasks:4},body:greet('CM','linear-gradient(135deg,#7888A1,#343D4B)','Monday, Nov 9','Good morning, Carlos')+darkc(`<div class="row"><span class="chip g" style="background:rgba(30,142,87,.25);color:#7FE0AE">● On shift</span><div class="sp"></div><span style="opacity:.6;font-size:13px">{{pin-s}} NJ Warehouse</span></div><div class="row" style="margin-top:12px;align-items:flex-end"><div><div style="font-size:40px;font-weight:700;letter-spacing:-.02em">02:15</div><div style="opacity:.6;font-size:13px">In 07:00 · EST</div></div><div class="sp"></div><button class="btn" style="width:auto;height:44px;padding:0 16px;background:rgba(255,255,255,.12);color:#fff;font-size:14px">Break</button><button class="btn p" style="width:auto;height:44px;padding:0 16px;font-size:14px">Clock out</button></div>`)+lbl('Quick actions')+quick([['qr','Scan','o'],['warehouse','Receive','g'],['pin','Put-away'],['list','Count','a']])+lbl('Today')+list([li(ico('anchor','g'),'TLNU 480012-7 arriving','13:00 · 44 items · 3 projects',ch('Today','o')),li(ico('pin'),'Put-away: 12 items','Received yesterday','{{chev}}'),li(ico('truck'),'Pick list · PRJ-2033','Delivery Nov 11 · 21/34','{{chev}}')])});
+T['50']=scr({tab:'home',en:true,bd:{tasks:4},body:greet('CM','linear-gradient(135deg,#7888A1,#343D4B)','Monday, Nov 9','Good morning, Carlos')+darkc(`<div class="row"><span class="chip g" style="background:rgba(30,142,87,.25);color:#E4F5E7">● On shift</span><div class="sp"></div><span style="opacity:.6;font-size:13px">{{pin-s}} NJ Warehouse</span></div><div class="row" style="margin-top:12px;align-items:flex-end"><div><div style="font-size:40px;font-weight:700;letter-spacing:-.02em">02:15</div><div style="opacity:.6;font-size:13px">In 07:00 · EST</div></div><div class="sp"></div><button class="btn" style="width:auto;height:44px;padding:0 16px;background:rgba(255,255,255,.12);color:#fff;font-size:14px">Break</button><button class="btn p" style="width:auto;height:44px;padding:0 16px;font-size:14px">Clock out</button></div>`)+lbl('Quick actions')+quick([['qr','Scan','o'],['warehouse','Receive','g'],['pin','Put-away'],['list','Count','a']])+lbl('Today')+list([li(ico('anchor','g'),'TLNU 480012-7 arriving','13:00 · 44 items · 3 projects',ch('Today','o')),li(ico('pin'),'Put-away: 12 items','Received yesterday','{{chev}}'),li(ico('truck'),'Pick list · PRJ-2033','Delivery Nov 11 · 21/34','{{chev}}')])});
 T['51']=scr({tab:'home',bd:{tasks:5},body:greet('DA','linear-gradient(135deg,#E63700,#801F00)','Pazartesi, 9 Kasım','Günaydın, Derya')+darkc(`<div class="row"><div class="sp"><div style="opacity:.6;font-size:13px">T-Lines PM · NE · 6 proje</div><div style="font-size:19px;font-weight:700;margin-top:2px">2 saha ziyareti · 1 varış</div></div><span class="chip" style="background:rgba(255,255,255,.12);color:#fff">{{cal-s}} Takvim</span></div>`)+lbl('Hızlı işlemler')+quick([['clip','Saha raporu','o'],['alert','Punch','r'],['camera','Foto'],['swap','Değişiklik','a']])+lbl('Dikkat isteyen')+list([li(ico('alert','r'),'Brooklyn: zemin hazır değil','Teslimat 21 Kas · müşteriyle konuş',ch('Risk','r')),li(ico('pen','a'),'2 onay bekliyor','PO · Shelving, tasarım · Ceiling','{{chev}}'),li(ico('msg'),'John Miller (müşteri)','"Kurulum saatini teyit eder misiniz?"','{{chev}}')])});
 T['52']=scr({tab:'home',body:greet('HÖ','linear-gradient(135deg,#1F252D,#5E6F87)','Pazartesi, 9 Kasım','Günaydın, Hakan')+grid(2,[stat('38','Aktif proje'),stat('412','Üretimde kalem'),stat('%4.2','QC red oranı · hafta','var(--amber)'),stat('5','Yoldaki konteyner','var(--blue)')],10)+lbl('Dikkat isteyen')+list([li(ico('alert','r'),'3 kalem 5+ gündür HOLD','PRJ-2057 · 2, PRJ-2033 · 1','{{chev}}'),li(ico('anchor','a'),'2 konteyner gecikmede','+2 gün · 4 proje etkileniyor','{{chev}}'),li(ico('pen'),'7 onay bekliyor','PF 4 · PO 2 · ödeme 1','{{chev}}'),li(ico('users','g'),'Mesai: 46 / 52 kişi','2 geç · 1 izinli · 3 kayıt yok','{{chev}}')])});
 T['53']=scr({tab:'home',bd:{tasks:2},body:greet('KB','linear-gradient(135deg,#4D6E98,#1A2533)','Pazartesi, 9 Kasım','Günaydın, Kerem')+darkc(`<div style="opacity:.6;font-size:13px">Lojistik · İzmit</div><div style="font-size:19px;font-weight:700;margin-top:2px">1 yükleme · 1 varış · yarın 1 kalkış</div>`)+lbl('Konteynerler')+list([li(ico('box','o'),'TLNU 482193-0 · yükleniyor',prog(67,'var(--orange)','margin-top:6px'),`<b class="t13">32/48</b>`),li(ico('box'),'MSCU 771045-2','Yükleme 13 Kas · booking onaylı',ch('Bekliyor')),li(ico('anchor','g'),'TLNU 480012-7','Newark limanında · gümrük',ch('Limanda','g'))])+lbl('Görevler')+list([li('<div class="cb"></div>','PRJ-2057 için booking aç','Tahmini 36 kalem · 40\' HC'),li('<div class="cb"></div>','BL yükle · TLNU 480012-7','Gümrük için gerekli',ch('Acil','o'))])});
@@ -1449,7 +1437,7 @@ T['56']=scr({pre:`<div class="row" style="padding:4px 18px 12px;border-bottom:1p
  bs:'padding-top:14px;display:flex;flex-direction:column;gap:10px',
  body:`<div style="align-self:flex-end;background:var(--ink);color:#fff;border-radius:18px 18px 6px 18px;padding:10px 13px;max-width:260px" class="t13">PRJ-2041 kalemleri hangi konteynerde?</div>`+card(`<div class="row" style="gap:8px;margin-bottom:8px"><span style="color:var(--orange)">{{spark-s}}</span><b class="t13">64 kalemin dağılımı:</b></div>`+[['TLNU 480012-7','18 kalem · yolda · ETA 21 Kas','g'],['TLNU 482193-0','12 kalem · yükleniyor','o'],['Atölye · Gebze','34 kalem · 4\'ü QC bekliyor','']].map(x=>`<div class="row" style="padding:8px 0;border-top:1px solid var(--line)"><div class="sp"><div class="t15">${x[0]}</div><div class="muted">${x[1]}</div></div>${lk('Aç')}</div>`).join('')+`<div class="muted" style="font-size:11.5px;margin-top:6px">Kaynak: production_items, containers · 09:41</div>`,'border-radius:18px 18px 18px 6px;max-width:320px;margin:0')+`<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:4px">${ch('Bugün QC\'de ne var?')}${ch('Bu hafta kaç saat çalıştım?')}${ch('Geciken konteynerler')}</div>`,
  extra:`<div class="row" style="flex:none;padding:10px 14px 34px;gap:10px;background:#fff;border-top:1px solid var(--line)"><div class="sp" style="height:42px;border-radius:21px;background:var(--bg);display:flex;align-items:center;padding:0 14px;color:var(--slate2);font-size:14px">Bir şey sor…</div><div class="ico" style="width:40px;height:40px;border-radius:50%;background:var(--bg)">{{mic-s}}</div><div class="ico" style="width:40px;height:40px;border-radius:50%;background:var(--orange);color:#fff">{{send-s}}</div></div>`});
-T['57']=scr({body:back('Menü')+ttl('Ekip rehberi','52 kişi · 4 lokasyon')+inp('{{search}}<span class="ph">İsim veya rol ara…</span>')+chips(['Tümü','Üretim','QC','Lojistik','PM','Depo'])+list([person('MD','#3C5577','Mehmet Demir','Üretim Müdürü · Gebze','var(--green)'),person('SY','#B32B00','Selin Yurt','Trust Lines PM','var(--green)'),person('OY','#495669','Onur Yıldız','QC · izinli','var(--blue)'),person('KB','#4D6E98','Kerem Bal','Lojistik · İzmit','var(--green)'),person('CM','#7888A1','Carlos M.','Warehouse · NJ','#C5CCD6'),person('DA','#E63700','Derya A.','T-Lines PM · NE','var(--green)')])});
+T['57']=scr({body:back('Menü')+ttl('Ekip rehberi','52 kişi · 4 lokasyon')+inp('{{search}}<span class="ph">İsim veya rol ara…</span>')+chips(['Tümü','Üretim','QC','Lojistik','PM','Depo'])+list([person('MD','#3C5577','Mehmet Demir','Üretim Müdürü · Gebze','var(--green)'),person('SY','#B32B00','Selin Yurt','Trust Lines PM','var(--green)'),person('OY','#495669','Onur Yıldız','QC · izinli','var(--blue)'),person('KB','#4D6E98','Kerem Bal','Lojistik · İzmit','var(--green)'),person('CM','#7888A1','Carlos M.','Warehouse · NJ','#B4BDCB'),person('DA','#E63700','Derya A.','T-Lines PM · NE','var(--green)')])});
 T['58']=scr({body:back('Ekip')+`<div style="text-align:center;margin-top:8px"><div style="width:84px;height:84px;border-radius:50%;background:#3C5577;color:#fff;display:grid;place-items:center;font-size:28px;font-weight:700;margin:0 auto">MD</div><div style="font-size:22px;font-weight:700;margin-top:10px">Mehmet Demir</div><div class="muted">Üretim Müdürü · Trust Lines</div><div style="margin-top:8px">${ch('● Mesaide · 08:01\'den beri · Gebze','g')}</div></div><div style="height:14px"></div>`+grid(3,[['phone','Ara'],['msg','Mesaj'],['mail','E-posta']].map(x=>card(`{{${x[0]}}}<div class="t13" style="font-weight:600;margin-top:4px">${x[1]}</div>`,'margin:0;padding:12px;text-align:center')))+lbl('Ortak projeler')+list([li(ico('folder'),'PRJ-2041 · Brooklyn','Üretim sorumlusu','{{chev}}'),li(ico('folder'),'PRJ-2057 · Miami Mall','Üretim sorumlusu','{{chev}}')])+card(kv([['Telefon','+90 5xx xxx 12 34'],['Dil','Türkçe · English'],['Saat dilimi','İstanbul (GMT+3)'],['Yöneticisi','Hakan Ö.']]))});
 T['59']=scr({body:back('Menü')+ttl('Yardım & geri bildirim')+list([li(ico('play'),'Nasıl yapılır videoları','QR, QC, konteyner · 12 kısa video','{{chev}}'),li(ico('help'),'Sık sorulan sorular','','{{chev}}')])+lbl('Sorun bildir')+chips(['Hata','Öneri','Soru'])+area('QC fotoğrafı yüklenirken uygulama donuyor.')+`<div class="row" style="gap:12px;margin-bottom:12px"><div style="width:56px;height:96px;border-radius:10px;background:linear-gradient(#F0F2F5,#E3E7ED);box-shadow:inset 0 0 0 1.5px var(--line);flex:none"></div><div class="sp"><div class="t15">Ekran görüntüsü eklendi</div><div class="muted">Son ekran otomatik eklenir · ${lk('kaldır')}</div></div></div>`+note('iPhone 15 · iOS 19.1 · v1.0 (142) · çevrimiçi'),sticky:btn('Gönder','d')});
 
@@ -1457,16 +1445,16 @@ T['59']=scr({body:back('Menü')+ttl('Yardım & geri bildirim')+list([li(ico('pla
 T['60']=scr({body:`<div style="text-align:center"><div style="width:120px;height:120px;border-radius:50%;background:var(--green);color:#fff;display:grid;place-items:center;margin:56px auto 0;box-shadow:0 0 0 14px var(--green-50)">{{check-xl}}</div><div style="font-size:22px;font-weight:700;margin-top:28px">Giriş yapıldı</div><div style="font-size:56px;font-weight:700;letter-spacing:-.03em">08:01</div><div class="muted" style="font-size:15px">Fabrika · Gebze · konum doğrulandı</div></div><div style="height:22px"></div>`+card(kv([['Vardiya','08:00 – 17:30'],['Tolerans','5 dk · geç sayılmadın']]))+card(`<div class="row">${ico('list','o')}<div class="sp"><div class="t15">Bugün seni bekleyen 6 görev</div><div class="muted">1'i gecikmiş</div></div>{{chev}}</div>`),sticky:btn('Görevlere git','d')+`<div class="muted" style="text-align:center;margin-top:10px;font-size:12.5px">3 sn sonra ana sayfaya döner</div>`});
 T['61']=scr({body:back('Mesai')+ttl('Konum doğrulanamadı')+`<div style="height:190px;border-radius:18px;position:relative;overflow:hidden;background:linear-gradient(90deg,transparent 30%,#fff 30% 33%,transparent 33%),linear-gradient(transparent 62%,#fff 62% 65%,transparent 65%),#DCE5D8;margin-bottom:12px"><div style="position:absolute;left:36px;top:24px;width:140px;height:140px;border-radius:50%;background:rgba(30,142,87,.15);border:2px dashed var(--green)"></div><span class="chip g" style="position:absolute;left:56px;top:84px">Fabrika alanı</span><div style="position:absolute;right:62px;top:58px;width:22px;height:22px;border-radius:50%;background:var(--blue);border:4px solid #fff;box-shadow:0 0 0 10px rgba(77,110,152,.25)"></div><span class="chip" style="position:absolute;right:30px;top:96px;background:#fff">Sen · 340 m</span></div>`+alertc('Çalışma alanının 340 m dışındasın','GPS doğruluğu ±25 m')+lbl('Ne yapmak istersin?')+list([li(ico('qr'),'Kapı QR kodunu okut','Girişteki kodu okutursan konum gerekmez','{{chev}}'),li(ico('pin','o'),'Sahadayım','Proje seç · saha konumu doğrulanır','{{chev}}'),li(ico('msg','a'),'Notla giriş yap','Yönetici onayına düşer','{{chev}}')])});
 T['62']=scr({dark:true,style:'background:var(--ink);color:#fff',ss:'background:none',body:`<div style="text-align:center;padding-top:44px">${ch('{{coffee-s}} Öğle molası','" style="background:rgba(255,255,255,.12);color:#fff')}<div style="width:240px;height:240px;border-radius:50%;margin:34px auto 0;background:conic-gradient(var(--orange2) 0 29%,rgba(255,255,255,.1) 0);display:grid;place-items:center"><div style="width:212px;height:212px;border-radius:50%;background:var(--ink);display:grid;place-items:center"><div><div style="font-size:52px;font-weight:700;letter-spacing:-.02em">13:04</div><div style="opacity:.6;font-size:14px">45 dk hakkın · 32 dk kaldı</div></div></div></div><div style="opacity:.6;font-size:14px;margin-top:28px;line-height:1.5">Mola süresi mesaiden düşülür.<br>Bitirmeyi unutursan 45. dakikada hatırlatırız.</div></div>`,sticky:btn('Molayı bitir','p')});
-T['63']=scr({dark:true,style:'background:#0B0E12;color:#fff',body:`<div style="text-align:center;padding-top:14px"><div style="font-size:12px;font-weight:700;letter-spacing:.12em;color:var(--orange2)">TRUST LINES · GEBZE GİRİŞ</div><div style="font-size:64px;font-weight:700;letter-spacing:-.03em;margin-top:4px">07:58</div><div style="opacity:.6">Pazartesi, 9 Kasım · Kiosk</div></div><div style="position:relative;width:210px;height:210px;margin:24px auto 12px;border-radius:24px;background:rgba(255,255,255,.06)">${corners(210,'var(--orange2)')}<div style="position:absolute;inset:0;display:grid;place-items:center;opacity:.5">{{qr-xl}}</div></div><div style="text-align:center;opacity:.8;font-size:14px;margin-bottom:16px">Personel kartını veya telefonundaki QR'ı okut</div>`+card([['ZT','#1E8E57','Zeynep Tan','Giriş · 07:56'],['EŞ','#4D6E98','Emre Şahin','Giriş · 07:57'],['OY','#495669','Onur Yıldız','Giriş · 07:58']].map(x=>`<div class="row" style="padding:8px 0">${av(x[0],x[1])}<div class="sp"><div class="t15">${x[2]}</div><div style="opacity:.6;font-size:13px">${x[3]}</div></div>{{check-g}}</div>`).join(''),'background:rgba(255,255,255,.07)')});
-const octCal=()=>{let s=['Pt','Sa','Ça','Pe','Cu','Ct','Pz'].map(d=>`<b>${d}</b>`).join('');for(let i=0;i<3;i++)s+='<span></span>';for(let d=1;d<=31;d++){const dow=(d+2)%7;let c='var(--green)';if(dow>=5)c='transparent';if([2,8,22,23].includes(d))c='var(--orange)';if(d===14)c='var(--blue)';if(d===29)c='#C5CCD6';if(d===28)c='var(--amber)';s+=`<span style="height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;${dow>=5?'color:var(--slate2)':''}">${d}<i style="width:6px;height:6px;border-radius:50%;background:${c}"></i></span>`;}return s;};
-T['64']=scr({body:back('Puantaj')+ttl('Ekim 2026','Aylık puantaj',`<div class="row" style="gap:8px">{{chevl}}{{chev}}</div>`)+card(`<div class="cal">${octCal()}</div>`,'padding:14px 12px')+grid(3,[stat('176s','Çalışma'),stat('12s','Fazla mesai','var(--orange)'),stat('2 gün','İzin / rapor','var(--blue)')])+`<div class="row muted" style="gap:12px;font-size:12px;flex-wrap:wrap;padding:0 2px">${[['var(--green)','Normal'],['var(--orange)','Fazla mesai'],['var(--amber)','Yarım gün'],['var(--blue)','İzin/rapor'],['#C5CCD6','Resmi tatil']].map(x=>`<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${x[0]};margin-right:5px"></i>${x[1]}</span>`).join('')}</div>`});
+T['63']=scr({dark:true,style:'background:#0B0E12;color:#fff',body:`<div style="text-align:center;padding-top:14px"><div style="font-size:12px;font-weight:700;letter-spacing:.12em;color:var(--orange2)">TRUST LINES · GEBZE GİRİŞ</div><div style="font-size:64px;font-weight:700;letter-spacing:-.03em;margin-top:4px">07:58</div><div style="opacity:.6">Pazartesi, 9 Kasım · Kiosk</div></div><div style="position:relative;width:210px;height:210px;margin:24px auto 12px;border-radius:24px;background:rgba(255,255,255,.06)">${corners(210,'var(--orange2)')}<div style="position:absolute;inset:0;display:grid;place-items:center;opacity:.5">{{qr-xl}}</div></div><div style="text-align:center;opacity:.8;font-size:14px;margin-bottom:16px">Personel kartını veya telefonundaki QR'ı okut</div>`+card([['ZT','#216B2E','Zeynep Tan','Giriş · 07:56'],['EŞ','#4D6E98','Emre Şahin','Giriş · 07:57'],['OY','#495669','Onur Yıldız','Giriş · 07:58']].map(x=>`<div class="row" style="padding:8px 0">${av(x[0],x[1])}<div class="sp"><div class="t15">${x[2]}</div><div style="opacity:.6;font-size:13px">${x[3]}</div></div>{{check-g}}</div>`).join(''),'background:rgba(255,255,255,.07)')});
+const octCal=()=>{let s=['Pt','Sa','Ça','Pe','Cu','Ct','Pz'].map(d=>`<b>${d}</b>`).join('');for(let i=0;i<3;i++)s+='<span></span>';for(let d=1;d<=31;d++){const dow=(d+2)%7;let c='var(--green)';if(dow>=5)c='transparent';if([2,8,22,23].includes(d))c='var(--orange)';if(d===14)c='var(--blue)';if(d===29)c='#B4BDCB';if(d===28)c='var(--amber)';s+=`<span style="height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;${dow>=5?'color:var(--slate2)':''}">${d}<i style="width:6px;height:6px;border-radius:50%;background:${c}"></i></span>`;}return s;};
+T['64']=scr({body:back('Puantaj')+ttl('Ekim 2026','Aylık puantaj',`<div class="row" style="gap:8px">{{chevl}}{{chev}}</div>`)+card(`<div class="cal">${octCal()}</div>`,'padding:14px 12px')+grid(3,[stat('176s','Çalışma'),stat('12s','Fazla mesai','var(--orange)'),stat('2 gün','İzin / rapor','var(--blue)')])+`<div class="row muted" style="gap:12px;font-size:12px;flex-wrap:wrap;padding:0 2px">${[['var(--green)','Normal'],['var(--orange)','Fazla mesai'],['var(--amber)','Yarım gün'],['var(--blue)','İzin/rapor'],['#B4BDCB','Resmi tatil']].map(x=>`<span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${x[0]};margin-right:5px"></i>${x[1]}</span>`).join('')}</div>`});
 T['65']=scr({body:back('Menü')+ttl('Belgelerim','Yalnızca sana görünür')+alertc('Face ID ile açılır','Belgeler cihazda saklanmaz','b','shield')+lbl('Bordrolar')+list([li(ico('file','r'),'Ekim 2026 bordrosu','PDF · 2 Kas yayınlandı',ch('Yeni','o')),li(ico('file','r'),'Eylül 2026 bordrosu','PDF','{{download}}'),li(ico('file','r'),'Ağustos 2026 bordrosu','PDF','{{download}}')])+lbl('Özlük')+list([li(ico('file'),'İş sözleşmesi','2024 · imzalı','{{chev}}'),li(ico('file'),'Fazla mesai onay formu','2026',ch('İmza bekliyor','a'))])});
 
 /* ---- HR · yönetici ---- */
-T['66']=scr({body:back('Ekibim')+ttl('İzin talebi','Ayşe Kaya · QC Sorumlusu',ch('Bekliyor','a'))+card(kv([['Tür','Yıllık izin'],['Tarih','19–20 Kas · 2 gün'],['Bakiye','9 → 7 gün'],['Gönderildi','dün 16:40']]))+alertc('Çakışma: 19 Kasım','Onur Yıldız da izinli → QC\'de 1 kişi kalıyor')+lbl('QC ekibi · aynı günler')+list([li(av('OY','#495669'),'Onur Yıldız','18–19 Kas · yıllık',ch('Onaylı','g')),li(av('CA','#1E8E57'),'Can Arslan','Mesaide',ch('Müsait'))])+inp('Not ekle (opsiyonel)…',1),sticky:two(btn('{{x}} Reddet','r'),btn('{{check}} Onayla','g'))});
+T['66']=scr({body:back('Ekibim')+ttl('İzin talebi','Ayşe Kaya · QC Sorumlusu',ch('Bekliyor','a'))+card(kv([['Tür','Yıllık izin'],['Tarih','19–20 Kas · 2 gün'],['Bakiye','9 → 7 gün'],['Gönderildi','dün 16:40']]))+alertc('Çakışma: 19 Kasım','Onur Yıldız da izinli → QC\'de 1 kişi kalıyor')+lbl('QC ekibi · aynı günler')+list([li(av('OY','#495669'),'Onur Yıldız','18–19 Kas · yıllık',ch('Onaylı','g')),li(av('CA','#216B2E'),'Can Arslan','Mesaide',ch('Müsait'))])+inp('Not ekle (opsiyonel)…',1),sticky:two(btn('{{x}} Reddet','r'),btn('{{check}} Onayla','g'))});
 const pRow=(i,c,n,h,w,col,chip)=>`<div class="li">${av(i,c)}<div class="sp"><div class="row"><span class="t15 sp">${n}</span><b class="t13">${h}</b></div>${prog(w,col,'margin-top:7px')}</div>${chip||''}</div>`;
-T['67']=scr({body:back('Ekibim')+ttl('Haftalık puantaj','2–8 Kasım · Üretim · 18 kişi',`<div class="ib" style="width:40px;height:40px;border-radius:14px;background:#fff;display:grid;place-items:center">{{download}}</div>`)+grid(3,[stat('742s','Toplam'),stat('28s','Fazla mesai','var(--orange)'),stat('3','Eksik kayıt','var(--red)')])+list([pRow('EŞ','#4D6E98','Emre Şahin','47s 30dk',100,'var(--orange)'),pRow('ZT','#1E8E57','Zeynep Tan','45s',96),pRow('MD','#3C5577','Mehmet Demir','44s 20dk',94),pRow('AK','#B32B00','Ayşe Kaya','41s 20dk',88),pRow('BK','#7888A1','Burak Koç','32s',68,'var(--red)'),pRow('OY','#495669','Onur Yıldız','36s · 1 gün izin',77,'var(--blue)')])+note(`Excel olarak indir · detaylı rapor web'de.`)});
-const shiftGrid=()=>{const P=[['EŞ','#4D6E98','SSSSSA-'],['ZT','#1E8E57','SSSAA--'],['BK','#7888A1','AAASS--'],['OY','#495669','SSİİS--'],['AK','#B32B00','SSSİİ--'],['CA','#1E8E57','AASSS--']];const st={S:'background:var(--blue-100);color:var(--blue2)',A:'background:var(--orange-50);color:var(--orange)','İ':'background:var(--green-50);color:var(--green)','-':'background:#F0F2F5;color:#C5CCD6'};let s='<div></div>'+['Pt','Sa','Ça','Pe','Cu','Ct','Pz'].map(d=>`<b class="muted" style="font-size:11px;text-align:center">${d}</b>`).join('');P.forEach(p=>{s+=`<div style="display:flex;align-items:center">${av(p[0],p[1],'width:28px;height:28px;font-size:10px')}</div>`;[...p[2]].forEach((c,i)=>{s+=`<span style="height:34px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:700;${st[c]};${i===3&&c==='İ'?'box-shadow:inset 0 0 0 2px var(--red)':''}">${c==='-'?'·':c}</span>`;});});return `<div style="display:grid;grid-template-columns:40px repeat(7,1fr);gap:5px;align-items:center">${s}</div>`;};
+T['67']=scr({body:back('Ekibim')+ttl('Haftalık puantaj','2–8 Kasım · Üretim · 18 kişi',`<div class="ib" style="width:40px;height:40px;border-radius:14px;background:#fff;display:grid;place-items:center">{{download}}</div>`)+grid(3,[stat('742s','Toplam'),stat('28s','Fazla mesai','var(--orange)'),stat('3','Eksik kayıt','var(--red)')])+list([pRow('EŞ','#4D6E98','Emre Şahin','47s 30dk',100,'var(--orange)'),pRow('ZT','#216B2E','Zeynep Tan','45s',96),pRow('MD','#3C5577','Mehmet Demir','44s 20dk',94),pRow('AK','#B32B00','Ayşe Kaya','41s 20dk',88),pRow('BK','#7888A1','Burak Koç','32s',68,'var(--red)'),pRow('OY','#495669','Onur Yıldız','36s · 1 gün izin',77,'var(--blue)')])+note(`Excel olarak indir · detaylı rapor web'de.`)});
+const shiftGrid=()=>{const P=[['EŞ','#4D6E98','SSSSSA-'],['ZT','#216B2E','SSSAA--'],['BK','#7888A1','AAASS--'],['OY','#495669','SSİİS--'],['AK','#B32B00','SSSİİ--'],['CA','#216B2E','AASSS--']];const st={S:'background:var(--blue-100);color:var(--blue2)',A:'background:var(--orange-50);color:var(--orange)','İ':'background:var(--green-50);color:var(--green)','-':'background:#F0F2F5;color:#B4BDCB'};let s='<div></div>'+['Pt','Sa','Ça','Pe','Cu','Ct','Pz'].map(d=>`<b class="muted" style="font-size:11px;text-align:center">${d}</b>`).join('');P.forEach(p=>{s+=`<div style="display:flex;align-items:center">${av(p[0],p[1],'width:28px;height:28px;font-size:10px')}</div>`;[...p[2]].forEach((c,i)=>{s+=`<span style="height:34px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:700;${st[c]};${i===3&&c==='İ'?'box-shadow:inset 0 0 0 2px var(--red)':''}">${c==='-'?'·':c}</span>`;});});return `<div style="display:grid;grid-template-columns:40px repeat(7,1fr);gap:5px;align-items:center">${s}</div>`;};
 T['68']=scr({body:back('Ekibim')+ttl('Vardiya planla','16–22 Kasım · Üretim',ch('Taslak','a'))+card(shiftGrid())+`<div class="row muted" style="gap:12px;font-size:12px;margin-bottom:12px;padding:0 2px"><span><b style="color:var(--blue2)">S</b> Sabah 08–17:30</span><span><b style="color:var(--orange)">A</b> Akşam 16–24</span><span><b style="color:var(--green)">İ</b> İzin</span></div>`+alertc('Perşembe: QC\'de 2 kişi izinli','Onur ve Ayşe aynı gün · birini kaydır','r','alert'),sticky:two(btn('Geçen haftayı kopyala','s'),btn('Yayınla','d'))});
 
 /* ---- QR & ürün ---- */
@@ -1474,7 +1462,7 @@ T['69']=scr({dark:true,nohi:true,style:'background:#0B0E12;color:#fff',pre:`<div
  body:`<div class="row" style="margin-bottom:12px"><div class="sp" style="font-size:20px;font-weight:700">7 kalem okutuldu</div>${ch('1 tekrar yok sayıldı')}</div>`+list([li(ico('check','g'),'SH-WL-36 Wall Unit','PRJ-2041 · 12 adet',`<span class="muted">şimdi</span>`),li(ico('check','g'),'IN-FC-48 / F12 TOP','PRJ-2041 · 2 adet'),li(ico('check','g'),'DE-PL-10 Planter','PRJ-2041 · 10 adet'),li(ico('alert','a'),'CE-PN-01 Ceiling Panel','Farklı proje: PRJ-2057',lk('Çıkar')),li(ico('check','g'),'+ 3 kalem daha','','{{chevd}}')]),
  sticky:two(btn('Temizle','s','width:40%'),btn('Devam · 7 kalem','p')),extra:`<div class="home-ind" style="background:var(--ink)"></div>`});
 T['70']=scr({body:back('Toplu tarama')+ttl('7 kalem seçildi')+list([li(th('b'),'SH-WL-36 Wall Unit',''),li(th(),'IN-FC-48 / F12 TOP',''),li(th('c'),'DE-PL-10 Planter','')]),
- extra:sheet(sheetTitle('Ne yapmak istiyorsun?','7 kalem · 2 proje')+list([li(ico('box','o'),'Konteynere yükle','TLNU 482193-0 · açık','{{chev}}'),li(ico('pin'),'Rafa taşı','Tek raf veya ayrı ayrı','{{chev}}'),li(ico('refresh'),'Durum güncelle','Hepsi aynı duruma','{{chev}}'),li(ico('clip','g'),'QC kuyruğuna gönder','','{{chev}}'),li(ico('printer'),'Etiket bas','7 ürün etiketi','{{chev}}')])+`<div class="row" style="background:var(--amber-50);border-radius:12px;padding:10px 12px;gap:8px;font-size:12.5px;color:#7A5600">{{alert-s}} 1 kalem QC red · yüklemeden otomatik çıkarılır</div>`)});
+ extra:sheet(sheetTitle('Ne yapmak istiyorsun?','7 kalem · 2 proje')+list([li(ico('box','o'),'Konteynere yükle','TLNU 482193-0 · açık','{{chev}}'),li(ico('pin'),'Rafa taşı','Tek raf veya ayrı ayrı','{{chev}}'),li(ico('refresh'),'Durum güncelle','Hepsi aynı duruma','{{chev}}'),li(ico('clip','g'),'QC kuyruğuna gönder','','{{chev}}'),li(ico('printer'),'Etiket bas','7 ürün etiketi','{{chev}}')])+`<div class="row" style="background:var(--amber-50);border-radius:12px;padding:10px 12px;gap:8px;font-size:12.5px;color:#805000">{{alert-s}} 1 kalem QC red · yüklemeden otomatik çıkarılır</div>`)});
 T['71']=scr({body:back('PRJ-2041')+ttl('Kalemler','86 kalem · 5 tip',`<div class="ib" style="width:40px;height:40px;border-radius:14px;background:#fff;display:grid;place-items:center">{{search}}</div>`)+chips(['Tümü 86','Millwork 22','Shelving 18','Ceiling 40','Image 6'])+seg(['Atölye<em>34</em>','Yolda<em>30</em>','Depo<em>22</em>'])+list([li(th(),'IN-FC-48 / F12 BODY','Millwork · 4 adet · B-3-12',ch('QC red','r')),li(th('b'),'IN-FC-48 / F12 TOP','Millwork · 2 adet',ch('Ready','g')),li(th('c'),'IN-CB-60 Cashier Base','Millwork · 1 adet',ch('Assembly','a')),li(th('d'),'SH-SH-24 Shelf Set','Shelving · 6 adet',ch('Received','g')),li(th('b'),'CE-PN-02 Ceiling Trim','Ceiling · 12 adet',ch('Ordered')),li(th(),'IM-LB-24 Lightbox','Image · 6 adet',ch('Hold','r'))])});
 T['72']=scr({body:back('Ürün kartı')+ttl('Geçmiş','IN-FC-48 / F12 BODY')+card(tl([tlS('Sipariş verildi','Selin Yurt · 12 Eki'),tlS('Teslim alındı · atölye','Mehmet Demir · 3 Kas · 4/4 adet'),tlS('Rafa kondu · B-3-12','Zeynep Tan · 3 Kas'),tlS('QC reddedildi','Ayşe Kaya · 9 Kas 10:14 · 3 foto','red',`<div class="row" style="gap:6px;margin-top:6px">${ph('c',40,'width:54px')}${ph('',40,'width:54px')}${ph('b',40,'width:54px')}</div>`),tlS('Rework açıldı','Otomatik · Mehmet Demir\'e atandı','cur'),tlS('Yeniden QC','','nx'),tlS('Konteynere yükleme','','nx')]),'padding-bottom:6px')});
 T['73']=scr({dark:true,style:'background:#000;color:#fff',bs:'padding:0',pre:`<div class="row" style="padding:6px 18px 12px">{{x}}<b class="sp" style="text-align:center">3 / 6</b>{{send}}</div>`,
@@ -1507,10 +1495,10 @@ T['87']=scr({body:back('Depo')+ttl('Sevkiyat takvimi','Bu hafta · 4 teslimat')+
 
 /* ---- Saha & proje ---- */
 const ag=(t,d,col,ti,s,r)=>`<div class="li"><div style="width:46px"><b>${t}</b><div class="muted" style="font-size:11px">${d}</div></div><i style="width:4px;align-self:stretch;border-radius:2px;background:${col};flex:none"></i><div class="sp"><div class="t15">${ti}</div><div class="muted">${s}</div></div>${r||''}</div>`;
-T['88']=scr({tab:'menu',body:hdr('Takvim','{{plus}}')+wk(0)+lbl('Bugün · 9 Kasım')+list([ag('10:00','1 sa','var(--orange)','Saha kontrolü · Brooklyn','245 Bedford Ave · zemin',ch('{{pin-s}}','o')),ag('13:00','','var(--green)','TLNU 480012-7 limanda','Newark · 3 proje'),ag('15:00','30 dk','var(--blue)','Handover · PRJ-2077','Google Meet · Sales + PM',lk('Katıl')),ag('17:30','','#C5CCD6','Mesai bitişi','')])+lbl('Yarın')+list([ag('09:00','2 sa','var(--orange)','Kurulum · Hoboken Outlet','Gün 3 / 3 · müşteri kabulü')])});
+T['88']=scr({tab:'menu',body:hdr('Takvim','{{plus}}')+wk(0)+lbl('Bugün · 9 Kasım')+list([ag('10:00','1 sa','var(--orange)','Saha kontrolü · Brooklyn','245 Bedford Ave · zemin',ch('{{pin-s}}','o')),ag('13:00','','var(--green)','TLNU 480012-7 limanda','Newark · 3 proje'),ag('15:00','30 dk','var(--blue)','Handover · PRJ-2077','Google Meet · Sales + PM',lk('Katıl')),ag('17:30','','#B4BDCB','Mesai bitişi','')])+lbl('Yarın')+list([ag('09:00','2 sa','var(--orange)','Kurulum · Hoboken Outlet','Gün 3 / 3 · müşteri kabulü')])});
 T['89']=scr({body:back('PRJ-2041')+ttl('Teslimat planı','T-Lines PM kararı')+card([['T-Lines deposu','Önce depoya, sonra planlı sevkiyat',0],['Direkt job site','Konteynerden doğrudan sahaya',1],['Kısmi teslimat','Hazır olan tipler önce',0],['Beklet (hold)','Saha hazır olana kadar',0]].map(x=>`<div class="li"><div class="sp"><div class="t15">${x[0]}</div><div class="muted">${x[1]}</div></div><div class="radio${x[2]?' on':''}"></div></div>`).join(''),'padding:4px 16px')+fl('Kurulum tarihi')+inp('{{cal}} 2 Aralık 2026 · Çarşamba')+fl('Kurulum ekibi')+seg(['T-Lines Build','Başka ekip'])+alertc('Saha hazır değil','Zemin devam ediyor · 9 Kas saha raporu'),sticky:btn('Kaydet · Trust Lines bilgilendirilir','d')});
 const area3=(t,p,c)=>`<div style="margin-bottom:10px"><div class="row t13" style="margin-bottom:5px"><b class="sp">${t}</b><span class="muted">%${p}</span></div>${prog(p,c)}</div>`;
-T['90']=scr({body:back('PRJ-2033')+ttl('Kurulum raporu','Hoboken Outlet · Gün 2 / 3',ch('Sahada','o'))+card(`<div class="row"><div class="row" style="gap:0">${av('MR','#4D6E98')}${av('JT','#1E8E57','margin-left:-8px')}${av('LS','#B32B00','margin-left:-8px')}${av('+1','#7888A1','margin-left:-8px')}</div><div class="sp"><div class="t15">4 kişi · 32 saat</div><div class="muted">T-Lines Build</div></div>${lk('Düzenle')}</div>`)+card(`<div class="muted" style="font-size:12px;font-weight:600;margin-bottom:10px">İLERLEME</div>`+area3('Millwork',80)+area3('Shelving',100,'var(--green)')+area3('Image',40,'var(--orange)'))+grid(4,[ph('b',70),ph('d',70),ph('c',70),`<div class="addph" style="height:70px">{{camera}}</div>`])+area('Duvar ölçüsü 2 cm farklı, kasa arkası ayarlandı.'),sticky:two(btn('Punch ekle','s'),btn('Raporu gönder','d'))});
+T['90']=scr({body:back('PRJ-2033')+ttl('Kurulum raporu','Hoboken Outlet · Gün 2 / 3',ch('Sahada','o'))+card(`<div class="row"><div class="row" style="gap:0">${av('MR','#4D6E98')}${av('JT','#216B2E','margin-left:-8px')}${av('LS','#B32B00','margin-left:-8px')}${av('+1','#7888A1','margin-left:-8px')}</div><div class="sp"><div class="t15">4 kişi · 32 saat</div><div class="muted">T-Lines Build</div></div>${lk('Düzenle')}</div>`)+card(`<div class="muted" style="font-size:12px;font-weight:600;margin-bottom:10px">İLERLEME</div>`+area3('Millwork',80)+area3('Shelving',100,'var(--green)')+area3('Image',40,'var(--orange)'))+grid(4,[ph('b',70),ph('d',70),ph('c',70),`<div class="addph" style="height:70px">{{camera}}</div>`])+area('Duvar ölçüsü 2 cm farklı, kasa arkası ayarlandı.'),sticky:two(btn('Punch ekle','s'),btn('Raporu gönder','d'))});
 T['91']=scr({body:back('Saha raporu')+ttl('Kasa bankosu kapak ayarı','Punch #7 · PRJ-2041',ch('Açık','r'))+ph('c',160,'margin-bottom:12px')+card(kv([['Alan','Front counter'],['Atanan','Kurulum ekibi'],['Termin','12 Kas'],['Açan','Derya A. · 9 Kas']]))+lbl('Yorumlar · 2')+card(`<div class="row" style="align-items:flex-start;margin-bottom:10px">${av('MR','#4D6E98')}<div class="sp t13"><b>Mark R.</b> Menteşe kiti eksik, Missing'e ekledim.<div class="muted" style="font-size:11.5px">10:20</div></div></div><div class="row" style="align-items:flex-start">${av('DA','#E63700')}<div class="sp t13"><b>Derya A.</b> Yarın kit gelince kapatalım.<div class="muted" style="font-size:11.5px">10:42</div></div></div>`),sticky:btn('{{camera}} Fotoğrafla kapat','g')});
 T['92']=scr({body:back('PRJ-2041')+ttl('Değişiklik talebi','CR-2041-04 · taslak')+fl('Tip')+chips(['Millwork','Shelving','Ceiling','Image'],0)+fl('Ne değişiyor?')+area('Kasa bankosu 12" uzatılacak, sağ tarafa çekmece eklenecek.')+fl('Etki')+chips(['Ölçü','Malzeme','Adet','Termin'],[0,1])+card(`<div class="row"><div class="sp t15">Müşteri talebi</div><div class="tg on"></div></div>`,'padding:12px 16px')+grid(4,[ph('c',64),`<div class="addph" style="height:64px">{{camera}}</div>`,'<div></div>','<div></div>'])+note(`Maliyet ve fiyat etkisini Trust Lines web'de hesaplar.`),sticky:btn('Talebi gönder','p')});
 T['93']=scr({body:back('PRJ-2033')+ttl('Müşteri kabulü','Hoboken Outlet · kurulum tamam')+list([li(`<div class="cb on">{{check-s}}</div>`,'Tüm tipler teslim edildi','Millwork · Shelving · Image'),li(`<div class="cb on">{{check-s}}</div>`,'Kurulum tamamlandı','11 Kas · T-Lines Build'),li(ico('alert','a','width:24px;height:24px;border-radius:8px'),'1 punch açık','Müşteri onayıyla, kapanış sonrası')])+fl('Teslim alan')+inp('John Miller · Store Manager')+sig(80,'Müşteri imzası · 11 Kas 16:05 EST')+`<div class="row" style="gap:10px;margin:4px 2px"><div class="cb on">{{check-s}}</div><div class="t13">Ürünleri eksiksiz ve hasarsız teslim aldım.</div></div>`,sticky:btn('Kabulü tamamla · kapanışa geç','g')});
@@ -1741,7 +1729,122 @@ GROUPS.forEach(([title,sub,ids],gi)=>{
 const _q=new URLSearchParams(location.search).get('v');const _hh=location.hash.slice(1);const h=_q||(_hh.includes('=')?'':_hh);
 if(h==='ds'){document.body.classList.add('single','dsmode');}
 else if(/^g\d+[ab]?$/.test(h)){const gi=parseInt(h.slice(1));const half=h.slice(-1);if(half==='a'||half==='b'){const cs=[...document.querySelectorAll('#gg'+gi+' .cell')];const mid=Math.ceil(cs.length/2);cs.forEach((c,i)=>{if((half==='a'&&i>=mid)||(half==='b'&&i<mid))c.remove();});}document.body.classList.add('gmode');document.querySelectorAll('.sec-h,.board>.grid,#sections>.grid').forEach(e=>{if(e.id!=='gh'+gi&&e.id!=='gg'+gi)e.style.display='none';});}
-else if(h){document.body.classList.add('single');const el=document.getElementById('c'+h);if(el)el.classList.add('on');}
+else if(h && !/^[tT]\d/.test(h)){document.body.classList.add('single');const el=document.getElementById('c'+h);if(el)el.classList.add('on');}
+</script>
+<style>
+/* ===== Tablet (iPad 11" yatay · 1194×834) ===== */
+.tdev{width:1234px;height:874px;border-radius:46px;background:#0E1116;padding:20px;box-shadow:0 30px 60px -20px rgba(15,25,40,.45),inset 0 0 0 2px #2a3038}
+.tscr{width:1194px;height:834px;border-radius:26px;overflow:hidden;background:var(--bg);display:flex;flex-direction:column}
+.tsb{height:26px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:12.5px;font-weight:600;background:var(--ui-nav-bg);color:var(--ui-heading)}
+.trow{flex:1;display:flex;min-height:0}
+.rail{width:84px;flex:none;background:var(--ui-nav-bg);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:12px 0 16px;gap:6px}
+.rail .logo{width:44px;height:44px;border-radius:14px;background:var(--A400);color:#fff;display:grid;place-items:center;font-weight:700;font-size:16px;margin-bottom:10px}
+.rail a{width:66px;padding:9px 0;border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:var(--ui-secondary)}
+.rail a.on{background:var(--ui-selected);color:var(--ui-nav-active)}
+.rail .scan{margin:6px 0}
+.rail .scan b{width:54px;height:54px;border-radius:18px;background:var(--ui-cta);color:#fff;display:grid;place-items:center;box-shadow:0 8px 18px -6px rgba(255,81,26,.5)}
+.rail .me{margin-top:auto}
+.pane{position:relative;height:100%;overflow:hidden;min-width:0}
+.pa{width:390px;flex:none;border-right:1px solid var(--line)}
+.pb,.pw{flex:1}
+.pane .scr{width:100%!important;height:100%!important;border-radius:0!important}
+.pane .scr>.sb,.pane .tab{display:none!important}
+.pane .home-ind{display:none!important}
+.pane .sticky{padding-bottom:18px}
+.pw .body,.pw .sticky{padding-left:max(18px,calc((100% - 760px)/2));padding-right:max(18px,calc((100% - 760px)/2))}
+.pane .ptag{position:absolute;right:10px;bottom:10px;z-index:9;font-size:11px;font-weight:700;background:rgba(31,37,45,.75);color:#fff;border-radius:8px;padding:3px 7px}
+.hero{width:520px;flex:none;background:linear-gradient(160deg,var(--P800),var(--S700) 60%,var(--S600));color:#fff;padding:56px 48px;display:flex;flex-direction:column}
+.tboard{padding:60px}
+.tboard h2{font-size:34px;font-weight:700;color:var(--ui-heading)}
+.tboard .tsub{font-size:17px;color:var(--ui-secondary);margin-top:6px}
+.tgrid{display:grid;grid-template-columns:repeat(2,1234px);gap:56px 60px;margin-top:36px}
+.tcap{margin-top:14px} .tcap b{display:block;font-size:19px;color:var(--ui-heading)} .tcap span{font-size:15px;color:var(--ui-secondary)}
+.tsingle{padding:30px}
+/* ===== DS board ===== */
+.dsw h3{font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--ui-secondary);margin:26px 0 12px}
+.dsw .ramp{display:flex;gap:6px;margin-bottom:8px}
+.dsw .ramp div{width:96px}
+.dsw .ramp i{display:block;height:56px;border-radius:10px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.dsw .ramp b{display:block;font-size:12px;margin-top:4px;color:var(--ui-heading)} .dsw .ramp span{font-size:11px;color:var(--ui-secondary)}
+.dsw table{border-collapse:collapse;font-size:13px}
+.dsw td,.dsw th{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;color:var(--ui-heading)}
+.dsw th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ui-secondary)}
+.dsw .sw{display:inline-block;width:22px;height:22px;border-radius:6px;vertical-align:middle;margin-right:6px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.1)}
+.dsw .pill{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;margin:0 6px 6px 0}
+</style>
+<script>
+/* ---------- Design system board (token verisi) ---------- */
+(function(){
+ const R={P950:'#0A0C0F',P800:'#1F252D',P700:'#343D4B',P600:'#495669',P500:'#5E6F87',P400:'#7888A1',P300:'#96A3B6',P200:'#B4BDCB',P100:'#D2D7E0',P50:'#F0F2F5',
+  S950:'#090C11',S800:'#1A2533',S700:'#2B3D55',S600:'#3C5577',S500:'#4D6E98',S400:'#6787B2',S300:'#88A2C3',S200:'#AABCD4',S100:'#CCD7E5',S50:'#EEF2F6',
+  A950:'#1A0600',A800:'#4D1200',A700:'#801F00',A600:'#B32B00',A500:'#E63700',A400:'#FF511A',A300:'#FF774D',A200:'#FF9E80',A100:'#FFC5B3',A50:'#FFECE5',
+  G950:'#0C0C0D',G800:'#242428',G700:'#3D3D43',G600:'#55555D',G500:'#6D6D78',G400:'#878792',G300:'#A2A2AA',G200:'#BCBCC2',G100:'#D7D7DB',G50:'#F2F2F3',W:'#FFFFFF'};
+ const ramp=(t,keys)=>`<h3>${t}</h3><div class="ramp">${keys.map(k=>`<div><i style="background:${R[k]||k}"></i><b>${k}</b><span>${R[k]||''}</span></div>`).join('')}</div>`;
+ const sem=[['Page background','W','P950'],['Main Surfaces+Cards','P50','P700'],['Elevated surface','W','S800'],['Primary heading','P500','P50'],['Body text','P500','P100'],['Secondary text','P400','P200'],['Disabled text','P300','P400'],['Primary button','S700','S50'],['Primary button text','W','P950'],['Accent button+CTA','A400','A400'],['Accent button text','W','P950'],['Links','A600','A400'],['Navigation background','W','P950'],['Navigation active','S500','S300'],['Borders+Dividers','P100','P600'],['Input background','W','P800'],['Input borders','P200','S500'],['Selected item background','S100','S700'],['Accent badge background','A100','A800'],['Accent badge text','A700','A200'],['Hover background','P100','P700'],['Focus ring','A600','A400']];
+ const cell=k=>`<span class="sw" style="background:${R[k]}"></span>${k==='W'?'#FFFFFF':k}`;
+ const msg=[['Neutral','#D7D7DB','#3D3D43'],['Info','#E5F0FA','#19477D'],['Accent','#FFECE5','#801F00'],['Warning','#FFF2D8','#805000'],['Success','#E4F5E7','#216B2E'],['Error','#FBE7E7','#922025']];
+ const T=[['T0','#DDDDDD','#787881'],['T1','#D2F7FF','#2398B2'],['T2*','#2366B2','#D2E6FF'],['T3','#FDDBFF','#B93FBF'],['T4','#EEDDFF','#74489D'],['T5','#D0FBFB','#206470'],['T6','#E7F6F3','#3A9166'],['T7','#FFF2D8','#805000'],['T8','#FFE3D7','#B34819'],['T9','#E4F5E7','#216B2E'],['T10','#FBE7E7','#922025']];
+ const stg=[['Clients / opp','#DAE6F0','#678FAF'],['Technical','#E9DFFF','#8064BA'],['To Production','#D7EDFF','#678FAF'],['Production','#D7EAFF','#2A6FBE'],['Ready','#CFF6D6','#216B2E'],['Shipped','#FFE3D7','#C46A43'],['Finalization','#FFF6E8','#C48A28']];
+ const pills=a=>a.map(x=>`<span class="pill" style="background:${x[1]};color:${x[2]}">${x[0]}</span>`).join('')+'<br>'+a.map(x=>`<span class="pill" style="background:${x[2]};color:${x[1]}">${x[0]}</span>`).join('');
+ const el=document.getElementById('dsgen'); if(!el) return;
+ el.className='dsw';
+ el.innerHTML=`<div style="display:flex;gap:40px;align-items:flex-start"><div>
+  <div style="font-size:30px;font-weight:700;color:var(--ui-heading)">Trust Lines Design System</div><div class="muted" style="font-size:15px;margin-top:4px">Kaynak: Light Mode.tokens.json · Dark Mode.tokens.json — Figma'da değişkenler Light / Dark modlu</div>
+  ${ramp('Main colors',['P800','S700','A500'])}${ramp('Primary',['P950','P700','P600','P500','P400','P300','P200','P100','P50'])}${ramp('Secondary',['S950','S800','S700','S600','S500','S400','S300','S200','S100','S50'])}${ramp('Accent',['A950','A800','A700','A600','A400','A300','A200','A100','A50'])}${ramp('Grey',['G950','G800','G700','G600','G500','G400','G300','G200','G100','G50'])}
+  ${ramp('Success · Error · Warning · Info',['#216B2E','#38A648','#E4F5E7','#922025','#D52D31','#FBE7E7','#805000','#F4A717','#FFF2D8','#19477D','#2A6FBE','#E5F0FA'])}
+  <h3>System messages (Light üst · Dark alt)</h3>${pills(msg)}
+  <h3>Status T0–T10 (Light üst · Dark alt)</h3>${pills(T)}<div class="muted" style="font-size:12px">* T2 token'ında Foreground/Background adları diğerlerine göre ters tanımlı.</div>
+  <h3>Aşama renkleri (Light üst · Dark alt)</h3>${pills(stg)}
+ </div><div>
+  <h3 style="margin-top:0">Basic UI Colors</h3><table><tr><th>Rol</th><th>Light</th><th>Dark</th></tr>${sem.map(s=>`<tr><td>${s[0]}</td><td>${cell(s[1])}</td><td>${cell(s[2])}</td></tr>`).join('')}</table>
+  <h3>Tipografi · Instrument Sans</h3><div style="font-size:28px;font-weight:700;color:var(--ui-heading)">Başlık 24–34 / Bold</div><div style="font-size:15px;font-weight:600;margin-top:6px">Liste başlığı 15 / Semibold · Body text</div><div class="muted" style="margin-top:4px">Açıklama 13 / Regular · Secondary text</div>
+  <h3>Bileşenler</h3><div style="display:flex;gap:10px;margin-bottom:10px"><button class="btn p" style="width:auto;padding:0 20px">Accent / CTA</button><button class="btn d" style="width:auto;padding:0 20px">Primary</button><button class="btn s" style="width:auto;padding:0 20px">Secondary</button></div>
+  <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:12px"><span class="chip">Info</span><span class="chip g">Success</span><span class="chip r">Error</span><span class="chip a">Warning</span><span class="chip o">Accent</span><span class="chip n">Neutral</span><span class="chip k">Seçili</span></div>
+  <div class="row" style="gap:14px"><div class="tg on"></div><div class="tg"></div><div class="radio on"></div><div class="radio"></div></div>
+ </div></div>`;
+})();
+
+/* ---------- Tablet engine ---------- */
+const TAB=[
+ // [grupIndex, [paneler], başlık]  pane: 'hero' | 'w:ID' (geniş tek panel) | 'ID'
+ [0,['hero','01'],'Giriş'],[0,['hero','46'],'Şifre sıfırlama'],[0,['hero','47'],'Hızlı giriş PIN'],[0,['hero','31'],'İlk açılış izinleri'],[0,['hero','48'],'Çalışma yeri'],
+ [1,['02','16'],'Bugünüm + Görevler'],[1,['w:50'],'Depo ana sayfası (EN)'],[1,['51','88'],'Saha PM + Takvim'],[1,['52','19'],'Yönetici + Ekibim'],[1,['53','09'],'Lojistik + Konteynerler'],[1,['32','14'],'Bildirimler + Onaylar'],[1,['w:54'],'Boş durum'],
+ [2,['w:49'],'Global arama'],[2,['w:56'],'AI asistan'],[2,['57','58'],'Ekip rehberi + Kişi'],[2,['15','30'],'Menü + Ayarlar'],[2,['w:55'],'Senkron çakışması'],[2,['w:59'],'Yardım'],
+ [3,['03','60'],'Mesai girişi + Onay'],[3,['w:61'],'Konum dışı'],[3,['w:62'],'Mola'],[3,['w:17'],'Mesai çıkışı'],[3,['04','64'],'Puantaj + Aylık'],[3,['33','34'],'Vardiya + Düzeltme'],[3,['35','18'],'İzin bakiyesi + Talep'],[3,['w:65'],'Belgelerim'],[3,['w:63'],'Giriş kiosku'],
+ [4,['19','66'],'Ekibim + İzin onayı'],[4,['w:67'],'Ekip puantajı'],[4,['w:68'],'Vardiya planla'],
+ [5,['05','06'],'Tarayıcı + Ürün kartı'],[5,['w:44'],'Kod tanınmadı'],[5,['20','72'],'Arama + Ürün geçmişi'],[5,['69','70'],'Toplu tarama + İşlem'],[5,['71','21'],'Kalemler + Durum'],[5,['w:73'],'Fotoğraf galerisi'],[5,['74','75'],'Montaj videosu + Etiket'],[5,['36','22'],'Kamera + İşaretleme'],
+ [6,['07','08'],'QC kuyruğu + Denetim'],[6,['23','76'],'QC red + Onay'],[6,['77','37'],'Rework + Sorun bildir'],[6,['w:78'],'QC istatistikleri'],
+ [7,['09','24'],'Konteynerler + Detay'],[7,['w:79'],'Yeni konteyner'],[7,['w:80'],'Konteyner durumu'],[7,['81','83'],'Belgeler + Gemi takibi'],[7,['82','10'],'Yükleme planı + Yükleme'],[7,['25','26'],'Kapanış + Palet etiketi'],
+ [8,['84','11'],'Depo + Teslim alma'],[8,['39','38'],'Rafa yerleştir + Sayım'],[8,['85','86'],'Sevkiyat + Toplama'],[8,['87','41'],'Sevkiyat takvimi + Missing & Extra'],
+ [9,['43','27'],'Projeler + Detay'],[9,['95','42'],'Aktivite + Dokümanlar'],[9,['45','94'],'Notlar + Kişiler'],[9,['88','89'],'Takvim + Teslimat planı'],[9,['12','90'],'Saha + Kurulum raporu'],[9,['91','92'],'Punch + Değişiklik talebi'],[9,['40','93'],'Teslimat kanıtı + Kabul'],
+ [10,['14','28'],'Onaylar + İmza'],[10,['96','97'],'İmza zinciri + Revize'],[10,['13','29'],'Masraf fişi + Masraflarım'],[10,['98','99'],'Masraf detayı + Muhasebe'],[10,['w:100'],'Ödeme onayları'],
+ [11,['101','103'],'Lead\'ler + Detay'],[11,['w:102'],'Kartvizit tara'],[11,['104','105'],'Ziyaret + Anket QR'],
+];
+const RAILON=['home','home','menu','hr','hr','tasks','tasks','tasks','tasks','tasks','tasks','tasks'];
+const mobileSrc=id=>{const t=document.getElementById('t-'+id);return fill(t?t.innerHTML:T[id]);};
+function rail(on){const it=[['home','home','Bugün'],['tasks','list','Görevler'],['scan','',''],['hr','clock','Mesai'],['menu','grid','Menü']];
+ return `<nav class="rail"><div class="logo">TL</div>${it.map(x=>x[0]==='scan'?`<a class="scan"><b>${fill('{{qr-l}}')}</b></a>`:`<a class="${x[0]===on?'on':''}">${fill('{{'+x[1]+'}}')}${x[2]}</a>`).join('')}<a class="me"><div class="av" style="background:#4D6E98;width:36px;height:36px;font-size:12px;border:0">AK</div></a></nav>`;}
+const heroPane=`<div class="hero"><div class="row" style="gap:12px"><div style="width:52px;height:52px;border-radius:16px;background:var(--A400);display:grid;place-items:center;font-weight:700;font-size:22px">TL</div><div><div style="font-size:22px;font-weight:700">Trust Lines</div><div style="opacity:.6;font-size:14px">Operasyon · Tablet</div></div></div><div style="font-size:44px;font-weight:700;line-height:1.08;margin-top:auto;letter-spacing:-.02em">Sahadaki iş,<br>depoda ve atölyede<br>tek ekranda.</div><div style="opacity:.7;font-size:16px;margin-top:16px;line-height:1.5">QC, konteyner, depo ve saha ekipleri için iki panelli tablet görünümü. Yetkiler web platformuyla aynı.</div><div class="row" style="gap:8px;margin-top:26px;flex-wrap:wrap"><span class="chip" style="background:rgba(255,255,255,.12);color:#fff">Mesai</span><span class="chip" style="background:rgba(255,255,255,.12);color:#fff">QR</span><span class="chip" style="background:rgba(255,255,255,.12);color:#fff">QC</span><span class="chip" style="background:rgba(255,255,255,.12);color:#fff">Konteyner</span><span class="chip" style="background:rgba(255,255,255,.12);color:#fff">Depo</span></div></div>`;
+function tabletHTML(def){const [gi,panes]=def;let inner='';
+ if(panes[0]==='hero'){inner=heroPane+`<div class="pane pb">${mobileSrc(panes[1])}<span class="ptag">${panes[1]}</span></div>`;}
+ else if(panes.length===1){const id=panes[0].slice(2);inner=rail(RAILON[gi])+`<div class="pane pw">${mobileSrc(id)}<span class="ptag">${id}</span></div>`;}
+ else inner=rail(RAILON[gi])+`<div class="pane pa">${mobileSrc(panes[0])}<span class="ptag">${panes[0]}</span></div><div class="pane pb">${mobileSrc(panes[1])}<span class="ptag">${panes[1]}</span></div>`;
+ return `<div class="tdev"><div class="tscr"><div class="tsb"><span>9:41  Pzt 9 Kas</span><span>●●●  100%</span></div><div class="trow">${inner}</div></div></div>`;}
+const tnum=i=>'T'+String(i+1).padStart(2,'0');
+(function(){
+ const q=new URLSearchParams(location.search).get('v')||'';
+ let m=q.match(/^t(\d+)([ab])?$/);  // modül tablet panosu: ?v=t3 (yarısı: t3a / t3b)
+ let s=q.match(/^T(\d+)$/);         // tek tablet çerçevesi: ?v=T07
+ if(!m&&!s) return;
+ const board=document.querySelector('.board'); board.style.display='none';
+ const wrap=document.createElement('div'); document.body.appendChild(wrap);
+ if(s){const i=+s[1]-1;wrap.className='tsingle';wrap.innerHTML=tabletHTML(TAB[i]);return;}
+ const gi=+m[1]; const g=GROUPS[gi];
+ wrap.className='tboard';
+ const idx=TAB.map((d,i)=>d[0]===gi?i:-1).filter(i=>i>=0);const mid=Math.ceil(idx.length/2);
+ const keep=new Set(m[2]==='a'?idx.slice(0,mid):m[2]==='b'?idx.slice(mid):idx);
+ wrap.innerHTML=`<h2>${gi+1} · ${g[0]} · Tablet${m[2]?(m[2]==='a'?' (1/2)':' (2/2)'):''}</h2><div class="tsub">iPad 11" yatay · 1194×834 · sol navigasyon şeridi + iki panel (liste / detay)</div><div class="tgrid">${TAB.map((d,i)=>keep.has(i)?`<div>${tabletHTML(d)}<div class="tcap"><b>${tnum(i)} · ${d[2]}</b><span>Mobil ekranlar: ${d[1].filter(x=>x!=='hero').map(x=>x.replace('w:','')).join(' + ')}</span></div></div>`:'').join('')}</div>`;
+})();
 </script>
 </body>
 </html>
