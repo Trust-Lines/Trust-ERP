@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
-import { Boxes, FileUp, PackageSearch, Plus, Search } from 'lucide-react';
+import { Boxes, Plus, Rows3, Search, Upload } from 'lucide-react';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
@@ -115,22 +115,23 @@ export function TrustStockClient() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button" onClick={() => setOverview(true)}
-            className={cn('inline-flex h-9 cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent px-4 text-[13px] font-medium hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring dark:border-ui-heading', HEADING)}
-          >
-            <PackageSearch size={14} aria-hidden /> Stock Overview
-          </button>
-          {/* Needs PF parsing + Dropbox upload on the server; not built yet. */}
+          {/* Figma toolbar (node 598:22871): Upload PF PDF (outline), Stock Contents (primary), New Stock (accent).
+              Upload needs PF parsing + Dropbox upload on the server; not built yet. */}
           <button
             type="button" disabled title="PF upload isn't connected yet"
-            className={cn('inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent px-4 text-[13px] font-medium opacity-50 dark:border-ui-heading', HEADING)}
+            className={cn('inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent pl-4 pr-5 text-[13px] font-medium leading-[1.35] opacity-50 dark:border-ui-heading', HEADING)}
           >
-            <FileUp size={14} aria-hidden /> Upload PF PDF
+            <Upload size={16} aria-hidden /> Upload PF PDF
+          </button>
+          <button
+            type="button" onClick={() => setOverview(true)}
+            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-[var(--color-secondary-700)] pl-4 pr-5 text-[13px] font-medium leading-[1.35] text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring dark:bg-primary-50 dark:text-primary-950"
+          >
+            <Rows3 size={16} aria-hidden /> Stock Contents
           </button>
           <button
             type="button" onClick={() => setNewStock(true)}
-            className="inline-flex h-9 items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent px-6 text-[13px] font-medium text-ui-btn-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring"
+            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent pl-6 pr-8 text-[13px] font-medium leading-[1.35] text-ui-btn-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring"
           >
             <Plus size={16} aria-hidden /> New Stock
           </button>
