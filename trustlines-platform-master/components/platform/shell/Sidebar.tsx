@@ -54,6 +54,7 @@ import {
   MessageSquareQuote,
   MessagesSquare,
   ChartNoAxesCombined,
+  Boxes,
 } from 'lucide-react';
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip';
 import type { UserRole } from '@/types/database';
@@ -143,6 +144,8 @@ const OPERATIONS_NAV: NavItem[] = [
   { label: 'Production', href: '/production', icon: Factory,          perm: 'page.production' },
   { label: 'Logistics',  href: '/logistics',  icon: Truck,            perm: 'page.logistics' },
   { label: 'Management', href: '/management', icon: Gauge,            perm: 'page.management' },
+  // Same access as Management; the page also refuses tlines_pm (PF / vendor prices).
+  { label: 'Trust Stock', href: '/trust-stock', icon: Boxes,          perm: 'page.management' },
 ];
 
 const ADMIN_NAV: NavItem[] = [
