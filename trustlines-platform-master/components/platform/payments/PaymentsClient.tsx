@@ -13,6 +13,7 @@ import {
   type PProject,
 } from '@/lib/excel/projectsExcelExport';
 import styles from './PaymentsClient.module.css';
+import './PaymentsDark.module.css';
 
 const TABS = ['Projects', 'Direct Orders', 'Missing Extra'] as const;
 type Tab = (typeof TABS)[number];
@@ -111,7 +112,7 @@ function InvoiceItem({ item }: { item: PItem }) {
 
 function ProjectGroup({ project, colorIndex }: { project: PProject; colorIndex: number }) {
   const [collapsed, setCollapsed] = useState(false);
-  const totals = useMemo(() => project.items.reduce((sum, item) => ({
+  const totals = useMemo(() => project.items.reduce<{ pfUsd: number; pfTl: number; invoice: number; invoiceTl: number }>((sum, item) => ({
     pfUsd: sum.pfUsd + Number(item.pfUsd ?? 0),
     pfTl: sum.pfTl + Number(item.pfTl ?? 0),
     invoice: sum.invoice + Number(item.invoice ?? 0),
@@ -195,7 +196,7 @@ export function PaymentsClient() {
   const statuses = useMemo(() => [...new Set(allItems.map(item => mapStatus(item.status)).filter(Boolean))].sort(), [allItems]);
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-payments-page>
       <header className={styles.heading}>
         <small>Finance/ Payments</small>
         <h1>Payments</h1>
