@@ -7,11 +7,11 @@ import { pageAllowed } from '@/lib/permissions/catalog';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/** Who may change the installation plan (everyone with the page can read it). */
-export const INSTALL_EDIT_ROLES = ['general_manager', 'ops_manager', 'tlines_pm', 'trustlines_pm'];
-
+/** Who may change the installation plan and its teams (everyone with the page can read it):
+ *  the "Edit the installation plan & teams" switch on Roles & permissions — until a role sets
+ *  it, GM, ops manager and the PMs (PAGE_LEGACY_ROLES in catalog.ts). */
 export const canEditInstallations = (role: string | null, perms: Record<string, boolean>) =>
-  perms.all === true || (!!role && INSTALL_EDIT_ROLES.includes(role));
+  pageAllowed(role, perms, 'edit.installation');
 
 /** API guard for /api/installations: the page.installation switch, plus whether this person may edit. */
 export async function requireInstallations(): Promise<
