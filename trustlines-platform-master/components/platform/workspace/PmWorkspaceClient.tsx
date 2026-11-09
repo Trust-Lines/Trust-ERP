@@ -124,8 +124,8 @@ export function PmWorkspaceClient({ rows, seesAll }: { rows: PortfolioRow[]; see
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <PageCrumbs items={[{ label: 'Supply', href: '/projects' }, { label: 'PM', href: '/pm' }]} />
-        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>PM</h1>
+        <PageCrumbs items={[{ label: 'T-Lines PM', href: '/tlines-pm' }, { label: 'PM Workspace', href: '/pm' }]} />
+        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>PM Workspace</h1>
         <p className="m-0 text-[13px] text-ui-body">
           {seesAll ? 'Every active project, with what is blocking it.' : 'The projects you are PM on, and what is waiting on you.'}
         </p>

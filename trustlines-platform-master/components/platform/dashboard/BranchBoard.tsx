@@ -332,13 +332,13 @@ function DateFilters({ from, to, preset, onFrom, onTo, onPreset }: {
   );
 }
 
-function PageHead({ canCreateTask, heading = 'Dashboard', subheading = 'Keep handoffs moving. Clear the blockers before they affect delivery.' }: {
+function PageHead({ canCreateTask, heading = 'T-Lines PM Board', subheading = 'Keep handoffs moving. Clear the blockers before they affect delivery.' }: {
   canCreateTask: boolean; heading?: string; subheading?: string;
 }) {
   return (
     <div className="mb-[30px] flex flex-wrap items-center justify-between gap-4">
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <PageCrumbs items={[{ label: 'General', href: '/dashboard' }, { label: 'Dashboard', href: '/dashboard' }]} />
+        <PageCrumbs items={[{ label: 'T-Lines PM', href: '/tlines-pm' }, { label: 'Board', href: '/tlines-pm' }]} />
         <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">{heading}</h1>
         <p className="m-0 text-[13px] text-ui-body">{subheading}</p>
       </div>
