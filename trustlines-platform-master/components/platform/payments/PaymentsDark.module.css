@@ -1,4 +1,13 @@
 /* Figma Payments dark mode — node 541:30608. */
+:global([data-payments-page]) [class*="projectTotals"] [class*="usd"],
+:global([data-payments-page]) [class*="projectTotals"] [class*="tl"]{
+  min-width:70px;
+  border-radius:4px;
+  background:#fff;
+  padding:4px 10px;
+  text-align:center;
+}
+
 :global(.dark) :global([data-payments-page]){color:#eef2f6}
 :global(.dark) :global([data-payments-page]) h1{color:#eef2f6}
 :global(.dark) :global([data-payments-page]) header small{color:#7f9fc7}
