@@ -62,9 +62,17 @@ export interface PermGroup { category: PermCategory; title: string; icon: string
 // Page access is split by area so every page in the sidebar can be switched on/off per role.
 export const PERMISSION_GROUPS: PermGroup[] = [
   {
+    // Same pages as the sidebar's T-Lines PM group.
+    category: 'page', title: 'Pages · T-Lines PM', icon: '🦺',
+    perms: [
+      { key: 'page.dashboard',      label: 'Board', hint: 'The T-Lines PM branch board (and My meetings). Opens on login.' },
+      { key: 'page.pm',             label: 'PM Workspace', hint: 'Personal project priorities. Follows “Projects” until set separately.' },
+      { key: 'page.installation',   label: 'Installation plan', hint: 'Register, dashboard, Gantt, teams. Follows “Board” until set separately.' },
+    ],
+  },
+  {
     category: 'page', title: 'Pages · General', icon: '🗂️',
     perms: [
-      { key: 'page.dashboard',      label: 'T-Lines PM Board', hint: 'The branch board (and My meetings). Opens on login.' },
       { key: 'page.approvals',      label: 'Approvals inbox' },
       { key: 'page.notifications',  label: 'Notifications' },
       { key: 'page.settings',       label: 'Settings' },
@@ -104,8 +112,6 @@ export const PERMISSION_GROUPS: PermGroup[] = [
     category: 'page', title: 'Pages · Projects & Supply', icon: '📁',
     perms: [
       { key: 'page.projects',       label: 'Projects' },
-      { key: 'page.pm',             label: 'PM workspace', hint: 'Personal project priorities. Follows “Projects” until set separately.' },
-      { key: 'page.installation',   label: 'Installation plan', hint: 'T-Lines PM → Installation: register, dashboard, Gantt. Follows “T-Lines PM Board” until set separately.' },
       { key: 'page.design',         label: 'Design workspace', hint: 'Sales Design jobs assigned to the designer' },
       { key: 'page.design_assets',  label: 'Design · Asset Library', hint: 'Templates, CAD blocks, standard details. Follows “Design workspace” until set separately.' },
       { key: 'page.design_brands',  label: 'Design · Brand Kits', hint: 'Customer logos, colours, fonts. Follows “Design workspace” until set separately.' },
@@ -155,6 +161,7 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'edit.team',      label: 'Invite / edit / remove members' },
       { key: 'edit.roles',     label: 'Manage roles & permissions' },
       { key: 'edit.production', label: 'Change production board / statuses' },
+      { key: 'edit.installation', label: 'Edit the installation plan & teams', hint: 'Off → can open T-Lines PM → Installation but not change it. GM, ops manager and PMs until set separately.' },
     ],
   },
   {
@@ -259,6 +266,8 @@ export const PAGE_PARENT: Record<string, string> = {
 
 /** Sales pages were guarded by these lists in code (app/(platform)/leads, sales-*); they stay the default. */
 export const PAGE_LEGACY_ROLES: Record<string, string[]> = {
+  // Who could edit the installation plan before it had its own switch (lib/installations/access).
+  'edit.installation': ['general_manager', 'ops_manager', 'tlines_pm', 'trustlines_pm'],
   'page.sales_web_leads': SALES_INTAKE_ROLES,
   'page.sales_contacts': SALES_INTAKE_ROLES,
   'page.leads': SALES_INTAKE_ROLES,
