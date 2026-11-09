@@ -49,6 +49,9 @@ function Body({ request: r, vacationDaysUsed, onDecide }: { request: HrRequest; 
   const [choice, setChoice] = useState<Exclude<HrRequestStatus, 'pending'> | null>(decided ? r.status as Exclude<HrRequestStatus, 'pending'> : null);
   const [note, setNote] = useState(r.decisionNote ?? '');
   const noteId = useId();
+  // Figma 570:19513: a rejection needs a reason ("Notes*"); an approval note is optional.
+  const noteRequired = choice === 'rejected' && !decided;
+  const canSubmit = !!choice && !decided && (!noteRequired || note.trim().length > 0);
 
   return (
     <>
@@ -112,21 +115,24 @@ function Body({ request: r, vacationDaysUsed, onDecide }: { request: HrRequest; 
           </div>
 
           <form
-            onSubmit={e => { e.preventDefault(); if (choice && !decided) onDecide(r.id, choice, note.trim() || null); }}
+            onSubmit={e => { e.preventDefault(); if (canSubmit && choice) onDecide(r.id, choice, note.trim() || null); }}
             className="flex flex-col gap-4 rounded-[10px] border border-ui-divider bg-ui-page-bg p-6"
           >
-            <label htmlFor={noteId} className={cn('text-[12px] font-medium leading-4', choice ? 'text-ui-body' : 'text-[var(--status-t0-bg)]')}>Notes</label>
+            <label htmlFor={noteId} className={cn('text-[12px] font-medium leading-4', choice ? 'text-ui-body' : 'text-[var(--status-t0-bg)] dark:text-grey-700')}>
+              Notes{noteRequired && <span aria-hidden>*</span>}
+            </label>
             <textarea
               id={noteId} value={note} onChange={e => setNote(e.target.value)}
-              disabled={!choice || decided} placeholder="type.."
-              className="h-[180px] w-full resize-none rounded-[6px] border border-ui-divider bg-ui-page-bg p-3 text-[13px] leading-[1.5] text-ui-heading outline-none placeholder:text-[var(--status-t0-bg)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring disabled:cursor-not-allowed disabled:border-[var(--status-t0-bg)]"
+              disabled={!choice || decided} required={noteRequired} aria-required={noteRequired || undefined}
+              placeholder={noteRequired ? 'Why is it rejected?' : 'type..'}
+              className="h-[180px] w-full resize-none rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg p-3 text-[13px] leading-[1.5] text-ui-heading outline-none placeholder:text-primary-300 dark:placeholder:text-primary-400 disabled:placeholder:text-[var(--status-t0-bg)] dark:disabled:placeholder:text-grey-700 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring disabled:cursor-not-allowed disabled:border-[var(--status-t0-bg)] disabled:bg-ui-page-bg dark:disabled:border-grey-700"
             />
             <button
               type="submit" disabled={!choice || decided}
               className={cn(
                 'h-10 w-full rounded-[6px] border-0 px-6 text-[13px] font-medium transition-opacity',
                 !choice || decided
-                  ? 'cursor-not-allowed bg-[var(--status-t0-bg)] text-[var(--status-t0-fg)]'
+                  ? 'cursor-not-allowed bg-[var(--status-t0-bg)] text-[var(--status-t0-fg)] dark:bg-grey-700'
                   : 'cursor-pointer bg-[var(--color-secondary-700)] text-white hover:opacity-90 dark:bg-primary-50 dark:text-primary-950',
               )}
             >
