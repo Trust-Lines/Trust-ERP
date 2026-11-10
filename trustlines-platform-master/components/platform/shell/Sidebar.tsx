@@ -23,7 +23,7 @@ import {
   ScrollText,
   Settings,
   Bell,
-  FolderSearch,
+  FolderSearch, FolderSync,
   Trash2,
   ShieldCheck,
   Globe,
@@ -162,6 +162,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: 'Roles & permissions', href: '/roles',          icon: ShieldCheck,  perm: 'page.roles' },
   { label: 'Trash',               href: '/projects/trash', icon: Trash2,       perm: 'page.trash' },
   { label: 'Dropbox Wizard',      href: '/dropbox-wizard', icon: FolderSearch, perm: 'page.dropbox_wizard' },
+  { label: 'Dropbox Matching',    href: '/dropbox-matching', icon: FolderSync, perm: 'page.dropbox_wizard' },
   { label: 'Audit Log',           href: '/audit',          icon: ScrollText,   perm: 'page.audit' },
   { label: 'Settings',            href: '/settings',       icon: Settings,     perm: 'page.settings' },
 ];

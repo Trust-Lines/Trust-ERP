@@ -6,11 +6,15 @@ import { Dropbox } from 'dropbox';
 let shared: Dropbox | null = null;
 
 export function getDropboxClient(): Dropbox {
+  // A Dropbox team (Business) account keeps shared team folders in the team space; with its root
+  // namespace id set, paths resolve from the team root instead of the member's own folder.
+  const ns = process.env.DROPBOX_ROOT_NAMESPACE_ID?.trim();
   shared ??= new Dropbox({
     clientId:     process.env.DROPBOX_APP_KEY!,
     clientSecret: process.env.DROPBOX_APP_SECRET!,
     refreshToken: process.env.DROPBOX_REFRESH_TOKEN!,
     fetch:        globalThis.fetch.bind(globalThis),
+    ...(ns ? { pathRoot: JSON.stringify({ '.tag': 'root', root: ns }) } : {}),
   });
   return shared;
 }
