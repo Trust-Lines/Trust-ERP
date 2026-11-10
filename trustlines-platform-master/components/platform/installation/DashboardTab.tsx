@@ -8,7 +8,7 @@ import {
   BRANCHES, alertOf, countBy, dashboardStats, fmtDate, monthLabel, monthRows, needsAttention,
   startingWithin, statusTable, type AlertTone, type MonthRow, type Branch, type Clash, type InstallStatus, type Installation,
 } from '@/lib/installations/compute';
-import { BRANCH_COLOR, HEADING, ProjectNo, TH } from './shared';
+import { BRANCH_COLOR, HEADING, ProjectNo } from './shared';
 
 type Drill = 'attention' | 'overdue' | 'clash' | 'update' | 'soon' | 'now';
 
@@ -434,18 +434,6 @@ function ChartTip({ left, top, title, flip, children }: { left: string; top: str
       style={{ left, top }}>
       <span className={cn('text-[12px] font-medium leading-4', HEADING)}>{title}</span>
       <span className="flex flex-col leading-4">{children}</span>
-    </div>
-  );
-}
-
-// ── shared with the Monthly and Team Allocation tabs ──────────────────────────────────────────
-export function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
-  return (
-    <div className="max-w-full overflow-x-auto rounded-[6px] border border-ui-divider">
-      <table className="w-full border-collapse">
-        <thead><tr>{head.map(h => <th key={h} className={TH}>{h}</th>)}</tr></thead>
-        <tbody>{children}</tbody>
-      </table>
     </div>
   );
 }
