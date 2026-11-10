@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Loader2, Camera, ChevronDown } from 'lucide-react';
+import { X, Plus, Loader2, Camera, ChevronDown, ClipboardList, FileText, Pencil, Check, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { VendorSelect } from '../production/VendorSelect';
 import { AddVendorModal, type Vendor } from '../production/AddVendorModal';
@@ -139,15 +139,15 @@ function DropdownInput({ value, onChange, onBlur, placeholder, optionsKey, style
     ? createPortal(
         <div style={{
           position: 'fixed', top: rect.bottom + 2, left: rect.left, width: Math.max(rect.width, 240), maxWidth: 360,
-          zIndex: 99999, background: '#fff', border: '1px solid #d0d0d0',
+          zIndex: 99999, background: 'var(--il-pop-bg, #fff)', border: '1px solid var(--il-pop-border, #d0d0d0)',
           borderRadius: 5, boxShadow: '0 6px 18px rgba(0,0,0,.22)', maxHeight: 240, overflowY: 'auto',
         }}>
           {filtered.map(o => (
             <div key={o} style={{ display: 'flex', alignItems: 'flex-start', background: 'none' }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--il-pop-hover, #f0f4ff)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
               <button type="button" onMouseDown={() => { if (onSelectOption) { onSelectOption(o); } else { onChange(o); if (onBlur) onBlur(o); } setOpen(false); }}
-                style={{ flex: 1, minWidth: 0, textAlign: 'left', padding: '6px 10px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, color: '#111', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.35 }}>
+                style={{ flex: 1, minWidth: 0, textAlign: 'left', padding: '6px 10px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, color: 'var(--il-pop-fg, #111)', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.35 }}>
                 {o}
               </button>
               <button type="button" title="Delete saved entry"
@@ -518,8 +518,9 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoFile} />
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', borderRadius: '8px 8px 0 0' }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
-          {editDocumentId ? '✏️ Edit & Resubmit' : (showPrices ? '📄 Price List' : '📋 Item List')} — {catLabel}
+        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          {editDocumentId ? <Pencil size={15} aria-hidden /> : showPrices ? <FileText size={15} aria-hidden /> : <ClipboardList size={15} aria-hidden />}
+          {editDocumentId ? 'Edit & Resubmit' : (showPrices ? 'Price List' : 'Item List')} — {catLabel}
         </h2>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={16} color="var(--fg-muted)" /></button>
       </div>
@@ -527,17 +528,17 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
       <div style={{ padding: '12px 16px' }}>
 
         {showPrices && ilVersions.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginBottom: 12, background: '#f0f4ff', border: '1px solid #c5d3ff', borderRadius: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#2255aa', whiteSpace: 'nowrap' }}>Load from Item List:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginBottom: 12, background: 'var(--il-load-bg, #f0f4ff)', border: '1px solid var(--il-load-border, #c5d3ff)', borderRadius: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-accent, #2255aa)', whiteSpace: 'nowrap' }}>Load from Item List:</span>
             <Select value={selectedILVer} onChange={e => setSelectedILVer(e.target.value)}
-              style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid #c5d3ff', borderRadius: 4, background: '#fff', color: '#111', outline: 'none' }}>
+              style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid var(--il-load-border, #c5d3ff)', borderRadius: 4, background: 'var(--il-pop-bg, #fff)', color: 'var(--il-pop-fg, #111)', outline: 'none' }}>
               <option value="">— select a saved version —</option>
               {ilVersions.map(v => (
                 <option key={v.id} value={v.id}>V{v.version} — {v.file_name.replace(/\.pdf$/i, '')}</option>
               ))}
             </Select>
             <button type="button" onClick={loadItemListVersion} disabled={!selectedILVer || loadingVersion}
-              style={{ padding: '4px 14px', fontSize: 12, fontWeight: 700, background: '#2255aa', color: '#fff', border: 'none', borderRadius: 4, cursor: selectedILVer ? 'pointer' : 'not-allowed', opacity: selectedILVer ? 1 : 0.5 }}>
+              style={{ padding: '4px 14px', fontSize: 12, fontWeight: 700, background: 'var(--il-accent-btn, #2255aa)', color: '#fff', border: 'none', borderRadius: 4, cursor: selectedILVer ? 'pointer' : 'not-allowed', opacity: selectedILVer ? 1 : 0.5 }}>
               {loadingVersion ? 'Loading…' : 'Load'}
             </button>
           </div>
@@ -546,7 +547,7 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
         {sections.map((sec, secIdx) => (
           <div key={sec.id} style={{ marginBottom: 16, border: '1px solid var(--border-subtle)', borderRadius: 6, overflow: 'hidden' }}>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#cc0000' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--il-type-bg, #cc0000)' }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', minWidth: 36 }}>TYPE:</span>
               <DropdownInput
                 value={sec.typeLabel}
@@ -563,8 +564,8 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
             <div style={{ padding: '8px' }}>
               {sec.categories.map((cat) => (
                 <div key={cat.id} style={{ marginBottom: 10, border: '1px solid var(--border-subtle)', borderRadius: 5, overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: '#2d3748', color: '#fff' }}>
-                    <button type="button" onClick={() => updCat(sec.id, cat.id, { collapsed: !cat.collapsed })} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0, fontSize: 12 }}>▼</button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: 'var(--il-cat-bg, #2d3748)', color: 'var(--il-cat-fg, #fff)' }}>
+                    <button type="button" onClick={() => updCat(sec.id, cat.id, { collapsed: !cat.collapsed })} style={{ background: 'none', border: 'none', color: 'var(--il-cat-fg, #fff)', cursor: 'pointer', padding: 0, fontSize: 12 }}>▼</button>
                     <DropdownInput
                       dark bold
                       value={cat.name}
@@ -581,7 +582,7 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
                     <div>
                       {cat.subCategories.map((sub) => (
                         <div key={sub.id} style={{ marginBottom: 4 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, padding: '5px 10px', background: '#555', color: '#fff' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, padding: '5px 10px', background: 'var(--il-seg-bg, #555)', color: '#fff' }}>
                             {(sub.segmentNames ?? ['']).map((name, idx) => (
                               <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 {idx > 0 && <span style={{ color: '#ccc', fontSize: 13, margin: '0 4px', userSelect: 'none' }}>/</span>}
@@ -662,19 +663,19 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
                                               onBlur={() => { setTimeout(() => { setSuggs([]); setActiveSugg(null); }, 150); void saveCatalogItem(item); }}
                                               placeholder="Code" style={{ ...inp, textTransform: 'uppercase', fontSize: 11 }} />
                                             {isCodeSug && suggs.length > 0 && suggRect && createPortal(
-                                              <div ref={sugRef} style={{ position: 'fixed', top: suggRect.bottom + 2, left: suggRect.left, minWidth: Math.max(suggRect.width, 320), zIndex: 99999, background: '#fff', border: '1px solid #d0d0d0', borderRadius: 5, boxShadow: '0 6px 20px rgba(0,0,0,.22)', maxHeight: 260, overflowY: 'auto' }}>
+                                              <div ref={sugRef} style={{ position: 'fixed', top: suggRect.bottom + 2, left: suggRect.left, minWidth: Math.max(suggRect.width, 320), zIndex: 99999, background: 'var(--il-pop-bg, #fff)', border: '1px solid var(--il-pop-border, #d0d0d0)', borderRadius: 5, boxShadow: '0 6px 20px rgba(0,0,0,.22)', maxHeight: 260, overflowY: 'auto' }}>
                                                 {suggs.map(sg => (
-                                                  <button key={sg.id} type="button" onMouseDown={() => applySugg(sec.id, cat.id, sub.id, grp.id, item.id, sg)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '6px 10px', border: 'none', borderBottom: '1px solid #f0f0f0', background: 'none', cursor: 'pointer' }} onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                                                  <button key={sg.id} type="button" onMouseDown={() => applySugg(sec.id, cat.id, sub.id, grp.id, item.id, sg)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '6px 10px', border: 'none', borderBottom: '1px solid var(--il-pop-divider, #f0f0f0)', background: 'none', cursor: 'pointer' }} onMouseEnter={e => (e.currentTarget.style.background = 'var(--il-pop-hover, #f0f4ff)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
                                                     {sg.photo_base64
-                                                      ? <img src={sg.photo_base64} style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: 3, border: '1px solid #ddd', flexShrink: 0 }} alt="" />
-                                                      : <div style={{ width: 34, height: 34, background: '#f0f0f0', borderRadius: 3, border: '1px solid #ddd', flexShrink: 0 }} />
+                                                      ? <img src={sg.photo_base64} style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: 3, border: '1px solid var(--il-pop-border, #ddd)', flexShrink: 0 }} alt="" />
+                                                      : <div style={{ width: 34, height: 34, background: 'var(--il-thumb-bg, #f0f0f0)', borderRadius: 3, border: '1px solid var(--il-pop-border, #ddd)', flexShrink: 0 }} />
                                                     }
                                                     <div style={{ flex: 1, minWidth: 0 }}>
                                                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                                                        <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'monospace', textTransform: 'uppercase', color: '#111' }}>{sg.item_code}</span>
-                                                        {showPrices && sg.unit_price != null && <span style={{ fontSize: 10, color: '#2255aa', fontWeight: 600 }}>${sg.unit_price.toLocaleString()}</span>}
+                                                        <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'monospace', textTransform: 'uppercase', color: 'var(--il-pop-fg, #111)' }}>{sg.item_code}</span>
+                                                        {showPrices && sg.unit_price != null && <span style={{ fontSize: 10, color: 'var(--il-accent, #2255aa)', fontWeight: 600 }}>${sg.unit_price.toLocaleString()}</span>}
                                                       </div>
-                                                      <div style={{ fontSize: 10, color: '#cc0000', fontStyle: 'italic', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sg.description}</div>
+                                                      <div style={{ fontSize: 10, color: 'var(--il-desc, #cc0000)', fontStyle: 'italic', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sg.description}</div>
                                                     </div>
                                                   </button>
                                                 ))}
@@ -688,16 +689,16 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
                                               onChange={e => { updItem(sec.id, cat.id, sub.id, grp.id, item.id, { description: e.target.value }); searchCatalog(e.target.value, item.id); setSuggRect((e.target as HTMLInputElement).getBoundingClientRect()); }}
                                               onFocus={e => { setSuggRect((e.target as HTMLInputElement).getBoundingClientRect()); if (item.description.length >= 2) searchCatalog(item.description, item.id); }}
                                               onBlur={() => { setTimeout(() => { setSuggs([]); setActiveSugg(null); }, 150); void saveCatalogItem(item); }}
-                                              placeholder="Description (main) *" style={{ ...inp, color: '#cc0000', fontStyle: 'italic', marginBottom: 3 }} />
+                                              placeholder="Description (main) *" style={{ ...inp, color: 'var(--il-desc, #cc0000)', fontStyle: 'italic', marginBottom: 3 }} />
                                             <input value={item.descriptionNote} onChange={e => updItem(sec.id, cat.id, sub.id, grp.id, item.id, { descriptionNote: e.target.value })} placeholder="Notes (optional)" style={{ ...inp, fontSize: 10, color: 'var(--fg-subtle)' }} />
                                             {isDescSug && suggs.length > 0 && suggRect && createPortal(
-                                              <div ref={sugRef} style={{ position: 'fixed', top: suggRect.bottom + 2, left: suggRect.left, minWidth: Math.max(suggRect.width, 280), zIndex: 99999, background: '#fff', border: '1px solid #d0d0d0', borderRadius: 5, boxShadow: '0 6px 20px rgba(0,0,0,.22)', maxHeight: 200, overflowY: 'auto' }}>
+                                              <div ref={sugRef} style={{ position: 'fixed', top: suggRect.bottom + 2, left: suggRect.left, minWidth: Math.max(suggRect.width, 280), zIndex: 99999, background: 'var(--il-pop-bg, #fff)', border: '1px solid var(--il-pop-border, #d0d0d0)', borderRadius: 5, boxShadow: '0 6px 20px rgba(0,0,0,.22)', maxHeight: 200, overflowY: 'auto' }}>
                                                 {suggs.map(sg => (
-                                                  <button key={sg.id} type="button" onMouseDown={() => applySugg(sec.id, cat.id, sub.id, grp.id, item.id, sg)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', border: 'none', borderBottom: '1px solid #f0f0f0', background: 'none', cursor: 'pointer' }} onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
-                                                    <div style={{ fontSize: 11, fontWeight: 600, color: '#cc0000', fontStyle: 'italic' }}>{sg.description}</div>
+                                                  <button key={sg.id} type="button" onMouseDown={() => applySugg(sec.id, cat.id, sub.id, grp.id, item.id, sg)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', border: 'none', borderBottom: '1px solid var(--il-pop-divider, #f0f0f0)', background: 'none', cursor: 'pointer' }} onMouseEnter={e => (e.currentTarget.style.background = 'var(--il-pop-hover, #f0f4ff)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                                                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-desc, #cc0000)', fontStyle: 'italic' }}>{sg.description}</div>
                                                     <div style={{ display: 'flex', gap: 10, marginTop: 2 }}>
-                                                      {sg.item_code && <span style={{ fontSize: 10, color: '#555', fontFamily: 'monospace' }}>{sg.item_code}</span>}
-                                                      {showPrices && sg.unit_price != null && <span style={{ fontSize: 10, color: '#2255aa', fontWeight: 600 }}>${sg.unit_price.toLocaleString()}</span>}
+                                                      {sg.item_code && <span style={{ fontSize: 10, color: 'var(--il-pop-muted, #555)', fontFamily: 'monospace' }}>{sg.item_code}</span>}
+                                                      {showPrices && sg.unit_price != null && <span style={{ fontSize: 10, color: 'var(--il-accent, #2255aa)', fontWeight: 600 }}>${sg.unit_price.toLocaleString()}</span>}
                                                     </div>
                                                   </button>
                                                 ))}
@@ -778,10 +779,10 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
         ))}
 
         <div style={{ marginBottom: 14 }}>
-          <button type="button" onClick={addSection} style={{ width: '100%', fontSize: 12, color: '#cc0000', background: 'none', border: '2px dashed #cc000040', borderRadius: 5, cursor: 'pointer', padding: '8px', textAlign: 'center' as const, fontWeight: 600 }}>+ Add TYPE Section</button>
+          <button type="button" onClick={addSection} style={{ width: '100%', fontSize: 12, color: 'var(--il-add-type, #cc0000)', background: 'none', border: '2px dashed var(--il-add-type-border, #cc000040)', borderRadius: 5, cursor: 'pointer', padding: '8px', textAlign: 'center' as const, fontWeight: 600 }}>+ Add TYPE Section</button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', background: '#f5c518', borderRadius: 4, padding: '8px 14px', fontWeight: 700, fontSize: 13, marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--il-total-bg, #f5c518)', color: 'var(--il-total-fg, inherit)', borderRadius: 4, padding: '8px 14px', fontWeight: 700, fontSize: 13, marginBottom: 14 }}>
           <span style={{ flex: 1 }}>TOTAL</span>
           <span style={{ marginRight: 24 }}>{totalQty} units</span>
           {showPrices && totalPrice > 0 && <span>{fmt(totalPrice)}</span>}
@@ -791,9 +792,9 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Signatures &amp; Approvals</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 8 }}>
             {['Production Manager', 'Trust PM', 'Client PM'].map(label => (
-              <div key={label} style={{ border: '1px solid #2255aa', borderRadius: 6, padding: '10px', textAlign: 'center' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#2255aa', textTransform: 'uppercase', marginBottom: 24 }}>{label}</div>
-                <div style={{ borderBottom: '1px solid #ccc', marginBottom: 6 }} />
+              <div key={label} style={{ border: '1px solid var(--il-sign-border, #2255aa)', borderRadius: 6, padding: '10px', textAlign: 'center' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--il-sign-fg, #2255aa)', textTransform: 'uppercase', marginBottom: 24 }}>{label}</div>
+                <div style={{ borderBottom: '1px solid var(--il-sign-line, #ccc)', marginBottom: 6 }} />
               </div>
             ))}
           </div>
@@ -810,7 +811,7 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
           <button onClick={handleGenerate} className="btn btn-primary" disabled={generating} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {generating
               ? <><Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> {editDocumentId ? 'Saving Revision…' : 'Generating…'}</>
-              : editDocumentId ? '✅ Update & Resubmit' : '⬇ Generate PDF'
+              : editDocumentId ? <><Check size={13} aria-hidden /> Update & Resubmit</> : <><Download size={13} aria-hidden /> Generate PDF</>
             }
           </button>
         </div>
