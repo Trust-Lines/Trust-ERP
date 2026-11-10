@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { createBrowserClient } from '@supabase/ssr';
+import type { Database } from '@/types/database';
 import { LoginShell } from '@/components/auth/LoginShell';
 import { AuthAlert, AuthHeading, AuthStyles, LoginLogo } from '@/components/auth/AuthParts';
 import { ThemeToggleButton } from '@/components/auth/ThemeToggleButton';
@@ -12,6 +13,19 @@ type Step = 'loading' | 'form' | 'done' | 'error';
 type Mode = 'invite' | 'recovery' | 'generic';
 
 const MIN_LENGTH = 8;
+
+// This page's own client: it must not read `?code=` / `#access_token` from the address by itself
+// (the shared client does, and then reports whatever session it ends up with), so the link is only
+// checked once, explicitly, below. Same cookie storage, so the session it sets is the app's session.
+let pageClient: ReturnType<typeof createBrowserClient<Database>> | null = null;
+function linkClient() {
+  pageClient ??= createBrowserClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { isSingleton: false, auth: { detectSessionInUrl: false } },
+  );
+  return pageClient;
+}
 
 function readLinkParams() {
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
@@ -44,7 +58,7 @@ export default function SetPasswordPage() {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    const supabase = createClient();
+    const supabase = linkClient();
     const link = readLinkParams();
     setMode(link.mode);
     let settled = false;
@@ -69,16 +83,16 @@ export default function SetPasswordPage() {
       return;
     }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user && (link.accessToken || link.code)) ready(session.user.email);
-    });
-
+    // Only the result of checking THIS link decides. (An auth-state listener here used to fire for
+    // the session someone already had, so an invalid link opened while signed in showed the form.)
     if (link.accessToken && link.refreshToken) {
       supabase.auth.setSession({ access_token: link.accessToken, refresh_token: link.refreshToken })
         .then(({ data, error }) => (error ? fail(error.message) : ready(data.session?.user?.email)));
     } else if (link.code) {
       supabase.auth.exchangeCodeForSession(link.code)
         .then(({ data, error }) => (error ? fail(error.message) : ready(data.session?.user?.email)));
+    } else if (link.code || link.accessToken) {
+      fail('This link is incomplete.');
     } else {
       // No link in the URL: only valid for someone who is already signed in.
       supabase.auth.getSession().then(({ data }) => {
@@ -88,7 +102,7 @@ export default function SetPasswordPage() {
     }
 
     const timeout = setTimeout(() => fail('This link could not be verified.'), 10000);
-    return () => { subscription.unsubscribe(); clearTimeout(timeout); };
+    return () => { clearTimeout(timeout); };
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -98,7 +112,7 @@ export default function SetPasswordPage() {
     if (password !== confirm) { setMessage('Passwords do not match.'); return; }
 
     setSubmitting(true);
-    const { error } = await createClient().auth.updateUser({ password });
+    const { error } = await linkClient().auth.updateUser({ password });
     if (error) { setMessage(error.message); setSubmitting(false); return; }
 
     setStep('done');
