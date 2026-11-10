@@ -18,6 +18,7 @@ import type { ProdType } from '@/lib/dropbox/paths';
 import { applyDocumentRevision, REVISION_DOC_COLS, type RevisionDoc } from '@/lib/dropbox/revisions';
 import { resolveDesignFolder, type DesignFolderJob } from '@/lib/sales/designFolder';
 import { syncDesignVersionsFromDropbox } from '@/lib/sales/designVersionSync';
+import { broadcast, dropboxDesignTopic, dropboxProjectTopic } from '@/lib/realtime/broadcast';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -353,6 +354,24 @@ export async function processDropboxChanges(admin: any, dbx: Dropbox, opts: { bu
           jobsDone.add(id);
         }
       }
+
+      // 4. Tell open Files tabs which folders changed (any entry: file, folder, deletion).
+      const topics = new Set<string>();
+      let anyDesign = false;
+      for (const e of entries) {
+        const p = e.path_lower ?? '';
+        const pid = projectForPath(p, roots);
+        if (pid) topics.add(dropboxProjectTopic(pid));
+        if (p.startsWith('/design/')) anyDesign = true;
+      }
+      if (anyDesign) {
+        jobRoots ??= await designRoots(admin);
+        for (const e of entries) {
+          const jid = projectForPath(e.path_lower ?? '', jobRoots);
+          if (jid) topics.add(dropboxDesignTopic(jid));
+        }
+      }
+      await broadcast([...topics]);
 
       cursor = res.result.cursor;
       await save({ cursor: packCursor(WATCH_ROOT, cursor) }); // progress kept even if a later page runs out of time

@@ -9,6 +9,8 @@ import { formatDate } from '@/lib/formatDate';
 import { cn } from '@/lib/utils';
 import { DESIGN_QUICK_FOLDERS, DESIGN_VERSION_BASE, relativeTo } from '@/lib/sales/designPaths';
 import { HEADING, formatBytes } from './designShared';
+import { useDropboxLive } from '@/hooks/use-dropbox-live';
+import { dropboxDesignTopic } from '@/lib/realtime/broadcast';
 
 interface Entry { name: string; path: string; tag: 'file' | 'folder'; size: number | null; modified: string | null }
 
@@ -84,6 +86,8 @@ export function DesignFiles({ jobId, initialPath = '', onVersionFiles, onSharedU
   }, [jobId, onSharedUrl]);
 
   useEffect(() => { void load(path); }, [load, path]);
+  // Live: the Dropbox webhook reports a change in this job's folder → reload the open folder.
+  useDropboxLive(dropboxDesignTopic(jobId), () => void load(path));
 
   async function act(body: Record<string, unknown>, ok?: string) {
     setBusy(true);

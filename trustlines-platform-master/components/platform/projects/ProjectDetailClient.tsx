@@ -17,6 +17,7 @@ import { AuditTrail } from './AuditTrail';
 import { ProjectRail } from './ProjectRail';
 import { PlanLayoutTab } from './PlanLayoutTab';
 import { CategoryTab } from './CategoryTab';
+import { ProjectFiles } from './ProjectFiles';
 import { permCan } from '@/lib/permissions/catalog';
 import { can } from '@/lib/permissions/can';
 import type { ProjectStage, ProjectPhase } from '@/types/database';
@@ -301,6 +302,7 @@ export function ProjectDetailClient({
     plan_layout: 'Plan Layout',
     design_proposal: 'Design Proposal',
     construction_drawing: 'Construction Drawing',
+    files: 'Files',
   };
   const initialTab = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(
@@ -401,7 +403,9 @@ export function ProjectDetailClient({
     'Design Proposal',
     'Construction Drawing',
     ...dynamicTabs,
-  ].filter(tab => tab === 'Overview' || permCan(userPerms, tabPermKey(tab)));
+    // The whole Dropbox folder, live — anyone who can open the project (no separate tab permission).
+    ...(project.dropbox_root_path ? ['Files'] : []),
+  ].filter(tab => tab === 'Overview' || tab === 'Files' || permCan(userPerms, tabPermKey(tab)));
 
   function fmtDateShort(d: string | null) {
     if (!d) return null;
@@ -611,6 +615,8 @@ export function ProjectDetailClient({
           trustlinesPmId={project.trustlines_pm?.id ?? null}
           tlinesPmId={project.tlines_pm_id}
         />
+      ) : activeTab === 'Files' ? (
+        <ProjectFiles projectId={project.id} />
       ) : dynamicTabs.includes(activeTab) ? (
         <CategoryTab
           projectId={project.id}
