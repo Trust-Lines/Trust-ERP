@@ -6,7 +6,7 @@ import { BriefcaseBusiness, CircleAlert, CircleCheck, ClockFading, Drill as Dril
 import { cn } from '@/lib/utils';
 import {
   BRANCHES, alertOf, countBy, dashboardStats, fmtDate, monthLabel, monthRows, needsAttention,
-  startingWithin, statusTable, type AlertTone, type Branch, type Clash, type InstallStatus, type Installation,
+  startingWithin, statusTable, type AlertTone, type MonthRow, type Branch, type Clash, type InstallStatus, type Installation,
 } from '@/lib/installations/compute';
 import { BRANCH_COLOR, HEADING, ProjectNo, TH } from './shared';
 
@@ -29,7 +29,10 @@ export function DashboardTab({ rows, today, clashes, months, projectByNo, onDril
   const attention = needsAttention(rows, today);
   const soon = startingWithin(rows, today, 30);
   const clashRows = rows.filter(r => clashes.has(r.id)).sort((a, b) => (a.planned_start ?? '').localeCompare(b.planned_start ?? ''));
-  const perMonth = monthRows(rows, months);
+  // The charts run from the first to the last month with any data (empty months in between stay,
+  // so the time axis keeps its spacing); the plan's other tabs keep the full range.
+  const perMonth = trimToData(monthRows(rows, months));
+  const chartMonths = perMonth.map(m => m.month);
 
   const calendarIcon = <Image src="/icons/installation/calendar-chevrons-right.svg" width={24} height={24} alt="" unoptimized className="block size-6 brightness-0 invert" />;
   const tiles: { label: string; value: number; color: string; icon: React.ReactNode; drill: Drill | null }[] = [
@@ -162,10 +165,10 @@ export function DashboardTab({ rows, today, clashes, months, projectByNo, onDril
 
       <div className="grid gap-4 xl:grid-cols-[726fr_1050fr]">
         <ChartCard title="Projects starting per month">
-          <MonthBars months={months} values={perMonth.map(m => m.starting)} today={today} />
+          <MonthBars months={chartMonths} values={perMonth.map(m => m.starting)} today={today} />
         </ChartCard>
         <ChartCard title="Installer assignments per month by branch">
-          <BranchAreas months={months} series={BRANCHES.map(b => ({ key: b, color: BRANCH_COLOR[b], values: perMonth.map(m => m.byBranch[b]) }))} />
+          <BranchAreas months={chartMonths} series={BRANCHES.map(b => ({ key: b, color: BRANCH_COLOR[b], values: perMonth.map(m => m.byBranch[b]) }))} />
         </ChartCard>
       </div>
     </div>
@@ -252,6 +255,20 @@ function StatusTag({ status, small }: { status: InstallStatus | null; small?: bo
 }
 function AlertTag({ tone, text }: { tone: AlertTone; text: string }) {
   return <span className={cn(CHIP, ALERT_CHIP[tone], 'text-[14px]')}>{text}</span>;
+}
+
+/** Months from the first to the last that has any data, at least MIN_CHART_MONTHS long (grown
+ *  forward, then back, within the plan). No data at all keeps the whole range. */
+const MIN_CHART_MONTHS = 3;
+function trimToData(list: MonthRow[]): MonthRow[] {
+  const has = (m: MonthRow) => m.starting > 0 || BRANCHES.some(b => m.byBranch[b] > 0);
+  let lo = list.findIndex(has);
+  if (lo < 0) return list;
+  let hi = list.length - 1 - [...list].reverse().findIndex(has);
+  while (hi - lo + 1 < MIN_CHART_MONTHS && (hi < list.length - 1 || lo > 0)) {
+    if (hi < list.length - 1) hi++; else lo--;
+  }
+  return list.slice(lo, hi + 1);
 }
 
 // ── charts ────────────────────────────────────────────────────────────────────────────────────
