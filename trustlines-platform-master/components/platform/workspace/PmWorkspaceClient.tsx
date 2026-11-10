@@ -193,11 +193,13 @@ export function PmWorkspaceClient({ rows, seesAll }: { rows: PortfolioRow[]; see
           <p className="m-0 text-[11px] text-ui-text-secondary">{upcoming.length} type target date{upcoming.length === 1 ? '' : 's'} due or overdue</p>
           {upcoming.length === 0 ? (
             <div className="py-8 text-center text-[13px] text-ui-text-secondary">No target dates in the next 7 days.</div>
-          ) : upcoming.map(d => {
+          ) : upcoming.map((d, i) => {
             const at = asDate(d.targetDate);
             return (
               <Link
-                key={`${d.row.projectId}-${d.type}-${d.targetDate}`}
+                // A project can have several installation stages on the same day (one finishes as the
+                // next starts) — type + date alone isn't unique.
+                key={`${d.row.projectId}-${d.type}-${d.stage}-${d.targetDate}-${i}`}
                 href={`/projects/${d.row.projectId}/types`}
                 className="flex items-center gap-4 rounded-[6px] bg-ui-page-bg px-4 py-3 no-underline hover:brightness-[0.98]"
               >
