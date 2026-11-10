@@ -53,7 +53,7 @@ export function TeamsTab({ rows, months, today, clashes, projectByNo }: {
                 <div className="flex items-center gap-2">
                   <span className="text-[14px] font-bold capitalize text-ui-heading">{p.name}</span>
                   <span className="text-[11px] text-ui-text-secondary">{p.jobs.length} job{p.jobs.length === 1 ? '' : 's'}</span>
-                  {p.clash && <span className="ml-auto rounded-full bg-[var(--status-t10-fg)] px-2 py-0.5 text-[10px] font-bold text-white">DOUBLE-BOOKED</span>}
+                  {p.clash && <span className="ml-auto rounded-full bg-[var(--color-error-normal)] px-2 py-0.5 text-[10px] font-bold text-white">DOUBLE-BOOKED</span>}
                 </div>
                 {p.jobs.map(j => (
                   <div key={j.id} className="flex items-center gap-2 text-[11px] text-ui-body">
