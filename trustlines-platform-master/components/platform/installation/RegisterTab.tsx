@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Select } from '@/components/ui/select';
 import {
   BRANCHES, CONFIDENCES, SCOPES, STATUSES, alertOf, durationDays, fmtDate, headcount, statusNeedsUpdate,
   suggestedStatus, teamHeadcount, teamLabel, type Clash, type EditableField, type InstallTeam, type Installation, type RowPatch,
@@ -205,18 +206,21 @@ function SelectCell({ value, options, onCommit, readOnly, color, plain }: {
       ? <span className="m-1 inline-flex h-6 items-center rounded-[4px] px-1.5 text-[11px] font-bold uppercase text-white" style={{ background: color }}>{value}</span>
       : <span className="block px-2 py-1.5 font-medium">{value ?? ''}</span>;
   }
+  const list = [{ value: '', label: '—' }, ...options.map(o => ({ value: o, label: o })),
+    ...(value && !options.includes(value) ? [{ value, label: value }] : [])];
+  // The platform Dropdown (Figma "Dropdown"); a filled cell (branch / scope) keeps its colour via --cell-fill.
   return (
-    <select
-      value={value ?? ''} onChange={e => onCommit(e.target.value || null)}
-      className={cn(INPUT, 'cursor-pointer appearance-auto pr-1', filled && 'font-bold uppercase text-white focus:text-ui-heading', plain && 'bg-transparent font-medium')}
-      style={filled ? { background: color } : undefined}
-    >
-      <option value="">—</option>
-      {options.map(o => <option key={o} value={o}>{o}</option>)}
-      {value && !options.includes(value) && <option value={value}>{value}</option>}
-    </select>
+    <span className="block" style={filled ? ({ '--cell-fill': color } as React.CSSProperties) : undefined}>
+      <Select
+        value={value ?? ''} onValueChange={v => { if ((v ?? '') !== (value ?? '')) onCommit(v || null); }} options={list}
+        aria-label="Change value"
+        className={cn(CELL_SELECT, filled && 'bg-[var(--cell-fill)] font-bold uppercase text-white dark:bg-[var(--cell-fill)] dark:text-white', plain && 'font-medium')}
+      />
+    </span>
   );
 }
+
+const CELL_SELECT = 'h-8 rounded-none border-0 bg-transparent px-2 text-[12px] text-ui-heading hover:border-0 dark:rounded-none dark:border-0 dark:bg-transparent dark:px-2 dark:text-ui-heading [&_svg]:size-3.5';
 
 /** Assigned Team: pick a saved team (Teams tab). A row typed before teams existed shows its text
  *  until a team is picked. */
@@ -226,18 +230,19 @@ function TeamCell({ row, teams, readOnly, onPick }: {
   const label = row.team || 'TBD';
   if (readOnly) return <span className={cn('block truncate px-2 py-1.5', !row.team && 'text-ui-text-secondary')} title={label}>{label}</span>;
   const legacy = !row.team_id && !!row.team;
+  const current = row.team_id ?? (legacy ? '__legacy' : '');
+  const list = [
+    { value: '', label: 'TBD' },
+    ...(legacy ? [{ value: '__legacy', label: `${row.team} (not a saved team)` }] : []),
+    ...teams.filter(t => t.active || t.id === row.team_id).map(t => ({ value: t.id, label: teamLabel(t) })),
+  ];
   return (
-    <select
-      value={row.team_id ?? (legacy ? '__legacy' : '')}
-      title={label}
-      onChange={e => { const v = e.target.value; if (v === '__legacy') return; onPick(v ? teams.find(t => t.id === v) ?? null : null); }}
-      className={cn(INPUT, 'cursor-pointer appearance-auto pr-1', !row.team && 'text-ui-text-secondary', legacy && 'italic')}
-    >
-      <option value="">TBD</option>
-      {legacy && <option value="__legacy">{row.team} (not a saved team)</option>}
-      {teams.filter(t => t.active || t.id === row.team_id).map(t => (
-        <option key={t.id} value={t.id}>{teamLabel(t)}</option>
-      ))}
-    </select>
+    <span className="block" title={label}>
+      <Select
+        value={current} options={list} aria-label="Assigned team"
+        onValueChange={v => { const id = v ?? ''; if (id === current || id === '__legacy') return; onPick(id ? teams.find(t => t.id === id) ?? null : null); }}
+        className={cn(CELL_SELECT, !row.team && 'text-ui-text-secondary dark:text-ui-text-secondary', legacy && 'italic')}
+      />
+    </span>
   );
 }

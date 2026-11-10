@@ -10,6 +10,11 @@ import {
 } from '@/lib/installations/compute';
 import { AlertPill } from './shared';
 import { Field, INPUT } from './TeamsManagerTab';
+import { Select } from '@/components/ui/select';
+
+/** The platform Dropdown sized like the form's text inputs. */
+const SELECT = 'h-9 rounded-[6px] text-[13px] dark:rounded-[6px]';
+const opts = (list: readonly string[]) => [{ value: '', label: '—' }, ...list.map(v => ({ value: v, label: v }))];
 
 type Draft = Required<Pick<RowPatch,
   'project_no' | 'project_name' | 'branch' | 'city_state' | 'planned_start' | 'planned_finish' | 'team_id' | 'team' | 'team_size' |
@@ -84,16 +89,12 @@ export function RowEditModal({ open, row, teams, pmNames, today, onClose, onSave
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="Branch">
-              <select value={str(d.branch)} onChange={e => set('branch', e.target.value || null)} className={INPUT}>
-                <option value="">—</option>{BRANCHES.map(b => <option key={b}>{b}</option>)}
-              </select>
+              <Select aria-label="Branch" value={str(d.branch)} onValueChange={v => set('branch', v || null)} className={SELECT} options={opts(BRANCHES)} />
             </Field>
             <Field label="City / State"><input value={str(d.city_state)} onChange={e => set('city_state', e.target.value || null)} className={INPUT} /></Field>
             <Field label="Company / Scope">
-              <select value={str(d.scope)} onChange={e => set('scope', e.target.value || null)} className={INPUT}>
-                <option value="">—</option>{SCOPES.map(s => <option key={s}>{s}</option>)}
-                {d.scope && !(SCOPES as readonly string[]).includes(String(d.scope)) && <option>{String(d.scope)}</option>}
-              </select>
+              <Select aria-label="Company / Scope" value={str(d.scope)} onValueChange={v => set('scope', v || null)} className={SELECT}
+                options={opts(d.scope && !(SCOPES as readonly string[]).includes(String(d.scope)) ? [...SCOPES, String(d.scope)] : SCOPES)} />
             </Field>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -108,19 +109,21 @@ export function RowEditModal({ open, row, teams, pmNames, today, onClose, onSave
 
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
             <Field label="Assigned team" hint={team ? teamLabel(team) : teamMode === 'other' ? 'Not a saved team — set teams up on the Teams tab' : undefined}>
-              <select
+              <Select
+                aria-label="Assigned team"
                 value={teamMode === 'other' ? OTHER : str(d.team_id)}
-                onChange={e => {
-                  const v = e.target.value;
+                onValueChange={raw => {
+                  const v = raw ?? '';
                   if (v === OTHER) { setTeamMode('other'); set('team_id', null); }
                   else { setTeamMode('saved'); set('team_id', v || null); if (!v) { set('team', null); } }
                 }}
-                className={INPUT}
-              >
-                <option value="">TBD</option>
-                {teams.filter(t => t.active || t.id === d.team_id).map(t => <option key={t.id} value={t.id}>{t.name}{t.members.length ? ` (${t.members.join(', ')})` : ''}</option>)}
-                <option value={OTHER}>Other (type it)…</option>
-              </select>
+                className={SELECT}
+                options={[
+                  { value: '', label: 'TBD' },
+                  ...teams.filter(t => t.active || t.id === d.team_id).map(t => ({ value: t.id, label: `${t.name}${t.members.length ? ` (${t.members.join(', ')})` : ''}` })),
+                  { value: OTHER, label: 'Other (type it)…' },
+                ]}
+              />
             </Field>
             <Field label="Team members">
               {teamMode === 'other'
@@ -140,14 +143,10 @@ export function RowEditModal({ open, row, teams, pmNames, today, onClose, onSave
               <datalist id="inst-form-pm">{pmNames.map(n => <option key={n} value={n} />)}</datalist>
             </Field>
             <Field label="Confidence">
-              <select value={str(d.confidence)} onChange={e => set('confidence', e.target.value || null)} className={INPUT}>
-                <option value="">—</option>{CONFIDENCES.map(c => <option key={c}>{c}</option>)}
-              </select>
+              <Select aria-label="Confidence" value={str(d.confidence)} onValueChange={v => set('confidence', v || null)} className={SELECT} options={opts(CONFIDENCES)} />
             </Field>
             <Field label="Project status" hint={suggested && suggested !== d.status ? `Dates suggest: ${suggested}` : undefined}>
-              <select value={str(d.status)} onChange={e => set('status', e.target.value || null)} className={INPUT}>
-                <option value="">—</option>{STATUSES.map(s => <option key={s}>{s}</option>)}
-              </select>
+              <Select aria-label="Project status" value={str(d.status)} onValueChange={v => set('status', v || null)} className={SELECT} options={opts(STATUSES)} />
             </Field>
           </div>
           <Field label="Dependencies / blockers"><textarea rows={2} value={str(d.blockers)} onChange={e => set('blockers', e.target.value || null)} className={cn(INPUT, 'h-auto py-2')} /></Field>
