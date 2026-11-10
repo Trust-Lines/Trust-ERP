@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ProjectsTableClient } from '@/components/platform/projects/ProjectsTableClient';
 import { loadPortfolio } from '@/lib/workspace/portfolio';
+import { loadLiveContext, withLiveStatus } from '@/lib/workspace/live';
 import { PHASE_LABELS } from '@/lib/lifecycle/projectLifecycle';
 import { toRows } from '@/lib/workspace/rows';
 import type { UserRole } from '@/types/database';
@@ -35,7 +36,8 @@ export default async function ProjectsPage() {
   const portfolioEntries = await loadPortfolio(
     admin, { userId: user!.id, role: userRole }, seesAllSupply ? {} : { pmOf: user!.id },
   );
-  const portfolioRows = toRows(portfolioEntries, PHASE_LABELS);
+  // Phase, blockers and dates from the Trust System / installation plan (lib/workspace/live).
+  const portfolioRows = withLiveStatus(toRows(portfolioEntries, PHASE_LABELS), await loadLiveContext(admin));
   const maxPriority = (r: (typeof portfolioRows)[number]) => Math.max(0, ...r.myActions.map(a => a.priority));
   portfolioRows.sort((a, b) => maxPriority(b) - maxPriority(a) || b.blockers.length - a.blockers.length || (a.code ?? '').localeCompare(b.code ?? ''));
   const waitingOnMe = portfolioRows.filter(r => r.myActions.length > 0);
