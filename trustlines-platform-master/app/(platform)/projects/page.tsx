@@ -1,3 +1,4 @@
+import { LiveRefresh } from '@/components/platform/shared/LiveRefresh';
 import Link from 'next/link';
 import { ChevronRight, Plus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
@@ -144,6 +145,7 @@ export default async function ProjectsPage() {
         )}
       </div>
 
+      <LiveRefresh name="projects" tables={['documents', 'document_approvals', 'projects']} />
       <ProjectsTableClient
         projects={projects}
         userRole={userRole}
