@@ -5,6 +5,7 @@ import { ArrowDownUp, FileSpreadsheet, Plus, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DatePicker } from '@/components/ui/date-picker';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Select as FilterSelect } from '@/components/ui/select';
 import {
@@ -35,6 +36,13 @@ const DRILL_LABEL: Record<Drill, string> = {
   soon: 'Starting in 14 days', now: 'Installing now',
 };
 const TAB_KEY = 'tl_install_tab';
+const DATE_CLS = 'h-9 w-auto gap-2 rounded-[6px] border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] font-medium leading-[1.35] text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:px-3 dark:text-ui-heading';
+const toISO = (d: Date | null) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : null;
+const fromISO = (s: string | null) => { if (!s) return null; const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+/** "20 Oct 2026" */
+const dayLabel = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+/** "OCT 2026" */
+const shortMonth = (m: string) => new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7) - 1, 1)).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }).toUpperCase();
 const SORT_KEY = 'tl_install_sort';
 const COLS_KEY = 'tl_install_hidden_cols';
 const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg pl-3 pr-2 text-[13px] font-medium leading-normal text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading [&_svg]:size-3.5';
@@ -68,6 +76,18 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
   const [scope, setScope] = React.useState('');
   const [status, setStatus] = React.useState('');
   const [hideDone, setHideDone] = React.useState(false);
+  // Date range (Figma 638:27272): rows whose planned dates overlap [from, to]. Picking a month
+  // fills both ends with that month; editing a date by hand leaves "custom".
+  const [month, setMonth] = React.useState('');
+  const [from, setFrom] = React.useState<string | null>(null);
+  const [to, setTo] = React.useState<string | null>(null);
+  const pickMonth = (m: string) => {
+    setMonth(m);
+    if (!m) { setFrom(null); setTo(null); return; }
+    setFrom(`${m}-01`);
+    setTo(new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7), 0)).toISOString().slice(0, 10));
+  };
+  const pickDate = (which: 'from' | 'to', v: string | null) => { (which === 'from' ? setFrom : setTo)(v); setMonth(''); };
   const [drill, setDrill] = React.useState<Drill | null>(null);
   // Register view options (Figma 629:5556): sort and visible columns, remembered per browser.
   const [sort, setSort] = React.useState<RegisterSort>('newest');
@@ -106,6 +126,12 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
       if (scope && (r.scope ?? '').toUpperCase() !== scope) return false;
       if (status && (status === '__none' ? !!r.status : r.status !== status)) return false;
       if (hideDone && isClosed(r)) return false;
+      if (from || to) {
+        const rs = r.planned_start, re = r.planned_finish ?? r.planned_start;
+        if (!rs || !re) return false;
+        if (from && re < from) return false;
+        if (to && rs > to) return false;
+      }
       switch (drill) {
         case 'attention': return !!alertOf(r, today);
         case 'overdue': return !isClosed(r) && r.status !== 'On Hold' && !!r.planned_finish && r.planned_finish < today;
@@ -116,7 +142,7 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
         default: return true;
       }
     });
-  }, [rows, q, branch, pm, scope, status, hideDone, drill, today, clashesAll]);
+  }, [rows, q, branch, pm, scope, status, hideDone, drill, today, clashesAll, from, to]);
   const filtered = visible.length !== rows.length;
   // Clashes are found across the whole plan (an installer is busy whatever the filter), but the
   // dashboard only lists / counts the rows on screen.
@@ -299,8 +325,23 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
             <span className="text-[12px] text-ui-text-secondary">
               {filtered ? `${visible.length} of ${rows.length} projects` : `${rows.length} projects`}
             </span>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <FilterSelect aria-label="Month" value={month} onValueChange={v => pickMonth(v ?? '')} className={cn(FILTER_CLS, 'gap-2 px-3 dark:px-3')}
+                options={[{ value: '', label: from || to ? 'Custom' : 'All months' }, ...months.map(m => ({ value: m, label: shortMonth(m) }))]} />
+              <div className="flex items-center gap-2.5" role="group" aria-label="Date range">
+                <DatePicker value={fromISO(from)} onValueChange={d => pickDate('from', toISO(d))} aria-label="From date" placeholder="Any"
+                  prefix={<span className="text-[11px] leading-[1.35] text-ui-body">From</span>} formatValue={dayLabel} iconEnd className={DATE_CLS} />
+                <DatePicker value={fromISO(to)} onValueChange={d => pickDate('to', toISO(d))} aria-label="To date" placeholder="Any"
+                  prefix={<span className="text-[11px] leading-[1.35] text-ui-body">To</span>} formatValue={dayLabel} iconEnd className={DATE_CLS} />
+                {(from || to) && (
+                  <button type="button" onClick={() => pickMonth('')} aria-label="Clear dates" title="Clear dates"
+                    className="inline-grid size-8 cursor-pointer place-items-center rounded-[6px] border-0 bg-transparent text-ui-text-secondary hover:bg-ui-hover-bg hover:text-ui-heading">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
             {tab === 'register' && (
-              <div className="ml-auto flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <span className="relative inline-flex items-center">
                   <ArrowDownUp size={14} aria-hidden className="pointer-events-none absolute left-3 z-[1] text-[var(--color-secondary-700)] dark:text-ui-heading" />
                   <FilterSelect aria-label="Sort" value={sort} onValueChange={v => pickSort((v ?? 'newest') as RegisterSort)}
@@ -309,6 +350,7 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
                 <ColumnsMenu hidden={hiddenCols} onToggle={toggleCol} onSetAll={setAllCols} />
               </div>
             )}
+            </div>
           </div>
 
           {tab === 'dashboard' && (
