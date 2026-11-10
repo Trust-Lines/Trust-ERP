@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { Box, CheckCheck, ChevronsUp, Download, ExternalLink, FileText, FolderPlus, Link2, Plus, RefreshCw, RotateCcw, Send, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { createClient } from '@/lib/supabase/client';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
 import type { LeadBrief, IntakeFile, DesignFile, ProjectMeta } from '@/app/(platform)/design/page';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -103,6 +104,20 @@ export function DesignJobSheet(p: Props) {
     for (const f of (b.files ?? []) as DesignFile[]) (byVersion[f.version_id] ??= []).push(f);
     for (const v of (b.versions ?? []) as SalesDesignVersion[]) p.onDesignFiles(v.id, byVersion[v.id] ?? []);
   }
+
+  // Live: the Dropbox webhook adds versions / files as soon as they land in the design folder.
+  const reloadRef = useRef(reloadVersions);
+  useEffect(() => { reloadRef.current = reloadVersions; });
+  useEffect(() => {
+    const supabase = createClient();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const bump = () => { if (timer) clearTimeout(timer); timer = setTimeout(() => void reloadRef.current(), 1000); };
+    const channel = supabase.channel(`design-job-${job.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales_design_versions', filter: `job_id=eq.${job.id}` }, bump)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales_design_version_files', filter: `job_id=eq.${job.id}` }, bump)
+      .subscribe();
+    return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel); };
+  }, [job.id]);
 
   async function syncVersions(quiet = false) {
     setBusy(true);

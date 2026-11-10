@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createHmac } from 'node:crypto';
-import { buildTargets, projectForPath, validWebhookSignature, versionOf } from '@/lib/dropbox/autoSync';
+import { buildTargets, isDesignVersionPath, packCursor, projectForPath, unpackCursor, validWebhookSignature, versionOf } from '@/lib/dropbox/autoSync';
 
 const ROOT = '/D-Projects/T LINES/1-Store Maker/T Lines NW Projects/Under Working/Clients/Brew Oil/STNW 395 - Stuart, IA';
 
@@ -52,5 +52,26 @@ describe('validWebhookSignature', () => {
     expect(validWebhookSignature(body, 'abc', 'shh')).toBe(false);
     expect(validWebhookSignature(body, null, 'shh')).toBe(false);
     expect(validWebhookSignature(body, sig, undefined)).toBe(false);
+  });
+});
+
+describe('cursor tagging', () => {
+  it('round-trips a cursor for the same root', () => {
+    expect(unpackCursor(packCursor('', 'AAA'), '')).toBe('AAA');
+    expect(unpackCursor(packCursor('/D-Projects', 'BBB'), '/D-Projects')).toBe('BBB');
+  });
+  it('starts over for another root or an untagged cursor', () => {
+    expect(unpackCursor(packCursor('/D-Projects', 'BBB'), '')).toBeNull();
+    expect(unpackCursor('AAAA-untagged', '')).toBeNull();
+    expect(unpackCursor(null, '')).toBeNull();
+  });
+});
+
+describe('isDesignVersionPath', () => {
+  it('matches files in a design job version area only', () => {
+    expect(isDesignVersionPath('/design/t lines/x/stne 409/3-design proposal/design proposal/v2/a.pdf')).toBe(true);
+    expect(isDesignVersionPath('/design/pre-project/ab12 - x/3-design proposal/design proposal/v1/a.jpg')).toBe(true);
+    expect(isDesignVersionPath('/d-projects/t lines/x/3-design proposal/design proposal/v1/a.pdf')).toBe(false);
+    expect(isDesignVersionPath('/design/t lines/x/1-plan layout/1-pdf/a.pdf')).toBe(false);
   });
 });

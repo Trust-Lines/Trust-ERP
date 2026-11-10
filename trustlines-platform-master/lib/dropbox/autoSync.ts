@@ -4,15 +4,20 @@
 // Two ways in, same code:
 //   • syncProjectDropbox()   — one project, full scan of its version folders (project page open)
 //   • processDropboxChanges() — the Dropbox change feed (webhook + 10-minute cron): reads what
-//                               changed since the stored cursor and re-scans only those projects
+//                               changed since the stored cursor and re-scans only those projects;
+//                               it also restarts the approvals of overwritten PDFs
+//                               (lib/dropbox/revisions) and syncs design job versions
 //
 // Read-only on Dropbox (docs/AGENTS.md §4): lists folders, never writes, moves or deletes there.
-// Only adds rows here — an existing document is never touched, a removed file is never un-synced.
+// A removed file is never un-synced.
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { Dropbox, files } from 'dropbox';
 import { getVersionBaseFolder, PROD_TYPES, PROD_TYPES_WITH_PROPOSAL } from '@/lib/dropbox/paths';
 import type { ProdType } from '@/lib/dropbox/paths';
+import { applyDocumentRevision, REVISION_DOC_COLS, type RevisionDoc } from '@/lib/dropbox/revisions';
+import { resolveDesignFolder, type DesignFolderJob } from '@/lib/sales/designFolder';
+import { syncDesignVersionsFromDropbox } from '@/lib/sales/designVersionSync';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -182,12 +187,24 @@ export async function syncProjectDropbox(admin: any, dbx: Dropbox, projectId: st
 
 // ─── Change feed ─────────────────────────────────────────────────────────────────────────────
 
-/** The Dropbox folder the change feed watches — every project root sits under it. */
-export const WATCH_ROOT = process.env.DROPBOX_SYNC_ROOT || '/D-Projects';
+/**
+ * The Dropbox folder the change feed watches. The whole account by default: project folders live
+ * under /D-Projects, design job folders under /Design.
+ */
+export const WATCH_ROOT = process.env.DROPBOX_SYNC_ROOT ?? '';
 const STATE_ID = 'changes';
 const LOCK_MS = 5 * 60 * 1000;
 
-/** The project whose root contains `path` (longest root wins). Roots and path are compared lower-case. */
+/** The stored cursor is tagged with the root it was taken for; another root starts over. */
+export function packCursor(root: string, cursor: string): string { return `${root}\n${cursor}`; }
+export function unpackCursor(stored: string | null, root: string): string | null {
+  if (!stored) return null;
+  const i = stored.indexOf('\n');
+  if (i < 0) return null; // taken before roots were tagged → re-initialize
+  return stored.slice(0, i) === root ? stored.slice(i + 1) : null;
+}
+
+/** The id whose root contains `path` (longest root wins). Roots and path are compared lower-case. */
 export function projectForPath(path: string, roots: { id: string; root: string }[]): string | null {
   const p = path.toLowerCase();
   let best: { id: string; len: number } | null = null;
@@ -198,23 +215,74 @@ export function projectForPath(path: string, roots: { id: string; root: string }
   return best?.id ?? null;
 }
 
+/** A file inside a design job's version area (…/3-Design proposal/Design Proposal/…). */
+export function isDesignVersionPath(pathLower: string): boolean {
+  return pathLower.startsWith('/design/') && pathLower.includes('/3-design proposal/design proposal/');
+}
+
 export interface ChangeReport {
   status: 'ok' | 'locked' | 'initialized' | 'missing_table';
   changes: number;
   projects: number;
   synced: number;
+  revisions: number;
+  designJobs: number;
+  designFiles: number;
+}
+
+type FileEntry = files.FileMetadataReference;
+
+/** Existing documents for these changed files (matched by path or Dropbox file id) whose rev moved. */
+async function applyRevisions(admin: any, entries: FileEntry[]): Promise<number> {
+  if (!entries.length) return 0;
+  const byPath = new Map(entries.map(e => [(e.path_lower ?? '').toLowerCase(), e]));
+  const byId = new Map(entries.filter(e => e.id).map(e => [e.id, e]));
+  const docs = new Map<string, RevisionDoc>();
+  const chunk = <T,>(xs: T[]) => Array.from({ length: Math.ceil(xs.length / 100) }, (_, i) => xs.slice(i * 100, i * 100 + 100));
+  for (const part of chunk(entries.map(e => e.path_display).filter((p): p is string => !!p))) {
+    const { data } = await admin.from('documents').select(REVISION_DOC_COLS).in('dropbox_path', part);
+    for (const d of (data ?? []) as RevisionDoc[]) docs.set(d.id, d);
+  }
+  for (const part of chunk([...byId.keys()])) {
+    const { data } = await admin.from('documents').select(REVISION_DOC_COLS).in('dropbox_file_id', part);
+    for (const d of (data ?? []) as RevisionDoc[]) docs.set(d.id, d);
+  }
+  let n = 0;
+  for (const d of docs.values()) {
+    const e = byPath.get((d.dropbox_path ?? '').toLowerCase()) ?? byId.get((d as any).dropbox_file_id ?? '');
+    if (!e) continue;
+    if (await applyDocumentRevision(admin, d, { rev: e.rev, serverModified: e.server_modified ?? null, fileId: e.id ?? null }, null)) n++;
+  }
+  return n;
+}
+
+/** Design job folders, worked out once per run (only when a design file changed). */
+async function designRoots(admin: any): Promise<{ id: string; root: string }[]> {
+  const { data: jobs, error } = await admin.from('sales_design_jobs').select('id, title, lead_intake_id, opportunity_id');
+  if (error) return [];
+  const out: { id: string; root: string }[] = [];
+  for (const job of (jobs ?? []) as DesignFolderJob[]) {
+    try {
+      const f = await resolveDesignFolder(admin, job);
+      if (f.ok) out.push({ id: job.id, root: f.root });
+    } catch { /* skip this job */ }
+  }
+  return out;
 }
 
 /**
- * Read the Dropbox change feed since the stored cursor and sync the projects whose PDFs changed.
+ * Read the Dropbox change feed since the stored cursor and act on what changed:
+ *   • new PDF in a project's version folder → document row        (syncProjectDropbox)
+ *   • a document's file overwritten (new rev) → approvals restart  (applyDocumentRevision)
+ *   • file in a design job's "Design Proposal/V{n}" → design version (syncDesignVersionsFromDropbox)
  * Safe to call any number of times at once: a row lock lets one run work, the rest return 'locked'.
- * The first run only stores the current cursor (nothing to replay); projects with PDFs from before
- * that are still picked up by the full scan on their page.
+ * The first run only stores the current cursor (nothing to replay); older files are still picked
+ * up by the page-open checks.
  */
 export async function processDropboxChanges(admin: any, dbx: Dropbox, opts: { budgetMs?: number } = {}): Promise<ChangeReport> {
   const started = Date.now();
   const budget = opts.budgetMs ?? 240_000;
-  const report: ChangeReport = { status: 'ok', changes: 0, projects: 0, synced: 0 };
+  const report: ChangeReport = { status: 'ok', changes: 0, projects: 0, synced: 0, revisions: 0, designJobs: 0, designFiles: 0 };
 
   // Take the lock: only when free or stale.
   const now = new Date();
@@ -230,29 +298,36 @@ export async function processDropboxChanges(admin: any, dbx: Dropbox, opts: { bu
   }
   if (!locked?.length) return { ...report, status: 'locked' };
 
-  let cursor: string | null = locked[0].cursor ?? null;
+  let cursor = unpackCursor(locked[0].cursor ?? null, WATCH_ROOT);
   const save = (patch: Record<string, unknown>) =>
     admin.from('dropbox_sync_state').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', STATE_ID);
 
   try {
     if (!cursor) {
       const r = await dbx.filesListFolderGetLatestCursor({ path: WATCH_ROOT, recursive: true, include_deleted: false });
-      await save({ cursor: r.result.cursor });
+      await save({ cursor: packCursor(WATCH_ROOT, r.result.cursor) });
       return { ...report, status: 'initialized' };
     }
 
     const { data: projs } = await admin.from('projects').select('id, dropbox_root_path').is('deleted_at', null).not('dropbox_root_path', 'is', null);
     const roots = ((projs ?? []) as { id: string; dropbox_root_path: string }[]).map(p => ({ id: p.id, root: p.dropbox_root_path }));
+    let jobRoots: { id: string; root: string }[] | null = null;
     const done = new Set<string>();
+    const jobsDone = new Set<string>();
 
     for (;;) {
       const res = await dbx.filesListFolderContinue({ cursor });
       const entries = res.result.entries ?? [];
       report.changes += entries.length;
-      // Only new / changed PDFs can add a document row.
+      const changedFiles = entries.filter((e): e is FileEntry => e['.tag'] === 'file');
+
+      // 1. Revisions of files the app already knows (any project file, any type).
+      report.revisions += await applyRevisions(admin, changedFiles.filter(e => projectForPath(e.path_lower ?? '', roots)));
+
+      // 2. New PDFs → document rows.
       const touched = new Set<string>();
-      for (const e of entries) {
-        if (e['.tag'] !== 'file' || !e.path_lower?.endsWith('.pdf')) continue;
+      for (const e of changedFiles) {
+        if (!e.path_lower?.endsWith('.pdf')) continue;
         const id = projectForPath(e.path_lower, roots);
         if (id && !done.has(id)) touched.add(id);
       }
@@ -261,14 +336,33 @@ export async function processDropboxChanges(admin: any, dbx: Dropbox, opts: { bu
         report.synced += r.synced;
         done.add(id);
       }
+
+      // 3. Design job versions.
+      const designFiles = changedFiles.filter(e => isDesignVersionPath(e.path_lower ?? ''));
+      if (designFiles.length) {
+        jobRoots ??= await designRoots(admin);
+        const jobs = new Set<string>();
+        for (const e of designFiles) {
+          const id = projectForPath(e.path_lower!, jobRoots);
+          if (id && !jobsDone.has(id)) jobs.add(id);
+        }
+        for (const id of jobs) {
+          const root = jobRoots.find(j => j.id === id)!.root;
+          const r = await syncDesignVersionsFromDropbox(admin, id, root, null);
+          report.designFiles += r.syncedFiles;
+          jobsDone.add(id);
+        }
+      }
+
       cursor = res.result.cursor;
-      await save({ cursor }); // progress kept even if a later page runs out of time
+      await save({ cursor: packCursor(WATCH_ROOT, cursor) }); // progress kept even if a later page runs out of time
       if (!res.result.has_more || Date.now() - started > budget) break;
     }
     report.projects = done.size;
+    report.designJobs = jobsDone.size;
     return report;
   } catch (e: any) {
-    // An expired / reset cursor: start over from now (the page scan still covers older files).
+    // An expired / reset cursor: start over from now (the page checks still cover older files).
     if (JSON.stringify(e?.error ?? '').includes('reset')) {
       await save({ cursor: null });
     }
