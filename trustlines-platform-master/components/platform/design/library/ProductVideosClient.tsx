@@ -147,7 +147,7 @@ export function ProductVideosClient() {
                   <Button size="sm" variant="outline" onClick={() => void downloadQr(link, p.product_code, 'png')}><Download /> QR PNG</Button>
                   <Button size="sm" variant="outline" onClick={() => void downloadQr(link, p.product_code, 'svg')}><Download /> QR SVG</Button>
                   <Button size="icon-sm" variant="ghost" aria-label="Copy link" title="Copy link" onClick={() => void navigator.clipboard.writeText(link).then(() => toast.success('Link copied'))}><Copy /></Button>
-                  <Button size="icon-sm" variant="ghost" aria-label="Open the public page" title="Open the public page" render={<a href={link} target="_blank" rel="noreferrer" />}><ExternalLink /></Button>
+                  <Button size="icon-sm" variant="ghost" aria-label="Open the public page" title="Open the public page" nativeButton={false} render={<a href={link} target="_blank" rel="noreferrer" />}><ExternalLink /></Button>
                   <span className="flex-1" />
                   {editable && <Button size="icon-sm" variant="ghost" aria-label={`Edit ${p.product_code}`} onClick={() => setForm(p)}><Pencil /></Button>}
                   {editable && <Button size="icon-sm" variant="ghost" aria-label={`Remove ${p.product_code}`} onClick={() => setRemoving(p)}><Trash2 /></Button>}
@@ -215,7 +215,7 @@ function UploadLinks({ baseUrl, canManage }: { baseUrl: string; canManage: boole
             <span className="text-[12px] font-semibold text-ui-heading">{l.label ?? 'Upload link'}</span>
             <code className="min-w-0 flex-1 truncate text-[12px] text-ui-body">{urlOf(l)}</code>
             <Button size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(urlOf(l)).then(() => toast.success('Link copied'))}><Copy /> Copy</Button>
-            <Button size="icon-sm" variant="ghost" aria-label="Open the upload page" render={<a href={urlOf(l)} target="_blank" rel="noreferrer" />}><ExternalLink /></Button>
+            <Button size="icon-sm" variant="ghost" aria-label="Open the upload page" nativeButton={false} render={<a href={urlOf(l)} target="_blank" rel="noreferrer" />}><ExternalLink /></Button>
             {canManage && <Button size="icon-sm" variant="ghost" aria-label="Revoke this link" title="Revoke" onClick={() => void revoke(l)}><Trash2 /></Button>}
           </div>
         ))}
