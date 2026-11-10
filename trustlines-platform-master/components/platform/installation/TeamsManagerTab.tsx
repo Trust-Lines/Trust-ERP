@@ -5,11 +5,12 @@ import { ArrowDownUp, CalendarDays, Ellipsis, Pencil, Plus, Search, Trash2 } fro
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { Avatar } from '@/components/ui/avatar';
 import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { TagInput } from '@/components/ui/tag-input';
 import { Select as FilterSelect } from '@/components/ui/select';
 import {
-  BRANCHES, byStart, isActive, teamHeadcount, type Clash, type InstallTeam, type Installation,
+  BRANCHES, byStart, installersOf, isActive, teamHeadcount, type Clash, type InstallTeam, type Installation,
 } from '@/lib/installations/compute';
 import { BRANCH_COLOR, HEADING } from './shared';
 
@@ -54,6 +55,14 @@ export function TeamsManagerTab({ teams, rows, today, clashes, canEdit, setupNee
   const [q, setQ] = React.useState('');
   const [sort, setSort] = React.useState<Sort>('newest');
   const [avail, setAvail] = React.useState<Availability>('all');
+  const [project, setProject] = React.useState('');
+  const members = React.useMemo(() => buildMembers(teams, rows, clashes, today), [teams, rows, clashes, today]);
+  // Projects someone is booked on (Members List "Project" filter).
+  const projectOptions = React.useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const m of members) for (const j of m.jobs) if (!seen.has(j.id)) seen.set(j.id, [j.project_no, j.project_name].filter(Boolean).join(' ') || '—');
+    return [...seen].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [members]);
 
   // Per team: current job and the upcoming ones.
   const plan = React.useMemo(() => {
@@ -79,6 +88,14 @@ export function TeamsManagerTab({ teams, rows, today, clashes, canEdit, setupNee
   const needle = q.trim().toLowerCase();
   const matches = (t: InstallTeam) => !needle || t.name.toLowerCase().includes(needle) || t.members.some(m => m.toLowerCase().includes(needle));
   const isFree = (t: InstallTeam) => !plan.get(t.id)?.now;
+  const shownMembers = members
+    .filter(m => !needle || m.name.toLowerCase().includes(needle))
+    .filter(m => avail === 'all' || (avail === 'free' ? !m.busyNow : m.busyNow))
+    .filter(m => !project || m.jobs.some(j => j.id === project))
+    .sort((a, b) => sort === 'newest' ? b.teamOrder - a.teamOrder
+      : sort === 'oldest' ? a.teamOrder - b.teamOrder
+      : sort === 'name' ? a.name.localeCompare(b.name)
+      : b.jobs.length - a.jobs.length);
   const shownTeams = teams
     .filter(matches)
     .filter(t => avail === 'all' || (avail === 'free' ? isFree(t) : !isFree(t)))
@@ -114,6 +131,10 @@ export function TeamsManagerTab({ teams, rows, today, clashes, canEdit, setupNee
               className={cn(CONTROL, 'pl-[34px] dark:pl-[34px]')} />
           </span>
           <FilterSelect aria-label="Availability" value={avail} onValueChange={v => setAvail((v ?? 'all') as Availability)} options={AVAIL} className={CONTROL} />
+          {view === 'members' && (
+            <FilterSelect aria-label="Project" value={project} onValueChange={v => setProject(v ?? '')} className={CONTROL}
+              options={[{ value: '', label: 'Project' }, ...projectOptions]} />
+          )}
           {canEdit && (
             <Button className="ml-auto h-10" onClick={() => setEditing('new')}><Plus /> New team</Button>
           )}
@@ -130,7 +151,7 @@ export function TeamsManagerTab({ teams, rows, today, clashes, canEdit, setupNee
                 ))}
               </div>
             ))
-          : <MembersList teams={shownTeams} plan={plan} q={needle} />}
+          : <MembersList members={shownMembers} />}
       </div>
 
       <TeamFormModal
@@ -241,40 +262,79 @@ function CardMenu({ name, onEdit, onDelete }: { name: string; onEdit: () => void
   );
 }
 
-/** Members List: one row per installer per team, with what that team is doing. */
-function MembersList({ teams, plan, q }: {
-  teams: InstallTeam[]; plan: Map<string, { now: Installation | null; next: Installation[] }>; q: string;
-}) {
-  const list = teams.flatMap(t => t.members.map(m => ({ m, t })))
-    .filter(x => !q || x.m.toLowerCase().includes(q) || x.t.name.toLowerCase().includes(q))
-    .sort((a, b) => a.m.localeCompare(b.m));
-  if (list.length === 0) return <EmptyBox>No members match.</EmptyBox>;
-  const head = 'h-[46px] whitespace-nowrap border-b border-ui-divider bg-ui-surface px-4 text-left text-[12px] font-semibold text-ui-body';
-  const cell = 'h-[49px] whitespace-nowrap border-b border-ui-divider px-4 text-[13px] text-ui-body';
+/** One installer and the active jobs their name appears on (from each row's team text, so typed
+ *  crews count too). */
+interface Member { key: string; name: string; teamOrder: number; jobs: Installation[]; clashJobs: Set<string>; busyNow: boolean }
+
+function buildMembers(teams: InstallTeam[], rows: Installation[], clashes: Map<string, Clash[]>, today: string): Member[] {
+  const byKey = new Map<string, Member>();
+  const add = (raw: string, order: number) => {
+    const key = raw.trim().toLowerCase();
+    if (!key) return;
+    const had = byKey.get(key);
+    if (!had) byKey.set(key, { key, name: raw.trim(), teamOrder: order, jobs: [], clashJobs: new Set(), busyNow: false });
+    else had.teamOrder = Math.max(had.teamOrder, order);
+  };
+  for (const t of teams) for (const m of t.members) add(m, t.sort_order);
+  for (const r of rows) {
+    if (!isActive(r) || !r.planned_start) continue;
+    if ((r.planned_finish ?? r.planned_start) < today) continue;
+    for (const who of installersOf(r.team)) {
+      const m = byKey.get(who);
+      if (!m) continue;
+      m.jobs.push(r);
+      if (clashes.get(r.id)?.some(c => c.people.includes(who))) m.clashJobs.add(r.id);
+      if (r.planned_start <= today) m.busyNow = true;
+    }
+  }
+  for (const m of byKey.values()) m.jobs.sort(byStart);
+  return [...byKey.values()];
+}
+
+/** Figma 663:41118 — Members List: a card per installer with their jobs, red when double-booked. */
+function MembersList({ members }: { members: Member[] }) {
+  if (members.length === 0) return <EmptyBox>No members match.</EmptyBox>;
   return (
-    <div className="overflow-x-auto rounded-[8px] border border-ui-divider bg-ui-page-bg">
-      <table className="w-full border-collapse">
-        <thead><tr>{['Member', 'Team', 'Branch', 'Now', 'Next'].map(h => <th key={h} scope="col" className={head}>{h}</th>)}</tr></thead>
-        <tbody>
-          {list.map(({ m, t }) => {
-            const p = plan.get(t.id);
-            const nx = p?.next[0];
-            return (
-              <tr key={`${t.id}-${m}`}>
-                <td className={cn(cell, 'font-semibold', HEADING)}>{m}</td>
-                <td className={cn(cell, 'uppercase', HEADING)}>{t.name}</td>
-                <td className={cell}>{t.branch
-                  ? <span className="inline-flex items-center rounded-[4px] px-4 py-0.5 text-[12px] font-medium leading-4 text-white" style={{ background: BRANCH_COLOR[t.branch] }}>{t.branch}</span>
-                  : '—'}</td>
-                <td className={cell}>{p?.now
-                  ? <span className={cn(CHIP, 'px-2.5 bg-[var(--status-t7-bg)] text-[var(--status-t7-fg)]')}>{[p.now.project_no, p.now.project_name].filter(Boolean).join(' ')}</span>
-                  : <span className={cn(CHIP, 'px-2.5 bg-[var(--status-t0-bg)] text-[var(--status-t0-fg)]')}>Free</span>}</td>
-                <td className={cell}>{nx ? `${nx.project_no ?? ''} · ${dayMonth(nx.planned_start!)}` : <span className="text-ui-text-secondary">Nothing planned</span>}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {members.map(m => {
+        const double = m.clashJobs.size > 0;
+        return (
+          <div key={m.key} className="flex flex-col gap-4 rounded-[11px] border border-ui-divider bg-ui-page-bg py-2.5 pl-2.5 pr-3.5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-2.5">
+                <Avatar name={m.name} size="lg" className="size-[53px] rounded-[4px]" />
+                <div className="flex min-w-0 flex-col">
+                  <span className={cn('truncate text-[20px] font-semibold tracking-[-0.44px]', HEADING)}>{m.name}</span>
+                  <span className="text-[14px] tracking-[-0.308px] text-ui-text-secondary">{m.jobs.length} Job{m.jobs.length === 1 ? '' : 's'}</span>
+                </div>
+              </div>
+              {double
+                ? <span className={cn(CHIP, 'px-2.5 text-[16px] bg-[var(--status-t10-bg)] text-[var(--status-t10-fg)]')}>Double Booked</span>
+                : !m.busyNow && <span className={cn(CHIP, 'px-2.5 text-[16px] bg-[var(--status-t0-bg)] text-[var(--status-t0-fg)]')}>Free</span>}
+            </div>
+            {m.jobs.length === 0
+              ? <p className="m-0 text-[14px] text-ui-text-secondary">Nothing planned</p>
+              : (
+                <div className="flex flex-col gap-1">
+                  {m.jobs.map(j => {
+                    const red = m.clashJobs.has(j.id);
+                    return (
+                      <div key={j.id} title={red ? 'Double-booked: overlaps another of this installer’s jobs' : undefined}
+                        className={cn('flex items-center justify-between gap-4 rounded-[4px] px-4 py-0.5 text-[14px] font-medium leading-[1.4]',
+                          red ? 'bg-[var(--status-t10-bg)] text-[var(--status-t10-fg)]' : 'bg-[var(--status-t0-bg)] text-[var(--status-t0-fg)]')}>
+                        <span className="flex min-w-0 items-center gap-4">
+                          <span className="shrink-0">{j.project_no || '—'}</span>
+                          <span className="truncate">{j.project_name}</span>
+                        </span>
+                        <span className="inline-flex shrink-0 items-center gap-1">{dayMonth(j.planned_start!)} <CalendarDays size={16} aria-hidden /></span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+          </div>
+        );
+      })}
     </div>
   );
 }
