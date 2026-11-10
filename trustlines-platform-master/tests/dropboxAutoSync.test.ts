@@ -75,3 +75,15 @@ describe('isDesignVersionPath', () => {
     expect(isDesignVersionPath('/design/t lines/x/1-plan layout/1-pdf/a.pdf')).toBe(false);
   });
 });
+
+describe('dropboxErrorInfo', () => {
+  it('reads error_summary, plain-text bodies and empty summaries', async () => {
+    const { dropboxErrorInfo, dropboxErrorMessage } = await import('@/lib/dropbox/errors');
+    expect(dropboxErrorInfo({ status: 409, error: { error_summary: 'path/not_found/..' } }).notFound).toBe(true);
+    expect(dropboxErrorInfo({ status: 400, error: 'Error in call to API function' }).summary).toBe('Error in call to API function');
+    const empty = dropboxErrorInfo({ status: 503, error: { error_summary: '' } });
+    expect(empty.summary).not.toBe('');
+    expect(empty.transient).toBe(true);
+    expect(dropboxErrorMessage({ status: 429, error: { error_summary: '' } })).toMatch(/rate limit/);
+  });
+});
