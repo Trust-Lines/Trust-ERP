@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Download, Plus, Search, X } from 'lucide-react';
+import { FileSpreadsheet, Plus, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
@@ -199,22 +199,25 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
   // ── render ──────────────────────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      {/* Figma 620:33811 — page heading */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-[5px] leading-[1.35]">
-          <PageCrumbs items={[{ label: 'T-Lines PM', href: '/tlines-pm' }, { label: 'Installation', href: '/tlines-pm/installation' }]} />
+          <PageCrumbs items={[{ label: 'T-Lines PM', href: '/tlines-pm' }, { label: 'Installation Plan', href: '/tlines-pm/installation' }]} />
           <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Installation Plan</h1>
-          <p className="m-0 text-[13px] text-ui-body">Every project planned for installation — dates, branch, team, PM and status. The dashboard, months, Gantt and team allocation update from the register.</p>
+          <p className="m-0 text-[13px] text-ui-body">
+            {rows.filter(r => !isClosed(r)).length} open installation{rows.filter(r => !isClosed(r)).length === 1 ? '' : 's'} · the dashboard, months, Gantt and teams update from the register
+          </p>
         </div>
         {!setupNeeded && (
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={exportCsv}
-              className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[6px] border border-ui-divider bg-ui-input-bg px-3 text-[13px] font-medium text-ui-body hover:text-ui-heading">
-              <Download size={15} /> Export to Excel (CSV)
+              className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] bg-ui-page-bg pl-3 pr-3.5 text-[13px] font-semibold leading-[1.4] text-[var(--color-secondary-700)] hover:bg-ui-hover-bg dark:border-ui-heading dark:text-ui-heading">
+              <FileSpreadsheet size={16} aria-hidden /> Export Excel
             </button>
             {canEdit && (
               <button type="button" onClick={() => setEditing('new')}
-                className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent px-3 text-[13px] font-medium text-ui-btn-accent-fg hover:brightness-95">
-                <Plus size={16} /> Add project
+                className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent pl-3 pr-3.5 text-[13px] font-semibold leading-[1.4] text-ui-btn-accent-fg hover:brightness-95">
+                <Plus size={16} aria-hidden /> Add project
               </button>
             )}
           </div>
@@ -230,11 +233,14 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
       ) : (
         <>
           {/* tabs */}
-          <div role="tablist" aria-label="Installation plan" className="flex w-fit flex-wrap gap-0.5 rounded-[8px] border border-ui-divider bg-ui-input-bg p-[3px]">
+          {/* Figma 620:33816 — underline view tabs */}
+          <div role="tablist" aria-label="Installation plan" className="mt-3 flex h-12 items-stretch gap-8 overflow-x-auto border-b border-ui-divider">
             {TABS.map(t => (
               <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => go(t.key)}
-                className={cn('h-9 cursor-pointer rounded-[6px] border-0 px-4 text-[13px] transition-colors',
-                  tab === t.key ? 'bg-[var(--ui-btn-solid)] font-semibold text-[var(--ui-btn-solid-fg)] shadow-[0_1px_2px_rgba(0,0,0,0.15)]' : 'bg-transparent font-medium text-ui-body hover:bg-ui-hover-bg hover:text-ui-heading')}>
+                className={cn('-mb-px shrink-0 cursor-pointer whitespace-nowrap border-0 border-b-[3px] border-solid bg-transparent px-0 text-[13px] leading-[1.4] transition-colors',
+                  tab === t.key
+                    ? 'border-[var(--color-secondary-700)] font-semibold text-[var(--color-secondary-700)] dark:border-ui-heading dark:text-ui-heading'
+                    : 'border-transparent font-normal text-ui-text-secondary hover:text-ui-heading')}>
                 {t.label}
               </button>
             ))}
