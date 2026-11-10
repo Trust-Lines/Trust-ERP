@@ -19,6 +19,7 @@ import { FileViewer } from './FileViewer';
 // Nothing here deletes, moves or renames in Dropbox.
 
 interface Entry { name: string; path: string; tag: 'file' | 'folder'; size: number | null; modified: string | null }
+interface Listing { root: string; entries: Entry[]; exists: boolean }
 
 export function ProjectFiles({ projectId }: { projectId: string }) {
   const api = `/api/projects/${projectId}/files`;
@@ -43,24 +44,43 @@ export function ProjectFiles({ projectId }: { projectId: string }) {
     return b;
   }, [api]);
 
-  const load = useCallback(async (p: string, quiet = false) => {
-    if (!quiet) setLoading(true);
-    setError(null);
-    try {
+  // Folders already seen show at once (and refresh behind); hovering a folder fetches it ahead.
+  const cache = useRef(new Map<string, Listing>());
+  const inflight = useRef(new Map<string, Promise<Listing>>());
+  const fetchListing = useCallback((p: string): Promise<Listing> => {
+    const running = inflight.current.get(p);
+    if (running) return running;
+    const job = (async () => {
       const res = await fetch(`${api}?path=${encodeURIComponent(p)}`);
       const b = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(b.error ?? 'Could not load the folder');
-      if (p !== pathRef.current) return; // the user moved on meanwhile
-      setRoot(b.root); setEntries(b.entries ?? []); setExists(b.exists !== false);
-    } catch (e) {
-      if (!quiet) setError(e instanceof Error ? e.message : 'Could not load the folder');
-    } finally { if (!quiet) setLoading(false); }
+      const l: Listing = { root: b.root, entries: b.entries ?? [], exists: b.exists !== false };
+      cache.current.set(p, l);
+      return l;
+    })().finally(() => inflight.current.delete(p));
+    inflight.current.set(p, job);
+    return job;
   }, [api]);
+  const prefetch = useCallback((p: string) => { if (!cache.current.has(p)) fetchListing(p).catch(() => {}); }, [fetchListing]);
+
+  const load = useCallback(async (p: string, quiet = false) => {
+    const hit = cache.current.get(p);
+    const show = (l: Listing) => { if (p === pathRef.current) { setRoot(l.root); setEntries(l.entries); setExists(l.exists); } };
+    if (hit) { show(hit); quiet = true; }
+    if (!quiet) setLoading(true);
+    setError(null);
+    try {
+      if (quiet) cache.current.delete(p); // force a fresh read behind the cached view
+      show(await fetchListing(p));
+    } catch (e) {
+      if (!quiet && p === pathRef.current) setError(e instanceof Error ? e.message : 'Could not load the folder');
+    } finally { if (!quiet) setLoading(false); }
+  }, [fetchListing]);
 
   useEffect(() => { void load(path); }, [load, path]);
 
   // Live: something changed in this project's Dropbox folder → reload the open folder quietly.
-  useDropboxLive(dropboxProjectTopic(projectId), () => void load(pathRef.current, true));
+  useDropboxLive(dropboxProjectTopic(projectId), () => { cache.current.clear(); void load(pathRef.current, true); });
 
   async function uploadOne(f: File) {
     const { link, path: target } = await post({ action: 'upload-link', path, fileName: f.name });
@@ -167,7 +187,7 @@ export function ProjectFiles({ projectId }: { projectId: string }) {
           <ul className="m-0 list-none divide-y divide-ui-divider p-0">
             {entries.map(e => (
               <li key={e.path}>
-                <button type="button" onClick={() => void openEntry(e)} className="flex w-full items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-ui-hover-bg">
+                <button type="button" onClick={() => void openEntry(e)} onMouseEnter={e.tag === 'folder' ? () => prefetch(e.path) : undefined} onFocus={e.tag === 'folder' ? () => prefetch(e.path) : undefined} className="flex w-full items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left hover:bg-ui-hover-bg">
                   {e.tag === 'folder' ? <Folder size={16} aria-hidden className="shrink-0 text-ui-text-secondary" /> : <FileText size={16} aria-hidden className="shrink-0 text-ui-text-secondary" />}
                   <span className={cn('min-w-0 flex-1 truncate text-[13px]', e.tag === 'folder' ? cn('font-medium', HEADING) : 'text-ui-body')}>{e.name}</span>
                   {e.tag === 'file' && <span className="w-[70px] text-right text-[11px] text-ui-text-secondary">{formatBytes(e.size)}</span>}

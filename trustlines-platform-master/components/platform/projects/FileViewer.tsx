@@ -32,6 +32,16 @@ export function FileViewer({ projectId, files, index, onIndex, onClose, getLink,
 
   useEffect(() => { setLoading(kind !== 'none' && kind !== 'office'); setOffice(null); }, [file.path, kind]);
 
+  // Fetch the next file ahead (PDF / image up to 25 MB) so → opens it without waiting.
+  const next = files[index + 1];
+  useEffect(() => {
+    if (!next || (next.size ?? 0) > 25 * 1024 * 1024 || !['pdf', 'image'].includes(viewKind(next.name))) return;
+    const l = document.createElement('link');
+    l.rel = 'prefetch'; l.href = `/api/projects/${projectId}/files/view?path=${encodeURIComponent(next.path)}`;
+    document.head.appendChild(l);
+    return () => { l.remove(); };
+  }, [next, projectId]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
