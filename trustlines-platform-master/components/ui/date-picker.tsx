@@ -41,6 +41,12 @@ type DatePickerProps = {
   className?: string
   "aria-label"?: string
   "aria-invalid"?: boolean
+  /** Small label inside the field before the date, e.g. "From" (Figma "Date range"). */
+  prefix?: React.ReactNode
+  /** How the chosen date reads in the field. Default d/M/yyyy. */
+  formatValue?: (d: Date) => string
+  /** Calendar icon after the text instead of before it. */
+  iconEnd?: boolean
 }
 
 /**
@@ -54,6 +60,9 @@ function DatePicker({
   disabled,
   id,
   className,
+  prefix,
+  formatValue = formatDate,
+  iconEnd,
   ...aria
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
@@ -111,8 +120,10 @@ function DatePicker({
         aria-invalid={aria["aria-invalid"]}
         className={cn(fieldBase, "flex h-8 w-[120px] items-center gap-2.5 text-left", className)}
       >
-        <CalendarDaysIcon aria-hidden className="size-[18px] shrink-0" strokeWidth={1.5} />
-        <span className="truncate">{value ? formatDate(value) : placeholder}</span>
+        {!iconEnd && <CalendarDaysIcon aria-hidden className="size-[18px] shrink-0" strokeWidth={1.5} />}
+        {prefix}
+        <span className="truncate">{value ? formatValue(value) : placeholder}</span>
+        {iconEnd && <CalendarDaysIcon aria-hidden className="size-4 shrink-0" strokeWidth={1.5} />}
       </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Positioner sideOffset={4} align="start" className="z-[10050]">
