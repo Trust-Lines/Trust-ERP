@@ -111,7 +111,7 @@ export function TeamsManagerTab({ teams, rows, today, clashes, canEdit, setupNee
         {(['teams', 'members'] as View[]).map(v => (
           <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)}
             className={cn('inline-flex h-[38px] cursor-pointer items-center rounded-[6px] border-0 px-4 text-[13px] text-[var(--color-secondary-700)] dark:text-ui-heading',
-              view === v ? 'bg-[#CCD7E5] font-semibold dark:bg-primary-700' : 'bg-transparent font-medium hover:bg-ui-hover-bg')}>
+              view === v ? 'bg-[#CCD7E5] font-semibold dark:bg-[var(--color-secondary-700)] dark:text-white' : 'bg-transparent font-medium hover:bg-ui-hover-bg')}>
             {v === 'teams' ? 'Teams' : 'Members List'}
           </button>
         ))}
@@ -174,8 +174,8 @@ function TeamCard({ team: t, now, next, clashes, canEdit, onEdit, onDelete }: {
   const free = !now;
   const count = teamHeadcount(t);
   return (
-    <div className={cn('flex flex-col gap-5 rounded-[11px] border bg-ui-page-bg py-2.5 pl-2.5 pr-3.5',
-      free && t.active ? 'border-[var(--status-t0-fg)]' : 'border-ui-divider', !t.active && 'opacity-60')}>
+    <div className={cn('flex flex-col gap-5 rounded-[11px] border py-2.5 pl-2.5 pr-3.5',
+      free && t.active ? 'border-[var(--status-t0-fg)] bg-ui-page-bg' : 'border-ui-divider bg-ui-surface-elevated', !t.active && 'opacity-60')}>
       <div className="flex flex-col gap-2">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col">
@@ -295,11 +295,11 @@ function buildMembers(teams: InstallTeam[], rows: Installation[], clashes: Map<s
 function MembersList({ members }: { members: Member[] }) {
   if (members.length === 0) return <EmptyBox>No members match.</EmptyBox>;
   return (
-    <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {members.map(m => {
         const double = m.clashJobs.size > 0;
         return (
-          <div key={m.key} className="flex flex-col gap-4 rounded-[11px] border border-ui-divider bg-ui-page-bg py-2.5 pl-2.5 pr-3.5">
+          <div key={m.key} className="flex flex-col gap-4 rounded-[11px] border border-ui-divider bg-ui-surface-elevated py-2.5 pl-2.5 pr-3.5">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-2.5">
                 <Avatar name={m.name} size="lg" className="size-[53px] rounded-[4px]" />
