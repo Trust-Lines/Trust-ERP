@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Loader2, Search, WalletCards } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Select as FilterSelect } from '@/components/ui/select';
 import {
   buildSectionsFromProjects,
   mapSignStatus,
@@ -14,6 +15,8 @@ import {
 } from '@/lib/excel/projectsExcelExport';
 import styles from './PaymentsClient.module.css';
 import './PaymentsDark.module.css';
+
+const filterSelectClass = 'h-9 w-auto min-w-[150px] rounded-[6px] border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:px-3 dark:text-ui-heading';
 
 const TABS = ['Projects', 'Direct Orders', 'Missing Extra'] as const;
 type Tab = (typeof TABS)[number];
@@ -209,8 +212,8 @@ export function PaymentsClient() {
 
       <div className={styles.controls}>
         <label className={styles.search}><Search size={16} aria-hidden /><input aria-label="Search projects" placeholder="Search project…" value={search} onChange={event => setSearch(event.target.value)} /></label>
-        <label className={styles.select}><span className="sr-only">Filter by type</span><select value={type} onChange={event => setType(event.target.value)}><option value="">Type</option>{types.map(value => <option key={value}>{value}</option>)}</select><ChevronDown size={14} /></label>
-        <label className={styles.select}><span className="sr-only">Filter by status</span><select value={status} onChange={event => setStatus(event.target.value)}><option value="">Status</option>{statuses.map(value => <option key={value}>{value}</option>)}</select><ChevronDown size={14} /></label>
+        <FilterSelect aria-label="Filter by type" className={filterSelectClass} value={type} onValueChange={value => setType(value ?? '')} options={[{ value: '', label: 'All types' }, ...types.map(value => ({ value, label: value }))]} />
+        <FilterSelect aria-label="Filter by status" className={filterSelectClass} value={status} onValueChange={value => setStatus(value ?? '')} options={[{ value: '', label: 'All statuses' }, ...statuses.map(value => ({ value, label: value }))]} />
         {['Container', 'QuickBook', 'Payment', 'Half'].map(label => <button type="button" className={styles.filter} key={label}>{label}<ChevronDown size={14} /></button>)}
       </div>
 
