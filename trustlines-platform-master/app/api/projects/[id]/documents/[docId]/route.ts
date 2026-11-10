@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getDropboxClient } from '@/lib/dropbox/client';
 import { logAudit } from '@/lib/audit/log';
 
 type Params = { params: Promise<{ id: string; docId: string }> };
@@ -44,11 +43,12 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { error } = await admin.from('documents').delete().eq('id', docId).eq('project_id', projectId);
   if (error) return NextResponse.json({ error: error.message ?? 'Delete failed' }, { status: 500 });
 
-  if (doc.dropbox_path) {
-    try { await getDropboxClient().filesDeleteV2({ path: doc.dropbox_path }); }
-    catch (e) { console.error('[documents.delete] Dropbox delete failed:', e); }
-  }
-
-  await logAudit({ actorId: user.id, action: 'document.deleted', projectId, resource: `${doc.doc_type} — ${doc.file_name}` });
+  // The file stays in Dropbox (docs/AGENTS.md §4 — the app never deletes there; documents are now
+  // also imported from people's own files). Its path is kept on the audit row so the Dropbox sync
+  // doesn't bring the document back (lib/dropbox/autoSync → dismissedPaths).
+  await logAudit({
+    actorId: user.id, action: 'document.deleted', projectId, resource: `${doc.doc_type} — ${doc.file_name}`,
+    newValue: doc.dropbox_path ? { dropbox_path: doc.dropbox_path, kept_in_dropbox: true } : null,
+  });
   return NextResponse.json({ ok: true });
 }

@@ -387,7 +387,7 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
   }
 
   async function deletePf(docId: string, code: string) {
-    if (!window.confirm(`Delete ${code}? This removes the draft and its Dropbox file.`)) return;
+    if (!window.confirm(`Delete ${code} from the app? The file stays in Dropbox.`)) return;
     try {
       const res = await fetch(`/api/projects/${projectId}/documents/${docId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error((await res.json() as { error?: string }).error ?? 'Failed');
