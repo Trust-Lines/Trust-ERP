@@ -277,8 +277,8 @@ function MonthBars({ months, values, today }: { months: string[]; values: number
   const active = hover ?? (current >= 0 ? current : null);
 
   return (
-    <div className="relative w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${W} ${H + 16}`} className="h-auto w-full min-w-[480px]" role="img" aria-label="Projects starting per month"
+    <div className="relative w-full">
+      <svg viewBox={`0 0 ${W} ${H + 16}`} className="block h-auto w-full" role="img" aria-label="Projects starting per month"
         onMouseLeave={() => setHover(null)}>
         {Array.from({ length: top / step + 1 }, (_, k) => k * step).map(v => (
           <g key={v}>
@@ -302,7 +302,7 @@ function MonthBars({ months, values, today }: { months: string[]; values: number
         })}
       </svg>
       {active !== null && values[active] > 0 && (
-        <ChartTip left={`${((L + colW * (active + 0.5)) / W) * 100}%`} top={`${(y(values[active]) / (H + 16)) * 100}%`} title={monthTitle(months[active])}>
+        <ChartTip left={`${((L + colW * (active + 0.5)) / W) * 100}%`} top={`${(y(values[active]) / (H + 16)) * 100}%`} flip={(L + colW * (active + 0.5)) / W > 0.6} title={monthTitle(months[active])}>
           <span className="flex justify-between gap-6 text-[var(--color-accent-400)]">
             <span className="text-[12px] font-medium">Projects:</span><span className="text-[14px] font-semibold">{values[active]}</span>
           </span>
@@ -317,7 +317,9 @@ function BranchAreas({ months, series }: { months: string[]; series: { key: stri
   const W = 1002, H = 266, L = 44, T = 20, PLOT_H = 220;
   const { step, top } = axisTop(Math.max(0, ...series.flatMap(s => s.values)));
   const span = Math.max(1, months.length - 1);
-  const x = (i: number) => L + ((W - L - 8) * i) / span;
+  const PAD = 22; // room for the first / last month label
+  const colStep = (W - L - PAD * 2) / span;
+  const x = (i: number) => L + PAD + colStep * i;
   const y = (v: number) => T + PLOT_H * (1 - v / top);
   const [hover, setHover] = React.useState<number | null>(null);
   const uid = React.useId().replace(/:/g, '');
@@ -339,8 +341,8 @@ function BranchAreas({ months, series }: { months: string[]; series: { key: stri
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative w-full overflow-x-auto">
-        <svg viewBox={`0 0 ${W} ${H + 16}`} className="h-auto w-full min-w-[560px]" role="img" aria-label="Installer assignments per month by branch"
+      <div className="relative w-full">
+        <svg viewBox={`0 0 ${W} ${H + 16}`} className="block h-auto w-full" role="img" aria-label="Installer assignments per month by branch"
           onMouseLeave={() => setHover(null)}>
           <defs>
             {series.map(s => (
@@ -379,15 +381,17 @@ function BranchAreas({ months, series }: { months: string[]; series: { key: stri
             </g>
           )}
           {months.map((m, i) => (
-            <rect key={m} x={x(i) - (W - L) / span / 2} y={T} width={(W - L) / span} height={PLOT_H} fill="transparent" onMouseEnter={() => setHover(i)} />
+            <rect key={m} x={x(i) - colStep / 2} y={T} width={colStep} height={PLOT_H} fill="transparent" onMouseEnter={() => setHover(i)} />
           ))}
         </svg>
         {hover !== null && (
-          <ChartTip left={`${(x(hover) / W) * 100}%`} top="30%" title={monthTitle(months[hover])}>
+          <ChartTip left={`${(x(hover) / W) * 100}%`} top="30%" flip={x(hover) / W > 0.6} title={monthTitle(months[hover])}>
             {series.map(s => (
-              <span key={s.key} className="flex justify-between gap-6">
-                <span className="text-[12px] font-medium text-ui-body">{s.key}:</span>
-                <span className="text-[14px] font-semibold" style={{ color: s.color }}>{s.values[hover]}</span>
+              <span key={s.key} className="flex items-center justify-between gap-6">
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ui-body">
+                  <span className="size-2 rounded-full" style={{ background: s.color }} aria-hidden />{s.key}
+                </span>
+                <span className={cn('text-[14px] font-semibold', HEADING)}>{s.values[hover]}</span>
               </span>
             ))}
           </ChartTip>
@@ -396,8 +400,8 @@ function BranchAreas({ months, series }: { months: string[]; series: { key: stri
       </div>
       <div className="flex flex-wrap justify-center gap-4 text-[12px] font-medium">
         {series.map(s => (
-          <span key={s.key} className="inline-flex items-center gap-1.5" style={{ color: s.color }}>
-            <span className="size-1.5 rounded-full" style={{ background: s.color }} />{s.key}
+          <span key={s.key} className="inline-flex items-center gap-1.5 text-ui-body">
+            <span className="size-2 rounded-full" style={{ background: s.color }} aria-hidden />{s.key}
           </span>
         ))}
       </div>
@@ -405,9 +409,11 @@ function BranchAreas({ months, series }: { months: string[]; series: { key: stri
   );
 }
 
-function ChartTip({ left, top, title, children }: { left: string; top: string; title: string; children: React.ReactNode }) {
+/** Sits right of the point; `flip` puts it on the left so it never runs off the card. */
+function ChartTip({ left, top, title, flip, children }: { left: string; top: string; title: string; flip?: boolean; children: React.ReactNode }) {
   return (
-    <div className="pointer-events-none absolute flex w-[146px] translate-x-3 flex-col gap-2 rounded-[6px] border border-ui-divider bg-ui-page-bg p-3 shadow-sm"
+    <div className={cn('pointer-events-none absolute z-[1] flex w-[146px] flex-col gap-2 rounded-[6px] border border-ui-divider bg-ui-page-bg p-3 shadow-sm',
+      flip ? '-translate-x-[calc(100%+12px)]' : 'translate-x-3')}
       style={{ left, top }}>
       <span className={cn('text-[12px] font-medium leading-4', HEADING)}>{title}</span>
       <span className="flex flex-col leading-4">{children}</span>
