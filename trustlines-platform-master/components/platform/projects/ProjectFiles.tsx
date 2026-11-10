@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { HEADING, formatBytes } from '@/components/platform/design/designShared';
 import { useDropboxLive } from '@/hooks/use-dropbox-live';
 import { dropboxProjectTopic } from '@/lib/realtime/broadcast';
+import { FileViewer } from './FileViewer';
 
 // Project "Files" tab: the project's whole Dropbox folder, live, both ways.
 //   Dropbox → site: read straight from Dropbox; the webhook pings this tab when anything under
@@ -30,6 +31,7 @@ export function ProjectFiles({ projectId }: { projectId: string }) {
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [viewing, setViewing] = useState<number | null>(null); // index into the folder's files
   const inputRef = useRef<HTMLInputElement>(null);
   const pathRef = useRef(path);
   useEffect(() => { pathRef.current = path; }, [path]);
@@ -92,16 +94,18 @@ export function ProjectFiles({ projectId }: { projectId: string }) {
     void load(path, true);
   }
 
-  async function openEntry(e: Entry) {
+  const folderFiles = entries.filter(e => e.tag === 'file');
+  useEffect(() => { setViewing(null); }, [path]);
+
+  // A file opens in the viewer — never a download by itself.
+  function openEntry(e: Entry) {
     if (e.tag === 'folder') { setPath(e.path); return; }
-    const win = window.open('', '_blank');
-    try {
-      const b = await post({ action: 'open', path: e.path });
-      if (win) win.location.href = b.link; else window.open(b.link, '_blank', 'noopener,noreferrer');
-    } catch (err) {
-      win?.close();
-      toast.error(err instanceof Error ? err.message : 'Could not open the file');
-    }
+    setViewing(folderFiles.findIndex(f => f.path === e.path));
+  }
+
+  async function linkFor(p: string): Promise<string> {
+    try { return (await post({ action: 'open', path: p })).link as string; }
+    catch (err) { toast.error(err instanceof Error ? err.message : 'Could not reach the file'); throw err; }
   }
 
   async function newFolder() {
@@ -175,6 +179,12 @@ export function ProjectFiles({ projectId }: { projectId: string }) {
         )}
       </div>
       {root && <p className="m-0 break-all font-mono text-[10.5px] text-ui-text-secondary">{root}{path ? `/${path}` : ''}</p>}
+      {viewing != null && folderFiles[viewing] && (
+        <FileViewer
+          projectId={projectId} files={folderFiles} index={viewing} onIndex={setViewing}
+          onClose={() => setViewing(null)} getLink={linkFor} formatBytes={formatBytes}
+        />
+      )}
     </div>
   );
 }
