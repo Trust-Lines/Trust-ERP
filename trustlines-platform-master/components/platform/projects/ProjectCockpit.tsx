@@ -1,11 +1,12 @@
 'use client';
 
-import { Fragment } from 'react';
+import { Fragment, useContext, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertCircle, ArrowRight, Check, CircleCheck, Clock, Layers } from 'lucide-react';
+import { AlertCircle, ArrowRight, Check, ChevronDown, ChevronUp, CircleCheck, Clock, Layers } from 'lucide-react';
 import { PHASE_LABELS, TYPE_SUB_PHASE_LABELS, type LifecyclePhase, type TypeSubPhase } from '@/lib/lifecycle/projectLifecycle';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
+import { ProjectTabContext } from './projectTabContext';
 
 interface RailStage { phase: LifecyclePhase; label: string; state: 'done' | 'active' | 'upcoming' }
 interface Blocker { code: string; message: string; count?: number }
@@ -57,6 +58,7 @@ const SUBPHASE_TONE: Record<TypeSubPhase, 't2' | 't7' | 't0'> = {
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD_TITLE = cn('m-0 text-[20px] font-semibold tracking-[0.4px]', HEADING);
 const CARD = 'flex min-w-0 flex-col gap-[22px] rounded-[8px] bg-ui-page-bg pb-5 pl-4 pr-[18px] pt-3.5';
+const COCKPIT_PREF = 'project-cockpit-open';
 const RAIL_CHIP = 'inline-flex items-center justify-center gap-1 rounded-[4px] py-4 pl-4 pr-5 text-[12px] font-medium leading-4 whitespace-nowrap';
 
 export function ProjectCockpit({
@@ -65,8 +67,53 @@ export function ProjectCockpit({
   const activeBlockers = blockers.filter(b => b.code !== 'stage_mismatch');
   const mismatch = blockers.find(b => b.code === 'stage_mismatch');
 
+  // Full on Overview; one slim line on the other tabs so the tab's own content gets the screen.
+  // Show / Hide is remembered per kind (Overview vs the rest) in this browser.
+  const tab = useContext(ProjectTabContext);
+  const kind = tab === 'Overview' ? 'overview' : 'tabs';
+  const [override, setOverride] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    try { setOverride(JSON.parse(localStorage.getItem(COCKPIT_PREF) ?? '{}')); } catch { /* storage off */ }
+  }, []);
+  const open = override[kind] ?? kind === 'overview';
+  const toggle = () => {
+    const next = { ...override, [kind]: !open };
+    setOverride(next);
+    try { localStorage.setItem(COCKPIT_PREF, JSON.stringify(next)); } catch { /* storage off */ }
+  };
+
+  if (!open) {
+    const current = rail.find(s => s.state === 'active');
+    const done = rail.filter(s => s.state === 'done').length;
+    const issues = [...activeBlockers.map(b => b.message), ...(mismatch ? [mismatch.message] : [])];
+    return (
+      <section aria-label="Project cockpit" className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[8px] border border-ui-divider bg-ui-surface px-3 py-2">
+        {current && (
+          <span className="inline-flex items-center gap-2 text-[12px]">
+            <span className="rounded-[4px] bg-[var(--color-primary-500)] px-2.5 py-1 font-medium text-white">{current.label}</span>
+            <span className="text-ui-text-secondary">{done} / {rail.length - 1} done</span>
+          </span>
+        )}
+        {issues.length > 0 && (
+          <span title={issues.join(' · ')} className="inline-flex items-center gap-1.5 text-[12px] text-ui-body">
+            <AlertCircle size={13} aria-hidden style={{ color: 'var(--status-t7-fg)' }} /> {issues.length} blocker{issues.length === 1 ? '' : 's'}
+          </span>
+        )}
+        <Link href="/approvals" className={cn('text-[12px] no-underline hover:underline', HEADING)}><b>{pending.openApprovals}</b> open approvals</Link>
+        <span className={cn('text-[12px]', HEADING)}><b>{nextActions.length}</b> next action{nextActions.length === 1 ? '' : 's'}</span>
+        <span className={cn('text-[12px]', HEADING)}><b>{perType.length}</b> type{perType.length === 1 ? '' : 's'}</span>
+        <button type="button" onClick={toggle} aria-expanded={false} className="ml-auto inline-flex items-center gap-1 rounded-[4px] border border-ui-divider bg-transparent px-2.5 py-1 text-[12px] text-ui-body hover:bg-ui-hover-bg">
+          Show details <ChevronDown size={13} aria-hidden />
+        </button>
+      </section>
+    );
+  }
+
   return (
-    <section aria-label="Project cockpit" className="flex flex-col gap-4 rounded-[8px] border border-ui-divider bg-ui-surface p-4">
+    <section aria-label="Project cockpit" className="relative flex flex-col gap-4 rounded-[8px] border border-ui-divider bg-ui-surface p-4">
+      <button type="button" onClick={toggle} aria-expanded className="absolute -bottom-3 right-4 z-[1] inline-flex items-center gap-1 rounded-full border border-ui-divider bg-ui-surface px-2.5 py-0.5 text-[11px] text-ui-text-secondary hover:bg-ui-hover-bg">
+        Hide <ChevronUp size={12} aria-hidden />
+      </button>
       <div className="rounded-[8px] bg-ui-page-bg px-2.5 py-2">
         <div className="flex flex-wrap items-center gap-2.5">
           {rail.map(s => (
