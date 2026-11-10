@@ -1,3 +1,4 @@
+import { LiveRefresh } from '@/components/platform/shared/LiveRefresh';
 import { requirePage } from '@/lib/permissions/requirePage';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -53,6 +54,7 @@ export default async function PmWorkspacePage() {
           Trust System couldn’t be read — stages fall back to this app’s own records: {live.trustError}
         </p>
       )}
+      <LiveRefresh name="pm" tables={['documents', 'document_approvals', 'projects']} />
       <PmWorkspaceClient rows={rows} seesAll={seesAll} />
     </div>
   );

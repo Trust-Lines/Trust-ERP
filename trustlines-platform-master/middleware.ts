@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
   const { data: claimsData } = await supabase.auth.getClaims(bearer);
   const user = claimsData?.claims?.sub ? { id: claimsData.claims.sub } : null;
 
-  const publicPaths = ['/login', '/tlines-login', '/trustlines-login', '/auth/callback', '/auth/set-password', '/auth/forgot-password', '/api/auth/forgot-password', '/review', '/survey', '/unsubscribe', '/quote', '/contract', '/install/', '/video-upload/', '/api/public', '/api/cron'];
+  const publicPaths = ['/login', '/tlines-login', '/trustlines-login', '/auth/callback', '/auth/set-password', '/auth/forgot-password', '/api/auth/forgot-password', '/review', '/survey', '/unsubscribe', '/quote', '/contract', '/install/', '/video-upload/', '/api/public', '/api/cron', '/api/dropbox/webhook'];
   const isPublic = publicPaths.some(p => pathname.startsWith(p));
 
   // An expired / forged mobile token gets a 401 the app can act on, not the web login page.

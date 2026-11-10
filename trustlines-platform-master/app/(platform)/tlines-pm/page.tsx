@@ -1,3 +1,4 @@
+import { LiveRefresh } from '@/components/platform/shared/LiveRefresh';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect as nextRedirect } from 'next/navigation';
@@ -224,7 +225,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         trustError={trust.error}
         users={allUsers ?? []}
         canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
-        top={<div key="top-summary"><TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={t.kpis} /></div>}
+        top={<div key="top-summary"><LiveRefresh name="tlines-pm" tables={['documents', 'document_approvals', 'projects']} /><TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={t.kpis} /></div>}
       />
     );
   }
@@ -438,7 +439,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
       // A server element passed as a prop into a client component is checked like a list child in
       // dev (React 19 / Next 16) — the key only silences that false "unique key" warning.
-      top={<div key="top-summary"><TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} /></div>}
+      top={<div key="top-summary"><LiveRefresh name="tlines-pm" tables={['documents', 'document_approvals', 'projects']} /><TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} /></div>}
     />
   );
 }
