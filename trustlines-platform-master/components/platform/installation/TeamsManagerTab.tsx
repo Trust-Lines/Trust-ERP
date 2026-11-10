@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { TagInput } from '@/components/ui/tag-input';
@@ -150,7 +151,7 @@ function TeamFormModal({ open, team, onClose, onSave }: {
             <textarea rows={2} value={d.notes ?? ''} onChange={e => set('notes', e.target.value || null)} className={cn(INPUT, 'h-auto py-2')} />
           </Field>
           <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-ui-body">
-            <input type="checkbox" checked={d.active} onChange={e => set('active', e.target.checked)} />
+            <Checkbox checked={d.active} onCheckedChange={v => set('active', !!v)} />
             Active — inactive teams stay on their old rows but aren’t offered for new ones
           </label>
           <button type="submit" hidden />

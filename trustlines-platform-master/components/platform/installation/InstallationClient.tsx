@@ -4,6 +4,7 @@ import * as React from 'react';
 import { ArrowDownUp, FileSpreadsheet, Plus, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Select as FilterSelect } from '@/components/ui/select';
 import {
@@ -12,7 +13,7 @@ import {
 } from '@/lib/installations/compute';
 import { HEADING } from './shared';
 import { DashboardTab } from './DashboardTab';
-import { ColumnsMenu, REGISTER_SORTS, RegisterTab, type RegisterColumn, type RegisterSort } from './RegisterTab';
+import { ColumnsMenu, REGISTER_COLUMNS, REGISTER_SORTS, RegisterTab, type RegisterColumn, type RegisterSort } from './RegisterTab';
 import { MonthlyTab } from './MonthlyTab';
 import { GanttTab } from './GanttTab';
 import { TeamsTab } from './TeamsTab';
@@ -85,6 +86,11 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
     try { localStorage.setItem(COLS_KEY, JSON.stringify([...n])); } catch { /* storage blocked */ }
     return n;
   });
+  const setAllCols = (show: boolean) => {
+    const n = new Set<RegisterColumn>(show ? [] : REGISTER_COLUMNS.filter(c => !('locked' in c)).map(c => c.key));
+    setHiddenCols(n);
+    try { localStorage.setItem(COLS_KEY, JSON.stringify([...n])); } catch { /* storage blocked */ }
+  };
 
   const clashesAll = React.useMemo(() => doubleBookings(rows), [rows]);
   const pmNames = React.useMemo(() => [...new Set(rows.map(r => r.pm_name?.trim()).filter((x): x is string => !!x))].sort(), [rows]);
@@ -282,7 +288,7 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
             <FilterSelect aria-label="Status" value={status} onValueChange={v => setStatus(v ?? '')} className={FILTER_CLS}
               options={[{ value: '', label: 'All Statuses' }, { value: '__none', label: 'No status' }, ...STATUSES.map(s => ({ value: s, label: s }))]} />
             <label className="inline-flex cursor-pointer items-center gap-1.5 text-[13px] text-ui-body">
-              <input type="checkbox" checked={hideDone} onChange={e => setHideDone(e.target.checked)} /> Hide completed
+              <Checkbox checked={hideDone} onCheckedChange={v => setHideDone(!!v)} /> Hide completed
             </label>
             {drill && (
               <button type="button" onClick={() => setDrill(null)}
@@ -300,7 +306,7 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
                   <FilterSelect aria-label="Sort" value={sort} onValueChange={v => pickSort((v ?? 'newest') as RegisterSort)}
                     className={cn(FILTER_CLS, 'gap-2 pl-[34px] pr-3 dark:pl-[34px]')} options={REGISTER_SORTS.map(o => ({ value: o.value, label: o.label }))} />
                 </span>
-                <ColumnsMenu hidden={hiddenCols} onToggle={toggleCol} />
+                <ColumnsMenu hidden={hiddenCols} onToggle={toggleCol} onSetAll={setAllCols} />
               </div>
             )}
           </div>
