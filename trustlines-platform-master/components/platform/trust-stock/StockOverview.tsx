@@ -9,6 +9,7 @@ import {
 import { EmptyState } from '@/components/ui/empty-state';
 import { Modal, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -374,7 +375,7 @@ function ColumnsMenu({ hidden, onToggle }: { hidden: Set<ColKey>; onToggle: (k: 
         <div className="absolute right-0 top-full z-10 mt-1 flex max-h-[360px] w-56 flex-col overflow-y-auto rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1.5 shadow-03">
           {COLUMNS.map(c => (
             <label key={c.key} className="flex h-8 cursor-pointer items-center gap-2 rounded-[4px] px-2 text-[13px] text-ui-body hover:bg-ui-hover-bg">
-              <input type="checkbox" checked={!hidden.has(c.key)} onChange={() => onToggle(c.key)} disabled={c.key === 'itemCode'} />
+              <Checkbox checked={!hidden.has(c.key)} onCheckedChange={() => onToggle(c.key)} disabled={c.key === 'itemCode'} />
               {c.text}
             </label>
           ))}
