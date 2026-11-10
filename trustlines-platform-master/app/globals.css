@@ -2021,3 +2021,33 @@ html[data-hide-amounts] [data-money] { -webkit-text-security: disc; text-securit
 .dark .form-select:hover,
 .dark .ui-select-trigger.form-input:hover { border-color: #5A6779; }
 .dark .ui-select-trigger.form-input .ui-select-chevron { color: var(--ui-body); }
+
+/* ── Item List / Price List editor (DocGeneratorModal) — dark values ─────────────────
+   The editor mirrors the PDF's colours inline, each through var(--il-*, <light hex>), so light
+   mode is unchanged. Dark mode swaps them for platform surfaces. Not scoped to the modal because
+   its suggestion popups are portalled to <body>. */
+.dark {
+  --il-pop-bg: var(--ui-surface-elevated);
+  --il-pop-border: var(--ui-divider-strong);
+  --il-pop-hover: var(--ui-option-hover-bg);
+  --il-pop-fg: var(--ui-heading);
+  --il-pop-muted: var(--fg-faint);
+  --il-pop-divider: var(--ui-divider);
+  --il-thumb-bg: var(--bg-sunken);
+  --il-accent: var(--ui-tab-active);
+  --il-accent-btn: var(--ui-tab-badge);
+  --il-desc: #F87171;
+  --il-load-bg: var(--bg-sunken);
+  --il-load-border: var(--ui-divider-strong);
+  --il-type-bg: #A82126;
+  --il-cat-bg: var(--ui-surface-elevated);
+  --il-cat-fg: var(--ui-heading);
+  --il-seg-bg: var(--ui-group-row-bg);
+  --il-add-type: #F87171;
+  --il-add-type-border: rgba(248, 113, 113, 0.35);
+  --il-total-bg: #996000;
+  --il-total-fg: #FFFFFF;
+  --il-sign-border: var(--ui-divider-strong);
+  --il-sign-fg: var(--ui-tab-active);
+  --il-sign-line: var(--ui-divider-strong);
+}
