@@ -3,6 +3,7 @@ import { requirePage } from '@/lib/permissions/requirePage';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { loadPortfolio, blockerRollup, workload } from '@/lib/workspace/portfolio';
+import { loadLiveContext, withLiveStatus } from '@/lib/workspace/live';
 import { PHASE_LABELS, phaseRank } from '@/lib/lifecycle/projectLifecycle';
 import { ManagementHealthTable, type HealthRow } from '@/components/platform/workspace/ManagementHealthTable';
 import { toRows } from '@/lib/workspace/rows';
@@ -43,7 +44,11 @@ export default async function ManagementPage() {
     );
   }
 
-  const entries = await loadPortfolio(admin, { userId: user!.id, role });
+  const [rawEntries, live] = await Promise.all([loadPortfolio(admin, { userId: user!.id, role }), loadLiveContext(admin)]);
+  // Phase, blockers and dates from the Trust System / installation plan (lib/workspace/live);
+  // the blocker roll-up and workload read the same live blockers.
+  const liveRows = withLiveStatus(toRows(rawEntries, PHASE_LABELS), live);
+  const entries = rawEntries.map((e, i) => ({ ...e, blockers: liveRows[i].blockers as typeof e.blockers }));
   const rollup = blockerRollup(entries);
   const load = workload(entries);
 
@@ -61,7 +66,7 @@ export default async function ManagementPage() {
   }));
   const today = Date.parse(new Date().toISOString().slice(0, 10));
 
-  const rows: HealthRow[] = toRows(entries, PHASE_LABELS).map(r => {
+  const rows: HealthRow[] = liveRows.map(r => {
     const overdue = r.deadlines.filter(d => d.isOverdue).map(d => Math.max(0, Math.round((today - Date.parse(d.targetDate)) / 86400000)));
     return {
       ...r,
