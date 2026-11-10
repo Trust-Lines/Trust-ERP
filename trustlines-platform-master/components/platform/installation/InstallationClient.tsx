@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { FileSpreadsheet, Plus, Search, X } from 'lucide-react';
+import { ArrowDownUp, FileSpreadsheet, Plus, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
@@ -12,7 +12,7 @@ import {
 } from '@/lib/installations/compute';
 import { HEADING } from './shared';
 import { DashboardTab } from './DashboardTab';
-import { RegisterTab } from './RegisterTab';
+import { ColumnsMenu, REGISTER_SORTS, RegisterTab, type RegisterColumn, type RegisterSort } from './RegisterTab';
 import { MonthlyTab } from './MonthlyTab';
 import { GanttTab } from './GanttTab';
 import { TeamsTab } from './TeamsTab';
@@ -34,6 +34,8 @@ const DRILL_LABEL: Record<Drill, string> = {
   soon: 'Starting in 14 days', now: 'Installing now',
 };
 const TAB_KEY = 'tl_install_tab';
+const SORT_KEY = 'tl_install_sort';
+const COLS_KEY = 'tl_install_hidden_cols';
 const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg pl-3 pr-2 text-[13px] font-medium leading-normal text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading [&_svg]:size-3.5';
 
 export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded, setupNeeded, loadError, canEdit, projectByNo, today }: {
@@ -66,6 +68,23 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
   const [status, setStatus] = React.useState('');
   const [hideDone, setHideDone] = React.useState(false);
   const [drill, setDrill] = React.useState<Drill | null>(null);
+  // Register view options (Figma 629:5556): sort and visible columns, remembered per browser.
+  const [sort, setSort] = React.useState<RegisterSort>('newest');
+  const [hiddenCols, setHiddenCols] = React.useState<Set<RegisterColumn>>(new Set(['clash']));
+  React.useEffect(() => {
+    try {
+      const s = localStorage.getItem(SORT_KEY) as RegisterSort | null;
+      if (s && REGISTER_SORTS.some(x => x.value === s)) setSort(s);
+      const h = localStorage.getItem(COLS_KEY);
+      if (h) setHiddenCols(new Set(JSON.parse(h) as RegisterColumn[]));
+    } catch { /* storage blocked */ }
+  }, []);
+  const pickSort = (v: RegisterSort) => { setSort(v); try { localStorage.setItem(SORT_KEY, v); } catch { /* storage blocked */ } };
+  const toggleCol = (k: RegisterColumn) => setHiddenCols(prev => {
+    const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k);
+    try { localStorage.setItem(COLS_KEY, JSON.stringify([...n])); } catch { /* storage blocked */ }
+    return n;
+  });
 
   const clashesAll = React.useMemo(() => doubleBookings(rows), [rows]);
   const pmNames = React.useMemo(() => [...new Set(rows.map(r => r.pm_name?.trim()).filter((x): x is string => !!x))].sort(), [rows]);
@@ -247,20 +266,21 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
           </div>
 
           {/* filters (every tab) */}
-          <div className="flex flex-wrap items-center gap-2.5 rounded-[8px] bg-ui-surface px-2 py-1.5">
+          {/* Figma 629:5556 — search + filters left, sort + columns right (register only) */}
+          <div className="mt-3 flex flex-wrap items-center gap-2.5">
             <label className="relative flex items-center">
-              <Search size={14} className="pointer-events-none absolute left-2.5 text-ui-text-secondary" aria-hidden />
-              <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search project, team, PM, notes…" aria-label="Search"
-                className="h-9 w-[240px] rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-8 pr-2 text-[13px] text-ui-heading outline-none focus:border-[var(--ui-focus-ring)]" />
+              <Search size={16} className="pointer-events-none absolute left-2.5 text-ui-text-secondary" aria-hidden />
+              <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search project…" aria-label="Search project, team, PM, notes"
+                className="h-9 w-[285px] max-w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-2.5 text-[13px] leading-[1.45] text-ui-heading outline-none placeholder:text-ui-text-secondary focus:border-[var(--ui-focus-ring)]" />
             </label>
             <FilterSelect aria-label="Branch" value={branch} onValueChange={v => setBranch(v ?? '')} className={FILTER_CLS}
-              options={[{ value: '', label: 'All branches' }, ...BRANCHES.map(b => ({ value: b, label: b }))]} />
+              options={[{ value: '', label: 'All Branches' }, ...BRANCHES.map(b => ({ value: b, label: b }))]} />
             <FilterSelect aria-label="Project manager" value={pm} onValueChange={v => setPm(v ?? '')} className={FILTER_CLS}
               options={[{ value: '', label: 'All PMs' }, { value: '__none', label: 'No PM (TBD)' }, ...pmNames.map(n => ({ value: n, label: n }))]} />
             <FilterSelect aria-label="Company" value={scope} onValueChange={v => setScope(v ?? '')} className={FILTER_CLS}
-              options={[{ value: '', label: 'All companies' }, ...SCOPES.map(s => ({ value: s, label: s }))]} />
+              options={[{ value: '', label: 'All Companies' }, ...SCOPES.map(s => ({ value: s, label: s }))]} />
             <FilterSelect aria-label="Status" value={status} onValueChange={v => setStatus(v ?? '')} className={FILTER_CLS}
-              options={[{ value: '', label: 'All statuses' }, { value: '__none', label: 'No status' }, ...STATUSES.map(s => ({ value: s, label: s }))]} />
+              options={[{ value: '', label: 'All Statuses' }, { value: '__none', label: 'No status' }, ...STATUSES.map(s => ({ value: s, label: s }))]} />
             <label className="inline-flex cursor-pointer items-center gap-1.5 text-[13px] text-ui-body">
               <input type="checkbox" checked={hideDone} onChange={e => setHideDone(e.target.checked)} /> Hide completed
             </label>
@@ -270,9 +290,19 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
                 {DRILL_LABEL[drill]} <X size={13} />
               </button>
             )}
-            <span className="ml-auto pr-1 text-[12px] text-ui-text-secondary">
+            <span className="text-[12px] text-ui-text-secondary">
               {filtered ? `${visible.length} of ${rows.length} projects` : `${rows.length} projects`}
             </span>
+            {tab === 'register' && (
+              <div className="ml-auto flex items-center gap-2">
+                <span className="relative inline-flex items-center">
+                  <ArrowDownUp size={14} aria-hidden className="pointer-events-none absolute left-3 z-[1] text-[var(--color-secondary-700)] dark:text-ui-heading" />
+                  <FilterSelect aria-label="Sort" value={sort} onValueChange={v => pickSort((v ?? 'newest') as RegisterSort)}
+                    className={cn(FILTER_CLS, 'gap-2 pl-[34px] pr-3 dark:pl-[34px]')} options={REGISTER_SORTS.map(o => ({ value: o.value, label: o.label }))} />
+                </span>
+                <ColumnsMenu hidden={hiddenCols} onToggle={toggleCol} />
+              </div>
+            )}
           </div>
 
           {tab === 'dashboard' && (
@@ -280,7 +310,7 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
               onDrill={d => { setDrill(d); go('register'); }} />
           )}
           {tab === 'register' && (
-            <RegisterTab rows={visible} today={today} clashes={clashesAll} canEdit={canEdit} projectByNo={projectByNo}
+            <RegisterTab rows={visible} today={today} clashes={clashesAll} canEdit={canEdit} projectByNo={projectByNo} sort={sort} hidden={hiddenCols}
               onSave={(id, patch) => { void save(id, patch); }} onAdd={() => setEditing('new')} onEdit={r => setEditing(r)}
               onDelete={remove} pmNames={pmNames} teams={teams} />
           )}
