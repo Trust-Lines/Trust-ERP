@@ -71,6 +71,8 @@ describe('workspace rows from the live sources', () => {
     expect(trustKeyFor('STNW 408', two)).toBeNull();
     expect(liveKey('STNW 408  MARKET')).toBe('408 MARKET');
     expect(liveKey('EX-5')).toBe('EX 5');
+    expect(liveKey('STW 1185')).toBe('1185');
+    expect(liveKey('DSNE 466')).toBe('466');
   });
 
   it('finds a PM by board pick or installation PM name', () => {
