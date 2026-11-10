@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertProjectAccess } from '@/lib/permissions/projectAccess';
-import { getDropboxClient } from '@/lib/dropbox/client';
+import { cachedTemporaryLink } from '@/lib/dropbox/client';
 import { resolveInside } from '@/lib/sales/designPaths';
 import { dropboxErrorInfo, dropboxErrorMessage, withDropboxRetry } from '@/lib/dropbox/errors';
 import { inlineMime } from '@/lib/files/viewKind';
 
 // The Files tab viewer: streams one file of the project's Dropbox folder *inline* (PDF, image,
 // video, audio, text) so the browser shows it instead of downloading it. Range requests are passed
-// through, so videos seek and big PDFs start rendering before they finish loading.
+// through, so big PDFs start rendering before they finish loading. Images, video and audio are
+// redirected to Dropbox's CDN instead (faster; those elements ignore the download header).
 export const maxDuration = 300;
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -32,8 +33,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!mime) return NextResponse.json({ error: 'This file type can’t be shown in the browser' }, { status: 415 });
 
   try {
-    const dbx = getDropboxClient();
-    const link = (await withDropboxRetry(() => dbx.filesGetTemporaryLink({ path: abs }))).result.link;
+    const link = await withDropboxRetry(() => cachedTemporaryLink(abs));
+    // <img> / <video> / <audio> ignore Dropbox's 'attachment' header, so they load straight from
+    // Dropbox's CDN — no detour through this server. PDFs (iframe) and text still stream below.
+    if (/^(image|video|audio)\//.test(mime) && mime !== 'image/svg+xml') {
+      return NextResponse.redirect(link, { status: 302, headers: { 'Cache-Control': 'private, max-age=600' } });
+    }
     const range = req.headers.get('range');
     const upstream = await fetch(link, range ? { headers: { Range: range } } : undefined);
     if (!upstream.ok && upstream.status !== 206) return NextResponse.json({ error: `Dropbox: HTTP ${upstream.status}` }, { status: 502 });

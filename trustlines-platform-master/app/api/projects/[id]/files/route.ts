@@ -3,7 +3,7 @@ import { requireUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertProjectAccess } from '@/lib/permissions/projectAccess';
 import { logAudit } from '@/lib/audit/log';
-import { getDropboxClient } from '@/lib/dropbox/client';
+import { cachedTemporaryLink, getDropboxClient } from '@/lib/dropbox/client';
 import { freePath } from '@/lib/design/dropboxDirect';
 import { relativeTo, resolveInside, safeSegment } from '@/lib/sales/designPaths';
 import { syncProjectDropbox } from '@/lib/dropbox/autoSync';
@@ -118,8 +118,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (action === 'open') {
       const abs = resolveInside(root!, String(body.path ?? ''));
       if (!abs || abs === root) return NextResponse.json({ error: 'Invalid file' }, { status: 400 });
-      const res = await withDropboxRetry(() => dbx.filesGetTemporaryLink({ path: abs }));
-      return NextResponse.json({ link: res.result.link });
+      return NextResponse.json({ link: await withDropboxRetry(() => cachedTemporaryLink(abs)) });
     }
   } catch (e) {
     const info = dropboxErrorInfo(e);
