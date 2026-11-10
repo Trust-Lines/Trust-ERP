@@ -15,20 +15,16 @@ import {
 import { HEADING } from './shared';
 import { DashboardTab } from './DashboardTab';
 import { ColumnsMenu, REGISTER_COLUMNS, REGISTER_SORTS, RegisterTab, type RegisterColumn, type RegisterSort } from './RegisterTab';
-import { MonthlyTab } from './MonthlyTab';
 import { GanttTab } from './GanttTab';
-import { TeamsTab } from './TeamsTab';
 import { TeamsManagerTab, type TeamDraft } from './TeamsManagerTab';
 import { RowEditModal } from './RowEditModal';
 
-type Tab = 'dashboard' | 'register' | 'monthly' | 'gantt' | 'teamsMgr' | 'teams';
+type Tab = 'dashboard' | 'register' | 'gantt' | 'teamsMgr';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'register', label: 'Project Register' },
-  { key: 'monthly', label: 'Monthly' },
   { key: 'gantt', label: 'Gantt Chart' },
   { key: 'teamsMgr', label: 'Teams' },
-  { key: 'teams', label: 'Team Allocation' },
 ];
 type Drill = 'attention' | 'overdue' | 'clash' | 'update' | 'soon' | 'now';
 const DRILL_LABEL: Record<Drill, string> = {
@@ -144,12 +140,6 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
     });
   }, [rows, q, branch, pm, scope, status, hideDone, drill, today, clashesAll, from, to]);
   const filtered = visible.length !== rows.length;
-  // Clashes are found across the whole plan (an installer is busy whatever the filter), but the
-  // dashboard only lists / counts the rows on screen.
-  const clashesVisible = React.useMemo(() => {
-    const ids = new Set(visible.map(r => r.id));
-    return new Map([...clashesAll].filter(([id]) => ids.has(id)));
-  }, [visible, clashesAll]);
 
   // ── saving ──────────────────────────────────────────────────────────────────────────────────
   /** Saves cells of one row (shown at once, put back if the server says no). */
@@ -297,8 +287,9 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
             ))}
           </div>
 
-          {/* filters (every tab) */}
-          {/* Figma 629:5556 — search + filters left, sort + columns right (register only) */}
+          {/* Figma 629:5556 — search + filters left, sort + columns right (register only). Not on
+              the Dashboard, which always shows the whole plan. */}
+          {tab !== 'dashboard' && (
           <div className="mt-3 flex flex-wrap items-center gap-2.5">
             <label className="relative flex items-center">
               <Search size={16} className="pointer-events-none absolute left-2.5 text-ui-text-secondary" aria-hidden />
@@ -352,9 +343,10 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
             )}
             </div>
           </div>
+          )}
 
           {tab === 'dashboard' && (
-            <DashboardTab rows={visible} today={today} clashes={clashesVisible} months={months} projectByNo={projectByNo}
+            <DashboardTab rows={rows} today={today} clashes={clashesAll} months={months} projectByNo={projectByNo}
               onDrill={d => { setDrill(d); go('register'); }} />
           )}
           {tab === 'register' && (
@@ -362,13 +354,11 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
               onSave={(id, patch) => { void save(id, patch); }} onAdd={() => setEditing('new')} onEdit={r => setEditing(r)}
               onDelete={remove} pmNames={pmNames} teams={teams} />
           )}
-          {tab === 'monthly' && <MonthlyTab rows={visible} months={months} today={today} projectByNo={projectByNo} />}
           {tab === 'gantt' && <GanttTab rows={visible} months={months} today={today} clashes={clashesAll} projectByNo={projectByNo} />}
           {tab === 'teamsMgr' && (
             <TeamsManagerTab teams={teams} rows={rows} today={today} canEdit={canEdit} setupNeeded={teamsSetupNeeded} projectByNo={projectByNo}
               onCreate={createTeam} onUpdate={updateTeam} onDelete={t => { void deleteTeam(t); }} />
           )}
-          {tab === 'teams' && <TeamsTab rows={visible} months={months} today={today} clashes={clashesAll} projectByNo={projectByNo} />}
         </>
       )}
 
