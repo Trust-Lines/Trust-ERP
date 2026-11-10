@@ -7,6 +7,7 @@ import { getDropboxClient } from '@/lib/dropbox/client';
 import { freePath } from '@/lib/design/dropboxDirect';
 import { relativeTo, resolveInside, safeSegment } from '@/lib/sales/designPaths';
 import { syncProjectDropbox } from '@/lib/dropbox/autoSync';
+import { dropboxErrorInfo, dropboxErrorMessage, withDropboxRetry } from '@/lib/dropbox/errors';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -20,11 +21,6 @@ type Params = { params: Promise<{ id: string }> };
 // "add" with a free name.
 
 interface FileEntry { name: string; path: string; tag: 'file' | 'folder'; size: number | null; modified: string | null }
-
-function dropboxError(e: unknown): string {
-  const err = e as any;
-  return err?.error?.error_summary ?? (e instanceof Error ? e.message : 'Dropbox error');
-}
 
 async function projectRoot(id: string): Promise<{ root: string | null; deny: NextResponse | null; userId: string | null; admin: any }> {
   const { user, unauth } = await requireUser();
@@ -49,10 +45,11 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   try {
     const dbx = getDropboxClient();
-    let res = await dbx.filesListFolder({ path: abs, include_deleted: false });
+    let res = await withDropboxRetry(() => dbx.filesListFolder({ path: abs, include_deleted: false }));
     const raw: any[] = [...res.result.entries];
     for (let page = 0; res.result.has_more && page < 20; page++) {
-      res = await dbx.filesListFolderContinue({ cursor: res.result.cursor });
+      const cursor = res.result.cursor;
+      res = await withDropboxRetry(() => dbx.filesListFolderContinue({ cursor }));
       raw.push(...res.result.entries);
     }
     const entries: FileEntry[] = raw
@@ -65,10 +62,10 @@ export async function GET(req: NextRequest, { params }: Params) {
       .sort((a, b) => (a.tag === b.tag ? a.name.localeCompare(b.name, undefined, { numeric: true }) : a.tag === 'folder' ? -1 : 1));
     return NextResponse.json({ root, path: relativeTo(root!, abs) ?? '', exists: true, entries });
   } catch (e) {
-    const msg = dropboxError(e);
-    if (msg.includes('not_found')) return NextResponse.json({ root, path: rel, exists: false, entries: [] });
-    console.error('[project files GET]', msg);
-    return NextResponse.json({ error: `Dropbox: ${msg}` }, { status: 502 });
+    const info = dropboxErrorInfo(e);
+    if (info.notFound) return NextResponse.json({ root, path: rel, exists: false, entries: [] });
+    console.error('[project files GET]', info.status, info.summary);
+    return NextResponse.json({ error: dropboxErrorMessage(e) }, { status: info.status === 429 ? 503 : 502 });
   }
 }
 
@@ -90,10 +87,10 @@ export async function POST(req: NextRequest, { params }: Params) {
       const name = safeSegment(String(body.fileName ?? ''), '');
       if (!dir || !name) return NextResponse.json({ error: 'Invalid folder or file name' }, { status: 400 });
       const target = await freePath(dir, name); // never overwrite: a free name up front
-      const res = await dbx.filesGetTemporaryUploadLink({
+      const res = await withDropboxRetry(() => dbx.filesGetTemporaryUploadLink({
         commit_info: { path: target, mode: { '.tag': 'add' }, autorename: true },
         duration: 3600,
-      });
+      }));
       return NextResponse.json({ link: res.result.link, path: relativeTo(root!, target) ?? name });
     }
 
@@ -121,13 +118,14 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (action === 'open') {
       const abs = resolveInside(root!, String(body.path ?? ''));
       if (!abs || abs === root) return NextResponse.json({ error: 'Invalid file' }, { status: 400 });
-      const res = await dbx.filesGetTemporaryLink({ path: abs });
+      const res = await withDropboxRetry(() => dbx.filesGetTemporaryLink({ path: abs }));
       return NextResponse.json({ link: res.result.link });
     }
   } catch (e) {
-    const msg = dropboxError(e);
-    console.error(`[project files ${action}]`, msg);
-    return NextResponse.json({ error: msg.includes('conflict') ? 'A folder with that name already exists' : `Dropbox: ${msg}` }, { status: msg.includes('conflict') ? 409 : 502 });
+    const info = dropboxErrorInfo(e);
+    console.error(`[project files ${action}]`, info.status, info.summary);
+    if (/conflict/.test(info.summary)) return NextResponse.json({ error: 'A folder with that name already exists' }, { status: 409 });
+    return NextResponse.json({ error: dropboxErrorMessage(e) }, { status: info.status === 429 ? 503 : 502 });
   }
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 }
