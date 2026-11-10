@@ -5,6 +5,7 @@ import { ChevronDown, Eye, Pencil, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   BRANCHES, CONFIDENCES, SCOPES, STATUSES, alertOf, type InstallStatus, durationDays, fmtDate, headcount, statusNeedsUpdate,
   suggestedStatus, teamLabel, type AlertTone, type Clash, type EditableField, type InstallTeam, type Installation, type RowPatch,
@@ -334,9 +335,16 @@ function TeamCell({ row, teams, readOnly, onPick }: {
 }
 
 // ── toolbar pieces (rendered by InstallationClient beside the filters) ───────────────────────
-export function ColumnsMenu({ hidden, onToggle }: { hidden: Set<RegisterColumn>; onToggle: (k: RegisterColumn) => void }) {
+export function ColumnsMenu({ hidden, onToggle, onSetAll }: {
+  hidden: Set<RegisterColumn>; onToggle: (k: RegisterColumn) => void;
+  /** true = show every column, false = hide every column that can be hidden. */
+  onSetAll: (show: boolean) => void;
+}) {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
+  const toggleable = REGISTER_COLUMNS.filter(c => !('locked' in c));
+  const shown = toggleable.filter(c => !hidden.has(c.key)).length;
+  const all = shown === toggleable.length;
   React.useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent | KeyboardEvent) => {
@@ -354,9 +362,14 @@ export function ColumnsMenu({ hidden, onToggle }: { hidden: Set<RegisterColumn>;
       </button>
       {open && (
         <div className="absolute right-0 top-full z-20 mt-1 flex max-h-[380px] w-64 flex-col overflow-y-auto rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1.5 shadow-03">
+          <label className="flex h-8 shrink-0 cursor-pointer items-center gap-2 rounded-[4px] px-2 text-[13px] font-semibold text-ui-heading hover:bg-ui-hover-bg">
+            <Checkbox checked={all} indeterminate={shown > 0 && !all} onCheckedChange={() => onSetAll(!all)} />
+            Select all
+          </label>
+          <div className="my-1 h-px shrink-0 bg-ui-divider" aria-hidden />
           {REGISTER_COLUMNS.map(c => (
             <label key={c.key} className={cn('flex h-8 items-center gap-2 rounded-[4px] px-2 text-[13px] text-ui-body hover:bg-ui-hover-bg', 'locked' in c ? 'cursor-default opacity-60' : 'cursor-pointer')}>
-              <input type="checkbox" checked={!hidden.has(c.key)} onChange={() => onToggle(c.key)} disabled={'locked' in c} />
+              <Checkbox checked={!hidden.has(c.key)} onCheckedChange={() => onToggle(c.key)} disabled={'locked' in c} />
               {c.label}
             </label>
           ))}

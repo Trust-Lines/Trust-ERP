@@ -2,11 +2,12 @@
 
 import * as React from "react"
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"
-import { CheckIcon } from "lucide-react"
+import { CheckIcon, MinusIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-// Figma: 20px box, 4px radius, primary-700 border. Checked = 16px primary-700 inner square + light tick.
+// Figma: 20px box, 4px radius, primary-700 border. Checked = 16px primary-700 inner square + light tick
+// (a dash instead when `indeterminate`, e.g. a "Select all" with only some picked).
 function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
   return (
     <CheckboxPrimitive.Root
@@ -18,7 +19,7 @@ function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
       {...props}
     >
       <CheckboxPrimitive.Indicator className="grid size-4 place-items-center rounded-[2px] bg-primary-700 text-primary-50 dark:bg-primary-100 dark:text-primary-950 data-disabled:bg-grey-200">
-        <CheckIcon className="size-3" strokeWidth={2} />
+        {props.indeterminate ? <MinusIcon className="size-3" strokeWidth={2} /> : <CheckIcon className="size-3" strokeWidth={2} />}
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   )
