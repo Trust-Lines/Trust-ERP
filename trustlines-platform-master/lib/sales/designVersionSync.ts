@@ -89,7 +89,7 @@ export function computeDesignVersionSyncPlan(
 
 export async function syncDesignVersionsFromDropbox(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  admin: any, jobId: string, designRoot: string, actorId: string,
+  admin: any, jobId: string, designRoot: string, actorId: string | null,
 ): Promise<{ syncedVersions: number; syncedFiles: number; error?: string }> {
   const scanFolder = `${designRoot}/3-Design proposal/Design Proposal`;
 
@@ -97,9 +97,14 @@ export async function syncDesignVersionsFromDropbox(
   try {
     const { getDropboxClient } = await import('@/lib/dropbox/client');
     const dbx = getDropboxClient();
-    const result = await dbx.filesListFolder({ path: scanFolder, recursive: true, include_non_downloadable_files: false, include_deleted: false });
+    let result = await dbx.filesListFolder({ path: scanFolder, recursive: true, include_non_downloadable_files: false, include_deleted: false });
+    const all = [...(result.result.entries ?? [])];
+    while (result.result.has_more) {
+      result = await dbx.filesListFolderContinue({ cursor: result.result.cursor });
+      all.push(...(result.result.entries ?? []));
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    entries = (result.result.entries ?? []).map((e: any) => ({ tag: e['.tag'], name: e.name, path_display: e.path_display }));
+    entries = all.map((e: any) => ({ tag: e['.tag'], name: e.name, path_display: e.path_display }));
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes('not_found') || msg.includes('path/not_found')) return { syncedVersions: 0, syncedFiles: 0 };
@@ -126,7 +131,7 @@ export async function syncDesignVersionsFromDropbox(
 // DROPBOX_APP_KEY set, so this is the part that actually gets live-verified against real Supabase.
 export async function applyDesignVersionSyncPlan(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  admin: any, jobId: string, plan: VersionSyncPlan, actorId: string,
+  admin: any, jobId: string, plan: VersionSyncPlan, actorId: string | null,
 ): Promise<{ syncedVersions: number; syncedFiles: number }> {
   let syncedVersions = 0;
   let syncedFiles = 0;
