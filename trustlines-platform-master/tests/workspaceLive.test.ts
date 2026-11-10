@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isOnProject, withLiveStatus, type LiveContext } from '@/lib/workspace/live';
+import { isOnProject, liveKey, trustKeyFor, withLiveStatus, type LiveContext } from '@/lib/workspace/live';
 import type { PortfolioRow } from '@/lib/workspace/rows';
 import type { TrustProject } from '@/lib/trust/board';
 import type { Installation } from '@/lib/installations/compute';
@@ -38,12 +38,39 @@ describe('workspace rows from the live sources', () => {
       trustByNo: new Map([['480', trust('480', ['HOLD_T'])]]), installsByNo: new Map([['480', installs]]),
     }), TODAY);
     expect(r.phase).toBe('DELIVERY_BUILD');
-    expect(r.blockers.map(b => b.message)).toEqual(expect.arrayContaining(['Millwork on hold (Trust)', 'Installation #480 STG 1: Overdue - past finish date']));
+    expect(r.blockers.map(b => b.message)).toEqual(expect.arrayContaining(['Millwork on hold by T-Lines', 'Installation #480 STG 1: Overdue - past finish date']));
   });
 
   it('leaves projects the live sources don’t know alone', () => {
     const before = row('STNW EX-5');
     expect(withLiveStatus([before], ctx({}), TODAY)[0]).toBe(before);
+  });
+
+  it('matches Trust numbers that are not just digits', () => {
+    const c = ctx({ trustByNo: new Map([
+      [liveKey('408 MARKET')!, trust('408 MARKET', ['ORDERED'])],
+      [liveKey('408  EXPRESS')!, trust('408  EXPRESS', ['HOLD_T'])],
+      [liveKey('EX-5')!, trust('EX-5', [])],
+      [liveKey('13P')!, trust('13P', ['ORDERED'])],
+    ]) });
+    const [market, express, ex5, p13] = withLiveStatus([row('STNW 408 MARKET'), row('STNW 408 EXPRESS'), row('STNW EX-5'), row('STSE 13P')], c, TODAY);
+    expect(market.phaseLabel).toBe('Production In Progress');
+    expect(express.phaseLabel).not.toBe('Closed Deal');
+    // each 408 gets its own Trust project: only EXPRESS has a type on hold
+    expect(express.blockers.map(b => b.code)).toContain('items_on_hold');
+    expect(market.blockers.map(b => b.code)).not.toContain('items_on_hold');
+    expect(ex5.phaseLabel).not.toBe('Closed Deal');
+    expect(ex5.blockers.map(b => b.code)).not.toContain('handover_missing');
+    expect(p13.phaseLabel).toBe('Production In Progress');
+  });
+
+  it('falls back to the number only when one Trust project has it', () => {
+    const one = new Map([['500 ST2', 1]]);
+    expect(trustKeyFor('STSE 500', one)).toBe('500 ST2');
+    const two = new Map([['408 MARKET', 1], ['408 EXPRESS', 1]]);
+    expect(trustKeyFor('STNW 408', two)).toBeNull();
+    expect(liveKey('STNW 408  MARKET')).toBe('408 MARKET');
+    expect(liveKey('EX-5')).toBe('EX 5');
   });
 
   it('finds a PM by board pick or installation PM name', () => {

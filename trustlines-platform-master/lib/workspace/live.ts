@@ -16,7 +16,7 @@
 //   • people  — who the board (board_assignees) and the installation plan name, for "my projects"
 // Projects the Trust System doesn't know keep the engine's own reading.
 
-import { classifyTrustProject, loadTrustProjects, HOLD, typeLabel, type TrustProject, type TrustStage } from '@/lib/trust/board';
+import { classifyTrustProject, loadTrustProjects, typeLabel, type TrustProject, type TrustStage } from '@/lib/trust/board';
 import { alertOf, isClosed, type Installation } from '@/lib/installations/compute';
 import { projectNumber } from '@/lib/keyClients/match';
 import { PHASE_LABELS, type LifecyclePhase } from '@/lib/lifecycle/projectLifecycle';
@@ -41,7 +41,33 @@ const TRUST_LABEL: Record<TrustStage, string> = {
 /** Blockers this app keeps live for every project (not part of the internal hand-off flow). */
 const LIVE_HERE = new Set(['open_change_requests', 'approvals_pending', 'site_not_ready', 'customer_not_accepted']);
 
+/**
+ * The key a project is matched to its Trust project by. The app's code carries a region prefix
+ * ("STNW 408 MARKET"), the Trust number doesn't ("408  MARKET"), and several Trust numbers aren't
+ * just digits ("408 MARKET" / "408 EXPRESS", "13P", "EX-5") — so the digits alone can't tell them
+ * apart or find them at all. Drop the 4-letter region prefix, upper-case, and fold spaces/hyphens:
+ * "STNW 408 MARKET" → "408 MARKET", "EX-5" → "EX 5".
+ */
+export function liveKey(code: string | null | undefined): string | null {
+  const t = String(code ?? '').toUpperCase().trim().split(/\s+/).filter(Boolean);
+  if (t.length > 1 && /^[A-Z]{4}$/.test(t[0])) t.shift();
+  const k = t.join(' ').replace(/[\s_-]+/g, ' ').trim();
+  return k || null;
+}
+
+/** The Trust key for a project code: exact key first, else its number when only one Trust project has it. */
+export function trustKeyFor(code: string | null | undefined, trustByNo: Map<string, unknown>): string | null {
+  const k = liveKey(code);
+  if (!k) return null;
+  if (trustByNo.has(k)) return k;
+  const no = projectNumber(k);
+  if (!no) return null;
+  const same = [...trustByNo.keys()].filter(t => projectNumber(t) === no);
+  return same.length === 1 ? same[0] : null;
+}
+
 export interface LiveContext {
+  /** Keyed by liveKey() of the Trust project number. */
   trustByNo: Map<string, TrustProject>;
   installsByNo: Map<string, Installation[]>;
   /** project number → user ids named on it (board Trust PM / T-Lines PM). */
@@ -60,7 +86,10 @@ export async function loadLiveContext(admin: any): Promise<LiveContext> {
     admin.from('board_assignees').select('item_kind, item_id, user_id'),
   ]);
   const trustByNo = new Map<string, TrustProject>();
-  for (const p of trust.projects) if (!p.deletedAt && !trustByNo.has(p.projectNo)) trustByNo.set(p.projectNo, p);
+  for (const p of trust.projects) {
+    const k = liveKey(p.projectNo);
+    if (k && !p.deletedAt && !trustByNo.has(k)) trustByNo.set(k, p);
+  }
 
   const installsByNo = new Map<string, Installation[]>();
   const installPmByNo = new Map<string, Set<string>>();
@@ -71,8 +100,8 @@ export async function loadLiveContext(admin: any): Promise<LiveContext> {
     if (r.pm_name?.trim()) installPmByNo.set(no, (installPmByNo.get(no) ?? new Set()).add(r.pm_name.trim().toLowerCase()));
   }
 
-  // Board picks are keyed by the Trust project's id → map back to its number.
-  const noByTrustId = new Map([...trustByNo.values()].map(p => [p.id, p.projectNo]));
+  // Board picks are keyed by the Trust project's id → map back to its key.
+  const noByTrustId = new Map([...trustByNo.entries()].map(([k, p]) => [p.id, k]));
   const peopleByNo = new Map<string, Set<string>>();
   for (const a of ((assignRes?.error ? [] : assignRes?.data) ?? []) as { item_kind: string; item_id: string; user_id: string }[]) {
     const no = a.item_kind === 'trust' ? noByTrustId.get(a.item_id) : undefined;
@@ -85,19 +114,25 @@ export async function loadLiveContext(admin: any): Promise<LiveContext> {
 export function withLiveStatus(rows: PortfolioRow[], ctx: LiveContext, today = new Date().toISOString().slice(0, 10)): PortfolioRow[] {
   return rows.map(r => {
     const no = projectNumber(r.code);
-    const trust = no ? ctx.trustByNo.get(no) : undefined;
+    const tk = trustKeyFor(r.code, ctx.trustByNo);
+    const trust = tk ? ctx.trustByNo.get(tk) : undefined;
     const installs = no ? ctx.installsByNo.get(no) ?? [] : [];
     if (!trust && !installs.length) return r;
 
     // Phase: Trust first, then the installation plan moves it on.
     let phase = r.phase as LifecyclePhase;
     let phaseLabel = r.phaseLabel;
-    let onHoldTypes: string[] = [];
+    let onHold: string[] = [];
     if (trust) {
       const entry = classifyTrustProject(trust, today);
       phase = trust.status === 'DONE' ? 'COMPLETED' : TRUST_TO_PHASE[entry.stage];
       phaseLabel = trust.status === 'DONE' ? PHASE_LABELS.COMPLETED : TRUST_LABEL[entry.stage];
-      onHoldTypes = [...new Set((trust.items ?? []).filter(i => i.status && HOLD.has(i.status)).map(i => typeLabel(i.type) ?? 'A type'))];
+      // Who paused it: HOLD_T = T-Lines (customer side), HOLD_PM = the PM.
+      const held = (code: string) => [...new Set((trust.items ?? []).filter(i => i.status === code).map(i => typeLabel(i.type) ?? 'A type'))];
+      onHold = [['HOLD_T', 'T-Lines'], ['HOLD_PM', 'the PM']]
+        .map(([code, by]) => ({ types: held(code), by }))
+        .filter(h => h.types.length)
+        .map(h => `${h.types.join(', ')} on hold by ${h.by}`);
     }
     if (installs.length) {
       if (installs.every(isClosed)) { phase = 'COMPLETED'; phaseLabel = PHASE_LABELS.COMPLETED; }
@@ -109,7 +144,7 @@ export function withLiveStatus(rows: PortfolioRow[], ctx: LiveContext, today = n
     // Blockers: only what's live.
     const keep = (code: string) => LIVE_HERE.has(code);
     const blockers = r.blockers.filter(b => keep(b.code));
-    if (onHoldTypes.length) blockers.push({ code: 'items_on_hold', message: `${onHoldTypes.join(', ')} on hold (Trust)` });
+    if (onHold.length) blockers.push({ code: 'items_on_hold', message: onHold.join(' · ') });
     for (const i of installs) {
       const a = alertOf(i, today);
       if (a && a.tone !== 'blue') blockers.push({ code: 'installation', message: `Installation ${i.project_no ?? ''}: ${a.text}`.replace(/\s+/g, ' ') });
@@ -133,11 +168,11 @@ export function withLiveStatus(rows: PortfolioRow[], ctx: LiveContext, today = n
 
 /** Is this person on the project, by the live sources (board picks, installation PM name)? */
 export function isOnProject(code: string | null, userId: string, userName: string | null, ctx: LiveContext): boolean {
+  const tk = trustKeyFor(code, ctx.trustByNo) ?? liveKey(code);
+  if (tk && ctx.peopleByNo.get(tk)?.has(userId)) return true;
   const no = projectNumber(code);
-  if (!no) return false;
-  if (ctx.peopleByNo.get(no)?.has(userId)) return true;
   const name = userName?.trim().toLowerCase();
-  if (!name) return false;
+  if (!no || !name) return false;
   const first = name.split(/\s+/)[0];
   return [...(ctx.installPmByNo.get(no) ?? [])].some(pm => pm === name || pm === first);
 }

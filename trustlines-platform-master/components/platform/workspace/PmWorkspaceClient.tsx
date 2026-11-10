@@ -4,7 +4,7 @@ import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  ArrowRight, ArrowUpRight, Briefcase, CalendarClock, CalendarDays, Check, CircleAlert, Clock, ExternalLink, Factory, Hammer,
+  ArrowRight, ArrowUpRight, Briefcase, CalendarClock, CalendarDays, Check, CircleAlert, CirclePause, Clock, ExternalLink, Factory, Hammer,
   ListFilter, MoreHorizontal, PenTool, Search, TriangleAlert,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -57,15 +57,19 @@ function dueChip(iso: string, isOverdue: boolean) {
   return <Chip tone="t2" icon={CalendarClock}>Upcoming</Chip>;
 }
 
-type StatusKey = 'waiting' | 'blocked' | 'on_track';
+type StatusKey = 'waiting' | 'blocked' | 'on_hold' | 'on_track';
 function statusOf(r: PortfolioRow): StatusKey {
   if (r.myActions.length > 0) return 'waiting';
-  if (r.blockers.length > 0) return 'blocked';
+  // Types put on hold (by T-Lines or the PM) are a deliberate pause, not something blocking the
+  // PM — only call it Blocked when there's a real blocker besides the hold.
+  if (r.blockers.some(b => b.code !== 'items_on_hold')) return 'blocked';
+  if (r.blockers.length > 0) return 'on_hold';
   return 'on_track';
 }
 const STATUS_CHIP: Record<StatusKey, { tone: Tone; icon: typeof Check; label: string }> = {
   waiting: { tone: 't7', icon: Clock, label: 'Waiting on you' },
   blocked: { tone: 't10', icon: CircleAlert, label: 'Blocked' },
+  on_hold: { tone: 't0', icon: CirclePause, label: 'On hold' },
   on_track: { tone: 't6', icon: Check, label: 'On track' },
 };
 
@@ -193,11 +197,13 @@ export function PmWorkspaceClient({ rows, seesAll }: { rows: PortfolioRow[]; see
           <p className="m-0 text-[11px] text-ui-text-secondary">{upcoming.length} type target date{upcoming.length === 1 ? '' : 's'} due or overdue</p>
           {upcoming.length === 0 ? (
             <div className="py-8 text-center text-[13px] text-ui-text-secondary">No target dates in the next 7 days.</div>
-          ) : upcoming.map(d => {
+          ) : upcoming.map((d, i) => {
             const at = asDate(d.targetDate);
             return (
               <Link
-                key={`${d.row.projectId}-${d.type}-${d.targetDate}`}
+                // A project can have several installation stages on the same day (one finishes as the
+                // next starts) — type + date alone isn't unique.
+                key={`${d.row.projectId}-${d.type}-${d.stage}-${d.targetDate}-${i}`}
                 href={`/projects/${d.row.projectId}/types`}
                 className="flex items-center gap-4 rounded-[6px] bg-ui-page-bg px-4 py-3 no-underline hover:brightness-[0.98]"
               >
@@ -240,6 +246,7 @@ export function PmWorkspaceClient({ rows, seesAll }: { rows: PortfolioRow[]; see
               <option value="">All projects</option>
               <option value="waiting">Waiting on you</option>
               <option value="blocked">Blocked</option>
+              <option value="on_hold">On hold</option>
               <option value="on_track">On track</option>
             </Select>
           </span>
