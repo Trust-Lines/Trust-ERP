@@ -91,8 +91,14 @@ export async function GET() {
     types.forEach((type, i) => toSeed.push({ project_id: p.id, source: 'project', type, sort_index: i }));
   }
   if (toSeed.length) {
-    const { data: seeded } = await admin.from('production_items').insert(toSeed)
-      .select('id, project_id, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index') as { data: DbItem[] | null };
+    const cols = 'id, project_id, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index';
+    const { data: firstTry, error: seedErr } = await admin.from('production_items').insert(toSeed).select(cols) as { data: DbItem[] | null; error: { code?: string } | null };
+    let seeded = firstTry;
+    // Another request seeded these projects a moment ago (unique index, migration 148): read theirs.
+    if (seedErr?.code === '23505') {
+      ({ data: seeded } = await admin.from('production_items').select(cols)
+        .in('project_id', [...new Set(toSeed.map(r => r.project_id))]).eq('source', 'project').is('deleted_at', null) as { data: DbItem[] | null });
+    }
     for (const it of seeded ?? []) {
       if (!byProject.has(it.project_id)) byProject.set(it.project_id, []);
       byProject.get(it.project_id)!.push(it);

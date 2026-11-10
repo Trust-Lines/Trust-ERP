@@ -34,10 +34,16 @@ export async function GET(req: NextRequest) {
     const types = typesForCategories(project?.categories);
     if (types.length) {
       const seed = types.map((type, i) => ({ project_id: projectId, source: 'project', type, sort_index: i }));
-      const { data: seeded } = await admin.from('production_items').insert(seed).select(ITEM_COLS) as {
-        data: Record<string, unknown>[] | null;
+      const { data: seeded, error: seedErr } = await admin.from('production_items').insert(seed).select(ITEM_COLS) as {
+        data: Record<string, unknown>[] | null; error: { code?: string } | null;
       };
       items = seeded ?? [];
+      // Another request seeded this project a moment ago (unique index, migration 148): read theirs.
+      if (seedErr?.code === '23505') {
+        ({ data: items } = await admin.from('production_items').select(ITEM_COLS)
+          .eq('project_id', projectId).eq('source', 'project').is('deleted_at', null)
+          .order('sort_index', { ascending: true }) as { data: Record<string, unknown>[] | null });
+      }
     } else {
       items = [];
     }

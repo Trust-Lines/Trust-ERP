@@ -18,6 +18,7 @@ import { ProjectRail } from './ProjectRail';
 import { PlanLayoutTab } from './PlanLayoutTab';
 import { CategoryTab } from './CategoryTab';
 import { ProjectFiles } from './ProjectFiles';
+import { ProjectTabContext } from './projectTabContext';
 import { permCan } from '@/lib/permissions/catalog';
 import { can } from '@/lib/permissions/can';
 import type { ProjectStage, ProjectPhase } from '@/types/database';
@@ -495,7 +496,7 @@ export function ProjectDetailClient({
         </div>
 
         {/* Figma 445:7500: the cockpit (lifecycle, counts, next actions, types) sits above the tabs. */}
-        {topSlot}
+        <ProjectTabContext.Provider value={activeTab}>{topSlot}</ProjectTabContext.Provider>
 
         {/* ── Saved views (underline tabs, 48px, 3px active border) ── */}
         <div role="tablist" aria-label="Project sections" className="flex h-12 items-stretch gap-8 overflow-x-auto border-b border-ui-divider">
