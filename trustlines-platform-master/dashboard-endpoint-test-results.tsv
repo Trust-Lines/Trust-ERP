@@ -1,0 +1,23 @@
+Row	Area	Test	Status	Result (2026-11-10, localhost:3000, role general_manager, read-only)
+13	My Day	/api/my-day	Pass	200; {role, sections[8]}. Scoped by user.id in buildMyDay; tests/myDay.test.ts 24/24 pass. Unauthenticated: redirect to /login (no 401 JSON).
+14	Project Quick View	/api/projects/:id	Pass	200 in 130ms; {project:{id,code,name,site_location,current_stage,est_delivery_date,closed_deal_date,created_at}}. No price/margin fields.
+15	Project Quick View	/api/projects/:id/documents	Pass	200 in 814ms; {documents:[]} (test project has no documents).
+16	Project Quick View	Add project note	Not Run	BACKEND GAP: no project-note endpoint; Quick View only calls the two GETs above. Read-only run anyway.
+17	Project Quick View	Delete project note	Not Run	BACKEND GAP: no project-note endpoint.
+18	Project Quick View	Add tag	Not Run	BACKEND GAP: no project-tag endpoint (tags exist on opportunities only).
+19	Project Quick View	Enforce project ownership	Blocked	Route relies on RLS (regular client). Signed in as general_manager (sees all) - needs a second, non-owner account to see 403. Note: missing/invalid id returns 404 with raw DB error text ("Cannot coerce...", "invalid input syntax for type uuid").
+20	Project Quick View	Client-PM field restrictions	Partial	GET /api/projects/:id selects no cost/margin/PF fields by design. Not verified as tlines_pm (needs that account). Documents list not checked for PF docs under tlines_pm.
+21	Opportunity Quick View	/api/marketing/opportunities/tag-options	Pass	200 in 296ms; {options:["Tag123","tagkjlkamd"]}.
+22	Opportunity Quick View	Open opportunity quick view	Pass	Route: GET /api/marketing/opportunities/:id. 200 in 1282ms; {opportunity,progress,prospect,contacts,project,notes,files,need}. Unknown id: 404 {"error":"Not found"}. Notes GET /notes: 200.
+23	Dashboard Home	Role-specific KPIs	Not Run	No API: KPIs are server-rendered. Only /api/my-day is called on load; returned role general_manager.
+24	Dashboard Home	Tasks, approvals, overdue items	Not Run	No API; counts come from server render + /api/my-day sections.
+25	Dashboard Home	Filter by date	Not Run	No endpoint takes a date filter.
+26	Dashboard Home	Paginate / load more	Not Run	No paginated dashboard endpoint.
+27	Analytics	Management analytics	Not Run	BACKEND GAP: no API; /management page is server-rendered.
+28	Analytics	PM analytics	Not Run	BACKEND GAP: no API; /pm page is server-rendered.
+29	Analytics	Sales analytics	Not Run	BACKEND GAP: no API; /sales-dashboard page is server-rendered.
+30	Notifications	List notifications	Not Run	BACKEND GAP confirmed: no /api/notifications. /notifications page reads Supabase directly (RLS).
+31	Notifications	Filter notifications	Not Run	BACKEND GAP: filtering (All/Unread, date range) is client-side only.
+32	Notifications	Mark read	Not Run	BACKEND GAP: done by client-side Supabase update(is_read=true), no API.
+33	Notifications	Mark unread	Not Run	BACKEND GAP: no mark-unread anywhere (UI or API).
+34	Notifications	Mark all read	Not Run	BACKEND GAP: client-side Supabase update over unread ids, no API.
