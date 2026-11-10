@@ -88,7 +88,7 @@ export function MyMeetingsClient() {
 
   const heading = (
     <PageHeading
-      trail="Dashboard / My meetings"
+      trail={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'My meetings', href: '/meetings' }]}
       title="My meetings"
       subtitle={data?.connection ? `From your Google Calendar (${data.connection.google_email}).` : 'Your Google Calendar meetings, with the Contacts and Customers they were with.'}
       actions={connected && (
