@@ -38,7 +38,7 @@ describe('workspace rows from the live sources', () => {
       trustByNo: new Map([['480', trust('480', ['HOLD_T'])]]), installsByNo: new Map([['480', installs]]),
     }), TODAY);
     expect(r.phase).toBe('DELIVERY_BUILD');
-    expect(r.blockers.map(b => b.message)).toEqual(expect.arrayContaining(['Millwork on hold (Trust)', 'Installation #480 STG 1: Overdue - past finish date']));
+    expect(r.blockers.map(b => b.message)).toEqual(expect.arrayContaining(['Millwork on hold by T-Lines', 'Installation #480 STG 1: Overdue - past finish date']));
   });
 
   it('leaves projects the live sources don’t know alone', () => {

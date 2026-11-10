@@ -16,7 +16,7 @@
 //   • people  — who the board (board_assignees) and the installation plan name, for "my projects"
 // Projects the Trust System doesn't know keep the engine's own reading.
 
-import { classifyTrustProject, loadTrustProjects, HOLD, typeLabel, type TrustProject, type TrustStage } from '@/lib/trust/board';
+import { classifyTrustProject, loadTrustProjects, typeLabel, type TrustProject, type TrustStage } from '@/lib/trust/board';
 import { alertOf, isClosed, type Installation } from '@/lib/installations/compute';
 import { projectNumber } from '@/lib/keyClients/match';
 import { PHASE_LABELS, type LifecyclePhase } from '@/lib/lifecycle/projectLifecycle';
@@ -122,12 +122,17 @@ export function withLiveStatus(rows: PortfolioRow[], ctx: LiveContext, today = n
     // Phase: Trust first, then the installation plan moves it on.
     let phase = r.phase as LifecyclePhase;
     let phaseLabel = r.phaseLabel;
-    let onHoldTypes: string[] = [];
+    let onHold: string[] = [];
     if (trust) {
       const entry = classifyTrustProject(trust, today);
       phase = trust.status === 'DONE' ? 'COMPLETED' : TRUST_TO_PHASE[entry.stage];
       phaseLabel = trust.status === 'DONE' ? PHASE_LABELS.COMPLETED : TRUST_LABEL[entry.stage];
-      onHoldTypes = [...new Set((trust.items ?? []).filter(i => i.status && HOLD.has(i.status)).map(i => typeLabel(i.type) ?? 'A type'))];
+      // Who paused it: HOLD_T = T-Lines (customer side), HOLD_PM = the PM.
+      const held = (code: string) => [...new Set((trust.items ?? []).filter(i => i.status === code).map(i => typeLabel(i.type) ?? 'A type'))];
+      onHold = [['HOLD_T', 'T-Lines'], ['HOLD_PM', 'the PM']]
+        .map(([code, by]) => ({ types: held(code), by }))
+        .filter(h => h.types.length)
+        .map(h => `${h.types.join(', ')} on hold by ${h.by}`);
     }
     if (installs.length) {
       if (installs.every(isClosed)) { phase = 'COMPLETED'; phaseLabel = PHASE_LABELS.COMPLETED; }
@@ -139,7 +144,7 @@ export function withLiveStatus(rows: PortfolioRow[], ctx: LiveContext, today = n
     // Blockers: only what's live.
     const keep = (code: string) => LIVE_HERE.has(code);
     const blockers = r.blockers.filter(b => keep(b.code));
-    if (onHoldTypes.length) blockers.push({ code: 'items_on_hold', message: `${onHoldTypes.join(', ')} on hold (Trust)` });
+    if (onHold.length) blockers.push({ code: 'items_on_hold', message: onHold.join(' · ') });
     for (const i of installs) {
       const a = alertOf(i, today);
       if (a && a.tone !== 'blue') blockers.push({ code: 'installation', message: `Installation ${i.project_no ?? ''}: ${a.text}`.replace(/\s+/g, ' ') });
