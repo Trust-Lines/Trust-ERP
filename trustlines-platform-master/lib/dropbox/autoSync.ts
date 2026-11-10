@@ -79,6 +79,15 @@ export function versionOf(filePath: string, t: Pick<ScanTarget, 'basePath' | 'pd
   return parseInt(m[1], 10);
 }
 
+/** Files whose document someone deleted in the app: left in Dropbox, never imported again. */
+export async function dismissedPaths(admin: any, projectId: string): Promise<string[]> {
+  const { data } = await admin.from('audit_log').select('new_value')
+    .eq('project_id', projectId).eq('action', 'document.deleted').not('new_value', 'is', null);
+  return ((data ?? []) as { new_value: { dropbox_path?: string } | null }[])
+    .map(r => r.new_value?.dropbox_path?.toLowerCase())
+    .filter((p): p is string => !!p);
+}
+
 function guessMime(name: string) {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
   return ext === 'pdf' ? 'application/pdf'
@@ -111,6 +120,7 @@ export async function syncProjectDropbox(admin: any, dbx: Dropbox, projectId: st
   const knownPaths = new Set<string>(
     ((existingDocs ?? []) as { dropbox_path: string | null }[]).map(d => (d.dropbox_path ?? '').toLowerCase()).filter(Boolean),
   );
+  for (const p of await dismissedPaths(admin, projectId)) knownPaths.add(p);
 
   const toInsert: Record<string, unknown>[] = [];
   await Promise.allSettled(buildTargets(dropboxRoot).map(async t => {
