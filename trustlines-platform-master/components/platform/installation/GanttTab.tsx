@@ -134,7 +134,9 @@ export function GanttTab({ rows, months, today, clashes, projectByNo }: {
                       ? <span className="inline-flex items-center justify-center rounded-[4px] px-4 py-2 text-[12px] font-medium leading-4 text-white" style={{ background: BRANCH_COLOR[r.branch] }}>{r.branch}</span>
                       : <span className="text-ui-text-secondary">—</span>}
                   </Cell>
-                  <Cell w={LEFT[3].w} className={cn('uppercase', r.team ? HEADING : 'text-ui-text-secondary')} title={r.team ?? undefined}>{r.team || 'TBD'}</Cell>
+                  <Cell w={LEFT[3].w} className={cn('uppercase', r.team ? HEADING : 'text-ui-text-secondary')} title={r.team ?? undefined}>
+                    <span className="truncate dark:rounded-[4px] dark:bg-ui-surface dark:px-2 dark:py-1">{r.team || 'TBD'}</span>
+                  </Cell>
                   <Cell w={LEFT[4].w} className={cn('justify-center font-semibold', HEADING)}>{headcount(r)}</Cell>
                   <Cell w={LEFT[5].w} className={cn('font-medium', HEADING)}>{s ? `${dayMonth(s)} - ${dayMonth(f!)}` : '—'}</Cell>
                 </div>
@@ -159,8 +161,8 @@ export function GanttTab({ rows, months, today, clashes, projectByNo }: {
                     >
                       {label && x1 - x0 > 60 && (
                         <span className={cn('ml-2.5 inline-flex h-[23px] shrink-0 items-center rounded-[4px] px-1 text-[15px] font-medium leading-4',
-                          overdue ? 'bg-[var(--status-t10-bg)] text-[var(--status-t10-fg)]' : 'bg-white')}
-                          style={overdue ? undefined : { color }}>
+                          overdue ? 'bg-[var(--status-t10-bg)] text-[var(--status-t10-fg)]' : 'bg-white text-[var(--bar-c)] dark:bg-ui-page-bg dark:text-ui-heading')}
+                          style={overdue ? undefined : ({ '--bar-c': color } as React.CSSProperties)}>
                           {label}
                         </span>
                       )}
