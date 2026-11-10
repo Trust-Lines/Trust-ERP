@@ -289,7 +289,7 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
 
           {/* Figma 629:5556 — search + filters left, sort + columns right (register only). Not on
               the Dashboard, which always shows the whole plan. */}
-          {tab !== 'dashboard' && (
+          {tab !== 'dashboard' && tab !== 'teamsMgr' && (
           <div className="mt-3 flex flex-wrap items-center gap-2.5">
             <label className="relative flex items-center">
               <Search size={16} className="pointer-events-none absolute left-2.5 text-ui-text-secondary" aria-hidden />
@@ -356,7 +356,7 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
           )}
           {tab === 'gantt' && <GanttTab rows={visible} months={months} today={today} clashes={clashesAll} projectByNo={projectByNo} />}
           {tab === 'teamsMgr' && (
-            <TeamsManagerTab teams={teams} rows={rows} today={today} canEdit={canEdit} setupNeeded={teamsSetupNeeded} projectByNo={projectByNo}
+            <TeamsManagerTab teams={teams} rows={rows} today={today} clashes={clashesAll} canEdit={canEdit} setupNeeded={teamsSetupNeeded} projectByNo={projectByNo}
               onCreate={createTeam} onUpdate={updateTeam} onDelete={t => { void deleteTeam(t); }} />
           )}
         </>
