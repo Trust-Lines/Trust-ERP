@@ -53,11 +53,12 @@ export function AppShell({
     // height, leaving a big empty band of its background under short lists (2026-09-23 fix).
     // No overflow-hidden/h-screen here either — the page now scrolls normally (the body), with
     // the sidebar and TopBar staying in view via `sticky`, not via clipping+internal scroll.
-    // Same background as <main> so the space under a short page doesn't show as a white band.
+    // Page background token (--ui-page-bg: #FFFFFF light, primary-950 dark) on the shell, sidebar,
+    // top bar and <main>, so the whole page is one colour.
     <ViewAsProvider value={viewAs ?? { canViewAs: false, viewAs: null }}>
     <AvatarDirectoryProvider>
     <ViewAsBanner />
-    <div className="flex w-full items-start bg-[var(--bg-subtle)] text-neutral-900 dark:bg-ui-page-bg">
+    <div className="flex w-full items-start bg-ui-page-bg text-neutral-900">
       {/* Collapsible Claude-style Sidebar */}
       <Sidebar
         userRole={userRole}
@@ -80,7 +81,7 @@ export function AppShell({
         />
 
         {/* Main Content Area — sized to its own content now, not forced to viewport height */}
-        <main className={cn('min-w-0 bg-[var(--bg-subtle)] dark:bg-ui-page-bg transition-[margin] duration-200', aiOpen && 'lg:mr-[383px]')}>
+        <main className={cn('min-w-0 bg-ui-page-bg transition-[margin] duration-200', aiOpen && 'lg:mr-[383px]')}>
           {/* Every page uses the full width of the screen (it used to stop at 1200px, centred). */}
           <div className="main-inner main-inner--full w-full" style={{ padding: '24px' }}>
             {children}

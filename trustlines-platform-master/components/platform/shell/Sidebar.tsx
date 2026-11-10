@@ -356,7 +356,7 @@ export function Sidebar({
       {/* ── Icon rail ─────────────────────────────────────────── */}
       <nav
         aria-label="Workspace groups"
-        className="flex h-full w-[72px] flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r border-primary-100 bg-white px-3 pt-[30px] pb-5 scrollbar-none dark:border-primary-600 dark:bg-primary-950"
+        className="flex h-full w-[72px] flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r border-primary-100 bg-ui-page-bg px-3 pt-[30px] pb-5 scrollbar-none dark:border-primary-600"
       >
         <div className="flex w-full flex-col items-center gap-10">
           <RailTip
@@ -433,7 +433,7 @@ export function Sidebar({
 
       {/* ── Group panel ───────────────────────────────────────── */}
       {!collapsed && (
-        <div className="flex h-full w-[232px] flex-col justify-between overflow-y-auto overflow-x-hidden border-r border-primary-100 bg-white px-4 pt-6 pb-5 scrollbar-none dark:border-primary-600 dark:bg-primary-950">
+        <div className="flex h-full w-[232px] flex-col justify-between overflow-y-auto overflow-x-hidden border-r border-primary-100 bg-ui-page-bg px-4 pt-6 pb-5 scrollbar-none dark:border-primary-600">
           <div className="flex w-full flex-col gap-[52px]">
             <BrandLogo logoSrc={logoSrc} />
 

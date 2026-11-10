@@ -92,7 +92,7 @@ export function TopBar({
     'Workspace';
 
   return (
-    <header data-shell="topbar" className="sticky top-0 z-30 flex h-20 select-none items-center justify-between gap-4 border-b border-primary-100 bg-white px-8 font-ui dark:border-primary-600 dark:bg-primary-950">
+    <header data-shell="topbar" className="sticky top-0 z-30 flex h-20 select-none items-center justify-between gap-4 border-b border-primary-100 bg-ui-page-bg px-8 font-ui dark:border-primary-600">
       {/* ── Left: page search, then current page title & breadcrumbs ── */}
       <div className="flex min-w-0 shrink items-center gap-6">
         <PageSearch sections={sections} />
