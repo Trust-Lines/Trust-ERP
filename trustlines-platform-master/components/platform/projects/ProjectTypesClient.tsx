@@ -138,7 +138,9 @@ export function ProjectTypesClient({
 
               <Field label="PO / PF sign">
                 {/* Figma 467:19723 / 470:21970: an input-filled box with no border (only visible in dark). */}
-                <span className={cn(READ, 'break-all rounded-[6px] bg-ui-input-bg pr-3')}>{r.po_sign_status} / {r.pf_sign_status}</span>
+                <span className={cn(READ, 'rounded-[6px] bg-ui-input-bg px-3')}>
+                  PO: {r.po_sign_status ? statusLabel(r.po_sign_status) : '—'} · PF: {r.pf_sign_status ? statusLabel(r.pf_sign_status) : '—'}
+                </span>
               </Field>
             </div>
           </section>
