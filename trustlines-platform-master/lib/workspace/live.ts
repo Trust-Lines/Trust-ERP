@@ -45,12 +45,13 @@ const LIVE_HERE = new Set(['open_change_requests', 'approvals_pending', 'site_no
  * The key a project is matched to its Trust project by. The app's code carries a region prefix
  * ("STNW 408 MARKET"), the Trust number doesn't ("408  MARKET"), and several Trust numbers aren't
  * just digits ("408 MARKET" / "408 EXPRESS", "13P", "EX-5") — so the digits alone can't tell them
- * apart or find them at all. Drop the 4-letter region prefix, upper-case, and fold spaces/hyphens:
+ * apart or find them at all. Drop the region prefix, upper-case, and fold spaces/hyphens:
  * "STNW 408 MARKET" → "408 MARKET", "EX-5" → "EX 5".
  */
 export function liveKey(code: string | null | undefined): string | null {
   const t = String(code ?? '').toUpperCase().trim().split(/\s+/).filter(Boolean);
-  if (t.length > 1 && /^[A-Z]{4}$/.test(t[0])) t.shift();
+  // service line (ST/PS/DS) + region (NE/SE/NW/W) — "STNE", but also the 3-letter "STW"
+  if (t.length > 1 && /^(ST|PS|DS)(NE|SE|NW|W)$/.test(t[0])) t.shift();
   const k = t.join(' ').replace(/[\s_-]+/g, ' ').trim();
   return k || null;
 }
