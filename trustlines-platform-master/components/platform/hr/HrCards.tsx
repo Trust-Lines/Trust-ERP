@@ -6,7 +6,8 @@ import { Cake, ClipboardList, Package2, Pill, Plus, Ship, TreePalm, UsersRound, 
 import { PersonFace } from '@/components/ui/avatar-directory';
 import { cn } from '@/lib/utils';
 import type { HrAction, HrAgendaItem, HrBirthday, HrContainer, HrOrder, HrPerson, HrUnavailable } from './types';
-import { KIND_TONE, daysLeftLabel, daysUntil, parseDay } from './tones';
+import { KIND_TONE, dayKey, daysLeftLabel, daysUntil, parseDay } from './tones';
+import { holidaysOn } from './holidays';
 
 // Side and bottom cards of the HR board (Figma nodes 555:35712, 555:37098, 560:10777, 560:763, 560:810).
 
@@ -109,6 +110,9 @@ function Row({ lead, end, color }: { lead: ReactNode; end: ReactNode; color: str
 // ── Today's agenda ─────────────────────────────────────────────────────────────────────────
 export function HrAgendaCard({ today, items, loading }: { today: Date; items: HrAgendaItem[]; loading?: boolean }) {
   const heading = `${today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^(\w+)/, '$1,')} · Today`;
+  // Today's public holiday (Turkey) leads the list, all day.
+  const holidays: HrAgendaItem[] = holidaysOn(dayKey(today)).map((title, i) => ({ id: `holiday-${i}`, time: null, kind: 'holiday', title, detail: 'Public holiday' }));
+  const all = holidays.length ? [...holidays, ...items] : items;
   return (
     <section aria-label="Today" className="flex min-h-[338px] flex-col gap-5 overflow-hidden rounded-[8px] border border-ui-divider bg-ui-surface py-4">
       <header className={cn('flex items-center gap-2 border-b border-ui-divider px-5 pb-4', HEADING)}>
@@ -116,7 +120,7 @@ export function HrAgendaCard({ today, items, loading }: { today: Date; items: Hr
         <h2 suppressHydrationWarning className="m-0 truncate text-[20px] font-semibold leading-normal tracking-[0.4px]">{heading}</h2>
       </header>
       <List
-        items={items}
+        items={all}
         loading={loading}
         empty="Nothing scheduled today."
         color="var(--ui-text-secondary)"
