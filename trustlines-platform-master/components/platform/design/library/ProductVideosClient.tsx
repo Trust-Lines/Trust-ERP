@@ -15,7 +15,7 @@ import { IMAGE_ACCEPT, VIDEO_ACCEPT, installPath, uploadPagePath } from '@/lib/d
 import { downloadBlob, downloadQr, fileSafe } from '@/lib/client/qrDownload';
 import { uploadViaLink } from '@/lib/client/designUpload';
 import { stickerPdf } from '@/lib/client/stickerPdf';
-import { HEADING, formatBytes } from '../designShared';
+import { FORM_FIELD, FORM_LABEL, HEADING, formatBytes } from '../designShared';
 import { LibraryHeader, NotReady } from './LibraryShell';
 
 interface Product {
@@ -256,49 +256,49 @@ function ProductForm({ product, onClose, onSaved }: { product: Product | null; o
     finally { setBusy(null); }
   }
 
-  const label = 'flex flex-col gap-1 text-[12px] font-medium';
+  const label = FORM_LABEL;
   return (
     <Modal open onOpenChange={o => { if (!o && !busy) onClose(); }}>
       <ModalContent title={product ? `Edit ${product.product_code}` : 'Add product'}
         description="What the packaging sticker shows. The QR code is added automatically and never changes."
         footer={<><ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />} disabled={!!busy}>Cancel</ModalClose>
           <Button loading={!!busy} disabled={!code.trim()} onClick={() => void save()}>{busy ?? 'Save'}</Button></>}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className={cn(label, 'sm:col-span-2')}>Product code (banner)
-            <Input value={code} onChange={e => setCode(e.target.value)} placeholder="IN-FC-48/ F12 BODY" />
+            <Input value={code} onChange={e => setCode(e.target.value)} placeholder="IN-FC-48/ F12 BODY" className={FORM_FIELD} />
           </label>
           <label className={label}>Category
-            <Input value={category} onChange={e => setCategory(e.target.value)} placeholder="Front Counter | Cashier Area" />
+            <Input value={category} onChange={e => setCategory(e.target.value)} placeholder="Front Counter | Cashier Area" className={FORM_FIELD} />
           </label>
           <label className={label}>Product name
-            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder={'FRONT SHELVES 48"'} />
+            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder={'FRONT SHELVES 48"'} className={FORM_FIELD} />
           </label>
           <label className={cn(label, 'sm:col-span-2')}>Specifications (one per line, up to 4)
-            <Textarea rows={4} value={specs} onChange={e => setSpecs(e.target.value)} placeholder={'MDF Body\nLED Strips\nMetal Legs\nInstallation Package'} />
+            <Textarea rows={4} value={specs} onChange={e => setSpecs(e.target.value)} placeholder={'MDF Body\nLED Strips\nMetal Legs\nInstallation Package'} className="text-[14px] leading-[1.5] dark:text-[14px]" />
           </label>
           <label className={label}>Collection
-            <Input value={collection} onChange={e => setCollection(e.target.value)} placeholder="INDUSTRIAL" />
+            <Input value={collection} onChange={e => setCollection(e.target.value)} placeholder="INDUSTRIAL" className={FORM_FIELD} />
           </label>
           <div className="flex gap-2">
             <label className={cn(label, 'flex-1')}>Color
-              <Input value={colorName} onChange={e => setColorName(e.target.value)} placeholder="BLACK" />
+              <Input value={colorName} onChange={e => setColorName(e.target.value)} placeholder="BLACK" className={FORM_FIELD} />
             </label>
             <label className={label}>Swatch
               <input type="color" value={colorHex} onChange={e => setColorHex(e.target.value)} aria-label="Swatch colour"
-                className="h-8 w-12 cursor-pointer rounded-[4px] border border-primary-700 bg-transparent p-0.5" />
+                className="h-10 w-12 cursor-pointer rounded-[6px] border border-ui-divider bg-transparent p-1" />
             </label>
           </div>
           <div className={label}>Product drawing (PNG / JPG)
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => imageRef.current?.click()}><ImagePlus /> {product?.image_path && !image ? 'Replace' : 'Choose'}</Button>
-              <span className="truncate text-[12px] font-normal text-ui-text-secondary">{image?.name ?? (product?.image_path ? product.image_path.split('/').pop() : 'Optional')}</span>
+              <Button variant="outline" size="md" className="shrink-0" onClick={() => imageRef.current?.click()}><ImagePlus /> {product?.image_path && !image ? 'Replace' : 'Choose'}</Button>
+              <span className="truncate text-[13px] font-normal text-ui-text-secondary">{image?.name ?? (product?.image_path ? product.image_path.split('/').pop() : 'Optional')}</span>
             </div>
             <input ref={imageRef} type="file" accept={IMAGE_ACCEPT} hidden onChange={e => { setImage(e.target.files?.[0] ?? null); e.target.value = ''; }} />
           </div>
           <div className={label}>Installation video
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => videoRef.current?.click()}><Film /> {product?.dropbox_path && !video ? 'Replace' : 'Choose'}</Button>
-              <span className="truncate text-[12px] font-normal text-ui-text-secondary">{video ? `${video.name} · ${formatBytes(video.size)}` : product?.file_name ?? 'Optional — can be added later'}</span>
+              <Button variant="outline" size="md" className="shrink-0" onClick={() => videoRef.current?.click()}><Film /> {product?.dropbox_path && !video ? 'Replace' : 'Choose'}</Button>
+              <span className="truncate text-[13px] font-normal text-ui-text-secondary">{video ? `${video.name} · ${formatBytes(video.size)}` : product?.file_name ?? 'Optional — can be added later'}</span>
             </div>
             <input ref={videoRef} type="file" accept={VIDEO_ACCEPT} hidden onChange={e => { setVideo(e.target.files?.[0] ?? null); e.target.value = ''; }} />
           </div>
