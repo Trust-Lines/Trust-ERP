@@ -151,6 +151,9 @@ const MOBILE_BTN =
   'inline-flex h-10 items-center justify-center gap-2 px-3 rounded-md border border-[var(--color-primary-200)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated font-[family-name:var(--font-ui)] text-[14px] font-semibold text-[var(--ui-body)] hover:bg-[var(--color-primary-50)] dark:hover:bg-white/5 transition-colors';
 
 // Bulk bar buttons — same outlined style as "All views".
+// Figma 481:23048 applied-filter chip: 36px, surface fill, navy outline (light) / soft outline (dark), × to remove.
+const FILTER_CHIP = 'inline-flex h-9 items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] bg-ui-surface px-3 font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-ui-body dark:border-ui-text-secondary dark:text-ui-heading';
+const FILTER_CHIP_X = 'grid place-items-center rounded-[2px] text-current opacity-80 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring';
 // Bulk-bar dropdowns: same panel and hover as the platform's other menus (Select list, row menus).
 const BULK_MENU = `${popupBase} absolute right-0 top-full z-30 mt-1 p-1`;
 const BULK_MENU_ITEM = 'flex w-full cursor-pointer items-center rounded-[4px] border-0 bg-transparent px-2.5 py-1.5 text-left text-[13px] text-ui-body outline-none transition-colors hover:bg-ui-hover-bg hover:text-ui-heading focus-visible:bg-ui-hover-bg dark:hover:bg-white/10 dark:focus-visible:bg-white/10';
@@ -978,35 +981,41 @@ export function ApprovalsPageClient() {
           </div>
 
           {statusFilterOpen && (
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-ui-surface-elevated border border-slate-200 dark:bg-[var(--ui-chip-teal-bg)] dark:border-[var(--ui-chip-teal-border)] dark:text-[var(--ui-chip-teal-fg)] rounded-md font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-[var(--ui-body)] shadow-2xs">
+            <div className={FILTER_CHIP}>
               <span>Status: Open</span>
               <button
+                type="button"
                 onClick={() => setStatusFilterOpen(false)}
-                className="hover:text-slate-900 transition-colors"
+                className={FILTER_CHIP_X}
                 title="Remove filter"
+                aria-label="Remove Status: Open filter"
               >
-                <X className="w-3 h-3" />
+                <X className="size-[13px]" />
               </button>
             </div>
           )}
 
           {conditions.map(c => (
-            <div key={c.field} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-ui-surface-elevated border border-slate-200 rounded-md font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-[var(--ui-body)] shadow-2xs">
+            <div key={c.field} className={FILTER_CHIP}>
               <span>{FILTER_FIELD_LABEL[c.field]}: {c.values.join(', ')}</span>
               <button
+                type="button"
                 onClick={() => setConditions(prev => prev.filter(x => x.field !== c.field))}
-                className="hover:text-slate-900 transition-colors"
+                className={FILTER_CHIP_X}
                 title="Remove filter"
+                aria-label={`Remove ${FILTER_FIELD_LABEL[c.field]} filter`}
               >
-                <X className="w-3 h-3" />
+                <X className="size-[13px]" />
               </button>
             </div>
           ))}
 
           <div className="relative">
           <button
+            type="button"
             onClick={openAddFilter}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#334155] hover:bg-[#1e293b] text-white dark:bg-transparent dark:hover:bg-white/5 dark:border dark:border-[var(--ui-divider-strong)] dark:text-[var(--ui-text-secondary)] font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] rounded-md shadow-2xs transition-colors"
+            // Figma 481:23052: 36px filled primary — navy with white text, light fill with dark text in dark mode.
+            className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-ui-divider bg-[var(--color-secondary-700)] px-3 font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-white transition-colors hover:bg-[var(--color-secondary-600)] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring dark:border-transparent dark:bg-primary-50 dark:text-primary-950 dark:hover:bg-primary-100"
           >
             {/* square-dashed-plus icon (design export) */}
             <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
