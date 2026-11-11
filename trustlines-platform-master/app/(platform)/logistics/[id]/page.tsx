@@ -27,7 +27,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
   const documents = docsRes.error ? [] : (docsRes.data ?? []);
 
   const { data: rawItems } = await admin.from('container_items')
-    .select('id, production_item_id, quantity, package_count, pallet_count, gross_weight, volume_cbm, notes')
+    .select('id, production_item_id, quantity, package_count, pallet_count, gross_weight, volume_cbm, loaded_at, notes')
     .eq('container_id', id).order('created_at');
 
   const piIds = (rawItems ?? []).map((i: { production_item_id: string }) => i.production_item_id);

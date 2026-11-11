@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, type ChangeEvent } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { DatePicker } from '@/components/ui/date-picker';
 import { ArrowLeft, Plus, Trash2, Search, ExternalLink, Package, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { CONTAINER_STATUSES } from '@/lib/logistics/containers';
@@ -26,6 +28,7 @@ interface ItemPI { pf_code: string | null; type: string; project_code: string | 
 interface Item {
   id: string; production_item_id: string; quantity: number | null; package_count: number | null;
   pallet_count: number | null; gross_weight: number | null; volume_cbm: number | null; notes: string | null;
+  loaded_at?: string | null;
   production_item: ItemPI | null;
 }
 interface Avail { id: string; pf_code: string | null; type: string; status: string; project_code: string | null }
@@ -33,9 +36,9 @@ interface Props { initialContainer: Container; initialItems: Item[]; initialDocu
 
 const DOC_TYPES = ['bill_of_lading', 'packing_list', 'customs', 'invoice', 'other'];
 
-// Figma "Container detail" (node 427:3360). The frame's Delete / Save changes buttons, file
-// upload drop zone + queue, "Remaining" count and Loaded Date column have no backing feature
-// here: fields still save on blur/change, documents are still attached as links.
+// Figma "Container detail" (node 427:3360). Fields save on blur/change, so there is no "Save changes"
+// button; Delete soft-deletes via DELETE /api/containers/:id. The file upload drop zone + queue and
+// the "Remaining" count have no backing feature yet: documents are still attached as links.
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD = 'rounded-[8px] border border-ui-divider bg-ui-page-bg';
 const SURFACE = 'rounded-[8px] border border-ui-divider p-6';
@@ -45,8 +48,20 @@ const SELECT = 'h-[42px] w-full rounded-[6px] text-[14px]';
 const COUNT = 'inline-flex items-center rounded-[4px] bg-[var(--color-secondary-700)] px-2 py-px text-[16px] font-semibold leading-[1.5] text-white dark:bg-primary-50 dark:text-primary-950';
 const ACCENT_BTN = 'gap-2 bg-ui-btn-accent pl-3 pr-5 text-[13px] font-medium text-ui-btn-accent-fg hover:bg-ui-btn-accent hover:opacity-90 dark:bg-ui-btn-accent dark:text-ui-btn-accent-fg dark:hover:bg-ui-btn-accent';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** '30 Oct 2026' like the frame's date fields. */
+const dMonY = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+/** '24/8/2026' like the frame's Loaded Date column. */
+const dmyShort = (iso: string) => { const d = new Date(iso); return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`; };
+const toISODate = (d: Date | null) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : null;
+const parseISODate = (s: string | null) => { if (!s) return null; const [y, m, d] = s.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
+
 const field = (label: string, node: React.ReactNode, className?: string) => (
   <label className={cn('flex min-w-0 flex-col gap-[7px]', className)}><span className={LABEL}>{label}</span>{node}</label>
+);
+/** For controls that carry their own aria-label (date pickers): a <label> wrapper would re-target clicks. */
+const group = (label: string, node: React.ReactNode) => (
+  <div className="flex min-w-0 flex-col gap-[7px]"><span className={LABEL} aria-hidden>{label}</span>{node}</div>
 );
 
 function SummaryRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -59,6 +74,7 @@ function SummaryRow({ label, value }: { label: string; value: React.ReactNode })
 }
 
 export function ContainerDetailClient({ initialContainer, initialItems, initialDocuments, canEdit }: Props) {
+  const router = useRouter();
   const [c, setC] = useState<Container>(initialContainer);
   const [items, setItems] = useState<Item[]>(initialItems);
   const [docs, setDocs] = useState<CDoc[]>(initialDocuments);
@@ -100,13 +116,27 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
     } finally { setBusy(false); }
   }
 
-  // Date inputs are uncontrolled: put the saved value back when the server rejects a date.
-  const patchDate = (key: 'departure_date' | 'estimated_arrival_date' | 'actual_arrival_date') =>
-    async (e: ChangeEvent<HTMLInputElement>) => {
-      const input = e.target;
-      const ok = await patch({ [key]: input.value || null });
-      if (!ok) input.value = c[key] ?? '';
-    };
+  // Date pickers read from `c`, which only changes on a successful save — a rejected date springs back.
+  type DateKey = 'departure_date' | 'estimated_arrival_date' | 'actual_arrival_date' | 'customs_clearance_date' | 'warehouse_arrival_date';
+  const date = (key: DateKey, aria: string) => (
+    <DatePicker
+      aria-label={aria} placeholder="No date" disabled={ro} iconEnd formatValue={dMonY}
+      className={cn(INPUT, 'flex items-center justify-between gap-2 text-[14px] [&_svg]:size-4')}
+      value={parseISODate(c[key])} onValueChange={d => void patch({ [key]: toISODate(d) })}
+    />
+  );
+
+  async function deleteContainer() {
+    if (!confirm(`Delete ${c.container_no || 'this container'}? Its loaded items are released back to production.`)) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/containers/${c.id}`, { method: 'DELETE' });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(b.error ?? 'Failed to delete'); return; }
+      toast.success('Container deleted');
+      router.push('/logistics');
+    } finally { setBusy(false); }
+  }
 
   async function searchAvailable(q: string) {
     setQuery(q);
@@ -149,13 +179,25 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
       </Link>
 
       {/* ── Page heading ── */}
-      <div className="flex flex-wrap items-center gap-5">
-        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>{title}</h1>
-        <ContainerStatusBadge status={c.status} outlined />
-        {c.tracking_url && (
-          <a href={c.tracking_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[13px] text-ui-link">
-            Track <ExternalLink size={12} aria-hidden />
-          </a>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-5">
+          <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>{title}</h1>
+          <ContainerStatusBadge status={c.status} outlined />
+          {c.tracking_url && (
+            <a href={c.tracking_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[13px] text-ui-link">
+              Track <ExternalLink size={12} aria-hidden />
+            </a>
+          )}
+        </div>
+        {canEdit && (
+          // Figma: soft red "Delete" (t10 tint). There's no "Save changes": every field saves as you edit.
+          <button
+            type="button" onClick={deleteContainer} disabled={busy}
+            className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[6px] border-0 px-4 text-[13px] font-medium transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' }}
+          >
+            <Trash2 className="size-4" aria-hidden /> Delete
+          </button>
         )}
       </div>
 
@@ -184,12 +226,12 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
               {field('Booking #', text('booking_no'))}
             </div>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-              {field('Departure', <input type="date" className={INPUT} defaultValue={c.departure_date ?? ''} max={c.estimated_arrival_date ?? undefined} disabled={ro} onChange={patchDate('departure_date')} />)}
-              {field('ETA', <input type="date" className={INPUT} defaultValue={c.estimated_arrival_date ?? ''} min={c.departure_date ?? undefined} disabled={ro} onChange={patchDate('estimated_arrival_date')} />)}
-              {field('Arrived', <input type="date" className={INPUT} defaultValue={c.actual_arrival_date ?? ''} min={c.departure_date ?? undefined} disabled={ro} onChange={patchDate('actual_arrival_date')} />)}
+              {group('Departure', date('departure_date', 'Departure'))}
+              {group('ETA', date('estimated_arrival_date', 'ETA'))}
+              {group('Arrived', date('actual_arrival_date', 'Arrived'))}
               {/* customs_clearance_date: migration 058, in the PATCH EDITABLE list (Roadmap Month 3, task 19). */}
-              {field('Customs Cleared', <input type="date" className={INPUT} defaultValue={c.customs_clearance_date ?? ''} disabled={ro} onChange={e => patch({ customs_clearance_date: e.target.value || null })} />)}
-              {field('Warehouse', <input type="date" className={INPUT} defaultValue={c.warehouse_arrival_date ?? ''} disabled={ro} onChange={e => patch({ warehouse_arrival_date: e.target.value || null })} />)}
+              {group('Customs Cleared', date('customs_clearance_date', 'Customs cleared'))}
+              {group('Warehouse', date('warehouse_arrival_date', 'Warehouse arrival'))}
             </div>
             <div className="flex flex-col gap-4 md:flex-row">
               {field('Delivery Destination', (
@@ -311,6 +353,7 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
                       <th className="pb-2 pr-3 text-right text-[12px] font-normal">Pkgs</th>
                       <th className="pb-2 pr-3 text-right text-[12px] font-normal">Pallets</th>
                       <th className="pb-2 pr-3 text-right text-[12px] font-normal">CBM</th>
+                      <th className="pb-2 pr-3 text-right text-[12px] font-normal">Loaded Date</th>
                       {canEdit && <th className="w-8 pb-2"><span className="sr-only">Actions</span></th>}
                     </tr>
                   </thead>
@@ -323,6 +366,7 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
                         <td className="py-1 pr-3 text-right text-[12px] font-normal text-ui-text-secondary">{i.package_count ?? '—'}</td>
                         <td className="py-1 pr-3 text-right text-[12px] font-normal text-ui-text-secondary">{i.pallet_count ?? '—'}</td>
                         <td className="py-1 pr-3 text-right text-[12px] font-normal text-ui-text-secondary">{i.volume_cbm ?? '—'}</td>
+                        <td className="py-1 pr-3 text-right text-[12px] font-normal text-ui-text-secondary">{i.loaded_at ? dmyShort(i.loaded_at) : '—'}</td>
                         {canEdit && (
                           <td className="py-1 text-right">
                             <Button variant="ghost" size="icon-sm" className="text-error-normal" onClick={() => unload(i.id)} title="Unload item" aria-label="Unload item"><Trash2 className="size-4" /></Button>
