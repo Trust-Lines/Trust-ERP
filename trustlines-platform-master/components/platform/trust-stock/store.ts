@@ -44,6 +44,29 @@ export function addImportedPf(stockCode: string, item: TrustStockItem, lineParts
   setParts({ ...parts, [item.id]: lineParts });
 }
 
+/**
+ * A stock's code split for the tile: "STOCK-TR-04" and "TR-04" both show as STOCK / TR-04, so the
+ * word isn't doubled when the Trust System's code already carries it.
+ */
+export function stockTile(code: string): { head: string; rest: string } {
+  const rest = code.trim().replace(/^stock[\s_-]*/i, '');
+  return { head: 'STOCK', rest: rest || code.trim() };
+}
+
+/**
+ * Depth / width / height written in a product description, e.g.
+ * "CABINET … ( D=32.5"-W=40"-H=32.75")" or "(D=12"- W=48"- H=36,75")". Missing ones stay ''.
+ */
+export function dimsFromText(text: string): { depth: string; width: string; height: string } {
+  const one = (k: string) => {
+    const m = text.match(new RegExp(`(?:^|[^A-Za-z])${k}\\s*[=:]\\s*(\\d+(?:[.,]\\d+)?)\\s*("|''|”|in\\b|cm\\b|mm\\b)?`, 'i'));
+    if (!m) return '';
+    const unit = m[2] === "''" || m[2] === '”' ? '"' : (m[2] ?? '');
+    return `${m[1].replace(',', '.')}${unit}`;
+  };
+  return { depth: one('D'), width: one('W'), height: one('H') };
+}
+
 // ── Money / totals ─────────────────────────────────────────────────────────────────────────
 const fmt = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const usd = (n: number) => `$ ${fmt.format(n || 0)}`;

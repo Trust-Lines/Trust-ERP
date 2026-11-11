@@ -7,20 +7,18 @@ import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import type { TrustStock, TrustStockItem } from './types';
-import { addImportedPf, fmtDay, newId, sum, tl, usd, useTrustStocks, type AmountKey } from './store';
+import { addImportedPf, dimsFromText, fmtDay, newId, stockTile, sum, tl, usd, useTrustStocks, type AmountKey } from './store';
 import { NewStockDialog, PF_SIGN, SEND_STATUS, StockItemDialog } from './TrustStockForms';
 import { StockOverview } from './StockOverview';
 import { PfPdfImportDialog, type ImportedResult } from './PfPdfImportDialog';
 
-// Figma "Trust Stock" (node 598:22796): two tables side by side that share their rows — the
-// stock lines (PF, vendor, dates, PF/INV amounts) and the accounting for the same lines
-// (payments, remaining, not ordered, invoice). Each stock batch is a coloured block with a
-// total row; grand totals sit at the bottom. Frontend only: no Trust Stock backend yet.
+// Figma "Trust Stock" (node 598:22796): the stock lines (PF, vendor, dates, PF/INV amounts) and the
+// accounting for the same lines (payments, remaining, not ordered, invoice), one at a time — the
+// Projects / Accounts switch picks which. Each stock batch is a coloured block with a total row;
+// grand totals sit at the bottom, every total under its own column. Frontend only: no Trust Stock backend yet.
 // Internal only — PF and vendor prices must never reach tlines_pm (the page enforces it).
 
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
-// Row heights are shared by both tables so their rows line up.
-const H_BAR = 'h-[51px]';
 const H_ROW = 'h-[52px]';
 const H_TOTAL = 'h-[44px]';
 const GROUP_BAR = 'bg-[#848484]';
@@ -59,7 +57,7 @@ function Money({ value, cur }: { value: number; cur: 'usd' | 'tl' }) {
 /** White total chip (Figma "Project stage" in the TOTAL rows). */
 function TotalChip({ value, cur, prefix }: { value: number; cur: 'usd' | 'tl'; prefix?: string }) {
   return (
-    <span className="inline-flex min-w-[70px] items-center justify-center whitespace-nowrap rounded-[4px] bg-ui-page-bg py-1 pl-2.5 pr-2 text-[12px] font-medium leading-4" style={{ color: cur === 'usd' ? USD_FG : TL_FG }}>
+    <span className="flex w-full items-center justify-end whitespace-nowrap rounded-[4px] bg-ui-page-bg py-1 pl-2.5 pr-2 text-[12px] font-medium leading-4 tabular-nums" style={{ color: cur === 'usd' ? USD_FG : TL_FG }}>
       {prefix ? `${prefix} ` : ''}{cur === 'usd' ? usd(value) : tl(value)}
     </span>
   );
@@ -96,7 +94,7 @@ function onImported({ stockCode, data, vendor, result, localOnly }: ImportedResu
     paid1Tl: 0, paid1TlDate: null, paid2Tl: 0, paid2TlDate: null,
     notOrderedUsd: 0, notOrderedTl: 0,
   }, data.products.map(p => ({
-    id: newId(), itemCode: p.itemCode, description: p.description ?? '', depth: '', width: '', height: '',
+    id: newId(), itemCode: p.itemCode, description: p.description ?? '', ...dimsFromText(p.description ?? ''),
     ordered: p.quantity, received: null, target: p.quantity, taken: 0, returned: 0, reserved: 0, reorderAt: 30, usedIn: [],
   })));
   toast.success(`Added to ${stockCode}`, {
@@ -110,17 +108,18 @@ export function TrustStockClient({ canUploadPf = false }: { canUploadPf?: boolea
   const [query, setQuery] = useState('');
   const [newStock, setNewStock] = useState(false);
   const [overview, setOverview] = useState(false);
+  const [view, setView] = useState<'projects' | 'accounts'>('projects');
   const [editing, setEditing] = useState<{ stockId: string; item: TrustStockItem | null } | null>(null);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return stocks;
     return stocks
-      .map(s => `stock ${s.code}`.toLowerCase().includes(q) ? s : {
+      .map(s => `stock ${stockTile(s.code).rest}`.toLowerCase().includes(q) ? s : {
         ...s,
         items: s.items.filter(i => `${i.type} ${i.pfCode} ${i.vendor} ${i.orderNo}`.toLowerCase().includes(q)),
       })
-      .filter(s => s.items.length > 0 || `stock ${s.code}`.toLowerCase().includes(q));
+      .filter(s => s.items.length > 0 || `stock ${stockTile(s.code).rest}`.toLowerCase().includes(q));
   }, [stocks, query]);
 
   const allItems = useMemo(() => visible.flatMap(s => s.items), [visible]);
@@ -139,6 +138,18 @@ export function TrustStockClient({ canUploadPf = false }: { canUploadPf?: boolea
 
       {/* ── Toolbar ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+        <div role="group" aria-label="Table" className="inline-flex h-9 rounded-[6px] border border-ui-divider bg-ui-surface p-0.5">
+          {(['projects', 'accounts'] as const).map(v => (
+            <button
+              key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
+              className={cn('cursor-pointer rounded-[4px] border-0 px-4 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ui-focus-ring',
+                view === v ? 'bg-[var(--color-secondary-700)] text-white dark:bg-primary-50 dark:text-primary-950' : 'bg-transparent text-ui-body hover:bg-ui-hover-bg')}
+            >
+              {v === 'projects' ? 'Projects' : 'Accounts'}
+            </button>
+          ))}
+        </div>
         <div className="relative w-[285px] max-w-full">
           <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" />
           <input
@@ -146,6 +157,7 @@ export function TrustStockClient({ canUploadPf = false }: { canUploadPf?: boolea
             value={query} onChange={e => setQuery(e.target.value)}
             className="h-9 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-2.5 text-[13px] leading-[1.45] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
           />
+        </div>
         </div>
         <div className="flex items-center gap-2">
           {/* Figma toolbar (node 598:22871): Upload PF PDF (outline), Stock Contents (primary), New Stock (accent).
@@ -183,9 +195,10 @@ export function TrustStockClient({ canUploadPf = false }: { canUploadPf?: boolea
         <EmptyState boxed icon={<Search />} title="No matching stock" description="Try another PF code, vendor, order or stock code." />
       ) : (
         <div className="overflow-x-auto pb-2">
-          <div className="flex min-w-max items-start gap-8">
-            <StockTable stocks={visible} allItems={allItems} onOpen={openItem} />
-            <AccountingTable stocks={visible} allItems={allItems} onOpen={openItem} />
+          <div className="min-w-max">
+            {view === 'projects'
+              ? <StockTable stocks={visible} allItems={allItems} onOpen={openItem} />
+              : <AccountingTable stocks={visible} allItems={allItems} onOpen={openItem} />}
           </div>
         </div>
       )}
@@ -207,16 +220,37 @@ export function TrustStockClient({ canUploadPf = false }: { canUploadPf?: boolea
 
 type OpenItem = (stockId: string, item: TrustStockItem | null) => void;
 
-// ── Trust Stock (left) ─────────────────────────────────────────────────────────────────────
-const LEFT_COLS: { label: string; w: number }[] = [
-  { label: 'Project#', w: 118 }, { label: 'Type', w: 124 }, { label: 'PF Code', w: 125 }, { label: 'Vendor', w: 231 },
-  { label: 'Order#', w: 125 }, { label: 'PF Sign Status', w: 120 }, { label: 'Status', w: 127 }, { label: 'STD', w: 109 },
-  { label: 'RTR', w: 106 }, { label: 'RTO', w: 124 }, { label: 'PF/USD', w: 100 }, { label: 'PF/TL', w: 103 },
-  { label: 'INV/USD', w: 100 }, { label: 'INV/TL', w: 118 }, { label: 'Payment Rule', w: 110 },
+// Excel-like grid: a rule between every column, amounts right-aligned, every total in its own column.
+const V = 'border-r border-ui-divider last:border-r-0';
+const MONEY = 'text-right tabular-nums';
+
+function StockTile({ code, rowSpan, gi }: { code: string; rowSpan: number; gi: number }) {
+  const t = stockTile(code);
+  return (
+    <th
+      rowSpan={rowSpan} scope="rowgroup"
+      className="border-r border-ui-divider px-2 text-center align-middle text-[20px] font-medium leading-tight text-white"
+      style={{ background: TILE[gi % TILE.length] }}
+    >
+      {t.head}<br />{t.rest}
+    </th>
+  );
+}
+
+// ── Projects: the stock lines ──────────────────────────────────────────────────────────────
+type LeftCol = { label: string; w: number; money?: AmountKey };
+const LEFT_COLS: LeftCol[] = [
+  { label: 'Project#', w: 118 }, { label: 'Type', w: 124 }, { label: 'PF Code', w: 150 }, { label: 'Vendor', w: 220 },
+  { label: 'Order#', w: 120 }, { label: 'PF Sign Status', w: 120 }, { label: 'Status', w: 120 }, { label: 'STD', w: 100 },
+  { label: 'RTR', w: 100 }, { label: 'RTO', w: 100 }, { label: 'PF/USD', w: 120, money: 'pfUsd' }, { label: 'PF/TL', w: 120, money: 'pfTl' },
+  { label: 'INV/USD', w: 120, money: 'invUsd' }, { label: 'INV/TL', w: 120, money: 'invTl' }, { label: 'Payment Rule', w: 110 },
 ];
+const FIRST_MONEY = LEFT_COLS.findIndex(c => c.money);
+const curOf = (k: AmountKey): 'usd' | 'tl' => (/Tl$/.test(k) ? 'tl' : 'usd');
 
 function StockTable({ stocks, allItems, onOpen }: { stocks: TrustStock[]; allItems: TrustStockItem[]; onOpen: OpenItem }) {
   const width = LEFT_COLS.reduce((t, c) => t + c.w, 0);
+  const moneyCols = LEFT_COLS.filter(c => c.money);
   return (
     <section aria-label="Trust Stock" className="overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg" style={{ width }}>
       <table className="w-full table-fixed border-collapse">
@@ -226,80 +260,44 @@ function StockTable({ stocks, allItems, onOpen }: { stocks: TrustStock[]; allIte
             <th colSpan={LEFT_COLS.length} scope="colgroup" className="text-center text-[20px] font-semibold" style={{ color: 'var(--status-t10-fg)' }}>Trust Stock</th>
           </tr>
           <tr className="h-[46px] border-b border-ui-divider" style={{ background: 'var(--status-t0-bg)' }}>
-            {LEFT_COLS.map(c => <th key={c.label} scope="col" className={TH}>{c.label}</th>)}
+            {LEFT_COLS.map(c => <th key={c.label} scope="col" className={cn(TH, V, c.money && 'text-right')}>{c.label}</th>)}
           </tr>
         </thead>
-        {stocks.map((s, gi) => {
-          const span = 2 + Math.max(1, s.items.length);
-          return (
-            <tbody key={s.id}>
-              <tr className={cn(H_BAR, GROUP_BAR, 'border-b border-ui-divider')}>
-                <th
-                  rowSpan={span} scope="rowgroup"
-                  className="border-r border-ui-divider px-2.5 text-center align-middle text-[24px] font-medium leading-tight text-white"
-                  style={{ background: TILE[gi % TILE.length] }}
-                >
-                  STOCK<br />{s.code}
-                </th>
-                <td colSpan={LEFT_COLS.length - 1} className="px-3 text-right">
-                  <button
-                    type="button" onClick={() => onOpen(s.id, null)}
-                    className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-[4px] border-0 bg-white/90 px-2.5 text-[12px] font-medium text-[#3d3d43] hover:bg-white"
-                  >
-                    <Plus size={14} aria-hidden /> Add line
-                  </button>
-                </td>
+        {stocks.map((s, gi) => (
+          <tbody key={s.id}>
+            {s.items.length === 0 ? (
+              <tr className={cn(H_ROW, 'border-b border-ui-divider')}>
+                <StockTile code={s.code} rowSpan={2} gi={gi} />
+                <td colSpan={LEFT_COLS.length - 1} className="px-4 text-[12px] text-ui-text-secondary">No lines yet.</td>
               </tr>
-              {s.items.length === 0 ? (
-                <tr className={cn(H_ROW, 'border-b border-ui-divider')}>
-                  <td colSpan={LEFT_COLS.length - 1} className="px-4 text-[12px] text-ui-text-secondary">No lines yet.</td>
-                </tr>
-              ) : s.items.map(i => (
-                <tr key={i.id} {...rowKeys(() => onOpen(s.id, i))} aria-label={`Edit ${i.pfCode}`} className={cn(H_ROW, 'cursor-pointer border-b border-ui-divider hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ui-focus-ring')}>
-                  <td className="px-2"><Chip className="text-[14px] font-semibold text-white" style={{ background: TYPE_BG[i.type] ?? '#787881' }}>{i.type}</Chip></td>
-                  <td className={cn(CELL, 'truncate text-[13px]')} title={i.pfCode}>{i.pfCode}</td>
-                  <td className={cn(CELL, 'truncate text-[13px]')} title={i.vendor}>{i.vendor || '—'}</td>
-                  <td className={cn(CELL, 'truncate text-[13px]')} title={i.orderNo}>{i.orderNo || '—'}</td>
-                  <td className="px-2"><Chip className="w-[81px]" style={SIGN_STYLE[i.pfSign]}>{label(PF_SIGN, i.pfSign)}</Chip></td>
-                  <td className="px-2"><Chip className="min-w-[80px]" style={STATUS_STYLE[i.status]}>{label(SEND_STATUS, i.status)}</Chip></td>
-                  <td className={CELL}>{fmtDay(i.std)}</td>
-                  <td className={CELL}>{fmtDay(i.rtr)}</td>
-                  <td className={CELL}>{fmtDay(i.rto)}</td>
-                  <td className={CELL}><Money value={i.pfUsd} cur="usd" /></td>
-                  <td className={CELL}><Money value={i.pfTl} cur="tl" /></td>
-                  <td className={CELL}><Money value={i.invUsd} cur="usd" /></td>
-                  <td className={CELL}><Money value={i.invTl} cur="tl" /></td>
-                  <td className={CELL}>{i.paymentRule != null ? `${i.paymentRule} %` : '—'}</td>
-                </tr>
-              ))}
-              <tr className={cn(H_TOTAL, GROUP_BAR)}>
-                <td colSpan={9} className="px-4 text-[14px] font-semibold text-[#eef2f6]">TOTAL</td>
-                <td className="px-2"><TotalChip value={sum(s.items, 'pfUsd')} cur="usd" /></td>
-                <td className="px-2"><TotalChip value={sum(s.items, 'pfTl')} cur="tl" /></td>
-                <td className="px-2"><TotalChip value={sum(s.items, 'invUsd')} cur="usd" /></td>
-                <td className="px-2"><TotalChip value={sum(s.items, 'invTl')} cur="tl" /></td>
-                <td />
+            ) : s.items.map((i, ri) => (
+              <tr key={i.id} {...rowKeys(() => onOpen(s.id, i))} aria-label={`Edit ${i.pfCode}`} className={cn(H_ROW, 'cursor-pointer border-b border-ui-divider hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ui-focus-ring')}>
+                {ri === 0 && <StockTile code={s.code} rowSpan={s.items.length + 1} gi={gi} />}
+                <td className={cn('px-2', V)}><Chip className="text-[14px] font-semibold text-white" style={{ background: TYPE_BG[i.type] ?? '#787881' }}>{i.type}</Chip></td>
+                <td className={cn(CELL, V, 'truncate text-[13px]')} title={i.pfCode}>{i.pfCode}</td>
+                <td className={cn(CELL, V, 'truncate text-[13px]')} title={i.vendor}>{i.vendor || '—'}</td>
+                <td className={cn(CELL, V, 'truncate text-[13px]')} title={i.orderNo}>{i.orderNo || '—'}</td>
+                <td className={cn('px-2', V)}><Chip className="w-[81px]" style={SIGN_STYLE[i.pfSign]}>{label(PF_SIGN, i.pfSign)}</Chip></td>
+                <td className={cn('px-2', V)}><Chip className="min-w-[80px]" style={STATUS_STYLE[i.status]}>{label(SEND_STATUS, i.status)}</Chip></td>
+                <td className={cn(CELL, V)}>{fmtDay(i.std)}</td>
+                <td className={cn(CELL, V)}>{fmtDay(i.rtr)}</td>
+                <td className={cn(CELL, V)}>{fmtDay(i.rto)}</td>
+                {moneyCols.map(c => <td key={c.label} className={cn(CELL, V, MONEY)}><Money value={amountOf(i, c.money!)} cur={curOf(c.money!)} /></td>)}
+                <td className={cn(CELL, V, MONEY)}>{i.paymentRule != null ? `${i.paymentRule} %` : '—'}</td>
               </tr>
-            </tbody>
-          );
-        })}
+            ))}
+            <tr className={cn(H_TOTAL, GROUP_BAR)}>
+              <td colSpan={FIRST_MONEY - 1} className="border-r border-white/30 px-4 text-[14px] font-semibold text-[#eef2f6]">TOTAL</td>
+              {moneyCols.map(c => <td key={c.label} className="border-r border-white/30 px-2"><TotalChip value={sum(s.items, c.money!)} cur={curOf(c.money!)} /></td>)}
+              <td />
+            </tr>
+          </tbody>
+        ))}
         <tfoot>
           <tr className="h-[52px]" style={{ background: 'var(--status-t10-bg)' }}>
-            <td colSpan={LEFT_COLS.length} className="px-6">
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-[14px] font-semibold" style={{ color: 'var(--status-t10-fg)' }}>Trust Stock’s Total</span>
-                <span className="flex items-center gap-4">
-                  <span className="flex gap-4">
-                    <TotalChip value={sum(allItems, 'pfUsd')} cur="usd" />
-                    <TotalChip value={sum(allItems, 'pfTl')} cur="tl" />
-                  </span>
-                  <span className="flex gap-4">
-                    <TotalChip value={sum(allItems, 'invUsd')} cur="usd" prefix="INV/USD" />
-                    <TotalChip value={sum(allItems, 'invTl')} cur="tl" prefix="INV/TL" />
-                  </span>
-                </span>
-              </div>
-            </td>
+            <td colSpan={FIRST_MONEY} className="border-r border-ui-divider px-6 text-[14px] font-semibold" style={{ color: 'var(--status-t10-fg)' }}>Trust Stock’s Total</td>
+            {moneyCols.map(c => <td key={c.label} className={cn('px-2', V)}><TotalChip value={sum(allItems, c.money!)} cur={curOf(c.money!)} /></td>)}
+            <td />
           </tr>
         </tfoot>
       </table>
@@ -307,89 +305,67 @@ function StockTable({ stocks, allItems, onOpen }: { stocks: TrustStock[]; allIte
   );
 }
 
-// ── Accounting Trust Stock (right) ─────────────────────────────────────────────────────────
+// ── Accounts: payments, remaining, not ordered, invoice for the same lines ─────────────────
 type AccCol = { key: AmountKey | 'date'; dateOf?: keyof TrustStockItem; label: string; w: number; cur?: 'usd' | 'tl' };
 const ACC_COLS: AccCol[] = [
   { key: 'paid1Usd', label: 'Paid/USD', w: 110, cur: 'usd' }, { key: 'date', dateOf: 'paid1UsdDate', label: 'Date', w: 100 },
   { key: 'paid2Usd', label: 'Paid/USD', w: 110, cur: 'usd' }, { key: 'date', dateOf: 'paid2UsdDate', label: 'Date', w: 100 },
   { key: 'paid1Tl', label: 'Paid/TL', w: 110, cur: 'tl' }, { key: 'date', dateOf: 'paid1TlDate', label: 'Date', w: 100 },
   { key: 'paid2Tl', label: 'Paid/TL', w: 110, cur: 'tl' }, { key: 'date', dateOf: 'paid2TlDate', label: 'Date', w: 100 },
-  { key: 'remainingUsd', label: 'USD', w: 104, cur: 'usd' }, { key: 'remainingTl', label: 'TL', w: 100, cur: 'tl' },
-  { key: 'notOrderedUsd', label: 'USD', w: 104, cur: 'usd' }, { key: 'notOrderedTl', label: 'TL', w: 100, cur: 'tl' },
-  { key: 'invUsd', label: 'Invoice', w: 104, cur: 'usd' }, { key: 'invTl', label: '', w: 100, cur: 'tl' },
+  { key: 'remainingUsd', label: 'USD', w: 110, cur: 'usd' }, { key: 'remainingTl', label: 'TL', w: 110, cur: 'tl' },
+  { key: 'notOrderedUsd', label: 'USD', w: 110, cur: 'usd' }, { key: 'notOrderedTl', label: 'TL', w: 110, cur: 'tl' },
+  { key: 'invUsd', label: 'USD', w: 110, cur: 'usd' }, { key: 'invTl', label: 'TL', w: 110, cur: 'tl' },
 ];
-const ACC_GROUPS = ['1st', '2nd', '1st', '2nd', 'Remaining', 'Not Ordered', 'Invoice'];
+const ACC_GROUPS = ['1st USD', '2nd USD', '1st TL', '2nd TL', 'Remaining', 'Not Ordered', 'Invoice'];
+const ACC_LEAD = [{ label: 'Project#', w: 118 }, { label: 'PF Code', w: 150 }];
 
 function AccountingTable({ stocks, allItems, onOpen }: { stocks: TrustStock[]; allItems: TrustStockItem[]; onOpen: OpenItem }) {
-  const width = ACC_COLS.reduce((t, c) => t + c.w, 0) + 16;
-  const paidUsd = sum(allItems, 'paid1Usd') + sum(allItems, 'paid2Usd');
-  const paidTl = sum(allItems, 'paid1Tl') + sum(allItems, 'paid2Tl');
+  const width = [...ACC_LEAD, ...ACC_COLS].reduce((t, c) => t + c.w, 0);
+  const total = (items: TrustStockItem[], c: AccCol) => (c.key === 'date' ? null : <TotalChip value={sum(items, c.key)} cur={c.cur!} />);
   return (
     <section aria-label="Accounting Trust Stock" className="overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg" style={{ width }}>
       <table className="w-full table-fixed border-collapse">
-        <colgroup>
-          <col style={{ width: 8 }} />
-          {ACC_COLS.map((c, i) => <col key={i} style={{ width: c.w }} />)}
-          <col style={{ width: 8 }} />
-        </colgroup>
+        <colgroup>{[...ACC_LEAD, ...ACC_COLS].map((c, i) => <col key={i} style={{ width: c.w }} />)}</colgroup>
         <thead>
           <tr className="h-[52px]" style={{ background: 'var(--status-t7-bg)' }}>
-            <th colSpan={ACC_COLS.length + 2} scope="colgroup" className="text-center text-[20px] font-semibold" style={{ color: 'var(--status-t7-fg)' }}>Accounting Trust Stock</th>
+            <th colSpan={ACC_LEAD.length + ACC_COLS.length} scope="colgroup" className="text-center text-[20px] font-semibold" style={{ color: 'var(--status-t7-fg)' }}>Accounting Trust Stock</th>
           </tr>
-          <tr className="h-[46px] border-b border-ui-divider" style={{ background: 'var(--status-t0-bg)' }}>
-            <th aria-hidden />
-            {ACC_COLS.map((c, i) => <th key={i} scope="col" className={TH}>{c.label}</th>)}
-            <th aria-hidden />
+          <tr className="h-[34px] border-b border-ui-divider" style={{ background: 'var(--status-t0-bg)' }}>
+            {ACC_LEAD.map(c => <th key={c.label} rowSpan={2} scope="col" className={cn(TH, V)}>{c.label}</th>)}
+            {ACC_GROUPS.map(g => <th key={g} colSpan={2} scope="colgroup" className={cn(TH, V, 'text-center')}>{g}</th>)}
+          </tr>
+          <tr className="h-[34px] border-b border-ui-divider" style={{ background: 'var(--status-t0-bg)' }}>
+            {ACC_COLS.map((c, i) => <th key={i} scope="col" className={cn(TH, V, c.key !== 'date' && 'text-right')}>{c.label}</th>)}
           </tr>
         </thead>
-        {stocks.map(s => (
+        {stocks.map((s, gi) => (
           <tbody key={s.id}>
-            <tr className={cn(H_BAR, GROUP_BAR, 'border-b border-ui-divider')}>
-              <td />
-              {ACC_GROUPS.map((g, i) => (
-                <td key={i} colSpan={2} className="px-2">
-                  <span className="flex h-6 w-full items-center justify-center rounded-[4px] bg-white text-[12px] font-medium text-[#3d3d43]">{g}</span>
-                </td>
-              ))}
-              <td />
-            </tr>
             {s.items.length === 0 ? (
-              <tr className={cn(H_ROW, 'border-b border-ui-divider')}><td colSpan={ACC_COLS.length + 2} /></tr>
-            ) : s.items.map(i => (
+              <tr className={cn(H_ROW, 'border-b border-ui-divider')}>
+                <StockTile code={s.code} rowSpan={2} gi={gi} />
+                <td colSpan={ACC_COLS.length + 1} className="px-4 text-[12px] text-ui-text-secondary">No lines yet.</td>
+              </tr>
+            ) : s.items.map((i, ri) => (
               <tr key={i.id} {...rowKeys(() => onOpen(s.id, i))} aria-label={`Edit accounting for ${i.pfCode}`} className={cn(H_ROW, 'cursor-pointer border-b border-ui-divider hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ui-focus-ring')}>
-                <td />
+                {ri === 0 && <StockTile code={s.code} rowSpan={s.items.length + 1} gi={gi} />}
+                <td className={cn(CELL, V, 'truncate text-[13px]')} title={i.pfCode}>{i.pfCode}</td>
                 {ACC_COLS.map((c, ci) => (
-                  <td key={ci} className={CELL}>
-                    {c.key === 'date'
-                      ? fmtDay((i[c.dateOf!] as string | null) ?? null)
-                      : <Money value={amountOf(i, c.key)} cur={c.cur!} />}
+                  <td key={ci} className={cn(CELL, V, c.key !== 'date' && MONEY)}>
+                    {c.key === 'date' ? fmtDay((i[c.dateOf!] as string | null) ?? null) : <Money value={amountOf(i, c.key)} cur={c.cur!} />}
                   </td>
                 ))}
-                <td />
               </tr>
             ))}
             <tr className={cn(H_TOTAL, GROUP_BAR)}>
-              <td />
-              {ACC_COLS.map((c, ci) => (
-                <td key={ci} className="px-2">
-                  {c.key !== 'date' && <TotalChip value={sum(s.items, c.key)} cur={c.cur!} />}
-                </td>
-              ))}
-              <td />
+              <td className="border-r border-white/30 px-4 text-[14px] font-semibold text-[#eef2f6]">TOTAL</td>
+              {ACC_COLS.map((c, ci) => <td key={ci} className="border-r border-white/30 px-2 last:border-r-0">{total(s.items, c)}</td>)}
             </tr>
           </tbody>
         ))}
         <tfoot>
           <tr className="h-[52px]" style={{ background: 'var(--status-t7-bg)' }}>
-            <td colSpan={ACC_COLS.length + 2} className="px-6">
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-[14px] font-semibold" style={{ color: 'var(--status-t7-fg)' }}>Accounting Grand Total</span>
-                <span className="flex gap-4" title="Total paid">
-                  <TotalChip value={paidUsd} cur="usd" />
-                  <TotalChip value={paidTl} cur="tl" />
-                </span>
-              </div>
-            </td>
+            <td colSpan={ACC_LEAD.length} className="border-r border-ui-divider px-4 text-[14px] font-semibold" style={{ color: 'var(--status-t7-fg)' }}>Accounting Grand Total</td>
+            {ACC_COLS.map((c, ci) => <td key={ci} className={cn('px-2', V)}>{total(allItems, c)}</td>)}
           </tr>
         </tfoot>
       </table>
@@ -400,4 +376,3 @@ function AccountingTable({ stocks, allItems, onOpen }: { stocks: TrustStock[]; a
 function amountOf(i: TrustStockItem, key: AmountKey) {
   return sum([i], key);
 }
-
