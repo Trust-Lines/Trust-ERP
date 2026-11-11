@@ -35,6 +35,7 @@ import {
 import { toast } from 'sonner';
 import { ApprovalReviewDialog } from './ApprovalReviewDialog';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { feedback } from '@/components/ui/feedback-toast';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
@@ -1042,13 +1043,11 @@ export function ApprovalsPageClient() {
                         checked ? 'bg-[var(--color-primary-50)] dark:bg-[var(--ui-row-checked)]' : 'hover:bg-[var(--color-primary-50)] dark:hover:bg-white/5'
                       }`}
                     >
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={checked}
-                        onChange={() =>
+                        onCheckedChange={() =>
                           setDraftValues(prev => (checked ? prev.filter(v => v !== value) : [...prev, value]))
                         }
-                        className="w-4 h-4 rounded accent-[var(--color-secondary-700)] dark:accent-[var(--ui-tab-badge)]"
                       />
                       <span className={checked ? 'font-semibold text-[var(--ui-body)] dark:text-[var(--ui-heading)]' : 'text-[var(--ui-text-secondary)]'}>
                         {value}
@@ -1062,13 +1061,9 @@ export function ApprovalsPageClient() {
                 <span className="text-xs text-[var(--ui-text-secondary)]">
                   {draftValues.length} value{draftValues.length === 1 ? '' : 's'} selected
                 </span>
-                <button
-                  onClick={applyFilter}
-                  disabled={draftValues.length === 0}
-                  className="h-[34px] px-3.5 rounded-md bg-[var(--color-secondary-700)] text-[var(--ui-btn-primary-fg)] font-semibold hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
+                <Button type="button" variant="primary" onClick={applyFilter} disabled={draftValues.length === 0}>
                   Apply filter
-                </button>
+                </Button>
               </div>
             </div>
           )}
