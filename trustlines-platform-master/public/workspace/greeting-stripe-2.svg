@@ -1,0 +1,10 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="125.976" height="325.656" viewBox="0 0 125.976 325.656" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Vector 254" opacity="0.15">
+<mask id="stroke0_0_5">
+<path d="M123.48 1.66546L3.67301 181.164C2.77175 182.514 2.77601 184.275 3.6838 185.621L97.0027 323.978" stroke-width="6" stroke="white"/>
+</mask>
+<g clip-path="url(#paint0_angular_0_5_clip_path)" data-figma-skip-parse="true" mask="url(#stroke0_0_5)"><g transform="matrix(0 0.170543 -0.0675821 0 46.8428 171.427)"><foreignObject x="-1526.04" y="-1526.04" width="3052.07" height="3052.07"><div xmlns="http://www.w3.org/1999/xhtml" style="background:conic-gradient(from 90deg,rgba(255, 255, 255, 0.3456) 0deg,rgba(255, 255, 255, 1) 91.7306deg,rgba(255, 255, 255, 0) 311.553deg,rgba(255, 255, 255, 0.3456) 360deg);height:100%;width:100%;opacity:1"></div></foreignObject></g></g><path d="M123.48 1.66546L3.67301 181.164C2.77175 182.514 2.77601 184.275 3.6838 185.621L97.0027 323.978" stroke-width="6" stroke="black" stroke-opacity="0" data-figma-gradient-stroke="{&#34;type&#34;:&#34;GRADIENT_ANGULAR&#34;,&#34;stops&#34;:[{&#34;color&#34;:{&#34;r&#34;:1.0,&#34;g&#34;:1.0,&#34;b&#34;:1.0,&#34;a&#34;:1.0},&#34;position&#34;:0.25480708479881287},{&#34;color&#34;:{&#34;r&#34;:1.0,&#34;g&#34;:1.0,&#34;b&#34;:1.0,&#34;a&#34;:0.0},&#34;position&#34;:0.86542481184005737}],&#34;transform&#34;:{&#34;m00&#34;:0.0,&#34;m01&#34;:-135.16421508789062,&#34;m02&#34;:114.42487335205078,&#34;m10&#34;:341.0861816406250,&#34;m11&#34;:4.4729891414874070e-15,&#34;m12&#34;:0.88421058654785156},&#34;opacity&#34;:1.0,&#34;blendMode&#34;:&#34;NORMAL&#34;,&#34;stopsVar&#34;:[{&#34;color&#34;:{&#34;r&#34;:1.0,&#34;g&#34;:1.0,&#34;b&#34;:1.0,&#34;a&#34;:1.0},&#34;position&#34;:0.25480708479881287},{&#34;color&#34;:{&#34;r&#34;:1.0,&#34;g&#34;:1.0,&#34;b&#34;:1.0,&#34;a&#34;:0.0},&#34;position&#34;:0.86542481184005737}],&#34;visible&#34;:true}"/>
+</g>
+<defs>
+<clipPath id="paint0_angular_0_5_clip_path"><rect x="-24" y="-24" width="173.976" height="373.656"/></clipPath></defs>
+</svg>
