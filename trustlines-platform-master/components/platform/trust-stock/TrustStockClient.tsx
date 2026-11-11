@@ -97,7 +97,7 @@ export function TrustStockClient() {
   return (
     <div className="flex flex-col gap-[30px]">
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <PageCrumbs items={[{ label: 'Operations' }, { label: 'Trust Stock', href: '/trust-stock' }]} />
+        <PageCrumbs items={[{ label: 'Operations', href: '/production' }, { label: 'Trust Stock', href: '/trust-stock' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Trust Stock</h1>
         <p className="m-0 text-[13px] text-ui-body">
           {stocks.length} stock{stocks.length === 1 ? '' : 's'} · {stocks.reduce((n, s) => n + s.items.length, 0)} line{stocks.reduce((n, s) => n + s.items.length, 0) === 1 ? '' : 's'}
