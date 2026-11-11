@@ -21,6 +21,8 @@ export interface BrandKit {
   created_by: string | null; updated_at: string;
 }
 const API = '/api/design/brands';
+const FORM_LABEL = 'flex flex-col gap-1.5 text-[13px] font-medium';
+const FORM_FIELD = 'h-10 text-[14px] dark:text-[14px]';
 
 export function BrandKitsClient() {
   const [kits, setKits] = useState<BrandKit[] | null>(null);
@@ -230,33 +232,37 @@ function KitEditor({ kit, onClose, onSaved }: { kit?: BrandKit; onClose: () => v
     <Modal open onOpenChange={o => { if (!o) onClose(); }}>
       <ModalContent size="lg" title={kit ? `Edit ${kit.name}` : 'New brand kit'}
         footer={<><ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Cancel</ModalClose><Button loading={saving} onClick={() => void save()}>Save</Button></>}>
-        <div className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1 text-[12px] font-medium">Brand name<Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Acme Stores" /></label>
-          <div className="flex flex-col gap-1 text-[12px] font-medium">Customer
-            <Combobox aria-label="Customer" placeholder="Type to search customers…" emptyText="Type at least 2 letters"
+        {/* Readability: 14px field text in 40px fields and 13px labels (the shared field default is 11px / 32px). */}
+        <div className="flex flex-col gap-4">
+          <label className={FORM_LABEL}>Brand name<Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Acme Stores" className={FORM_FIELD} /></label>
+          <div className={FORM_LABEL}>Customer
+            <Combobox aria-label="Customer" placeholder="Type to search customers…" emptyText="Type at least 2 letters" className={FORM_FIELD}
               options={options} value={prospect} onValueChange={o => setProspect(o)} onInputValueChange={searchProspects} />
           </div>
-          <div className="flex flex-col gap-1.5 text-[12px] font-medium">Colours
-            <div className="flex flex-wrap gap-2">
-              {colors.map((c, i) => (
-                <span key={i} className="flex items-center gap-1.5 rounded-[6px] border border-ui-divider py-0.5 pl-0.5 pr-1 text-[12px] font-normal">
-                  <span className="size-5 rounded-[4px]" style={{ background: c.hex }} />{c.name}
-                  <button type="button" aria-label={`Remove ${c.name}`} className="grid size-5 place-items-center border-0 bg-transparent text-ui-text-secondary" onClick={() => setColors(cs => cs.filter((_, j) => j !== i))}><X size={12} /></button>
-                </span>
-              ))}
-            </div>
+          <div className={FORM_LABEL}>Colours
+            {colors.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {colors.map((c, i) => (
+                  <span key={i} className="flex items-center gap-1.5 rounded-[6px] border border-ui-divider py-1 pl-1 pr-1.5 text-[13px] font-normal">
+                    <span className="size-6 rounded-[4px]" style={{ background: c.hex }} />{c.name}
+                    <span className="font-mono text-[12px] text-ui-text-secondary">{c.hex}</span>
+                    <button type="button" aria-label={`Remove ${c.name}`} className="grid size-6 cursor-pointer place-items-center rounded-[4px] border-0 bg-transparent text-ui-text-secondary hover:bg-ui-hover-bg" onClick={() => setColors(cs => cs.filter((_, j) => j !== i))}><X size={14} /></button>
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="flex gap-2">
-              <input type="color" aria-label="Pick a colour" value={normalizeHex(newHex) ?? '#000000'} onChange={e => setNewHex(e.target.value)} className="h-8 w-10 cursor-pointer rounded-[4px] border border-ui-divider bg-transparent p-0.5" />
-              <Input value={newHex} onChange={e => setNewHex(e.target.value)} placeholder="#0A2540" className="w-[110px]" />
-              <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Name (Primary, Accent…)" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addColor(); } }} />
-              <Button variant="outline" size="sm" onClick={addColor}><Plus /> Add</Button>
+              <input type="color" aria-label="Pick a colour" value={normalizeHex(newHex) ?? '#000000'} onChange={e => setNewHex(e.target.value)} className="h-10 w-11 shrink-0 cursor-pointer rounded-[6px] border border-ui-divider bg-transparent p-1" />
+              <Input aria-label="Colour hex" value={newHex} onChange={e => setNewHex(e.target.value)} placeholder="#0A2540" className={cn(FORM_FIELD, 'w-[120px] shrink-0 font-mono')} />
+              <Input aria-label="Colour name" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Name (Primary, Accent…)" className={FORM_FIELD} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addColor(); } }} />
+              <Button variant="outline" size="md" className="shrink-0" onClick={addColor}><Plus /> Add</Button>
             </div>
           </div>
-          <label className="flex flex-col gap-1 text-[12px] font-medium">Fonts<Input value={fonts} onChange={e => setFonts(e.target.value)} placeholder="e.g. Inter, Playfair Display" /></label>
-          <label className="flex flex-col gap-1 text-[12px] font-medium">Guidelines
-            <Textarea rows={4} value={guidelines} onChange={e => setGuidelines(e.target.value)} placeholder="Logo clear space, what not to do, signage rules…" />
+          <label className={FORM_LABEL}>Fonts<Input value={fonts} onChange={e => setFonts(e.target.value)} placeholder="e.g. Inter, Playfair Display" className={FORM_FIELD} /></label>
+          <label className={FORM_LABEL}>Guidelines
+            <Textarea rows={4} value={guidelines} onChange={e => setGuidelines(e.target.value)} placeholder="Logo clear space, what not to do, signage rules…" className="text-[14px] leading-[1.5] dark:text-[14px]" />
           </label>
-          <p className="m-0 flex items-center gap-1.5 text-[11px] text-ui-text-secondary"><Copy size={12} aria-hidden /> Logo and guideline files are added after saving, from the kit.</p>
+          <p className="m-0 flex items-center gap-1.5 text-[12px] text-ui-text-secondary"><Copy size={14} aria-hidden /> Logo and guideline files are added after saving, from the kit.</p>
         </div>
       </ModalContent>
     </Modal>
