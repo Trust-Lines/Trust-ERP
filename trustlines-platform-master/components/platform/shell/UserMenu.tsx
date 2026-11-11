@@ -13,7 +13,8 @@ export function userInitials(name: string) {
   return (name || 'U').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 }
 
-const OPTION = 'flex w-full items-center gap-3 rounded-md p-3 text-left text-[13px] leading-[1.4] text-primary-500 transition-colors hover:bg-primary-50 dark:text-primary-100 dark:hover:bg-primary-800';
+// Same hover/focus as the platform's other menus (row menus, Staff, Trust Stock): ui-hover-bg, no custom shade.
+const OPTION = 'flex w-full items-center gap-3 rounded-[6px] border-0 bg-transparent p-3 text-left text-[13px] leading-[1.4] text-ui-body no-underline outline-none transition-colors hover:bg-ui-hover-bg hover:text-ui-heading focus-visible:bg-ui-hover-bg focus-visible:ring-2 focus-visible:ring-ui-focus-ring';
 const ICON = 'h-4 w-4 shrink-0 text-primary-400 dark:text-primary-200';
 
 function clearDocgenDrafts() {
