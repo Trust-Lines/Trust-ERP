@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { ProjectStage } from '@/types/database';
+import { ProjectSubpageHeader, type ProjectSubpage } from './ProjectSubpageHeader';
 import type { ProjectFinance } from '@/lib/finance/projectTotals';
 import { EXPENSE_CATEGORY_LABELS } from '@/lib/expenses/config';
 
@@ -25,6 +27,8 @@ interface Props {
   projectId: string;
   projectCode: string;
   projectName: string;
+  stage?: ProjectStage | null;
+  hiddenTabs?: ProjectSubpage[];
   finance: ProjectFinance;
   invoices: Inv[];
   payments: Pay[];
@@ -50,7 +54,7 @@ const totals = (byCur: Record<string, number>) => {
   return parts.length ? parts.join('  ·  ') : null;
 };
 
-export function ProjectFinanceClient({ projectId, projectCode, projectName, finance, invoices, payments, expenses, suppliers, approvedCRs = [] }: Props) {
+export function ProjectFinanceClient({ projectId, projectCode, projectName, stage = null, hiddenTabs = [], finance, invoices, payments, expenses, suppliers, approvedCRs = [] }: Props) {
   const supById = new Map(suppliers.map(s => [s.id, s]));
   const supName = (id: string | null) => (id && supById.get(id) ? (supById.get(id)!.name ?? supById.get(id)!.code) : null);
 
@@ -81,15 +85,11 @@ export function ProjectFinanceClient({ projectId, projectCode, projectName, fina
   ];
 
   return (
+    <>
+    {/* Same project header + tabs as the other subpages, so switching tabs keeps the project context. */}
+    <ProjectSubpageHeader projectId={projectId} code={projectCode} name={projectName} stage={stage} active="finance" hidden={hiddenTabs} />
     <div className="flex flex-col gap-[18px] font-[family-name:var(--font-ui)]">
-      {/* Figma "Project Finance" (462:12532): title + code · name, PF tiles, then three list cards. */}
-      <div className="flex flex-col gap-[5px]">
-        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Project Finance</h1>
-        <p className="m-0 text-[13px] leading-[1.35] text-ui-body">
-          <Link href={`/projects/${projectId}`} className="font-semibold text-inherit no-underline hover:underline">#{projectCode}</Link>
-          {`  ·  ${projectName}`}
-        </p>
-      </div>
+      {/* Figma "Project Finance" (462:12532): PF tiles, then three list cards. */}
 
       <section aria-labelledby="finance-pf" className="flex flex-col gap-4 rounded-[8px] border border-ui-divider pt-3.5 pb-5 pl-4 pr-[18px]">
         <h2 id="finance-pf" className={cn('m-0 text-[16px] font-semibold tracking-[0.32px]', HEADING)}>Production (PF Value)</h2>
@@ -137,6 +137,7 @@ export function ProjectFinanceClient({ projectId, projectCode, projectName, fina
         />
       </div>
     </div>
+    </>
   );
 }
 

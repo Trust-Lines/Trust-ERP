@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { ProjectFinanceClient } from '@/components/platform/projects/ProjectFinanceClient';
 import { PROJECT_FINANCE_READ_ROLES, buildProjectFinance } from '@/lib/finance/projectTotals';
 import type { UserRole } from '@/types/database';
+import { hiddenProjectTabs } from '@/lib/projects/subpageTabs';
 
 export default async function ProjectFinancePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,7 +18,7 @@ export default async function ProjectFinancePage({ params }: { params: Promise<{
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
-  const { data: project } = await admin.from('projects').select('id, code, name, tlines_pm_id').eq('id', id).maybeSingle();
+  const { data: project } = await admin.from('projects').select('id, code, name, current_stage, tlines_pm_id').eq('id', id).maybeSingle();
   if (!project) notFound();
   if (role === 'tlines_pm' && project.tlines_pm_id !== user.id) redirect('/projects');
 
@@ -50,6 +51,7 @@ export default async function ProjectFinancePage({ params }: { params: Promise<{
     <div className="main-inner">
       <ProjectFinanceClient
         projectId={id} projectCode={project.code} projectName={project.name}
+        stage={project.current_stage ?? null} hiddenTabs={hiddenProjectTabs(role)}
         finance={finance} invoices={invoices} payments={payments} expenses={expenses} suppliers={suppliers}
         approvedCRs={approvedCRs}
       />
