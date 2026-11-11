@@ -5,6 +5,10 @@ import { AmountsMasker } from "@/components/platform/shared/AmountsMasker";
 import { AuthLinkRedirect } from "@/components/auth/AuthLinkRedirect";
 import { ThemeSync } from "@/components/platform/shared/ThemeSync";
 import { THEME_HEAD_SCRIPT } from "@/lib/theme/theme";
+import { InlineScript } from "@/components/platform/shared/InlineScript";
+
+const HIDE_AMOUNTS_HEAD_SCRIPT =
+  "try{if(localStorage.getItem('tl.hideAmounts')==='1'){var d=document.documentElement;d.setAttribute('data-hide-amounts','');setTimeout(function(){d.setAttribute('data-amounts-masked','')},4000)}}catch(e){}";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -43,13 +47,9 @@ export default function RootLayout({
     >
       <head>
         {/* Light / dark theme — set the `dark` class before first paint so the page never flashes. */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_HEAD_SCRIPT }} />
+        <InlineScript html={THEME_HEAD_SCRIPT} />
         {/* "Hide amounts" — flag the page before first paint so real figures never flash (see AmountsMasker). */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: "try{if(localStorage.getItem('tl.hideAmounts')==='1'){var d=document.documentElement;d.setAttribute('data-hide-amounts','');setTimeout(function(){d.setAttribute('data-amounts-masked','')},4000)}}catch(e){}",
-          }}
-        />
+        <InlineScript html={HIDE_AMOUNTS_HEAD_SCRIPT} />
       </head>
       <body className="min-h-full">
         <ThemeSync />
