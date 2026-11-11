@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   DEFAULT_VISIBLE_COLUMNS, COLUMN_LABELS,
@@ -12,6 +12,7 @@ import {
 import { EmptyState } from '@/components/ui/empty-state';
 import { ChevronDown, ChevronRight, Factory } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ColumnResizer, useColumnWidths, type SizedColumn } from '@/components/ui/column-resize';
 import {
   PF_SIGN_OPTIONS, PO_SIGN_OPTIONS, STATUS_OPTIONS, currentFirst, normalizeSign, normalizeStatus, poRollup,
   signStyle, statusStyle, type StatusOption,
@@ -30,12 +31,12 @@ const MONEY_COLS: ColumnKey[] = ['pfUsd', 'pfTl', 'invoice', 'invoiceTl'];
 const BAR_COLORS = ['#414346', '#848484'];
 const TEXT_ON_BAR = 'text-[#EEF2F6]';
 
-const TD = 'whitespace-nowrap border-b border-ui-divider bg-ui-page-bg px-2 py-2.5 text-left align-middle text-[12px] text-ui-body';
+// Every cell has a right border: vertical lines between all columns, like a spreadsheet.
+const TD = 'overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-ui-divider bg-ui-page-bg px-2 py-2.5 text-left align-middle text-[12px] text-ui-body';
 // Trust System behaviour: the column header and region bands stay on top while scrolling down,
 // Project # and Type stay on the left while scrolling sideways, and the board scrolls inside a box
 // that fits the window, so its horizontal scrollbar is always on screen.
 const HEAD_H = 46;
-const STICKY_TYPE_LEFT = WIDTHS.projectNo!;
 const TYPE_TEXT = 'text-[14px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading';
 
 function money(col: ColumnKey, n: number): string {
@@ -150,6 +151,19 @@ function MoneyChip({ col, value }: { col: ColumnKey; value: number }) {
 }
 
 export function OperationalBoard({ sections, canEdit = false, onSaved }: { sections: PSection[]; canEdit?: boolean; onSaved?: () => void }) {
+  // Column widths like the accounting sheet: fit the widest text, drag a header edge to resize,
+  // double-click to fit again; remembered in this browser.
+  const allItems = useMemo(() => sections.flatMap(s => s.projects.flatMap(p => p.items ?? [])), [sections]);
+  const sizing = useMemo<SizedColumn<PItem>[]>(() => COLS.map(col => ({
+    id: col, label: LABELS[col] ?? COLUMN_LABELS[col],
+    text: (it: PItem) => (col === 'projectNo' ? '' : col === 'pfSignStatus' ? signStyle(it.pfSignStatus).label
+      : col === 'poSignStatus' ? signStyle(it.poSignStatus).label : col === 'status' ? statusStyle(it.status).label
+      : String(cellValue(col, it) ?? '')),
+    chip: col === 'orderType',
+    min: WIDTHS[col] && (col === 'projectNo' || col === 'type') ? WIDTHS[col] : 64,
+  })), []);
+  const { width, startResize, fit } = useColumnWidths('production-tracker-widths', sizing, allItems);
+  const typeLeft = width('projectNo');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [menu, setMenu] = useState<OpenMenu | null>(null);
   // Picked values show at once, until the reloaded board has them.
@@ -205,15 +219,16 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
 
   return (
     <div className="overflow-auto rounded-[8px] border border-ui-divider" style={{ maxHeight: 'calc(100dvh - 220px)' }}>
-      <table className="w-full min-w-max border-separate border-spacing-0">
+      <table className="table-fixed border-separate border-spacing-0" style={{ width: COLS.reduce((t, c) => t + width(c), 0) }}>
         <colgroup>
-          {COLS.map(c => <col key={c} style={{ width: WIDTHS[c] ?? 107 }} />)}
+          {COLS.map(c => <col key={c} style={{ width: width(c) }} />)}
         </colgroup>
         <thead>
           <tr>
             {COLS.map(col => (
-              <th key={col} className={cn('sticky top-0 z-20 whitespace-nowrap border-b border-ui-divider bg-ui-surface px-2 text-left text-[12px] font-semibold leading-[1.4] text-ui-body', col === 'projectNo' && 'left-0 z-30', col === 'type' && 'z-30')}
-                style={{ height: HEAD_H, ...(col === 'type' ? { left: STICKY_TYPE_LEFT } : {}) }}>
+              <th key={col} className={cn('sticky top-0 z-20 whitespace-nowrap border-b border-r border-ui-divider bg-ui-surface px-2 text-left text-[12px] font-semibold leading-[1.4] text-ui-body', col === 'projectNo' && 'left-0 z-30', col === 'type' && 'z-30')}
+                style={{ height: HEAD_H, ...(col === 'type' ? { left: typeLeft } : {}) }}>
+                <ColumnResizer label={LABELS[col] ?? COLUMN_LABELS[col]} onResize={e => startResize(col, e)} onFit={() => fit(col)} />
                 {LABELS[col] ?? COLUMN_LABELS[col]}
               </th>
             ))}
@@ -267,7 +282,7 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
                           if (!isFirstOfGroup) return null;
                           return (
                             <td key={col} rowSpan={group.items.length} className={cn(TD, TYPE_TEXT, 'sticky z-10 border-r')}
-                              style={{ left: STICKY_TYPE_LEFT, ...(allSent ? { background: BOARD_CSS.typeAllSent.bg, color: BOARD_CSS.typeAllSent.fg } : {}) }}>
+                              style={{ left: typeLeft, ...(allSent ? { background: BOARD_CSS.typeAllSent.bg, color: BOARD_CSS.typeAllSent.fg } : {}) }}>
                               {group.type}
                             </td>
                           );
