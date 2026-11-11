@@ -2,7 +2,7 @@
 // page feeds it these lists — nothing here fetches or invents data.
 
 /** Calendar legend: Order Delivery, Reminder, Container, Birthday, Absent, Public Holiday. */
-export type HrEventKind = 'delivery' | 'reminder' | 'container' | 'birthday' | 'absent' | 'holiday';
+export type HrEventKind = 'delivery' | 'reminder' | 'container' | 'birthday' | 'absent' | 'holiday' | 'special';
 
 export interface HrCalendarEvent {
   id: string;

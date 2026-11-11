@@ -7,7 +7,7 @@ import { PersonFace } from '@/components/ui/avatar-directory';
 import { cn } from '@/lib/utils';
 import type { HrAction, HrAgendaItem, HrBirthday, HrContainer, HrOrder, HrPerson, HrUnavailable } from './types';
 import { KIND_TONE, dayKey, daysLeftLabel, daysUntil, parseDay } from './tones';
-import { holidaysOn } from './holidays';
+import { holidaysOn, specialDaysOn } from './holidays';
 
 // Side and bottom cards of the HR board (Figma nodes 555:35712, 555:37098, 560:10777, 560:763, 560:810).
 
@@ -111,7 +111,11 @@ function Row({ lead, end, color }: { lead: ReactNode; end: ReactNode; color: str
 export function HrAgendaCard({ today, items, loading }: { today: Date; items: HrAgendaItem[]; loading?: boolean }) {
   const heading = `${today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^(\w+)/, '$1,')} · Today`;
   // Today's public holiday (Turkey) leads the list, all day.
-  const holidays: HrAgendaItem[] = holidaysOn(dayKey(today)).map((title, i) => ({ id: `holiday-${i}`, time: null, kind: 'holiday', title, detail: 'Public holiday' }));
+  const day = dayKey(today);
+  const holidays: HrAgendaItem[] = [
+    ...holidaysOn(day).map((title, i): HrAgendaItem => ({ id: `holiday-${i}`, time: null, kind: 'holiday', title, detail: 'Public holiday' })),
+    ...specialDaysOn(day).map((title, i): HrAgendaItem => ({ id: `special-${i}`, time: null, kind: 'special', title, detail: 'Special day' })),
+  ];
   const all = holidays.length ? [...holidays, ...items] : items;
   return (
     <section aria-label="Today" className="flex min-h-[338px] flex-col gap-5 overflow-hidden rounded-[8px] border border-ui-divider bg-ui-surface py-4">

@@ -124,7 +124,7 @@ export function HrCalendar({ month, onMonthChange, events, today, createEvent, l
                     <div className="mt-[5px] flex w-full flex-col gap-1">
                       {shown.map(ev => {
                         const tone = KIND_TONE[ev.kind];
-                        return ev.kind === 'holiday' ? (
+                        return ev.kind === 'holiday' || ev.kind === 'special' ? (
                           <span key={ev.id} title={ev.label} className="flex w-full items-center gap-1.5 rounded-[4px] px-[13px] py-0.5 text-[11px]" style={{ background: tone.bg, color: tone.fg }}>
                             <span aria-hidden className="size-1.5 shrink-0 rounded-[3px]" style={{ background: tone.fg }} />
                             <span className="truncate">{ev.label}</span>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TR_HOLIDAYS, holidayEvents, holidaysOn } from '@/components/platform/hr/holidays';
+import { TR_HOLIDAYS, holidayEvents, holidaysOn, specialDaysOn } from '@/components/platform/hr/holidays';
 
 describe('Turkey public holidays', () => {
   it('has the Diyanet feast dates for 2026', () => {
@@ -27,5 +27,20 @@ describe('Turkey public holidays', () => {
     expect(oct.map(e => e.date)).toEqual(['2026-10-28', '2026-10-29']);
     expect(oct.every(e => e.kind === 'holiday')).toBe(true);
     expect(holidaysOn('2026-11-11')).toEqual([]);
+  });
+});
+
+describe('Turkey special days', () => {
+  it('marks days that are not days off', () => {
+    expect(specialDaysOn('2026-11-10')).toEqual(['Atatürk Remembrance Day']);
+    expect(specialDaysOn('2026-12-31')).toEqual(["New Year's Eve"]);
+    expect(specialDaysOn('2026-05-10')).toEqual(["Mother's Day"]);
+    expect(specialDaysOn('2026-08-24')).toEqual(['Mevlid Kandili']);
+    expect(holidaysOn('2026-11-10')).toEqual([]);
+  });
+
+  it('lists special days after holidays in a month', () => {
+    const nov = holidayEvents(2026, 10);
+    expect(nov.map(e => [e.date, e.kind])).toEqual([['2026-11-10', 'special'], ['2026-11-24', 'special']]);
   });
 });
