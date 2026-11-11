@@ -41,7 +41,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   DraftingCompass,
-  BriefcaseBusiness,
   Wrench,
   Landmark,
   CreditCard,
@@ -131,14 +130,21 @@ const DESIGN_NAV: NavItem[] = [
 // 2026-10-21 (Figma "All Pages"): the old "Projects" group is now "Supply" and its /projects
 // item is labelled "Projects"; Clients, Suppliers and QC moved here from Operations (Expenses
 // went to Finance).
-// `internal` marks the items that came from Operations — they stay hidden from external
-// (tlines_pm) users exactly as before, when the whole Operations group was internal-only.
-const SUPPLY_NAV: (NavItem & { internal?: boolean })[] = [
-  { label: 'Projects',  href: '/projects',  icon: FolderKanban,   perm: 'page.projects' },
-  { label: 'Clients',   href: '/clients',   icon: Building2,      perm: 'page.clients',   internal: true },
-  { label: 'Suppliers', href: '/suppliers', icon: Package,        perm: 'page.suppliers', internal: true },
-  { label: 'QC',        href: '/qc',        icon: ClipboardCheck, perm: 'page.qc',        internal: true },
-  { label: 'Approvals', href: '/approvals', icon: CheckSquare,    perm: 'page.approvals' },
+// 2026-11-11: Supply and Operations are one "Operations" group — the user wanted one place for
+// projects, approvals, production, stock and the rest, and no Supply group in the sidebar.
+// `internal` items stay hidden from external (tlines_pm) users exactly as before; tlines_pm
+// still sees Projects and Approvals, now under Operations.
+const OPERATIONS_NAV: (NavItem & { internal?: boolean })[] = [
+  { label: 'Projects',    href: '/projects',    icon: FolderKanban,   perm: 'page.projects' },
+  { label: 'Approvals',   href: '/approvals',   icon: CheckSquare,    perm: 'page.approvals' },
+  { label: 'Production',  href: '/production',  icon: Factory,        perm: 'page.production', internal: true },
+  { label: 'Logistics',   href: '/logistics',   icon: Truck,          perm: 'page.logistics',  internal: true },
+  // Same access as Management; the page also refuses tlines_pm (PF / vendor prices).
+  { label: 'Trust Stock', href: '/trust-stock', icon: Boxes,          perm: 'page.management', internal: true },
+  { label: 'Clients',     href: '/clients',     icon: Building2,      perm: 'page.clients',    internal: true },
+  { label: 'Suppliers',   href: '/suppliers',   icon: Package,        perm: 'page.suppliers',  internal: true },
+  { label: 'QC',          href: '/qc',          icon: ClipboardCheck, perm: 'page.qc',         internal: true },
+  { label: 'Management',  href: '/management',  icon: Gauge,          perm: 'page.management', internal: true },
 ];
 
 // Invoices, Payments and Budgets are placeholder pages for now, gated like Expenses.
@@ -147,14 +153,6 @@ const FINANCE_NAV: NavItem[] = [
   { label: 'Payments', href: '/payments', icon: CreditCard, perm: 'page.payments' },
   { label: 'Expenses', href: '/expenses', icon: Receipt,    perm: 'page.expenses' },
   { label: 'Budgets',  href: '/budgets',  icon: PieChart,   perm: 'page.budgets' },
-];
-
-const OPERATIONS_NAV: NavItem[] = [
-  { label: 'Production', href: '/production', icon: Factory,          perm: 'page.production' },
-  { label: 'Logistics',  href: '/logistics',  icon: Truck,            perm: 'page.logistics' },
-  { label: 'Management', href: '/management', icon: Gauge,            perm: 'page.management' },
-  // Same access as Management; the page also refuses tlines_pm (PF / vendor prices).
-  { label: 'Trust Stock', href: '/trust-stock', icon: Boxes,          perm: 'page.management' },
 ];
 
 const ADMIN_NAV: NavItem[] = [
@@ -294,8 +292,7 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
     { key: 'marketing', title: 'Marketing', icon: Megaphone, items: marketingNav },
     ...(showSales ? [{ key: 'sales', title: 'Sales', icon: Target, items: salesItems, activeOverride: quickDealActive ? '/leads/new' : undefined }] : []),
     { key: 'design', title: 'Design', icon: DraftingCompass, items: allowed(DESIGN_NAV) },
-    { key: 'supply', title: 'Supply', icon: BriefcaseBusiness, items: allowed(SUPPLY_NAV.filter(i => isInternal || !i.internal)) },
-    ...(isInternal ? [{ key: 'operations', title: 'Operations', icon: Factory, items: allowed(OPERATIONS_NAV) }] : []),
+    { key: 'operations', title: 'Operations', icon: Factory, items: allowed(OPERATIONS_NAV.filter(i => isInternal || !i.internal)) },
     ...(isInternal ? [{ key: 'finance', title: 'Finance', icon: Wallet, items: allowed(FINANCE_NAV) }] : []),
     ...(isInternal ? [{ key: 'hr', title: 'Human Resources (HR)', icon: Building, items: allowed(HR_NAV) }] : []),
     ...(isInternal ? [{ key: 'admin', title: 'Admin', icon: Wrench, items: allowed(ADMIN_NAV) }] : []),

@@ -886,7 +886,7 @@ export function ApprovalsPageClient() {
         {/* Figma "Approvals" (481:22900): crumb, title + count pill, description; Export + New request. */}
         <div className="flex items-start justify-between gap-4 md:items-center">
           <div className="flex flex-col gap-[5px]">
-            <PageCrumbs className="hidden md:block" items={[{ label: 'Supply', href: '/projects' }, { label: 'Approvals', href: '/approvals' }]} />
+            <PageCrumbs className="hidden md:block" items={[{ label: 'Operations', href: '/projects' }, { label: 'Approvals', href: '/approvals' }]} />
             <div className="flex items-center gap-2">
               <h1 className="m-0 font-[family-name:var(--font-ui)] text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">
                 Approvals
