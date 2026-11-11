@@ -105,10 +105,16 @@ const PROJECT_COLS: Col[] = [
   },
 ];
 
-const ACC_GROUPS: { label: string; span: number }[] = [
-  { label: '1st USD', span: 2 }, { label: '2nd USD', span: 2 }, { label: '1st TL', span: 2 }, { label: '2nd TL', span: 2 },
-  { label: 'Remaining', span: 2 }, { label: 'Not Ordered', span: 2 }, { label: 'Invoice', span: 2 },
+// Each group has its own Figma status tone (header + its column headers) so the pairs read apart:
+// USD greens and TL oranges (the money colours), then Remaining / Not Ordered / Invoice.
+type Group = { label: string; span: number; tone: string };
+const ACC_GROUPS: Group[] = [
+  { label: '1st USD', span: 2, tone: 't6' }, { label: '2nd USD', span: 2, tone: 't5' },
+  { label: '1st TL', span: 2, tone: 't8' }, { label: '2nd TL', span: 2, tone: 't7' },
+  { label: 'Remaining', span: 2, tone: 't2' }, { label: 'Not Ordered', span: 2, tone: 't10' }, { label: 'Invoice', span: 2, tone: 't4' },
 ];
+/** A group's first column gets a stronger left edge, in the header and down the rows. */
+const GROUP_EDGE = 'border-l-2 border-l-[var(--status-t0-fg)]/40';
 const ACC_COLS: Col[] = [
   moneyCol('paid1Usd', 'Paid/USD', 'paid1Usd', 'usd'), dateCol('paid1UsdDate', 'Date', 'paid1UsdDate'),
   moneyCol('paid2Usd', 'Paid/USD', 'paid2Usd', 'usd'), dateCol('paid2UsdDate', 'Date', 'paid2UsdDate'),
@@ -175,8 +181,8 @@ function Resizer({ onResize, onFit, label }: { onResize: (e: React.PointerEvent)
 }
 
 // ── Editable cell ────────────────────────────────────────────────────────────────────────────
-function EditableCell({ col, item, stockId, editing, setEditing, onPatch, vendors }: {
-  col: Col; item: TrustStockItem; stockId: string;
+function EditableCell({ col, item, stockId, editing, setEditing, onPatch, vendors, className }: {
+  col: Col; item: TrustStockItem; stockId: string; className?: string;
   editing: boolean; setEditing: (on: boolean) => void;
   onPatch: (patch: Partial<TrustStockItem>) => void;
   vendors: Vendor[];
@@ -206,7 +212,7 @@ function EditableCell({ col, item, stockId, editing, setEditing, onPatch, vendor
 
   return (
     <td
-      className={cn('overflow-hidden px-2 text-[13px] text-ui-body', V, align, col.edit && !editing && 'cursor-cell hover:bg-ui-hover-bg')}
+      className={cn('overflow-hidden px-2 text-[13px] text-ui-body', V, align, col.edit && !editing && 'cursor-cell hover:bg-ui-hover-bg', className)}
       onClick={() => { if (col.edit && !editing) setEditing(true); }}
       onKeyDown={e => { if (col.edit && !editing && (e.key === 'Enter' || e.key === 'F2')) { e.preventDefault(); setEditing(true); } }}
       tabIndex={col.edit ? 0 : undefined}
@@ -222,7 +228,7 @@ function EditableCell({ col, item, stockId, editing, setEditing, onPatch, vendor
 // ── One sheet ────────────────────────────────────────────────────────────────────────────────
 function Sheet({ storageKey, title, tone, cols, groups, stocks, allItems, showTile, onPatch, onRemove, vendors, grandLabel }: {
   storageKey: string; title: string; tone: 't10' | 't7';
-  cols: Col[]; groups?: { label: string; span: number }[];
+  cols: Col[]; groups?: Group[];
   stocks: TrustStock[]; allItems: TrustStockItem[];
   showTile: boolean;
   onPatch: (stockId: string, item: TrustStockItem, patch: Partial<TrustStockItem>) => void;
@@ -237,8 +243,14 @@ function Sheet({ storageKey, title, tone, cols, groups, stocks, allItems, showTi
   const firstMoney = cols.findIndex(c => c.money);
   const total = sizing.reduce((t, c) => t + width(c.id), 0) + (onRemove ? 36 : 0);
   const headH = groups ? 34 : 68;
-  const leafHead = (c: Col | typeof tileCol, rowSpan?: number) => (
-    <th key={c.id} rowSpan={rowSpan} scope="col" className={cn(TH, V, 'money' in c && c.money && 'text-right')} style={{ height: headH }}>
+  // Column index → its group (tone, and whether it starts the group).
+  const colGroup = (groups ?? []).flatMap(g => Array.from({ length: g.span }, (_, k) => ({ tone: g.tone, first: k === 0 })));
+  const edge = (ci: number) => (colGroup[ci]?.first && ci > 0 ? GROUP_EDGE : undefined);
+  const leafHead = (c: Col | typeof tileCol, rowSpan?: number, ci = -1) => (
+    <th
+      key={c.id} rowSpan={rowSpan} scope="col" className={cn(TH, V, 'money' in c && c.money && 'text-right', edge(ci))}
+      style={{ height: headH, ...(colGroup[ci] && { background: `var(--status-${colGroup[ci].tone}-bg)`, color: `var(--status-${colGroup[ci].tone}-fg)` }) }}
+    >
       <span className="block truncate">{c.label}</span>
       <Resizer label={c.label} onResize={e => startResize(c.id, e)} onFit={() => fit(c.id)} />
     </th>
@@ -259,10 +271,17 @@ function Sheet({ storageKey, title, tone, cols, groups, stocks, allItems, showTi
             <>
               <tr className="border-b border-ui-divider" style={{ background: 'var(--status-t0-bg)' }}>
                 {showTile && leafHead(tileCol, 2)}
-                {groups.map(g => <th key={g.label} colSpan={g.span} scope="colgroup" className={cn(TH, V, 'text-center')} style={{ height: headH }}>{g.label}</th>)}
+                {groups.map((g, gi) => (
+                  <th
+                    key={g.label} colSpan={g.span} scope="colgroup" className={cn(TH, V, 'text-center text-[13px] font-bold', gi > 0 && GROUP_EDGE)}
+                    style={{ height: headH, background: `var(--status-${g.tone}-bg)`, color: `var(--status-${g.tone}-fg)` }}
+                  >
+                    {g.label}
+                  </th>
+                ))}
                 {onRemove && <th rowSpan={2} aria-hidden />}
               </tr>
-              <tr className="border-b border-ui-divider" style={{ background: 'var(--status-t0-bg)' }}>{cols.map(c => leafHead(c))}</tr>
+              <tr className="border-b border-ui-divider" style={{ background: 'var(--status-t0-bg)' }}>{cols.map((c, ci) => leafHead(c, undefined, ci))}</tr>
             </>
           ) : (
             <tr className="border-b border-ui-divider" style={{ background: 'var(--status-t0-bg)' }}>
@@ -289,11 +308,11 @@ function Sheet({ storageKey, title, tone, cols, groups, stocks, allItems, showTi
               ) : s.items.map((i, ri) => (
                 <tr key={i.id} className="group border-b border-ui-divider" style={{ height: H_ROW }}>
                   {ri === 0 && tile(s.items.length + 1)}
-                  {cols.map(c => {
+                  {cols.map((c, ci) => {
                     const key = `${i.id}:${c.id}`;
                     return (
                       <EditableCell
-                        key={c.id} col={c} item={i} stockId={s.id} vendors={vendors}
+                        key={c.id} col={c} item={i} stockId={s.id} vendors={vendors} className={edge(ci)}
                         editing={editing === key} setEditing={on => setEditing(on ? key : null)}
                         onPatch={patch => onPatch(s.id, i, patch)}
                       />
@@ -315,7 +334,7 @@ function Sheet({ storageKey, title, tone, cols, groups, stocks, allItems, showTi
               <tr className={GROUP_BAR} style={{ height: H_TOTAL }}>
                 {firstMoney > 0 && <td colSpan={firstMoney} className="border-r border-white/30 px-4 text-[14px] font-semibold text-[#eef2f6]">TOTAL</td>}
                 {cols.map((c, ci) => (ci < firstMoney ? null : (
-                  <td key={c.id} className={cn('border-r border-white/30 px-2', ci === 0 && 'text-[14px] font-semibold text-[#eef2f6]')}>
+                  <td key={c.id} className={cn('border-r border-white/30 px-2', ci === 0 && 'text-[14px] font-semibold text-[#eef2f6]', edge(ci))}>
                     {c.money ? <TotalChip value={sum(s.items, c.money)} cur={c.cur!} /> : ci === 0 ? 'TOTAL' : null}
                   </td>
                 )))}
@@ -330,7 +349,7 @@ function Sheet({ storageKey, title, tone, cols, groups, stocks, allItems, showTi
               <td colSpan={(showTile ? 1 : 0) + Math.max(0, firstMoney)} className={cn('px-4 text-[14px] font-semibold', V)} style={{ color: `var(--status-${tone}-fg)` }}>{grandLabel}</td>
             )}
             {cols.map((c, ci) => (ci < firstMoney ? null : (
-              <td key={c.id} className={cn('px-2', V)}>
+              <td key={c.id} className={cn('px-2', V, edge(ci))}>
                 {c.money ? <TotalChip value={sum(allItems, c.money)} cur={c.cur!} /> : null}
               </td>
             )))}
