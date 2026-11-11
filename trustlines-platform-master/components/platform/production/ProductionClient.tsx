@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { FolderOutput, Loader2, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { OperationalBoard } from './OperationalBoard';
-import { ExtraItemsPanel } from './ExtraItemsPanel';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -180,12 +179,6 @@ export function ProductionClient({ canEdit = false }: { canEdit?: boolean }) {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {activeTab === 'Direct Orders' && (
-            <ExtraItemsPanel source="direct_order" label="Direct Orders" canEdit={canEdit} onChanged={load} />
-          )}
-          {activeTab === 'Missing Extra' && (
-            <ExtraItemsPanel source="missing_extra" label="Missing & Extra" canEdit={canEdit} onChanged={load} />
-          )}
           <OperationalBoard sections={sections} canEdit={canEdit} onSaved={() => void load()} />
         </div>
       )}
