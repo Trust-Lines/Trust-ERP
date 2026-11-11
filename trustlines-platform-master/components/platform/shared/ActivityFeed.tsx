@@ -6,6 +6,8 @@ import { MessageSquare, Loader2, Send, Activity } from 'lucide-react';
 import { Avatar } from '@/components/platform/shared/Avatar';
 import { formatDate } from '@/lib/formatDate';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
+import { FIELD, HEADING, PANEL, PANEL_HEAD, PANEL_TITLE } from './panelStyles';
 
 interface ActivityRow {
   id: string;
@@ -59,48 +61,41 @@ export function ActivityFeed({ apiBasePath }: { apiBasePath: string }) {
   }
 
   return (
-    <div className="card">
-      <style>{`.spin{animation:la-spin 1s linear infinite}@keyframes la-spin{to{transform:rotate(360deg)}}`}</style>
-      <div className="card-head">
-        <div><div className="text-eyebrow">Activity</div><div className="form-section-title">Comments &amp; history</div></div>
+    <section aria-label="Comments and history" className={PANEL}>
+      <div className={PANEL_HEAD}>
+        <h3 className={PANEL_TITLE}>Comments &amp; history</h3>
       </div>
-      <div className="card-body">
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <input
-            className="form-input" placeholder="Write a comment…"
-            value={comment} onChange={e => setComment(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); postComment(); } }}
-          />
-          <button className="btn btn-primary btn-sm" onClick={postComment} disabled={posting || !comment.trim()}>
-            {posting ? <Loader2 className="spin" size={14} /> : <Send size={14} />}
-          </button>
-        </div>
+      <div className="flex flex-col gap-4 p-4">
+        <form className="flex gap-2" onSubmit={e => { e.preventDefault(); void postComment(); }}>
+          <input aria-label="Comment" placeholder="Write a comment…" value={comment} onChange={e => setComment(e.target.value)} className={FIELD} />
+          <Button type="submit" size="icon-md" className="shrink-0" disabled={posting || !comment.trim()} aria-label="Post comment">
+            {posting ? <Loader2 className="animate-spin" aria-hidden /> : <Send aria-hidden />}
+          </Button>
+        </form>
 
         {!loaded ? (
-          <div style={{ color: 'var(--fg-subtle)', fontSize: 13 }}><Loader2 className="spin" size={13} /> Loading…</div>
+          <p className="m-0 inline-flex items-center gap-2 text-[13px] text-ui-text-secondary"><Loader2 className="size-3.5 animate-spin" aria-hidden /> Loading…</p>
         ) : items.length === 0 ? (
           <EmptyState size="sm" className="justify-center py-4" icon={<Activity />} title="No activity yet." />
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <ul className="m-0 flex list-none flex-col gap-3 p-0">
             {items.map(a => (
-              <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <li key={a.id} className="flex items-start gap-2.5">
                 {a.kind === 'comment'
                   ? <Avatar name={a.actor_name} size="sm" />
-                  : <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--bg-sunken)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><MessageSquare size={12} color="var(--fg-faint)" /></span>}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, lineHeight: 1.5 }}>
-                    <b>{a.actor_name}</b>{' '}
-                    {a.kind === 'change'
-                      ? <span style={{ color: 'var(--fg-muted)' }}>{a.body}</span>
-                      : <span>{a.body}</span>}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1 }}>{timeAgo(a.created_at)}</div>
+                  : <span className="grid size-6 shrink-0 place-items-center rounded-full bg-ui-surface text-ui-text-secondary"><MessageSquare className="size-3" aria-hidden /></span>}
+                <div className="min-w-0 flex-1">
+                  <p className="m-0 text-[13px] leading-[1.5] text-ui-body">
+                    <b className={HEADING}>{a.actor_name}</b>{' '}
+                    <span className={a.kind === 'change' ? 'text-ui-text-secondary' : undefined}>{a.body}</span>
+                  </p>
+                  <p className="m-0 mt-px text-[11px] text-ui-text-secondary">{timeAgo(a.created_at)}</p>
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </div>
-    </div>
+    </section>
   );
 }
