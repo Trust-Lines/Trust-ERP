@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo } from 'react';
-import { CalendarDays, ChevronDown, Plus } from 'lucide-react';
+import { CalendarDays, Plus } from 'lucide-react';
+import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import type { HrAction, HrCalendarEvent } from './types';
 import { KIND_LABEL, KIND_ORDER, KIND_TONE, dayKey, startOfDay } from './tones';
@@ -12,7 +13,8 @@ import { HrActionButton } from './HrCards';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const MONTH_OPTIONS = MONTHS.map((label, i) => ({ value: String(i), label }));
+const HEADING ='text-[var(--color-secondary-700)] dark:text-ui-heading';
 const MAX_CHIPS = 2;
 
 export interface HrCalendarProps {
@@ -57,21 +59,13 @@ export function HrCalendar({ month, onMonthChange, events, today, createEvent, l
           <CalendarDays size={25} strokeWidth={1.5} aria-hidden />
           Calendar
         </h2>
-        <label className={cn('relative flex h-9 items-center rounded-[6px] border border-current bg-ui-input-bg', HEADING)}>
-          <span className="sr-only">Month</span>
-          <select
-            value={month.getMonth()}
-            onChange={e => onMonthChange(new Date(month.getFullYear(), Number(e.target.value), 1))}
-            // The open list is drawn by the browser: give it the theme's own colours (it otherwise
-            // inherits the trigger's text colour on a white list, unreadable in dark mode).
-            className="h-full cursor-pointer appearance-none bg-transparent pl-4 pr-10 text-[13px] font-medium leading-[1.35] text-inherit outline-none focus-visible:ring-2 focus-visible:ring-ui-focus-ring rounded-[6px]"
-          >
-            {MONTHS.map((m, i) => (
-              <option key={m} value={i} className="bg-ui-surface-elevated text-ui-heading">{m}</option>
-            ))}
-          </select>
-          <ChevronDown size={16} aria-hidden className="pointer-events-none absolute right-4" />
-        </label>
+        <Select
+          aria-label="Month"
+          value={String(month.getMonth())}
+          onValueChange={v => v != null && onMonthChange(new Date(month.getFullYear(), Number(v), 1))}
+          options={MONTH_OPTIONS}
+          className="h-9 w-auto min-w-[140px] cursor-pointer gap-6 rounded-[6px] border-current bg-ui-input-bg pl-4 pr-4 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-current dark:bg-ui-input-bg dark:pl-4 dark:pr-4 dark:text-ui-heading"
+        />
         <HrActionButton
           action={createEvent}
           className="gap-[7px] bg-ui-btn-accent px-3.5 text-ui-btn-accent-fg"
