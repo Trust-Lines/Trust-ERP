@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePage } from '@/lib/permissions/requirePage';
 import { roleCan } from '@/lib/permissions/server';
 import { ProjectTypesClient } from '@/components/platform/projects/ProjectTypesClient';
+import { hiddenProjectTabs } from '@/lib/projects/subpageTabs';
 
 export default async function ProjectTypesPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePage('page.production');
@@ -16,8 +17,10 @@ export default async function ProjectTypesPage({ params }: { params: Promise<{ i
   const admin = createAdminClient() as any;
   const canEdit = await roleCan(admin, role, 'edit.production');
 
-  const { data: project } = await admin.from('projects').select('id, code, name').eq('id', id).maybeSingle();
+  const { data: project } = await admin.from('projects').select('id, code, name, current_stage').eq('id', id).maybeSingle();
   if (!project) notFound();
+
+  const hiddenTabs = hiddenProjectTabs(role);
 
   const rowsRes = await admin.from('production_items')
     .select('id, type, status, assigned_to, priority, start_date, target_date, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, pf_usd, pf_tl, sort_index')
@@ -50,6 +53,7 @@ export default async function ProjectTypesPage({ params }: { params: Promise<{ i
     <div className="main-inner">
       <ProjectTypesClient
         projectId={id} projectCode={project.code} projectName={project.name} canEdit={canEdit}
+        projectStage={project.current_stage ?? null} hiddenTabs={hiddenTabs}
         rows={rows} people={people ?? []} vendors={vendors ?? []} salesFiles={salesFiles} schemaError={schemaError}
       />
     </div>
