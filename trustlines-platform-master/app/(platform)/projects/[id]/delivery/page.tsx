@@ -17,7 +17,7 @@ export default async function ProjectDeliveryPage({ params }: { params: Promise<
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
-  const { data: project } = await admin.from('projects').select('id, code, name, tlines_pm_id').eq('id', id).maybeSingle();
+  const { data: project } = await admin.from('projects').select('id, code, name, current_stage, tlines_pm_id').eq('id', id).maybeSingle();
   if (!project) notFound();
   if (role === 'tlines_pm' && project.tlines_pm_id !== user.id) redirect('/projects');
 
@@ -53,7 +53,7 @@ export default async function ProjectDeliveryPage({ params }: { params: Promise<
   return (
     <div className="main-inner">
       <DeliveryClient
-        projectId={id} projectCode={project.code} projectName={project.name} canEdit={canEdit}
+        projectId={id} projectCode={project.code} projectName={project.name} stage={project.current_stage ?? null} canEdit={canEdit}
         initialPlan={deliveryPlan} initialPunchList={punchList} schemaError={schemaError}
         siteReadiness={siteReadiness} containers={containers}
       />

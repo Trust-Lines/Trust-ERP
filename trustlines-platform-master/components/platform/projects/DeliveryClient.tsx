@@ -1,12 +1,29 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, CheckCircle2, Circle, PackageCheck } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Circle, PackageCheck } from 'lucide-react';
 import { toast } from 'sonner';
-import type { DeliveryPlan, PunchListItem } from '@/types/database';
+import type { DeliveryPlan, ProjectStage, PunchListItem } from '@/types/database';
 import { DELIVERY_METHODS, DELIVERY_STATUSES, BUILD_BY } from '@/lib/delivery/config';
-import { Select } from '@/components/platform/shared/Select';
+import { Select } from '@/components/ui/select';
+import { DatePicker } from '@/components/ui/date-picker';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { ProjectSubpageHeader } from './ProjectSubpageHeader';
+
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const CARD = 'flex min-w-0 flex-col rounded-[8px] border border-ui-divider bg-ui-page-bg px-5 pb-5 pt-4';
+const TITLE = cn('m-0 text-[20px] font-semibold leading-[1.45]', HEADING);
+const LABEL = 'text-[12px] font-medium leading-4 text-ui-body';
+const FIELD = 'h-[42px] w-full rounded-[6px] border border-ui-input-border bg-ui-input-bg px-3 text-[14px] text-[var(--color-secondary-700)] outline-none placeholder:text-ui-text-disabled focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring disabled:cursor-not-allowed disabled:opacity-60 dark:text-ui-heading';
+const SELECT = 'h-[42px] w-full rounded-[6px] border-ui-input-border bg-ui-input-bg px-3 text-[14px] text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-ui-input-border dark:bg-ui-input-bg dark:px-3 dark:text-ui-heading [&_svg]:size-4';
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** '30 Oct 2026' like the frame. */
+const dMonY = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+const toISODate = (d: Date | null) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : null;
+const parseISODate = (s: string | null | undefined) => { if (!s) return null; const [y, m, d] = s.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
 
 export interface SiteReadinessBadge { overall_status: string; target_ready_date: string | null }
 export interface ContainerBadge {
@@ -14,7 +31,7 @@ export interface ContainerBadge {
 }
 
 interface Props {
-  projectId: string; projectCode: string; projectName: string; canEdit: boolean;
+  projectId: string; projectCode: string; projectName: string; stage?: ProjectStage | null; canEdit: boolean;
   initialPlan: DeliveryPlan | null;
   initialPunchList: PunchListItem[];
   schemaError: string | null;
@@ -28,7 +45,7 @@ const label = (k: string) => cap(k).replace(/\b\w/g, c => c.toUpperCase());
 const ARRIVED = new Set(['ARRIVED_PORT', 'WAREHOUSE', 'RELEASED', 'COMPLETED']);
 
 export function DeliveryClient({
-  projectId, projectCode, projectName, canEdit, initialPlan, initialPunchList, schemaError,
+  projectId, projectCode, projectName, stage = null, canEdit, initialPlan, initialPunchList, schemaError,
   siteReadiness = null, containers = [],
 }: Props) {
   const [plan, setPlan] = useState<DeliveryPlan | null>(initialPlan);
@@ -72,140 +89,171 @@ export function DeliveryClient({
   }
 
   const ro = !canEdit || busy;
-  const inp = (v: string | null, k: string, type = 'text') => (
-    <input type={type} className="form-input" style={{ fontSize: 13 }} defaultValue={v ?? ''} disabled={ro}
-      onChange={type === 'date' ? e => patchPlan({ [k]: e.target.value || null }) : undefined}
-      onBlur={type !== 'date' ? e => e.target.value !== (v ?? '') && patchPlan({ [k]: e.target.value }) : undefined} />
+  const textField = (v: string | null, k: string, aria: string) => (
+    <input
+      type="text" aria-label={aria} placeholder="type.." defaultValue={v ?? ''} disabled={ro} className={FIELD}
+      onBlur={e => { if (e.target.value !== (v ?? '')) void patchPlan({ [k]: e.target.value }); }}
+    />
   );
+  const chips = [
+    ...(siteReadiness ? [{
+      key: 'site', ok: siteReadiness.overall_status === 'ready', icon: siteReadiness.overall_status === 'ready' ? CheckCircle2 : Circle,
+      text: siteReadiness.overall_status === 'ready' ? 'Site ready'
+        : `Site ${cap(siteReadiness.overall_status)}${siteReadiness.target_ready_date ? ` — target ${siteReadiness.target_ready_date}` : ''}`,
+    }] : []),
+    ...containers.map(c => ({
+      key: c.id, ok: ARRIVED.has(c.status), icon: PackageCheck,
+      text: `${c.container_no ?? 'Container'} — ${label(c.status)}${!ARRIVED.has(c.status) && c.estimated_arrival_date ? ` — ETA ${c.estimated_arrival_date}` : ''}`,
+    })),
+  ];
 
   return (
     <>
-      <Link href={`/projects/${projectId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--fg-subtle)', marginBottom: 16, textDecoration: 'none' }}>
-        <ArrowLeft size={14} /> Back to project
-      </Link>
+      <ProjectSubpageHeader projectId={projectId} code={projectCode} name={projectName} stage={stage} active="delivery" />
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Delivery & Build</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>{projectCode} — {projectName}</p>
-        </div>
-        <span className="pill" style={{ fontSize: 11, textTransform: 'capitalize', background: completed ? 'var(--status-success-bg)' : 'var(--bg-sunken)', color: completed ? 'var(--status-success-fg)' : 'var(--fg-subtle)' }}>{cap(status)}</span>
-      </div>
+      {schemaError && (
+        <div role="alert" className="mb-4 rounded-[8px] border border-error-normal p-3 text-[13px] text-error-normal" style={{ background: 'var(--status-danger-bg)' }}>{schemaError}</div>
+      )}
 
-      {schemaError && <div className="card" style={{ marginBottom: 20 }}><div className="card-body" style={{ fontSize: 13, color: '#b91c1c', background: 'var(--status-danger-bg)', border: '1px solid #fecaca', borderRadius: 6 }}>{schemaError}</div></div>}
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-        {siteReadiness ? (
-          <span
-            className="pill"
-            style={{
-              fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 6,
-              background: siteReadiness.overall_status === 'ready' ? 'var(--status-success-bg)' : 'var(--bg-sunken)',
-              color: siteReadiness.overall_status === 'ready' ? 'var(--status-success-fg)' : 'var(--fg-subtle)',
-            }}
-          >
-            {siteReadiness.overall_status === 'ready' ? <CheckCircle2 size={12} /> : <Circle size={12} />}
-            {siteReadiness.overall_status === 'ready'
-              ? 'Site ready'
-              : `Site ${cap(siteReadiness.overall_status)}`}
-            {siteReadiness.overall_status !== 'ready' && siteReadiness.target_ready_date
-              ? ` — target ${siteReadiness.target_ready_date}` : ''}
-          </span>
-        ) : (
-          <span className="pill" style={{ fontSize: 11, background: 'var(--bg-sunken)', color: 'var(--fg-subtle)' }}>
-            Site readiness not started
-          </span>
-        )}
-
-        {containers.map(c => (
-          <span
-            key={c.id}
-            className="pill"
-            style={{
-              fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 6,
-              background: ARRIVED.has(c.status) ? 'var(--status-success-bg)' : 'var(--bg-sunken)',
-              color: ARRIVED.has(c.status) ? 'var(--status-success-fg)' : 'var(--fg-subtle)',
-            }}
-          >
-            <PackageCheck size={12} />
-            {c.container_no ?? 'Container'} — {label(c.status)}
-            {!ARRIVED.has(c.status) && c.estimated_arrival_date ? ` — ETA ${c.estimated_arrival_date}` : ''}
-          </span>
-        ))}
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div className="card-head"><div className="form-section-title">Delivery & build plan</div></div>
-        <div className="card-body">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 10 }}>
-            <div><label className="form-label" style={{ fontSize: 11 }}>Delivery method</label>
-              <Select className="form-input" style={{ fontSize: 13 }} value={method} disabled={ro} onChange={e => patchPlan({ delivery_method: e.target.value })}>{DELIVERY_METHODS.map(m => <option key={m} value={m}>{label(m)}</option>)}</Select></div>
-            <div><label className="form-label" style={{ fontSize: 11 }}>Status</label>
-              <Select className="form-input" style={{ fontSize: 13 }} value={status} disabled={ro} onChange={e => patchPlan({ status: e.target.value })}>{DELIVERY_STATUSES.map(s => <option key={s} value={s}>{label(s)}</option>)}</Select></div>
-            <div><label className="form-label" style={{ fontSize: 11 }}>Installation date</label>{inp(plan?.installation_date ?? null, 'installation_date', 'date')}</div>
-            <div><label className="form-label" style={{ fontSize: 11 }}>Built by</label>
-              <Select className="form-input" style={{ fontSize: 13 }} value={plan?.build_by ?? ''} disabled={ro} onChange={e => patchPlan({ build_by: e.target.value || null })}><option value="">—</option>{BUILD_BY.map(b => <option key={b} value={b}>{label(b)}</option>)}</Select></div>
+      {/* Figma 472:22833: Delivery & build plan, Punch List, Customer Acceptance & Completion — full-width cards. */}
+      <div className="flex flex-col gap-[18px] font-[family-name:var(--font-ui)]">
+        <section aria-labelledby="delivery-plan" className={cn(CARD, 'gap-6')}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="delivery-plan" className={TITLE}>Delivery &amp; build plan</h2>
+            {chips.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {chips.map(({ key, ok, icon: Icon, text }) => (
+                  <span key={key} className="inline-flex items-center gap-1.5 rounded-[4px] px-2 py-[3px] text-[11px] font-medium leading-4"
+                    style={{ background: `var(--status-${ok ? 't9' : 't0'}-bg)`, color: `var(--status-${ok ? 't9' : 't0'}-fg)` }}>
+                    <Icon className="size-3" aria-hidden />{text}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-            <div><label className="form-label" style={{ fontSize: 11 }}>Build schedule</label>{inp(plan?.build_schedule ?? null, 'build_schedule')}</div>
-            <div><label className="form-label" style={{ fontSize: 11 }}>Notes</label>{inp(plan?.notes ?? null, 'notes')}</div>
+
+          <div className="grid grid-cols-1 gap-x-3 gap-y-[18px] sm:grid-cols-2 xl:grid-cols-4">
+            <div className="flex flex-col gap-1.5">
+              <span className={LABEL}>Delivery method</span>
+              <Select aria-label="Delivery method" className={SELECT} value={method} disabled={ro}
+                options={DELIVERY_METHODS.map(m => ({ value: m, label: label(m) }))} onValueChange={v => { if (v) void patchPlan({ delivery_method: v }); }} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className={LABEL}>Status</span>
+              <Select aria-label="Status" className={SELECT} value={status} disabled={ro}
+                options={DELIVERY_STATUSES.map(s => ({ value: s, label: label(s) }))} onValueChange={v => { if (v) void patchPlan({ status: v }); }} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className={LABEL}>Installation Date</span>
+              <DatePicker
+                aria-label="Installation date" placeholder="Pick a date" disabled={ro} iconEnd formatValue={dMonY}
+                className={cn(SELECT, 'w-full justify-between')}
+                value={parseISODate(plan?.installation_date)} onValueChange={d => void patchPlan({ installation_date: toISODate(d) })}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className={LABEL}>Built By</span>
+              <Select aria-label="Built by" className={SELECT} value={plan?.build_by ?? ''} disabled={ro}
+                options={[{ value: '', label: '—' }, ...BUILD_BY.map(b => ({ value: b, label: label(b) }))]}
+                onValueChange={v => void patchPlan({ build_by: v || null })} />
+            </div>
           </div>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: canEdit ? 'pointer' : 'default' }}>
-            <input type="checkbox" checked={plan?.site_confirmed ?? false} disabled={ro} onChange={e => patchPlan({ site_confirmed: e.target.checked })} /> Site confirmed ready
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label className="flex flex-col gap-1.5"><span className={LABEL}>Build schedule</span>{textField(plan?.build_schedule ?? null, 'build_schedule', 'Build schedule')}</label>
+            <label className="flex flex-col gap-1.5"><span className={LABEL}>Notes</span>{textField(plan?.notes ?? null, 'notes', 'Notes')}</label>
+          </div>
+
+          <label className={cn('inline-flex items-center gap-2 self-start text-[12px] font-medium text-ui-body', ro ? 'cursor-default' : 'cursor-pointer')}>
+            <Checkbox className="size-4 rounded-[3px]" checked={plan?.site_confirmed ?? false} disabled={ro}
+              onCheckedChange={c => void patchPlan({ site_confirmed: !!c })} />
+            Site Confirmed Ready
           </label>
-        </div>
-      </div>
+        </section>
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div className="card-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div className="form-section-title">Punch list ({openPunch} open)</div>
-          {canEdit && !adding && <button className="btn btn-ghost btn-sm" onClick={() => setAdding(true)}><Plus size={13} /> Add item</button>}
-        </div>
-        <div className="card-body">
-          {adding && canEdit && <div style={{ marginBottom: 12 }}><PunchForm onSave={addPunch} onCancel={() => setAdding(false)} /></div>}
-          {punch.length === 0 && !adding ? <div style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>No punch items.</div> : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {punch.map(it => (
-                <div key={it.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 10px', border: '1px solid var(--border-subtle)', borderRadius: 6, opacity: it.status === 'done' ? 0.6 : 1 }}>
-                  {canEdit && <button className="btn btn-ghost btn-sm" style={{ padding: 2 }} onClick={() => togglePunch(it)} aria-label={it.status === 'done' ? 'Reopen' : 'Mark done'}>{it.status === 'done' ? <CheckCircle2 size={16} style={{ color: 'var(--status-success-fg, #15803d)' }} /> : <Circle size={16} style={{ color: 'var(--fg-faint)' }} />}</button>}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, textDecoration: it.status === 'done' ? 'line-through' : 'none' }}>{it.title}</div>
-                    {it.description && <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 1 }}>{it.description}</div>}
-                  </div>
-                  {canEdit && <button className="btn btn-ghost btn-sm" style={{ padding: '3px 6px', color: '#dc2626' }} onClick={() => delPunch(it.id)} aria-label="Remove"><Trash2 size={13} /></button>}
-                </div>
-              ))}
-            </div>
+        <section aria-labelledby="punch-list" className={cn(CARD, 'gap-4')}>
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="punch-list" className={TITLE} title={`${openPunch} open`}>Punch List ({punch.length})</h2>
+            {canEdit && !adding && (
+              <button type="button" onClick={() => setAdding(true)}
+                className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent pl-3.5 pr-6 text-[13px] font-medium text-ui-btn-accent-fg hover:opacity-90">
+                <Plus size={16} aria-hidden /> Add Item
+              </button>
+            )}
+          </div>
+          {adding && canEdit && <PunchForm onSave={addPunch} onCancel={() => setAdding(false)} />}
+          {punch.length === 0 && !adding ? (
+            <p className="m-0 text-[14px] text-ui-body">No punch items</p>
+          ) : (
+            <ul className="m-0 flex list-none flex-col p-0">
+              {punch.map(it => {
+                const done = it.status === 'done';
+                return (
+                  <li key={it.id} className="flex items-start gap-2 border-b border-ui-divider py-2.5 last:border-b-0">
+                    <span className="flex w-9 shrink-0 justify-center pt-0.5">
+                      <Checkbox className="size-4 rounded-[3px]" checked={done} disabled={!canEdit}
+                        onCheckedChange={() => void togglePunch(it)} aria-label={done ? `Reopen ${it.title}` : `Mark ${it.title} done`} />
+                    </span>
+                    <div className={cn('flex min-w-0 flex-1 flex-col gap-0.5', done && 'opacity-60')}>
+                      <span className={cn('text-[13px] font-semibold', HEADING, done && 'line-through')}>{it.title}</span>
+                      {it.description && <span className="text-[12px] text-ui-text-secondary">{it.description}</span>}
+                    </div>
+                    {canEdit && (
+                      <button type="button" onClick={() => delPunch(it.id)} aria-label={`Remove ${it.title}`}
+                        className="grid size-7 cursor-pointer place-items-center rounded-[4px] border-0 bg-transparent text-error-normal hover:bg-ui-hover-bg">
+                        <Trash2 size={14} aria-hidden />
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           )}
-        </div>
-      </div>
+        </section>
 
-      <div className="card">
-        <div className="card-head"><div className="form-section-title">Customer acceptance & completion</div></div>
-        <div className="card-body">
+        <section aria-labelledby="delivery-acceptance" className={cn(CARD, 'gap-6')}>
+          <h2 id="delivery-acceptance" className={TITLE}>Customer Acceptance &amp; Completion</h2>
+
           {plan?.customer_accepted ? (
-            <div style={{ fontSize: 13, color: 'var(--status-success-fg, #15803d)', marginBottom: 12 }}>
-              ✓ Accepted{plan.accepted_by ? ` by ${plan.accepted_by}` : ''}{plan.accepted_at ? ` on ${new Date(plan.accepted_at).toLocaleDateString()}` : ''}.
-              {canEdit && <button className="btn btn-ghost btn-sm" style={{ marginLeft: 8 }} disabled={busy} onClick={() => patchPlan({ accept: false })}>Undo</button>}
-            </div>
-          ) : canEdit ? (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12 }}>
-              <div><label className="form-label" style={{ fontSize: 11 }}>Accepted by (customer)</label><input className="form-input" style={{ fontSize: 13 }} value={acceptName} onChange={e => setAcceptName(e.target.value)} placeholder="Contact name" /></div>
-              <button className="btn btn-secondary btn-sm" disabled={busy || !acceptName.trim()} onClick={() => patchPlan({ accept: true, acceptedBy: acceptName.trim() })}>Record acceptance</button>
-            </div>
-          ) : <div style={{ fontSize: 13, color: 'var(--fg-subtle)', marginBottom: 12 }}>Not yet accepted.</div>}
+            <p className="m-0 flex flex-wrap items-center gap-2 text-[13px]" style={{ color: 'var(--status-t9-fg)' }}>
+              <CheckCircle2 className="size-4" aria-hidden />
+              Accepted{plan.accepted_by ? ` by ${plan.accepted_by}` : ''}{plan.accepted_at ? ` on ${new Date(plan.accepted_at).toLocaleDateString()}` : ''}.
+              {canEdit && <Button variant="ghost" size="sm" disabled={busy} onClick={() => patchPlan({ accept: false })}>Undo</Button>}
+            </p>
+          ) : !canEdit ? (
+            <p className="m-0 text-[13px] text-ui-text-secondary">Not yet accepted.</p>
+          ) : null}
 
-          {canEdit && (completed
-            ? <div style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>Project is delivered & complete.</div>
-            : <button className="btn btn-primary" disabled={busy || openPunch > 0 || !plan?.customer_accepted} onClick={() => patchPlan({ complete: true })}>
-                <PackageCheck size={15} /> Mark delivered & complete
-              </button>)}
-          {!completed && canEdit && (openPunch > 0 || !plan?.customer_accepted) && (
-            <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 6 }}>
-              {openPunch > 0 && `Close ${openPunch} open punch item${openPunch !== 1 ? 's' : ''}. `}{!plan?.customer_accepted && 'Record customer acceptance first.'}
+          {canEdit && (
+            <div className="flex flex-wrap items-end gap-3">
+              {!plan?.customer_accepted && (
+                <>
+                  <label className="flex w-full flex-col gap-1.5 sm:w-[443px]">
+                    <span className={LABEL}>Accepted by (customer)</span>
+                    <input className={FIELD} value={acceptName} onChange={e => setAcceptName(e.target.value)} placeholder="type.." />
+                  </label>
+                  <button type="button" disabled={busy || !acceptName.trim()} onClick={() => patchPlan({ accept: true, acceptedBy: acceptName.trim() })}
+                    className="inline-flex h-[42px] cursor-pointer items-center rounded-[6px] border border-[var(--color-secondary-700)] bg-ui-page-bg px-4 text-[13px] font-medium text-[var(--color-secondary-700)] hover:bg-ui-hover-bg disabled:cursor-not-allowed disabled:opacity-50 dark:border-ui-heading dark:text-ui-heading">
+                    Record Acceptance
+                  </button>
+                </>
+              )}
+              {completed ? (
+                <span className="inline-flex h-[42px] items-center gap-2 text-[13px] text-ui-text-secondary"><PackageCheck className="size-4" aria-hidden /> Project is delivered &amp; complete.</span>
+              ) : (
+                <button type="button" disabled={busy || openPunch > 0 || !plan?.customer_accepted} onClick={() => patchPlan({ complete: true })}
+                  className="inline-flex h-[42px] cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-4 text-[13px] font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950">
+                  <PackageCheck className="size-4" aria-hidden /> Mark Delivered and Complete
+                </button>
+              )}
             </div>
           )}
-        </div>
+          {!completed && canEdit && (openPunch > 0 || !plan?.customer_accepted) && (
+            <p className="-mt-3 mb-0 text-[11px] text-ui-text-secondary">
+              {openPunch > 0 && `Close ${openPunch} open punch item${openPunch !== 1 ? 's' : ''}. `}{!plan?.customer_accepted && 'Record customer acceptance first.'}
+            </p>
+          )}
+        </section>
       </div>
     </>
   );
@@ -215,14 +263,18 @@ function PunchForm({ onSave, onCancel }: { onSave: (title: string, description: 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   return (
-    <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '12px 14px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8, marginBottom: 10 }}>
-        <div><label className="form-label required" style={{ fontSize: 11 }}>Title</label><input className="form-input" style={{ fontSize: 13 }} value={title} onChange={e => setTitle(e.target.value)} autoFocus /></div>
-        <div><label className="form-label" style={{ fontSize: 11 }}>Description</label><input className="form-input" style={{ fontSize: 13 }} value={description} onChange={e => setDescription(e.target.value)} /></div>
+    <div className="flex flex-col gap-3 rounded-[6px] border border-ui-divider bg-ui-surface p-3.5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_2fr]">
+        <label className="flex flex-col gap-1.5"><span className={LABEL}>Title *</span>
+          <input className={FIELD} value={title} onChange={e => setTitle(e.target.value)} autoFocus /></label>
+        <label className="flex flex-col gap-1.5"><span className={LABEL}>Description</span>
+          <input className={FIELD} value={description} onChange={e => setDescription(e.target.value)} /></label>
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn btn-primary btn-sm" disabled={!title.trim()} onClick={() => onSave(title.trim(), description.trim())}>Add</button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+      <div className="flex gap-2">
+        <button type="button" disabled={!title.trim()} onClick={() => onSave(title.trim(), description.trim())}
+          className="inline-flex h-9 cursor-pointer items-center rounded-[6px] border-0 bg-ui-btn-accent px-4 text-[13px] font-medium text-ui-btn-accent-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">Add</button>
+        <button type="button" onClick={onCancel}
+          className="inline-flex h-9 cursor-pointer items-center rounded-[6px] border border-ui-divider bg-transparent px-4 text-[13px] font-medium text-ui-body hover:bg-ui-hover-bg">Cancel</button>
       </div>
     </div>
   );
