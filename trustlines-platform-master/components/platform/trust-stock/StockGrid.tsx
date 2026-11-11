@@ -105,13 +105,12 @@ const PROJECT_COLS: Col[] = [
   },
 ];
 
-// Each group has its own Figma status tone (header + its column headers) so the pairs read apart:
-// USD greens and TL oranges (the money colours), then Remaining / Not Ordered / Invoice.
-type Group = { label: string; span: number; tone: string };
+// Two header rows, two colours: the group row (1st USD … Invoice) in the sheet's own tone, the
+// column row (Paid/USD, Date, USD, TL …) in the grey every sheet uses — so the rows read apart.
+type Group = { label: string; span: number };
 const ACC_GROUPS: Group[] = [
-  { label: '1st USD', span: 2, tone: 't6' }, { label: '2nd USD', span: 2, tone: 't5' },
-  { label: '1st TL', span: 2, tone: 't8' }, { label: '2nd TL', span: 2, tone: 't7' },
-  { label: 'Remaining', span: 2, tone: 't2' }, { label: 'Not Ordered', span: 2, tone: 't10' }, { label: 'Invoice', span: 2, tone: 't4' },
+  { label: '1st USD', span: 2 }, { label: '2nd USD', span: 2 }, { label: '1st TL', span: 2 }, { label: '2nd TL', span: 2 },
+  { label: 'Remaining', span: 2 }, { label: 'Not Ordered', span: 2 }, { label: 'Invoice', span: 2 },
 ];
 /** A group's first column gets a stronger left edge, in the header and down the rows. */
 const GROUP_EDGE = 'border-l-2 border-l-[var(--status-t0-fg)]/40';
@@ -243,13 +242,13 @@ function Sheet({ storageKey, title, tone, cols, groups, stocks, allItems, showTi
   const firstMoney = cols.findIndex(c => c.money);
   const total = sizing.reduce((t, c) => t + width(c.id), 0) + (onRemove ? 36 : 0);
   const headH = groups ? 34 : 68;
-  // Column index → its group (tone, and whether it starts the group).
-  const colGroup = (groups ?? []).flatMap(g => Array.from({ length: g.span }, (_, k) => ({ tone: g.tone, first: k === 0 })));
+  // Column index → whether it starts a group.
+  const colGroup = (groups ?? []).flatMap(g => Array.from({ length: g.span }, (_, k) => ({ first: k === 0 })));
   const edge = (ci: number) => (colGroup[ci]?.first && ci > 0 ? GROUP_EDGE : undefined);
   const leafHead = (c: Col | typeof tileCol, rowSpan?: number, ci = -1) => (
     <th
       key={c.id} rowSpan={rowSpan} scope="col" className={cn(TH, V, 'money' in c && c.money && 'text-right', edge(ci))}
-      style={{ height: headH, ...(colGroup[ci] && { background: `var(--status-${colGroup[ci].tone}-bg)`, color: `var(--status-${colGroup[ci].tone}-fg)` }) }}
+      style={{ height: headH }}
     >
       <span className="block truncate">{c.label}</span>
       <Resizer label={c.label} onResize={e => startResize(c.id, e)} onFit={() => fit(c.id)} />
@@ -274,7 +273,7 @@ function Sheet({ storageKey, title, tone, cols, groups, stocks, allItems, showTi
                 {groups.map((g, gi) => (
                   <th
                     key={g.label} colSpan={g.span} scope="colgroup" className={cn(TH, V, 'text-center text-[13px] font-bold', gi > 0 && GROUP_EDGE)}
-                    style={{ height: headH, background: `var(--status-${g.tone}-bg)`, color: `var(--status-${g.tone}-fg)` }}
+                    style={{ height: headH, background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}
                   >
                     {g.label}
                   </th>
