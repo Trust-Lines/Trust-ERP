@@ -7,7 +7,7 @@ import {
 import { toast } from 'sonner';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { CHANGE_REQUEST_STATUS_TAG, statusLabel } from '@/lib/status/tags';
-import type { ChangeRequest, SiteReadiness, SiteReadinessItem } from '@/types/database';
+import type { ChangeRequest, ProjectStage, SiteReadiness, SiteReadinessItem } from '@/types/database';
 import { Select } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -18,7 +18,7 @@ import { ProjectSubpageHeader } from './ProjectSubpageHeader';
 interface Contact { id: string; name: string }
 interface TimelineEvent { kind: string; at: string; title: string; detail?: string }
 interface Props {
-  projectId: string; projectCode: string; projectName: string; canEdit: boolean;
+  projectId: string; projectCode: string; projectName: string; stage?: ProjectStage | null; canEdit: boolean;
   initialChangeRequests: ChangeRequest[];
   initialSiteReadiness: SiteReadiness | null;
   siteTemplate: SiteReadinessItem[];
@@ -34,9 +34,6 @@ const TITLE = 'm-0 flex items-center gap-2 text-[20px] font-semibold leading-[1.
 const SMALL_SELECT = 'h-[27px] w-auto min-w-[74px] gap-3 rounded-[6px] border-ui-input-border bg-ui-input-bg px-3 text-[12px] tracking-[-0.264px] text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading [&_svg]:size-3';
 const FIELD = 'w-full rounded-[6px] border border-ui-input-border bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
 
-const EVENT_DOT: Record<string, string> = {
-  change_request: 'var(--phase-5)', meeting: 'var(--phase-3)', follow_up: 'var(--phase-6)', stage: 'var(--phase-2)',
-};
 const EVENT_LABEL: Record<string, string> = {
   change_request: 'Change request', meeting: 'Meeting', follow_up: 'Follow-up', stage: 'Stage',
 };
@@ -71,7 +68,7 @@ function CategoryChip({ category }: { category: string }) {
 }
 
 export function FinalizationClient({
-  projectId, projectCode, projectName, canEdit,
+  projectId, projectCode, projectName, stage = null, canEdit,
   initialChangeRequests, initialSiteReadiness, siteTemplate, contacts, timeline = [], schemaError,
 }: Props) {
   const [crs, setCrs] = useState<ChangeRequest[]>(initialChangeRequests);
@@ -129,7 +126,7 @@ export function FinalizationClient({
 
   return (
     <>
-      <ProjectSubpageHeader projectId={projectId} code={projectCode} name={projectName} stage={null} active="finalization" />
+      <ProjectSubpageHeader projectId={projectId} code={projectCode} name={projectName} stage={stage} active="finalization" />
 
       {schemaError && (
         <div className="mb-4 rounded-[8px] border border-error-normal p-3 text-[13px] text-error-normal" style={{ background: 'var(--status-danger-bg)' }}>{schemaError}</div>
@@ -202,17 +199,9 @@ export function FinalizationClient({
           {/* ── Site Readiness (Figma 481:24997) ── */}
           <section className={CARD}>
             <div className="flex min-h-[42px] flex-wrap items-center justify-between gap-3 border-b border-ui-divider pb-4">
-              <h2 className={TITLE}>
+              {/* Figma 481:25306: title + count only; the overall status stays readable on hover. */}
+              <h2 className={TITLE} title={`Overall: ${cap(siteStatus)}`}>
                 Site Readiness <span>({siteDone}/{checklist.length})</span>
-                <span
-                  className="rounded-[4px] px-2 py-[3px] text-[11px] font-medium capitalize leading-4"
-                  style={{
-                    background: siteStatus === 'ready' ? 'var(--status-t9-bg)' : siteStatus === 'partial' ? 'var(--status-t7-bg)' : 'var(--status-t0-bg)',
-                    color: siteStatus === 'ready' ? 'var(--status-t9-fg)' : siteStatus === 'partial' ? 'var(--status-t7-fg)' : 'var(--status-t0-fg)',
-                  }}
-                >
-                  {cap(siteStatus)}
-                </span>
               </h2>
               <label className="flex items-center gap-2">
                 <span className="text-[12px] font-medium leading-4 text-ui-body">Target Ready Date</span>
@@ -250,7 +239,8 @@ export function FinalizationClient({
             <ul className="m-0 flex list-none flex-col gap-4 p-0">
               {timeline.map((e, i) => (
                 <li key={i} className="flex items-start gap-1">
-                  <span className="mt-[5px] size-[7px] shrink-0 rounded-full" style={{ background: EVENT_DOT[e.kind] ?? 'var(--color-secondary-700)' }} aria-hidden />
+                  {/* Figma 481:25306: the bullet takes the heading colour (navy light / white dark); the kind is in the meta line. */}
+                  <span className="mt-[5px] size-[7px] shrink-0 rounded-full bg-[var(--color-secondary-700)] dark:bg-ui-heading" aria-hidden />
                   <div className="flex min-w-0 flex-col gap-1">
                     <span className="text-[14px] font-semibold tracking-[-0.308px] text-[var(--color-secondary-700)] dark:text-ui-heading">{e.title}</span>
                     <span className="whitespace-pre-wrap text-[12px] leading-4 text-ui-body">

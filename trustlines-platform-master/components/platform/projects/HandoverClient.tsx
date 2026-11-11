@@ -2,11 +2,17 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, Circle, CircleCheck, Contact, Hand, Hourglass, X, Plus, ClipboardCheck, Users, Zap, type LucideIcon } from 'lucide-react';
+import { CircleCheck, Contact, Hourglass, X, Plus, Users, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import type { HandoverChecklistItem, ProjectHandover } from '@/types/database';
+import type { HandoverChecklistItem, ProjectHandover, ProjectStage } from '@/types/database';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
+import { ProjectSubpageHeader } from './ProjectSubpageHeader';
+
+const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+const CARD = 'flex flex-col rounded-[8px] border border-ui-divider bg-ui-page-bg';
 
 interface Summary {
   tlines_pm: string | null; trustlines_pm: string | null; ops_manager: string | null; pm_supervisor: string | null;
@@ -17,7 +23,7 @@ interface ContactInfo { id: string; name: string; title: string | null; email: s
 interface AvailContact { id: string; name: string; title: string | null }
 
 interface Props {
-  projectId: string; projectCode: string; projectName: string; canEdit: boolean;
+  projectId: string; projectCode: string; projectName: string; stage: ProjectStage | null; canEdit: boolean;
   summary: Summary;
   initialHandover: ProjectHandover | null;
   template: HandoverChecklistItem[];
@@ -45,7 +51,7 @@ function ToneChip({ tone, icon: Icon, size = 'md', children }: { tone: string; i
 }
 
 export function HandoverClient(props: Props) {
-  const { projectId, projectCode, projectName, canEdit, summary, template, derived, autoKeys, customer, contactMap } = props;
+  const { projectId, projectCode, projectName, stage, canEdit, summary, template, derived, autoKeys, customer, contactMap } = props;
   const [handover, setHandover] = useState<ProjectHandover | null>(props.initialHandover);
   const [attached, setAttached] = useState<Attached[]>(props.initialAttached);
   const [available, setAvailable] = useState<AvailContact[]>(props.initialAvailable);
@@ -96,132 +102,137 @@ export function HandoverClient(props: Props) {
     } finally { setBusy(false); }
   }
 
-  const money = summary.deal_value != null ? `${summary.currency ?? ''} ${Number(summary.deal_value).toLocaleString()}`.trim() : '—';
+  const money = summary.deal_value != null ? `${summary.currency ?? ''} ${Number(summary.deal_value).toLocaleString()}`.trim() : null;
+  const summaryRows: [string, string | null, string][] = [
+    ['T Lines PM', summary.tlines_pm, 'Not Set'], ['Trust Lines PM', summary.trustlines_pm, '-'],
+    ['Ops Manager', summary.ops_manager, '-'], ['PM Supervisor', summary.pm_supervisor, '-'],
+    ['Closed Deal Date', summary.closed_deal_date, '-'], ['Budget', money, '-'],
+    ['Scope', summary.scope_summary, '-'], ['Dropbox', summary.dropbox_root_path, '-'],
+  ];
 
   return (
     <>
-      <Link href={`/projects/${projectId}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--fg-subtle)', marginBottom: 16, textDecoration: 'none' }}>
-        <ArrowLeft size={14} /> Back to project
-      </Link>
+      <ProjectSubpageHeader projectId={projectId} code={projectCode} name={projectName} stage={stage} active="handover" />
 
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, margin: '0 0 4px' }}>Project Handover</h1>
-          <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0 }}>{projectCode} — {projectName}</p>
-        </div>
-        {complete
-          ? <ToneChip tone="t9" icon={CircleCheck}>Handover complete</ToneChip>
-          : <ToneChip tone="t2" icon={Hourglass}>In progress · {doneCount}/{checklist.length}</ToneChip>}
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div className="card-head"><div className="form-section-title">Handover summary</div></div>
-        <div className="card-body">
-          <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', rowGap: 8, columnGap: 12, fontSize: 13 }}>
-            {([
-              ['T-Lines PM', summary.tlines_pm], ['Trust Lines PM', summary.trustlines_pm],
-              ['Ops Manager', summary.ops_manager], ['PM Supervisor', summary.pm_supervisor],
-              ['Closed deal date', summary.closed_deal_date], ['Budget', money],
-              ['Scope', summary.scope_summary], ['Dropbox', summary.dropbox_root_path],
-            ] as [string, string | null][]).map(([k, v]) => (
-              <div key={k} style={{ display: 'contents' }}>
-                <div style={{ color: 'var(--fg-subtle)' }}>{k}</div>
-                <div style={{ wordBreak: 'break-word' }}>{v || <span style={{ color: 'var(--fg-faint)' }}>—</span>}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div className="card-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div className="form-section-title">Handover checklist</div>
-          {canEdit && (complete
-            ? <Button variant="secondary" onClick={() => patch({ reopen: true })} disabled={busy}>Reopen</Button>
-            : <Button onClick={() => patch({ complete: true })} disabled={busy}><ClipboardCheck /> Mark complete</Button>)}
-        </div>
-        <div style={{ padding: '10px 18px 0', fontSize: 12, color: 'var(--fg-subtle)' }}>
-          Most items tick themselves from the project’s data — <strong>Auto</strong> items turn green the moment the fact
-          is true (a PM is assigned, the customer is linked, files exist…). Only judgement items are ticked by hand.
-        </div>
-        <div className="card-body">
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {checklist.map(item => {
-              const isAuto = auto.has(item.key);
-              const clickable = canEdit && !busy && !isAuto;
-              return (
-                <button key={item.key} disabled={!clickable} onClick={() => clickable && patch({ toggle: item.key })}
-                  title={isAuto ? 'Set automatically from the project’s data' : undefined}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 4px', border: 'none', borderBottom: '1px solid var(--border-subtle)', background: 'transparent', cursor: clickable ? 'pointer' : 'default', textAlign: 'left', fontSize: 13 }}>
-                  {item.done ? <CheckCircle2 size={17} style={{ color: 'var(--status-success-fg, #15803d)', flexShrink: 0 }} /> : <Circle size={17} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />}
-                  <span style={{ color: item.done ? 'var(--fg-subtle)' : 'var(--fg-default)', textDecoration: item.done ? 'line-through' : 'none' }}>{item.label}</span>
-                  {isAuto
-                    ? <ToneChip tone="t0" icon={Zap} size="sm">Auto</ToneChip>
-                    : <ToneChip tone="t7" icon={Hand} size="sm">Manual</ToneChip>}
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '220px 1fr', gap: 12, alignItems: 'end' }}>
-            <div>
-              <label className="form-label" style={{ fontSize: 12 }}>Handover meeting</label>
-              <input type="datetime-local" className="form-input" style={{ fontSize: 13 }} disabled={!canEdit || busy}
-                defaultValue={handover?.meeting_at ? handover.meeting_at.slice(0, 16) : ''}
-                onChange={e => patch({ meeting_at: e.target.value ? new Date(e.target.value).toISOString() : null })} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-head"><div className="form-section-title">Customer & contacts</div></div>
-        <div className="card-body">
-          {!customer ? (
-            <div style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>
-              No customer linked to this project. Link one from the originating lead (Customer card on the lead page).
-            </div>
-          ) : (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <Contact size={16} style={{ color: 'var(--fg-subtle)' }} />
-                <Link href={`/customers/${customer.id}`} style={{ fontWeight: 600, fontSize: 14 }}>{customer.name}</Link>
-              </div>
-
-              <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 6 }}>Attached to this project</div>
-              {attached.length === 0 ? (
-                <EmptyState size="sm" className="mb-3" icon={<Users />} title="No contacts attached yet." />
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-                  {attached.map(a => {
-                    const ci = contactMap[a.customer_contact_id];
-                    return (
-                      <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', border: '1px solid var(--border-subtle)', borderRadius: 6 }}>
-                        <div style={{ flex: 1 }}>
-                          <span style={{ fontWeight: 600, fontSize: 13 }}>{ci?.name ?? 'Contact'}</span>
-                          <span style={{ color: 'var(--fg-subtle)', fontSize: 12 }}>{[ci?.title, ci?.email, ci?.phone].filter(Boolean).length ? ' · ' + [ci?.title, ci?.email, ci?.phone].filter(Boolean).join(' · ') : ''}</span>
-                        </div>
-                        {canEdit && <button className="btn btn-ghost btn-sm" style={{ padding: '3px 6px', color: '#dc2626' }} onClick={() => detach(a)} disabled={busy} aria-label="Detach contact"><X size={13} /></button>}
-                      </div>
-                    );
-                  })}
+      {/* Figma 472:22208: Handover Summary (379px) + Handover Checklist side by side, Customer and Contacts below. */}
+      <div className="flex flex-col gap-[18px] font-[family-name:var(--font-ui)]">
+        <div className="flex flex-col items-start gap-4 lg:flex-row">
+          <section aria-labelledby="handover-summary" className={cn(CARD, 'w-full pt-3.5 pb-4 pl-4 pr-[18px] lg:w-[379px]')}>
+            <h2 id="handover-summary" className={cn('m-0 mb-4 text-[20px] font-semibold leading-normal tracking-[0.4px]', HEADING)}>Handover Summary</h2>
+            <dl className="m-0 flex flex-col">
+              {summaryRows.map(([k, v, empty], i) => (
+                <div key={k} className={cn('flex items-center justify-between gap-4 py-[5px] text-[14px] tracking-[-0.308px]', i > 0 && 'border-t border-ui-divider', HEADING)}>
+                  <dt className="shrink-0 font-semibold">{k}</dt>
+                  <dd className="m-0 min-w-0 truncate text-right leading-[1.5]" title={v ?? undefined}>{v || empty}</dd>
                 </div>
-              )}
+              ))}
+            </dl>
+          </section>
+
+          <section aria-labelledby="handover-checklist" className={cn(CARD, 'w-full min-w-0 flex-1 px-5 pt-4 pb-5')}>
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-ui-divider pb-4">
+              <div className="flex items-center gap-3">
+                <h2 id="handover-checklist" className={cn('m-0 text-[20px] font-semibold leading-[1.35]', HEADING)}>Handover Checklist</h2>
+                {complete
+                  ? <ToneChip tone="t9" icon={CircleCheck} size="sm">Complete</ToneChip>
+                  : <ToneChip tone="t2" icon={Hourglass} size="sm">{doneCount}/{checklist.length}</ToneChip>}
+              </div>
+              <div className="flex flex-wrap items-center justify-end gap-4">
+                <label className="flex items-center gap-2">
+                  <span className="text-[12px] font-medium leading-4 text-ui-body">Handover Meeting</span>
+                  <input
+                    type="datetime-local" disabled={!canEdit || busy}
+                    defaultValue={handover?.meeting_at ? handover.meeting_at.slice(0, 16) : ''}
+                    onChange={e => patch({ meeting_at: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                    className="h-[42px] w-[200px] rounded-[6px] border border-ui-input-border bg-ui-input-bg px-3 text-[14px] text-[var(--color-secondary-700)] outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring disabled:cursor-not-allowed disabled:opacity-60 dark:text-ui-heading dark:[color-scheme:dark]"
+                  />
+                </label>
+                {canEdit && (complete
+                  ? <Button className="h-10 px-6 font-medium" onClick={() => patch({ reopen: true })} disabled={busy}>Reopen</Button>
+                  : <Button className="h-10 px-6 font-medium" onClick={() => patch({ complete: true })} disabled={busy}>Mark complete</Button>)}
+              </div>
+            </div>
+
+            <ul className="m-0 mt-2 flex list-none flex-col p-0">
+              {checklist.map(item => {
+                const isAuto = auto.has(item.key);
+                const clickable = canEdit && !busy && !isAuto;
+                return (
+                  <li key={item.key} className="flex items-center border-b border-ui-divider py-2.5">
+                    <label className={cn('flex items-center gap-1.5', clickable ? 'cursor-pointer' : 'cursor-default')}
+                      title={isAuto ? 'Set automatically from the project’s data' : undefined}>
+                      <span className="flex w-9 justify-center px-2.5">
+                        <Checkbox checked={item.done} disabled={!clickable} onCheckedChange={() => clickable && patch({ toggle: item.key })} className="size-4" />
+                      </span>
+                      <span className={cn('pr-2.5 text-[12px] font-medium text-ui-body', item.done && 'line-through opacity-70')}>{item.label}</span>
+                      <span
+                        className="rounded-[4px] border border-solid px-2 py-0.5 text-[11px] leading-[1.4]"
+                        style={isAuto
+                          ? { background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)', borderColor: 'var(--status-t0-fg)' }
+                          : { background: 'var(--status-t8-bg)', color: 'var(--status-t8-fg)', borderColor: 'var(--status-t8-fg)' }}
+                      >
+                        {isAuto ? 'AUTO' : 'Manual'}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        </div>
+
+        <section aria-labelledby="handover-contacts" className={cn(CARD, 'p-5')}>
+          <h2 id="handover-contacts" className={cn('m-0 mb-4 text-[20px] font-semibold leading-[1.45]', HEADING)}>Customer and Contacts</h2>
+          {!customer ? (
+            <EmptyState size="sm" icon={<Contact />} title="No customer linked to this project." description="Link one from the originating lead (Customer card on the lead page)." />
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <div className={cn('flex items-center gap-1 text-[14px] font-semibold tracking-[-0.308px]', HEADING)}>
+                  <Contact className="size-6 shrink-0" strokeWidth={1.5} aria-hidden />
+                  <Link href={`/customers/${customer.id}`} className="text-inherit no-underline hover:underline">{customer.name}</Link>
+                </div>
+                <span className="text-[15px] font-medium leading-4 text-ui-body">Attached to this project</span>
+              </div>
+
+              {attached.length === 0 ? (
+                <EmptyState size="sm" icon={<Users />} title="No contacts attached yet." />
+              ) : attached.map(a => {
+                const ci = contactMap[a.customer_contact_id];
+                const extra = [ci?.title, ci?.email, ci?.phone].filter(Boolean).join(' · ');
+                return (
+                  <div key={a.id} className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <div className={cn('flex min-w-0 items-center gap-1 text-[14px] font-semibold tracking-[-0.308px]', HEADING)}>
+                        <Users className="size-6 shrink-0" strokeWidth={1.5} aria-hidden />
+                        <span className="truncate">{ci?.name ?? 'Contact'}{extra ? `  ·  ${extra}` : ''}</span>
+                      </div>
+                      <span className="text-[15px] font-medium leading-4 text-ui-body">Attached to this project</span>
+                    </div>
+                    {canEdit && (
+                      <Button variant="ghost" size="icon-sm" onClick={() => detach(a)} disabled={busy} aria-label={`Detach ${ci?.name ?? 'contact'}`} className="text-error-normal">
+                        <X aria-hidden />
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
 
               {canEdit && available.length > 0 && (
-                <>
-                  <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 6 }}>Available to attach</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div className="flex flex-col gap-2 border-t border-ui-divider pt-4">
+                  <span className="text-[12px] font-medium text-ui-text-secondary">Available to attach</span>
+                  <div className="flex flex-wrap gap-2">
                     {available.map(c => (
-                      <button key={c.id} className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border-subtle)' }} onClick={() => attach(c)} disabled={busy}>
-                        <Plus size={12} /> {c.name}{c.title ? ` · ${c.title}` : ''}
-                      </button>
+                      <Button key={c.id} variant="outline" size="sm" onClick={() => attach(c)} disabled={busy}>
+                        <Plus aria-hidden /> {c.name}{c.title ? ` · ${c.title}` : ''}
+                      </Button>
                     ))}
                   </div>
-                </>
+                </div>
               )}
-            </>
+            </div>
           )}
-        </div>
+        </section>
       </div>
     </>
   );

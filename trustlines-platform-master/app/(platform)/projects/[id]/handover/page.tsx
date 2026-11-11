@@ -88,6 +88,7 @@ export default async function ProjectHandoverPage({ params }: { params: Promise<
         projectId={id}
         projectCode={project.code}
         projectName={project.name}
+        stage={project.current_stage ?? null}
         canEdit={canEdit}
         summary={summary}
         initialHandover={handover}
