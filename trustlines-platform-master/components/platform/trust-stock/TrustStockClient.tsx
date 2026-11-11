@@ -13,8 +13,8 @@ import { StockOverview } from './StockOverview';
 import { PfPdfImportDialog, type ImportedResult } from './PfPdfImportDialog';
 
 // Figma "Trust Stock" (node 598:22796): the stock lines (PF, vendor, dates, PF/INV amounts) and the
-// accounting for the same lines (payments, remaining, not ordered, invoice), one at a time — the
-// Projects / Accounts switch picks which. Each stock batch is a coloured block with a total row;
+// accounting for the same lines (payments, remaining, not ordered, invoice). The Projects /
+// Accounting buttons pick which show; both on → side by side, rows lined up. Each stock batch is a coloured block with a total row;
 // grand totals sit at the bottom, every total under its own column. Frontend only: no Trust Stock backend yet.
 // Internal only — PF and vendor prices must never reach tlines_pm (the page enforces it).
 
@@ -108,7 +108,12 @@ export function TrustStockClient({ canUploadPf = false }: { canUploadPf?: boolea
   const [query, setQuery] = useState('');
   const [newStock, setNewStock] = useState(false);
   const [overview, setOverview] = useState(false);
-  const [view, setView] = useState<'projects' | 'accounts'>('projects');
+  // Which tables show: Projects by default; both on → side by side with their rows lined up.
+  const [shown, setShown] = useState({ projects: true, accounting: false });
+  const toggle = (k: 'projects' | 'accounting') => setShown(v => {
+    const next = { ...v, [k]: !v[k] };
+    return next.projects || next.accounting ? next : v; // one always stays on
+  });
   const [editing, setEditing] = useState<{ stockId: string; item: TrustStockItem | null } | null>(null);
 
   const visible = useMemo(() => {
@@ -140,13 +145,13 @@ export function TrustStockClient({ canUploadPf = false }: { canUploadPf?: boolea
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
         <div role="group" aria-label="Table" className="inline-flex h-9 rounded-[6px] border border-ui-divider bg-ui-surface p-0.5">
-          {(['projects', 'accounts'] as const).map(v => (
+          {(['projects', 'accounting'] as const).map(v => (
             <button
-              key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
+              key={v} type="button" aria-pressed={shown[v]} onClick={() => toggle(v)}
               className={cn('cursor-pointer rounded-[4px] border-0 px-4 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ui-focus-ring',
-                view === v ? 'bg-[var(--color-secondary-700)] text-white dark:bg-primary-50 dark:text-primary-950' : 'bg-transparent text-ui-body hover:bg-ui-hover-bg')}
+                shown[v] ? 'bg-[var(--color-secondary-700)] text-white dark:bg-primary-50 dark:text-primary-950' : 'bg-transparent text-ui-body hover:bg-ui-hover-bg')}
             >
-              {v === 'projects' ? 'Projects' : 'Accounts'}
+              {v === 'projects' ? 'Projects' : 'Accounting'}
             </button>
           ))}
         </div>
@@ -195,10 +200,9 @@ export function TrustStockClient({ canUploadPf = false }: { canUploadPf?: boolea
         <EmptyState boxed icon={<Search />} title="No matching stock" description="Try another PF code, vendor, order or stock code." />
       ) : (
         <div className="overflow-x-auto pb-2">
-          <div className="min-w-max">
-            {view === 'projects'
-              ? <StockTable stocks={visible} allItems={allItems} onOpen={openItem} />
-              : <AccountingTable stocks={visible} allItems={allItems} onOpen={openItem} />}
+          <div className="flex min-w-max items-start gap-8">
+            {shown.projects && <StockTable stocks={visible} allItems={allItems} onOpen={openItem} />}
+            {shown.accounting && <AccountingTable stocks={visible} allItems={allItems} onOpen={openItem} />}
           </div>
         </div>
       )}
@@ -259,7 +263,7 @@ function StockTable({ stocks, allItems, onOpen }: { stocks: TrustStock[]; allIte
           <tr className="h-[52px]" style={{ background: 'var(--status-t10-bg)' }}>
             <th colSpan={LEFT_COLS.length} scope="colgroup" className="text-center text-[20px] font-semibold" style={{ color: 'var(--status-t10-fg)' }}>Trust Stock</th>
           </tr>
-          <tr className="h-[46px] border-b border-ui-divider" style={{ background: 'var(--status-t0-bg)' }}>
+          <tr className="h-[68px] border-b border-ui-divider" style={{ background: 'var(--status-t0-bg)' }}>
             {LEFT_COLS.map(c => <th key={c.label} scope="col" className={cn(TH, V, c.money && 'text-right')}>{c.label}</th>)}
           </tr>
         </thead>
