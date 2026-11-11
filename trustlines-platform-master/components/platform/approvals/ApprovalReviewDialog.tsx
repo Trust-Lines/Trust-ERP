@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 // Figma "Approvals" request pop-up (481:23498 scrim + 481:23499): heading with chips and close, then
 // [file card with Reject / Approve] + [Notes with the confirm button] on the left, File Preview on the right.
 // Same API as ApprovalActionBar: POST /api/projects/:id/doc-approvals { action, approvalId, notes }.
-// Notes are only sent (and required) for a rejection, so the box opens once "Reject" is picked.
+// Notes open once a decision is picked (Figma 481:23848): optional with an approval, required with a rejection.
 
 export interface ReviewApproval {
   approvalId: string; projectId: string; fileName: string;
@@ -63,7 +63,7 @@ export function ApprovalReviewDialog(p: Props) {
       const res = await fetch(`/api/projects/${a.projectId}/doc-approvals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: decision, approvalId: a.approvalId, notes: decision === 'reject' ? note : undefined }),
+        body: JSON.stringify({ action: decision, approvalId: a.approvalId, notes: note.trim() || undefined }),
       });
       if (!res.ok) {
         const e = await res.json().catch(() => ({})) as { error?: string };
@@ -197,11 +197,11 @@ export function ApprovalReviewDialog(p: Props) {
                       {decision === 'reject' ? 'Notes*' : 'Notes'}
                     </span>
                     <textarea
-                      value={note} onChange={e => setNote(e.target.value)} disabled={decision !== 'reject' || acting}
+                      value={note} onChange={e => setNote(e.target.value)} disabled={!decision || acting}
                       required={decision === 'reject'} aria-required={decision === 'reject'}
-                      placeholder={decision === 'reject' ? 'Reason for rejection…' : decision === 'approve' ? 'Notes are only saved with a rejection' : 'type..'}
+                      placeholder={decision === 'reject' ? 'Reason for rejection…' : 'type..'}
                       className={cn(
-                        'h-[180px] w-full resize-none rounded-[6px] border p-3 text-[13px] text-ui-heading outline-none placeholder:text-[11px] placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring disabled:cursor-not-allowed',
+                        'h-[180px] w-full resize-none rounded-[6px] border p-3 text-[13px] text-ui-heading outline-none placeholder:text-[11px] placeholder:font-medium placeholder:text-ui-text-disabled focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring disabled:cursor-not-allowed',
                         decision ? 'border-ui-input-border bg-ui-input-bg' : 'border-ui-divider bg-ui-page-bg',
                       )}
                     />
