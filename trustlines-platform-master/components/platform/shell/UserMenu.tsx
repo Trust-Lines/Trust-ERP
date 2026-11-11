@@ -46,8 +46,11 @@ export function UserMenu({
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    // A dropdown inside the menu (View as role) draws its list in a portal: clicks and Esc there
+    // belong to that list, not "outside" this menu.
+    const inPopup = (t: EventTarget | null) => t instanceof Element && !!t.closest('[data-slot="select-content"]');
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node) && !inPopup(e.target)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !inPopup(e.target)) setOpen(false); };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
