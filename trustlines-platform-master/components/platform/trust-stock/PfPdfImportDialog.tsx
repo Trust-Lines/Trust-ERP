@@ -56,7 +56,8 @@ function Typed({ text, run }: { text: string; run: boolean }) {
   return <>{text.slice(0, n)}{n < text.length && <span className="pf-scan-caret-inline">▍</span>}</>;
 }
 
-export interface ImportedResult { stockCode: string; data: PfImportData; vendor: Vendor | null; result: ImportedPf }
+/** `localOnly`: the PF is already in the Trust System, so it was only added to this page. */
+export interface ImportedResult { stockCode: string; data: PfImportData; vendor: Vendor | null; result: ImportedPf; localOnly?: boolean }
 
 export function PfPdfImportDialog({ open, onOpenChange, onImported }: {
   open: boolean;
@@ -192,13 +193,11 @@ export function PfPdfImportDialog({ open, onOpenChange, onImported }: {
   const qty = rows.reduce((s, p) => s + (Number(p.quantity) || 0), 0);
   const sym = currencySymbol(currency);
   const duplicate = preview?.duplicateOf ?? null;
-  const blocked = !stockCode.trim() || !pfCode.trim() || products.length === 0 || products.some(p => !p.itemCode.trim()) || !!duplicate;
+  const incomplete = !stockCode.trim() || !pfCode.trim() || products.length === 0 || products.some(p => !p.itemCode.trim());
+  const blocked = incomplete || !!duplicate;
   const vendor = vendors.find(v => v.id === vendorId) ?? (preview?.vendor?.id === vendorId ? preview.vendor : null);
 
-  async function save() {
-    if (!file || blocked || phase !== 'edit') return;
-    setSaving(true); setError(null);
-    const data: PfImportData = {
+  const formData = (): PfImportData => ({
       stockCode: stockCode.trim(),
       pfCode: pfCode.trim(),
       vendorId: vendorId || null,
@@ -209,7 +208,12 @@ export function PfPdfImportDialog({ open, onOpenChange, onImported }: {
       totalPrice: total || null,
       paymentRule: paymentRule.trim() || null,
       products: cleanProducts(products),
-    };
+  });
+
+  async function save() {
+    if (!file || blocked || phase !== 'edit') return;
+    setSaving(true); setError(null);
+    const data = formData();
     try {
       const result = await importPfPdf(file, data);
       onImported({ stockCode: data.stockCode, data, vendor, result });
@@ -218,6 +222,15 @@ export function PfPdfImportDialog({ open, onOpenChange, onImported }: {
       setError(e instanceof Error ? e.message : 'Save failed');
       setSaving(false);
     }
+  }
+
+  // Already in the Trust System (duplicateOf): nothing is sent there — the checked values only go
+  // into this page's Trust Stock, for moving existing stock over to T-ERP.
+  function addHereOnly() {
+    if (!duplicate || incomplete || phase !== 'edit') return;
+    const data = formData();
+    onImported({ stockCode: data.stockCode, data, vendor, result: { id: duplicate.itemId, pfCode: data.pfCode }, localOnly: true });
+    onOpenChange(false);
   }
 
   const vendorOptions = useMemo(() => [{ value: '', label: '— not set —' }, ...vendors.map(v => ({ value: v.id, label: `${v.code} - ${v.name}` }))], [vendors]);
@@ -239,9 +252,15 @@ export function PfPdfImportDialog({ open, onOpenChange, onImported }: {
               <Button variant="ghost" className="mr-auto" onClick={() => inputRef.current?.click()} disabled={saving}><FileUp /> Another PDF</Button>
             )}
             <ModalClose render={<Button variant="outline" className={modalSecondaryButtonClass} disabled={saving} />}>Cancel</ModalClose>
-            <Button onClick={() => void save()} disabled={!editable || blocked || saving} title={duplicate ? `Already imported in ${duplicate.groupCode}` : undefined}>
-              {saving ? <Loader2 className="animate-spin" /> : <Upload />} {saving ? 'Saving…' : 'Save to Trust Stock'}
-            </Button>
+            {duplicate ? (
+              <Button onClick={addHereOnly} disabled={!editable || incomplete} title={`Already in the Trust System (${duplicate.groupCode}) — adds it to this page without sending anything`}>
+                <Plus /> Add to this page only
+              </Button>
+            ) : (
+              <Button onClick={() => void save()} disabled={!editable || blocked || saving}>
+                {saving ? <Loader2 className="animate-spin" /> : <Upload />} {saving ? 'Saving…' : 'Save to Trust Stock'}
+              </Button>
+            )}
           </>
         }
       >
@@ -285,7 +304,7 @@ export function PfPdfImportDialog({ open, onOpenChange, onImported }: {
               )}
               {duplicate && (
                 <div role="alert" className="flex items-start gap-2 rounded-[6px] px-3 py-2 text-[12px]" style={{ background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' }}>
-                  <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden /> This PF is already in {duplicate.groupCode}. It can’t be imported again.
+                  <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden /> This PF is already in the Trust System ({duplicate.groupCode}), so it isn’t imported there again. “Add to this page only” puts it into T-ERP’s Trust Stock without sending anything.
                 </div>
               )}
               {preview && preview.warnings.length > 0 && (
