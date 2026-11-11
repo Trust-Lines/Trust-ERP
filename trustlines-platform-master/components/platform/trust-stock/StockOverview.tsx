@@ -15,7 +15,7 @@ import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import type { PartStatus, StockPart, TrustStock, TrustStockItem } from './types';
 import {
-  available, fmtDay, newId, onHand, partStatus, remainingPct, reorderPcs, toOrder, used, useStockParts,
+  available, dimsFromText, fmtDay, newId, onHand, partStatus, remainingPct, reorderPcs, stockTile, toOrder, used, useStockParts,
 } from './store';
 
 // Figma "Stock Overview" (node 601:27426): quantities of every item received under the Trust
@@ -303,20 +303,24 @@ function PartRow({ part: p, stockCode, cols, onPatch, onEdit }: {
   const order = toOrder(p);
   const cell = (k: ColKey): ReactNode => {
     switch (k) {
-      case 'stock': return <span className={cn('text-[12px] font-semibold leading-tight', HEADING)}>STOCK<br />{stockCode}</span>;
+      case 'stock': return <span className={cn('text-[12px] font-semibold leading-tight', HEADING)}>{stockTile(stockCode).head}<br />{stockTile(stockCode).rest}</span>;
       case 'itemCode': return (
         <button type="button" onClick={onEdit} className={cn('cursor-pointer border-0 bg-transparent p-0 text-left text-[13px] font-semibold underline-offset-2 hover:underline', HEADING)} aria-label={`Edit ${p.itemCode}`}>
           {p.itemCode}
         </button>
       );
       case 'description': return <span className="line-clamp-3 text-[11px] leading-[1.3]" title={p.description}>{p.description || '—'}</span>;
-      case 'dimensions': return (
+      case 'dimensions': {
+        // Typed values first; otherwise what the description says ("D=32.5\"-W=40\"-H=32.75\"").
+        const fromText = dimsFromText(p.description);
+        return (
         <span className="flex flex-col gap-0.5">
-          {([['D', p.depth], ['W', p.width], ['H', p.height]] as const).map(([k2, v]) => (
+          {([['D', p.depth || fromText.depth], ['W', p.width || fromText.width], ['H', p.height || fromText.height]] as const).map(([k2, v]) => (
             <span key={k2} className="rounded-[2px] bg-[var(--ui-selected-bg)] px-1 text-[10px] leading-4 text-ui-body">{k2}= {v || '—'}</span>
           ))}
         </span>
-      );
+        );
+      }
       case 'ordered': return p.ordered;
       case 'received': return <NumberBox label={`Confirmed received for ${p.itemCode}`} value={p.received} nullable onChange={v => onPatch({ received: v })} />;
       case 'target': return <NumberBox label={`Target stock for ${p.itemCode}`} value={p.target} onChange={v => onPatch({ target: v ?? 0 })} />;

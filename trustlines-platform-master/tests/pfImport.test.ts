@@ -19,3 +19,19 @@ describe('cleanProducts', () => {
   });
   it('symbols', () => { expect(currencySymbol('TL')).toBe('₺'); expect(currencySymbol('EUR')).toBe('€'); expect(currencySymbol('USD')).toBe('$'); });
 });
+
+describe('Trust Stock helpers', () => {
+  it('reads D / W / H from a description', async () => {
+    const { dimsFromText } = await import('@/components/platform/trust-stock/store');
+    expect(dimsFromText('CABINET WITH UPPER PAINTED U PROFILE INTERFACE AND LAMINATED FORMICA DOOR ( D=32.5"-W=40"-H=32.75")'))
+      .toEqual({ depth: '32.5"', width: '40"', height: '32.75"' });
+    expect(dimsFromText('CABINET WITH CLADDING FORMICA SHELF. (D=12"- W=48"- H=36,75")')).toEqual({ depth: '12"', width: '48"', height: '36.75"' });
+    expect(dimsFromText('32" WOOD SHELF DEPTH 15"')).toEqual({ depth: '', width: '', height: '' });
+  });
+  it('does not double the word STOCK', async () => {
+    const { stockTile } = await import('@/components/platform/trust-stock/store');
+    expect(stockTile('STOCK-TR-04')).toEqual({ head: 'STOCK', rest: 'TR-04' });
+    expect(stockTile('TR-04')).toEqual({ head: 'STOCK', rest: 'TR-04' });
+    expect(stockTile('STOCK 2')).toEqual({ head: 'STOCK', rest: '2' });
+  });
+});
