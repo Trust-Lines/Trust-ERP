@@ -55,7 +55,10 @@ export function ThemeSwitch({ tone = 'default', className = '' }: { tone?: 'defa
     : 'bg-[var(--bg-subtle)] border border-[var(--border-default)]';
   const item = (active: boolean) => tone === 'onDark'
     ? (active ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white')
-    : (active ? 'bg-[var(--bg-surface)] text-[var(--fg-default)] shadow-xs' : 'text-[var(--fg-subtle)] hover:text-[var(--fg-default)]');
+    // Same selected look as the platform's tabs (Projects, Notifications, Trust Stock): selected fill, no shadow.
+    : (active
+      ? 'bg-ui-selected-bg font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading'
+      : 'text-ui-body hover:bg-ui-hover-bg hover:text-[var(--color-secondary-700)] dark:hover:text-ui-heading');
 
   return (
     <div role="radiogroup" aria-label="Theme" className={`grid grid-cols-3 gap-0.5 rounded-lg p-0.5 ${wrap} ${className}`}>
