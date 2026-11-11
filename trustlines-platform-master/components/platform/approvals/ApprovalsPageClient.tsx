@@ -36,6 +36,7 @@ import { toast } from 'sonner';
 import { ApprovalReviewDialog } from './ApprovalReviewDialog';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { popupBase } from '@/components/ui/field-styles';
 import { feedback } from '@/components/ui/feedback-toast';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
@@ -150,6 +151,9 @@ const MOBILE_BTN =
   'inline-flex h-10 items-center justify-center gap-2 px-3 rounded-md border border-[var(--color-primary-200)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated font-[family-name:var(--font-ui)] text-[14px] font-semibold text-[var(--ui-body)] hover:bg-[var(--color-primary-50)] dark:hover:bg-white/5 transition-colors';
 
 // Bulk bar buttons — same outlined style as "All views".
+// Bulk-bar dropdowns: same panel and hover as the platform's other menus (Select list, row menus).
+const BULK_MENU = `${popupBase} absolute right-0 top-full z-30 mt-1 p-1`;
+const BULK_MENU_ITEM = 'flex w-full cursor-pointer items-center rounded-[4px] border-0 bg-transparent px-2.5 py-1.5 text-left text-[13px] text-ui-body outline-none transition-colors hover:bg-ui-hover-bg hover:text-ui-heading focus-visible:bg-ui-hover-bg dark:hover:bg-white/10 dark:focus-visible:bg-white/10';
 const BULK_BTN =
   'inline-flex h-[30px] items-center justify-center gap-2 px-[9px] rounded-md border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-[var(--ui-body)] hover:bg-[var(--color-primary-50)] dark:hover:bg-white/5 transition-colors';
 
@@ -791,9 +795,9 @@ export function ApprovalsPageClient() {
             <ChevronDown className="w-3.5 h-3.5" />
           </button>
           {bulkMenu === 'status' && (
-            <div className="absolute right-0 top-full mt-1 w-48 bg-ui-surface-elevated border border-slate-200 rounded-lg shadow-lg p-1 z-30">
+            <div className={`${BULK_MENU} w-48`}>
               {STATUS_OPTIONS.map(s => (
-                <button key={s} onClick={() => bulkChangeStatus(s)} className="w-full flex px-2 py-1.5 rounded hover:bg-slate-50">
+                <button key={s} type="button" onClick={() => bulkChangeStatus(s)} className={BULK_MENU_ITEM}>
                   {renderStatusPill(s)}
                 </button>
               ))}
@@ -807,14 +811,15 @@ export function ApprovalsPageClient() {
             Assign owner
           </button>
           {bulkMenu === 'owner' && (
-            <div className="absolute right-0 top-full mt-1 w-52 bg-ui-surface-elevated border border-slate-200 rounded-lg shadow-lg p-1 z-30">
+            <div className={`${BULK_MENU} w-52`}>
               {ownerOptions.map(o => (
                 <button
                   key={o.name}
+                  type="button"
                   onClick={() => bulkAssignOwner(o.name, o.initials)}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-50 text-xs font-medium text-slate-700"
+                  className={`${BULK_MENU_ITEM} gap-2 font-medium`}
                 >
-                  <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-semibold text-[9px] shrink-0">
+                  <span className="w-5 h-5 rounded-full bg-secondary-100 text-primary-500 dark:bg-secondary-700 dark:text-primary-100 flex items-center justify-center font-semibold text-[9px] shrink-0">
                     {o.initials}
                   </span>
                   {o.name}
@@ -1106,12 +1111,10 @@ export function ApprovalsPageClient() {
                           locked ? 'bg-[var(--color-primary-50)] dark:bg-[var(--ui-row-locked)]' : checked ? 'bg-[var(--color-primary-50)] dark:bg-[var(--ui-row-checked)]' : 'hover:bg-[var(--color-primary-50)] dark:hover:bg-white/5'
                         } ${locked ? 'cursor-default' : 'cursor-pointer'}`}
                       >
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={checked}
                           disabled={locked}
-                          onChange={() => setVisibleColumns(prev => ({ ...prev, [col]: !prev[col] }))}
-                          className="w-4 h-4 rounded accent-[var(--color-secondary-700)] dark:accent-[var(--ui-tab-badge)] dark:disabled:accent-[var(--ui-row-locked-check)] disabled:opacity-100"
+                          onCheckedChange={() => setVisibleColumns(prev => ({ ...prev, [col]: !prev[col] }))}
                         />
                         <span className={locked ? 'font-semibold text-[var(--ui-body)] dark:font-normal dark:text-[var(--ui-text-secondary)]' : checked ? 'font-semibold text-[var(--ui-body)] dark:text-[var(--ui-heading)]' : 'font-normal text-[var(--ui-text-secondary)]'}>
                           {col}
@@ -1439,12 +1442,10 @@ export function ApprovalsPageClient() {
         <div className="font-[family-name:var(--font-ui)]">
           <div className="flex items-center justify-between gap-3 mb-3">
             <label className="flex items-center gap-2 text-[13px] text-[var(--ui-text-secondary)]">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={isPageSelected}
-                ref={el => { if (el) el.indeterminate = isPagePartlySelected; }}
-                onChange={togglePageSelection}
-                className="w-4 h-4 rounded accent-[var(--color-secondary-700)] dark:accent-[var(--ui-tab-badge)]"
+                indeterminate={isPagePartlySelected}
+                onCheckedChange={togglePageSelection}
               />
               Select page
             </label>
@@ -1489,12 +1490,12 @@ export function ApprovalsPageClient() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-4">
-                          <input
-                            type="checkbox" checked={isSelected}
+                          <Checkbox
+                            checked={isSelected}
                             onClick={e => e.stopPropagation()}
-                            onChange={() => setSelectedIds(prev => ({ ...prev, [row.id]: !prev[row.id] }))}
+                            onKeyDown={e => e.stopPropagation()}
+                            onCheckedChange={() => setSelectedIds(prev => ({ ...prev, [row.id]: !prev[row.id] }))}
                             aria-label={`Select request ${row.code}`}
-                            className="size-4 shrink-0 rounded accent-[var(--color-secondary-700)] dark:accent-[var(--ui-tab-badge)]"
                           />
                           <span className="truncate text-[16px] font-medium tracking-[0.64px] text-[var(--color-secondary-700)] dark:text-ui-heading">{c.kicker}</span>
                           <span className="shrink-0">{renderStatusPill(row.status)}</span>
