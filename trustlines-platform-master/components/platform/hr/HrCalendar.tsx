@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import type { HrAction, HrCalendarEvent } from './types';
 import { KIND_LABEL, KIND_ORDER, KIND_TONE, dayKey, startOfDay } from './tones';
 import { HrActionButton } from './HrCards';
+import { HOLIDAY_YEARS, holidayEvents } from './holidays';
 
 // Figma "Pattern surface" (node 555:36138): month grid Mon–Sun, weekends shaded, today badged,
 // events as tone chips (public holidays as a marker chip), legend underneath.
@@ -16,6 +17,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 const MONTH_OPTIONS = MONTHS.map((label, i) => ({ value: String(i), label }));
 const HEADING ='text-[var(--color-secondary-700)] dark:text-ui-heading';
 const MAX_CHIPS = 2;
+const PICKER = 'h-9 w-auto min-w-[140px] cursor-pointer gap-6 rounded-[6px] border-current bg-ui-input-bg pl-4 pr-4 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-current dark:bg-ui-input-bg dark:pl-4 dark:pr-4 dark:text-ui-heading';
 
 export interface HrCalendarProps {
   /** First day of the shown month. */
@@ -40,14 +42,21 @@ function buildWeeks(month: Date): Date[][] {
 export function HrCalendar({ month, onMonthChange, events, today, createEvent, loading }: HrCalendarProps) {
   const weeks = useMemo(() => buildWeeks(month), [month]);
   const todayKey = dayKey(startOfDay(today));
+  // Years to pick: last year through the end of the holiday table (and the shown one).
+  const yearOptions = useMemo(() => {
+    const from = Math.min(today.getFullYear() - 1, month.getFullYear());
+    const to = Math.max(HOLIDAY_YEARS.last, month.getFullYear());
+    return Array.from({ length: to - from + 1 }, (_, i) => ({ value: String(from + i), label: String(from + i) }));
+  }, [today, month]);
   const byDay = useMemo(() => {
     const m = new Map<string, HrCalendarEvent[]>();
-    for (const e of events) {
+    // Turkey's public holidays always show, first in their day.
+    for (const e of [...holidayEvents(month.getFullYear(), month.getMonth()), ...events]) {
       const k = e.date.slice(0, 10);
       m.set(k, [...(m.get(k) ?? []), e]);
     }
     return m;
-  }, [events]);
+  }, [events, month]);
 
   return (
     <section
@@ -64,7 +73,14 @@ export function HrCalendar({ month, onMonthChange, events, today, createEvent, l
           value={String(month.getMonth())}
           onValueChange={v => v != null && onMonthChange(new Date(month.getFullYear(), Number(v), 1))}
           options={MONTH_OPTIONS}
-          className="h-9 w-auto min-w-[140px] cursor-pointer gap-6 rounded-[6px] border-current bg-ui-input-bg pl-4 pr-4 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-current dark:bg-ui-input-bg dark:pl-4 dark:pr-4 dark:text-ui-heading"
+          className={PICKER}
+        />
+        <Select
+          aria-label="Year"
+          value={String(month.getFullYear())}
+          onValueChange={v => v != null && onMonthChange(new Date(Number(v), month.getMonth(), 1))}
+          options={yearOptions}
+          className={cn(PICKER, 'min-w-[100px]')}
         />
         <HrActionButton
           action={createEvent}
