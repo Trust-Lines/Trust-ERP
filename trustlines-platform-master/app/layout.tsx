@@ -51,7 +51,9 @@ export default function RootLayout({
         {/* "Hide amounts" — flag the page before first paint so real figures never flash (see AmountsMasker). */}
         <InlineScript html={HIDE_AMOUNTS_HEAD_SCRIPT} />
       </head>
-      <body className="min-h-full">
+      {/* suppressHydrationWarning: browser extensions (Grammarly…) add attributes to <body>
+          before React loads; only this element's own attributes are ignored. */}
+      <body className="min-h-full" suppressHydrationWarning>
         <ThemeSync />
         <AmountsMasker />
         <AuthLinkRedirect />

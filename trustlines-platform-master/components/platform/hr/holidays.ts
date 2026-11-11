@@ -1,13 +1,18 @@
-// Turkey's official public holidays, 2026–2036 (Law 2429): the fixed national days plus the
-// Ramadan Feast (3 days) and Sacrifice Feast (4 days), each with its half-day eve.
-// The two feasts follow the Hijri calendar. Their dates here come from the Umm al-Qura calendar,
-// which matches the Diyanet's published dates for 2023–2026; later years can move a day once the
-// Diyanet publishes them — fix the row here when it does.
+// Turkey's calendar days, 2026–2036.
+// TR_HOLIDAYS: the official public holidays (Law 2429) — the fixed national days plus the
+// Ramadan Feast (3 days) and Sacrifice Feast (4 days), each with its half-day eve. Days off.
+// TR_SPECIAL_DAYS: days marked in Turkey that are not days off — 10 November, New Year's Eve,
+// Mother's / Father's / Teachers' Day, the kandil nights, the start of Ramadan…
+// Hijri dates (feasts, kandils) come from the Umm al-Qura calendar, which matches the Diyanet's
+// published dates for 2023–2026; later years can move a day once the Diyanet publishes them —
+// fix the row here when it does. A kandil is listed on the day whose evening it is.
 // Generated once (not computed in the browser, so every device shows the same days).
 
-import type { HrCalendarEvent } from './types';
+import type { HrCalendarEvent, HrEventKind } from './types';
 
-export const TR_HOLIDAYS: readonly (readonly [date: string, name: string])[] = [
+type Day = readonly [date: string, name: string];
+
+export const TR_HOLIDAYS: readonly Day[] = [
   ['2026-01-01', "New Year's Day"],
   ['2026-03-19', "Ramadan Feast Eve (half day)"],
   ['2026-03-20', "Ramadan Feast · Day 1"],
@@ -201,21 +206,215 @@ export const TR_HOLIDAYS: readonly (readonly [date: string, name: string])[] = [
   ['2036-11-21', "Ramadan Feast · Day 3"],
 ];
 
-const BY_DAY = new Map<string, string[]>();
-for (const [d, n] of TR_HOLIDAYS) BY_DAY.set(d, [...(BY_DAY.get(d) ?? []), n]);
+export const TR_SPECIAL_DAYS: readonly Day[] = [
+  ['2026-01-15', "Miraç Kandili"],
+  ['2026-02-02', "Berat Kandili"],
+  ['2026-02-14', "Valentine's Day"],
+  ['2026-02-19', "Ramadan begins"], // Diyanet (Umm al-Qura: 18th)
+  ['2026-03-08', "International Women's Day"],
+  ['2026-03-16', "Kadir Gecesi"], // Diyanet (Umm al-Qura: 15th)
+  ['2026-03-18', "Çanakkale Victory and Martyrs Day"],
+  ['2026-05-10', "Mother's Day"],
+  ['2026-06-16', "Hijri New Year"],
+  ['2026-06-21', "Father's Day"],
+  ['2026-06-25', "Ashura"],
+  ['2026-08-24', "Mevlid Kandili"],
+  ['2026-11-10', "Atatürk Remembrance Day"],
+  ['2026-11-24', "Teachers' Day"],
+  ['2026-12-10', "Regaip Kandili"],
+  ['2026-12-31', "New Year's Eve"],
+  ['2027-01-04', "Miraç Kandili"],
+  ['2027-01-22', "Berat Kandili"],
+  ['2027-02-08', "Ramadan begins"],
+  ['2027-02-14', "Valentine's Day"],
+  ['2027-03-05', "Kadir Gecesi"],
+  ['2027-03-08', "International Women's Day"],
+  ['2027-03-18', "Çanakkale Victory and Martyrs Day"],
+  ['2027-05-09', "Mother's Day"],
+  ['2027-06-06', "Hijri New Year"],
+  ['2027-06-15', "Ashura"],
+  ['2027-06-20', "Father's Day"],
+  ['2027-08-13', "Mevlid Kandili"],
+  ['2027-11-10', "Atatürk Remembrance Day"],
+  ['2027-11-24', "Teachers' Day"],
+  ['2027-12-02', "Regaip Kandili"],
+  ['2027-12-24', "Miraç Kandili"],
+  ['2027-12-31', "New Year's Eve"],
+  ['2028-01-11', "Berat Kandili"],
+  ['2028-01-28', "Ramadan begins"],
+  ['2028-02-14', "Valentine's Day"],
+  ['2028-02-22', "Kadir Gecesi"],
+  ['2028-03-08', "International Women's Day"],
+  ['2028-03-18', "Çanakkale Victory and Martyrs Day"],
+  ['2028-05-14', "Mother's Day"],
+  ['2028-05-25', "Hijri New Year"],
+  ['2028-06-03', "Ashura"],
+  ['2028-06-18', "Father's Day"],
+  ['2028-08-02', "Mevlid Kandili"],
+  ['2028-11-10', "Atatürk Remembrance Day"],
+  ['2028-11-23', "Regaip Kandili"],
+  ['2028-11-24', "Teachers' Day"],
+  ['2028-12-13', "Miraç Kandili"],
+  ['2028-12-30', "Berat Kandili"],
+  ['2028-12-31', "New Year's Eve"],
+  ['2029-01-16', "Ramadan begins"],
+  ['2029-02-10', "Kadir Gecesi"],
+  ['2029-02-14', "Valentine's Day"],
+  ['2029-03-08', "International Women's Day"],
+  ['2029-03-18', "Çanakkale Victory and Martyrs Day"],
+  ['2029-05-13', "Mother's Day"],
+  ['2029-05-14', "Hijri New Year"],
+  ['2029-05-23', "Ashura"],
+  ['2029-06-17', "Father's Day"],
+  ['2029-07-23', "Mevlid Kandili"],
+  ['2029-11-08', "Regaip Kandili"],
+  ['2029-11-10', "Atatürk Remembrance Day"],
+  ['2029-11-24', "Teachers' Day"],
+  ['2029-12-03', "Miraç Kandili"],
+  ['2029-12-20', "Berat Kandili"],
+  ['2029-12-31', "New Year's Eve"],
+  ['2030-01-05', "Ramadan begins"],
+  ['2030-01-30', "Kadir Gecesi"],
+  ['2030-02-14', "Valentine's Day"],
+  ['2030-03-08', "International Women's Day"],
+  ['2030-03-18', "Çanakkale Victory and Martyrs Day"],
+  ['2030-05-04', "Hijri New Year"],
+  ['2030-05-12', "Mother's Day"],
+  ['2030-05-13', "Ashura"],
+  ['2030-06-16', "Father's Day"],
+  ['2030-07-12', "Mevlid Kandili"],
+  ['2030-10-31', "Regaip Kandili"],
+  ['2030-11-10', "Atatürk Remembrance Day"],
+  ['2030-11-22', "Miraç Kandili"],
+  ['2030-11-24', "Teachers' Day"],
+  ['2030-12-10', "Berat Kandili"],
+  ['2030-12-26', "Ramadan begins"],
+  ['2030-12-31', "New Year's Eve"],
+  ['2031-01-20', "Kadir Gecesi"],
+  ['2031-02-14', "Valentine's Day"],
+  ['2031-03-08', "International Women's Day"],
+  ['2031-03-18', "Çanakkale Victory and Martyrs Day"],
+  ['2031-04-23', "Hijri New Year"],
+  ['2031-05-02', "Ashura"],
+  ['2031-05-11', "Mother's Day"],
+  ['2031-06-15', "Father's Day"],
+  ['2031-07-01', "Mevlid Kandili"],
+  ['2031-10-23', "Regaip Kandili"],
+  ['2031-11-10', "Atatürk Remembrance Day"],
+  ['2031-11-12', "Miraç Kandili"],
+  ['2031-11-24', "Teachers' Day"],
+  ['2031-11-29', "Berat Kandili"],
+  ['2031-12-16', "Ramadan begins"],
+  ['2031-12-31', "New Year's Eve"],
+  ['2032-01-10', "Kadir Gecesi"],
+  ['2032-02-14', "Valentine's Day"],
+  ['2032-03-08', "International Women's Day"],
+  ['2032-03-18', "Çanakkale Victory and Martyrs Day"],
+  ['2032-04-11', "Hijri New Year"],
+  ['2032-04-20', "Ashura"],
+  ['2032-05-09', "Mother's Day"],
+  ['2032-06-19', "Mevlid Kandili"],
+  ['2032-06-20', "Father's Day"],
+  ['2032-10-07', "Regaip Kandili"],
+  ['2032-10-31', "Miraç Kandili"],
+  ['2032-11-10', "Atatürk Remembrance Day"],
+  ['2032-11-18', "Berat Kandili"],
+  ['2032-11-24', "Teachers' Day"],
+  ['2032-12-04', "Ramadan begins"],
+  ['2032-12-29', "Kadir Gecesi"],
+  ['2032-12-31', "New Year's Eve"],
+  ['2033-02-14', "Valentine's Day"],
+  ['2033-03-08', "International Women's Day"],
+  ['2033-03-18', "Çanakkale Victory and Martyrs Day"],
+  ['2033-04-01', "Hijri New Year"],
+  ['2033-04-10', "Ashura"],
+  ['2033-05-08', "Mother's Day"],
+  ['2033-06-09', "Mevlid Kandili"],
+  ['2033-06-19', "Father's Day"],
+  ['2033-09-29', "Regaip Kandili"],
+  ['2033-10-20', "Miraç Kandili"],
+  ['2033-11-07', "Berat Kandili"],
+  ['2033-11-10', "Atatürk Remembrance Day"],
+  ['2033-11-23', "Ramadan begins"],
+  ['2033-11-24', "Teachers' Day"],
+  ['2033-12-18', "Kadir Gecesi"],
+  ['2033-12-31', "New Year's Eve"],
+  ['2034-02-14', "Valentine's Day"],
+  ['2034-03-08', "International Women's Day"],
+  ['2034-03-18', "Çanakkale Victory and Martyrs Day"],
+  ['2034-03-22', "Hijri New Year"],
+  ['2034-03-31', "Ashura"],
+  ['2034-05-14', "Mother's Day"],
+  ['2034-05-29', "Mevlid Kandili"],
+  ['2034-06-18', "Father's Day"],
+  ['2034-09-14', "Regaip Kandili"],
+  ['2034-10-09', "Miraç Kandili"],
+  ['2034-10-27', "Berat Kandili"],
+  ['2034-11-10', "Atatürk Remembrance Day"],
+  ['2034-11-12', "Ramadan begins"],
+  ['2034-11-24', "Teachers' Day"],
+  ['2034-12-07', "Kadir Gecesi"],
+  ['2034-12-31', "New Year's Eve"],
+  ['2035-02-14', "Valentine's Day"],
+  ['2035-03-08', "International Women's Day"],
+  ['2035-03-11', "Hijri New Year"],
+  ['2035-03-18', "Çanakkale Victory and Martyrs Day"],
+  ['2035-03-20', "Ashura"],
+  ['2035-05-13', "Mother's Day"],
+  ['2035-05-19', "Mevlid Kandili"],
+  ['2035-06-17', "Father's Day"],
+  ['2035-09-06', "Regaip Kandili"],
+  ['2035-09-28', "Miraç Kandili"],
+  ['2035-10-16', "Berat Kandili"],
+  ['2035-11-01', "Ramadan begins"],
+  ['2035-11-10', "Atatürk Remembrance Day"],
+  ['2035-11-24', "Teachers' Day"],
+  ['2035-11-26', "Kadir Gecesi"],
+  ['2035-12-31', "New Year's Eve"],
+  ['2036-02-14', "Valentine's Day"],
+  ['2036-02-29', "Hijri New Year"],
+  ['2036-03-08', "International Women's Day"],
+  ['2036-03-09', "Ashura"],
+  ['2036-03-18', "Çanakkale Victory and Martyrs Day"],
+  ['2036-05-08', "Mevlid Kandili"],
+  ['2036-05-11', "Mother's Day"],
+  ['2036-06-15', "Father's Day"],
+  ['2036-08-28', "Regaip Kandili"],
+  ['2036-09-17', "Miraç Kandili"],
+  ['2036-10-04', "Berat Kandili"],
+  ['2036-10-21', "Ramadan begins"],
+  ['2036-11-10', "Atatürk Remembrance Day"],
+  ['2036-11-15', "Kadir Gecesi"],
+  ['2036-11-24', "Teachers' Day"],
+  ['2036-12-31', "New Year's Eve"],
+];
 
-/** Holiday names on a local day (YYYY-MM-DD); empty when none. */
+const index = (rows: readonly Day[]) => {
+  const m = new Map<string, string[]>();
+  for (const [d, n] of rows) m.set(d, [...(m.get(d) ?? []), n]);
+  return m;
+};
+const HOLIDAY_BY_DAY = index(TR_HOLIDAYS);
+const SPECIAL_BY_DAY = index(TR_SPECIAL_DAYS);
+
+/** Public holiday names on a local day (YYYY-MM-DD); empty when none. */
 export function holidaysOn(day: string): string[] {
-  return BY_DAY.get(day) ?? [];
+  return HOLIDAY_BY_DAY.get(day) ?? [];
 }
 
-/** The holidays in one month, as calendar events. */
+/** Special (not a day off) day names on a local day (YYYY-MM-DD); empty when none. */
+export function specialDaysOn(day: string): string[] {
+  return SPECIAL_BY_DAY.get(day) ?? [];
+}
+
+/** The holidays and special days in one month, as calendar events — holidays first. */
 export function holidayEvents(year: number, month: number): HrCalendarEvent[] {
   const prefix = `${year}-${String(month + 1).padStart(2, '0')}-`;
-  return TR_HOLIDAYS
+  const pick = (rows: readonly Day[], kind: HrEventKind) => rows
     .filter(([d]) => d.startsWith(prefix))
-    .map(([d, n]) => ({ id: `holiday-${d}-${n}`, date: d, kind: 'holiday' as const, label: n }));
+    .map(([d, n]) => ({ id: `${kind}-${d}-${n}`, date: d, kind, label: n }));
+  return [...pick(TR_HOLIDAYS, 'holiday'), ...pick(TR_SPECIAL_DAYS, 'special')];
 }
 
-/** First and last year the table covers. */
+/** First and last year the tables cover. */
 export const HOLIDAY_YEARS = { first: 2026, last: 2036 } as const;

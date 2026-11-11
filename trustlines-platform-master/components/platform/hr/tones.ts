@@ -9,6 +9,8 @@ export const KIND_TONE: Record<HrEventKind, { bg: string; fg: string }> = {
   birthday: { bg: 'var(--status-t4-bg)', fg: 'var(--status-t4-fg)' },
   absent: { bg: 'var(--status-t0-bg)', fg: 'var(--status-t0-fg)' },
   holiday: { bg: 'var(--status-t10-bg)', fg: 'var(--status-t10-fg)' },
+  // Marked days in Turkey that aren't days off (10 November, kandils, Mother's Day…).
+  special: { bg: 'var(--status-t7-bg)', fg: 'var(--status-t7-fg)' },
 };
 
 export const KIND_LABEL: Record<HrEventKind, string> = {
@@ -18,9 +20,10 @@ export const KIND_LABEL: Record<HrEventKind, string> = {
   birthday: 'Birthday',
   absent: 'Absent',
   holiday: 'Public Holiday',
+  special: 'Special Day',
 };
 
-export const KIND_ORDER: HrEventKind[] = ['delivery', 'reminder', 'container', 'birthday', 'absent', 'holiday'];
+export const KIND_ORDER: HrEventKind[] = ['delivery', 'reminder', 'container', 'birthday', 'absent', 'holiday', 'special'];
 
 /** YYYY-MM-DD → local Date (no UTC shift). */
 export function parseDay(iso: string): Date {
