@@ -100,7 +100,8 @@ export function ApprovalReviewDialog(p: Props) {
   return (
     <DialogPrimitive.Root open onOpenChange={o => { if (!o) p.onClose(); }}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-primary-950/40 transition-opacity duration-150 data-starting-style:opacity-0 data-ending-style:opacity-0" />
+        {/* Figma 481:23498 "Drawer scrim": black at 70%. */}
+        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/70 transition-opacity duration-150 data-starting-style:opacity-0 data-ending-style:opacity-0" />
         <DialogPrimitive.Popup
           className="fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[1268px] -translate-x-1/2 -translate-y-1/2 flex-col gap-6 overflow-y-auto rounded-[11px] bg-ui-page-bg p-4 font-[family-name:var(--font-ui)] shadow-04 outline-none transition-[scale,opacity] duration-150 data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0 sm:p-8"
         >
@@ -228,8 +229,8 @@ export function ApprovalReviewDialog(p: Props) {
               )}
             </div>
 
-            {/* File preview */}
-            <section className="flex min-h-[420px] min-w-0 flex-1 flex-col gap-4 rounded-[8px] border border-ui-divider bg-ui-surface p-5">
+            {/* File preview — Figma 481:23542: light surface in light mode, page background (just the border) in dark. */}
+            <section className="flex min-h-[420px] min-w-0 flex-1 flex-col gap-4 rounded-[8px] border border-ui-divider bg-ui-surface p-5 dark:bg-ui-page-bg">
               <h3 className={cn('m-0 text-[20px] font-semibold leading-[1.45]', HEADING)}>File Preview</h3>
               <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[6px]">
                 {a && p.previewUrl && kind(a.fileName) === 'pdf' ? (
