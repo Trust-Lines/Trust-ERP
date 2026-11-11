@@ -149,6 +149,8 @@ const isTlCol = (c: ColumnKey) => TL_COLS.includes(c);
 const isMoneyCol = (c: ColumnKey) => isUsdCol(c) || isTlCol(c);
 
 export interface PItem {
+  /** production_items.id (the Production tracker edits by it). */
+  id?: string;
   type?: string | null;
   pfCode?: string | null;
   vendor?: string | { code?: string | null; name?: string | null } | null;

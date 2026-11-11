@@ -122,6 +122,7 @@ export async function GET() {
   }
 
   const mapItem = (it: DbItem): PItem => ({
+    id: it.id,
     type: it.type,
     pfCode: it.pf_code,
     vendor: it.vendor_id ? (vendorMap.get(it.vendor_id) ?? null) : null,

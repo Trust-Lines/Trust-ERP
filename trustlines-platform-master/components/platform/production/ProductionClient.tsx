@@ -186,7 +186,7 @@ export function ProductionClient({ canEdit = false }: { canEdit?: boolean }) {
           {activeTab === 'Missing Extra' && (
             <ExtraItemsPanel source="missing_extra" label="Missing & Extra" canEdit={canEdit} onChanged={load} />
           )}
-          <OperationalBoard sections={sections} />
+          <OperationalBoard sections={sections} canEdit={canEdit} onSaved={() => void load()} />
         </div>
       )}
     </div>
