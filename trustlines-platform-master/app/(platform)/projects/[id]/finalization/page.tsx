@@ -19,7 +19,7 @@ export default async function ProjectFinalizationPage({ params }: { params: Prom
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
   const { data: project } = await admin.from('projects')
-    .select('id, code, name, customer_id, tlines_pm_id').eq('id', id).maybeSingle();
+    .select('id, code, name, current_stage, customer_id, tlines_pm_id').eq('id', id).maybeSingle();
   if (!project) notFound();
   if (role === 'tlines_pm' && project.tlines_pm_id !== user.id) redirect('/projects');
 
@@ -80,6 +80,7 @@ export default async function ProjectFinalizationPage({ params }: { params: Prom
         projectId={id}
         projectCode={project.code}
         projectName={project.name}
+        stage={project.current_stage ?? null}
         canEdit={canEdit}
         initialChangeRequests={changeRequests}
         initialSiteReadiness={siteReadiness}
