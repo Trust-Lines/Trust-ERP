@@ -27,6 +27,11 @@ const BAR_COLORS = ['#414346', '#848484'];
 const TEXT_ON_BAR = 'text-[#EEF2F6]';
 
 const TD = 'whitespace-nowrap border-b border-ui-divider bg-ui-page-bg px-2 py-2.5 text-left align-middle text-[12px] text-ui-body';
+// Trust System behaviour: the column header and region bands stay on top while scrolling down,
+// Project # and Type stay on the left while scrolling sideways, and the board scrolls inside a box
+// that fits the window, so its horizontal scrollbar is always on screen.
+const HEAD_H = 46;
+const STICKY_TYPE_LEFT = WIDTHS.projectNo!;
 const TYPE_TEXT = 'text-[14px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading';
 
 function money(col: ColumnKey, n: number): string {
@@ -45,7 +50,8 @@ function titleCase(label: string): string {
 
 function cellValue(col: ColumnKey, item: PItem): React.ReactNode {
   if (col === 'vendor')   return vendorText(item.vendor);
-  if (isMoneyColumn(col)) return money(col, toNumber((item as Record<string, unknown>)[col] as number));
+  // An empty amount stays empty (only TOTAL rows write 0.00), as in the Trust System.
+  if (isMoneyColumn(col)) { const n = toNumber((item as Record<string, unknown>)[col] as number); return n ? money(col, n) : ''; }
   if (isDateColumn(col))  return shortDate((item as Record<string, unknown>)[col]);
   const v = (item as Record<string, unknown>)[col];
   return v == null ? '' : String(v);
@@ -65,9 +71,9 @@ function Chip({ css, children }: { css: { bg: string; fg: string } | null; child
   );
 }
 
+// No order type yet = an empty cell (was a red "-" chip), as in the Trust System.
 function OrderType({ value }: { value?: string | null }) {
-  const tone = value ? 't0' : 't10';
-  return <Chip css={{ bg: `var(--status-${tone}-bg)`, fg: `var(--status-${tone}-fg)` }}>{value || '-'}</Chip>;
+  return value ? <Chip css={{ bg: 'var(--status-t0-bg)', fg: 'var(--status-t0-fg)' }}>{value}</Chip> : null;
 }
 
 function MoneyChip({ col, value }: { col: ColumnKey; value: number }) {
@@ -100,15 +106,16 @@ export function OperationalBoard({ sections }: { sections: PSection[] }) {
   const afterMoney = COLS.length - COLS.indexOf('invoiceTl') - 1;
 
   return (
-    <div className="overflow-x-auto rounded-[8px] border border-ui-divider">
-      <table className="w-full min-w-max border-collapse">
+    <div className="overflow-auto rounded-[8px] border border-ui-divider" style={{ maxHeight: 'calc(100dvh - 220px)' }}>
+      <table className="w-full min-w-max border-separate border-spacing-0">
         <colgroup>
           {COLS.map(c => <col key={c} style={{ width: WIDTHS[c] ?? 107 }} />)}
         </colgroup>
         <thead>
           <tr>
             {COLS.map(col => (
-              <th key={col} className="h-[46px] whitespace-nowrap border-b border-ui-divider bg-ui-surface px-2 text-left text-[12px] font-semibold leading-[1.4] text-ui-body">
+              <th key={col} className={cn('sticky top-0 z-20 whitespace-nowrap border-b border-ui-divider bg-ui-surface px-2 text-left text-[12px] font-semibold leading-[1.4] text-ui-body', col === 'projectNo' && 'left-0 z-30', col === 'type' && 'z-30')}
+                style={{ height: HEAD_H, ...(col === 'type' ? { left: STICKY_TYPE_LEFT } : {}) }}>
                 {LABELS[col] ?? COLUMN_LABELS[col]}
               </th>
             ))}
@@ -152,7 +159,7 @@ export function OperationalBoard({ sections }: { sections: PSection[] }) {
                         if (col === 'projectNo') {
                           if (!isFirstDataRow) return null;
                           return (
-                            <td key={col} rowSpan={dataRowCount + 1} className="border-r border-ui-divider text-center text-[24px] font-medium text-[var(--ui-page-bg)]" style={{ background: projColor }}>
+                            <td key={col} rowSpan={dataRowCount + 1} className="sticky left-0 z-10 border-r border-ui-divider text-center text-[24px] font-medium text-[var(--ui-page-bg)]" style={{ background: projColor }}>
                               {String(project.projectNo)}
                             </td>
                           );
@@ -160,8 +167,8 @@ export function OperationalBoard({ sections }: { sections: PSection[] }) {
                         if (col === 'type') {
                           if (!isFirstOfGroup) return null;
                           return (
-                            <td key={col} rowSpan={group.items.length} className={cn(TD, TYPE_TEXT)}
-                              style={allSent ? { background: BOARD_CSS.typeAllSent.bg, color: BOARD_CSS.typeAllSent.fg } : undefined}>
+                            <td key={col} rowSpan={group.items.length} className={cn(TD, TYPE_TEXT, 'sticky z-10 border-r')}
+                              style={{ left: STICKY_TYPE_LEFT, ...(allSent ? { background: BOARD_CSS.typeAllSent.bg, color: BOARD_CSS.typeAllSent.fg } : {}) }}>
                               {group.type}
                             </td>
                           );
@@ -195,7 +202,7 @@ export function OperationalBoard({ sections }: { sections: PSection[] }) {
                       <button
                         type="button" onClick={() => toggle(key)} aria-expanded={!isCollapsed}
                         aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} project ${project.projectNo}`}
-                        className={cn('flex items-center gap-4 border-0 bg-transparent p-0 text-left', TEXT_ON_BAR)}
+                        className={cn('sticky left-2 flex items-center gap-4 border-0 bg-transparent p-0 text-left', TEXT_ON_BAR)}
                       >
                         <Chevron size={24} aria-hidden />
                         <span className="text-[16px] font-medium">
@@ -222,8 +229,8 @@ export function OperationalBoard({ sections }: { sections: PSection[] }) {
             return (
               <Fragment key={`sec-${si}`}>
                 <tr>
-                  <td colSpan={COLS.length} className="px-4 py-2 text-[14px] font-semibold" style={{ background: BOARD_CSS.sectionHeader.bg, color: BOARD_CSS.sectionHeader.fg }}>
-                    {section.label}
+                  <td colSpan={COLS.length} className="sticky z-[15] px-4 py-2 text-[14px] font-semibold" style={{ top: HEAD_H, background: BOARD_CSS.sectionHeader.bg, color: BOARD_CSS.sectionHeader.fg }}>
+                    <span className="sticky left-4">{section.label}</span>
                   </td>
                 </tr>
                 {projectRows}
