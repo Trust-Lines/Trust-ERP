@@ -12,7 +12,7 @@ import { ConfirmModal, Modal, ModalClose, ModalContent, modalSecondaryButtonClas
 import { cn } from '@/lib/utils';
 import { normalizeHex } from '@/lib/design/libraryPaths';
 import { openFetchedLink, uploadViaLink } from '@/lib/client/designUpload';
-import { HEADING, formatBytes } from '../designShared';
+import { FORM_FIELD, FORM_LABEL, HEADING, formatBytes } from '../designShared';
 import { LibraryHeader, NotReady } from './LibraryShell';
 
 export interface BrandKit {
@@ -21,8 +21,6 @@ export interface BrandKit {
   created_by: string | null; updated_at: string;
 }
 const API = '/api/design/brands';
-const FORM_LABEL = 'flex flex-col gap-1.5 text-[13px] font-medium';
-const FORM_FIELD = 'h-10 text-[14px] dark:text-[14px]';
 
 export function BrandKitsClient() {
   const [kits, setKits] = useState<BrandKit[] | null>(null);

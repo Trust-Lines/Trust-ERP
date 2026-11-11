@@ -13,7 +13,7 @@ import { ConfirmModal, Modal, ModalClose, ModalContent, modalSecondaryButtonClas
 import { cn } from '@/lib/utils';
 import { MATERIAL_CATEGORIES, normalizeHex } from '@/lib/design/libraryPaths';
 import { openFetchedLink, uploadViaLink } from '@/lib/client/designUpload';
-import { HEADING } from '../designShared';
+import { FORM_FIELD, FORM_LABEL, HEADING } from '../designShared';
 import { LibraryHeader, NotReady } from './LibraryShell';
 
 export interface Material {
@@ -169,40 +169,40 @@ function MaterialEditor({ material, onClose, onSaved }: { material: Material | n
     } finally { setSaving(false); }
   }
 
-  const field = 'flex flex-col gap-1 text-[12px] font-medium';
+  const field = FORM_LABEL;
   return (
     <Modal open onOpenChange={o => { if (!o) onClose(); }}>
       <ModalContent size="lg" title={material ? `Edit ${material.name}` : 'Add material'}
         footer={<><ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Cancel</ModalClose><Button loading={saving} disabled={uploading} onClick={() => void save()}>Save</Button></>}>
-        <div className="grid grid-cols-2 gap-3">
-          <label className={cn(field, 'col-span-2')}>Name<Input value={f.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Egger H3303 Hamilton Oak" /></label>
-          <label className={field}>Category
-            <Select aria-label="Category" value={f.category} onValueChange={v => set('category', v ?? 'other')} options={MATERIAL_CATEGORIES.map(c => ({ value: c, label: categoryLabel(c) }))} />
-          </label>
-          <label className={field}>Code<Input value={f.code} onChange={e => set('code', e.target.value)} placeholder="Supplier / manufacturer code" /></label>
-          <label className={field}>Supplier
-            <Select aria-label="Supplier" value={f.supplier_id} onValueChange={v => set('supplier_id', v ?? '')}
+        <div className="grid grid-cols-2 gap-4">
+          <label className={cn(field, 'col-span-2')}>Name<Input value={f.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Egger H3303 Hamilton Oak" className={FORM_FIELD} /></label>
+          <div className={field}>Category
+            <Select aria-label="Category" className={FORM_FIELD} value={f.category} onValueChange={v => set('category', v ?? 'other')} options={MATERIAL_CATEGORIES.map(c => ({ value: c, label: categoryLabel(c) }))} />
+          </div>
+          <label className={field}>Code<Input value={f.code} onChange={e => set('code', e.target.value)} placeholder="Supplier / manufacturer code" className={FORM_FIELD} /></label>
+          <div className={field}>Supplier
+            <Select aria-label="Supplier" className={FORM_FIELD} value={f.supplier_id} onValueChange={v => set('supplier_id', v ?? '')}
               options={[{ value: '', label: 'Other (type below)' }, ...suppliers.map(s => ({ value: s.id, label: s.name }))]} />
-          </label>
-          <label className={field}>Supplier name{f.supplier_id ? <Input value={suppliers.find(s => s.id === f.supplier_id)?.name ?? ''} disabled /> : <Input value={f.supplier_name} onChange={e => set('supplier_name', e.target.value)} placeholder="If not in Suppliers" />}</label>
-          <label className={field}>Finish<Input value={f.finish} onChange={e => set('finish', e.target.value)} placeholder="Matte, gloss, brushed…" /></label>
+          </div>
+          <label className={field}>Supplier name{f.supplier_id ? <Input value={suppliers.find(s => s.id === f.supplier_id)?.name ?? ''} disabled className={FORM_FIELD} /> : <Input value={f.supplier_name} onChange={e => set('supplier_name', e.target.value)} placeholder="If not in Suppliers" className={FORM_FIELD} />}</label>
+          <label className={field}>Finish<Input value={f.finish} onChange={e => set('finish', e.target.value)} placeholder="Matte, gloss, brushed…" className={FORM_FIELD} /></label>
           <div className={field}>Colour
             <div className="flex gap-2">
-              <input type="color" aria-label="Pick a colour" value={normalizeHex(f.color_hex) ?? '#cccccc'} onChange={e => set('color_hex', e.target.value)} className="h-8 w-10 cursor-pointer rounded-[4px] border border-ui-divider bg-transparent p-0.5" />
-              <Input value={f.color_hex} onChange={e => set('color_hex', e.target.value)} placeholder="#C9B79C" />
+              <input type="color" aria-label="Pick a colour" value={normalizeHex(f.color_hex) ?? '#cccccc'} onChange={e => set('color_hex', e.target.value)} className="h-10 w-11 shrink-0 cursor-pointer rounded-[6px] border border-ui-divider bg-transparent p-1" />
+              <Input aria-label="Colour hex" value={f.color_hex} onChange={e => set('color_hex', e.target.value)} placeholder="#C9B79C" className={cn(FORM_FIELD, 'font-mono')} />
             </div>
           </div>
-          <label className={field}>Price<Input inputMode="decimal" value={f.price} onChange={e => set('price', e.target.value)} placeholder="0.00" /></label>
+          <label className={field}>Price<Input inputMode="decimal" value={f.price} onChange={e => set('price', e.target.value)} placeholder="0.00" className={FORM_FIELD} /></label>
           <div className="grid grid-cols-2 gap-2">
-            <label className={field}>Currency<Input value={f.currency} maxLength={3} onChange={e => set('currency', e.target.value.toUpperCase())} /></label>
-            <label className={field}>Unit<Input value={f.unit} onChange={e => set('unit', e.target.value)} placeholder="sheet, m², L" /></label>
+            <label className={field}>Currency<Input value={f.currency} maxLength={3} onChange={e => set('currency', e.target.value.toUpperCase())} className={FORM_FIELD} /></label>
+            <label className={field}>Unit<Input value={f.unit} onChange={e => set('unit', e.target.value)} placeholder="sheet, m², L" className={FORM_FIELD} /></label>
           </div>
-          <label className={cn(field, 'col-span-2')}>Notes<Textarea rows={2} value={f.notes} onChange={e => set('notes', e.target.value)} placeholder="Lead time, minimum order, where it's used…" /></label>
+          <label className={cn(field, 'col-span-2')}>Notes<Textarea rows={2} value={f.notes} onChange={e => set('notes', e.target.value)} placeholder="Lead time, minimum order, where it's used…" className="text-[14px] leading-[1.5] dark:text-[14px]" /></label>
           <div className="col-span-2 flex flex-wrap items-center gap-3">
-            <Button variant="outline" size="sm" loading={uploading} onClick={() => inputRef.current?.click()}><Camera /> {f.image_path ? 'Replace photo' : 'Add photo'}</Button>
-            {f.image_path && <span className="truncate text-[12px] text-ui-text-secondary">{f.image_path.split('/').pop()}</span>}
+            <Button variant="outline" size="md" loading={uploading} onClick={() => inputRef.current?.click()}><Camera /> {f.image_path ? 'Replace photo' : 'Add photo'}</Button>
+            {f.image_path && <span className="truncate text-[13px] text-ui-text-secondary">{f.image_path.split('/').pop()}</span>}
             <input ref={inputRef} type="file" accept="image/*" hidden onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; void uploadPhoto(file); }} />
-            <label className="ml-auto flex items-center gap-2 text-[12px]"><Checkbox checked={f.is_active} onCheckedChange={c => set('is_active', !!c)} /> Available (uncheck when discontinued)</label>
+            <label className="ml-auto flex items-center gap-2 text-[13px]"><Checkbox checked={f.is_active} onCheckedChange={c => set('is_active', !!c)} /> Available (uncheck when discontinued)</label>
           </div>
         </div>
       </ModalContent>
