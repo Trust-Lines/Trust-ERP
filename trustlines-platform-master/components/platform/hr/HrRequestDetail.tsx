@@ -244,16 +244,17 @@ function FileCard({ file }: { file: HrRequestFile }) {
           <FileText size={40} strokeWidth={1.25} className="text-ui-text-secondary" aria-hidden />
         )}
       </div>
-      <div className="flex items-center justify-between gap-2 bg-ui-surface px-2.5 py-1.5">
-        <span className="flex min-w-0 flex-col leading-[1.3]">
-          <span className={cn('truncate text-[13px] font-medium', HEADING)} title={file.name}>{file.name}</span>
-          {file.label && <span className="truncate text-[11px] text-ui-text-secondary">{file.label}</span>}
+      {/* Figma 570:21579 file footer: 12px semibold name, 10px label, 27px Download. */}
+      <div className="flex items-center justify-between gap-4 bg-ui-surface py-2 pl-3 pr-2">
+        <span className="flex min-w-0 flex-col leading-normal">
+          <span className={cn('truncate text-[12px] font-semibold', HEADING)} title={file.name}>{file.name}</span>
+          {file.label && <span className="truncate text-[10px] tracking-[0.3px] text-ui-text-secondary">{file.label}</span>}
         </span>
         <a
-          href={file.url} download={file.name}
-          className="inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-[4px] bg-[var(--color-secondary-700)] px-2.5 text-[11px] font-medium text-white no-underline hover:opacity-90 dark:bg-primary-50 dark:text-primary-950"
+          href={file.url} download={file.name} aria-label={`Download ${file.name}`}
+          className="inline-flex h-[27px] shrink-0 items-center gap-2 rounded-[4px] bg-[var(--color-secondary-700)] px-2 text-[11px] font-semibold text-white no-underline hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring dark:bg-primary-50 dark:text-primary-950"
         >
-          <Download size={14} aria-hidden /> Download
+          <Download className="size-[11px]" aria-hidden /> Download
         </a>
       </div>
     </div>
