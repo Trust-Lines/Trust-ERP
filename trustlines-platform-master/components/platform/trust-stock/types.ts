@@ -2,8 +2,10 @@
 // ordered into them, with the accounting side (payments, remaining, not ordered, invoice).
 // Frontend only for now — there is no Trust Stock table or endpoint yet.
 
-export type StockPfSign = 'signed' | 'pending' | 'not_signed';
-export type StockSendStatus = 'sent' | 'not_sent';
+/** The Trust System's PF sign labels: 'NOT SIGNED', 'READY TO SIGN', 'SIGNED', 'WAITING T TO SIGN', 'SIGNED WITH EST PRICE'. */
+export type StockPfSign = string;
+/** The Trust System's item status codes: 'NOT_ORDERED', 'ORDERED', 'SENT', 'HOLD_T', … */
+export type StockSendStatus = string;
 
 export interface TrustStockItem {
   id: string;
