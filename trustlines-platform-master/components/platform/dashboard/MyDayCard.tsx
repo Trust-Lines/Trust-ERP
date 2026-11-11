@@ -94,7 +94,7 @@ export function MyDayCard({ className, full = false }: { className?: string; ful
         <span className={TH}>Details</span>
         {full ? <span /> : (
           <Link
-            href="/my-tasks"
+            href="/workspace/tasks"
             className="inline-flex h-7 items-center justify-center gap-2 justify-self-end whitespace-nowrap rounded-[6px] bg-[var(--color-secondary-700)] px-3 text-[13px] font-medium leading-[1.35] text-white no-underline dark:bg-[#EEF2F6] dark:text-[#0A0C0F]"
           >
             View All <ArrowUpRight size={16} aria-hidden />

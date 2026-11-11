@@ -1,14 +1,6 @@
-import { requirePage } from '@/lib/permissions/requirePage';
-import { MyDayCard } from '@/components/platform/dashboard/MyDayCard';
-import { HrPageHeader } from '@/components/platform/hr/HrPages';
+import { redirect } from 'next/navigation';
 
-// "My work" in the HR group: the same personal task feed as /my-tasks (GET /api/my-day).
-export default async function HrMyWorkPage() {
-  await requirePage('page.team');
-  return (
-    <div className="flex flex-col gap-6">
-      <HrPageHeader title="My work" href="/hr/my-work" subtitle="Everything waiting on you right now." />
-      <MyDayCard full />
-    </div>
-  );
+// HR "My work" was the personal task feed — now My Workspace → My Tasks (2026-11-11).
+export default function Page() {
+  redirect('/workspace/tasks');
 }

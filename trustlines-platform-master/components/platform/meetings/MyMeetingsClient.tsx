@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { CalendarDays, CircleAlert, ExternalLink, FileText, Plus, RefreshCw, Users, Video, X } from 'lucide-react';
@@ -9,7 +9,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/feedback-states';
 import { ConfirmModal } from '@/components/ui/modal';
-import { PANEL, PageHeading } from '@/components/platform/marketing/pr/shared';
+import { PANEL } from '@/components/platform/marketing/pr/shared';
 import { ScheduleMeetingDialog } from './ScheduleMeetingDialog';
 
 // My meetings: the person's own Google Calendar (synced), who each meeting was with, Meet links,
@@ -30,13 +30,17 @@ const DAY = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', d
 const TIME = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' });
 const localDay = (iso: string) => { const d = new Date(iso); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
 
-export function MyMeetingsClient() {
+/** `onChanged`: after a sync, a new meeting or a cancellation — e.g. to refresh a month view. */
+export function MyMeetingsClient({ onChanged }: { onChanged?: () => void } = {}) {
   const [range, setRange] = useState<'upcoming' | 'past'>('upcoming');
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [scheduling, setScheduling] = useState(false);
   const [toCancel, setToCancel] = useState<Meeting | null>(null);
+  // Latest callback without making sync() (and the auto-sync effect) change every render.
+  const changedRef = useRef(onChanged);
+  useEffect(() => { changedRef.current = onChanged; }, [onChanged]);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/me/meetings?range=${range}`);
@@ -54,6 +58,7 @@ export function MyMeetingsClient() {
       if (!res.ok) { if (!quiet) toast.error(b.error ?? 'Could not sync'); return; }
       if (!quiet) toast.success(`Synced ${b.events} events from Google Calendar`);
       await load();
+      changedRef.current?.();
     } finally {
       setSyncing(false);
     }
@@ -84,20 +89,25 @@ export function MyMeetingsClient() {
     toast.success('Meeting cancelled — attendees were told');
     setToCancel(null);
     await load();
+    changedRef.current?.();
   }
 
+  // Lives under My Workspace → Calendar & Meetings (the page has the h1), so this is a section heading.
   const heading = (
-    <PageHeading
-      trail={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'My meetings', href: '/meetings' }]}
-      title="My meetings"
-      subtitle={data?.connection ? `From your Google Calendar (${data.connection.google_email}).` : 'Your Google Calendar meetings, with the Contacts and Customers they were with.'}
-      actions={connected && (
-        <>
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col gap-1">
+        <h2 className="m-0 text-[18px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">Meetings</h2>
+        <p className="m-0 text-[13px] text-ui-body">
+          {data?.connection ? `From your Google Calendar (${data.connection.google_email}).` : 'Your Google Calendar meetings, with the Contacts and Customers they were with.'}
+        </p>
+      </div>
+      {connected && (
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" loading={syncing} onClick={() => sync()}><RefreshCw /> Sync now</Button>
           <Button onClick={() => setScheduling(true)}><Plus /> Schedule meeting</Button>
-        </>
+        </div>
       )}
-    />
+    </div>
   );
 
   if (error) return <div className="flex flex-col gap-[30px]">{heading}<div className={cn(PANEL, 'p-6')}><ErrorState title="Meetings aren’t available" description={error} /></div></div>;
@@ -187,7 +197,7 @@ export function MyMeetingsClient() {
         </>
       )}
 
-      {scheduling && <ScheduleMeetingDialog onClose={() => setScheduling(false)} onCreated={() => { setScheduling(false); load(); }} />}
+      {scheduling && <ScheduleMeetingDialog onClose={() => setScheduling(false)} onCreated={() => { setScheduling(false); load(); changedRef.current?.(); }} />}
       <ConfirmModal open={!!toCancel} onOpenChange={o => { if (!o) setToCancel(null); }}
         title="Cancel this meeting?" description={toCancel?.title} tone="destructive" confirmLabel="Cancel meeting"
         warning="It’s removed from Google Calendar and every attendee gets a cancellation email." onConfirm={cancel} />

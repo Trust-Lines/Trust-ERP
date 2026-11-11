@@ -1,10 +1,9 @@
 'use client';
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { ChartNoAxesCombined, MessagesSquare, Package2, Plus } from 'lucide-react';
+import { ChartNoAxesCombined, Package2, Plus } from 'lucide-react';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { HrCalendar } from './HrCalendar';
 import { HrActionButton, HrAgendaCard } from './HrCards';
@@ -119,26 +118,7 @@ export function HrOrdersPage() {
   );
 }
 
-// ── Messages ───────────────────────────────────────────────────────────────────────────────
-export function HrMessagesPage() {
-  return (
-    <Page>
-      <HrPageHeader title="Messages" href="/hr/messages" subtitle="Conversations with the team about leave, onboarding and requests." />
-      <section aria-label="Messages" className="grid min-h-[480px] grid-cols-1 overflow-hidden rounded-[8px] border border-ui-divider bg-ui-surface-elevated md:grid-cols-[300px_1fr]">
-        <div className="flex flex-col border-b border-ui-divider md:border-b-0 md:border-r">
-          <p className="m-0 border-b border-ui-divider px-5 py-4 text-[14px] font-semibold text-ui-heading">Inbox</p>
-          <EmptyState size="sm" className="px-5" title="No conversations yet." />
-        </div>
-        <EmptyState
-          icon={<MessagesSquare />}
-          title="No conversation selected"
-          description="Messages from the team will show here once HR messaging is connected."
-          action={<Button disabled>New message</Button>}
-        />
-      </section>
-    </Page>
-  );
-}
+// Messages moved to My Workspace (components/platform/messages/TeamMessages.tsx).
 
 // ── Reports ────────────────────────────────────────────────────────────────────────────────
 const REPORTS = [

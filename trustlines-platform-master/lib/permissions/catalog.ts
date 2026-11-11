@@ -5,6 +5,7 @@ import { PROJECT_FINANCE_READ_ROLES } from '@/lib/finance/projectTotals';
 export type PermCategory = 'page' | 'edit' | 'sign' | 'view' | 'notify' | 'progress';
 
 export const PAGE_ROUTES: { key: string; route: string }[] = [
+  { key: 'page.my_workspace',    route: '/workspace' },
   { key: 'page.dashboard',       route: '/tlines-pm' },
   { key: 'page.projects',        route: '/projects' },
   { key: 'page.pm',              route: '/pm' },
@@ -17,7 +18,7 @@ export const PAGE_ROUTES: { key: string; route: string }[] = [
   { key: 'page.design_reviews',  route: '/design/reviews' },
   { key: 'page.design_videos',   route: '/design/videos' },
   { key: 'page.approvals',       route: '/approvals' },
-  { key: 'page.notifications',   route: '/notifications' },
+  { key: 'page.notifications',   route: '/workspace/notifications' },
   { key: 'page.clients',         route: '/clients' },
   { key: 'page.marketing',       route: '/marketing' },
   { key: 'page.marketing_contacts', route: '/marketing/prospects' },
@@ -62,10 +63,18 @@ export interface PermGroup { category: PermCategory; title: string; icon: string
 // Page access is split by area so every page in the sidebar can be switched on/off per role.
 export const PERMISSION_GROUPS: PermGroup[] = [
   {
+    // The sidebar's My Workspace group: one person's own tasks, approvals, meetings and
+    // notifications. Every list in it keeps the access rules of the module the rows come from.
+    category: 'page', title: 'Pages · My Workspace', icon: '🧑‍💼',
+    perms: [
+      { key: 'page.my_workspace',   label: 'My Workspace', hint: 'Overview, My Tasks, My Approvals, Calendar & Meetings, Messages. On for every role until switched off.' },
+    ],
+  },
+  {
     // Same pages as the sidebar's T-Lines PM group.
     category: 'page', title: 'Pages · T-Lines PM', icon: '🦺',
     perms: [
-      { key: 'page.dashboard',      label: 'Board', hint: 'The T-Lines PM branch board (and My meetings). Opens on login.' },
+      { key: 'page.dashboard',      label: 'Board', hint: 'The T-Lines PM branch board. Opens on login.' },
       { key: 'page.pm',             label: 'PM Workspace', hint: 'Personal project priorities. Follows “Projects” until set separately.' },
       { key: 'page.installation',   label: 'Installation plan', hint: 'Register, dashboard, Gantt, teams. Follows “Board” until set separately.' },
     ],
@@ -282,7 +291,9 @@ export const PAGE_LEGACY_ROLES: Record<string, string[]> = {
 };
 
 /** Keys every role has until an admin switches them off — the popup tabs everyone saw at first. */
-export const PERM_DEFAULT_ON = new Set(['view.card_deal', 'view.card_finalization', 'view.card_po_pf', 'view.card_production', 'view.card_shipping']);
+// page.my_workspace: personal pages (My meetings and Notifications were open to every signed-in
+// person before they moved into My Workspace).
+export const PERM_DEFAULT_ON = new Set(['page.my_workspace', 'view.card_deal', 'view.card_finalization', 'view.card_po_pf', 'view.card_production', 'view.card_shipping']);
 
 /** Whether `role` (with its effective permission map) may open the page behind `key`. */
 export function pageAllowed(role: string | null | undefined, perms: PermMap | null | undefined, key: string): boolean {

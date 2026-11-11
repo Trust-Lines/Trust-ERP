@@ -56,6 +56,7 @@ import {
   MessagesSquare,
   ChartNoAxesCombined,
   Boxes,
+  UserRound,
 } from 'lucide-react';
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip';
 import type { UserRole } from '@/types/database';
@@ -109,8 +110,20 @@ const TLINES_PM_NAV: NavItem[] = [
   { label: 'PM Workspace', href: '/pm',        icon: ClipboardList,   perm: 'page.pm' },
   // The installation plan (was the "Installation_Planning" workbook).
   { label: 'Installation', href: '/tlines-pm/installation', icon: CalendarRange, perm: 'page.installation' },
-  // Personal Google Calendar view — everyone who has the board has their own meetings.
-  { label: 'My meetings',  href: '/meetings',  icon: CalendarDays,    perm: 'page.dashboard' },
+  // "My meetings" moved to My Workspace → Calendar & Meetings (2026-11-11).
+];
+
+// 2026-11-11: My Workspace — one person's own work, whatever their department: tasks assigned
+// to them, approvals waiting on them, their meetings, messages and notifications. Each page
+// reads the existing modules with those modules' access rules (lib/myWorkspace). HR "My work",
+// HR "Messages" and T-Lines PM "My meetings" moved here; their old URLs redirect.
+const MY_WORKSPACE_NAV: NavItem[] = [
+  { label: 'Overview',             href: '/workspace',               icon: LayoutDashboard, perm: 'page.my_workspace', exact: true },
+  { label: 'My Tasks',             href: '/workspace/tasks',         icon: ListChecks,      perm: 'page.my_workspace' },
+  { label: 'My Approvals',         href: '/workspace/approvals',     icon: CheckSquare,     perm: 'page.my_workspace' },
+  { label: 'Calendar & Meetings',  href: '/workspace/calendar',      icon: CalendarDays,    perm: 'page.my_workspace' },
+  { label: 'Messages',             href: '/workspace/messages',      icon: MessagesSquare,  perm: 'page.my_workspace' },
+  { label: 'Notifications',        href: '/workspace/notifications', icon: Bell,            perm: 'page.my_workspace' },
 ];
 const CUSTOMERS_ITEM: NavItem = { label: 'Customers', href: '/customers', icon: Contact, perm: 'page.customers' };
 // Design: the jobs workspace plus the shared library around it.
@@ -170,9 +183,8 @@ const HR_NAV: NavItem[] = [
   { label: 'Dashboard', href: '/hr',          icon: LayoutDashboard,     perm: 'page.team' },
   { label: 'Staff',     href: '/hr/staff',    icon: Users,               perm: 'page.team' },
   { label: 'Requests',  href: '/hr/requests', icon: Inbox,               perm: 'page.team' },
-  { label: 'My work',   href: '/hr/my-work',  icon: ClipboardList,       perm: 'page.team' },
+  // "My work" and "Messages" were personal — now in My Workspace.
   { label: 'Calendar',  href: '/hr/calendar', icon: CalendarDays,        perm: 'page.team' },
-  { label: 'Messages',  href: '/hr/messages', icon: MessagesSquare,      perm: 'page.team' },
   { label: 'Reports',   href: '/hr/reports',  icon: ChartNoAxesCombined, perm: 'page.team' },
 ];
 
@@ -288,6 +300,7 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
   const salesItems = allowed(salesNav);
   const showSales = salesItems.some(i => i !== CUSTOMERS_ITEM);
   const sections: NavSection[] = [
+    { key: 'my-workspace', title: 'My Workspace', icon: UserRound, items: allowed(MY_WORKSPACE_NAV) },
     { key: 'tlines-pm', title: 'T-Lines PM', icon: HardHat, items: allowed(TLINES_PM_NAV) },
     { key: 'marketing', title: 'Marketing', icon: Megaphone, items: marketingNav },
     ...(showSales ? [{ key: 'sales', title: 'Sales', icon: Target, items: salesItems, activeOverride: quickDealActive ? '/leads/new' : undefined }] : []),
@@ -415,7 +428,7 @@ export function Sidebar({
         <div className="flex w-full flex-col items-center gap-10 pt-10">
           <div className={DIVIDER} />
           <div className="flex flex-col items-center gap-[30px]">
-            <RailTip label="Notifications" render={<IntentLink href="/notifications" aria-label="Notifications" className="text-[#787881] hover:text-secondary-700 dark:hover:text-primary-50" />}>
+            <RailTip label="Notifications" render={<IntentLink href="/workspace/notifications" aria-label="Notifications" className="text-[#787881] hover:text-secondary-700 dark:hover:text-primary-50" />}>
               <Bell className={RAIL_ICON} strokeWidth={1.5} />
             </RailTip>
             {canSettings && (

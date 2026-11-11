@@ -2,7 +2,8 @@
 // page feeds it these lists — nothing here fetches or invents data.
 
 /** Calendar legend: Order Delivery, Reminder, Container, Birthday, Absent, Public Holiday. */
-export type HrEventKind = 'delivery' | 'reminder' | 'container' | 'birthday' | 'absent' | 'holiday' | 'special';
+/** 'meeting' and 'task' are used by My Workspace → Calendar & Meetings, not the HR calendar. */
+export type HrEventKind = 'delivery' | 'reminder' | 'container' | 'birthday' | 'absent' | 'holiday' | 'special' | 'meeting' | 'task';
 
 export interface HrCalendarEvent {
   id: string;
@@ -10,6 +11,8 @@ export interface HrCalendarEvent {
   date: string;
   kind: HrEventKind;
   label: string;
+  /** Opens the event's record (an app path, or an external link such as Google Calendar). */
+  href?: string;
 }
 
 export interface HrAgendaItem {
