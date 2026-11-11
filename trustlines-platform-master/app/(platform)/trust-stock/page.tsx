@@ -2,6 +2,9 @@ import { redirect } from 'next/navigation';
 import { requirePage } from '@/lib/permissions/requirePage';
 import { createClient } from '@/lib/supabase/server';
 import { TrustStockClient } from '@/components/platform/trust-stock/TrustStockClient';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getRolePermissions } from '@/lib/permissions/server';
+import { pageAllowed, permCan } from '@/lib/permissions/catalog';
 
 // Figma "Trust Stock" (node 598:22796), in the Operations group. Same access as Management
 // (ops_manager / general_manager by default). PF amounts and vendor prices are internal cost data:
@@ -15,5 +18,11 @@ export default async function TrustStockPage() {
   const role = (data as { role: string | null } | null)?.role ?? null;
   if (!role || role === 'tlines_pm') redirect('/dashboard');
 
-  return <TrustStockClient />;
+  // Upload PF PDF writes to the Trust System through /api/trust, which needs the Production page
+  // and "Change production board": without them the button isn't shown at all.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const perms = await getRolePermissions(createAdminClient() as any, role);
+  const canUploadPf = pageAllowed(role, perms, 'page.production') && permCan(perms, 'edit.production');
+
+  return <TrustStockClient canUploadPf={canUploadPf} />;
 }

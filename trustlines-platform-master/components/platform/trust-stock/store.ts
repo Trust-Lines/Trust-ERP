@@ -30,6 +30,20 @@ export function useTrustStocks() {
   };
 }
 
+/**
+ * A PF saved through "Upload PF PDF" (the Trust System has it now): show it in this page's table
+ * under its stock code — creating the stock if it isn't here — and its products in Stock Contents
+ * as not yet received ("Pending verification").
+ */
+export function addImportedPf(stockCode: string, item: TrustStockItem, lineParts: StockPart[]) {
+  const code = stockCode.trim();
+  const existing = stocks.find(s => s.code.toLowerCase() === code.toLowerCase());
+  set(existing
+    ? stocks.map(s => (s.id === existing.id ? { ...s, items: [...s.items.filter(i => i.id !== item.id), item] } : s))
+    : [...stocks, { id: newId(), code, items: [item] }]);
+  setParts({ ...parts, [item.id]: lineParts });
+}
+
 // ── Money / totals ─────────────────────────────────────────────────────────────────────────
 const fmt = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const usd = (n: number) => `$ ${fmt.format(n || 0)}`;

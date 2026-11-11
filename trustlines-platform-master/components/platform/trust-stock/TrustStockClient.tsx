@@ -1,14 +1,16 @@
 'use client';
 
 import { useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { toast } from 'sonner';
 import { Boxes, Plus, Rows3, Search, Upload } from 'lucide-react';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import type { TrustStock, TrustStockItem } from './types';
-import { fmtDay, sum, tl, usd, useTrustStocks, type AmountKey } from './store';
+import { addImportedPf, fmtDay, newId, sum, tl, usd, useTrustStocks, type AmountKey } from './store';
 import { NewStockDialog, PF_SIGN, SEND_STATUS, StockItemDialog } from './TrustStockForms';
 import { StockOverview } from './StockOverview';
+import { PfPdfImportDialog, type ImportedResult } from './PfPdfImportDialog';
 
 // Figma "Trust Stock" (node 598:22796): two tables side by side that share their rows — the
 // stock lines (PF, vendor, dates, PF/INV amounts) and the accounting for the same lines
@@ -72,8 +74,37 @@ function rowKeys(open: () => void) {
   };
 }
 
-export function TrustStockClient() {
+/** A PF imported into the Trust System → this page's row + its products (not yet received). */
+function onImported({ stockCode, data, vendor, result }: ImportedResult) {
+  const id = result.id ?? newId();
+  const total = data.totalPrice ?? 0;
+  const rule = Number(data.paymentRule);
+  addImportedPf(stockCode, {
+    id,
+    type: data.type ? data.type.charAt(0) + data.type.slice(1).toLowerCase() : 'Other',
+    pfCode: result.pfCode ?? data.pfCode,
+    vendor: vendor ? `${vendor.code} - ${vendor.name}` : '',
+    orderNo: data.orderNo ?? '',
+    pfSign: result.pfSignStatus === 'SIGNED' ? 'signed' : 'not_signed',
+    status: 'not_sent',
+    std: data.pfDate, rtr: null, rto: null,
+    pfUsd: data.currency === 'USD' ? total : 0,
+    pfTl: data.currency === 'TL' ? total : 0,
+    invUsd: 0, invTl: 0,
+    paymentRule: Number.isFinite(rule) && data.paymentRule ? rule : null,
+    paid1Usd: 0, paid1UsdDate: null, paid2Usd: 0, paid2UsdDate: null,
+    paid1Tl: 0, paid1TlDate: null, paid2Tl: 0, paid2TlDate: null,
+    notOrderedUsd: 0, notOrderedTl: 0,
+  }, data.products.map(p => ({
+    id: newId(), itemCode: p.itemCode, description: p.description ?? '', depth: '', width: '', height: '',
+    ordered: p.quantity, received: null, target: p.quantity, taken: 0, returned: 0, reserved: 0, reorderAt: 30, usedIn: [],
+  })));
+  toast.success(`Added to ${stockCode}`, { description: `${data.pfCode} · ${data.products.length} product${data.products.length === 1 ? '' : 's'} — pending verification until received.` });
+}
+
+export function TrustStockClient({ canUploadPf = false }: { canUploadPf?: boolean }) {
   const { stocks, addStock, saveItem, removeItem } = useTrustStocks();
+  const [pdfOpen, setPdfOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [newStock, setNewStock] = useState(false);
   const [overview, setOverview] = useState(false);
@@ -116,13 +147,15 @@ export function TrustStockClient() {
         </div>
         <div className="flex items-center gap-2">
           {/* Figma toolbar (node 598:22871): Upload PF PDF (outline), Stock Contents (primary), New Stock (accent).
-              Upload needs PF parsing + Dropbox upload on the server; not built yet. */}
-          <button
-            type="button" disabled title="PF upload isn't connected yet"
-            className={cn('inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent pl-4 pr-5 text-[13px] font-medium leading-[1.35] opacity-50 dark:border-ui-heading', HEADING)}
-          >
-            <Upload size={16} aria-hidden /> Upload PF PDF
-          </button>
+              Upload reads the PF in the Trust System (PfPdfImportDialog); hidden for roles that can't write there. */}
+          {canUploadPf && (
+            <button
+              type="button" onClick={() => setPdfOpen(true)}
+              className={cn('inline-flex h-9 cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent pl-4 pr-5 text-[13px] font-medium leading-[1.35] transition-colors hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring dark:border-ui-heading', HEADING)}
+            >
+              <Upload size={16} aria-hidden /> Upload PF PDF
+            </button>
+          )}
           <button
             type="button" onClick={() => setOverview(true)}
             className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-[var(--color-secondary-700)] pl-4 pr-5 text-[13px] font-medium leading-[1.35] text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring dark:bg-primary-50 dark:text-primary-950"
@@ -156,6 +189,7 @@ export function TrustStockClient() {
       )}
 
       <StockOverview open={overview} onOpenChange={setOverview} stocks={stocks} />
+      {canUploadPf && <PfPdfImportDialog open={pdfOpen} onOpenChange={setPdfOpen} onImported={onImported} />}
       <NewStockDialog open={newStock} onOpenChange={setNewStock} existing={stocks.map(s => s.code)} onCreate={addStock} />
       <StockItemDialog
         open={!!editing && !!editingStock}
