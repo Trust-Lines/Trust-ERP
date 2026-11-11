@@ -22,6 +22,7 @@ import { can } from '@/lib/permissions/can';
 import type { ProjectStage, ProjectPhase } from '@/types/database';
 import type { StepRecord } from '@/lib/workflow/steps';
 import { cn } from '@/lib/utils';
+import { PROJECT_FINANCE_READ_ROLES } from '@/lib/finance/projectTotals';
 
 // Figma "Project Detail" (node 245:28820).
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
@@ -152,7 +153,14 @@ function FinanceCard({ project, documents, userRole }: {
 
   return (
     <div className="flex flex-col gap-2.5 rounded-[8px] border border-ui-divider bg-ui-page-bg pb-5 pl-4 pr-[18px] pt-3.5">
-      <h2 className={cn('m-0 text-[20px] font-semibold tracking-[0.4px]', HEADING)}>Finance</h2>
+      <h2 className={cn('m-0 text-[20px] font-semibold tracking-[0.4px]', HEADING)}>
+        {/* Opens the Finance tab for roles that can read it (same list the finance page enforces). */}
+        {(PROJECT_FINANCE_READ_ROLES as readonly string[]).includes(userRole) ? (
+          <Link href={`/projects/${project.id}/finance`} className="inline-flex items-center gap-1.5 text-inherit no-underline hover:underline">
+            Finance <ChevronRight className="size-4" aria-hidden />
+          </Link>
+        ) : 'Finance'}
+      </h2>
       {/* Figma 445:7500: one row — EST. Value, Total PF, Total PO, Margin. */}
       <div className="grid grid-cols-1 gap-[22px] sm:grid-cols-2 2xl:grid-cols-4">
         <FinanceTile label="EST. Value" currency={currency}>
@@ -467,7 +475,7 @@ export function ProjectDetailClient({
             {permCan(userPerms, 'page.production') && (
               <Link href={`/projects/${project.id}/types`} className={BTN_OUTLINE}>Types</Link>
             )}
-            {['ops_manager', 'general_manager', 'accountant', 'accounting', 'trustlines_pm'].includes(userRole) && (
+            {(PROJECT_FINANCE_READ_ROLES as readonly string[]).includes(userRole) && (
               <Link href={`/projects/${project.id}/finance`} className={BTN_OUTLINE}>Finance</Link>
             )}
             {(userRole === 'ops_manager' || userRole === 'general_manager') && (
