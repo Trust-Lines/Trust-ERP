@@ -13,6 +13,7 @@ interface DbItem {
   rdy: string | null; ftd: string | null; snd: string | null;
   pf_usd: number | null; pf_tl: number | null; invoice: number | null; invoice_tl: number | null;
   payment_rule: string | null; container_no: string | null; container_date: string | null; sort_index: number | null;
+  trust_id?: string | null; case_id?: string | null;
 }
 
 export async function GET() {
@@ -24,56 +25,25 @@ export async function GET() {
 
   const { data: projects } = await admin
     .from('projects')
-    .select('id, code, name, categories, dropbox_root_path, is_archived')
+    .select('id, code, name, categories, dropbox_root_path, is_archived, region, is_urgent, production_container_date')
     .is('deleted_at', null)
     .or('is_archived.is.null,is_archived.eq.false')
     .or('is_draft.is.null,is_draft.eq.false,delivered_to_trust_at.not.is.null')
     .order('created_at', { ascending: true }) as {
-      data: { id: string; code: string; name: string; categories: string[] | null; dropbox_root_path: string | null }[] | null;
+      data: { id: string; code: string; name: string; categories: string[] | null; dropbox_root_path: string | null; region: string | null; is_urgent: boolean | null; production_container_date: string | null }[] | null;
     };
 
   if (!projects?.length) return NextResponse.json({ projects: [], directOrders: [], missingExtra: [] });
 
   const projectIds = projects.map(p => p.id);
 
-  try {
-    const { data: pfDocs } = await admin.from('documents')
-      .select('project_id, cat_group, file_name, form_data')
-      .in('project_id', projectIds).eq('doc_type', 'pf') as {
-        data: { project_id: string; cat_group: string | null; file_name: string; form_data: { categories: { subCategories: { groups: { items: { quantity: number; unitPrice: number | null }[] }[] }[] }[] }[] | null }[] | null;
-      };
-    if (pfDocs?.length) {
-      const { data: sup } = await admin.from('suppliers').select('id, code') as { data: { id: string; code: string | null }[] | null };
-      const codeToId = new Map((sup ?? []).filter(v => v.code).map(v => [v.code!.toUpperCase(), v.id]));
-      const { data: existPi } = await admin.from('production_items')
-        .select('project_id, type, vendor_id').in('project_id', projectIds).is('deleted_at', null) as {
-          data: { project_id: string; type: string; vendor_id: string | null }[] | null;
-        };
-      const have = new Set((existPi ?? []).filter(r => r.vendor_id).map(r => `${r.project_id}|${r.type}|${r.vendor_id}`));
-      const inserts: Record<string, unknown>[] = [];
-      const seen = new Set<string>();
-      for (const pf of pfDocs) {
-        if (!pf.cat_group) continue;
-        const pfCode = pf.file_name.split(' - PF')[0].trim();
-        const vendorCode = pfCode.split('-')[0]?.trim().toUpperCase();
-        const vendorId = vendorCode ? codeToId.get(vendorCode) : undefined;
-        if (!vendorId) continue;
-        const type = pf.cat_group.charAt(0).toUpperCase() + pf.cat_group.slice(1);
-        const key = `${pf.project_id}|${type}|${vendorId}`;
-        if (have.has(key) || seen.has(key)) continue;
-        seen.add(key);
-        const total = (pf.form_data ?? [])
-          .flatMap(s => s.categories.flatMap(c => c.subCategories.flatMap(sb => sb.groups.flatMap(g => g.items))))
-          .reduce((a, i) => a + (i.quantity || 0) * (i.unitPrice ?? 0), 0);
-        inserts.push({ project_id: pf.project_id, source: 'project', type, vendor_id: vendorId, pf_code: pfCode, pf_usd: total });
-      }
-      if (inserts.length) await admin.from('production_items').insert(inserts);
-    }
-  } catch (e) { console.error('[board] PF backfill failed:', e); }
+  // Rows are no longer made from PF file names here (that duplicated vendors and showed file names
+  // as PF codes): the board's rows are the Trust System copy (scripts/copy-trust-production.mts,
+  // trust_id set) and the rows people add or edit in T-ERP.
 
   const { data: items } = await admin
     .from('production_items')
-    .select('id, project_id, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index')
+    .select('id, project_id, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index, trust_id')
     .in('project_id', projectIds)
     .eq('source', 'project')
     .is('deleted_at', null) as { data: DbItem[] | null };
@@ -91,7 +61,7 @@ export async function GET() {
     types.forEach((type, i) => toSeed.push({ project_id: p.id, source: 'project', type, sort_index: i }));
   }
   if (toSeed.length) {
-    const cols = 'id, project_id, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index';
+    const cols = 'id, project_id, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index, trust_id';
     const { data: firstTry, error: seedErr } = await admin.from('production_items').insert(toSeed).select(cols) as { data: DbItem[] | null; error: { code?: string } | null };
     let seeded = firstTry;
     // Another request seeded these projects a moment ago (unique index, migration 148): read theirs.
@@ -105,12 +75,17 @@ export async function GET() {
     }
   }
 
-  const { data: extraItems } = await admin
+  const { data: cases } = await admin.from('production_cases')
+    .select('id, kind, code, name, address, bucket, case_type, base_project_name, is_urgent, container_date, created_at')
+    .is('deleted_at', null).order('created_at', { ascending: true }) as {
+      data: { id: string; kind: string; code: string; name: string | null; address: string | null; bucket: string | null; case_type: string | null; base_project_name: string | null; is_urgent: boolean; container_date: string | null }[] | null;
+    };
+  const caseIds = (cases ?? []).map(c => c.id);
+  const { data: extraItems } = caseIds.length ? await admin
     .from('production_items')
-    .select('id, project_id, source, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index')
-    .in('project_id', projectIds)
-    .in('source', ['direct_order', 'missing_extra'])
-    .is('deleted_at', null) as { data: DbItem[] | null };
+    .select('id, project_id, case_id, source, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index, trust_id')
+    .in('case_id', caseIds)
+    .is('deleted_at', null) as { data: DbItem[] | null } : { data: [] as DbItem[] };
 
   const vendorIds = [...new Set([...(items ?? []), ...(extraItems ?? [])].map(i => i.vendor_id).filter(Boolean))] as string[];
   const vendorMap = new Map<string, { code: string | null; name: string }>();
@@ -138,38 +113,28 @@ export async function GET() {
   const boardProjects: PProject[] = projects.map(p => {
     const rows = byProject.get(p.id) ?? [];
     const typesWithVendor = new Set(rows.filter(r => r.vendor_id).map(r => r.type));
-    const visible = rows.filter(r => r.vendor_id || !typesWithVendor.has(r.type));
+    const visible = rows.filter(r => r.trust_id || r.vendor_id || !typesWithVendor.has(r.type));
     return {
       projectNo: p.code,
       projectName: p.name,
-      bucket: bucketFromPath(p.dropbox_root_path),
-      containerDate: null,
+      bucket: p.region ?? bucketFromPath(p.dropbox_root_path),
+      isUrgent: !!p.is_urgent,
+      containerDate: p.production_container_date,
       items: visible.sort((a, b) => (a.sort_index ?? 0) - (b.sort_index ?? 0)).map(mapItem),
     };
   }).filter(p => p.items.length > 0);
 
-  const projById = new Map(projects.map(p => [p.id, p]));
-  const buildExtra = (source: string): PProject[] => {
-    const bySrcProject = new Map<string, DbItem[]>();
-    for (const it of extraItems ?? []) {
-      if (it.source !== source) continue;
-      if (!bySrcProject.has(it.project_id)) bySrcProject.set(it.project_id, []);
-      bySrcProject.get(it.project_id)!.push(it);
-    }
-    const out: PProject[] = [];
-    for (const [pid, rows] of bySrcProject) {
-      const p = projById.get(pid);
-      if (!p) continue;
-      out.push({
-        projectNo: p.code,
-        projectName: p.name,
-        bucket: bucketFromPath(p.dropbox_root_path),
-        containerDate: null,
-        items: rows.sort((a, b) => (a.sort_index ?? 0) - (b.sort_index ?? 0)).map(mapItem),
-      });
-    }
-    return out;
-  };
+  // A case is a block of its own: "DO-01 · DIRECT ORDER 1", "344-EX-1 · Correctionville… (EXTRA)".
+  const buildExtra = (kind: string): PProject[] => (cases ?? []).filter(c => c.kind === kind).map(c => ({
+    projectNo: c.code,
+    projectName: kind === 'missing_extra'
+      ? `${c.base_project_name ?? c.name ?? ''}${c.case_type ? ` (${c.case_type})` : ''}`.trim()
+      : [c.name, c.address].filter(Boolean).join(' - '),
+    bucket: c.bucket ?? 'OTHER',
+    isUrgent: c.is_urgent,
+    containerDate: c.container_date,
+    items: (extraItems ?? []).filter(it => it.case_id === c.id).sort((a, b) => (a.sort_index ?? 0) - (b.sort_index ?? 0)).map(mapItem),
+  })).filter(p => p.items.length > 0);
 
   return NextResponse.json(
     { projects: boardProjects, directOrders: buildExtra('direct_order'), missingExtra: buildExtra('missing_extra') },
