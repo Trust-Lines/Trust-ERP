@@ -93,11 +93,31 @@ function itemRow(it: Any, i: number, owner: { project_id: string | null; case_id
   };
 }
 
-async function upsertItems(rows: Any[]) {
-  for (let i = 0; i < rows.length; i += 100) {
-    const { error } = await db.from('production_items').upsert(rows.slice(i, i + 100), { onConflict: 'trust_id' });
-    if (error) throw new Error(`production_items upsert: ${error.message}`);
+// The trust_id indexes are partial (WHERE trust_id IS NOT NULL), which PostgREST's ON CONFLICT
+// can't target — so: find the rows already copied, update those by id, insert the rest.
+async function existingIds(table: string, trustIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  for (let i = 0; i < trustIds.length; i += 200) {
+    const { data, error } = await db.from(table).select('id, trust_id').in('trust_id', trustIds.slice(i, i + 200));
+    if (error) throw new Error(`${table} lookup: ${error.message}`);
+    for (const r of data ?? []) out.set(r.trust_id, r.id);
   }
+  return out;
+}
+
+async function upsertItems(rows: Any[]) {
+  const have = await existingIds('production_items', rows.map(r => r.trust_id));
+  const updates = rows.filter(r => have.has(r.trust_id)).map(r => ({ ...r, id: have.get(r.trust_id) }));
+  const inserts = rows.filter(r => !have.has(r.trust_id));
+  for (let i = 0; i < updates.length; i += 100) {
+    const { error } = await db.from('production_items').upsert(updates.slice(i, i + 100), { onConflict: 'id' });
+    if (error) throw new Error(`production_items update: ${error.message}`);
+  }
+  for (let i = 0; i < inserts.length; i += 100) {
+    const { error } = await db.from('production_items').insert(inserts.slice(i, i + 100));
+    if (error) throw new Error(`production_items insert: ${error.message}`);
+  }
+  return { updated: updates.length, inserted: inserts.length };
 }
 
 // ── Run ──────────────────────────────────────────────────────────────────────────────────────
@@ -186,10 +206,6 @@ async function upsertItems(rows: Any[]) {
     if (m) {
       const { error } = await db.from('projects').update({ ...meta, ...(m.region ? {} : { region: bucket(tp.bucket) }) }).eq('id', m.id);
       if (error) throw new Error(`project ${m.code}: ${error.message}`);
-      // Earlier T-ERP rows of this project (placeholders, PF-file rows) step aside — archived, not deleted.
-      const { error: aErr } = await db.from('production_items').update({ deleted_at: new Date().toISOString() })
-        .eq('project_id', m.id).eq('source', 'project').is('trust_id', null).is('deleted_at', null);
-      if (aErr) throw new Error(`archive ${m.code}: ${aErr.message}`);
       terpIdOf.set(tp.id, m.id);
     } else {
       const { code, line } = createCode.get(tp.id)!;
@@ -206,11 +222,26 @@ async function upsertItems(rows: Any[]) {
     }
   }
   const projectRows = trustProjects.flatMap(tp => (tp.items ?? []).map((it: Any, i: number) => itemRow(it, i, { project_id: terpIdOf.get(tp.id)!, case_id: null, source: 'project' }, vendorId)));
-  await upsertItems(projectRows);
+  const projectResult = await upsertItems(projectRows);
+  // Then the T-ERP rows these projects had (auto-seeded placeholders, rows made from PF file names)
+  // step aside — archived (deleted_at), not removed. Done after the Trust rows are in, so a board
+  // opened meanwhile can't leave fresh placeholders behind.
+  let archived = 0;
+  for (const pid of new Set(terpIdOf.values())) {
+    const { data, error } = await db.from('production_items').update({ deleted_at: new Date().toISOString() })
+      .eq('project_id', pid).eq('source', 'project').is('trust_id', null).is('deleted_at', null).select('id');
+    if (error) throw new Error(`archive ${pid}: ${error.message}`);
+    archived += (data ?? []).length;
+  }
 
   // ── Cases (Missing & Extra, Direct Orders) ──
+  const caseIds = await existingIds('production_cases', [...meCases.map(c => c.id), ...directOrders.map((d: Any) => d.id)]);
   async function upsertCase(row: Any): Promise<string> {
-    const { data, error } = await db.from('production_cases').upsert(row, { onConflict: 'trust_id' }).select('id').single();
+    const id = caseIds.get(row.trust_id);
+    const q = id
+      ? db.from('production_cases').update(row).eq('id', id).select('id').single()
+      : db.from('production_cases').insert(row).select('id').single();
+    const { data, error } = await q;
     if (error) throw new Error(`case ${row.code}: ${error.message}`);
     return data.id;
   }
@@ -235,7 +266,12 @@ async function upsertItems(rows: Any[]) {
     });
     caseRows.push(...(d.items ?? []).map((it: Any, i: number) => itemRow(it, i, { project_id: null, case_id: id, source: 'direct_order' }, vendorId)));
   }
-  await upsertItems(caseRows);
+  const caseResult = await upsertItems(caseRows);
 
-  console.log(JSON.stringify({ done: true, projectsMatched: matchOf.size, projectsCreated: toCreate.length, projectRows: projectRows.length, caseRows: caseRows.length, cases: meCases.length + directOrders.length, vendorsMissing: [...vendorMissing] }, null, 2));
+  console.log(JSON.stringify({
+    done: true, projectsMatched: matchOf.size, projectsCreated: toCreate.length,
+    projectRows: { total: projectRows.length, ...projectResult }, earlierRowsArchived: archived,
+    cases: meCases.length + directOrders.length, caseRows: { total: caseRows.length, ...caseResult },
+    vendorsMissing: [...vendorMissing],
+  }, null, 2));
 })().catch(e => { console.error('FAILED', e instanceof Error ? e.message : e); process.exit(1); });
