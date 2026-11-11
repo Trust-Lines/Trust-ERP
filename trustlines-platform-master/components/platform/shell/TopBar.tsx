@@ -56,14 +56,16 @@ const ROUTE_TITLES: Record<string, string> = {
   '/roles': 'Roles & Permissions',
   '/audit': 'Audit & Security Log',
   '/settings': 'Settings & Preferences',
-  '/notifications': 'Notifications',
-  '/my-tasks': 'My Tasks',
+  '/workspace': 'My Workspace',
+  '/workspace/tasks': 'My Tasks',
+  '/workspace/approvals': 'My Approvals',
+  '/workspace/calendar': 'Calendar & Meetings',
+  '/workspace/messages': 'Messages',
+  '/workspace/notifications': 'Notifications',
   '/hr': 'HR Dashboard',
   '/hr/staff': 'Staff Members',
   '/hr/requests': 'HR Requests',
-  '/hr/my-work': 'HR · My Work',
   '/hr/calendar': 'HR Calendar',
-  '/hr/messages': 'HR Messages',
   '/hr/reports': 'HR Reports',
   '/hr/orders': 'HR Orders',
 };
@@ -126,7 +128,7 @@ export function TopBar({
       {/* ── Right: notifications & account ─────────────────────── */}
       <div className="flex shrink-0 items-center gap-5">
         <Link
-          href="/notifications"
+          href="/workspace/notifications"
           className="relative grid h-[37px] w-[41px] place-items-center rounded-md text-secondary-700 transition-colors hover:text-primary-500 dark:text-primary-50 dark:hover:text-primary-200"
           title="Notifications"
           aria-label={notificationCount > 0 ? `Notifications (${notificationCount} unread)` : 'Notifications'}

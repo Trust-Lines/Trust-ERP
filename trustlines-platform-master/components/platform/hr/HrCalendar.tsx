@@ -1,10 +1,11 @@
 'use client';
 
 import { useMemo } from 'react';
+import Link from 'next/link';
 import { CalendarDays, Plus } from 'lucide-react';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import type { HrAction, HrCalendarEvent } from './types';
+import type { HrAction, HrCalendarEvent, HrEventKind } from './types';
 import { KIND_LABEL, KIND_ORDER, KIND_TONE, dayKey, startOfDay } from './tones';
 import { HrActionButton } from './HrCards';
 import { HOLIDAY_YEARS, holidayEvents } from './holidays';
@@ -27,6 +28,17 @@ export interface HrCalendarProps {
   today: Date;
   createEvent?: HrAction;
   loading?: boolean;
+  /** Kinds in the legend (default: the HR kinds). */
+  legend?: HrEventKind[];
+}
+
+/** A day's event: a link when it has one, otherwise a plain chip. */
+function Chip({ ev, className, style, children }: { ev: HrCalendarEvent; className: string; style: React.CSSProperties; children: React.ReactNode }) {
+  if (!ev.href) return <span title={ev.label} className={className} style={style}>{children}</span>;
+  const cls = cn(className, 'no-underline hover:underline');
+  return /^https?:\/\//.test(ev.href)
+    ? <a href={ev.href} target="_blank" rel="noreferrer" title={ev.label} className={cls} style={style}>{children}</a>
+    : <Link href={ev.href} title={ev.label} className={cls} style={style}>{children}</Link>;
 }
 
 function buildWeeks(month: Date): Date[][] {
@@ -39,7 +51,7 @@ function buildWeeks(month: Date): Date[][] {
     Array.from({ length: 7 }, (_, d) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7 + d)));
 }
 
-export function HrCalendar({ month, onMonthChange, events, today, createEvent, loading }: HrCalendarProps) {
+export function HrCalendar({ month, onMonthChange, events, today, createEvent, loading, legend = KIND_ORDER }: HrCalendarProps) {
   const weeks = useMemo(() => buildWeeks(month), [month]);
   const todayKey = dayKey(startOfDay(today));
   // Years to pick: last year through the end of the holiday table (and the shown one).
@@ -124,15 +136,16 @@ export function HrCalendar({ month, onMonthChange, events, today, createEvent, l
                     <div className="mt-[5px] flex w-full flex-col gap-1">
                       {shown.map(ev => {
                         const tone = KIND_TONE[ev.kind];
+                        const style = { background: tone.bg, color: tone.fg };
                         return ev.kind === 'holiday' || ev.kind === 'special' ? (
-                          <span key={ev.id} title={ev.label} className="flex w-full items-center gap-1.5 rounded-[4px] px-[13px] py-0.5 text-[11px]" style={{ background: tone.bg, color: tone.fg }}>
+                          <Chip key={ev.id} ev={ev} className="flex w-full items-center gap-1.5 rounded-[4px] px-[13px] py-0.5 text-[11px]" style={style}>
                             <span aria-hidden className="size-1.5 shrink-0 rounded-[3px]" style={{ background: tone.fg }} />
                             <span className="truncate">{ev.label}</span>
-                          </span>
+                          </Chip>
                         ) : (
-                          <span key={ev.id} title={ev.label} className="block w-full truncate rounded-[3px] px-1 py-[5px] text-[10px] font-medium" style={{ background: tone.bg, color: tone.fg }}>
+                          <Chip key={ev.id} ev={ev} className="block w-full truncate rounded-[3px] px-1 py-[5px] text-[10px] font-medium" style={style}>
                             {ev.label}
-                          </span>
+                          </Chip>
                         );
                       })}
                       {extra > 0 && <span className="text-[10px] text-ui-text-secondary">+{extra} more</span>}
@@ -145,7 +158,7 @@ export function HrCalendar({ month, onMonthChange, events, today, createEvent, l
         </div>
 
         <ul aria-label="Legend" className="m-0 flex list-none flex-wrap items-center gap-4 p-0">
-          {KIND_ORDER.map(kind => {
+          {legend.map(kind => {
             const tone = KIND_TONE[kind];
             return (
               <li key={kind} className="flex items-center gap-1.5 rounded-[4px] px-[13px] py-0.5 text-[11px]" style={{ background: tone.bg, color: tone.fg }}>

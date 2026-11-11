@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ApprovalReviewDialog } from './ApprovalReviewDialog';
+import { DOC_LABELS } from './docLabels';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { popupBase } from '@/components/ui/field-styles';
@@ -64,19 +65,6 @@ export interface MyApproval {
 }
 
 const SignaturePad = dynamic(() => import('../SignaturePad').then(m => ({ default: m.SignaturePad })), { ssr: false });
-
-const DOC_LABELS: Record<string, string> = {
-  plan_layout: 'Item Plan',
-  proposal: 'Design Proposal',
-  construction_drawings: 'Construction Drawing',
-  shop_drawing: 'Shop Drawing',
-  item_plan: 'Item Plan',
-  item_list: 'Item List',
-  price_list: 'Item Price List',
-  book: 'Book',
-  po_bo: 'Purchase Order',
-  pf: 'Production Form',
-};
 
 type TabKey = 'open' | 'assigned' | 'needs_approval';
 type PriorityLevel = 'High' | 'Medium' | 'Low';

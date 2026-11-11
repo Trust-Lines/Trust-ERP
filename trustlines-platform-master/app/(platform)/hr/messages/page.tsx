@@ -1,7 +1,6 @@
-import { requirePage } from '@/lib/permissions/requirePage';
-import { HrMessagesPage } from '@/components/platform/hr/HrPages';
+import { redirect } from 'next/navigation';
 
-export default async function Page() {
-  await requirePage('page.team');
-  return <HrMessagesPage />;
+// HR "Messages" was personal — now My Workspace → Messages (2026-11-11).
+export default function Page() {
+  redirect('/workspace/messages');
 }

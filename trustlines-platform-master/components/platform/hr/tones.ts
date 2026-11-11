@@ -11,6 +11,9 @@ export const KIND_TONE: Record<HrEventKind, { bg: string; fg: string }> = {
   holiday: { bg: 'var(--status-t10-bg)', fg: 'var(--status-t10-fg)' },
   // Marked days in Turkey that aren't days off (10 November, kandils, Mother's Day…).
   special: { bg: 'var(--status-t7-bg)', fg: 'var(--status-t7-fg)' },
+  // My Workspace calendar only.
+  meeting: { bg: 'var(--status-t1-bg)', fg: 'var(--status-t1-fg)' },
+  task: { bg: 'var(--status-t3-bg)', fg: 'var(--status-t3-fg)' },
 };
 
 export const KIND_LABEL: Record<HrEventKind, string> = {
@@ -21,6 +24,8 @@ export const KIND_LABEL: Record<HrEventKind, string> = {
   absent: 'Absent',
   holiday: 'Public Holiday',
   special: 'Special Day',
+  meeting: 'Meeting',
+  task: 'Task due',
 };
 
 export const KIND_ORDER: HrEventKind[] = ['delivery', 'reminder', 'container', 'birthday', 'absent', 'holiday', 'special'];
