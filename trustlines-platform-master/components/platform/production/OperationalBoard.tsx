@@ -219,7 +219,7 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
 
   return (
     <div className="overflow-auto rounded-[8px] border border-ui-divider" style={{ maxHeight: 'calc(100dvh - 220px)' }}>
-      <table className="table-fixed border-separate border-spacing-0" style={{ width: COLS.reduce((t, c) => t + width(c), 0) }}>
+      <table className="table-fixed border-separate border-spacing-0" style={{ width: `max(${COLS.reduce((t, c) => t + width(c), 0)}px, 100%)` }}>
         <colgroup>
           {COLS.map(c => <col key={c} style={{ width: width(c) }} />)}
         </colgroup>
