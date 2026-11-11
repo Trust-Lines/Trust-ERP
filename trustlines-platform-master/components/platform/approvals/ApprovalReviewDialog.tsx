@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { Check, ExternalLink, FileSpreadsheet, FileText, Image as ImageIcon, Loader2, Maximize2, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -49,10 +49,18 @@ export function ApprovalReviewDialog(p: Props) {
   const [decision, setDecision] = useState<'approve' | 'reject' | null>(null);
   const [note, setNote] = useState('');
   const [acting, setActing] = useState(false);
+  const [noteError, setNoteError] = useState(false);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
   const a = p.approval;
 
   async function submit(signed = false) {
     if (!a || !decision) return;
+    // A rejection needs a reason: point at the Notes box instead of greying the button out (Figma 481:24230).
+    if (decision === 'reject' && !note.trim()) {
+      setNoteError(true);
+      noteRef.current?.focus();
+      return;
+    }
     // Resumed after the signature pad saved: the prop is still the old null here, so skip the check.
     if (decision === 'approve' && p.userSignature === null && !signed) {
       p.onNeedSignature(() => void submit(true));
@@ -89,12 +97,9 @@ export function ApprovalReviewDialog(p: Props) {
     }
   }
 
-  const ready = decision === 'approve' || (decision === 'reject' && note.trim().length > 0);
-  // Figma 481:23893 (decision picked): "Sign and Submit". A rejection carries no signature, so it reads "Submit".
-  const submitLabel = acting ? 'Saving…'
-    : decision === 'approve' ? 'Sign and Submit'
-    : decision === 'reject' ? (note.trim() ? 'Submit' : 'Add a reason to reject')
-    : 'Reject or approve first';
+  const ready = decision !== null;
+  // Figma 481:23848 / 481:24193 (decision picked): "Sign and Submit" for both approve and reject.
+  const submitLabel = acting ? 'Saving…' : decision ? 'Sign and Submit' : 'Reject or approve first';
   const FileIcon = a ? ({ pdf: FileText, image: ImageIcon, sheet: FileSpreadsheet, other: FileText } as const)[kind(a.fileName)] : FileText;
 
   return (
@@ -138,7 +143,7 @@ export function ApprovalReviewDialog(p: Props) {
                     {decision ? (
                       // Figma 481:24218: once picked, one tinted "Rejected ✕" / "Approved ✓" bar; clicking it undoes the pick.
                       <button
-                        type="button" disabled={acting} onClick={() => { setDecision(null); setNote(''); }}
+                        type="button" disabled={acting} onClick={() => { setDecision(null); setNote(''); setNoteError(false); }}
                         aria-label={`${decision === 'reject' ? 'Rejected' : 'Approved'} — click to change the decision`}
                         title="Change decision"
                         className="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-[7px] rounded-[6px] border-0 pl-8 pr-6 text-[13px] font-medium transition-opacity hover:opacity-85 disabled:cursor-not-allowed"
@@ -197,15 +202,20 @@ export function ApprovalReviewDialog(p: Props) {
                       {decision === 'reject' ? 'Notes*' : 'Notes'}
                     </span>
                     <textarea
-                      value={note} onChange={e => setNote(e.target.value)} disabled={!decision || acting}
+                      ref={noteRef}
+                      value={note} onChange={e => { setNote(e.target.value); if (noteError) setNoteError(false); }} disabled={!decision || acting}
                       required={decision === 'reject'} aria-required={decision === 'reject'}
-                      placeholder={decision === 'reject' ? 'Reason for rejection…' : 'type..'}
+                      aria-invalid={noteError || undefined} aria-describedby={noteError ? 'approval-note-error' : undefined}
+                      placeholder="type.."
                       className={cn(
                         'h-[180px] w-full resize-none rounded-[6px] border p-3 text-[13px] text-ui-heading outline-none placeholder:text-[11px] placeholder:font-medium placeholder:text-ui-text-disabled focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring disabled:cursor-not-allowed',
-                        decision ? 'border-ui-input-border bg-ui-input-bg' : 'border-ui-divider bg-ui-page-bg',
+                        noteError ? 'border-error-normal bg-ui-input-bg' : decision ? 'border-ui-input-border bg-ui-input-bg' : 'border-ui-divider bg-ui-page-bg',
                       )}
                     />
                   </label>
+                  {noteError && (
+                    <p id="approval-note-error" role="alert" className="-mt-2 mb-0 text-[11px] font-medium text-error-normal">Add a reason to reject.</p>
+                  )}
                   {decision === 'reject' && a.isFinalStage && (
                     <p className="m-0 rounded-[6px] px-2.5 py-1.5 text-[11px]" style={{ background: 'var(--status-t7-bg)', color: 'var(--status-t7-fg)' }}>
                       Final-stage rejection opens the next version{a.versionNum != null ? ` (V${a.versionNum + 1})` : ''} for the whole document set.
