@@ -9,7 +9,8 @@ import { NEED_CLASSIFICATION_LABEL } from './types';
 
 export const HEADING = 'text-[var(--color-secondary-700)] dark:text-[var(--color-secondary-50)]';
 /** Small status/tag chip, same shape as the customer page's project stage chips. */
-export const CHIP = 'inline-flex h-[26px] items-center rounded-[4px] px-2.5 text-[11px] font-medium leading-4';
+// Figma status chip: 12px, 3px / 8–10px padding (same as the opportunity stage chip).
+export const CHIP = 'inline-flex items-center rounded-[4px] py-[3px] pl-2 pr-2.5 text-[12px] font-medium leading-4';
 
 const NEED_TONE: Record<NeedClassification, { tone: string; icon: LucideIcon }> = {
   unclassified: { tone: 't0', icon: CircleDashed },

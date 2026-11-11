@@ -1,7 +1,7 @@
 'use client';
 
 import type { Dispatch, SetStateAction } from 'react';
-import { Pencil, ClipboardList } from 'lucide-react';
+import { ArrowRight, Pencil, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { IconAction } from '@/components/platform/customers/customer-detail/ui';
 import { cn } from '@/lib/utils';
@@ -43,8 +43,8 @@ export function NeedsTab({
   setTab: (tab: Tab) => void;
 }) {
   return (
-    <div>
-      <p style={{ fontSize: 12, color: 'var(--fg-subtle)', margin: '0 0 12px' }}>
+    <div className="font-[family-name:var(--font-ui)]">
+      <p className="m-0 mb-3 text-[12px] leading-[1.4] text-ui-text-secondary">
         Each project need is classified automatically and independently. A Lead may have zero, one, or many —
         "another project" for this Lead is a new Need here, never edited into an existing Opportunity.
       </p>
@@ -54,9 +54,9 @@ export function NeedsTab({
         </div>
       )}
       {needs.length === 0 ? (
-        <div className="card"><EmptyState size="sm" className="justify-center px-4 py-8" icon={<ClipboardList />} title="No project needs yet." /></div>
+        <div className="rounded-[8px] border border-ui-divider bg-ui-page-bg"><EmptyState size="sm" className="justify-center px-4 py-8" icon={<ClipboardList />} title="No project needs yet." /></div>
       ) : (
-        <div style={{ display: 'grid', gap: 8 }}>
+        <div className="grid gap-3">
           {needs.map(n => {
             const linkedOpportunity = opportunities.find(o => o.need_id === n.id);
             const linkedPotential = potentials.find(p => p.need_id === n.id && !DONE_POTENTIAL_STATUSES.has(p.status));
@@ -106,12 +106,12 @@ export function NeedsTab({
                   <div className="flex flex-wrap items-center gap-1.5">
                     {linkedOpportunity && (
                       <button type="button" className={cn(CHIP, LINK_CHIP, 'bg-[var(--status-t2-bg)] text-[var(--status-t2-fg)]')} onClick={() => setTab('opportunities')}>
-                        → Opportunity: {OPPORTUNITY_STAGE_LABEL[linkedOpportunity.stage]}
+                        Opportunity: {OPPORTUNITY_STAGE_LABEL[linkedOpportunity.stage]} <ArrowRight className="ml-1 size-3.5" aria-hidden />
                       </button>
                     )}
                     {linkedPotential && (
                       <button type="button" className={cn(CHIP, LINK_CHIP, 'bg-[var(--status-t7-bg)] text-[var(--status-t7-fg)]')} onClick={() => setTab('potentials')}>
-                        → Potential: {linkedPotential.status}
+                        Potential: {linkedPotential.status.replace(/_/g, ' ')} <ArrowRight className="ml-1 size-3.5" aria-hidden />
                       </button>
                     )}
                   </div>

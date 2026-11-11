@@ -6,12 +6,15 @@ import { FileText, Image as ImageIcon, Link2, Plus, Video } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { FORM_BOX, FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { cn } from '@/lib/utils';
-import { Select } from '@/components/platform/shared/Select';
+import { Select } from '@/components/ui/select';
 import { REGIONS, SERVICE_LINES } from '@/lib/regions';
+import { FIELD } from '@/components/platform/shared/panelStyles';
 import { CHIP, HEADING } from './shared';
 import { type Need } from './types';
 
 const FILE_BTN = 'h-auto min-h-10 cursor-pointer gap-2 rounded-[6px] font-medium';
+const LABEL = 'text-[12px] font-medium leading-4 text-ui-body';
+const SELECT = 'h-10 w-full rounded-[6px] border-ui-input-border bg-ui-input-bg px-3 text-[13px] text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-ui-input-border dark:bg-ui-input-bg dark:px-3 dark:text-ui-heading';
 
 interface NeedDocument {
   id: string; category: 'layout' | 'photo' | 'matterport' | 'link';
@@ -144,24 +147,20 @@ export function NeedDocumentsSection({ need, canEdit, prospectId, onNeedChange, 
 
       {canEdit && !setupReady && (
         <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto]">
-          <div>
-            <label className="form-label" style={{ fontSize: 11 }}>Region</label>
-            <Select className="form-input" style={{ fontSize: 13 }} value={region} onChange={e => setRegion(e.target.value)}>
-              <option value="">—</option>
-              {REGIONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
-            </Select>
+          <div className="flex flex-col gap-1.5">
+            <span className={LABEL}>Region</span>
+            <Select aria-label="Region" className={SELECT} value={region} onValueChange={v => setRegion(v ?? '')}
+              options={[{ value: '', label: '—' }, ...REGIONS.map(r => ({ value: r.code, label: r.label }))]} />
           </div>
-          <div>
-            <label className="form-label" style={{ fontSize: 11 }}>Service line</label>
-            <Select className="form-input" style={{ fontSize: 13 }} value={serviceLine} onChange={e => setServiceLine(e.target.value)}>
-              <option value="">—</option>
-              {SERVICE_LINES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </Select>
+          <div className="flex flex-col gap-1.5">
+            <span className={LABEL}>Service line</span>
+            <Select aria-label="Service line" className={SELECT} value={serviceLine} onValueChange={v => setServiceLine(v ?? '')}
+              options={[{ value: '', label: '—' }, ...SERVICE_LINES.map(s => ({ value: s.value, label: s.label }))]} />
           </div>
-          <div>
-            <label className="form-label" style={{ fontSize: 11 }}>State</label>
-            <input className="form-input" style={{ fontSize: 13 }} value={state} onChange={e => setState(e.target.value)} placeholder="e.g. NY" />
-          </div>
+          <label className="flex flex-col gap-1.5">
+            <span className={LABEL}>State</span>
+            <input className={FIELD} value={state} onChange={e => setState(e.target.value)} placeholder="e.g. NY" />
+          </label>
           <Button className={cn(FORM_SUBMIT, 'px-6')} loading={savingSetup} disabled={savingSetup || !draftReady} onClick={saveSetup}>Save</Button>
           <p className="col-span-full m-0 text-[11px] text-ui-text-secondary">
             Set these once so a project folder can be created the moment a document/link is attached.
@@ -179,11 +178,10 @@ export function NeedDocumentsSection({ need, canEdit, prospectId, onNeedChange, 
             <ImageIcon aria-hidden /> Photo
             <input type="file" hidden disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile('photo', f); e.target.value = ''; }} />
           </label>
-          <Select className="form-input" style={{ fontSize: 13, width: 130 }} value={linkCategory} onChange={e => setLinkCategory(e.target.value as 'matterport' | 'link')}>
-            <option value="matterport">Matterport</option>
-            <option value="link">Link</option>
-          </Select>
-          <input className="form-input" style={{ fontSize: 13, flex: 1, minWidth: 160, width: 'auto' }}
+          <Select aria-label="Link type" className={cn(SELECT, 'w-[140px]')} value={linkCategory}
+            onValueChange={v => setLinkCategory((v ?? 'matterport') as 'matterport' | 'link')}
+            options={[{ value: 'matterport', label: 'Matterport' }, { value: 'link', label: 'Link' }]} />
+          <input aria-label="Link URL" className={cn(FIELD, 'w-auto min-w-[160px] flex-1')}
             placeholder="https://…" value={linkUrl} onChange={e => setLinkUrl(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') addLink(); }} />
           <Button className={cn(FORM_SUBMIT, 'h-auto px-4')} loading={uploading} disabled={uploading || !linkUrl.trim()} onClick={addLink}>
