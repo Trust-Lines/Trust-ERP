@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireUser } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { generatePfCode, projectNumberFromCode } from '@/lib/production/pfCode';
 import { datesForStatusChange, type DateField } from '@/lib/production/board';
 import { requireProductionWrite } from '@/lib/production/guard';
@@ -18,14 +16,12 @@ const EDITABLE = new Set([
 ]);
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const { user, unauth } = await requireUser();
-  if (!user) return unauth;
+  // Same rule as DELETE: changing a production row needs edit.production (was any signed-in user).
+  const { user, admin, deny } = await requireProductionWrite();
+  if (deny) return deny;
   const { id } = await params;
 
   const body = await req.json() as Record<string, unknown>;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
 
   const { data: item } = await admin
     .from('production_items')

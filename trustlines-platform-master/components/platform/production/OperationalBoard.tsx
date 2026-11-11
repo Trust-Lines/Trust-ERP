@@ -1,17 +1,21 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import {
   DEFAULT_VISIBLE_COLUMNS, COLUMN_LABELS,
-  computeProjectColor, projectColorCss, groupItemsByType, groupPoSignStatus, groupAllSent,
-  statusCellCss, signStatusCellCss, vendorText, mapStatus, mapSignStatus,
-  effUsd, effTl, toNumber, fmtDateCss,
+  computeProjectColor, projectColorCss, groupItemsByType, groupAllSent,
+  vendorText, effUsd, effTl, toNumber, fmtDateCss,
   isDateColumn, isMoneyColumn, BOARD_CSS,
   type PSection, type PItem, type ColumnKey,
 } from '@/lib/excel/projectsExcelExport';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ChevronDown, ChevronRight, Factory } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  PF_SIGN_OPTIONS, PO_SIGN_OPTIONS, STATUS_OPTIONS, currentFirst, normalizeSign, normalizeStatus, poRollup,
+  signStyle, statusStyle, type StatusOption,
+} from '@/lib/production/statuses';
 
 // Figma "Production Board" (node 384:51717) orders RTR before RTD; the Excel export keeps its own order.
 const COLS: ColumnKey[] = DEFAULT_VISIBLE_COLUMNS.map(c => (c === 'rtd' ? 'rtr' : c === 'rtr' ? 'rtd' : c));
@@ -44,10 +48,6 @@ function shortDate(value: unknown): string {
   return y ? `${Number(m)}/${Number(d)}/${y}` : '';
 }
 
-function titleCase(label: string): string {
-  return label.toLowerCase().replace(/(^|[\s(/])([a-z])/g, (_, gap: string, c: string) => gap + c.toUpperCase());
-}
-
 function cellValue(col: ColumnKey, item: PItem): React.ReactNode {
   if (col === 'vendor')   return vendorText(item.vendor);
   // An empty amount stays empty (only TOTAL rows write 0.00), as in the Trust System.
@@ -71,6 +71,71 @@ function Chip({ css, children }: { css: { bg: string; fg: string } | null; child
   );
 }
 
+// ── Status cells (Trust System): PO SIGN STATUS (one per type group), PF SIGN STATUS and STATUS
+// are filled with the status colour across the whole cell; clicking opens the list of statuses
+// with their colours (current one first). Saves go to PATCH /api/production/items/:id, which sets
+// the dates for a status change; a PO change is written to every row of the type, one by one.
+type EditKind = 'status' | 'pf' | 'po';
+const FIELD: Record<EditKind, string> = { status: 'status', pf: 'pf_sign_status', po: 'po_sign_status' };
+const ITEM_KEY: Record<EditKind, keyof PItem> = { status: 'status', pf: 'pfSignStatus', po: 'poSignStatus' };
+const OPTIONS: Record<EditKind, StatusOption[]> = { status: STATUS_OPTIONS, pf: PF_SIGN_OPTIONS, po: PO_SIGN_OPTIONS };
+const MENU_W = 240;
+const MENU_MAX_H = 360;
+interface OpenMenu { kind: EditKind; ids: string[]; current: string; style: React.CSSProperties }
+
+function StatusCell({ opt, rowSpan, editable, onOpen }: {
+  opt: StatusOption; rowSpan?: number; editable: boolean; onOpen: (anchor: HTMLElement) => void;
+}) {
+  return (
+    <td
+      rowSpan={rowSpan}
+      className={cn('whitespace-nowrap border-b border-r border-ui-divider px-2 text-left align-middle text-[12px] font-semibold uppercase',
+        editable && 'cursor-pointer hover:brightness-95 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ui-focus-ring')}
+      style={{ background: opt.bg, color: opt.fg }}
+      tabIndex={editable ? 0 : undefined}
+      aria-haspopup={editable ? 'listbox' : undefined}
+      onClick={editable ? e => onOpen(e.currentTarget) : undefined}
+      onKeyDown={editable ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(e.currentTarget); } } : undefined}
+    >
+      {opt.label}
+    </td>
+  );
+}
+
+function StatusMenu({ menu, onPick, onClose }: { menu: OpenMenu; onPick: (value: string) => void; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', onClose, true);
+    window.addEventListener('resize', onClose);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onClose, true);
+      window.removeEventListener('resize', onClose);
+    };
+  }, [onClose]);
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden />
+      <div role="listbox" aria-label="Choose a status" style={{ ...menu.style, width: MENU_W, maxHeight: MENU_MAX_H }}
+        className="fixed z-50 flex flex-col gap-1 overflow-y-auto rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1.5 shadow-03">
+        {currentFirst(OPTIONS[menu.kind], menu.current).map(o => (
+          <button
+            key={o.value} type="button" role="option" aria-selected={o.value === menu.current} autoFocus={o.value === menu.current}
+            onClick={() => onPick(o.value)}
+            className={cn('flex cursor-pointer flex-col items-start rounded-[4px] border px-2.5 py-1.5 text-left text-[12px] font-semibold uppercase hover:brightness-95 focus-visible:outline-2 focus-visible:outline-ui-focus-ring',
+              o.value === menu.current ? 'border-[var(--color-secondary-700)]' : 'border-black/10')}
+            style={{ background: o.bg, color: o.fg }}
+          >
+            {o.label}
+            {o.hint && <span className="text-[11px] font-normal normal-case opacity-80">{o.hint}</span>}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
 // No order type yet = an empty cell (was a red "-" chip), as in the Trust System.
 function OrderType({ value }: { value?: string | null }) {
   return value ? <Chip css={{ bg: 'var(--status-t0-bg)', fg: 'var(--status-t0-fg)' }}>{value}</Chip> : null;
@@ -84,8 +149,41 @@ function MoneyChip({ col, value }: { col: ColumnKey; value: number }) {
   );
 }
 
-export function OperationalBoard({ sections }: { sections: PSection[] }) {
+export function OperationalBoard({ sections, canEdit = false, onSaved }: { sections: PSection[]; canEdit?: boolean; onSaved?: () => void }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [menu, setMenu] = useState<OpenMenu | null>(null);
+  // Picked values show at once, until the reloaded board has them.
+  const [pending, setPending] = useState<Record<string, Partial<PItem>>>({});
+  useEffect(() => { setPending({}); }, [sections]);
+  const view = (it: PItem): PItem => (it.id && pending[it.id] ? { ...it, ...pending[it.id] } : it);
+
+  function openMenu(kind: EditKind, ids: string[], current: string, anchor: HTMLElement) {
+    if (!canEdit || !ids.length) return;
+    const r = anchor.getBoundingClientRect();
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - MENU_W - 8));
+    setMenu({
+      kind, ids, current,
+      style: r.bottom + MENU_MAX_H > window.innerHeight ? { left, bottom: window.innerHeight - r.top + 2 } : { left, top: r.bottom + 2 },
+    });
+  }
+
+  async function pick(value: string) {
+    if (!menu) return;
+    const { kind, ids, current } = menu;
+    setMenu(null);
+    if (value === current) return;
+    setPending(p => ({ ...p, ...Object.fromEntries(ids.map(id => [id, { ...p[id], [ITEM_KEY[kind]]: value }])) }));
+    let failed = 0;
+    // One row after another, never in parallel (PF codes are numbered as rows change).
+    for (const id of ids) {
+      const res = await fetch(`/api/production/items/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [FIELD[kind]]: value }),
+      }).catch(() => null);
+      if (!res?.ok) failed++;
+    }
+    if (failed) toast.error(failed === ids.length ? 'Could not save the status' : `${failed} of ${ids.length} rows could not be saved`);
+    onSaved?.();
+  }
   const nonEmpty = sections.filter(s => s.projects.length > 0);
 
   if (!nonEmpty.length) {
@@ -147,9 +245,10 @@ export function OperationalBoard({ sections }: { sections: PSection[] }) {
               let dataRowSeen = 0;
               const bodyRows: React.ReactNode[] = [];
               groups.forEach((group, gi) => {
-                const allSent = groupAllSent(group.items);
-                const poRollup = groupPoSignStatus(group.items);
-                group.items.forEach((item, ii) => {
+                const shown = group.items.map(view);
+                const allSent = groupAllSent(shown);
+                const po = poRollup(shown.map(i => i.poSignStatus));
+                shown.forEach((item, ii) => {
                   const isFirstDataRow = dataRowSeen === 0;
                   const isFirstOfGroup = ii === 0;
                   dataRowSeen++;
@@ -175,15 +274,22 @@ export function OperationalBoard({ sections }: { sections: PSection[] }) {
                         }
                         if (col === 'poSignStatus') {
                           if (!isFirstOfGroup) return null;
+                          // One PO cell for the whole type group, filled from top to bottom.
+                          const ids = shown.map(i => i.id).filter(Boolean) as string[];
                           return (
-                            <td key={col} rowSpan={group.items.length} className={TD}>
-                              <Chip css={signStatusCellCss(poRollup)}>{titleCase(poRollup)}</Chip>
-                            </td>
+                            <StatusCell key={col} rowSpan={group.items.length} opt={signStyle(po)} editable={canEdit && ids.length > 0}
+                              onOpen={a => openMenu('po', ids, po, a)} />
                           );
                         }
                         if (col === 'orderType') return <td key={col} className={TD}><OrderType value={item.orderType} /></td>;
-                        if (col === 'pfSignStatus') return <td key={col} className={TD}><Chip css={statusCellCss(item.pfSignStatus)}>{titleCase(mapSignStatus(item.pfSignStatus))}</Chip></td>;
-                        if (col === 'status') return <td key={col} className={TD}><Chip css={statusCellCss(item.status)}>{titleCase(mapStatus(item.status))}</Chip></td>;
+                        if (col === 'pfSignStatus') return (
+                          <StatusCell key={col} opt={signStyle(item.pfSignStatus)} editable={canEdit && !!item.id}
+                            onOpen={a => openMenu('pf', [item.id!], normalizeSign(item.pfSignStatus), a)} />
+                        );
+                        if (col === 'status') return (
+                          <StatusCell key={col} opt={statusStyle(item.status)} editable={canEdit && !!item.id}
+                            onOpen={a => openMenu('status', [item.id!], normalizeStatus(item.status), a)} />
+                        );
                         return (
                           <td key={col} className={cn(TD, (col === 'pfCode' || col === 'vendor') && 'text-[13px] leading-[1.4]', isMoneyColumn(col) && 'text-[var(--color-secondary-700)] dark:text-ui-heading')}>
                             {cellValue(col, item)}
@@ -248,6 +354,7 @@ export function OperationalBoard({ sections }: { sections: PSection[] }) {
           })}
         </tbody>
       </table>
+      {menu && <StatusMenu menu={menu} onPick={v => void pick(v)} onClose={() => setMenu(null)} />}
     </div>
   );
 }
