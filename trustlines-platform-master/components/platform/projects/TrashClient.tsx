@@ -118,7 +118,7 @@ export function TrashClient({ projects, purgeDays }: { projects: TrashedProject[
   return (
     <div className="flex flex-col gap-[30px]">
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <PageCrumbs items={[{ label: 'Supply', href: '/projects' }, { label: 'Projects', href: '/projects' }, { label: 'Trash', href: '/projects/trash' }]} />
+        <PageCrumbs items={[{ label: 'Operations', href: '/projects' }, { label: 'Projects', href: '/projects' }, { label: 'Trash', href: '/projects/trash' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Trash</h1>
         <p className="m-0 text-[13px] text-ui-body">
           Deleted items remain here for {purgeDays} days. Restoring a project also restores its related tasks and files.
