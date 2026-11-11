@@ -2,13 +2,14 @@
 
 import '@/modules/trust-projects/isolation.css';
 import '@/modules/trust-projects/styles.scoped.css';
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getStatusStyle } from '@/modules/trust-projects/utils/statusStyles';
 import { CellStatusAutocomplete, CellVendorAutocomplete, DateEditor, PfSignStatusEditor, SelectEditor, TextEditor } from '@/modules/trust-projects/components/InlineEditors';
 import type { TrustStock, TrustStockItem } from './types';
 import { fmtDay, stockTile, sum, tl, usd, type AmountKey } from './store';
+import { ColumnResizer, useColumnWidths } from '@/components/ui/column-resize';
 import { getVendors, type Vendor } from './pfImport';
 
 // Trust Stock as an Excel sheet: Projects (the PF lines) and Accounting (their payments), one or
@@ -124,60 +125,7 @@ const ACC_COLS: Col[] = [
   moneyCol('invUsdAcc', 'USD', 'invUsd', 'usd'), moneyCol('invTlAcc', 'TL', 'invTl', 'tl'),
 ];
 
-// ── Widths: fit the widest text; drag to resize; double-click to fit again ───────────────────
-let measureCtx: CanvasRenderingContext2D | null = null;
-function textWidth(s: string, font: string) {
-  if (typeof document === 'undefined') return s.length * 7;
-  measureCtx ??= document.createElement('canvas').getContext('2d');
-  if (!measureCtx) return s.length * 7;
-  measureCtx.font = font;
-  return measureCtx.measureText(s).width;
-}
-
-function useColumnWidths(storageKey: string, cols: { id: string; label: string; text: (i: TrustStockItem) => string; chip?: boolean; min?: number }[], items: TrustStockItem[]) {
-  const [manual, setManual] = useState<Record<string, number>>({});
-  useEffect(() => {
-    try { setManual(JSON.parse(localStorage.getItem(storageKey) ?? '{}')); } catch { /* storage off */ }
-  }, [storageKey]);
-  const persist = useCallback((next: Record<string, number>) => {
-    setManual(next);
-    try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* storage off */ }
-  }, [storageKey]);
-
-  const auto = useMemo(() => {
-    const family = typeof document !== 'undefined' ? getComputedStyle(document.body).fontFamily : 'sans-serif';
-    const out: Record<string, number> = {};
-    for (const c of cols) {
-      let w = textWidth(c.label, `600 12px ${family}`) + 26;
-      for (const i of items) w = Math.max(w, textWidth(c.text(i), `400 13px ${family}`) + (c.chip ? 44 : 24));
-      out[c.id] = Math.round(Math.min(460, Math.max(c.min ?? 64, w)));
-    }
-    return out;
-  }, [cols, items]);
-
-  const width = (id: string) => manual[id] ?? auto[id] ?? 100;
-  const startResize = (id: string, e: React.PointerEvent) => {
-    e.preventDefault(); e.stopPropagation();
-    const x0 = e.clientX, w0 = width(id);
-    let latest = { ...manual };
-    const move = (ev: PointerEvent) => { latest = { ...latest, [id]: Math.max(48, Math.round(w0 + ev.clientX - x0)) }; setManual(latest); };
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); persist(latest); };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-  };
-  const fit = (id: string) => { const next = { ...manual }; delete next[id]; persist(next); };
-  return { width, startResize, fit };
-}
-
-function Resizer({ onResize, onFit, label }: { onResize: (e: React.PointerEvent) => void; onFit: () => void; label: string }) {
-  return (
-    <span
-      role="separator" aria-orientation="vertical" aria-label={`Resize ${label}`} title="Drag to resize · double-click to fit"
-      onPointerDown={onResize} onDoubleClick={onFit}
-      className="absolute -right-[3px] top-0 z-[2] h-full w-[6px] cursor-col-resize select-none hover:bg-[var(--color-info-normal)]/40"
-    />
-  );
-}
+// ── Widths: components/ui/column-resize (fit the widest text; drag to resize; double-click to fit) ──
 
 // ── Editable cell ────────────────────────────────────────────────────────────────────────────
 function EditableCell({ col, item, stockId, editing, setEditing, onPatch, vendors, className }: {
@@ -251,7 +199,7 @@ function Sheet({ storageKey, title, tone, cols, groups, stocks, allItems, showTi
       style={{ height: headH }}
     >
       <span className="block truncate">{c.label}</span>
-      <Resizer label={c.label} onResize={e => startResize(c.id, e)} onFit={() => fit(c.id)} />
+      <ColumnResizer label={c.label} onResize={e => startResize(c.id, e)} onFit={() => fit(c.id)} />
     </th>
   );
 
