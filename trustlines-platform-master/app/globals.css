@@ -2051,3 +2051,31 @@ html[data-hide-amounts] [data-money] { -webkit-text-security: disc; text-securit
   --il-sign-fg: var(--ui-tab-active);
   --il-sign-line: var(--ui-divider-strong);
 }
+
+/* ── Trust Stock · Upload PF PDF: scan line, caret, row hits (components/platform/trust-stock/PdfPages) ── */
+.pf-scan-line {
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-info-normal) 12%, var(--color-info-light) 50%, var(--color-info-normal) 88%, transparent);
+  box-shadow: 0 0 12px 3px color-mix(in srgb, var(--color-info-normal) 45%, transparent), 0 -18px 28px -10px color-mix(in srgb, var(--color-info-light) 35%, transparent);
+  will-change: transform;
+  z-index: 2;
+}
+.pf-scan-caret {
+  position: absolute; right: 6%; top: -9px;
+  width: 2px; height: 20px;
+  background: var(--color-info-normal);
+  animation: pf-caret 0.8s steps(1) infinite;
+}
+@keyframes pf-caret { 50% { opacity: 0; } }
+.pf-scan-caret-inline { margin-left: 1px; color: var(--color-info-normal); animation: pf-caret 0.8s steps(1) infinite; }
+.pf-row-hit {
+  background: color-mix(in srgb, var(--color-info-normal) 18%, transparent);
+  outline: 1.5px solid color-mix(in srgb, var(--color-info-normal) 70%, transparent);
+  animation: pf-hit 260ms ease-out;
+}
+@keyframes pf-hit { from { opacity: 0; transform: scaleY(0.6); } to { opacity: 1; transform: none; } }
+.pf-fade-in { animation: pf-fade-in 240ms ease-out both; }
+@keyframes pf-fade-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .pf-scan-caret, .pf-scan-caret-inline, .pf-row-hit, .pf-fade-in { animation: none; }
+}
