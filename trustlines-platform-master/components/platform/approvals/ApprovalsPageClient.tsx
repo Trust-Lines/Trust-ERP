@@ -1061,13 +1061,9 @@ export function ApprovalsPageClient() {
                 <span className="text-xs text-[var(--ui-text-secondary)]">
                   {draftValues.length} value{draftValues.length === 1 ? '' : 's'} selected
                 </span>
-                <button
-                  onClick={applyFilter}
-                  disabled={draftValues.length === 0}
-                  className="h-[34px] px-3.5 rounded-md bg-[var(--color-secondary-700)] text-[var(--ui-btn-primary-fg)] font-semibold hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
+                <Button type="button" variant="primary" onClick={applyFilter} disabled={draftValues.length === 0}>
                   Apply filter
-                </button>
+                </Button>
               </div>
             </div>
           )}
