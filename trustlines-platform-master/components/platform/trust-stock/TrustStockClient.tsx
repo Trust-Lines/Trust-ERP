@@ -75,7 +75,7 @@ function rowKeys(open: () => void) {
 }
 
 /** A PF imported into the Trust System → this page's row + its products (not yet received). */
-function onImported({ stockCode, data, vendor, result }: ImportedResult) {
+function onImported({ stockCode, data, vendor, result, localOnly }: ImportedResult) {
   const id = result.id ?? newId();
   const total = data.totalPrice ?? 0;
   const rule = Number(data.paymentRule);
@@ -99,7 +99,9 @@ function onImported({ stockCode, data, vendor, result }: ImportedResult) {
     id: newId(), itemCode: p.itemCode, description: p.description ?? '', depth: '', width: '', height: '',
     ordered: p.quantity, received: null, target: p.quantity, taken: 0, returned: 0, reserved: 0, reorderAt: 30, usedIn: [],
   })));
-  toast.success(`Added to ${stockCode}`, { description: `${data.pfCode} · ${data.products.length} product${data.products.length === 1 ? '' : 's'} — pending verification until received.` });
+  toast.success(`Added to ${stockCode}`, {
+    description: `${data.pfCode} · ${data.products.length} product${data.products.length === 1 ? '' : 's'} — ${localOnly ? 'added to this page only (already in the Trust System)' : 'pending verification until received'}.`,
+  });
 }
 
 export function TrustStockClient({ canUploadPf = false }: { canUploadPf?: boolean }) {
