@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   DEFAULT_VISIBLE_COLUMNS, COLUMN_LABELS,
-  computeProjectColor, projectColorCss, groupItemsByType, groupAllSent,
+  computeProjectColor, groupItemsByType, groupAllSent,
   vendorText, effUsd, effTl, toNumber, fmtDateCss,
   isDateColumn, isMoneyColumn, BOARD_CSS,
   type PSection, type PItem, type ColumnKey,
@@ -30,8 +30,14 @@ const WIDTHS: Partial<Record<ColumnKey, number>> = {
   rdy: 102, snd: 124, pfUsd: 100, pfTl: 103, invoice: 101, invoiceTl: 117, paymentRule: 116,
 };
 const MONEY_COLS: ColumnKey[] = ['pfUsd', 'pfTl', 'invoice', 'invoiceTl'];
-const BAR_COLORS = ['#414346', '#848484'];
-const TEXT_ON_BAR = 'text-[#EEF2F6]';
+// Figma "Projects table" (TRUST-LINES ERP 728:13023, colours 728:14366 / 14370 / 14374 / 14378): a
+// project's header row, its Project # box and its TOTAL row take the project's colour as a tone —
+// the colour rule is unchanged, only the tones are new (globals.css tokens, light + dark):
+//   default (was orange) → New Status 01 grey · PO signed / ready → T2 blue
+//   every row SENT → New Status 10 green  · urgent / container ≤ 10 days → T10 red
+const PROJECT_TONE: Record<ReturnType<typeof computeProjectColor>, string> = { orange: 'n1', blue: 't2', green: 'n10', red: 't10' };
+const toneBg = (t: string) => `var(--status-${t}-bg)`;
+const toneFg = (t: string) => `var(--status-${t}-fg)`;
 
 // Every cell has a right border: vertical lines between all columns, like a spreadsheet.
 const TD = 'overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-ui-divider bg-ui-page-bg px-2 py-2.5 text-left align-middle text-[12px] text-ui-body';
@@ -187,6 +193,15 @@ function OrderType({ value }: { value?: string | null }) {
   return value ? <Chip css={{ bg: 'var(--status-t0-bg)', fg: 'var(--status-t0-fg)' }}>{value}</Chip> : null;
 }
 
+function headName(p: { projectNo: string | number; projectName?: string }): string {
+  const name = (p.projectName ?? '').trim();
+  return name ? name.split(' - ')[0] : String(p.projectNo);
+}
+function headAddress(p: { projectName?: string }): string {
+  const parts = (p.projectName ?? '').split(' - ');
+  return parts.slice(1).join(' - ').trim();
+}
+
 function MoneyChip({ col, value }: { col: ColumnKey; value: number }) {
   return (
     <span className="inline-flex min-w-[70px] items-center justify-center whitespace-nowrap rounded-[4px] bg-ui-page-bg py-1 pl-2.5 pr-2 text-[12px] font-medium leading-4 text-[var(--color-secondary-700)] dark:text-ui-heading">
@@ -322,8 +337,8 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
             const projectRows = section.projects.map((project, pi) => {
               const groups = groupItemsByType(project.items || []);
               const dataRowCount = groups.reduce((n, g) => n + g.items.length, 0);
-              const projColor = projectColorCss(computeProjectColor(project));
-              const barColor = BAR_COLORS[pi % BAR_COLORS.length];
+              const tone = PROJECT_TONE[computeProjectColor(project)];
+              const barStyle = { background: toneBg(tone), color: toneFg(tone) };
               const key = `${section.label}:${project.projectNo}`;
               const isCollapsed = collapsed.has(key);
               const Chevron = isCollapsed ? ChevronRight : ChevronDown;
@@ -357,8 +372,11 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
                         if (col === 'projectNo') {
                           if (!isFirstDataRow) return null;
                           return (
-                            <td key={col} rowSpan={dataRowCount + 1} className="sticky left-0 z-10 border-r border-ui-divider text-center text-[24px] font-medium text-[var(--ui-page-bg)]" style={{ background: projColor }}>
-                              {String(project.projectNo)}
+                            <td key={col} rowSpan={dataRowCount + 1} className="sticky left-0 z-10 border-r border-ui-divider bg-ui-page-bg p-0">
+                              {/* A rounded box inside the cell: 7px page-colour margin, 12px corners. */}
+                              <span className="absolute inset-[7px] flex items-center justify-center overflow-hidden rounded-[12px] px-2.5 text-center text-[24px] font-medium" style={barStyle}>
+                                {String(project.projectNo)}
+                              </span>
                             </td>
                           );
                         }
@@ -415,15 +433,17 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
               return (
                 <Fragment key={`proj-${pi}`}>
                   <tr>
-                    <td colSpan={COLS.length} className="border-b border-ui-divider p-2" style={{ background: barColor }}>
+                    <td colSpan={COLS.length} className="border-y border-ui-divider p-2" style={barStyle}>
                       <button
                         type="button" onClick={() => toggle(key)} aria-expanded={!isCollapsed}
                         aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} project ${project.projectNo}`}
-                        className={cn('sticky left-2 flex items-center gap-4 border-0 bg-transparent p-0 text-left', TEXT_ON_BAR)}
+                        className="sticky left-2 flex cursor-pointer items-center border-0 bg-transparent p-0 text-left text-inherit"
                       >
-                        <Chevron size={24} aria-hidden />
-                        <span className="text-[16px] font-medium">
-                          {isCollapsed && project.projectName ? `${project.projectNo} · ${project.projectName}` : project.projectName || project.projectNo}
+                        <Chevron size={24} aria-hidden className="shrink-0" />
+                        {/* Name over address, as in the design ("STNE 440" / "Cherry Hill, 1849 …"). */}
+                        <span className="flex min-w-0 flex-col pl-4 pr-2 leading-normal">
+                          <span className="truncate text-[16px] font-medium">{headName(project)}</span>
+                          {headAddress(project) && <span className="truncate text-[12px] font-normal">{headAddress(project)}</span>}
                         </span>
                       </button>
                     </td>
@@ -431,11 +451,11 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
                   {!isCollapsed && bodyRows}
                   {!isCollapsed && (
                     <tr>
-                      <td colSpan={moneyStart - 1} className={cn('px-4 py-2.5 text-[14px] font-semibold', TEXT_ON_BAR)} style={{ background: barColor }}>TOTAL</td>
+                      <td colSpan={moneyStart - 1} className="border-y border-ui-divider px-4 py-2.5 text-[14px] font-semibold" style={barStyle}>TOTAL</td>
                       {MONEY_COLS.map(col => (
-                        <td key={col} className="px-2 py-2.5" style={{ background: barColor }}><MoneyChip col={col} value={totals[col] ?? 0} /></td>
+                        <td key={col} className="border-y border-ui-divider px-2 py-2.5" style={barStyle}><MoneyChip col={col} value={totals[col] ?? 0} /></td>
                       ))}
-                      <td colSpan={afterMoney} style={{ background: barColor }} />
+                      <td colSpan={afterMoney} className="border-y border-ui-divider" style={barStyle} />
                     </tr>
                   )}
                 </Fragment>
