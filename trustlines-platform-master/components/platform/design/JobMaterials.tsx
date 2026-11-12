@@ -65,16 +65,16 @@ export function JobMaterials({ jobId }: { jobId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="m-0 text-[12px] text-ui-text-secondary">
+      <p className="m-0 text-[14px] text-ui-text-secondary">
         The materials and finishes this design uses, picked from the <Link href="/design/materials" className="text-ui-link">catalogue</Link>. Supply orders from this list.
       </p>
 
       <div className="grid gap-2 rounded-[8px] bg-ui-surface p-4 sm:grid-cols-[1fr_160px_90px]">
-        <Combobox aria-label="Material" placeholder={catalogue.length ? 'Search the catalogue…' : 'The catalogue is empty'} emptyText="No material matches"
+        <Combobox aria-label="Material" className="h-10 text-[14px]" placeholder={catalogue.length ? 'Search the catalogue…' : 'The catalogue is empty'} emptyText="No material matches"
           options={options} value={pick} onValueChange={setPick} />
-        <Input aria-label="Area" value={area} onChange={e => setArea(e.target.value)} placeholder="Where (e.g. counter top)" />
-        <Input aria-label="Quantity" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} placeholder="Qty" />
-        <Input aria-label="Note" className="sm:col-span-2" value={note} onChange={e => setNote(e.target.value)} placeholder="Note (edge band, grain direction…)" />
+        <Input aria-label="Area" className="h-10 text-[14px]" value={area} onChange={e => setArea(e.target.value)} placeholder="Where (e.g. counter top)" />
+        <Input aria-label="Quantity" className="h-10 text-[14px]" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} placeholder="Qty" />
+        <Input aria-label="Note" className="h-10 text-[14px] sm:col-span-2" value={note} onChange={e => setNote(e.target.value)} placeholder="Note (edge band, grain direction…)" />
         <Button size="sm" onClick={() => void add()} disabled={!pick || busy}><Plus /> Add</Button>
       </div>
 
@@ -86,13 +86,13 @@ export function JobMaterials({ jobId }: { jobId: string }) {
             <li key={l.id} className="flex items-center gap-3 px-4 py-2.5">
               <span aria-hidden className="size-8 shrink-0 rounded-[4px] border border-ui-divider" style={{ background: l.material?.color_hex ?? 'var(--ui-surface-elevated)' }} />
               <div className="min-w-0 flex-1">
-                <p className={cn('m-0 truncate text-[13px] font-medium', HEADING)}>{l.material?.name ?? 'Removed material'}{l.material?.code ? ` · ${l.material.code}` : ''}</p>
-                <p className="m-0 truncate text-[11px] text-ui-text-secondary">
+                <p className={cn('m-0 truncate text-[14px] font-medium', HEADING)}>{l.material?.name ?? 'Removed material'}{l.material?.code ? ` · ${l.material.code}` : ''}</p>
+                <p className="m-0 truncate text-[13px] text-ui-text-secondary">
                   {[l.area, l.material ? categoryLabel(l.material.category) : null, l.material?.supplier_name, l.material?.finish, l.note].filter(Boolean).join(' · ')}
                 </p>
               </div>
-              <span className="w-[70px] text-right text-[12px] text-ui-body">{l.quantity != null ? `${l.quantity}${l.material?.unit ? ` ${l.material.unit}` : ''}` : '—'}</span>
-              <span className="w-[110px] text-right text-[12px] text-ui-text-secondary">{l.material ? priceLabel(l.material) : '—'}</span>
+              <span className="w-[70px] text-right text-[14px] text-ui-body">{l.quantity != null ? `${l.quantity}${l.material?.unit ? ` ${l.material.unit}` : ''}` : '—'}</span>
+              <span className="w-[110px] text-right text-[14px] text-ui-text-secondary">{l.material ? priceLabel(l.material) : '—'}</span>
               <Button variant="ghost" size="icon-sm" aria-label="Remove" onClick={() => void remove(l)}><Trash2 /></Button>
             </li>
           ))}
