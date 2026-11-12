@@ -297,16 +297,16 @@ function NewRequestDialog({ open, onOpenChange, people, today, onCreate }: {
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-heading">
               From
-              <Input type="date" required value={date} onChange={e => { setDate(e.target.value); if (endDate < e.target.value) setEndDate(e.target.value); }} />
+              <Input type="date" required className="h-10 text-[14px] [&::-webkit-calendar-picker-indicator]:size-4" value={date} onChange={e => { setDate(e.target.value); if (endDate < e.target.value) setEndDate(e.target.value); }} />
             </label>
             <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-heading">
               To
-              <Input type="date" required min={date} value={endDate} aria-invalid={!rangeOk || undefined} onChange={e => setEndDate(e.target.value)} />
+              <Input type="date" required className="h-10 text-[14px] [&::-webkit-calendar-picker-indicator]:size-4" min={date} value={endDate} aria-invalid={!rangeOk || undefined} onChange={e => setEndDate(e.target.value)} />
             </label>
           </div>
           <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-heading">
             Details
-            <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="Anything HR should know" />
+            <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="Anything HR should know" className="text-[14px]" />
           </label>
           <div className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-heading">
             <span>Attached files</span>
