@@ -116,7 +116,7 @@ export function SentEmails() {
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative w-full max-w-[300px]">
             <Search size={16} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" aria-hidden />
-            <Input className="h-10 pl-8 text-[13px]" placeholder="Search recipient or subject…" value={query} onChange={e => reset(() => setQuery(e.target.value))} aria-label="Search emails" />
+            <Input className="h-10 pl-8 dark:pl-8 text-[13px]" placeholder="Search recipient or subject…" value={query} onChange={e => reset(() => setQuery(e.target.value))} aria-label="Search emails" />
           </div>
           <Select className="h-10 w-[180px] text-[13px]" aria-label="Kind" value={kind} options={KINDS} onValueChange={v => reset(() => setKind(v ?? ''))} />
           <Select className="h-10 w-[170px] text-[13px]" aria-label="Status" value={status} options={STATUSES} onValueChange={v => reset(() => setStatus(v ?? ''))} />
