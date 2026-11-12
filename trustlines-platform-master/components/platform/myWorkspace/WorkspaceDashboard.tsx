@@ -110,21 +110,23 @@ function Sparkline({ values, color }: { values: number[]; color: string }) {
   );
 }
 
-function Kpi({ label, value, icon, sub, badge, color, spark, href }: {
-  label: string; value: ReactNode; icon: ReactNode; sub: string; badge?: string; color: string; spark: number[]; href?: string;
+/** `color` is the tone's text colour, `onColor` the text on a `color` fill (Figma: the tone's own
+ *  background), so the "+N New" badge reads as a dark-on-pale chip in dark mode (node 714:36443). */
+function Kpi({ label, value, icon, sub, badge, color, onColor, spark, href }: {
+  label: string; value: ReactNode; icon: ReactNode; sub: string; badge?: string; color: string; onColor: string; spark: number[]; href?: string;
 }) {
   const body = (
     <>
       <span className="flex items-start justify-between gap-2">
         <span className="text-[12px] font-medium uppercase leading-[1.5] tracking-[-0.264px]" style={{ color }}>{label}</span>
-        {badge && <span className="inline-flex h-[18px] items-center rounded-[4px] px-2 text-[10px] font-medium tracking-[0.4px] text-white" style={{ background: color }}>{badge}</span>}
+        {badge && <span className="inline-flex h-[18px] items-center rounded-[4px] px-2 text-[10px] font-medium tracking-[0.4px]" style={{ background: color, color: onColor }}>{badge}</span>}
       </span>
       <span className="flex items-end justify-between gap-3">
         <span className="flex min-w-0 flex-col gap-2">
           <span className="flex items-center gap-1 text-[36px] font-semibold leading-none tracking-[0.72px] [&_svg]:size-[29px]" style={{ color }}>
             <span className="tabular-nums">{value}</span>{icon}
           </span>
-          <span className="text-[10px] leading-[1.5] tracking-[-0.22px] opacity-60" style={{ color }}>{sub}</span>
+          <span className="text-[10px] leading-[1.5] tracking-[-0.22px] opacity-50" style={{ color }}>{sub}</span>
         </span>
         <Sparkline values={spark} color={color} />
       </span>
@@ -495,16 +497,16 @@ export function WorkspaceDashboard({ userName, role, projects, designDocs, acces
       {/* ── KPIs ── */}
       {access.projects && projects && (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 2xl:grid-cols-4">
-          <Kpi label="Active Projects" value={active.length} icon={<BriefcaseBusiness strokeWidth={1.5} />} color="var(--color-secondary-700)"
+          <Kpi label="Active Projects" value={active.length} icon={<BriefcaseBusiness strokeWidth={1.5} />} color="var(--ui-btn-solid)" onColor="var(--ui-surface-elevated)"
             sub={`${inProduction.length} in production`} badge={newInRange ? `+${newInRange} New` : undefined} spark={spark(scoped, p => p.created_at)} href="/projects" />
           {access.opportunities && opportunities !== 'denied' && (
             <Kpi label="Total Clients Opportunity" value={typeof opportunities === 'number' ? opportunities : opportunities === null ? '…' : '—'} icon={<UserRound strokeWidth={1.5} />}
-              color="var(--status-t4-fg)" sub="Key clients’ open deals" spark={[0, 0, 0, 0, 0, 0]} href="/tlines-pm" />
+              color="var(--status-t4-fg)" onColor="var(--status-t4-bg)" sub="Key clients’ open deals" spark={[0, 0, 0, 0, 0, 0]} href="/tlines-pm" />
           )}
-          <Kpi label="Deals Closed" value={closed.length} icon={<CircleCheck strokeWidth={1.5} />} color="var(--status-t6-fg)"
+          <Kpi label="Deals Closed" value={closed.length} icon={<CircleCheck strokeWidth={1.5} />} color="var(--status-t6-fg)" onColor="var(--status-t6-bg)"
             sub={`${PRESETS.find(p => p.value === preset)?.label ?? `${fmtDay(from)} – ${fmtDay(to)}`}`} spark={spark(scoped, p => p.closed_deal_date)} href="/projects" />
           <Kpi label="Waiting for my approval" value={Array.isArray(approvals) ? approvals.length : approvals === null ? '…' : '—'} icon={<ClipboardPenLine strokeWidth={1.5} />}
-            color="var(--status-t9-fg)" sub={`${po.length} PO · ${pf.length} PF`} spark={[0, 0, 0, 0, 0, 0]} href="/workspace/approvals" />
+            color="var(--status-t9-fg)" onColor="var(--status-t9-bg)" sub={`${po.length} PO · ${pf.length} PF`} spark={[0, 0, 0, 0, 0, 0]} href="/workspace/approvals" />
         </div>
       )}
 
@@ -600,10 +602,10 @@ export function WorkspaceDashboard({ userName, role, projects, designDocs, acces
           </ListCard>
         )}
         {access.projects && (
-          <ListCard title="New Design Folders" icon={<FolderClosed strokeWidth={1.5} />} color="var(--color-secondary-700)" href="/design"
+          <ListCard title="New Design Folders" icon={<FolderClosed strokeWidth={1.5} />} color="var(--ui-btn-solid)" href="/design"
             state={designDocs === null ? 'error' : designDocs.length ? 'ready' : 'empty'} emptyText="No new design files.">
             {(designDocs ?? []).map(d => (
-              <Row key={d.id} color="var(--color-secondary-700)" href={`/projects/${d.project_id}`} label={`Open ${d.file_name}`} action="none"
+              <Row key={d.id} color="var(--ui-btn-solid)" href={`/projects/${d.project_id}`} label={`Open ${d.file_name}`} action="none"
                 lead={null} title={d.file_name} sub={fileSize(d.file_size_bytes) || '—'}
                 right={<>
                   <span className="text-[12px] text-ui-text-secondary">{fmtDay(new Date(d.created_at)).toUpperCase()} - {TIME.format(new Date(d.created_at))}</span>
