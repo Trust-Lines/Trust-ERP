@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { ArrowDownCircle, FileText, Tag, Trash2, TriangleAlert } from 'lucide-react';
+import { ArrowDownCircle, FileText, SquareCheck, Tag, Trash2, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Modal, ModalContent } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,9 @@ export interface ProjectMenuProps {
   onSaved: () => void;
   onDelete: () => void;
   onClose: () => void;
+  /** "Select": puts the project in the Half selection (the selection boxes appear). */
+  onSelect?: () => void;
+  selected?: boolean;
 }
 
 /** Where the menu sits: under the header row, at its visible left edge (4px gap). */
@@ -43,7 +46,7 @@ function anchorPos(headKey: string): { left: number; top: number } | null {
   return { left: Math.max(8, Math.min(btn?.left ?? row.left, window.innerWidth - 268)), top: row.bottom + 4 };
 }
 
-export function ProjectMenu({ project, headKey, canEdit, canDeleteProject, groups, onGroupsChanged, onSaved, onDelete, onClose }: ProjectMenuProps) {
+export function ProjectMenu({ project, headKey, canEdit, canDeleteProject, groups, onGroupsChanged, onSaved, onDelete, onClose, onSelect, selected }: ProjectMenuProps) {
   const kind = project.kind ?? 'project';
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const [mode, setMode] = useState<Mode>(null);
@@ -106,6 +109,12 @@ export function ProjectMenu({ project, headKey, canEdit, canDeleteProject, group
           onClick={() => { window.open(`${TRUST_PRICE_LIST}${encodeURIComponent(project.trustId!)}`, '_blank', 'noopener'); onClose(); }}>
           <FileText size={14} aria-hidden /> Prepare Document
         </button>
+
+        {canEdit && onSelect && (
+          <button type="button" role="menuitem" className={ITEM} onClick={() => { onSelect(); onClose(); }}>
+            <SquareCheck size={14} aria-hidden /> {selected ? 'Deselect' : 'Select'}
+          </button>
+        )}
 
         {canEdit && (
           <>
