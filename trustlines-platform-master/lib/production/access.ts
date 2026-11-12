@@ -20,11 +20,20 @@ export const PROD_KEYS = {
   half: 'prod.half',
 } as const;
 
-export type ProductionAccess = Record<keyof typeof PROD_KEYS, boolean>;
+export type ProductionAccess = Record<keyof typeof PROD_KEYS, boolean> & {
+  /** PF code and PF Sign Status. Never for tlines_pm (fixed rule, not a switch). */
+  viewPf: boolean;
+};
+
+/** Roles that must never receive PF fields, vendor prices or money (AGENTS.md §2). */
+export const NO_PF_ROLES = new Set(['tlines_pm']);
 
 export function productionAccess(role: string | null | undefined, perms: PermMap | null | undefined): ProductionAccess {
   const page = pageAllowed(role, perms, 'page.production');
-  return Object.fromEntries(Object.entries(PROD_KEYS).map(([k, key]) => [k, page && pageAllowed(role, perms, key)])) as ProductionAccess;
+  const acc = Object.fromEntries(Object.entries(PROD_KEYS).map(([k, key]) => [k, page && pageAllowed(role, perms, key)])) as ProductionAccess;
+  acc.viewPf = page && !NO_PF_ROLES.has(role ?? '');
+  if (!acc.viewPf) acc.viewMoney = false;
+  return acc;
 }
 
 /** Row fields each switch covers (PATCH /api/production/items/:id). */

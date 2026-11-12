@@ -36,6 +36,7 @@ const MONEY_COLS: ColumnKey[] = ['pfUsd', 'pfTl', 'invoice', 'invoiceTl'];
 const NO_ACCESS: ProductionAccess = {
   tabProjects: false, tabMissingExtra: false, tabDirectOrders: false, viewMoney: false, export: false, editStatus: false,
   editRows: false, deleteRows: false, editProjects: false, deleteProjects: false, todo: false, groups: false, half: false,
+  viewPf: false,
 };
 // Figma "Projects table" (TRUST-LINES ERP 728:13023, colours 728:14366 / 14370 / 14374 / 14378): a
 // project's header row, its Project # box and its TOTAL row take the project's colour as a tone —
@@ -252,7 +253,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
   const typeLeft = width('projectNo');
   const canStatus = access.editStatus, canRows = access.editRows, canDelRows = access.deleteRows;
   // Without "Money columns" the four money columns and the TOTAL rows are left out.
-  const cols = access.viewMoney ? COLS : COLS.filter(c => !MONEY_COLS.includes(c));
+  const cols = COLS.filter(c => (access.viewMoney || !MONEY_COLS.includes(c)) && (access.viewPf || (c !== 'pfCode' && c !== 'pfSignStatus')));
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [menu, setMenu] = useState<OpenMenu | null>(null);
   const lists = useBoardLists();

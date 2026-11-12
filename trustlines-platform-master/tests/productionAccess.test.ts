@@ -29,6 +29,13 @@ describe('Production Board switches (Roles page)', () => {
     expect(a.editStatus).toBe(true);
   });
 
+  it('tlines_pm never gets PF fields or money, even with the switches on', () => {
+    const a = productionAccess('tlines_pm', { 'page.production': true, 'prod.view_money': true, 'prod.export': true });
+    expect(a.tabProjects && a.export).toBe(true);
+    expect(a.viewPf).toBe(false);
+    expect(a.viewMoney).toBe(false);
+  });
+
   it('no Production board page → nothing', () => {
     const a = productionAccess('x', { 'edit.production': true, 'prod.edit_status': true });
     expect(Object.values(a).some(Boolean)).toBe(false);

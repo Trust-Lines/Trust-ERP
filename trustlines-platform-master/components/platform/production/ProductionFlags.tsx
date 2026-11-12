@@ -96,15 +96,17 @@ function Count({ n }: { n: number }) {
   return <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-[4px] bg-current/15 px-1 text-[11px] font-semibold">{n}</span>;
 }
 
-export function QuickChips({ tokens, onToggle, flags, groups, projectsTab }: {
+export function QuickChips({ tokens, onToggle, flags, groups, projectsTab, showPf = true }: {
   tokens: Set<QuickToken>; onToggle: (t: QuickToken) => void; flags: PfFlag[]; groups: PfGroup[]; projectsTab: boolean;
+  /** PF Waiting T needs the PF fields. */
+  showPf?: boolean;
 }) {
   const chips: { token: QuickToken; label: string; title: string; count?: number }[] = [
     ...(projectsTab ? [
       { token: 'TODO' as const, label: 'ToDo', title: 'Only the flagged project types', count: flags.filter(f => f.kind === 'PF').length },
       { token: 'FOLLOWUP' as const, label: 'Receive Follow Up', title: 'Only the PFs being followed up', count: flags.filter(f => f.kind === 'FOLLOWUP').length },
     ] : []),
-    ...SIGN_CHIPS,
+    ...SIGN_CHIPS.filter(c => showPf || c.token !== 'PF_T'),
     ...(projectsTab ? [{ token: 'GROUPS' as const, label: 'Groups', title: 'Show the grouped-view table', count: groups.length }] : []),
   ];
   return (
