@@ -119,7 +119,7 @@ export function LeadNameCell({ lead, today, assignees, onOpen }: {
                 );
               })()}
             </span>
-            <span style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            <span style={{ fontSize: 13, color: 'var(--fg-faint)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', overflow: 'hidden' }}>
               <span>{lead.project_no ?? 'Open →'}</span>
               {taskCount > 0 && (
                 <span title={`${doneCount} of ${taskCount} subtasks done`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 700, color: doneCount === taskCount ? 'var(--brand-teal-600)' : 'var(--status-warning-fg)' }}>
