@@ -222,9 +222,13 @@ function MoneyChip({ col, value }: { col: ColumnKey; value: number }) {
   );
 }
 
-export function OperationalBoard({ sections, canEdit = false, canDeleteProject = false, groups = [], onGroupsChanged, onSaved }: {
+export function OperationalBoard({ sections, canEdit = false, canDeleteProject = false, groups = [], onGroupsChanged, onSaved, groupRanks, selection }: {
   sections: PSection[]; canEdit?: boolean; canDeleteProject?: boolean;
   groups?: PfGroup[]; onGroupsChanged?: () => void; onSaved?: () => void;
+  /** Groups view: rank of "group|projectId|type" for the type cell's badge. */
+  groupRanks?: Map<string, number>;
+  /** Half toolbar: the selection box on each Project # cell. */
+  selection?: { selected: Set<string>; toggle: (id: string) => void };
 }) {
   // Column widths like the accounting sheet: fit the widest text, drag a header edge to resize,
   // double-click to fit again; remembered in this browser.
@@ -410,6 +414,12 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
                                 {/* "P123" shows as "123" (Trust System). */}
                                 {String(project.projectNo).replace(/^P(?=\d+$)/, '')}
                               </span>
+                              {/* Half selection: only selects, never opens the menu. */}
+                              {selection && project.id && (
+                                <input type="checkbox" aria-label={`Select project ${project.projectNo}`} checked={selection.selected.has(project.id)}
+                                  onChange={() => selection.toggle(project.id!)} onClick={e => e.stopPropagation()} onContextMenu={e => e.stopPropagation()}
+                                  className="absolute left-[13px] top-[13px] z-[1] size-4 cursor-pointer" />
+                              )}
                             </td>
                           );
                         }
@@ -427,6 +437,12 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
                                   <span className="truncate">{group.type}</span>
                                 </span>
                               ) : group.type}
+                              {(() => {
+                                const r = section.group != null ? groupRanks?.get(`${section.group}|${shown[0]?.projectId}|${group.type.toLowerCase()}`) : undefined;
+                                return r != null ? (
+                                  <span className="absolute right-1 top-1 z-[1] rounded-[3px] bg-[#dc2626] px-1 text-[10px] font-semibold leading-4 text-white" title={`Rank ${r}`}>#{r}</span>
+                                ) : null;
+                              })()}
                             </td>
                           );
                         }
@@ -510,14 +526,15 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
             return (
               <Fragment key={`sec-${si}`}>
                 <tr>
-                  <td colSpan={COLS.length} className="sticky z-[15] border-y border-ui-divider p-2 text-[#EEF2F6]" style={{ top: HEAD_H, background: regionBg(section.label) }}>
+                  <td colSpan={COLS.length} className="sticky z-[15] border-y border-ui-divider p-2 text-[#EEF2F6]"
+                    style={{ top: HEAD_H, background: section.group != null ? 'linear-gradient(90deg, #b91c1c, #ef4444)' : regionBg(section.label) }}>
                     <button
                       type="button" onClick={() => toggle(regionKey)} aria-expanded={!regionClosed}
                       aria-label={`${regionClosed ? 'Expand' : 'Collapse'} ${regionTitle(section.label)}`}
                       className="sticky left-2 flex cursor-pointer items-center border-0 bg-transparent p-0 text-left text-inherit"
                     >
                       {regionClosed ? <ChevronRight size={24} aria-hidden className="shrink-0" /> : <ChevronDown size={24} aria-hidden className="shrink-0" />}
-                      <span className="pl-4 pr-2 text-[16px] font-medium leading-normal">{regionTitle(section.label)}</span>
+                      <span className={cn('pl-4 pr-2 leading-normal', section.group != null ? 'text-[22px] font-bold text-white' : 'text-[16px] font-medium')}>{regionTitle(section.label)}</span>
                     </button>
                   </td>
                 </tr>
