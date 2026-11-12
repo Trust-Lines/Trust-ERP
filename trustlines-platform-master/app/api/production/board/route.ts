@@ -13,7 +13,7 @@ interface DbItem {
   rdy: string | null; ftd: string | null; snd: string | null;
   pf_usd: number | null; pf_tl: number | null; invoice: number | null; invoice_tl: number | null;
   payment_rule: string | null; container_no: string | null; container_date: string | null; sort_index: number | null;
-  trust_id?: string | null; case_id?: string | null;
+  trust_id?: string | null; case_id?: string | null; custom_type_code?: string | null;
 }
 
 export async function GET() {
@@ -43,7 +43,7 @@ export async function GET() {
 
   const { data: items } = await admin
     .from('production_items')
-    .select('id, project_id, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index, trust_id')
+    .select('id, project_id, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index, trust_id, custom_type_code')
     .in('project_id', projectIds)
     .eq('source', 'project')
     .is('deleted_at', null) as { data: DbItem[] | null };
@@ -61,7 +61,7 @@ export async function GET() {
     types.forEach((type, i) => toSeed.push({ project_id: p.id, source: 'project', type, sort_index: i }));
   }
   if (toSeed.length) {
-    const cols = 'id, project_id, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index, trust_id';
+    const cols = 'id, project_id, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index, trust_id, custom_type_code';
     const { data: firstTry, error: seedErr } = await admin.from('production_items').insert(toSeed).select(cols) as { data: DbItem[] | null; error: { code?: string } | null };
     let seeded = firstTry;
     // Another request seeded these projects a moment ago (unique index, migration 148): read theirs.
@@ -83,7 +83,7 @@ export async function GET() {
   const caseIds = (cases ?? []).map(c => c.id);
   const { data: extraItems } = caseIds.length ? await admin
     .from('production_items')
-    .select('id, project_id, case_id, source, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index, trust_id')
+    .select('id, project_id, case_id, source, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index, trust_id, custom_type_code')
     .in('case_id', caseIds)
     .is('deleted_at', null) as { data: DbItem[] | null } : { data: [] as DbItem[] };
 
@@ -98,9 +98,13 @@ export async function GET() {
 
   const mapItem = (it: DbItem): PItem => ({
     id: it.id,
+    projectId: it.project_id,
+    caseId: it.case_id ?? null,
+    customTypeCode: it.custom_type_code ?? null,
     type: it.type,
     pfCode: it.pf_code,
     vendor: it.vendor_id ? (vendorMap.get(it.vendor_id) ?? null) : null,
+    vendorId: it.vendor_id,
     orderType: it.order_type,
     poSignStatus: it.po_sign_status,
     pfSignStatus: it.pf_sign_status,

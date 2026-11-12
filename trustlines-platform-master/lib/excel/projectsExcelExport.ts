@@ -151,6 +151,11 @@ const isMoneyCol = (c: ColumnKey) => isUsdCol(c) || isTlCol(c);
 export interface PItem {
   /** production_items.id (the Production tracker edits by it). */
   id?: string;
+  /** The row's project / case (Production tracker: Add Item, editors). */
+  projectId?: string | null;
+  caseId?: string | null;
+  /** Custom types: the type's short code (Add Item needs it). */
+  customTypeCode?: string | null;
   type?: string | null;
   pfCode?: string | null;
   vendor?: string | { code?: string | null; name?: string | null } | null;

@@ -7,7 +7,7 @@ import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
-const ITEM_COLS = 'id, project_id, source, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index';
+const ITEM_COLS = 'id, project_id, case_id, source, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index';
 
 const BOARD_TYPES = ['Millwork', 'Shelving', 'Ceiling', 'Image', 'Furniture', 'Decoration'];
 const SOURCES = ['project', 'direct_order', 'missing_extra'];
@@ -57,30 +57,49 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ items: items ?? [], vendors: vendors ?? [] });
 }
 
+/**
+ * New row ("Add Item" in the tracker's Edit Item panel, or a row on a project).
+ *   body: { projectId } or { caseId }, type, source?, customTypeCode?
+ * A row added to a type group joins that group's PO (one PO per type, Trust System rule): it
+ * takes SIGNED / WAITING TLINES TO SIGN / WAITING T TO SIGN when a sibling has one, else READY TO
+ * SIGN, else NOT SIGNED. No vendor, no PF code, NOT ORDERED.
+ */
 export async function POST(req: NextRequest) {
   const { user, admin, deny } = await requireProductionWrite();
   if (deny) return deny;
 
   const body = await req.json().catch(() => ({})) as Record<string, unknown>;
-  const projectId = String(body.projectId ?? body.project_id ?? '').trim();
+  const projectId = String(body.projectId ?? body.project_id ?? '').trim() || null;
+  const caseId = String(body.caseId ?? body.case_id ?? '').trim() || null;
   const type = String(body.type ?? '').trim();
-  const source = String(body.source ?? 'direct_order').trim();
-  if (!projectId) return NextResponse.json({ error: 'projectId is required' }, { status: 400 });
+  const customTypeCode = String(body.customTypeCode ?? '').trim() || null;
+  if (!projectId && !caseId) return NextResponse.json({ error: 'projectId or caseId is required' }, { status: 400 });
+  if (!type || (!BOARD_TYPES.includes(type) && !customTypeCode)) return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
+
+  let source = String(body.source ?? (caseId ? '' : 'project')).trim();
+  if (caseId) {
+    const { data: c } = await admin.from('production_cases').select('id, kind').eq('id', caseId).is('deleted_at', null).maybeSingle();
+    if (!c) return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+    source = c.kind;
+  } else {
+    const { data: project } = await admin.from('projects').select('id').eq('id', projectId).maybeSingle();
+    if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+  }
   if (!SOURCES.includes(source)) return NextResponse.json({ error: 'Invalid source' }, { status: 400 });
-  if (!BOARD_TYPES.includes(type)) return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
 
-  const { data: project } = await admin.from('projects').select('id').eq('id', projectId).maybeSingle();
-  if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-
-  const { data: siblings } = await admin.from('production_items')
-    .select('sort_index').eq('project_id', projectId).eq('source', source).is('deleted_at', null);
-  const nextSort = (siblings ?? []).reduce((m: number, r: { sort_index: number | null }) => Math.max(m, (r.sort_index ?? 0) + 1), 0);
+  let q = admin.from('production_items').select('sort_index, type, po_sign_status').is('deleted_at', null);
+  q = caseId ? q.eq('case_id', caseId) : q.eq('project_id', projectId).eq('source', source);
+  const { data: siblings } = await q as { data: { sort_index: number | null; type: string; po_sign_status: string | null }[] | null };
+  const nextSort = (siblings ?? []).reduce((m, r) => Math.max(m, (r.sort_index ?? 0) + 1), 0);
+  const groupPo = (siblings ?? []).filter(r => r.type === type).map(r => r.po_sign_status ?? 'NOT_SIGNED');
+  const po = ['SIGNED', 'WAITING_TLINES_TO_SIGN', 'WAITING_T_TO_SIGN'].find(v => groupPo.includes(v))
+    ?? (groupPo.includes('READY_TO_SIGN') ? 'READY_TO_SIGN' : 'NOT_SIGNED');
 
   const { data, error } = await admin.from('production_items')
-    .insert({ project_id: projectId, source, type, sort_index: nextSort })
+    .insert({ project_id: projectId, case_id: caseId, source, type, custom_type_code: customTypeCode, sort_index: nextSort, po_sign_status: po })
     .select(ITEM_COLS).single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await logAudit({ actorId: user.id, action: 'production.item_created', projectId, resource: `${source}:${type}`, newValue: { source, type } });
+  await logAudit({ actorId: user.id, action: 'production.item_created', projectId: projectId ?? undefined, resource: `${source}:${type}`, newValue: { source, type, caseId } });
   return NextResponse.json({ item: data });
 }
