@@ -306,6 +306,53 @@ function ViewToggle({ view, onView }: { view: BoardView; onView: (v: BoardView) 
   );
 }
 
+// Columns by region (the branch logos) or by T-Lines PM: one column per PM with the cards they
+// look after in every region, the PM's name in the header. Remembered per browser.
+type ColumnsBy = 'regions' | 'pms';
+const COLUMNS_BY_KEY = 'tl_board_columns_by';
+const PM_COLORS = ['#465B6D', '#3B472B', '#2E5BA3', '#7A655E', '#5B4B8A', '#8A5A2B', '#2F6F6A', '#7A3E55'];
+const UNASSIGNED_COLOR = '#6B7280';
+
+function ColumnsByToggle({ by, onBy }: { by: ColumnsBy; onBy: (v: ColumnsBy) => void }) {
+  const opt = (v: ColumnsBy, label: string) => (
+    <button
+      type="button" aria-pressed={by === v} onClick={() => onBy(v)}
+      className={`h-[30px] cursor-pointer rounded-[5px] border-0 px-3 text-[13px] transition-colors ${by === v ? 'bg-[var(--ui-btn-solid)] font-semibold text-[var(--ui-btn-solid-fg)] shadow-[0_1px_2px_rgba(0,0,0,0.15)]' : 'bg-transparent font-medium text-ui-body hover:bg-ui-hover-bg hover:text-ui-heading'}`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div role="group" aria-label="Columns by" className="flex h-9 items-center gap-0.5 rounded-[6px] border border-ui-divider bg-ui-input-bg p-[2px]">
+      {opt('regions', 'Regions')}
+      {opt('pms', 'T-Lines PMs')}
+    </div>
+  );
+}
+
+/** Regroup the region columns into one column per T-Lines PM (Unassigned last), keeping the stages. */
+function pmColumns(columns: BoardColumn[], pmOf: (i: BoardCardItem) => string | null, nameOf: (id: string) => string): BoardColumn[] {
+  const order: BoardSection[] = [];
+  for (const c of columns) for (const s of c.sections) if (!order.some(o => o.key === s.key)) order.push(s);
+  const byPm = new Map<string, Map<string, BoardCardItem[]>>();
+  for (const c of columns) for (const s of c.sections) for (const item of s.items) {
+    const pm = pmOf(item) ?? NOBODY;
+    const sections = byPm.get(pm) ?? new Map<string, BoardCardItem[]>();
+    sections.set(s.key, [...(sections.get(s.key) ?? []), item]);
+    byPm.set(pm, sections);
+  }
+  const ids = [...byPm.keys()].filter(id => id !== NOBODY).sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+  if (byPm.has(NOBODY)) ids.push(NOBODY);
+  return ids.map((id, i) => ({
+    regionCode: `pm:${id}`,
+    title: id === NOBODY ? 'Unassigned' : nameOf(id),
+    name: id === NOBODY ? 'No T-Lines PM' : nameOf(id),
+    logoSrc: '', logoCode: '',
+    headerColor: id === NOBODY ? UNASSIGNED_COLOR : PM_COLORS[i % PM_COLORS.length],
+    sections: order.map(s => ({ ...s, items: byPm.get(id)!.get(s.key) ?? [] })),
+  }));
+}
+
 /** The board's date filter (From / To / preset), shown in the filter bar above the columns. */
 function DateFilters({ from, to, preset, onFrom, onTo, onPreset }: {
   from: string; to: string; preset: Preset;
@@ -499,10 +546,12 @@ function ColumnButtons({ columns, hidden, onToggle }: {
   );
 }
 
-function Board({ columns, onOpen, accounts }: {
+function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm }: {
   columns: BoardColumn[]; onOpen: OpenCard;
   /** Offer the "Accounts" view. */
   accounts: boolean;
+  /** Offer columns by T-Lines PM instead of region. */
+  byPm: boolean;
 }) {
   const [dateFrom, setDateFrom] = React.useState('');
   const [dateTo, setDateTo] = React.useState('');
@@ -532,6 +581,21 @@ function Board({ columns, onOpen, accounts }: {
     if (role === 'tlines_pm' && i.pmName) return people.find(p => p.label === i.pmName)?.value ?? null;
     return null;
   }, [assigned, people]);
+
+  const [columnsBy, setColumnsBy] = React.useState<ColumnsBy>('regions');
+  React.useEffect(() => {
+    try { if (offerPm && localStorage.getItem(COLUMNS_BY_KEY) === 'pms') setColumnsBy('pms'); } catch { /* storage blocked */ }
+  }, [offerPm]);
+  const changeColumnsBy = (v: ColumnsBy) => {
+    setColumnsBy(v);
+    try { localStorage.setItem(COLUMNS_BY_KEY, v); } catch { /* storage blocked */ }
+  };
+  const byPmNow = offerPm && columnsBy === 'pms';
+  const columns = React.useMemo(() => {
+    if (!byPmNow) return regionColumns;
+    const names = new Map(people.map(p => [p.value, p.label]));
+    return pmColumns(regionColumns, i => personOf(i, 'tlines_pm'), id => names.get(id) ?? 'Unknown');
+  }, [byPmNow, regionColumns, people, personOf]);
 
   // Columns menu — remembered per browser.
   const [hidden, setHidden] = React.useState<Set<string>>(new Set());
@@ -609,6 +673,7 @@ function Board({ columns, onOpen, accounts }: {
       {/* Every board filter sits here, right above the columns. */}
       <div className="flex min-h-12 flex-wrap items-center justify-between gap-2.5 rounded-[8px] bg-ui-surface px-2 py-1.5">
         <div className="flex flex-wrap items-center gap-2.5">
+          {offerPm && <ColumnsByToggle by={columnsBy} onBy={changeColumnsBy} />}
           {accounts && <ViewToggle view={view} onView={changeView} />}
           <FilterSelect aria-label="Companies" value={company} options={COMPANY_OPTIONS} onValueChange={v => setCompany(v ?? '')} className={FILTER_CLS} />
           <FilterSelect aria-label="Trust PM" value={trustPm} options={trustPmOptions} onValueChange={v => setTrustPm(v ?? '')} className={FILTER_CLS} />
@@ -630,7 +695,9 @@ function Board({ columns, onOpen, accounts }: {
       </div>
       {/* items-start: columns must NOT stretch to match the tallest one (grid's default). */}
       <div
-        className="grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2 xl:[grid-template-columns:repeat(var(--board-cols),minmax(0,1fr))]"
+        className={byPmNow
+          ? 'grid items-start gap-2.5 overflow-x-auto pb-2 [grid-template-columns:repeat(var(--board-cols),minmax(320px,1fr))]'
+          : 'grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2 xl:[grid-template-columns:repeat(var(--board-cols),minmax(0,1fr))]'}
         style={{ '--board-cols': visible.length } as React.CSSProperties}
       >
         {visible.map(column => (
@@ -644,9 +711,11 @@ function Board({ columns, onOpen, accounts }: {
   );
 }
 
-export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false }: {
+export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false, byPm = false }: {
   /** Offer the "Accounts" view: each column's cards grouped by client, biggest client first. */
   accounts?: boolean;
+  /** Offer "T-Lines PMs" columns: one column per T-Lines PM instead of per region. */
+  byPm?: boolean;
   /** Page title / sub-line (the Trust Lines dashboard has its own). */
   heading?: string;
   subheading?: string;
@@ -706,7 +775,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
           description="Ask an admin to set your region on the Team page."
         />
       ) : (
-        <Board columns={columns} onOpen={handleOpen} accounts={accounts} />
+        <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} />
       )}
       {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} onClose={() => setOpen(null)} />}
     </AssignContext.Provider>
