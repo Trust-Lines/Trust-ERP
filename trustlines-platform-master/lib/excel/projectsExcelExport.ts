@@ -179,6 +179,9 @@ export interface PProject {
   projectName?: string;
   color?: ProjectColor;
   isUrgent?: boolean;
+  /** Half-year assignment (Trust System "Half"): FIRST_HALF / SECOND_HALF + year. */
+  halfOfYear?: string | null;
+  halfYear?: number | null;
   containerDate?: string | null;
   bucket?: string;
   items: PItem[];

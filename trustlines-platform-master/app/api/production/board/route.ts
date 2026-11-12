@@ -25,12 +25,12 @@ export async function GET() {
 
   const { data: projects } = await admin
     .from('projects')
-    .select('id, code, name, categories, dropbox_root_path, is_archived, region, is_urgent, production_container_date')
+    .select('id, code, name, categories, dropbox_root_path, is_archived, region, is_urgent, production_container_date, half_of_year, half_year')
     .is('deleted_at', null)
     .or('is_archived.is.null,is_archived.eq.false')
     .or('is_draft.is.null,is_draft.eq.false,delivered_to_trust_at.not.is.null')
     .order('created_at', { ascending: true }) as {
-      data: { id: string; code: string; name: string; categories: string[] | null; dropbox_root_path: string | null; region: string | null; is_urgent: boolean | null; production_container_date: string | null }[] | null;
+      data: { id: string; code: string; name: string; categories: string[] | null; dropbox_root_path: string | null; region: string | null; is_urgent: boolean | null; production_container_date: string | null; half_of_year: string | null; half_year: number | null }[] | null;
     };
 
   if (!projects?.length) return NextResponse.json({ projects: [], directOrders: [], missingExtra: [] });
@@ -76,9 +76,9 @@ export async function GET() {
   }
 
   const { data: cases } = await admin.from('production_cases')
-    .select('id, kind, code, name, address, bucket, case_type, base_project_name, is_urgent, container_date, created_at')
+    .select('id, kind, code, name, address, bucket, case_type, base_project_name, is_urgent, container_date, half_of_year, half_year, created_at')
     .is('deleted_at', null).order('created_at', { ascending: true }) as {
-      data: { id: string; kind: string; code: string; name: string | null; address: string | null; bucket: string | null; case_type: string | null; base_project_name: string | null; is_urgent: boolean; container_date: string | null }[] | null;
+      data: { id: string; kind: string; code: string; name: string | null; address: string | null; bucket: string | null; case_type: string | null; base_project_name: string | null; is_urgent: boolean; container_date: string | null; half_of_year: string | null; half_year: number | null }[] | null;
     };
   const caseIds = (cases ?? []).map(c => c.id);
   const { data: extraItems } = caseIds.length ? await admin
@@ -123,6 +123,7 @@ export async function GET() {
       projectName: p.name,
       bucket: p.region ?? bucketFromPath(p.dropbox_root_path),
       isUrgent: !!p.is_urgent,
+      halfOfYear: p.half_of_year, halfYear: p.half_year,
       containerDate: p.production_container_date,
       items: visible.sort((a, b) => (a.sort_index ?? 0) - (b.sort_index ?? 0)).map(mapItem),
     };
@@ -136,6 +137,7 @@ export async function GET() {
       : [c.name, c.address].filter(Boolean).join(' - '),
     bucket: c.bucket ?? 'OTHER',
     isUrgent: c.is_urgent,
+    halfOfYear: c.half_of_year, halfYear: c.half_year,
     containerDate: c.container_date,
     items: (extraItems ?? []).filter(it => it.case_id === c.id).sort((a, b) => (a.sort_index ?? 0) - (b.sort_index ?? 0)).map(mapItem),
   })).filter(p => p.items.length > 0);
