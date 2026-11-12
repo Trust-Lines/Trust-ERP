@@ -113,20 +113,22 @@ export function StatusChip({ opt, className }: { opt: StatusOption; className?: 
   );
 }
 
+// In the table the chip is a full box: it fills the cell (a merged PO cell from the type's first row
+// to its last) with a margin on every side, icon and label centred.
 function StatusCell({ opt, rowSpan, editable, onOpen }: {
   opt: StatusOption; rowSpan?: number; editable: boolean; onOpen: (anchor: HTMLElement) => void;
 }) {
   return (
     <td
       rowSpan={rowSpan}
-      className={cn('overflow-hidden whitespace-nowrap border-b border-r border-ui-divider bg-ui-page-bg px-2 text-left align-middle',
-        editable && 'cursor-pointer hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ui-focus-ring')}
+      className={cn('group/status relative overflow-hidden whitespace-nowrap border-b border-r border-ui-divider bg-ui-page-bg p-0 align-middle',
+        editable && 'cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ui-focus-ring')}
       tabIndex={editable ? 0 : undefined}
       aria-haspopup={editable ? 'listbox' : undefined}
       onClick={editable ? e => onOpen(e.currentTarget) : undefined}
       onKeyDown={editable ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(e.currentTarget); } } : undefined}
     >
-      <StatusChip opt={opt} />
+      <StatusChip opt={opt} className={cn('absolute inset-[5px] max-w-none justify-center rounded-[6px] px-2', editable && 'group-hover/status:brightness-95')} />
     </td>
   );
 }
