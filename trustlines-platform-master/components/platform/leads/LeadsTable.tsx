@@ -25,7 +25,7 @@ const STATUS_TAG_COLORS: Record<string, string> = Object.fromEntries(
 const STATUS_KEY_BY_LABEL: Record<string, string> = Object.fromEntries(STATUS_OP_OPTIONS.map(([key, label]) => [label, key]));
 function renderStatusPill(label: string) {
   const key = STATUS_KEY_BY_LABEL[label];
-  return <StatusBadge group="lead_stage" status={(key && OPPORTUNITY_STATUS_TAG[key]) || label} label={label} size="sm" />;
+  return <StatusBadge group="lead_stage" status={(key && OPPORTUNITY_STATUS_TAG[key]) || label} label={label} size="sm" className="h-7 px-2.5 text-[13px] [&_svg]:size-4" />;
 }
 
 function formatDate(iso: string | null | undefined): string {
@@ -56,12 +56,12 @@ const COLUMN_WIDTHS = [
 ];
 
 const cell: React.CSSProperties = {
-  padding: '0 8px', fontSize: 13, lineHeight: 1.4, color: 'var(--ui-body)',
+  padding: '0 8px', fontSize: 14, lineHeight: 1.4, color: 'var(--ui-body)',
   borderBottom: '1px solid var(--ui-divider)', whiteSpace: 'nowrap', verticalAlign: 'middle',
   height: 64, overflow: 'hidden', textOverflow: 'ellipsis',
 };
 const headCell: React.CSSProperties = {
-  padding: '0 8px', height: 46, fontSize: 12, fontWeight: 600, lineHeight: 1.4,
+  padding: '0 8px', height: 46, fontSize: 13, fontWeight: 600, lineHeight: 1.4,
   color: 'var(--ui-body)', textAlign: 'left',
   borderBottom: '1px solid var(--ui-divider)', whiteSpace: 'nowrap', background: 'var(--ui-table-head-bg, var(--ui-surface))',
   position: 'sticky', top: 0, zIndex: 3,
@@ -271,7 +271,7 @@ export function LeadsTable({
                     style={{ cursor: 'grab', opacity: dragId === l.id ? 0.5 : 1, background: l.archived ? 'var(--bg-subtle)' : undefined }}
                   >
                     {/* Cell order must match LEAD_COLUMNS. */}
-                    <td className="sticky-col" style={{ ...cell, fontSize: 12, fontWeight: 500, whiteSpace: 'normal', overflow: 'visible' }}>
+                    <td className="sticky-col" style={{ ...cell, fontSize: 14, fontWeight: 500, whiteSpace: 'normal', overflow: 'visible' }}>
                       <LeadNameCell lead={l} today={today} assignees={l.origin === 'opportunity' || l.origin === 'potential' ? marketingAssignees : assignees}
                         onOpen={() => onOpen?.(l.id)} />
                     </td>
@@ -289,7 +289,7 @@ export function LeadsTable({
                             options={assigneePool(l).map(a => a.full_name)}
                             knownColors={NEUTRAL_PILL(assigneePool(l).map(a => a.full_name))}
                             allowCreate={false} placeholder="Unassigned"
-                            renderPill={name => <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, color: 'var(--ui-body)' }}>{name}</span>}
+                            renderPill={name => <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 14, color: 'var(--ui-body)' }}>{name}</span>}
                             onChange={name => onAssigneeChange?.(l.id, assigneePool(l).find(a => a.full_name === name)?.id ?? '')}
                           />
                         </span>
@@ -347,12 +347,12 @@ export function LeadsTable({
                       ) : l.request}
                     </td>
 
-                    <td style={{ ...cell, fontSize: 12, color: l.due_date && l.due_date.slice(0, 10) < today ? 'var(--status-danger)' : undefined, fontWeight: l.due_date && l.due_date.slice(0, 10) < today ? 600 : undefined }}>
+                    <td style={{ ...cell, fontSize: 13, color: l.due_date && l.due_date.slice(0, 10) < today ? 'var(--status-danger)' : undefined, fontWeight: l.due_date && l.due_date.slice(0, 10) < today ? 600 : undefined }}>
                       {formatDate(l.due_date)}
                     </td>
 
                     <td style={{ ...cell, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.location}</td>
-                    <td style={{ ...cell, fontSize: 12 }}>{formatDate(l.date_created)}</td>
+                    <td style={{ ...cell, fontSize: 13 }}>{formatDate(l.date_created)}</td>
 
                     {/* ── Hidden by default ── */}
                     <td style={cell}>{l.contact}</td>
