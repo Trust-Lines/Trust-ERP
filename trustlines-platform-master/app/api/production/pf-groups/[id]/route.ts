@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireProductionWrite } from '@/lib/production/guard';
+import { PROD_KEYS } from '@/lib/production/access';
 import { logAudit } from '@/lib/audit/log';
 
 type Params = { params: Promise<{ id: string }> };
 
 /** Delete a whole PF group. Only the grouping goes; projects and rows are not touched. */
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const { user, admin, deny } = await requireProductionWrite();
+  const { user, admin, deny } = await requireProductionWrite(PROD_KEYS.groups);
   if (deny) return deny;
   const { id } = await params;
   const { error: mErr } = await admin.from('production_pf_group_members').delete().eq('group_id', id);

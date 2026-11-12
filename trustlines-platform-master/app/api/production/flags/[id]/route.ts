@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireProductionWrite } from '@/lib/production/guard';
+import { PROD_KEYS } from '@/lib/production/access';
 import { logAudit } from '@/lib/audit/log';
 
 type Params = { params: Promise<{ id: string }> };
 
 /** Mark a To do / Follow Up flag done (or not done again). */
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const { user, admin, deny } = await requireProductionWrite();
+  const { user, admin, deny } = await requireProductionWrite(PROD_KEYS.todo);
   if (deny) return deny;
   const { id } = await params;
   const { completed } = await req.json().catch(() => ({})) as { completed?: boolean };
@@ -20,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 /** Remove a flag (it only marks work; no production data goes with it). */
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const { user, admin, deny } = await requireProductionWrite();
+  const { user, admin, deny } = await requireProductionWrite(PROD_KEYS.todo);
   if (deny) return deny;
   const { id } = await params;
   const { data, error } = await admin.from('production_pf_flags').delete().eq('id', id).select('id').maybeSingle();

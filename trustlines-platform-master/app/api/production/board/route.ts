@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/supabase/server';
+import { getRolePermissions } from '@/lib/permissions/server';
+import { pageAllowed } from '@/lib/permissions/catalog';
+import { productionAccess } from '@/lib/production/access';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { bucketFromPath, typesForCategories } from '@/lib/production/board';
 import type { PProject, PItem } from '@/lib/excel/projectsExcelExport';
@@ -22,6 +25,18 @@ export async function GET() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
+
+  // Who may read it: the Production Board (its tabs and money columns per the Roles page) and
+  // Payments (which totals the board's money).
+  const { data: prof } = await admin.from('profiles').select('role').eq('id', user.id).single();
+  const role = (prof as { role?: string } | null)?.role ?? null;
+  const perms = await getRolePermissions(admin, role);
+  const payments = pageAllowed(role, perms, 'page.payments');
+  const acc = productionAccess(role, perms);
+  if (!pageAllowed(role, perms, 'page.production') && !payments) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const showMoney = acc.viewMoney || payments;
+  const tabs = payments ? { projects: true, directOrders: true, missingExtra: true }
+    : { projects: acc.tabProjects, directOrders: acc.tabDirectOrders, missingExtra: acc.tabMissingExtra };
 
   const { data: projects } = await admin
     .from('projects')
@@ -110,7 +125,9 @@ export async function GET() {
     pfSignStatus: it.pf_sign_status,
     status: it.status,
     std: it.std, etd: it.etd, rtd: it.rtd, rtr: it.rtr, rdy: it.rdy, ftd: it.ftd, snd: it.snd,
-    pfUsd: it.pf_usd ?? 0, pfTl: it.pf_tl ?? 0, invoice: it.invoice ?? 0, invoiceTl: it.invoice_tl ?? 0,
+    // Money only for roles with "Money columns" (Roles page → Production Board).
+    pfUsd: showMoney ? it.pf_usd ?? 0 : 0, pfTl: showMoney ? it.pf_tl ?? 0 : 0,
+    invoice: showMoney ? it.invoice ?? 0 : 0, invoiceTl: showMoney ? it.invoice_tl ?? 0 : 0,
     paymentRule: it.payment_rule, containerNo: it.container_no, containerDate: it.container_date,
   });
 
@@ -148,7 +165,11 @@ export async function GET() {
   })).filter(p => p.items.length > 0);
 
   return NextResponse.json(
-    { projects: boardProjects, directOrders: buildExtra('direct_order'), missingExtra: buildExtra('missing_extra') },
+    {
+      projects: tabs.projects ? boardProjects : [],
+      directOrders: tabs.directOrders ? buildExtra('direct_order') : [],
+      missingExtra: tabs.missingExtra ? buildExtra('missing_extra') : [],
+    },
     { headers: { 'Cache-Control': 'no-store, max-age=0' } },
   );
 }

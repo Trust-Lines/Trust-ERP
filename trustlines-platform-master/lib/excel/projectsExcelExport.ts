@@ -649,6 +649,8 @@ export interface ExportProjectsOptions {
   visibleColumns?: ColumnKey[];
   isColumnVisible?: (key: ColumnKey) => boolean;
   filename?: string;
+  /** Leave the Project Total sheet out (roles without the money columns). */
+  skipProjectTotal?: boolean;
 }
 
 export async function exportProjectsWorkbook(opts: ExportProjectsOptions): Promise<void> {
@@ -663,12 +665,14 @@ export async function exportProjectsWorkbook(opts: ExportProjectsOptions): Promi
   if (opts.missingExtra) writeProjectsSheet(wb, 'Missing & Extra', opts.missingExtra, cols);
   if (opts.directOrders) writeProjectsSheet(wb, 'Direct Orders', opts.directOrders, cols);
 
-  const ptData = opts.projectTotal ?? buildProjectTotalFromSections({
-    projects: opts.projects,
-    missingExtra: opts.missingExtra ?? [],
-    directOrders: opts.directOrders ?? [],
-  });
-  writeProjectTotalSheet(wb, ptData, opts.projectTotalRate ?? 41.23);
+  if (!opts.skipProjectTotal) {
+    const ptData = opts.projectTotal ?? buildProjectTotalFromSections({
+      projects: opts.projects,
+      missingExtra: opts.missingExtra ?? [],
+      directOrders: opts.directOrders ?? [],
+    });
+    writeProjectTotalSheet(wb, ptData, opts.projectTotalRate ?? 41.23);
+  }
 
   const dateStr = new Date().toISOString().slice(0, 10);
   const buffer = await wb.xlsx.writeBuffer();

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { computeBoardPfCode, isFurnitureOrder, pfOwnerForCase, pfOwnerForProject, PF_CODE_SIGN_STATUSES } from '@/lib/production/pfCode';
 import { datesForStatusChange, type DateField } from '@/lib/production/board';
 import { requireProductionWrite } from '@/lib/production/guard';
+import { PROD_KEYS, STATUS_FIELDS } from '@/lib/production/access';
 import { logAudit } from '@/lib/audit/log';
 import { maybeEmitItemsReady } from '@/lib/events/triggers';
 
@@ -13,14 +14,21 @@ const EDITABLE = new Set([
   'payment_rule', 'container_no', 'container_date',
   'assigned_to', 'priority', 'start_date', 'target_date',
 ]);
+const MONEY_FIELDS = new Set(['pf_usd', 'pf_tl', 'invoice', 'invoice_tl', 'expenses_usd', 'expenses_tl']);
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  // Same rule as DELETE: changing a production row needs edit.production (was any signed-in user).
-  const { user, admin, deny } = await requireProductionWrite();
+  // Roles page → Production Board: status cells need "Change statuses", the other fields "Edit
+  // rows", money fields also "Money columns" (each follows edit.production until set).
+  const body = await req.json().catch(() => ({})) as Record<string, unknown>;
+  const sent = Object.keys(body).filter(k => EDITABLE.has(k));
+  const keys = new Set<string>();
+  for (const k of sent) {
+    keys.add(STATUS_FIELDS.has(k) ? PROD_KEYS.editStatus : PROD_KEYS.editRows);
+    if (MONEY_FIELDS.has(k)) keys.add(PROD_KEYS.viewMoney);
+  }
+  const { user, admin, deny } = await requireProductionWrite(keys.size ? [...keys] : 'edit.production');
   if (deny) return deny;
   const { id } = await params;
-
-  const body = await req.json() as Record<string, unknown>;
 
   const { data: item } = await admin
     .from('production_items')
@@ -115,7 +123,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const { user, admin, deny } = await requireProductionWrite();
+  const { user, admin, deny } = await requireProductionWrite(PROD_KEYS.deleteRows);
   if (deny) return deny;
   const { id } = await params;
 

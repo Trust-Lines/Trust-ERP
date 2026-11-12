@@ -174,6 +174,26 @@ export const PERMISSION_GROUPS: PermGroup[] = [
     ],
   },
   {
+    // Every part of Operations → Production Board, one switch each. Until a role sets one, it
+    // follows "Production board" (viewing) or "Change production board / statuses" (editing).
+    category: 'edit', title: 'Production Board', icon: '🏭',
+    perms: [
+      { key: 'prod.tab_projects',      label: 'Projects tab', hint: 'Follows “Production board” page access until set separately.' },
+      { key: 'prod.tab_missing_extra', label: 'Missing & Extra tab', hint: 'Follows “Production board” page access until set separately.' },
+      { key: 'prod.tab_direct_orders', label: 'Direct Orders tab', hint: 'Follows “Production board” page access until set separately.' },
+      { key: 'prod.view_money',        label: 'Money columns', hint: 'PF/USD, PF/TL, Invoice, Invoice TL and the totals. Off → the columns are hidden.' },
+      { key: 'prod.export',            label: 'Export Excel' },
+      { key: 'prod.edit_status',       label: 'Change statuses', hint: 'Status, PF Sign Status and PO Status cells. Follows “Change production board” until set separately.' },
+      { key: 'prod.edit_rows',         label: 'Edit rows', hint: 'Vendor, Order Type, the Edit Item panel and Add Item' },
+      { key: 'prod.delete_rows',       label: 'Delete rows', hint: 'Right-click a row → Delete Row (goes to the trash)' },
+      { key: 'prod.edit_projects',     label: 'Project menu', hint: 'Right-click a project: Urgent, Edit Name / Address / Types, Move Region' },
+      { key: 'prod.delete_projects',   label: 'Delete projects', hint: 'Project menu → Delete Project. General / ops manager until set separately.' },
+      { key: 'prod.todo',              label: 'ToDo & Follow Up', hint: 'Edit → Today’s PFs & Follow Up: flag and unflag' },
+      { key: 'prod.groups',            label: 'PF Groups', hint: 'Add to Group, Manage Groups (move, remove, delete)' },
+      { key: 'prod.half',              label: 'Half assignment', hint: 'Select projects and assign them to the first / second half' },
+    ],
+  },
+  {
     category: 'sign', title: 'Signatures', icon: '✍️',
     perms: [
       { key: 'sign.production_millwork', label: 'Production Manager — Millwork / Shelving', hint: 'Sign the Production Manager box on Millwork & Shelving docs/PFs' },
@@ -271,12 +291,27 @@ export const PAGE_PARENT: Record<string, string> = {
   'page.design_materials': 'page.design',
   'page.design_reviews': 'page.design',
   'page.design_videos': 'page.design',
+  // Production Board parts: viewing follows the page, editing follows edit.production.
+  'prod.tab_projects': 'page.production',
+  'prod.tab_missing_extra': 'page.production',
+  'prod.tab_direct_orders': 'page.production',
+  'prod.view_money': 'page.production',
+  'prod.export': 'page.production',
+  'prod.edit_status': 'edit.production',
+  'prod.edit_rows': 'edit.production',
+  'prod.delete_rows': 'edit.production',
+  'prod.edit_projects': 'edit.production',
+  'prod.todo': 'edit.production',
+  'prod.groups': 'edit.production',
+  'prod.half': 'edit.production',
 };
 
 /** Sales pages were guarded by these lists in code (app/(platform)/leads, sales-*); they stay the default. */
 export const PAGE_LEGACY_ROLES: Record<string, string[]> = {
   // Who could edit the installation plan before it had its own switch (lib/installations/access).
   'edit.installation': ['general_manager', 'ops_manager', 'tlines_pm', 'trustlines_pm'],
+  // Deleting a whole project from the Production Board was these roles only.
+  'prod.delete_projects': ['general_manager', 'ops_manager'],
   'page.sales_web_leads': SALES_INTAKE_ROLES,
   'page.sales_contacts': SALES_INTAKE_ROLES,
   'page.leads': SALES_INTAKE_ROLES,

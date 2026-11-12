@@ -12,9 +12,10 @@ import {
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import type { ProductionAccess } from '@/lib/production/access';
 import { STATUS_OPTIONS, normalizeStatus } from '@/lib/production/statuses';
 import {
-  TYPE_ORDER, buildSectionsFromProjects, exportBoardSheet, exportProjectsWorkbook,
+  DEFAULT_VISIBLE_COLUMNS, TYPE_ORDER, buildSectionsFromProjects, exportBoardSheet, exportProjectsWorkbook,
   type PItem, type PProject, type PSection,
 } from '@/lib/excel/projectsExcelExport';
 
@@ -40,8 +41,10 @@ const halfLabel = (t: string) => (t === 'UNASSIGNED' ? 'Unassigned' : `${t.split
 const containerKey = (s: string | null | undefined) => String(s ?? '').trim().toLowerCase();
 const statusLabel = new Map(STATUS_OPTIONS.map(o => [o.value, o.label]));
 
-export function ProductionClient({ canEdit = false, canDeleteProject = false }: { canEdit?: boolean; canDeleteProject?: boolean }) {
-  const [activeTab, setActiveTab] = useState<Tab>('Projects');
+export function ProductionClient({ access, canAddProject = false }: { access: ProductionAccess; canAddProject?: boolean }) {
+  // Tabs the role may open (Roles page → Production Board).
+  const tabs = TABS.filter(t => (t === 'Projects' ? access.tabProjects : t === 'Missing Extra' ? access.tabMissingExtra : access.tabDirectOrders));
+  const [activeTab, setActiveTab] = useState<Tab>(tabs[0] ?? 'Projects');
   const [exporting, setExporting] = useState(false);
   const [data, setData]   = useState<BoardData | null>(null);
   const [search, setSearch] = useState('');
@@ -96,6 +99,7 @@ export function ProductionClient({ canEdit = false, canDeleteProject = false }: 
   async function handleExport() {
     setExporting(true);
     const date = new Date().toISOString().slice(0, 10);
+    const visibleColumns = access.viewMoney ? undefined : DEFAULT_VISIBLE_COLUMNS.filter(c => !['pfUsd', 'pfTl', 'invoice', 'invoiceTl'].includes(c));
     try {
       if (activeTab === 'Projects') {
         await exportProjectsWorkbook({
@@ -104,13 +108,14 @@ export function ProductionClient({ canEdit = false, canDeleteProject = false }: 
           missingExtra: sectionsByTab['Missing Extra'],
           projectTotalRate: PROJECT_TOTAL_RATE,
           filename: `Operational_Board_${date}.xlsx`,
+          visibleColumns, skipProjectTotal: !access.viewMoney,
         });
-        toast.success('Excel exported — 4 sheets (Projects, Missing & Extra, Direct Orders, Project Total)');
+        toast.success(access.viewMoney ? 'Excel exported — 4 sheets (Projects, Missing & Extra, Direct Orders, Project Total)' : 'Excel exported');
       } else if (activeTab === 'Missing Extra') {
-        await exportBoardSheet({ sheetName: 'Missing & Extra', sections: sectionsByTab['Missing Extra'], filename: `Missing_Extra_${date}.xlsx` });
+        await exportBoardSheet({ sheetName: 'Missing & Extra', sections: sectionsByTab['Missing Extra'], filename: `Missing_Extra_${date}.xlsx`, visibleColumns });
         toast.success('Excel exported');
       } else {
-        await exportBoardSheet({ sheetName: 'Direct Orders', sections: sectionsByTab['Direct Orders'], filename: `Direct_Orders_${date}.xlsx` });
+        await exportBoardSheet({ sheetName: 'Direct Orders', sections: sectionsByTab['Direct Orders'], filename: `Direct_Orders_${date}.xlsx`, visibleColumns });
         toast.success('Excel exported');
       }
     } catch (e) {
@@ -259,14 +264,14 @@ export function ProductionClient({ canEdit = false, canDeleteProject = false }: 
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <button
+          {access.export && <button
             type="button" onClick={handleExport} disabled={exporting}
             className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent px-4 text-[13px] font-medium text-[var(--color-secondary-700)] disabled:opacity-70 dark:border-[#EEF2F6] dark:text-[#EEF2F6]"
           >
             {exporting ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <FolderOutput size={16} aria-hidden />}
             Export Excel
-          </button>
-          {canEdit && (
+          </button>}
+          {canAddProject && (
             <Link href="/projects/new" className="inline-flex h-9 items-center gap-2 rounded-[6px] bg-ui-btn-accent px-6 text-[13px] font-medium text-ui-btn-accent-fg no-underline hover:brightness-95">
               <Plus size={16} aria-hidden /> Add Project
             </Link>
@@ -275,7 +280,7 @@ export function ProductionClient({ canEdit = false, canDeleteProject = false }: 
       </div>
 
       <div className="flex h-12 items-stretch gap-8 border-b border-ui-divider">
-        {TABS.map(tab => (
+        {tabs.map(tab => (
           <button
             key={tab} type="button" onClick={() => setActiveTab(tab)}
             className={cn(
@@ -313,7 +318,7 @@ export function ProductionClient({ canEdit = false, canDeleteProject = false }: 
               </button>
               {editMenu && (
                 <div role="menu" className="absolute left-0 top-10 z-50 flex min-w-[220px] flex-col rounded-[6px] border border-ui-divider bg-ui-surface-elevated py-1 shadow-03">
-                  {canEdit && (
+                  {access.todo && (
                     <button type="button" role="menuitem" onClick={() => { setEditMenu(false); setTodoOpen(true); }}
                       className="cursor-pointer border-0 bg-transparent px-3 py-2 text-left text-[13px] text-ui-body hover:bg-ui-hover-bg">Today&apos;s PFs &amp; Follow Up</button>
                   )}
@@ -343,7 +348,7 @@ export function ProductionClient({ canEdit = false, canDeleteProject = false }: 
         )}
 
         {/* Half toolbar: only while selecting (right click a project → Select). */}
-        {canEdit && selecting && (
+        {access.half && selecting && (
           <div className="flex flex-wrap items-center gap-3 rounded-[6px] border border-ui-divider bg-ui-surface px-3 py-2 text-[12px] text-ui-body">
             <label className="inline-flex cursor-pointer items-center gap-1.5">
               <input type="checkbox" checked={allPicked} disabled={!projectCount}
@@ -365,7 +370,7 @@ export function ProductionClient({ canEdit = false, canDeleteProject = false }: 
       </div>
 
       {projectsTab && <TodoModal open={todoOpen} onOpenChange={setTodoOpen} flags={pf.flags} projects={(data ?? EMPTY)['Projects']} onChanged={() => void pf.reload()} />}
-      {projectsTab && <ManageGroupsModal open={groupsOpen} onOpenChange={setGroupsOpen} groups={pf.groups} canEdit={canEdit} onChanged={() => void pf.reload()} />}
+      {projectsTab && <ManageGroupsModal open={groupsOpen} onOpenChange={setGroupsOpen} groups={pf.groups} canEdit={access.groups} onChanged={() => void pf.reload()} />}
 
       {data === null ? (
         <div style={{ padding: 48, textAlign: 'center' }}>
@@ -375,10 +380,10 @@ export function ProductionClient({ canEdit = false, canDeleteProject = false }: 
         <p className="m-0 rounded-[8px] border border-ui-divider p-8 text-center text-[13px] text-ui-text-secondary">No groups yet. Right-click a project number to create one.</p>
       ) : (
         <div className="flex flex-col gap-4">
-          <OperationalBoard sections={sections} canEdit={canEdit} canDeleteProject={canDeleteProject}
+          <OperationalBoard sections={sections} access={access}
             groups={pf.groups} onGroupsChanged={() => void pf.reload()} onSaved={() => void load()}
             groupRanks={grouped ? groupRanks : undefined}
-            selection={canEdit ? {
+            selection={access.half ? {
               selected: picked, visible: selecting,
               toggle: id => { setSelecting(true); setPicked(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; }); },
             } : undefined} />

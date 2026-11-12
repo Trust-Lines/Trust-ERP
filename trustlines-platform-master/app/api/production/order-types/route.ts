@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireVendorAccess } from '@/lib/production/vendorAccess';
 import { requireProductionWrite } from '@/lib/production/guard';
+import { PROD_KEYS } from '@/lib/production/access';
 import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,7 @@ export async function GET() {
 
 /** Add an order type from the cell ("+ Add order type"). Same name in any case = 409. */
 export async function POST(req: NextRequest) {
-  const { user, admin, deny } = await requireProductionWrite();
+  const { user, admin, deny } = await requireProductionWrite(PROD_KEYS.editRows);
   if (deny) return deny;
   const { name } = await req.json().catch(() => ({})) as { name?: string };
   const clean = String(name ?? '').trim().replace(/\s+/g, ' ');
