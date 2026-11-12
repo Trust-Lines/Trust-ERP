@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generatePfCode, projectNumberFromCode } from '@/lib/production/pfCode';
+import { computeBoardPfCode, isFurnitureOrder, pfOwnerForCase, pfOwnerForProject, PF_CODE_SIGN_STATUSES } from '@/lib/production/pfCode';
 import { datesForStatusChange, type DateField } from '@/lib/production/board';
 import { requireProductionWrite } from '@/lib/production/guard';
 import { logAudit } from '@/lib/audit/log';
@@ -7,7 +7,6 @@ import { maybeEmitItemsReady } from '@/lib/events/triggers';
 
 type Params = { params: Promise<{ id: string }> };
 
-const FIXED_VENDORS = ['YSM', 'GOS'];
 const EDITABLE = new Set([
   'vendor_id', 'order_type', 'po_sign_status', 'pf_sign_status', 'status',
   'etd', 'pf_usd', 'pf_tl', 'invoice', 'invoice_tl', 'expenses_usd', 'expenses_tl',
@@ -25,10 +24,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const { data: item } = await admin
     .from('production_items')
-    .select('id, project_id, source, type, vendor_id, pf_code, order_type, status, std, etd, rtd, rtr, rdy, ftd, snd')
+    .select('id, project_id, case_id, source, type, custom_type_code, vendor_id, pf_code, order_type, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd')
     .eq('id', id).is('deleted_at', null).single() as {
       data: {
-        id: string; project_id: string; source: string; type: string;
+        id: string; project_id: string | null; case_id: string | null; source: string; type: string; custom_type_code: string | null;
+        pf_sign_status: string | null;
         vendor_id: string | null; pf_code: string | null; order_type: string | null; status: string;
         std: string | null; etd: string | null; rtd: string | null; rtr: string | null;
         rdy: string | null; ftd: string | null; snd: string | null;
@@ -39,43 +39,47 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const update: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(body)) if (EDITABLE.has(k)) update[k] = v;
 
-  const nextVendorId  = ('vendor_id'  in update ? update.vendor_id  : item.vendor_id) as string | null;
-  const nextOrderType = ('order_type' in update ? update.order_type : item.order_type) as string | null;
+  // ── PF code (Trust System rules, lib/production/pfCode.ts). The client never sends one. ──
+  const next = <T,>(k: string, cur: T) => (k in update ? update[k] : cur) as T;
+  const nextVendorId = next<string | null>('vendor_id', item.vendor_id);
+  const nextOrderType = next<string | null>('order_type', item.order_type);
+  const nextPfSign = next<string | null>('pf_sign_status', item.pf_sign_status);
+  const isCase = !!item.case_id;
+  // Projects: vendor + a PF sign status that carries a code. Direct Orders / Missing & Extra: vendor.
+  const eligible = !!nextVendorId && (isCase || PF_CODE_SIGN_STATUSES.has(String(nextPfSign ?? '')));
+  const wasEligible = !!item.vendor_id && (isCase || PF_CODE_SIGN_STATUSES.has(String(item.pf_sign_status ?? '')));
 
-  const vendorChanged    = 'vendor_id'  in update && update.vendor_id  !== item.vendor_id;
-  const orderTypeChanged = 'order_type' in update && update.order_type !== item.order_type;
-
-  if (vendorChanged || orderTypeChanged) {
-    if (!nextVendorId) {
-      update.pf_code = null;
-    } else {
-      const { data: project } = await admin.from('projects').select('code').eq('id', item.project_id).single() as {
-        data: { code: string } | null;
-      };
-      const { data: vendor } = await admin.from('suppliers').select('code').eq('id', nextVendorId).single() as {
-        data: { code: string | null } | null;
-      };
-      const vendorCode = vendor?.code ?? '';
-      const isFixed = FIXED_VENDORS.includes(vendorCode.toUpperCase()) && item.type === 'Millwork';
-
-      if (vendorChanged || (orderTypeChanged && isFixed)) {
-        let projectNo = projectNumberFromCode(project?.code ?? '');
-        if (item.source === 'direct_order') projectNo = `PDO${projectNo}`;
-
-        const { data: siblings } = await admin
-          .from('production_items')
-          .select('pf_code')
-          .eq('project_id', item.project_id)
-          .eq('type', item.type)
-          .eq('vendor_id', nextVendorId)
-          .neq('id', id)
-          .is('deleted_at', null) as { data: { pf_code: string | null }[] | null };
-        const existingCodes = (siblings ?? []).map(s => s.pf_code).filter(Boolean) as string[];
-
-        update.pf_code = generatePfCode({
-          vendorCode, projectNo, type: item.type, orderType: nextOrderType, existingCodes,
-        });
+  if (!eligible) {
+    if (item.pf_code) update.pf_code = null;
+  } else {
+    const { data: vendor } = await admin.from('suppliers').select('*').eq('id', nextVendorId).single() as {
+      data: { code: string | null; fixed_millwork_codes?: boolean } | null;
+    };
+    const fixed = !!vendor?.fixed_millwork_codes;
+    const orderTypeMatters = item.type === 'Millwork'
+      && (fixed || isFurnitureOrder(item.order_type) !== isFurnitureOrder(nextOrderType));
+    const recompute = !item.pf_code || !wasEligible || nextVendorId !== item.vendor_id
+      || ('order_type' in update && nextOrderType !== item.order_type && orderTypeMatters);
+    if (recompute) {
+      let owner = '';
+      if (item.case_id) {
+        const { data: c } = await admin.from('production_cases').select('kind, code').eq('id', item.case_id).single() as { data: { kind: string; code: string } | null };
+        owner = c ? pfOwnerForCase(c.kind, c.code) : '';
+      } else if (item.project_id) {
+        const { data: proj } = await admin.from('projects').select('code, trust_raw').eq('id', item.project_id).single() as {
+          data: { code: string; trust_raw: { projectNo?: string } | null } | null;
+        };
+        owner = proj ? pfOwnerForProject(proj.code, proj.trust_raw?.projectNo) : '';
       }
+      // This vendor's other live rows under the same project / case hold their numbers.
+      let sib = admin.from('production_items').select('pf_code').eq('vendor_id', nextVendorId).neq('id', id)
+        .is('deleted_at', null).not('pf_code', 'is', null);
+      sib = item.case_id ? sib.eq('case_id', item.case_id) : sib.eq('project_id', item.project_id).eq('source', item.source);
+      const { data: siblings } = await sib as { data: { pf_code: string }[] | null };
+      update.pf_code = computeBoardPfCode({
+        vendorCode: vendor?.code ?? null, fixedMillwork: fixed, owner, type: item.type,
+        customTypeCode: item.custom_type_code, orderType: nextOrderType, siblingCodes: (siblings ?? []).map(r => r.pf_code),
+      });
     }
   }
 
@@ -100,7 +104,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     newValue: { fields: Object.keys(update) },
   });
 
-  if ('status' in update && update.status !== item.status && update.status === 'SENT') {
+  if ('status' in update && update.status !== item.status && update.status === 'SENT' && item.project_id) {
     await maybeEmitItemsReady(admin, item.project_id, user.id);
   }
 

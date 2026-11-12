@@ -13,6 +13,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ChevronDown, ChevronRight, Factory } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ColumnResizer, useColumnWidths, type SizedColumn } from '@/components/ui/column-resize';
+import { ConfirmModal } from '@/components/ui/modal';
+import { EditItemPanel, OrderTypePicker, RowMenu, VendorPicker, useBoardLists, type PanelItem } from './BoardEditors';
 import {
   PF_SIGN_OPTIONS, PO_SIGN_OPTIONS, STATUS_OPTIONS, currentFirst, normalizeSign, normalizeStatus, poRollup,
   signStyle, statusStyle, type StatusOption,
@@ -137,6 +139,20 @@ function StatusMenu({ menu, onPick, onClose }: { menu: OpenMenu; onPick: (value:
   );
 }
 
+// Row order inside a type group (Trust System): YSM, then GOS, then the other vendors in the order
+// they first appear, vendor-less rows last; within a vendor by PF number, then as created.
+function vendorCodeOf(it: PItem): string {
+  const v = it.vendor;
+  return (typeof v === 'string' ? v.split(' - ')[0] : v?.code ?? '').toUpperCase();
+}
+function sortForDisplay(items: PItem[]): PItem[] {
+  const first = new Map<string, number>();
+  items.forEach((it, i) => { const c = vendorCodeOf(it); if (c && !first.has(c)) first.set(c, i); });
+  const rank = (it: PItem) => { const c = vendorCodeOf(it); return !c ? 1e9 : c === 'YSM' ? -2 : c === 'GOS' ? -1 : first.get(c)!; };
+  const pfNo = (it: PItem) => parseInt(String(it.pfCode ?? '').match(/(\d+)$/)?.[1] ?? '9999', 10);
+  return items.map((it, i) => ({ it, i })).sort((a, b) => rank(a.it) - rank(b.it) || pfNo(a.it) - pfNo(b.it) || a.i - b.i).map(x => x.it);
+}
+
 // No order type yet = an empty cell (was a red "-" chip), as in the Trust System.
 function OrderType({ value }: { value?: string | null }) {
   return value ? <Chip css={{ bg: 'var(--status-t0-bg)', fg: 'var(--status-t0-fg)' }}>{value}</Chip> : null;
@@ -166,6 +182,42 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
   const typeLeft = width('projectNo');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [menu, setMenu] = useState<OpenMenu | null>(null);
+  const lists = useBoardLists();
+  const [picker, setPicker] = useState<{ kind: 'vendor' | 'orderType'; item: PItem; rect: DOMRect } | null>(null);
+  const [panel, setPanel] = useState<{ key: string; point: { x: number; y: number } } | null>(null);
+  const [rowMenu, setRowMenu] = useState<{ item: PItem; point: { x: number; y: number } } | null>(null);
+  const [toDelete, setToDelete] = useState<PItem | null>(null);
+  // The type groups drawn this render, for the Edit Item panel.
+  const groupsByKey = new Map<string, { type: string; items: PItem[]; projectId: string | null; caseId: string | null; customTypeCode: string | null }>();
+
+  /** PATCH one row; the reloaded board shows what the server saved (PF code included). */
+  async function patchItem(id: string, body: Record<string, unknown>, show?: Partial<PItem>) {
+    if (show) setPending(p => ({ ...p, [id]: { ...p[id], ...show } }));
+    const res = await fetch(`/api/production/items/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+    const b = await res?.json().catch(() => ({}));
+    onSaved?.();
+    if (!res?.ok) { const msg = b?.error ?? 'Could not save'; toast.error(msg); throw new Error(msg); }
+  }
+  const pickVendor = (item: PItem, v: { id: string; code: string | null; name: string } | null) =>
+    patchItem(item.id!, { vendor_id: v?.id ?? null }, { vendorId: v?.id ?? null, vendor: v ? { code: v.code, name: v.name } : null }).catch(() => {});
+  const pickOrderType = (item: PItem, name: string | null) =>
+    patchItem(item.id!, { order_type: name }, { orderType: name }).catch(() => {});
+  async function addItem(g: { type: string; projectId: string | null; caseId: string | null; customTypeCode: string | null }): Promise<string | null> {
+    const res = await fetch('/api/production/items', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId: g.caseId ? undefined : g.projectId, caseId: g.caseId ?? undefined, type: g.type, customTypeCode: g.customTypeCode ?? undefined }),
+    }).catch(() => null);
+    const b = await res?.json().catch(() => ({}));
+    if (!res?.ok) { toast.error(b?.error ?? 'Could not add the item'); return null; }
+    onSaved?.();
+    return b.item?.id ?? null;
+  }
+  async function deleteItem(item: PItem) {
+    const res = await fetch(`/api/production/items/${item.id}`, { method: 'DELETE' }).catch(() => null);
+    if (!res?.ok) { toast.error('Could not delete the row'); throw new Error('delete'); }
+    toast.success('Row moved to the trash');
+    onSaved?.();
+  }
   // Picked values show at once, until the reloaded board has them.
   const [pending, setPending] = useState<Record<string, Partial<PItem>>>({});
   useEffect(() => { setPending({}); }, [sections]);
@@ -260,7 +312,9 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
               let dataRowSeen = 0;
               const bodyRows: React.ReactNode[] = [];
               groups.forEach((group, gi) => {
-                const shown = group.items.map(view);
+                const shown = sortForDisplay(group.items.map(view));
+                const groupKey = `${shown[0]?.caseId ?? shown[0]?.projectId ?? project.projectNo}|${group.type}`;
+                groupsByKey.set(groupKey, { type: group.type, items: shown, projectId: shown[0]?.projectId ?? null, caseId: shown[0]?.caseId ?? null, customTypeCode: shown[0]?.customTypeCode ?? null });
                 const allSent = groupAllSent(shown);
                 const po = poRollup(shown.map(i => i.poSignStatus));
                 shown.forEach((item, ii) => {
@@ -268,7 +322,8 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
                   const isFirstOfGroup = ii === 0;
                   dataRowSeen++;
                   bodyRows.push(
-                    <tr key={`${pi}-${gi}-${ii}`}>
+                    <tr key={`${pi}-${gi}-${ii}`}
+                      onContextMenu={canEdit && item.id ? e => { e.preventDefault(); setRowMenu({ item, point: { x: e.clientX, y: e.clientY } }); } : undefined}>
                       {COLS.map(col => {
                         if (col === 'projectNo') {
                           if (!isFirstDataRow) return null;
@@ -281,8 +336,9 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
                         if (col === 'type') {
                           if (!isFirstOfGroup) return null;
                           return (
-                            <td key={col} rowSpan={group.items.length} className={cn(TD, TYPE_TEXT, 'sticky z-10 border-r')}
-                              style={{ left: typeLeft, ...(allSent ? { background: BOARD_CSS.typeAllSent.bg, color: BOARD_CSS.typeAllSent.fg } : {}) }}>
+                            <td key={col} rowSpan={group.items.length} className={cn(TD, TYPE_TEXT, 'sticky z-10 border-r', canEdit && 'cursor-pointer hover:brightness-95')}
+                              onClick={canEdit ? e => setPanel({ key: groupKey, point: { x: e.clientX, y: e.clientY } }) : undefined}
+                              style={{ left: typeLeft, ...(allSent ? { background: BOARD_CSS.typeAllSent.bg, color: BOARD_CSS.typeAllSent.fg, borderLeft: '3px solid #052e16', fontWeight: 700 } : {}) }}>
                               {group.type}
                             </td>
                           );
@@ -296,7 +352,18 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
                               onOpen={a => openMenu('po', ids, po, a)} />
                           );
                         }
-                        if (col === 'orderType') return <td key={col} className={TD}><OrderType value={item.orderType} /></td>;
+                        if (col === 'orderType') return (
+                          <td key={col} className={cn(TD, canEdit && item.id && 'cursor-pointer hover:bg-ui-hover-bg')}
+                            onClick={canEdit && item.id ? e => setPicker({ kind: 'orderType', item, rect: e.currentTarget.getBoundingClientRect() }) : undefined}>
+                            <OrderType value={item.orderType} />
+                          </td>
+                        );
+                        if (col === 'vendor') return (
+                          <td key={col} className={cn(TD, 'text-[13px] leading-[1.4]', canEdit && item.id && 'cursor-pointer hover:bg-ui-hover-bg')}
+                            onClick={canEdit && item.id ? e => setPicker({ kind: 'vendor', item, rect: e.currentTarget.getBoundingClientRect() }) : undefined}>
+                            {cellValue(col, item)}
+                          </td>
+                        );
                         if (col === 'pfSignStatus') return (
                           <StatusCell key={col} opt={signStyle(item.pfSignStatus)} editable={canEdit && !!item.id}
                             onOpen={a => openMenu('pf', [item.id!], normalizeSign(item.pfSignStatus), a)} />
@@ -306,7 +373,7 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
                             onOpen={a => openMenu('status', [item.id!], normalizeStatus(item.status), a)} />
                         );
                         return (
-                          <td key={col} className={cn(TD, (col === 'pfCode' || col === 'vendor') && 'text-[13px] leading-[1.4]', isMoneyColumn(col) && 'text-[var(--color-secondary-700)] dark:text-ui-heading')}>
+                          <td key={col} className={cn(TD, col === 'pfCode' && 'text-[13px] leading-[1.4]', isMoneyColumn(col) && 'text-[var(--color-secondary-700)] dark:text-ui-heading')}>
                             {cellValue(col, item)}
                           </td>
                         );
@@ -370,6 +437,35 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
         </tbody>
       </table>
       {menu && <StatusMenu menu={menu} onPick={v => void pick(v)} onClose={() => setMenu(null)} />}
+      {picker?.kind === 'vendor' && (
+        <VendorPicker rect={picker.rect} current={picker.item.vendorId ?? null} vendors={lists.vendors} onVendorsChanged={async () => { await lists.reloadVendors(); onSaved?.(); }}
+          onClose={() => setPicker(null)} onPick={v => { const it = picker.item; setPicker(null); void pickVendor(it, v); }} />
+      )}
+      {picker?.kind === 'orderType' && (
+        <OrderTypePicker rect={picker.rect} current={picker.item.orderType ?? null} options={lists.orderTypes} onAdded={() => void lists.reloadOrderTypes()}
+          onClose={() => setPicker(null)} onClear={() => { const it = picker.item; setPicker(null); void pickOrderType(it, null); }}
+          onPick={name => { const it = picker.item; setPicker(null); void pickOrderType(it, name); }} />
+      )}
+      {panel && groupsByKey.get(panel.key) && (() => {
+        const g = groupsByKey.get(panel.key)!;
+        const items: PanelItem[] = g.items.filter(i => i.id).map(i => ({ id: i.id!, pfCode: i.pfCode ?? null, vendorId: i.vendorId ?? null, orderType: i.orderType ?? null }));
+        return (
+          <EditItemPanel point={panel.point} type={g.type} items={items} vendors={lists.vendors} orderTypes={lists.orderTypes} canAdd={canEdit}
+            onSave={(id, patch) => patchItem(id, patch)} onAddItem={() => addItem(g)} onClose={() => setPanel(null)}
+            onVendorsChanged={() => lists.reloadVendors()} onOrderTypesChanged={() => void lists.reloadOrderTypes()} />
+        );
+      })()}
+      {rowMenu && (
+        <RowMenu point={rowMenu.point} title={rowMenu.item.type ?? 'Row'} onClose={() => setRowMenu(null)}
+          onDelete={() => { const it = rowMenu.item; setRowMenu(null); setToDelete(it); }} />
+      )}
+      <ConfirmModal
+        open={!!toDelete} onOpenChange={o => { if (!o) setToDelete(null); }}
+        title="Delete this row?" tone="destructive" confirmLabel="Delete Row"
+        description={toDelete ? [toDelete.type, toDelete.pfCode, vendorText(toDelete.vendor)].filter(Boolean).join(' · ') : undefined}
+        warning={toDelete && (toDelete.pfCode || toDelete.vendorId) ? 'This row has a vendor or PF code. It goes to the trash and can be restored from there.' : undefined}
+        onConfirm={async () => { if (toDelete) await deleteItem(toDelete); setToDelete(null); }}
+      />
     </div>
   );
 }
