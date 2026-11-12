@@ -36,6 +36,15 @@ const MONEY_COLS: ColumnKey[] = ['pfUsd', 'pfTl', 'invoice', 'invoiceTl'];
 //   default (was orange) → New Status 02 grey (#C0C0C0 / #2B2B2B, Figma 728:14366 as updated) · PO signed / ready → T2 blue
 //   every row SENT → New Status 10 green  · urgent / container ≤ 10 days → T10 red
 const PROJECT_TONE: Record<ReturnType<typeof computeProjectColor>, string> = { orange: 'n2', blue: 't2', green: 'n10', red: 't10' };
+// Region bands (Figma 741:17517 / 17523 / 17528 / 17533): one colour per region, light text, a
+// chevron that folds the region's projects away. HQ / TC have no design yet and use the NE colour.
+const REGION_BG: Record<string, string> = { NE: '#465B6D', SE: '#3B472B', NW: '#2E5BA3', CVW: '#7A655E' };
+function regionBg(label: string): string {
+  const words = label.toUpperCase().split(/\s+/);
+  const k = Object.keys(REGION_BG).find(r => words.includes(r));
+  return k ? REGION_BG[k] : REGION_BG.NE;
+}
+const regionTitle = (label: string) => label.replace(/^TLines(?=\s)/i, 'T Lines');
 const toneBg = (t: string) => `var(--status-${t}-bg)`;
 const toneFg = (t: string) => `var(--status-${t}-fg)`;
 
@@ -472,14 +481,24 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
             });
 
             const secTotals: Partial<Record<ColumnKey, number>> = { pfUsd: secUsd, pfTl: secTl, invoice: secInv, invoiceTl: secInvTl };
+            // A region folds like a project (same fold state); its totals row stays visible.
+            const regionKey = `region:${section.label}`;
+            const regionClosed = collapsed.has(regionKey);
             return (
               <Fragment key={`sec-${si}`}>
                 <tr>
-                  <td colSpan={COLS.length} className="sticky z-[15] px-4 py-2 text-[14px] font-semibold" style={{ top: HEAD_H, background: BOARD_CSS.sectionHeader.bg, color: BOARD_CSS.sectionHeader.fg }}>
-                    <span className="sticky left-4">{section.label}</span>
+                  <td colSpan={COLS.length} className="sticky z-[15] border-y border-ui-divider p-2 text-[#EEF2F6]" style={{ top: HEAD_H, background: regionBg(section.label) }}>
+                    <button
+                      type="button" onClick={() => toggle(regionKey)} aria-expanded={!regionClosed}
+                      aria-label={`${regionClosed ? 'Expand' : 'Collapse'} ${regionTitle(section.label)}`}
+                      className="sticky left-2 flex cursor-pointer items-center border-0 bg-transparent p-0 text-left text-inherit"
+                    >
+                      {regionClosed ? <ChevronRight size={24} aria-hidden className="shrink-0" /> : <ChevronDown size={24} aria-hidden className="shrink-0" />}
+                      <span className="pl-4 pr-2 text-[16px] font-medium leading-normal">{regionTitle(section.label)}</span>
+                    </button>
                   </td>
                 </tr>
-                {projectRows}
+                {!regionClosed && projectRows}
                 <tr>
                   <td colSpan={moneyStart} className="px-4 py-2.5 text-[14px] font-semibold" style={{ background: BOARD_CSS.sectionTotal.bg, color: BOARD_CSS.sectionTotal.fg }}>
                     {section.label.toUpperCase()} TOTALS
