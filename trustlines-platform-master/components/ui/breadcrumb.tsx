@@ -10,13 +10,13 @@ type BreadcrumbItem = { label: string; href?: string }
 function Breadcrumb({ items, className }: { items: BreadcrumbItem[]; className?: string }) {
   return (
     <nav aria-label="Breadcrumb" data-slot="breadcrumb" className={className}>
-      <ol className="flex flex-wrap items-center gap-1.5 text-[11px] leading-[1.5] text-primary-700 dark:text-primary-100">
+      <ol className="flex flex-wrap items-center gap-1.5 text-[14px] leading-[1.5] text-primary-700 dark:text-primary-100">
         {items.map((item, i) => {
           const last = i === items.length - 1
           return (
             <li key={`${item.label}-${i}`} className="inline-flex items-center gap-1.5">
               {last || !item.href ? (
-                <span aria-current={last ? "page" : undefined} className={cn(last && "text-[12px] font-medium")}>
+                <span aria-current={last ? "page" : undefined} className={cn(last && "text-[14px] font-medium")}>
                   {item.label}
                 </span>
               ) : (
@@ -27,7 +27,7 @@ function Breadcrumb({ items, className }: { items: BreadcrumbItem[]; className?:
                   {item.label}
                 </Link>
               )}
-              {!last && <ChevronRightIcon aria-hidden className="size-3" />}
+              {!last && <ChevronRightIcon aria-hidden className="size-4" />}
             </li>
           )
         })}

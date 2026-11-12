@@ -121,7 +121,7 @@ export default async function ProjectsPage() {
 
   return (
     <div className="main-inner">
-      <nav aria-label="Breadcrumb" className="mb-[18px] flex items-center gap-2 text-[12px] leading-[1.4]">
+      <nav aria-label="Breadcrumb" className="mb-[18px] flex items-center gap-2 text-[14px] leading-[1.4]">
         <Link href="/projects" className="text-ui-text-secondary no-underline hover:underline">Supply</Link>
         <ChevronRight aria-hidden className="size-3 text-ui-text-secondary" />
         <Link href="/projects" aria-current="page" className="text-ui-body no-underline hover:underline">Projects</Link>

@@ -15,7 +15,7 @@ const LINK = 'text-inherit no-underline hover:underline focus-visible:outline-2 
 /** The "Sales / CRM Board" trail above a page title; every part with an href is a link. */
 export function PageCrumbs({ items, className }: { items: CrumbItem[]; className?: string }) {
   return (
-    <nav aria-label="Breadcrumb" className={cn('text-[11px] font-semibold text-ui-nav-active', className)}>
+    <nav aria-label="Breadcrumb" className={cn('text-[14px] font-semibold text-ui-nav-active', className)}>
       {items.map((item, i) => {
         const last = i === items.length - 1;
         return (
