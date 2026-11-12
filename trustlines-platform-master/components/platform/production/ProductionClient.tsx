@@ -31,7 +31,7 @@ const FILTERS = [
 type FilterKey = typeof FILTERS[number]['key'];
 const NO_FILTERS: Record<FilterKey, string> = { vendor: '', type: '', status: '', container: '' };
 
-export function ProductionClient({ canEdit = false }: { canEdit?: boolean }) {
+export function ProductionClient({ canEdit = false, canDeleteProject = false }: { canEdit?: boolean; canDeleteProject?: boolean }) {
   const [activeTab, setActiveTab] = useState<Tab>('Projects');
   const [exporting, setExporting] = useState(false);
   const [data, setData]   = useState<BoardData | null>(null);
@@ -205,7 +205,8 @@ export function ProductionClient({ canEdit = false }: { canEdit?: boolean }) {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <OperationalBoard sections={sections} canEdit={canEdit} onSaved={() => void load()} />
+          <OperationalBoard sections={sections} canEdit={canEdit} canDeleteProject={canDeleteProject}
+            groups={pf.groups} onGroupsChanged={() => void pf.reload()} onSaved={() => void load()} />
         </div>
       )}
     </div>
