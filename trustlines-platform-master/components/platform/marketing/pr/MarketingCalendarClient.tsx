@@ -321,7 +321,7 @@ const ICON_PAD = 'pl-8 dark:pl-8';
 function ItemChip({ item, onOpen, large = false }: { item: DayItem; onOpen: (item: DayItem) => void; large?: boolean }) {
   const cls = cn(
     'flex w-full min-w-0 items-center gap-1 rounded-[4px] border-0 text-left font-medium no-underline hover:brightness-95',
-    large ? 'px-2.5 py-2 text-[12px]' : 'px-1.5 py-0.5 text-[11px]',
+    large ? 'px-2.5 py-2 text-[13px]' : 'px-2 py-1 text-[12px]',
   );
   const body = (
     <>
