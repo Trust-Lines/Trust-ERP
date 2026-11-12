@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { RotateCcw, Search, TriangleAlert, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export interface ProspectTrashRow {
   id: string;
@@ -39,7 +40,6 @@ const DELETE_BTN = 'inline-flex shrink-0 items-center rounded-[6px] border-0 px-
 const DELETE_STYLE: React.CSSProperties = { background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' };
 const TH_CLS = 'whitespace-nowrap px-2.5 py-2.5 text-left text-[12px] font-medium text-ui-text-secondary first:pl-3 last:pr-3';
 const TD_CLS = 'px-2.5 py-3.5 align-middle text-[12px] leading-[1.45] text-ui-body first:pl-3 last:pr-3';
-const CHECKBOX_CLS = 'size-4 cursor-pointer accent-[var(--color-secondary-700)]';
 
 type Tab = 'contacts' | 'needs';
 
@@ -223,7 +223,7 @@ export function ProspectsTrashClient({ rows, needRows, canPurge, purgeDays }: { 
               <thead>
                 <tr className="bg-ui-surface">
                   <th className={cn(TH_CLS, 'w-9')}>
-                    <input type="checkbox" className={CHECKBOX_CLS} checked={allSelected} onChange={toggleAll} aria-label="Select all" />
+                    <Checkbox checked={allSelected} indeterminate={!allSelected && selectedItems.length > 0} onCheckedChange={toggleAll} aria-label="Select all" />
                   </th>
                   <th className={TH_CLS}>{tab === 'contacts' ? 'Lead' : 'Need'}</th>
                   <th className={cn(TH_CLS, 'w-[160px]')}>Type</th>
@@ -239,7 +239,7 @@ export function ProspectsTrashClient({ rows, needRows, canPurge, purgeDays }: { 
                   return (
                     <tr key={i.id} className={cn('border-b border-ui-divider', isSelected ? 'bg-ui-selected-bg' : 'bg-ui-surface-elevated')}>
                       <td className={TD_CLS}>
-                        <input type="checkbox" className={CHECKBOX_CLS} checked={isSelected} onChange={() => toggle(i.id)} aria-label={`Select ${i.title}`} />
+                        <Checkbox checked={isSelected} onCheckedChange={() => toggle(i.id)} aria-label={`Select ${i.title}`} />
                       </td>
                       <td className={TD_CLS}>
                         <div className="flex flex-col gap-1">
