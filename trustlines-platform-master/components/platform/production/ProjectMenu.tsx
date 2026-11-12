@@ -105,11 +105,14 @@ export function ProjectMenu({ project, headKey, access, groups, onGroupsChanged,
           busy && 'pointer-events-none opacity-60', groupOpen && 'hidden')}
         style={{ left: pos.left, top: pos.top }}
         onContextMenu={e => e.preventDefault()}>
-        <button type="button" role="menuitem" className={cn(ITEM, 'text-[var(--color-primary-600,#2563eb)]')} disabled={!project.trustId}
-          title={project.trustId ? undefined : 'This project has no Trust System record'}
-          onClick={() => { window.open(`${TRUST_PRICE_LIST}${encodeURIComponent(project.trustId!)}`, '_blank', 'noopener'); onClose(); }}>
-          <FileText size={14} aria-hidden /> Prepare Document
-        </button>
+        {/* The price list carries prices: not for roles without PF access (tlines_pm). */}
+        {access.viewPf && (
+          <button type="button" role="menuitem" className={cn(ITEM, 'text-[var(--color-primary-600,#2563eb)]')} disabled={!project.trustId}
+            title={project.trustId ? undefined : 'This project has no Trust System record'}
+            onClick={() => { window.open(`${TRUST_PRICE_LIST}${encodeURIComponent(project.trustId!)}`, '_blank', 'noopener'); onClose(); }}>
+            <FileText size={14} aria-hidden /> Prepare Document
+          </button>
+        )}
 
         {access.half && onSelect && (
           <button type="button" role="menuitem" className={ITEM} onClick={() => { onSelect(); onClose(); }}>

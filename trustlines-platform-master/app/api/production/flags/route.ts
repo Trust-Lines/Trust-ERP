@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireVendorAccess } from '@/lib/production/vendorAccess';
 import { requireProductionWrite } from '@/lib/production/guard';
+import { NO_PF_ROLES } from '@/lib/production/access';
 import { PROD_KEYS } from '@/lib/production/access';
 import { logAudit } from '@/lib/audit/log';
 
@@ -19,8 +20,10 @@ type Member = { id: string; group_id: string; rank: number; project_id: string; 
 type Row = { id: string; project_id: string; type: string; pf_code: string | null; status: string; vendor_id: string | null };
 
 export async function GET() {
-  const { admin, deny } = await requireVendorAccess('read');
+  const { user, admin, deny } = await requireVendorAccess('read');
   if (deny) return deny;
+  const { data: prof } = await admin.from('profiles').select('role').eq('id', user.id).single();
+  const noPf = NO_PF_ROLES.has((prof as { role?: string } | null)?.role ?? '');
 
   const [f, g, m] = await Promise.all([
     admin.from('production_pf_flags').select('id, kind, project_id, type, item_id, completed_at, created_at').order('created_at', { ascending: false }),
@@ -63,7 +66,7 @@ export async function GET() {
       id: x.id, kind: x.kind, projectId: x.project_id, projectCode: p.code, projectName: p.name, bucket: p.region,
       type: x.type, itemId: x.item_id, completedAt, createdAt: x.created_at,
       totalItems: tr.length, filledItems: filled,
-      pfCode: item?.pf_code ?? null, itemStatus: item?.status ?? null,
+      pfCode: noPf ? null : item?.pf_code ?? null, itemStatus: item?.status ?? null,
       vendorName: item?.vendor_id ? vendorName.get(item.vendor_id) ?? null : null,
     };
   });

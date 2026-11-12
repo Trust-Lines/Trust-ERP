@@ -99,7 +99,8 @@ export function ProductionClient({ access, canAddProject = false }: { access: Pr
   async function handleExport() {
     setExporting(true);
     const date = new Date().toISOString().slice(0, 10);
-    const visibleColumns = access.viewMoney ? undefined : DEFAULT_VISIBLE_COLUMNS.filter(c => !['pfUsd', 'pfTl', 'invoice', 'invoiceTl'].includes(c));
+    const visibleColumns = access.viewMoney && access.viewPf ? undefined : DEFAULT_VISIBLE_COLUMNS.filter(c =>
+      (access.viewMoney || !['pfUsd', 'pfTl', 'invoice', 'invoiceTl'].includes(c)) && (access.viewPf || (c !== 'pfCode' && c !== 'pfSignStatus')));
     try {
       if (activeTab === 'Projects') {
         await exportProjectsWorkbook({
@@ -328,7 +329,7 @@ export function ProductionClient({ access, canAddProject = false }: { access: Pr
               )}
             </div>
           )}
-          <QuickChips tokens={quick} onToggle={toggleQuick} flags={pf.flags} groups={pf.groups} projectsTab={projectsTab} />
+          <QuickChips tokens={quick} onToggle={toggleQuick} flags={pf.flags} groups={pf.groups} projectsTab={projectsTab} showPf={access.viewPf} />
         </div>
 
         {chips.length > 0 && (

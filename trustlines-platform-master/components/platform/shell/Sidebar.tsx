@@ -150,7 +150,9 @@ const DESIGN_NAV: NavItem[] = [
 const OPERATIONS_NAV: (NavItem & { internal?: boolean })[] = [
   { label: 'Projects',    href: '/projects',    icon: FolderKanban,   perm: 'page.projects' },
   { label: 'Approvals',   href: '/approvals',   icon: CheckSquare,    perm: 'page.approvals' },
-  { label: 'Production',  href: '/production',  icon: Factory,        perm: 'page.production', internal: true },
+  // Not "internal": a role sees it when the Roles page gives it the Production board (tlines_pm
+  // too — the board then leaves out PF fields and money for them, lib/production/access.ts).
+  { label: 'Production',  href: '/production',  icon: Factory,        perm: 'page.production' },
   { label: 'Logistics',   href: '/logistics',   icon: Truck,          perm: 'page.logistics',  internal: true },
   // Same access as Management; the page also refuses tlines_pm (PF / vendor prices).
   { label: 'Trust Stock', href: '/trust-stock', icon: Boxes,          perm: 'page.management', internal: true },

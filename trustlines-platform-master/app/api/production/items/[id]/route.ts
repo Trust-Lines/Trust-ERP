@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { computeBoardPfCode, isFurnitureOrder, pfOwnerForCase, pfOwnerForProject, PF_CODE_SIGN_STATUSES } from '@/lib/production/pfCode';
 import { datesForStatusChange, type DateField } from '@/lib/production/board';
 import { requireProductionWrite } from '@/lib/production/guard';
-import { PROD_KEYS, STATUS_FIELDS } from '@/lib/production/access';
+import { NO_PF_ROLES, PROD_KEYS, STATUS_FIELDS } from '@/lib/production/access';
 import { logAudit } from '@/lib/audit/log';
 import { maybeEmitItemsReady } from '@/lib/events/triggers';
 
@@ -26,8 +26,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     keys.add(STATUS_FIELDS.has(k) ? PROD_KEYS.editStatus : PROD_KEYS.editRows);
     if (MONEY_FIELDS.has(k)) keys.add(PROD_KEYS.viewMoney);
   }
-  const { user, admin, deny } = await requireProductionWrite(keys.size ? [...keys] : 'edit.production');
+  const { user, role, admin, deny } = await requireProductionWrite(keys.size ? [...keys] : 'edit.production');
   if (deny) return deny;
+  if (NO_PF_ROLES.has(role) && sent.some(k => k === 'pf_sign_status' || MONEY_FIELDS.has(k))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   const { id } = await params;
 
   const { data: item } = await admin
