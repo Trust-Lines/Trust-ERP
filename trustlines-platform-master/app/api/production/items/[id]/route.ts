@@ -71,14 +71,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         };
         owner = proj ? pfOwnerForProject(proj.code, proj.trust_raw?.projectNo) : '';
       }
-      // This vendor's other live rows under the same project / case hold their numbers.
-      let sib = admin.from('production_items').select('pf_code').eq('vendor_id', nextVendorId).neq('id', id)
-        .is('deleted_at', null).not('pf_code', 'is', null);
+      // This vendor's other rows under the same project / case. Live rows hold their numbers;
+      // trashed rows count too for the max + 1 sequence, so deleted numbers aren't reused.
+      let sib = admin.from('production_items').select('pf_code, deleted_at').eq('vendor_id', nextVendorId).neq('id', id)
+        .not('pf_code', 'is', null);
       sib = item.case_id ? sib.eq('case_id', item.case_id) : sib.eq('project_id', item.project_id).eq('source', item.source);
-      const { data: siblings } = await sib as { data: { pf_code: string }[] | null };
+      const { data: siblings } = await sib as { data: { pf_code: string; deleted_at: string | null }[] | null };
       update.pf_code = computeBoardPfCode({
         vendorCode: vendor?.code ?? null, fixedMillwork: fixed, owner, type: item.type,
-        customTypeCode: item.custom_type_code, orderType: nextOrderType, siblingCodes: (siblings ?? []).map(r => r.pf_code),
+        customTypeCode: item.custom_type_code, orderType: nextOrderType,
+        siblingCodes: (siblings ?? []).filter(r => !r.deleted_at).map(r => r.pf_code),
+        allSiblingCodes: (siblings ?? []).map(r => r.pf_code),
       });
     }
   }

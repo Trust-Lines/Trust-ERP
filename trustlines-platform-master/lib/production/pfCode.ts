@@ -59,7 +59,8 @@ function escapeRegex(s: string): string {
 //     CUSTOM / SELECTIVE M03 — reserved even when unused and shared by rows with the same type;
 //     any other order type takes the lowest free number from M04.
 //   • A Millwork row whose order type contains FURNITURE gets F (any vendor).
-//   • Otherwise the lowest free number for that vendor + owner + letter (deleted rows hold none).
+//   • Otherwise the highest number for that vendor + owner + letter + 1, counting deleted (trashed)
+//     rows too, so a deleted number is never handed out again (Trust parity).
 
 export const PF_CODE_SIGN_STATUSES = new Set(['WAITING_T_TO_SIGN', 'WAITING_TLINES_TO_SIGN', 'SIGNED', 'SIGNED_WITH_EST_PRICE']);
 
@@ -93,6 +94,8 @@ export interface BoardPfCodeInput {
   orderType?: string | null;
   /** PF codes of this vendor's other live rows under the same owner. */
   siblingCodes: string[];
+  /** PF codes of this vendor's other rows under the same owner, deleted ones included (defaults to siblingCodes). */
+  allSiblingCodes?: string[];
 }
 
 export function computeBoardPfCode(p: BoardPfCodeInput): string | null {
@@ -108,8 +111,15 @@ export function computeBoardPfCode(p: BoardPfCodeInput): string | null {
     if (slot) return `${prefix}M${pad(slot)}`;
   }
   const re = new RegExp(`^${escapeRegex(prefix)}${escapeRegex(letter)}(\\d+)$`, 'i');
-  const used = new Set(p.siblingCodes.map(c => c.match(re)).filter(Boolean).map(m => parseInt(m![1], 10)));
-  let n = letter === 'M' && p.type === 'Millwork' && p.fixedMillwork ? 4 : 1;
-  while (used.has(n)) n++;
+  const nums = (codes: string[]) => codes.map(c => c.match(re)).filter(Boolean).map(m => parseInt(m![1], 10));
+  if (letter === 'M' && p.type === 'Millwork' && p.fixedMillwork) {
+    // Fixed-code vendors' other Millwork: lowest free number from M04 among live rows.
+    const used = new Set(nums(p.siblingCodes));
+    let n = 4;
+    while (used.has(n)) n++;
+    return `${prefix}M${pad(n)}`;
+  }
+  // Everyone else: max + 1, trashed rows included, so deleted numbers are never reused.
+  const n = Math.max(0, ...nums(p.allSiblingCodes ?? p.siblingCodes)) + 1;
   return `${prefix}${letter}${pad(n)}`;
 }
