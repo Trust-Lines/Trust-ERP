@@ -410,10 +410,18 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
                             <td key={col} rowSpan={dataRowCount} className={cn('sticky left-0 z-10 border-r border-ui-divider bg-ui-page-bg p-0', project.id && 'cursor-pointer')}
                               onContextMenu={e => openProjMenu(e, project, key)}>
                               {/* A rounded box inside the cell: 7px page-colour margin, 12px corners. */}
-                              <span className="absolute inset-[7px] flex items-center justify-center overflow-hidden rounded-[12px] px-2.5 text-center text-[24px] font-medium" style={barStyle}>
-                                {/* "P123" shows as "123" (Trust System). */}
-                                {String(project.projectNo).replace(/^P(?=\d+$)/, '')}
-                              </span>
+                              {(() => {
+                                // "P123" shows as "123" (Trust System). Long case codes ("STRAFORD-RE-1",
+                                // "344-EX-1") get a smaller size so they fit the box, even on a one-row project.
+                                const no = String(project.projectNo).replace(/^P(?=\d+$)/, '');
+                                const size = no.length <= 8 ? (dataRowCount > 1 ? 24 : 20) : no.length <= 11 ? 15 : 12;
+                                return (
+                                  <span title={no} className="absolute inset-[7px] flex items-center justify-center overflow-hidden rounded-[12px] px-1.5 text-center font-medium leading-[1.15] [overflow-wrap:anywhere]"
+                                    style={{ ...barStyle, fontSize: size }}>
+                                    {no}
+                                  </span>
+                                );
+                              })()}
                               {/* Half selection: only selects, never opens the menu. */}
                               {selection?.visible && project.id && (
                                 <input type="checkbox" aria-label={`Select project ${project.projectNo}`} checked={selection.selected.has(project.id)}
