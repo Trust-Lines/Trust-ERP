@@ -386,8 +386,15 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
                           return (
                             <td key={col} rowSpan={group.items.length} className={cn(TD, TYPE_TEXT, 'sticky z-10 border-r', canEdit && 'cursor-pointer hover:brightness-95')}
                               onClick={canEdit ? e => setPanel({ key: groupKey, point: { x: e.clientX, y: e.clientY } }) : undefined}
-                              style={{ left: typeLeft, ...(allSent ? { background: BOARD_CSS.typeAllSent.bg, color: BOARD_CSS.typeAllSent.fg, borderLeft: '3px solid #052e16', fontWeight: 700 } : {}) }}>
-                              {group.type}
+                              style={{ left: typeLeft }}>
+                              {/* Every row of the type SENT: the same full box as the status chips (5px margin,
+                                  6px corners) in the Sent green (New Status 10). Otherwise plain text. */}
+                              {allSent ? (
+                                <span className="absolute inset-[5px] flex items-center justify-center overflow-hidden rounded-[6px] px-2 text-[14px] font-semibold"
+                                  style={{ background: 'var(--status-n10-bg)', color: 'var(--status-n10-fg)' }}>
+                                  <span className="truncate">{group.type}</span>
+                                </span>
+                              ) : group.type}
                             </td>
                           );
                         }
