@@ -2,9 +2,10 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { FolderOutput, Loader2, Plus, Search } from 'lucide-react';
+import { FolderOutput, Loader2, Pencil, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { OperationalBoard } from './OperationalBoard';
+import { FlagsManageModal, QuickChips, makeQuickMatcher, useProductionFlags, type QuickToken } from './ProductionFlags';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,12 @@ export function ProductionClient({ canEdit = false }: { canEdit?: boolean }) {
   const [data, setData]   = useState<BoardData | null>(null);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(NO_FILTERS);
+  // Trust System filter bar extras: Half, the quick chips, the flags / groups editor.
+  const [half, setHalf] = useState('');
+  const [quick, setQuick] = useState<Set<QuickToken>>(new Set());
+  const [editOpen, setEditOpen] = useState(false);
+  const pf = useProductionFlags();
+  const toggleQuick = (t: QuickToken) => setQuick(prev => { const n = new Set(prev); if (n.has(t)) n.delete(t); else n.add(t); return n; });
 
   const load = useCallback(async () => {
     try {
@@ -94,13 +101,23 @@ export function ProductionClient({ canEdit = false }: { canEdit?: boolean }) {
     }));
   }, [tabSections]);
 
+  const halfToken = (p: PProject) => (p.halfOfYear && p.halfYear ? `${p.halfYear}:${p.halfOfYear}` : 'UNASSIGNED');
+  const halfOptions = useMemo(() => {
+    const tokens = [...new Set(tabSections.flatMap(s => s.projects.map(halfToken)))].sort();
+    const label = (t: string) => (t === 'UNASSIGNED' ? 'Unassigned' : `${t.split(':')[0]} ${t.endsWith('FIRST_HALF') ? 'First Half' : 'Second Half'}`);
+    return [{ value: '', label: 'Half' }, ...tokens.map(t => ({ value: t, label: label(t) }))];
+  }, [tabSections]);
+
   // Filters only narrow what's on screen; Export Excel always writes the full board.
   const sections = useMemo(() => {
     const q = search.trim().toLowerCase();
     const picked = FILTERS.filter(f => filters[f.key]);
-    if (!q && !picked.length) return tabSections;
+    if (!q && !picked.length && !half && !quick.size) return tabSections;
+    const quickOk = makeQuickMatcher(quick, pf.flags, pf.groups);
     const matches = (p: PProject, i: PItem) => (
-      picked.every(f => f.of(i) === filters[f.key])
+      (!half || halfToken(p) === half)
+      && quickOk(i)
+      && picked.every(f => f.of(i) === filters[f.key])
       && (!q || [p.projectNo, p.projectName, i.pfCode, vendorText(i.vendor)].some(v => String(v ?? '').toLowerCase().includes(q)))
     );
     return tabSections.map(s => ({
@@ -109,7 +126,7 @@ export function ProductionClient({ canEdit = false }: { canEdit?: boolean }) {
         .map(p => ({ ...p, items: (p.items || []).filter(i => matches(p, i)) }))
         .filter(p => p.items.length > 0),
     }));
-  }, [tabSections, search, filters]);
+  }, [tabSections, search, filters, half, quick, pf.flags, pf.groups]);
 
   const projectCount = sections.reduce((n, s) => n + s.projects.length, 0);
   const regionCount = sections.filter(s => s.projects.length > 0).length;
@@ -156,6 +173,7 @@ export function ProductionClient({ canEdit = false }: { canEdit?: boolean }) {
         ))}
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex h-9 w-[285px] items-center gap-2 rounded-[6px] border border-ui-input-border bg-ui-input-bg px-2.5">
           <Search size={16} aria-hidden className="shrink-0 text-ui-text-secondary" />
@@ -171,7 +189,15 @@ export function ProductionClient({ canEdit = false }: { canEdit?: boolean }) {
             onValueChange={v => setFilters(prev => ({ ...prev, [f.key]: v ?? '' }))}
           />
         ))}
+        <FilterSelect aria-label="Filter by half" className="h-9 w-auto text-[13px]" value={half} options={halfOptions} onValueChange={v => setHalf(v ?? '')} />
+        <button type="button" onClick={() => setEditOpen(true)}
+          className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-3.5 text-[13px] font-medium text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring dark:bg-primary-50 dark:text-primary-950">
+          <Pencil size={14} aria-hidden /> Edit
+        </button>
       </div>
+      <QuickChips tokens={quick} onToggle={toggleQuick} flags={pf.flags} groups={pf.groups} />
+      </div>
+      <FlagsManageModal open={editOpen} onOpenChange={setEditOpen} flags={pf.flags} groups={pf.groups} canEdit={canEdit} onChanged={() => void pf.reload()} />
 
       {data === null ? (
         <div style={{ padding: 48, textAlign: 'center' }}>
