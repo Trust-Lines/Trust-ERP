@@ -430,6 +430,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   return (
     <BranchBoard
       accounts
+      byPm
       columns={columns}
       assignees={marketingAssignees ?? []}
       canEdit={canEditOpportunities}
