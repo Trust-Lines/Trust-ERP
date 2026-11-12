@@ -17,6 +17,7 @@ import { findStatusTag } from '@/lib/status/tags';
 import { cn } from '@/lib/utils';
 import { useFixedMenu } from '@/hooks/use-fixed-menu';
 import { PersonFace } from '@/components/ui/avatar-directory';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { TaskQuickFilter } from '@/lib/sales/taskFilters';
 
 export interface TaskRow {
@@ -298,11 +299,10 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
                   return (
                     <tr key={t.id} className={cn('h-16 border-b border-ui-divider last:border-b-0', busy === t.id && 'opacity-60')}>
                       <td className="pl-[18px] pr-2.5">
-                        <input
-                          type="checkbox" checked={done} onChange={toggleDone}
+                        <Checkbox
+                          checked={done} onCheckedChange={toggleDone}
                           aria-label={done ? `Re-open: ${t.title}` : `Mark done: ${t.title}`}
                           title={done ? 'Re-open' : 'Mark done'}
-                          className="size-4 cursor-pointer rounded-[3px] accent-[var(--color-secondary-700)]"
                         />
                       </td>
                       <td className="max-w-0 px-2.5">

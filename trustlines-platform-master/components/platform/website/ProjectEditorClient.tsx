@@ -9,6 +9,7 @@ import { PROJECT_CATEGORIES, slugify, thumb } from '@/lib/web-cms/config';
 import { ImageField, MEDIA_BTN } from './ImageField';
 import { MediaPicker } from './MediaPicker';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select } from '@/components/platform/shared/Select';
 import { uploadMany } from './imagekitClient';
 import { WorkTypeTile } from './WorkTypeTile';
@@ -215,7 +216,7 @@ export function ProjectEditorClient({ initial, canEdit, siteUrl, workTypes }: Pr
           <div className="card"><div className="card-body">
             {sectionTitle('Publishing')}
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 14, cursor: ro ? 'default' : 'pointer' }}>
-              <input type="checkbox" disabled={ro} checked={project.is_published} onChange={e => set('is_published', e.target.checked)} />
+              <Checkbox disabled={ro} checked={project.is_published} onCheckedChange={v => set('is_published', !!v)} />
               {project.is_published ? 'Published on the website' : 'Draft — hidden from the website'}
             </label>
             {label('URL slug')}

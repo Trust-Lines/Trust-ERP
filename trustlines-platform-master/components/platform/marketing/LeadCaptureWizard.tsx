@@ -17,6 +17,7 @@ import { TagMultiSelect } from './TagMultiSelect';
 import type { LeadEntityType, ProjectType, ScopeType, LeadTiming } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
 import { feedback } from '@/components/ui/feedback-toast';
+import { Checkbox } from '@/components/ui/checkbox';
 // Shared wizard look (progress row, cards, chips, summary panel) with the New Project wizard.
 import { NEW_PROJECT_STYLES } from '@/components/platform/projects/new-project/styles';
 
@@ -142,7 +143,7 @@ function CheckboxField({ label, checked, onChange }: { label: string; checked: b
   const id = useId();
   return (
     <label htmlFor={id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
-      <input id={id} type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} /> {label}
+      <Checkbox id={id} checked={checked} onCheckedChange={v => onChange(!!v)} /> {label}
     </label>
   );
 }

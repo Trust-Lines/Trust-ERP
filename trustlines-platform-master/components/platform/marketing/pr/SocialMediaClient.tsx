@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
 import { KpiCard } from '@/components/ui/kpi-card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/feedback-states';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -633,8 +634,8 @@ export function SocialMediaClient({ initial, campaigns, providers, canEdit, isMa
               </Field>
               {accountEdit.id && (
                 <label className="flex items-center gap-2 text-[12px] text-ui-body">
-                  <input type="checkbox" className="size-4 accent-[var(--color-secondary-700)]" checked={accountEdit.form.is_active}
-                    onChange={e => setAccountEdit(a => (a ? { ...a, form: { ...a.form, is_active: e.target.checked } } : a))} />
+                  <Checkbox checked={accountEdit.form.is_active}
+                    onCheckedChange={v => setAccountEdit(a => (a ? { ...a, form: { ...a.form, is_active: !!v } } : a))} />
                   Active — shown in totals and in the account list for new posts
                 </label>
               )}

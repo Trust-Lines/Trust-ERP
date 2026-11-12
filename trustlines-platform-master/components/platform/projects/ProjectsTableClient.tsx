@@ -17,6 +17,7 @@ import { buttonVariants } from '@/components/ui/button';
 import Link from 'next/link';
 import { PersonFace } from '@/components/ui/avatar-directory';
 import { Select as FilterSelect } from '@/components/ui/select';
+import { Checkbox as UiCheckbox } from '@/components/ui/checkbox';
 import { TRUST_STAGE_LABEL, TRUST_STAGE_ORDER } from '@/lib/projects/listInfo';
 import type { TrustStage } from '@/lib/trust/board';
 
@@ -78,13 +79,11 @@ function formatDate(iso: string): string {
 
 function Checkbox({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) {
   return (
-    <input
-      type="checkbox"
+    <UiCheckbox
       aria-label={label}
       checked={checked}
-      onChange={onChange}
+      onCheckedChange={onChange}
       onClick={e => e.stopPropagation()}
-      className="m-0 size-4 cursor-pointer rounded-[3px] border border-ui-input-border bg-ui-input-bg accent-[var(--color-secondary-700)]"
     />
   );
 }
@@ -372,11 +371,9 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                       key={c}
                       className="flex cursor-pointer items-center gap-2 rounded-[4px] px-2 py-1.5 text-[13px] text-ui-body hover:bg-ui-hover-bg"
                     >
-                      <input
-                        type="checkbox"
+                      <UiCheckbox
                         checked={!hidden.has(c)}
-                        onChange={() => toggleColumn(c)}
-                        className="m-0 size-4 accent-[var(--color-secondary-700)]"
+                        onCheckedChange={() => toggleColumn(c)}
                       />
                       {COLUMN_LABEL[c]}
                     </label>

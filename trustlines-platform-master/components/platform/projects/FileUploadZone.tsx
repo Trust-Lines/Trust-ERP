@@ -9,6 +9,7 @@ import { PROD_DOC_TYPES, PROD_TYPES } from '@/lib/dropbox/paths';
 import type { ProdType } from '@/lib/dropbox/paths';
 import { Select } from '@/components/platform/shared/Select';
 import { feedback } from '@/components/ui/feedback-toast';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface FileUploadZoneProps {
   projectId:       string;
@@ -229,12 +230,11 @@ export function FileUploadZone({
 
             {docType === 'proposal' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--bg-subtle)', borderRadius: 6, border: '1px solid var(--border-default)' }}>
-                <input
+                <Checkbox
                   id="clientApproved"
-                  type="checkbox"
                   checked={clientApproved}
-                  onChange={e => setClientApproved(e.target.checked)}
-                  style={{ width: 15, height: 15, accentColor: 'var(--brand-teal)', cursor: 'pointer', flexShrink: 0 }}
+                  onCheckedChange={v => setClientApproved(!!v)}
+                  className="shrink-0"
                 />
                 <label htmlFor="clientApproved" style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-default)', cursor: 'pointer' }}>
                   Client approved this design proposal

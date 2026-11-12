@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Loader2, X, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Select } from '@/components/platform/shared/Select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type ItemRef = { code: string; description: string };
 interface PfEntry { pfCode: string; catGroup: string | null; items: ItemRef[] }
@@ -68,7 +69,7 @@ export function AssemblyModal({ projectId, catGroup, currentPfCode, onClose, onS
 
   const itemRow = (it: ItemRef, i: number, sel: Set<number>, setter: (s: Set<number>) => void) => (
     <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 8px', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer', background: sel.has(i) ? 'color-mix(in srgb, var(--brand-teal) 10%, var(--bg-surface))' : 'var(--bg-surface)' }}>
-      <input type="checkbox" checked={sel.has(i)} onChange={() => toggle(sel, i, setter)} style={{ marginTop: 2 }} />
+      <Checkbox checked={sel.has(i)} onCheckedChange={() => toggle(sel, i, setter)} style={{ marginTop: 2 }} />
       <span style={{ fontSize: 11 }}>
         {it.code && <b style={{ fontFamily: 'monospace', marginRight: 6 }}>{it.code}</b>}
         <span style={{ color: 'var(--fg-default)' }}>{it.description}</span>

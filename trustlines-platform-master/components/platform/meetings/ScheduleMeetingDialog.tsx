@@ -8,6 +8,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 
 // "Schedule meeting": creates the event on the person's own Google Calendar with a Google Meet
@@ -107,7 +108,7 @@ export function ScheduleMeetingDialog({ defaults, onClose, onCreated }: {
             <Textarea rows={4} value={description} onChange={e => setDescription(e.target.value)} />
           </label>
           <label className="flex items-center gap-2 text-[12px] text-ui-body">
-            <input type="checkbox" className="size-4 accent-[var(--color-secondary-700)]" checked={withMeet} onChange={e => setWithMeet(e.target.checked)} />
+            <Checkbox checked={withMeet} onCheckedChange={v => setWithMeet(!!v)} />
             Add a Google Meet video link
           </label>
         </div>

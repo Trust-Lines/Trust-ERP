@@ -10,6 +10,7 @@ import { PermissionShield } from '@/components/platform/shared/PermissionShield'
 import { CategoryList } from '@/components/platform/shared/CategoryChip';
 import type { ProjectStage, ProjectPhase, ProjectCategory, CurrencyType } from '@/types/database';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export interface ProjectRow {
   id: string;
@@ -83,8 +84,8 @@ export function ProjectsTable({ projects, userRole }: ProjectsTableProps) {
     });
   }
 
-  function toggleAll(e: React.ChangeEvent<HTMLInputElement>) {
-    setSelected(e.target.checked ? new Set(projects.map(p => p.id)) : new Set());
+  function toggleAll(checked: boolean) {
+    setSelected(checked ? new Set(projects.map(p => p.id)) : new Set());
   }
 
   if (projects.length === 0) {
@@ -131,11 +132,9 @@ export function ProjectsTable({ projects, userRole }: ProjectsTableProps) {
           <thead>
             <tr>
               <th style={{ width: 40, paddingLeft: 18, paddingRight: 4 }}>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={selected.size === projects.length && projects.length > 0}
-                  onChange={toggleAll}
-                  style={{ cursor: 'pointer' }}
+                  onCheckedChange={toggleAll}
                 />
               </th>
               <th>Project</th>
@@ -156,12 +155,10 @@ export function ProjectsTable({ projects, userRole }: ProjectsTableProps) {
                 onClick={() => router.push(`/projects/${project.id}`)}
               >
                 <td style={{ paddingLeft: 18, paddingRight: 4 }} onClick={e => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selected.has(project.id)}
-                    onChange={() => {}}
+                    onCheckedChange={() => {}}
                     onClick={e => toggleRow(project.id, e)}
-                    style={{ cursor: 'pointer' }}
                   />
                 </td>
 
