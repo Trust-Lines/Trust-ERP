@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { StepFooter } from './StepFooter';
 
 // Figma "Input": 42px field, input border, 11px semibold value.
-export const FIELD_CLS = 'h-[42px] min-h-[42px] rounded-[6px] border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[11px] font-semibold tracking-[-0.242px] text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading';
+export const FIELD_CLS = 'h-[42px] min-h-[42px] rounded-[6px] border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[14px] font-semibold tracking-[-0.242px] text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading';
 const LABEL_CLS = 'mb-[7px] block text-[12px] font-medium leading-4 text-ui-body';
 const Req = () => <span className="text-error-normal" aria-hidden> *</span>;
 
@@ -97,7 +97,7 @@ export function Step1ProjectSetup({ form, setForm, generatedProjectCode, formatt
         </div>
         <div
           aria-label="Project name preview"
-          className="flex min-h-[42px] items-center rounded-[6px] border border-[var(--ui-input-border)] bg-ui-surface px-3 text-[11px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading"
+          className="flex min-h-[42px] items-center rounded-[6px] border border-[var(--ui-input-border)] bg-ui-surface px-3 text-[14px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading"
         >
           {formattedAddressPreview}
         </div>
