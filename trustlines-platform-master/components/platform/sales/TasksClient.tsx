@@ -494,48 +494,48 @@ function NewTaskDialog({ deals, assignees, onClose, onCreated }: {
         className="flex w-full max-w-[480px] flex-col gap-4 rounded-card bg-ui-page-bg p-6 shadow-04"
       >
         <div className="flex items-center justify-between">
-          <h2 id="new-task-title" className={cn('m-0 text-[18px] font-semibold', HEADING)}>New Task</h2>
+          <h2 id="new-task-title" className={cn('m-0 text-[20px] font-semibold', HEADING)}>New Task</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="grid size-8 place-items-center rounded-[6px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg">
             <X size={16} />
           </button>
         </div>
-        <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
+        <label className="flex flex-col gap-1.5 text-[14px] font-medium text-ui-body">
           Task
-          <Input autoFocus required aria-label="Task" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Send the revised proposal" className="h-10" />
+          <Input autoFocus required aria-label="Task" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Send the revised proposal" className="h-10 text-[14px]" />
         </label>
-        <div className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
+        <div className="flex flex-col gap-1.5 text-[14px] font-medium text-ui-body">
           Deal
           {/* Searchable — the open-deal list can run to hundreds. */}
           <Combobox
             aria-label="Deal" placeholder="Search a deal…" emptyText="No open deal matches"
-            className="h-10"
+            className="h-10 text-[14px]"
             options={dealOptions}
             value={dealOptions.find(o => o.value === dealId) ?? null}
             onValueChange={o => setDealId(o?.value ?? '')}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
+          <div className="flex flex-col gap-1.5 text-[14px] font-medium text-ui-body">
             Assignee
             <Select
-              aria-label="Assignee" className="h-10"
+              aria-label="Assignee" className="h-10 text-[14px]"
               value={assigneeId} onValueChange={v => setAssigneeId(v ?? '')}
               options={[{ value: '', label: 'Unassigned' }, ...assignees.map(a => ({ value: a.id, label: a.full_name }))]}
             />
           </div>
-          <div className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
+          <div className="flex flex-col gap-1.5 text-[14px] font-medium text-ui-body">
             Due
             <DatePicker
-              aria-label="Due date" placeholder="No due date" className="h-10 w-full"
+              aria-label="Due date" placeholder="No due date" className="h-10 w-full text-[14px]"
               value={parseISODate(due || null)} onValueChange={d => setDue(toISODate(d) ?? '')}
             />
           </div>
         </div>
         <div className="flex justify-end gap-2.5 pt-1">
-          <button type="button" onClick={onClose} className={cn('h-9 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent px-5 text-[13px] font-medium hover:bg-ui-hover-bg dark:border-ui-heading', HEADING)}>
+          <button type="button" onClick={onClose} className={cn('h-10 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent px-5 text-[14px] font-medium hover:bg-ui-hover-bg dark:border-ui-heading', HEADING)}>
             Cancel
           </button>
-          <button type="submit" disabled={saving || !title.trim() || !dealId} className="h-9 rounded-[6px] border-0 bg-ui-btn-accent px-6 text-[13px] font-medium text-ui-btn-accent-fg hover:opacity-90 disabled:opacity-50">
+          <button type="submit" disabled={saving || !title.trim() || !dealId} className="h-10 rounded-[6px] border-0 bg-ui-btn-accent px-6 text-[14px] font-medium text-ui-btn-accent-fg hover:opacity-90 disabled:opacity-50">
             {saving ? 'Adding…' : 'Add task'}
           </button>
         </div>
