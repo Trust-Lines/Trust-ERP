@@ -33,9 +33,9 @@ const MONEY_COLS: ColumnKey[] = ['pfUsd', 'pfTl', 'invoice', 'invoiceTl'];
 // Figma "Projects table" (TRUST-LINES ERP 728:13023, colours 728:14366 / 14370 / 14374 / 14378): a
 // project's header row, its Project # box and its TOTAL row take the project's colour as a tone —
 // the colour rule is unchanged, only the tones are new (globals.css tokens, light + dark):
-//   default (was orange) → New Status 01 grey · PO signed / ready → T2 blue
+//   default (was orange) → New Status 02 grey (#C0C0C0 / #2B2B2B, Figma 728:14366 as updated) · PO signed / ready → T2 blue
 //   every row SENT → New Status 10 green  · urgent / container ≤ 10 days → T10 red
-const PROJECT_TONE: Record<ReturnType<typeof computeProjectColor>, string> = { orange: 'n1', blue: 't2', green: 'n10', red: 't10' };
+const PROJECT_TONE: Record<ReturnType<typeof computeProjectColor>, string> = { orange: 'n2', blue: 't2', green: 'n10', red: 't10' };
 const toneBg = (t: string) => `var(--status-${t}-bg)`;
 const toneFg = (t: string) => `var(--status-${t}-fg)`;
 
