@@ -105,13 +105,14 @@ export function WebLeadsClient({ initial, canEdit, loadError, contactBase = '/ma
           onChange={v => setStatusFilter(v as typeof statusFilter)}
         />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Select className="form-input" value={kindFilter} onChange={e => setKindFilter(e.target.value as typeof kindFilter)} style={{ width: 170 }}>
+          <Select className="form-input" value={kindFilter} onChange={e => setKindFilter(e.target.value as typeof kindFilter)} style={{ width: 170, height: 40 }}>
             <option value="all">Contact form + Newsletter</option>
             <option value="contact">Contact form only</option>
             <option value="newsletter">Newsletter only</option>
           </Select>
-          <a href="/api/web-cms/leads/export" download className="btn btn-secondary btn-sm" title="Download every website submission with all fields">
-            <Download size={13} style={{ marginRight: 4 }} /> Export to Excel
+          <a href="/api/web-cms/leads/export" download className="btn btn-secondary" title="Download every website submission with all fields"
+            style={{ display: 'inline-flex', alignItems: 'center', height: 40, padding: '0 12px', fontSize: 14, boxSizing: 'border-box', whiteSpace: 'nowrap' }}>
+            <Download className="mr-2 size-3" aria-hidden /> Export to Excel
           </a>
         </div>
       </div>
