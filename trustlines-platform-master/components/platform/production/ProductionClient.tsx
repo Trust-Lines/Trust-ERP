@@ -135,7 +135,7 @@ export function ProductionClient({ canEdit = false }: { canEdit?: boolean }) {
     <div className="full-bleed-page flex w-full flex-col gap-[30px]" style={{ padding: '28px', boxSizing: 'border-box' }}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-[5px] leading-[1.35]">
-          <PageCrumbs items={[{ label: 'Operation' }, { label: 'Production Board', href: '/production' }]} />
+          <PageCrumbs items={[{ label: 'Operations', href: '/production' }, { label: 'Production Board', href: '/production' }]} />
           <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">Production Board</h1>
           <p className="m-0 text-[13px] text-ui-body">
             {activeTab} · {projectCount} project{projectCount === 1 ? '' : 's'} across {regionCount} region{regionCount === 1 ? '' : 's'}
