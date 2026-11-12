@@ -4,18 +4,20 @@ import { PF_SIGN_OPTIONS, PO_SIGN_OPTIONS, STATUS_OPTIONS, currentFirst, normali
 describe('production tracker statuses (Trust System rules)', () => {
   it('lists the Trust dropdowns in their order', () => {
     expect(STATUS_OPTIONS.map(o => o.label)).toEqual([
-      'HOLD / T', 'HOLD / PM', 'HOLD BOOKS', 'NOT ORDERED', 'TO ORDER', 'BOOKS IN PROGRESS', 'ORDERED', 'WAITING PAYMENT',
-      'ASSEMBLY', 'READY TO RECEIVE', 'RECEIVED', 'READY', 'SENT TO TLINES', 'PARTIAL SENT', 'SENT',
+      'Hold / T', 'Hold / PM', 'Hold Books', 'Not Ordered', 'To Order', 'Books in Progress', 'Ordered', 'Waiting Payment',
+      'Assembly', 'Ready to Receive', 'Received', 'Ready', 'Sent to T-Lines', 'Partial Sent', 'Sent',
     ]);
     expect(PF_SIGN_OPTIONS.map(o => o.value)).toEqual(['NOT_SIGNED', 'READY_TO_SIGN', 'SIGNED', 'WAITING_T_TO_SIGN', 'SIGNED_WITH_EST_PRICE']);
     expect(PO_SIGN_OPTIONS.map(o => o.value)).toEqual(['NOT_SIGNED', 'READY_TO_SIGN', 'SIGNED', 'WAITING_TLINES_TO_SIGN', 'WAITING_T_TO_SIGN']);
   });
 
-  it('fills cells with the Trust colours', () => {
-    expect(statusStyle('NOT_ORDERED')).toMatchObject({ bg: '#dc2626', fg: '#ffffff' });
-    expect(statusStyle('HOLD / T')).toMatchObject({ label: 'HOLD / T', bg: '#ffffff' });
-    expect(signStyle('NOT_SIGNED')).toMatchObject({ bg: '#ff0000', fg: '#000000' });
-    expect(signStyle('WAITING T TO SIGN').bg).toBe('#a78bfa');
+  it('uses the Figma Status Chip tones and icons (theme tokens)', () => {
+    expect(statusStyle('NOT_ORDERED')).toMatchObject({ tone: 't10', icon: 'circle-off', bg: 'var(--status-t10-bg)', fg: 'var(--status-t10-fg)' });
+    expect(statusStyle('HOLD / T')).toMatchObject({ label: 'Hold / T', tone: 'n1', icon: 'pause' });
+    expect(statusStyle('PARTIAL_SENT')).toMatchObject({ tone: 'n9', icon: 'circle-dashed-check' });
+    expect(signStyle('NOT_SIGNED')).toMatchObject({ label: 'Not Signed', tone: 't10' });
+    expect(signStyle('WAITING T TO SIGN')).toMatchObject({ tone: 't7', icon: 'hourglass' });
+    expect(signStyle('Waiting T Lines to sign').value).toBe('WAITING_TLINES_TO_SIGN');
   });
 
   it('reads old signed values as SIGNED', () => {

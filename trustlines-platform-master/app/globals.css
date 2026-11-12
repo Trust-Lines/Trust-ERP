@@ -264,6 +264,29 @@
   --status-t10-bg: var(--color-error-light);
   --status-t10-fg: var(--color-error-dark);
 
+  /* ── NEW STATUS N1–N10 (Figma "New Status", Light) — Production tracker status chips ──
+     Which status uses which tone: lib/production/statuses.ts. */
+  --status-n1-bg: #EBEBEB;
+  --status-n1-fg: #3D3D43;
+  --status-n2-bg: #C0C0C0;
+  --status-n2-fg: #2B2B2B;
+  --status-n3-bg: #909090;
+  --status-n3-fg: #191919;
+  --status-n4-bg: #FFD6C4;
+  --status-n4-fg: #9B390E;
+  --status-n5-bg: #FFDC95;
+  --status-n5-fg: #553500;
+  --status-n6-bg: #D7D2FF;
+  --status-n6-fg: #2325B2;
+  --status-n7-bg: #C2BAFF;
+  --status-n7-fg: #00026E;
+  --status-n8-bg: #EDFFC4;
+  --status-n8-fg: #658221;
+  --status-n9-bg: #E8FFE1;
+  --status-n9-fg: #349F1A;
+  --status-n10-bg: #C6FFD0;
+  --status-n10-fg: #054C12;
+
   /* Dashboard board stages + greeting card (Figma "ops_manager", node 376:31396).
      Strong shades are the Figma hues darkened just enough for 4.5:1 text on the pale fill
      (Figma: opportunity/to-production #678FAF, finalization #C48A28, technical #8064BA,
@@ -501,6 +524,29 @@
   --status-t9-fg: var(--color-success-light);
   --status-t10-bg: var(--color-error-dark);
   --status-t10-fg: var(--color-error-light);
+
+  /* ── NEW STATUS N1–N10 (Figma "New Status", Dark — bg/fg swapped like the T tones) — Production tracker status chips ──
+     Which status uses which tone: lib/production/statuses.ts. */
+  --status-n1-bg: #3D3D43;
+  --status-n1-fg: #DDDDDD;
+  --status-n2-bg: #2B2B2B;
+  --status-n2-fg: #C0C0C0;
+  --status-n3-bg: #191919;
+  --status-n3-fg: #909090;
+  --status-n4-bg: #9B390E;
+  --status-n4-fg: #FFD6C4;
+  --status-n5-bg: #553500;
+  --status-n5-fg: #FFDC95;
+  --status-n6-bg: #2325B2;
+  --status-n6-fg: #D7D2FF;
+  --status-n7-bg: #00026E;
+  --status-n7-fg: #C2B9FF;
+  --status-n8-bg: #658221;
+  --status-n8-fg: #EDFFC4;
+  --status-n9-bg: #349F1A;
+  --status-n9-fg: #E8FFE1;
+  --status-n10-bg: #054C12;
+  --status-n10-fg: #C6FFD0;
 
   --ui-btn-solid: var(--color-primary-50);
   --ui-btn-solid-fg: var(--color-primary-950);

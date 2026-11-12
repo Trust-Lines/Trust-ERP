@@ -10,14 +10,14 @@ import {
   type PSection, type PItem, type ColumnKey,
 } from '@/lib/excel/projectsExcelExport';
 import { EmptyState } from '@/components/ui/empty-state';
-import { ChevronDown, ChevronRight, Factory } from 'lucide-react';
+import { CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleOff, Drill, Factory, Hourglass, Loader, Package, Pause, Send, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ColumnResizer, useColumnWidths, type SizedColumn } from '@/components/ui/column-resize';
 import { ConfirmModal } from '@/components/ui/modal';
 import { EditItemPanel, OrderTypePicker, RowMenu, VendorPicker, useBoardLists, type PanelItem } from './BoardEditors';
 import {
   PF_SIGN_OPTIONS, PO_SIGN_OPTIONS, STATUS_OPTIONS, currentFirst, normalizeSign, normalizeStatus, poRollup,
-  signStyle, statusStyle, type StatusOption,
+  signStyle, statusStyle, type StatusIconName, type StatusOption,
 } from '@/lib/production/statuses';
 
 // Figma "Production Board" (node 384:51717) orders RTR before RTD; the Excel export keeps its own order.
@@ -86,21 +86,47 @@ const MENU_W = 240;
 const MENU_MAX_H = 360;
 interface OpenMenu { kind: EditKind; ids: string[]; current: string; style: React.CSSProperties }
 
+// Figma "Status Chip" (TRUST-LINES ERP 722:804 light / 722:910 dark): 14px icon + 12px medium label,
+// 4px radius, 3px × 8/12px padding, coloured by the status tone (globals.css tokens, theme-aware).
+const ICONS: Record<Exclude<StatusIconName, 'circle-dashed-check'>, LucideIcon> = {
+  pause: Pause, 'circle-off': CircleOff, package: Package, loader: Loader, hourglass: Hourglass, drill: Drill,
+  'check-check': CheckCheck, 'circle-check': CircleCheck, send: Send,
+};
+function StatusIcon({ name }: { name: StatusIconName }) {
+  // circle-dashed-check isn't in this lucide-react version: the Figma asset, painted in the text colour.
+  if (name === 'circle-dashed-check') {
+    return (
+      <span aria-hidden className="size-[14px] shrink-0 bg-current"
+        style={{ maskImage: 'url(/icons/circle-dashed-check.svg)', WebkitMaskImage: 'url(/icons/circle-dashed-check.svg)', maskSize: '100% 100%', WebkitMaskSize: '100% 100%' }} />
+    );
+  }
+  const Icon = ICONS[name];
+  return <Icon aria-hidden className="size-[14px] shrink-0" strokeWidth={2} />;
+}
+export function StatusChip({ opt, className }: { opt: StatusOption; className?: string }) {
+  return (
+    <span className={cn('inline-flex max-w-full items-center gap-1 rounded-[4px] py-[3px] pl-2 pr-3 text-[12px] font-medium leading-4 whitespace-nowrap', className)}
+      style={{ background: opt.bg, color: opt.fg }}>
+      <StatusIcon name={opt.icon} />
+      <span className="truncate">{opt.label}</span>
+    </span>
+  );
+}
+
 function StatusCell({ opt, rowSpan, editable, onOpen }: {
   opt: StatusOption; rowSpan?: number; editable: boolean; onOpen: (anchor: HTMLElement) => void;
 }) {
   return (
     <td
       rowSpan={rowSpan}
-      className={cn('whitespace-nowrap border-b border-r border-ui-divider px-2 text-left align-middle text-[12px] font-semibold uppercase',
-        editable && 'cursor-pointer hover:brightness-95 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ui-focus-ring')}
-      style={{ background: opt.bg, color: opt.fg }}
+      className={cn('overflow-hidden whitespace-nowrap border-b border-r border-ui-divider bg-ui-page-bg px-2 text-left align-middle',
+        editable && 'cursor-pointer hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ui-focus-ring')}
       tabIndex={editable ? 0 : undefined}
       aria-haspopup={editable ? 'listbox' : undefined}
       onClick={editable ? e => onOpen(e.currentTarget) : undefined}
       onKeyDown={editable ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(e.currentTarget); } } : undefined}
     >
-      {opt.label}
+      <StatusChip opt={opt} />
     </td>
   );
 }
@@ -126,12 +152,11 @@ function StatusMenu({ menu, onPick, onClose }: { menu: OpenMenu; onPick: (value:
           <button
             key={o.value} type="button" role="option" aria-selected={o.value === menu.current} autoFocus={o.value === menu.current}
             onClick={() => onPick(o.value)}
-            className={cn('flex cursor-pointer flex-col items-start rounded-[4px] border px-2.5 py-1.5 text-left text-[12px] font-semibold uppercase hover:brightness-95 focus-visible:outline-2 focus-visible:outline-ui-focus-ring',
-              o.value === menu.current ? 'border-[var(--color-secondary-700)]' : 'border-black/10')}
-            style={{ background: o.bg, color: o.fg }}
+            className={cn('flex cursor-pointer flex-col items-start gap-0.5 rounded-[4px] border-0 bg-transparent px-1.5 py-1 text-left hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-ui-focus-ring',
+              o.value === menu.current && 'bg-ui-selected-bg')}
           >
-            {o.label}
-            {o.hint && <span className="text-[11px] font-normal normal-case opacity-80">{o.hint}</span>}
+            <StatusChip opt={o} />
+            {o.hint && <span className="pl-1 text-[11px] text-ui-text-secondary">{o.hint}</span>}
           </button>
         ))}
       </div>
@@ -175,7 +200,7 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
     text: (it: PItem) => (col === 'projectNo' ? '' : col === 'pfSignStatus' ? signStyle(it.pfSignStatus).label
       : col === 'poSignStatus' ? signStyle(it.poSignStatus).label : col === 'status' ? statusStyle(it.status).label
       : String(cellValue(col, it) ?? '')),
-    chip: col === 'orderType',
+    chip: col === 'orderType' || col === 'status' || col === 'pfSignStatus' || col === 'poSignStatus',
     min: WIDTHS[col] && (col === 'projectNo' || col === 'type') ? WIDTHS[col] : 64,
   })), []);
   const { width, startResize, fit } = useColumnWidths('production-tracker-widths', sizing, allItems);
