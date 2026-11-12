@@ -52,7 +52,7 @@ function TagInput({ value, onValueChange, placeholder = "add tag..", disabled, m
           </button>
         </span>
       ))}
-      <span className={cn(chip, "pr-1 focus-within:outline-2 focus-within:outline-solid focus-within:outline-offset-1 focus-within:outline-ui-focus-ring", disabled && "opacity-60")}>
+      <span className={cn(chip, "h-9 w-full rounded-[6px] px-3 pr-2 text-[13px] leading-normal focus-within:outline-2 focus-within:outline-solid focus-within:outline-offset-1 focus-within:outline-ui-focus-ring", disabled && "opacity-60")}>
         <input
           id={id}
           value={draft}
@@ -69,16 +69,16 @@ function TagInput({ value, onValueChange, placeholder = "add tag..", disabled, m
             }
           }}
           onBlur={add}
-          className="w-16 min-w-0 bg-transparent outline-none placeholder:text-success-normal"
+          className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-success-normal"
         />
         <button
           type="button"
           disabled={disabled}
           onClick={add}
           aria-label="Add tag"
-          className="grid size-3.5 place-items-center rounded-[2px] outline-none hover:bg-success-light focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
+          className="grid size-4 place-items-center rounded-[2px] outline-none hover:bg-success-light focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
         >
-          <PlusIcon className="size-2.5" />
+          <PlusIcon className="size-4" />
         </button>
       </span>
     </div>
