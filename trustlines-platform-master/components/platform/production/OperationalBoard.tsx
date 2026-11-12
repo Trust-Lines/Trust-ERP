@@ -227,8 +227,8 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
   groups?: PfGroup[]; onGroupsChanged?: () => void; onSaved?: () => void;
   /** Groups view: rank of "group|projectId|type" for the type cell's badge. */
   groupRanks?: Map<string, number>;
-  /** Half toolbar: the selection box on each Project # cell. */
-  selection?: { selected: Set<string>; toggle: (id: string) => void };
+  /** Half toolbar: the selection box on each Project # cell, shown once "Select" was used. */
+  selection?: { selected: Set<string>; toggle: (id: string) => void; visible: boolean };
 }) {
   // Column widths like the accounting sheet: fit the widest text, drag a header edge to resize,
   // double-click to fit again; remembered in this browser.
@@ -415,7 +415,7 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
                                 {String(project.projectNo).replace(/^P(?=\d+$)/, '')}
                               </span>
                               {/* Half selection: only selects, never opens the menu. */}
-                              {selection && project.id && (
+                              {selection?.visible && project.id && (
                                 <input type="checkbox" aria-label={`Select project ${project.projectNo}`} checked={selection.selected.has(project.id)}
                                   onChange={() => selection.toggle(project.id!)} onClick={e => e.stopPropagation()} onContextMenu={e => e.stopPropagation()}
                                   className="absolute left-[13px] top-[13px] z-[1] size-4 cursor-pointer" />
@@ -575,7 +575,9 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
       {projMenu && (
         <ProjectMenu key={projMenu.headKey} project={projMenu.project} headKey={projMenu.headKey} canEdit={canEdit} canDeleteProject={canDeleteProject}
           groups={groups} onGroupsChanged={() => onGroupsChanged?.()} onSaved={() => onSaved?.()}
-          onDelete={() => setProjToDelete(projMenu.project)} onClose={() => setProjMenu(null)} />
+          onDelete={() => setProjToDelete(projMenu.project)} onClose={() => setProjMenu(null)}
+          onSelect={selection && projMenu.project.id ? () => selection.toggle(projMenu.project.id!) : undefined}
+          selected={!!projMenu.project.id && !!selection?.selected.has(projMenu.project.id)} />
       )}
       <ConfirmModal
         open={!!projToDelete} onOpenChange={o => { if (!o) setProjToDelete(null); }}

@@ -53,6 +53,7 @@ export function ProductionClient({ canEdit = false, canDeleteProject = false }: 
   const [vendors, setVendors] = useState<{ id: string; code: string | null; name: string }[]>([]);
   // Half toolbar: selected projects / cases (by id), the year to assign.
   const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [selecting, setSelecting] = useState(false);
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [halfBusy, setHalfBusy] = useState(false);
   const [halfError, setHalfError] = useState('');
@@ -219,7 +220,7 @@ export function ProductionClient({ canEdit = false, canDeleteProject = false }: 
   const clearAll = () => { setSel(noFilters()); setQuick(new Set()); };
 
   // ── Half toolbar ──
-  useEffect(() => { setPicked(new Set()); setHalfError(''); }, [activeTab]);
+  useEffect(() => { setPicked(new Set()); setSelecting(false); setHalfError(''); }, [activeTab]);
   const allPicked = projectCount > 0 && visibleProjects.every(p => picked.has(p.id!));
   async function assignHalf(halfOfYear: 'FIRST_HALF' | 'SECOND_HALF' | null) {
     setHalfBusy(true); setHalfError('');
@@ -341,8 +342,9 @@ export function ProductionClient({ canEdit = false, canDeleteProject = false }: 
           </div>
         )}
 
-        {canEdit && (
-          <div className="flex flex-wrap items-center gap-3 text-[12px] text-ui-body">
+        {/* Half toolbar: only while selecting (right click a project → Select). */}
+        {canEdit && selecting && (
+          <div className="flex flex-wrap items-center gap-3 rounded-[6px] border border-ui-divider bg-ui-surface px-3 py-2 text-[12px] text-ui-body">
             <label className="inline-flex cursor-pointer items-center gap-1.5">
               <input type="checkbox" checked={allPicked} disabled={!projectCount}
                 onChange={() => setPicked(allPicked ? new Set() : new Set(visibleProjects.map(p => p.id!)))} />
@@ -357,6 +359,7 @@ export function ProductionClient({ canEdit = false, canDeleteProject = false }: 
             <button type="button" disabled={!picked.size || halfBusy} onClick={() => void assignHalf('SECOND_HALF')} className={cn(BAR_BTN, 'bg-[#16a34a]')}>Assign to Second Half</button>
             <button type="button" disabled={!picked.size || halfBusy} onClick={() => void assignHalf(null)} className={cn(BAR_BTN, 'bg-[#dc2626]')}>Clear Half</button>
             {halfError && <span className="text-error-normal">{halfError}</span>}
+            <Button size="sm" variant="ghost" className="ml-auto" onClick={() => { setPicked(new Set()); setSelecting(false); setHalfError(''); }}>Done</Button>
           </div>
         )}
       </div>
@@ -375,7 +378,10 @@ export function ProductionClient({ canEdit = false, canDeleteProject = false }: 
           <OperationalBoard sections={sections} canEdit={canEdit} canDeleteProject={canDeleteProject}
             groups={pf.groups} onGroupsChanged={() => void pf.reload()} onSaved={() => void load()}
             groupRanks={grouped ? groupRanks : undefined}
-            selection={canEdit ? { selected: picked, toggle: id => setPicked(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; }) } : undefined} />
+            selection={canEdit ? {
+              selected: picked, visible: selecting,
+              toggle: id => { setSelecting(true); setPicked(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; }); },
+            } : undefined} />
         </div>
       )}
     </div>
