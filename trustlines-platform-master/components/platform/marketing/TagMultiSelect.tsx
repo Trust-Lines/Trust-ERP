@@ -45,10 +45,10 @@ export function TagMultiSelect({ values, options, onChange, placeholder = 'Addâ€
       {values.map(v => {
         const bg = hashColor(v);
         return (
-          <span key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: bg, color: readableTextColor(bg), fontSize: 10.5, fontWeight: 600, padding: '2px 4px 2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+          <span key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: bg, color: readableTextColor(bg), fontSize: 12, fontWeight: 600, padding: '3px 5px 3px 9px', borderRadius: 4, whiteSpace: 'nowrap' }}>
             {v}
             <button onClick={() => remove(v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'flex', padding: 0, opacity: 0.8 }} aria-label={`Remove ${v}`}>
-              <X size={11} />
+              <X size={13} />
             </button>
           </span>
         );
@@ -65,9 +65,9 @@ export function TagMultiSelect({ values, options, onChange, placeholder = 'Addâ€
       ) : (
         <button
           onClick={() => setOpen(s => !s)}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 3, border: '1px dashed var(--border-subtle)', borderRadius: 4, padding: '2px 7px', background: 'none', cursor: 'pointer', fontSize: 10.5, color: 'var(--fg-faint)' }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: '1px dashed var(--border-subtle)', borderRadius: 4, padding: '3px 9px', background: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--fg-faint)' }}
         >
-          <Plus size={11} /> {values.length === 0 ? placeholder : ''}
+          <Plus size={13} /> {values.length === 0 ? placeholder : ''}
         </button>
       )}
 

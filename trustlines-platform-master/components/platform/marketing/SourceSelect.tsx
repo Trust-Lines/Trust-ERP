@@ -44,13 +44,13 @@ export function SourceSelect({ value, options, onChange, placeholder = '—' }: 
         }}
       >
         {value ? (
-          <span style={{ background: hashColor(value), color: readableTextColor(hashColor(value)), fontSize: 10.5, fontWeight: 600, padding: '2px 8px', borderRadius: 4 }}>
+          <span style={{ background: hashColor(value), color: readableTextColor(hashColor(value)), fontSize: 12.5, fontWeight: 600, padding: '3px 10px', borderRadius: 4 }}>
             {value}
           </span>
         ) : (
-          <span style={{ fontSize: 11.5, color: 'var(--fg-faint)', padding: '0 4px' }}>{placeholder}</span>
+          <span style={{ fontSize: 12.5, color: 'var(--fg-faint)', padding: '0 4px' }}>{placeholder}</span>
         )}
-        <ChevronDown size={12} style={{ color: 'var(--fg-faint)' }} />
+        <ChevronDown size={14} style={{ color: 'var(--fg-faint)' }} />
       </button>
 
       {open && (

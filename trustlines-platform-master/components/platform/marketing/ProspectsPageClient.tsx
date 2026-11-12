@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { SOURCE_LABEL } from '@/lib/marketing/classification';
 import { REGIONS } from '@/lib/regions';
 import { feedback } from '@/components/ui/feedback-toast';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Local to this filter only — REGIONS.label ("T-Lines North East") is the shared,
 // company-wide label used across Sales/Projects/PM too; Marketing asked for the short
@@ -101,7 +102,7 @@ function QueryPill({ label, active, onClick }: { label: string; active: boolean;
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'inline-flex h-8 cursor-pointer items-center whitespace-nowrap rounded-[6px] border px-3 text-[12px] font-semibold',
+        'inline-flex h-9 cursor-pointer items-center whitespace-nowrap rounded-[6px] border px-3 text-[14px] font-semibold',
         active
           ? 'border-[var(--color-secondary-700)] bg-[var(--color-secondary-700)] text-white dark:border-ui-heading dark:bg-ui-heading dark:text-primary-950'
           : 'border-ui-input-border bg-ui-input-bg text-[var(--color-secondary-700)] hover:bg-ui-hover-bg dark:text-ui-heading',
@@ -117,7 +118,7 @@ const HEADING_TEXT = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const OUTLINE_BTN = 'inline-flex h-10 items-center justify-center gap-3 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent px-4 text-[13px] font-semibold text-[var(--color-secondary-700)] no-underline hover:bg-ui-hover-bg disabled:opacity-50 dark:border-ui-heading dark:text-ui-heading [&_svg]:size-4';
 const PRIMARY_BTN = 'inline-flex h-10 items-center justify-center gap-3 rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-6 text-[13px] font-semibold text-white no-underline hover:bg-[var(--color-secondary-700)]/90 disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950 dark:hover:bg-primary-100 [&_svg]:size-4';
 const FILTER_STYLE: React.CSSProperties = {
-  height: 40, fontSize: 12, borderRadius: 4, border: '1px solid var(--color-secondary-700)', background: 'var(--ui-input-bg)',
+  height: 40, fontSize: 14, borderRadius: 4, border: '1px solid var(--color-secondary-700)', background: 'var(--ui-input-bg)', paddingRight: 10,
 };
 const TH_CLS = 'h-[46px] whitespace-nowrap px-2.5 text-[12px] font-semibold leading-[1.4] text-ui-body first:pl-[18px]';
 const TD_CLS = 'px-2.5 py-2 text-[13px] text-ui-body first:pl-[18px]';
@@ -545,10 +546,10 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
           are 50+ real ones (2026-09-28), a row of that many buttons was the opposite of easy
           to use, so that one stayed a searchable Select instead. */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span className="text-[12px] font-medium text-ui-body">Quick queries</span>
+        <span className="text-[14px] font-medium text-ui-body">Quick queries</span>
         {campaigns.length > 0 && (
           <Select
-            className="form-input" style={{ ...FILTER_STYLE, height: 32, maxWidth: 220 }}
+            className="form-input" style={{ ...FILTER_STYLE, height: 36, maxWidth: 220 }}
             value={campaignFilter} onChange={e => setCampaignFilter(e.target.value)} aria-label="Filter by campaign/event"
           >
             <option value="">Campaign / event…</option>
@@ -802,12 +803,10 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                       <CompletenessBar percent={p.completeness_percent} />
                     </td>
                     <td className={TD_CLS} onClick={e => e.stopPropagation()}>
-                      <input
-                        type="checkbox" checked={p.whatsapp} disabled={!canEdit || !p.primary_contact_id}
-                        onChange={() => toggleWhatsapp(p)}
+                      <Checkbox
+                        checked={p.whatsapp} disabled={!canEdit || !p.primary_contact_id}
+                        onCheckedChange={() => toggleWhatsapp(p)}
                         aria-label={`WhatsApp for ${p.display_name}`}
-                        className="size-4 accent-[var(--color-secondary-700)]"
-                        style={{ cursor: canEdit && p.primary_contact_id ? 'pointer' : 'default' }}
                       />
                     </td>
                     {canEdit && (
@@ -847,12 +846,10 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                       <td />
                       <td className={SUB_TD_CLS}><CompletenessBar percent={p.completeness_percent} /></td>
                       <td className={SUB_TD_CLS}>
-                        <input
-                          type="checkbox" checked={p.whatsapp} disabled={!canEdit || !p.primary_contact_id}
-                          onChange={() => toggleWhatsapp(p)}
+                        <Checkbox
+                          checked={p.whatsapp} disabled={!canEdit || !p.primary_contact_id}
+                          onCheckedChange={() => toggleWhatsapp(p)}
                           aria-label={`WhatsApp for ${p.primary_contact}`}
-                          className="size-4 accent-[var(--color-secondary-700)]"
-                          style={{ cursor: canEdit && p.primary_contact_id ? 'pointer' : 'default' }}
                         />
                       </td>
                       {canEdit && <td />}
@@ -880,12 +877,10 @@ export function ProspectsPageClient({ initialProspects, initialTotal, pageSize, 
                       <td />
                       <td className={SUB_TD_CLS}><CompletenessBar percent={oc.completeness_percent} /></td>
                       <td className={SUB_TD_CLS}>
-                        <input
-                          type="checkbox" checked={oc.whatsapp} disabled={!canEdit}
-                          onChange={() => toggleContactWhatsapp(p, oc.id, oc.whatsapp)}
+                        <Checkbox
+                          checked={oc.whatsapp} disabled={!canEdit}
+                          onCheckedChange={() => toggleContactWhatsapp(p, oc.id, oc.whatsapp)}
                           aria-label={`WhatsApp for ${oc.name}`}
-                          className="size-4 accent-[var(--color-secondary-700)]"
-                          style={{ cursor: canEdit ? 'pointer' : 'default' }}
                         />
                       </td>
                       {canEdit && <td />}
