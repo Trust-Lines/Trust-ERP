@@ -37,7 +37,7 @@ const PAGE_SIZE = 50;
 // Figma "Contact Manager" table (node 244:22594) — same toolbar/table styling as Contacts.
 const HEADING_TEXT = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const PRIMARY_BTN = 'inline-flex h-10 items-center justify-center gap-3 rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-6 text-[13px] font-semibold text-white no-underline hover:bg-[var(--color-secondary-700)]/90 disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950 [&_svg]:size-4';
-const FILTER_STYLE: React.CSSProperties = { height: 40, fontSize: 12, borderRadius: 4, border: '1px solid var(--color-secondary-700)', background: 'var(--ui-input-bg)' };
+const FILTER_STYLE: React.CSSProperties = { height: 40, fontSize: 14, borderRadius: 4, border: '1px solid var(--color-secondary-700)', background: 'var(--ui-input-bg)', paddingRight: 10 };
 const TH_CLS = 'h-[46px] whitespace-nowrap px-2.5 text-left text-[12px] font-semibold leading-[1.4] text-ui-body';
 const TD_CLS = 'px-2.5 py-2 text-[13px] text-ui-body';
 const PAGE_BTN = 'inline-flex h-[34px] items-center justify-center gap-1 rounded-[6px] border border-ui-input-border bg-ui-input-bg px-[14px] text-[13px] font-semibold text-[var(--color-secondary-700)] disabled:opacity-50 dark:text-ui-heading [&_svg]:size-3.5';
