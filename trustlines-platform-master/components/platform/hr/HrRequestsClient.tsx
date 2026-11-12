@@ -33,7 +33,9 @@ type Tab = 'active' | 'history';
 type SortKey = 'newest' | 'oldest' | 'date';
 
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
-const TOOLBAR_SELECT = 'inline-flex h-10 w-auto cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pr-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:pr-3 dark:text-ui-heading [&_svg]:size-3.5';
+// Dialog dropdowns: 40px tall, 14px text, 16px chevron (the shared Select draws a 12px one by default).
+const DIALOG_SELECT = 'h-10 w-full px-3 text-[14px] rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg text-ui-heading [&_.ui-select-chevron]:size-4';
+const TOOLBAR_SELECT ='inline-flex h-10 w-auto cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pr-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:pr-3 dark:text-ui-heading [&_svg]:size-3.5';
 
 export function HrRequestsClient({ people }: { people: HrRequestPerson[] }) {
   const [today] = useState(() => new Date());
@@ -261,7 +263,7 @@ function NewRequestDialog({ open, onOpenChange, people, today, onCreate }: {
         title="New request"
         description="Log a sick call or a vacation request."
         footer={<>
-          <p className="m-0 mr-auto text-[11px] text-ui-text-secondary">Kept on this device until HR saving is connected.</p>
+          <p className="m-0 mr-auto text-[13px] text-ui-text-secondary">Kept on this device until HR saving is connected.</p>
           <ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Cancel</ModalClose>
           <Button type="submit" form={formId} disabled={!canSubmit}>Add request</Button>
         </>}
@@ -270,7 +272,7 @@ function NewRequestDialog({ open, onOpenChange, people, today, onCreate }: {
           <div className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-heading">
             <label htmlFor={`${formId}-person`}>Staff member</label>
             <Select
-              id={`${formId}-person`} value={personId} onValueChange={v => setPersonId(v ?? '')}
+              id={`${formId}-person`} className={DIALOG_SELECT} value={personId} onValueChange={v => setPersonId(v ?? '')}
               placeholder={people.length ? 'Choose a person' : 'No staff found'} disabled={people.length === 0}
               options={people.map(p => ({ value: p.id, label: p.role ? `${p.full_name} · ${roleLabel(p.role)}` : p.full_name }))}
               listClassName="max-h-[min(280px,var(--available-height))]"
@@ -280,14 +282,14 @@ function NewRequestDialog({ open, onOpenChange, people, today, onCreate }: {
             <div className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-heading">
               <label htmlFor={`${formId}-reason`}>Type</label>
               <Select
-                id={`${formId}-reason`} value={reason} onValueChange={v => v && setReason(v as HrAbsenceReason)}
+                id={`${formId}-reason`} className={DIALOG_SELECT} value={reason} onValueChange={v => v && setReason(v as HrAbsenceReason)}
                 options={(Object.keys(REASON) as HrAbsenceReason[]).map(k => ({ value: k, label: REASON[k].label }))}
               />
             </div>
             <div className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-heading">
               <label htmlFor={`${formId}-priority`}>Priority</label>
               <Select
-                id={`${formId}-priority`} value={priority} onValueChange={v => v && setPriority(v as HrRequestPriority)}
+                id={`${formId}-priority`} className={DIALOG_SELECT} value={priority} onValueChange={v => v && setPriority(v as HrRequestPriority)}
                 options={(Object.keys(PRIORITY) as HrRequestPriority[]).map(k => ({ value: k, label: PRIORITY[k].label }))}
               />
             </div>
@@ -312,10 +314,10 @@ function NewRequestDialog({ open, onOpenChange, people, today, onCreate }: {
               <ul className="m-0 flex list-none flex-col gap-1 p-0">
                 {files.map(f => (
                   <li key={f.id} className="flex items-center gap-2 rounded-[4px] bg-ui-surface px-2 py-1 text-[12px] font-normal text-ui-body">
-                    <Paperclip size={14} aria-hidden className="shrink-0" />
+                    <Paperclip size={16} aria-hidden className="shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{f.name}</span>
                     <button type="button" onClick={() => removeFile(f.id)} aria-label={`Remove ${f.name}`} className="grid size-6 cursor-pointer place-items-center rounded-[4px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg">
-                      <X size={14} />
+                      <X size={16} />
                     </button>
                   </li>
                 ))}
