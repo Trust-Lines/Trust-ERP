@@ -198,9 +198,9 @@ export function MarketingCalendarClient({ initialMonth, initial, campaigns, canE
             <Button variant="ghost" size="icon-sm" aria-label="Next month" onClick={() => goTo(shiftMonth(month, 1))}><ChevronRight /></Button>
             {today && !today.startsWith(month) && <Button variant="secondary" size="sm" onClick={() => goTo(today.slice(0, 7))}>Today</Button>}
           </div>
-          <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0" aria-label="Legend">
+          <ul className="m-0 flex list-none flex-wrap gap-2 p-0" aria-label="Legend">
             {[...CALENDAR_KINDS.map(k => ({ label: k.label, tone: KIND_TONE[k.value] })), { label: 'Social post', tone: POST_TONE }, { label: 'Campaign', tone: CAMPAIGN_TONE }].map(l => (
-              <li key={l.label} className="rounded-tag px-2 py-0.5 text-[10px] font-medium" style={toneStyle(l.tone)}>{l.label}</li>
+              <li key={l.label} className="rounded-tag px-3 py-1 text-[12px] font-medium" style={toneStyle(l.tone)}>{l.label}</li>
             ))}
           </ul>
         </div>
