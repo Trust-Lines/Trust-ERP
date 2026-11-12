@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireProductionWrite } from '@/lib/production/guard';
+import { PROD_KEYS } from '@/lib/production/access';
 import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic';
  *   { kind: 'project' | 'direct_order' | 'missing_extra', ids, halfOfYear: 'FIRST_HALF' | 'SECOND_HALF' | null, halfYear: 2026 | null }
  */
 export async function PATCH(req: NextRequest) {
-  const { user, admin, deny } = await requireProductionWrite();
+  const { user, admin, deny } = await requireProductionWrite(PROD_KEYS.half);
   if (deny) return deny;
 
   const body = await req.json().catch(() => ({})) as { kind?: string; ids?: unknown; halfOfYear?: string | null; halfYear?: number | null };

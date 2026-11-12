@@ -8,6 +8,7 @@ import { Modal, ModalContent } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 import { BUCKET_LABELS, TYPE_ORDER, type PProject } from '@/lib/excel/projectsExcelExport';
 import type { PfGroup } from './ProductionFlags';
+import type { ProductionAccess } from '@/lib/production/access';
 
 // Production tracker project menu — Trust System ProjectMenu / AddToGroupModal behaviour on T-ERP
 // data (/api/production/blocks/:id, /api/production/pf-groups). Opens with a right click on a
@@ -25,8 +26,8 @@ export interface ProjectMenuProps {
   project: PProject;
   /** data-project-head value of the project's header row. */
   headKey: string;
-  canEdit: boolean;
-  canDeleteProject: boolean;
+  /** Roles page → Production Board switches. */
+  access: ProductionAccess;
   groups: PfGroup[];
   onGroupsChanged: () => void;
   onSaved: () => void;
@@ -46,7 +47,7 @@ function anchorPos(headKey: string): { left: number; top: number } | null {
   return { left: Math.max(8, Math.min(btn?.left ?? row.left, window.innerWidth - 268)), top: row.bottom + 4 };
 }
 
-export function ProjectMenu({ project, headKey, canEdit, canDeleteProject, groups, onGroupsChanged, onSaved, onDelete, onClose, onSelect, selected }: ProjectMenuProps) {
+export function ProjectMenu({ project, headKey, access, groups, onGroupsChanged, onSaved, onDelete, onClose, onSelect, selected }: ProjectMenuProps) {
   const kind = project.kind ?? 'project';
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const [mode, setMode] = useState<Mode>(null);
@@ -110,27 +111,29 @@ export function ProjectMenu({ project, headKey, canEdit, canDeleteProject, group
           <FileText size={14} aria-hidden /> Prepare Document
         </button>
 
-        {canEdit && onSelect && (
+        {access.half && onSelect && (
           <button type="button" role="menuitem" className={ITEM} onClick={() => { onSelect(); onClose(); }}>
             <SquareCheck size={14} aria-hidden /> {selected ? 'Deselect' : 'Select'}
           </button>
         )}
 
-        {canEdit && (
+        {(access.editProjects || (access.groups && kind === 'project')) && SEP}
+        {access.editProjects && (
+          <button type="button" role="menuitem" className={cn(ITEM, project.isUrgent ? 'text-success-normal' : 'text-error-normal')}
+            onClick={async () => { onClose(); await save({ isUrgent: !project.isUrgent }, project.isUrgent ? 'Urgent removed' : 'Marked urgent', 'Failed to update urgent status.'); }}>
+            {project.isUrgent ? <ArrowDownCircle size={14} aria-hidden /> : <TriangleAlert size={14} aria-hidden />}
+            {project.isUrgent ? 'Remove Urgent' : 'Make Urgent'}
+          </button>
+        )}
+        {access.groups && kind === 'project' && (
+          <button type="button" role="menuitem" className={ITEM} onClick={() => setGroupOpen(true)}>
+            <Tag size={14} aria-hidden /> {groups.length ? 'Add to Group...' : 'Create Group'}
+          </button>
+        )}
+
+        {access.editProjects && (
           <>
             {SEP}
-            <button type="button" role="menuitem" className={cn(ITEM, project.isUrgent ? 'text-success-normal' : 'text-error-normal')}
-              onClick={async () => { onClose(); await save({ isUrgent: !project.isUrgent }, project.isUrgent ? 'Urgent removed' : 'Marked urgent', 'Failed to update urgent status.'); }}>
-              {project.isUrgent ? <ArrowDownCircle size={14} aria-hidden /> : <TriangleAlert size={14} aria-hidden />}
-              {project.isUrgent ? 'Remove Urgent' : 'Make Urgent'}
-            </button>
-            {kind === 'project' && (
-              <button type="button" role="menuitem" className={ITEM} onClick={() => setGroupOpen(true)}>
-                <Tag size={14} aria-hidden /> {groups.length ? 'Add to Group...' : 'Create Group'}
-              </button>
-            )}
-            {SEP}
-
             {(['name', 'address'] as const).map(m => mode === m ? (
               <div key={m} className="flex flex-col gap-1 px-3 py-1.5">
                 <input autoFocus aria-label={m === 'name' ? 'Project name' : 'Project address'} className={INPUT} value={text}
@@ -167,15 +170,15 @@ export function ProjectMenu({ project, headKey, canEdit, canDeleteProject, group
             ) : (
               <button type="button" role="menuitem" className={ITEM} onClick={() => setMode('region')}>Move Region</button>
             )}
+          </>
+        )}
 
-            {(kind !== 'project' || canDeleteProject) && (
-              <>
-                {SEP}
-                <button type="button" role="menuitem" className={cn(ITEM, 'text-error-normal hover:bg-error-light')} onClick={() => { onClose(); onDelete(); }}>
-                  <Trash2 size={14} aria-hidden /> Delete Project
-                </button>
-              </>
-            )}
+        {access.deleteProjects && (
+          <>
+            {SEP}
+            <button type="button" role="menuitem" className={cn(ITEM, 'text-error-normal hover:bg-error-light')} onClick={() => { onClose(); onDelete(); }}>
+              <Trash2 size={14} aria-hidden /> Delete Project
+            </button>
           </>
         )}
       </div>

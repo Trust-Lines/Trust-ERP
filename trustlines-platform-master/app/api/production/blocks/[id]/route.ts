@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireProductionWrite } from '@/lib/production/guard';
+import { PROD_KEYS } from '@/lib/production/access';
 import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
@@ -16,8 +17,6 @@ const KINDS = ['project', 'direct_order', 'missing_extra'] as const;
 type Kind = typeof KINDS[number];
 const BUCKETS = new Set(['TLINES_NE', 'TLINES_SE', 'TLINES_NW', 'CVW', 'TLINES_HQ', 'TLINES_TC']);
 const BOARD_TYPES = ['Millwork', 'Shelving', 'Ceiling', 'Image', 'Furniture', 'Decoration'];
-// Deleting a whole T-ERP project is the same right as the project page's Delete.
-const PROJECT_DELETE_ROLES = new Set(['general_manager', 'ops_manager']);
 
 const now = () => new Date().toISOString();
 const clean = (v: unknown, max = 300) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -36,7 +35,7 @@ function splitName(full: string | null): { head: string; address: string } {
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const { user, admin, deny } = await requireProductionWrite();
+  const { user, admin, deny } = await requireProductionWrite(PROD_KEYS.editProjects);
   if (deny) return deny;
   const { id } = await params;
   const kind = kindOf(req);
@@ -134,14 +133,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
-  const { user, role, admin, deny } = await requireProductionWrite();
+  const { user, admin, deny } = await requireProductionWrite(PROD_KEYS.deleteProjects);
   if (deny) return deny;
   const { id } = await params;
   const kind = kindOf(req);
   if (!kind) return NextResponse.json({ error: 'Invalid kind' }, { status: 400 });
-  if (kind === 'project' && !PROJECT_DELETE_ROLES.has(role)) {
-    return NextResponse.json({ error: 'Only a general manager or ops manager can delete a project' }, { status: 403 });
-  }
 
   const table = kind === 'project' ? 'projects' : 'production_cases';
   let q = admin.from(table).update({ deleted_at: now() }).eq('id', id).is('deleted_at', null);

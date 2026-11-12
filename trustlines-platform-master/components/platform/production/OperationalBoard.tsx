@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { ColumnResizer, useColumnWidths, type SizedColumn } from '@/components/ui/column-resize';
 import { ConfirmModal } from '@/components/ui/modal';
 import { ProjectMenu } from './ProjectMenu';
+import type { ProductionAccess } from '@/lib/production/access';
 import type { PfGroup } from './ProductionFlags';
 import { EditItemPanel, OrderTypePicker, RowMenu, VendorPicker, useBoardLists, type PanelItem } from './BoardEditors';
 import {
@@ -32,6 +33,10 @@ const WIDTHS: Partial<Record<ColumnKey, number>> = {
   rdy: 102, snd: 124, pfUsd: 100, pfTl: 103, invoice: 101, invoiceTl: 117, paymentRule: 116,
 };
 const MONEY_COLS: ColumnKey[] = ['pfUsd', 'pfTl', 'invoice', 'invoiceTl'];
+const NO_ACCESS: ProductionAccess = {
+  tabProjects: false, tabMissingExtra: false, tabDirectOrders: false, viewMoney: false, export: false, editStatus: false,
+  editRows: false, deleteRows: false, editProjects: false, deleteProjects: false, todo: false, groups: false, half: false,
+};
 // Figma "Projects table" (TRUST-LINES ERP 728:13023, colours 728:14366 / 14370 / 14374 / 14378): a
 // project's header row, its Project # box and its TOTAL row take the project's colour as a tone —
 // the colour rule is unchanged, only the tones are new (globals.css tokens, light + dark):
@@ -222,8 +227,10 @@ function MoneyChip({ col, value }: { col: ColumnKey; value: number }) {
   );
 }
 
-export function OperationalBoard({ sections, canEdit = false, canDeleteProject = false, groups = [], onGroupsChanged, onSaved, groupRanks, selection }: {
-  sections: PSection[]; canEdit?: boolean; canDeleteProject?: boolean;
+export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], onGroupsChanged, onSaved, groupRanks, selection }: {
+  sections: PSection[];
+  /** Roles page → Production Board switches. */
+  access?: ProductionAccess;
   groups?: PfGroup[]; onGroupsChanged?: () => void; onSaved?: () => void;
   /** Groups view: rank of "group|projectId|type" for the type cell's badge. */
   groupRanks?: Map<string, number>;
@@ -243,6 +250,9 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
   })), []);
   const { width, startResize, fit } = useColumnWidths('production-tracker-widths', sizing, allItems);
   const typeLeft = width('projectNo');
+  const canStatus = access.editStatus, canRows = access.editRows, canDelRows = access.deleteRows;
+  // Without "Money columns" the four money columns and the TOTAL rows are left out.
+  const cols = access.viewMoney ? COLS : COLS.filter(c => !MONEY_COLS.includes(c));
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [menu, setMenu] = useState<OpenMenu | null>(null);
   const lists = useBoardLists();
@@ -303,7 +313,7 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
   const view = (it: PItem): PItem => (it.id && pending[it.id] ? { ...it, ...pending[it.id] } : it);
 
   function openMenu(kind: EditKind, ids: string[], current: string, anchor: HTMLElement) {
-    if (!canEdit || !ids.length) return;
+    if (!canStatus || !ids.length) return;
     const r = anchor.getBoundingClientRect();
     const left = Math.max(8, Math.min(r.left, window.innerWidth - MENU_W - 8));
     setMenu({
@@ -350,13 +360,13 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
 
   return (
     <div className="overflow-auto rounded-[8px] border border-ui-divider" style={{ maxHeight: 'calc(100dvh - 220px)' }}>
-      <table className="table-fixed border-separate border-spacing-0" style={{ width: `max(${COLS.reduce((t, c) => t + width(c), 0)}px, 100%)` }}>
+      <table className="table-fixed border-separate border-spacing-0" style={{ width: `max(${cols.reduce((t, c) => t + width(c), 0)}px, 100%)` }}>
         <colgroup>
-          {COLS.map(c => <col key={c} style={{ width: width(c) }} />)}
+          {cols.map(c => <col key={c} style={{ width: width(c) }} />)}
         </colgroup>
         <thead>
           <tr>
-            {COLS.map(col => (
+            {cols.map(col => (
               <th key={col} className={cn('sticky top-0 z-20 whitespace-nowrap border-b border-r border-ui-divider bg-ui-surface px-2 text-left text-[12px] font-semibold leading-[1.4] text-ui-body', col === 'projectNo' && 'left-0 z-30', col === 'type' && 'z-30')}
                 style={{ height: HEAD_H, ...(col === 'type' ? { left: typeLeft } : {}) }}>
                 <ColumnResizer label={LABELS[col] ?? COLUMN_LABELS[col]} onResize={e => startResize(col, e)} onFit={() => fit(col)} />
@@ -402,8 +412,8 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
                   dataRowSeen++;
                   bodyRows.push(
                     <tr key={`${pi}-${gi}-${ii}`}
-                      onContextMenu={canEdit && item.id ? e => { e.preventDefault(); setRowMenu({ item, point: { x: e.clientX, y: e.clientY } }); } : undefined}>
-                      {COLS.map(col => {
+                      onContextMenu={canDelRows && item.id ? e => { e.preventDefault(); setRowMenu({ item, point: { x: e.clientX, y: e.clientY } }); } : undefined}>
+                      {cols.map(col => {
                         if (col === 'projectNo') {
                           if (!isFirstDataRow) return null;
                           return (
@@ -434,8 +444,8 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
                         if (col === 'type') {
                           if (!isFirstOfGroup) return null;
                           return (
-                            <td key={col} rowSpan={group.items.length} className={cn(TD, TYPE_TEXT, 'sticky z-10 border-r', canEdit && 'cursor-pointer hover:brightness-95')}
-                              onClick={canEdit ? e => setPanel({ key: groupKey, point: { x: e.clientX, y: e.clientY } }) : undefined}
+                            <td key={col} rowSpan={group.items.length} className={cn(TD, TYPE_TEXT, 'sticky z-10 border-r', canRows && 'cursor-pointer hover:brightness-95')}
+                              onClick={canRows ? e => setPanel({ key: groupKey, point: { x: e.clientX, y: e.clientY } }) : undefined}
                               style={{ left: typeLeft }}>
                               {/* Every row of the type SENT: the same full box as the status chips (5px margin,
                                   6px corners) in the Sent green (New Status 10). Otherwise plain text. */}
@@ -459,28 +469,28 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
                           // One PO cell for the whole type group, filled from top to bottom.
                           const ids = shown.map(i => i.id).filter(Boolean) as string[];
                           return (
-                            <StatusCell key={col} rowSpan={group.items.length} opt={signStyle(po)} editable={canEdit && ids.length > 0}
+                            <StatusCell key={col} rowSpan={group.items.length} opt={signStyle(po)} editable={canStatus && ids.length > 0}
                               onOpen={a => openMenu('po', ids, po, a)} />
                           );
                         }
                         if (col === 'orderType') return (
-                          <td key={col} className={cn(TD, canEdit && item.id && 'cursor-pointer hover:bg-ui-hover-bg')}
-                            onClick={canEdit && item.id ? e => setPicker({ kind: 'orderType', item, rect: e.currentTarget.getBoundingClientRect() }) : undefined}>
+                          <td key={col} className={cn(TD, canRows && item.id && 'cursor-pointer hover:bg-ui-hover-bg')}
+                            onClick={canRows && item.id ? e => setPicker({ kind: 'orderType', item, rect: e.currentTarget.getBoundingClientRect() }) : undefined}>
                             <OrderType value={item.orderType} />
                           </td>
                         );
                         if (col === 'vendor') return (
-                          <td key={col} className={cn(TD, 'text-[13px] leading-[1.4]', canEdit && item.id && 'cursor-pointer hover:bg-ui-hover-bg')}
-                            onClick={canEdit && item.id ? e => setPicker({ kind: 'vendor', item, rect: e.currentTarget.getBoundingClientRect() }) : undefined}>
+                          <td key={col} className={cn(TD, 'text-[13px] leading-[1.4]', canRows && item.id && 'cursor-pointer hover:bg-ui-hover-bg')}
+                            onClick={canRows && item.id ? e => setPicker({ kind: 'vendor', item, rect: e.currentTarget.getBoundingClientRect() }) : undefined}>
                             {cellValue(col, item)}
                           </td>
                         );
                         if (col === 'pfSignStatus') return (
-                          <StatusCell key={col} opt={signStyle(item.pfSignStatus)} editable={canEdit && !!item.id}
+                          <StatusCell key={col} opt={signStyle(item.pfSignStatus)} editable={canStatus && !!item.id}
                             onOpen={a => openMenu('pf', [item.id!], normalizeSign(item.pfSignStatus), a)} />
                         );
                         if (col === 'status') return (
-                          <StatusCell key={col} opt={statusStyle(item.status)} editable={canEdit && !!item.id}
+                          <StatusCell key={col} opt={statusStyle(item.status)} editable={canStatus && !!item.id}
                             onOpen={a => openMenu('status', [item.id!], normalizeStatus(item.status), a)} />
                         );
                         return (
@@ -497,7 +507,7 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
               return (
                 <Fragment key={`proj-${pi}`}>
                   <tr data-project-head={key} onContextMenu={e => openProjMenu(e, project, key)}>
-                    <td colSpan={COLS.length} className="border-y border-ui-divider p-2" style={barStyle}>
+                    <td colSpan={cols.length} className="border-y border-ui-divider p-2" style={barStyle}>
                       <button
                         type="button" onClick={() => toggle(key)} aria-expanded={!isCollapsed}
                         aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} project ${project.projectNo}`}
@@ -513,7 +523,7 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
                     </td>
                   </tr>
                   {!isCollapsed && bodyRows}
-                  {!isCollapsed && (
+                  {!isCollapsed && access.viewMoney && (
                     <tr>
                       {/* TOTAL runs the full width from the left edge, under the Project # box (Figma 741:16403). */}
                       <td colSpan={moneyStart} className="border-y border-ui-divider px-4 py-2.5 text-[14px] font-semibold" style={barStyle}><span className="sticky left-4">TOTAL</span></td>
@@ -534,7 +544,7 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
             return (
               <Fragment key={`sec-${si}`}>
                 <tr>
-                  <td colSpan={COLS.length} className="sticky z-[15] border-y border-ui-divider p-2 text-[#EEF2F6]"
+                  <td colSpan={cols.length} className="sticky z-[15] border-y border-ui-divider p-2 text-[#EEF2F6]"
                     style={{ top: HEAD_H, background: section.group != null ? 'linear-gradient(90deg, #b91c1c, #ef4444)' : regionBg(section.label) }}>
                     <button
                       type="button" onClick={() => toggle(regionKey)} aria-expanded={!regionClosed}
@@ -547,7 +557,7 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
                   </td>
                 </tr>
                 {!regionClosed && projectRows}
-                <tr>
+                {access.viewMoney && <tr>
                   <td colSpan={moneyStart} className="px-4 py-2.5 text-[14px] font-semibold" style={{ background: BOARD_CSS.sectionTotal.bg, color: BOARD_CSS.sectionTotal.fg }}>
                     {section.label.toUpperCase()} TOTALS
                   </td>
@@ -555,7 +565,7 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
                     <td key={col} className="px-2 py-2.5" style={{ background: BOARD_CSS.sectionTotal.bg }}><MoneyChip col={col} value={secTotals[col] ?? 0} /></td>
                   ))}
                   <td colSpan={afterMoney} style={{ background: BOARD_CSS.sectionTotal.bg }} />
-                </tr>
+                </tr>}
               </Fragment>
             );
           })}
@@ -575,13 +585,13 @@ export function OperationalBoard({ sections, canEdit = false, canDeleteProject =
         const g = groupsByKey.get(panel.key)!;
         const items: PanelItem[] = g.items.filter(i => i.id).map(i => ({ id: i.id!, pfCode: i.pfCode ?? null, vendorId: i.vendorId ?? null, orderType: i.orderType ?? null }));
         return (
-          <EditItemPanel point={panel.point} type={g.type} items={items} vendors={lists.vendors} orderTypes={lists.orderTypes} canAdd={canEdit}
+          <EditItemPanel point={panel.point} type={g.type} items={items} vendors={lists.vendors} orderTypes={lists.orderTypes} canAdd={canRows}
             onSave={(id, patch) => patchItem(id, patch)} onAddItem={() => addItem(g)} onClose={() => setPanel(null)}
             onVendorsChanged={() => lists.reloadVendors()} onOrderTypesChanged={() => void lists.reloadOrderTypes()} />
         );
       })()}
       {projMenu && (
-        <ProjectMenu key={projMenu.headKey} project={projMenu.project} headKey={projMenu.headKey} canEdit={canEdit} canDeleteProject={canDeleteProject}
+        <ProjectMenu key={projMenu.headKey} project={projMenu.project} headKey={projMenu.headKey} access={access}
           groups={groups} onGroupsChanged={() => onGroupsChanged?.()} onSaved={() => onSaved?.()}
           onDelete={() => setProjToDelete(projMenu.project)} onClose={() => setProjMenu(null)}
           onSelect={selection && projMenu.project.id ? () => selection.toggle(projMenu.project.id!) : undefined}

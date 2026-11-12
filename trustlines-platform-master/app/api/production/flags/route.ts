@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireVendorAccess } from '@/lib/production/vendorAccess';
 import { requireProductionWrite } from '@/lib/production/guard';
+import { PROD_KEYS } from '@/lib/production/access';
 import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
@@ -85,7 +86,7 @@ export async function GET() {
  * ({ projectId, kind: 'FOLLOWUP', itemId }). Flagging the same thing again re-opens the old flag.
  */
 export async function POST(req: NextRequest) {
-  const { user, admin, deny } = await requireProductionWrite();
+  const { user, admin, deny } = await requireProductionWrite(PROD_KEYS.todo);
   if (deny) return deny;
 
   const body = await req.json().catch(() => ({})) as { projectId?: string; kind?: string; type?: string; itemId?: string };

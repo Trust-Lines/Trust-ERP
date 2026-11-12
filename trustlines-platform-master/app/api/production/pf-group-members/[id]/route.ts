@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireProductionWrite } from '@/lib/production/guard';
+import { PROD_KEYS } from '@/lib/production/access';
 import { logAudit } from '@/lib/audit/log';
 
 type Params = { params: Promise<{ id: string }> };
@@ -22,7 +23,7 @@ async function renumber(admin: { from: (t: string) => any }, groupId: string) { 
  * one when it is already the last.
  */
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const { user, admin, deny } = await requireProductionWrite();
+  const { user, admin, deny } = await requireProductionWrite(PROD_KEYS.groups);
   if (deny) return deny;
   const { id } = await params;
   const { direction } = await req.json().catch(() => ({})) as { direction?: string };
@@ -51,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 /** Take a project + type out of its PF group; an emptied group goes too. */
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const { user, admin, deny } = await requireProductionWrite();
+  const { user, admin, deny } = await requireProductionWrite(PROD_KEYS.groups);
   if (deny) return deny;
   const { id } = await params;
   const { data, error } = await admin.from('production_pf_group_members').delete().eq('id', id).select('id, group_id').maybeSingle();

@@ -2,7 +2,9 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePage } from '@/lib/permissions/requirePage';
-import { roleCan } from '@/lib/permissions/server';
+import { getRolePermissions } from '@/lib/permissions/server';
+import { permCan } from '@/lib/permissions/catalog';
+import { productionAccess } from '@/lib/production/access';
 import { ProductionClient } from '@/components/platform/production/ProductionClient';
 
 export const dynamic = 'force-dynamic';
@@ -19,9 +21,7 @@ export default async function ProductionPage() {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
   const role = (profile as { role: string } | null)?.role ?? null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const canEdit = await roleCan(createAdminClient() as any, role, 'edit.production');
-
-  // Deleting a whole project from the board: the same roles as the project page's Delete.
-  const canDeleteProject = canEdit && (role === 'general_manager' || role === 'ops_manager');
-  return <ProductionClient canEdit={canEdit} canDeleteProject={canDeleteProject} />;
+  const perms = await getRolePermissions(createAdminClient() as any, role);
+  // Every part of the board has its own switch (Roles page → Production Board).
+  return <ProductionClient access={productionAccess(role, perms)} canAddProject={permCan(perms, 'edit.projects')} />;
 }
