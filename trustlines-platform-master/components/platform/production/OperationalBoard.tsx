@@ -372,7 +372,7 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
                         if (col === 'projectNo') {
                           if (!isFirstDataRow) return null;
                           return (
-                            <td key={col} rowSpan={dataRowCount + 1} className="sticky left-0 z-10 border-r border-ui-divider bg-ui-page-bg p-0">
+                            <td key={col} rowSpan={dataRowCount} className="sticky left-0 z-10 border-r border-ui-divider bg-ui-page-bg p-0">
                               {/* A rounded box inside the cell: 7px page-colour margin, 12px corners. */}
                               <span className="absolute inset-[7px] flex items-center justify-center overflow-hidden rounded-[12px] px-2.5 text-center text-[24px] font-medium" style={barStyle}>
                                 {String(project.projectNo)}
@@ -451,7 +451,8 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
                   {!isCollapsed && bodyRows}
                   {!isCollapsed && (
                     <tr>
-                      <td colSpan={moneyStart - 1} className="border-y border-ui-divider px-4 py-2.5 text-[14px] font-semibold" style={barStyle}>TOTAL</td>
+                      {/* TOTAL runs the full width from the left edge, under the Project # box (Figma 741:16403). */}
+                      <td colSpan={moneyStart} className="border-y border-ui-divider px-4 py-2.5 text-[14px] font-semibold" style={barStyle}><span className="sticky left-4">TOTAL</span></td>
                       {MONEY_COLS.map(col => (
                         <td key={col} className="border-y border-ui-divider px-2 py-2.5" style={barStyle}><MoneyChip col={col} value={totals[col] ?? 0} /></td>
                       ))}
