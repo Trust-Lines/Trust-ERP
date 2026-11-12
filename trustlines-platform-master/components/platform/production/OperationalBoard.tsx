@@ -135,18 +135,20 @@ function StatusMenu({ menu, onPick, onClose }: { menu: OpenMenu; onPick: (value:
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', onClose, true);
+    // Scrolling the page or the board closes the list; scrolling the list itself does not.
+    const onScroll = (e: Event) => { if (!(e.target instanceof Element && e.target.closest('[data-board-popup]'))) onClose(); };
+    window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onClose);
     return () => {
       window.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', onClose, true);
+      window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onClose);
     };
   }, [onClose]);
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden />
-      <div role="listbox" aria-label="Choose a status" style={{ ...menu.style, width: MENU_W, maxHeight: MENU_MAX_H }}
+      <div data-board-popup role="listbox" aria-label="Choose a status" style={{ ...menu.style, width: MENU_W, maxHeight: MENU_MAX_H }}
         className="fixed z-50 flex flex-col gap-1 overflow-y-auto rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1.5 shadow-03">
         {currentFirst(OPTIONS[menu.kind], menu.current).map(o => (
           <button
