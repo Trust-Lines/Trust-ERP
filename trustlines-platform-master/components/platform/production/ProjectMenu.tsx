@@ -104,7 +104,7 @@ export function ProjectMenu({ project, headKey, canEdit, canDeleteProject, group
         <button type="button" role="menuitem" className={cn(ITEM, 'text-[var(--color-primary-600,#2563eb)]')} disabled={!project.trustId}
           title={project.trustId ? undefined : 'This project has no Trust System record'}
           onClick={() => { window.open(`${TRUST_PRICE_LIST}${encodeURIComponent(project.trustId!)}`, '_blank', 'noopener'); onClose(); }}>
-          <FileText size={14} aria-hidden /> Belge Hazırla
+          <FileText size={14} aria-hidden /> Prepare Document
         </button>
 
         {canEdit && (
