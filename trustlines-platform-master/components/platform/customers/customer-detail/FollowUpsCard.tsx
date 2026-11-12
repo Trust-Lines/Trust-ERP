@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { CalendarDays, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/platform/shared/Select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { todayISO, type Assignee, type FollowUp } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
@@ -47,11 +48,10 @@ export function FollowUpsCard({ followUps, assignees, canEdit, onSave, onSetStat
               <div key={f.id} className={cn('flex items-center justify-between gap-3 py-2.5', f.status === 'cancelled' && 'opacity-60')}>
                 <div className="flex min-w-0 items-center">
                   <span className="flex w-9 shrink-0 items-center px-2.5">
-                    <input
-                      type="checkbox" checked={done} disabled={!canEdit || f.status === 'cancelled'}
-                      onChange={() => onSetStatus(f.id, done ? 'open' : 'done')}
+                    <Checkbox
+                      checked={done} disabled={!canEdit || f.status === 'cancelled'}
+                      onCheckedChange={() => onSetStatus(f.id, done ? 'open' : 'done')}
                       aria-label={done ? `Reopen: ${f.note}` : `Mark done: ${f.note}`}
-                      className="size-4 cursor-pointer rounded-[3px] accent-[var(--color-secondary-700)] disabled:cursor-default"
                     />
                   </span>
                   <div className="flex min-w-0 flex-col gap-0.5 pr-2.5">
