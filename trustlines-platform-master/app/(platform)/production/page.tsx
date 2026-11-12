@@ -21,5 +21,7 @@ export default async function ProductionPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const canEdit = await roleCan(createAdminClient() as any, role, 'edit.production');
 
-  return <ProductionClient canEdit={canEdit} />;
+  // Deleting a whole project from the board: the same roles as the project page's Delete.
+  const canDeleteProject = canEdit && (role === 'general_manager' || role === 'ops_manager');
+  return <ProductionClient canEdit={canEdit} canDeleteProject={canDeleteProject} />;
 }

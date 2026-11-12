@@ -184,6 +184,14 @@ export interface PProject {
   halfYear?: number | null;
   containerDate?: string | null;
   bucket?: string;
+  /** Production tracker: the T-ERP project or case behind the block, for the project menu. */
+  id?: string;
+  kind?: 'project' | 'direct_order' | 'missing_extra';
+  /** The Trust System id (project / case), for "Belge Hazırla". */
+  trustId?: string | null;
+  /** The name and address the menu edits (the header shows them split from projectName). */
+  editName?: string;
+  editAddress?: string;
   items: PItem[];
 }
 

@@ -7,13 +7,15 @@ import {
   computeProjectColor, groupItemsByType, groupAllSent,
   vendorText, effUsd, effTl, toNumber, fmtDateCss,
   isDateColumn, isMoneyColumn, BOARD_CSS,
-  type PSection, type PItem, type ColumnKey,
+  type PSection, type PItem, type PProject, type ColumnKey,
 } from '@/lib/excel/projectsExcelExport';
 import { EmptyState } from '@/components/ui/empty-state';
 import { CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleOff, Drill, Factory, Hourglass, Loader, Package, Pause, Send, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ColumnResizer, useColumnWidths, type SizedColumn } from '@/components/ui/column-resize';
 import { ConfirmModal } from '@/components/ui/modal';
+import { ProjectMenu } from './ProjectMenu';
+import type { PfGroup } from './ProductionFlags';
 import { EditItemPanel, OrderTypePicker, RowMenu, VendorPicker, useBoardLists, type PanelItem } from './BoardEditors';
 import {
   PF_SIGN_OPTIONS, PO_SIGN_OPTIONS, STATUS_OPTIONS, currentFirst, normalizeSign, normalizeStatus, poRollup,
@@ -220,7 +222,10 @@ function MoneyChip({ col, value }: { col: ColumnKey; value: number }) {
   );
 }
 
-export function OperationalBoard({ sections, canEdit = false, onSaved }: { sections: PSection[]; canEdit?: boolean; onSaved?: () => void }) {
+export function OperationalBoard({ sections, canEdit = false, canDeleteProject = false, groups = [], onGroupsChanged, onSaved }: {
+  sections: PSection[]; canEdit?: boolean; canDeleteProject?: boolean;
+  groups?: PfGroup[]; onGroupsChanged?: () => void; onSaved?: () => void;
+}) {
   // Column widths like the accounting sheet: fit the widest text, drag a header edge to resize,
   // double-click to fit again; remembered in this browser.
   const allItems = useMemo(() => sections.flatMap(s => s.projects.flatMap(p => p.items ?? [])), [sections]);
@@ -241,6 +246,22 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
   const [panel, setPanel] = useState<{ key: string; point: { x: number; y: number } } | null>(null);
   const [rowMenu, setRowMenu] = useState<{ item: PItem; point: { x: number; y: number } } | null>(null);
   const [toDelete, setToDelete] = useState<PItem | null>(null);
+  // Project menu (right click on a Project # box or a project header).
+  const [projMenu, setProjMenu] = useState<{ project: PProject; headKey: string } | null>(null);
+  const [projToDelete, setProjToDelete] = useState<PProject | null>(null);
+  const openProjMenu = (e: React.MouseEvent, project: PProject, headKey: string) => {
+    if (!project.id) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setProjMenu(m => (m?.headKey === headKey ? null : { project, headKey }));
+  };
+  async function deleteProject(p: PProject) {
+    const res = await fetch(`/api/production/blocks/${p.id}?kind=${p.kind ?? 'project'}`, { method: 'DELETE' }).catch(() => null);
+    const b = await res?.json().catch(() => ({}));
+    if (!res?.ok) { toast.error(b?.error ?? 'Could not delete the project'); throw new Error('delete'); }
+    toast.success('Project moved to the trash');
+    onSaved?.();
+  }
   // The type groups drawn this render, for the Edit Item panel.
   const groupsByKey = new Map<string, { type: string; items: PItem[]; projectId: string | null; caseId: string | null; customTypeCode: string | null }>();
 
@@ -382,10 +403,12 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
                         if (col === 'projectNo') {
                           if (!isFirstDataRow) return null;
                           return (
-                            <td key={col} rowSpan={dataRowCount} className="sticky left-0 z-10 border-r border-ui-divider bg-ui-page-bg p-0">
+                            <td key={col} rowSpan={dataRowCount} className={cn('sticky left-0 z-10 border-r border-ui-divider bg-ui-page-bg p-0', project.id && 'cursor-pointer')}
+                              onContextMenu={e => openProjMenu(e, project, key)}>
                               {/* A rounded box inside the cell: 7px page-colour margin, 12px corners. */}
                               <span className="absolute inset-[7px] flex items-center justify-center overflow-hidden rounded-[12px] px-2.5 text-center text-[24px] font-medium" style={barStyle}>
-                                {String(project.projectNo)}
+                                {/* "P123" shows as "123" (Trust System). */}
+                                {String(project.projectNo).replace(/^P(?=\d+$)/, '')}
                               </span>
                             </td>
                           );
@@ -449,7 +472,7 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
 
               return (
                 <Fragment key={`proj-${pi}`}>
-                  <tr>
+                  <tr data-project-head={key} onContextMenu={e => openProjMenu(e, project, key)}>
                     <td colSpan={COLS.length} className="border-y border-ui-divider p-2" style={barStyle}>
                       <button
                         type="button" onClick={() => toggle(key)} aria-expanded={!isCollapsed}
@@ -532,6 +555,18 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
             onVendorsChanged={() => lists.reloadVendors()} onOrderTypesChanged={() => void lists.reloadOrderTypes()} />
         );
       })()}
+      {projMenu && (
+        <ProjectMenu key={projMenu.headKey} project={projMenu.project} headKey={projMenu.headKey} canEdit={canEdit} canDeleteProject={canDeleteProject}
+          groups={groups} onGroupsChanged={() => onGroupsChanged?.()} onSaved={() => onSaved?.()}
+          onDelete={() => setProjToDelete(projMenu.project)} onClose={() => setProjMenu(null)} />
+      )}
+      <ConfirmModal
+        open={!!projToDelete} onOpenChange={o => { if (!o) setProjToDelete(null); }}
+        title="Delete this project?" tone="destructive" confirmLabel="Delete Project"
+        description={projToDelete ? `Are you sure you want to delete the project "${projToDelete.editName || projToDelete.projectNo}"?` : undefined}
+        warning="It goes to the trash and can be restored from there."
+        onConfirm={async () => { if (projToDelete) await deleteProject(projToDelete); setProjToDelete(null); }}
+      />
       {rowMenu && (
         <RowMenu point={rowMenu.point} title={rowMenu.item.type ?? 'Row'} onClose={() => setRowMenu(null)}
           onDelete={() => { const it = rowMenu.item; setRowMenu(null); setToDelete(it); }} />
