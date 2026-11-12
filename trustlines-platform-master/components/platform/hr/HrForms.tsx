@@ -75,14 +75,14 @@ export function CreateEventDialog({ open, onOpenChange, defaultDate, onCreate }:
       canSubmit={!!label.trim() && !!date}
       onSubmit={() => onCreate({ label: label.trim(), kind, date, time: time || null, detail: detail.trim() || null })}
     >
-      <Field label="Title">{id => <Input id={id} value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Team meeting" required autoFocus />}</Field>
+      <Field label="Title">{id => <Input id={id} value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Team meeting" required autoFocus className="h-10 text-[14px]" />}</Field>
       <Field label="Type">{id => (
-        <Select id={id} value={kind} onValueChange={v => v && setKind(v as HrEventKind)}
+        <Select id={id} value={kind} onValueChange={v => v && setKind(v as HrEventKind)} className="h-10 text-[14px] [&_svg]:size-5"
           options={KIND_ORDER.map(k => ({ value: k, label: KIND_LABEL[k] }))} />
       )}</Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Date">{id => <Input id={id} type="date" value={date} onChange={e => setDate(e.target.value)} required />}</Field>
-        <Field label="Time" hint="Leave empty for all day.">{id => <Input id={id} type="time" value={time} onChange={e => setTime(e.target.value)} />}</Field>
+        <Field label="Date">{id => <Input id={id} type="date" value={date} onChange={e => setDate(e.target.value)} required className="h-10 text-[14px] [&::-webkit-calendar-picker-indicator]:size-4" />}</Field>
+        <Field label="Time" hint="Leave empty for all day.">{id => <Input id={id} type="time" value={time} onChange={e => setTime(e.target.value)} className="h-10 text-[14px] [&::-webkit-calendar-picker-indicator]:size-4" />}</Field>
       </div>
       <Field label="Notes">{id => <Textarea id={id} value={detail} onChange={e => setDetail(e.target.value)} rows={3} />}</Field>
     </FormDialog>
