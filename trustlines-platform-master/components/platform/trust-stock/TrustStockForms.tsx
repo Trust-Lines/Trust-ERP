@@ -52,7 +52,7 @@ export function NewStockDialog({ open, onOpenChange, existing, onCreate }: {
         <form id={formId} onSubmit={submit}>
           <Field label="Stock code">{id => (
             <>
-              <Input id={id} value={code} onChange={e => setCode(e.target.value)} placeholder="e.g. TR-04" required autoFocus aria-invalid={taken || undefined} />
+              <Input id={id} value={code} onChange={e => setCode(e.target.value)} placeholder="e.g. TR-04" required autoFocus aria-invalid={taken || undefined} className="h-10 text-[14px]" />
               {taken && <p className="m-0 text-[11px] text-error-normal">That stock already exists.</p>}
             </>
           )}</Field>
