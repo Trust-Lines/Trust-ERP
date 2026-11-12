@@ -19,11 +19,13 @@ export const bearerToken = cache(async (): Promise<string | null> => {
   }
 });
 
+/**
+ * The signed-in user for API routes (requireUser). Verified, like getVerifiedUser: it used to be
+ * the cookie session as stored, unverified — and API routes act with the service-role client on
+ * that user's id, so a crafted cookie could have passed as anyone.
+ */
 export async function getSessionUser(): Promise<User | null> {
-  if (await bearerToken()) return getVerifiedUser();
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.user ?? null;
+  return getVerifiedUser();
 }
 
 export async function requireUser(): Promise<
@@ -92,6 +94,10 @@ export const getVerifiedUser = cache(async (): Promise<User | null> => {
   const { data, error } = await sb.auth.getClaims();
   const sub = data?.claims?.sub;
   if (error || !sub) return null;
+  // The token's signature is verified above and the ids are compared below, so reading the stored
+  // session is safe here; without this, supabase-js logs its "getSession() could be insecure"
+  // warning on every request.
+  (sb.auth as unknown as { suppressGetSessionWarning: boolean }).suppressGetSessionWarning = true;
   const { data: { session } } = await sb.auth.getSession();
   if (session?.user?.id === sub) return session.user;
   const { data: { user } } = await sb.auth.getUser();
