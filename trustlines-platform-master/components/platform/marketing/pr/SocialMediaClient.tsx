@@ -351,7 +351,7 @@ export function SocialMediaClient({ initial, campaigns, providers, canEdit, isMa
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative w-full max-w-[320px]">
               <Search size={16} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" aria-hidden />
-              <Input className="h-10 pl-8 text-[13px]" placeholder="Search posts…" value={query} onChange={e => setQuery(e.target.value)} aria-label="Search posts" />
+              <Input className="h-10 pl-8 dark:pl-8 text-[13px]" placeholder="Search posts…" value={query} onChange={e => setQuery(e.target.value)} aria-label="Search posts" />
             </div>
             <Select className="h-10 w-[160px] text-[13px]" aria-label="Filter by status" value={statusFilter}
               options={[{ value: '', label: 'All statuses' }, ...FILTER_STATUS_OPTIONS]} onValueChange={v => setStatusFilter(v ?? '')} />
