@@ -138,12 +138,39 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   // The Trust Lines dashboard shows every branch; the T-Lines one only the viewer's regions.
   // The board's "Accounts" view groups every card under its client: a key client when the name
   // matches one (same rule as Clients Opportunity, lib/keyClients/match), else the card's own name.
+  // A card's name is the brand set on its Sales deal (Opportunity → Brand, e.g. "VIC" for #1188),
+  // matched by the deal's project number or its linked project; else the Trust / project name.
+  // Read on every page load, so a brand changed in Sales shows here at once.
+  const loadBrands = async () => {
+    try {
+      const { data } = await admin.from('opportunities').select('brand, external_project_code, project_id')
+        .not('brand', 'is', null).is('deleted_at', null).order('updated_at', { ascending: false }).limit(5000) as {
+          data: { brand: string; external_project_code: string | null; project_id: string | null }[] | null;
+        };
+      return data ?? [];
+    } catch { return []; }
+  };
   const loadAccountMatcher = async () => {
     try { return buildMatcher((await loadKeyClients(admin)).clients); } catch { return buildMatcher([]); }
   };
-  const [{ data: projectRows }, opportunities, trust, accountMatcher] = regionCodes.length === 0 && view === 'tlines'
-    ? [{ data: [] }, [] as ClientOpportunityRow[], { projects: [], error: null }, buildMatcher([])]
-    : await Promise.all([projectQuery, loadClientOpps(), loadTrustProjects(), loadAccountMatcher()]);
+  const [{ data: projectRows }, opportunities, trust, accountMatcher, brandRows] = regionCodes.length === 0 && view === 'tlines'
+    ? [{ data: [] }, [] as ClientOpportunityRow[], { projects: [], error: null }, buildMatcher([]), []]
+    : await Promise.all([projectQuery, loadClientOpps(), loadTrustProjects(), loadAccountMatcher(), loadBrands()]);
+  const isBrand = (b: string | null | undefined) => !!b && !/^(n\/?a|-+|none)$/i.test(b.trim());
+  const brandByNo = new Map<string, string>();
+  const brandByProject = new Map<string, string>();
+  for (const r of brandRows) {
+    if (!isBrand(r.brand)) continue;
+    const no = projectNumber(r.external_project_code);
+    if (no && !brandByNo.has(no)) brandByNo.set(no, r.brand.trim());
+    if (r.project_id && !brandByProject.has(r.project_id)) brandByProject.set(r.project_id, r.brand.trim());
+  }
+  // Our projects' numbers → their linked deal's brand, for Trust cards whose deal has no number.
+  for (const pr of (projectRows ?? []) as { id: string; code: string }[]) {
+    const no = projectNumber(pr.code);
+    const b = brandByProject.get(pr.id);
+    if (no && b && !brandByNo.has(no)) brandByNo.set(no, b);
+  }
   const accountOf = (name: string | null | undefined, keyClientId?: string, keyClientName?: string) => {
     if (keyClientId && keyClientName) return { key: `kc:${keyClientId}`, name: keyClientName };
     const kc = accountMatcher.byName(name);
@@ -186,12 +213,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const trustToday = new Date().toISOString().slice(0, 10);
   const allTrustCards = trustProjects.map(p => {
     const e = classifyTrustProject(p, trustToday);
+    const brand = brandByNo.get(p.projectNo) ?? null;
     const item: BoardCardItem = {
       id: p.id, kind: 'trust',
       badgeTop: `#${p.projectNo}`, badgeBottom: '',
-      title: p.name,
+      title: brand ?? p.name,
       subtitle: p.address,
-      account: accountOf(p.name),
+      account: accountOf(brand ?? p.name),
       company: companyByNo.get(p.projectNo) ?? null,
       category: (p.types ?? []).map(typeLabel).filter(Boolean).join(', ') || null,
       pmName: null, pmLabel: '',
@@ -225,7 +253,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         trustError={trust.error}
         users={allUsers ?? []}
         canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
-        top={<div key="top-summary"><LiveRefresh name="tlines-pm" tables={['documents', 'document_approvals', 'projects']} /><TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={t.kpis} /></div>}
+        top={<div key="top-summary"><LiveRefresh name="tlines-pm" tables={['documents', 'document_approvals', 'projects', 'opportunities']} /><TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={t.kpis} /></div>}
       />
     );
   }
@@ -307,9 +335,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         projectNo: no,
         trustItems: no ? trustByNo.get(no) ?? null : null,
         id: p.id, kind: 'project', badgeTop: top, badgeBottom: bottom,
-        title: p.name,
+        title: brandByProject.get(p.id) ?? (no ? brandByNo.get(no) : undefined) ?? p.name,
         subtitle: p.site_location,
-        account: accountOf(p.name),
+        account: accountOf(brandByProject.get(p.id) ?? (no ? brandByNo.get(no) : undefined) ?? p.name),
         // Which of our companies (Store Maker / Premium / Design Build): set on the project, else its code.
         company: p.service_line && SERVICE_LINE_VALUES.includes(p.service_line) ? p.service_line : serviceLineFromCode(p.code),
         onHold: heldProjects.has(p.id),
@@ -440,7 +468,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
       // A server element passed as a prop into a client component is checked like a list child in
       // dev (React 19 / Next 16) — the key only silences that false "unique key" warning.
-      top={<div key="top-summary"><LiveRefresh name="tlines-pm" tables={['documents', 'document_approvals', 'projects']} /><TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} /></div>}
+      top={<div key="top-summary"><LiveRefresh name="tlines-pm" tables={['documents', 'document_approvals', 'projects', 'opportunities']} /><TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} /></div>}
     />
   );
 }
