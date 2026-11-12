@@ -62,7 +62,7 @@ export function SourceSelect({ value, options, onChange, placeholder = '—' }: 
           <input
             ref={inputRef}
             className="form-input"
-            style={{ border: 'none', borderBottom: '1px solid var(--border-subtle)', borderRadius: 0, fontSize: 12.5 }}
+            style={{ border: 'none', borderBottom: '1px solid var(--border-subtle)', borderRadius: 0, fontSize: 14, padding: '10px 12px' }}
             placeholder="Search or type new…"
             value={query}
             onChange={e => setQuery(e.target.value)}
@@ -102,7 +102,7 @@ export function SourceSelect({ value, options, onChange, placeholder = '—' }: 
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                 >
-                  <span style={{ background: bg, color: readableTextColor(bg), fontSize: 10.5, fontWeight: 600, padding: '2px 8px', borderRadius: 4 }}>
+                  <span style={{ background: bg, color: readableTextColor(bg), fontSize: 13, fontWeight: 600, padding: '4px 10px', borderRadius: 4 }}>
                     {o}
                   </span>
                 </button>
