@@ -198,6 +198,8 @@ export interface PProject {
 export interface PSection {
   label: string;
   projects: PProject[];
+  /** Production tracker grouped view: the PF group's number (the band is a group, not a region). */
+  group?: number;
 }
 
 export function computeProjectColor(project: PProject): ProjectColor {
@@ -672,6 +674,16 @@ export async function exportProjectsWorkbook(opts: ExportProjectsOptions): Promi
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   saveAs(blob, opts.filename || `Projects_${dateStr}.xlsx`);
+}
+
+/** One tab's sheet on its own (Missing & Extra / Direct Orders tabs of the Production tracker). */
+export async function exportBoardSheet(opts: { sheetName: string; sections: PSection[]; filename: string; visibleColumns?: ColumnKey[] }): Promise<void> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Projects Export';
+  wb.created = new Date();
+  writeProjectsSheet(wb, opts.sheetName, opts.sections, opts.visibleColumns ?? DEFAULT_VISIBLE_COLUMNS);
+  const buffer = await wb.xlsx.writeBuffer();
+  saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), opts.filename);
 }
 
 export const BOARD_CSS = {
