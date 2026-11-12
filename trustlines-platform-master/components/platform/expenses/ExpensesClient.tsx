@@ -13,6 +13,7 @@ import { Select } from '@/components/platform/shared/Select';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { CategoryViews } from '@/components/platform/website/CategoryViews';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmModal } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
@@ -167,7 +168,7 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
           <label className={FORM_LABEL}>Supplier<Select className={FIELD} value={f.supplier_id} onChange={e => setF({ ...f, supplier_id: e.target.value })}><option value="">—</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></label>
           <Button size="md" onClick={create} loading={saving}>Save</Button>
           <div className="col-span-full flex flex-wrap items-center gap-3 text-[12px] text-ui-body">
-            <label className="flex items-center gap-1.5"><input type="checkbox" checked={f.is_paid} onChange={e => setF({ ...f, is_paid: e.target.checked })} /> Already paid</label>
+            <label className="flex items-center gap-1.5"><Checkbox checked={f.is_paid} onCheckedChange={v => setF({ ...f, is_paid: !!v })} /> Already paid</label>
             <input className={cn(FIELD, 'flex-1')} placeholder="Description (optional)" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} />
           </div>
         </div>
