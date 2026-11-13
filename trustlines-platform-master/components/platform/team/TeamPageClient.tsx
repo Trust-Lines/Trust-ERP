@@ -20,7 +20,8 @@ import type { UserRole } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
-import { useFixedMenu } from '@/hooks/use-fixed-menu';
+import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover';
 
 interface ProfileRow {
   id: string;
@@ -98,7 +99,8 @@ const FALLBACK_LABELS: Partial<Record<string, string>> = {
 // Figma "Team Members" (node 351:3365).
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
-const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-3.5';
+// Region chip (opens the region picker): same look as the filter-bar dropdowns.
+const REGION_CHIP = 'inline-flex h-9 max-w-full cursor-pointer items-center gap-4 rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg pl-4 pr-2.5 text-[13px] font-medium text-[var(--color-secondary-700)] hover:bg-ui-hover-bg dark:text-ui-heading';
 
 // Figma "Selection checkbox": 16px, 3px radius, input border + background.
 
@@ -136,9 +138,8 @@ function regionText(codes: string[] | null | undefined): string {
 }
 
 /** The row's Region chip edits only the T-Lines regions (assigned_regions) — not the whole member. */
-function RegionPicker({ profile, style, onClose, onSaved }: {
+function RegionPicker({ profile, onClose, onSaved }: {
   profile: ProfileRow;
-  style: React.CSSProperties;
   onClose: () => void;
   onSaved: (patch: Partial<ProfileRow>) => void;
 }) {
@@ -160,27 +161,21 @@ function RegionPicker({ profile, style, onClose, onSaved }: {
   }
 
   return (
-    <>
-      <div className="fixed inset-0 z-20" onClick={onClose} />
-      <div
-        role="dialog" aria-label={`Regions for ${profile.full_name}`} style={style}
-        className="fixed z-30 flex w-64 flex-col gap-2.5 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-3 text-left shadow-03"
-      >
-        <p className={cn('m-0 text-[13px] font-semibold', HEADING)}>T-Lines regions</p>
-        <div className="flex flex-col gap-1.5">
-          {REGIONS.map(r => (
-            <label key={r.code} className="flex cursor-pointer items-center gap-2 text-[13px] text-ui-body">
-              <Checkbox checked={picked.includes(r.code)} onCheckedChange={() => flip(r.code)} /> {r.label}
-            </label>
-          ))}
-        </div>
-        <p className="m-0 text-[11px] text-ui-text-secondary">None ticked = sees every region.</p>
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={save} loading={saving}>Save</Button>
-        </div>
+    <PopoverContent className="w-64" aria-label={`Regions for ${profile.full_name}`}>
+      <PopoverTitle>T-Lines regions</PopoverTitle>
+      <div className="flex flex-col gap-1.5">
+        {REGIONS.map(r => (
+          <label key={r.code} className="flex cursor-pointer items-center gap-2 text-[13px] text-ui-body">
+            <Checkbox checked={picked.includes(r.code)} onCheckedChange={() => flip(r.code)} /> {r.label}
+          </label>
+        ))}
       </div>
-    </>
+      <p className="m-0 text-[11px] text-ui-text-secondary">None ticked = sees every region.</p>
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
+        <Button onClick={save} loading={saving}>Save</Button>
+      </div>
+    </PopoverContent>
   );
 }
 
@@ -693,13 +688,11 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
   const [profiles, setProfiles]     = useState<ProfileRow[]>(init);
   const [showInvite, setShowInvite] = useState(false);
   const [editTarget, setEditTarget] = useState<ProfileRow | null>(null);
-  // Region chip → small region picker, pinned to the window (300px tall) so the table can't clip it.
-  const regionMenu = useFixedMenu(300);
+  // Region chip → small region picker (one open at a time).
+  const [regionFor, setRegionFor] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProfileRow | null>(null);
   const [query, setQuery]           = useState('');
   const [sortBy, setSortBy]         = useState<SortKey>('newest');
-  // Row "…" menu is fixed to the window (not inside the table's scroll box) so the last row's menu isn't clipped.
-  const actionMenu = useFixedMenu(112);
   const [selected, setSelected]     = useState<Set<string>>(new Set());
   const isOps = canEdit ?? (userRole === 'ops_manager');
 
@@ -855,52 +848,46 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
                       <td className="max-w-0 px-2.5"><p className="m-0 truncate text-[13px] text-ui-body">{p.email}</p></td>
                       <td className="px-2"><RoleBadge role={p.role} roleMap={roleMap} /></td>
                       <td className="px-2">
-                        {isOps ? (
-                          <button
-                            type="button" title="Change region" aria-haspopup="dialog" aria-expanded={regionMenu.openId === p.id}
-                            onClick={e => (metadataReady ? regionMenu.toggle(p.id, e.currentTarget) : setEditTarget(p))}
-                            className="inline-flex h-9 max-w-full items-center gap-4 rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg pl-4 pr-2.5 text-[13px] font-medium text-[var(--color-secondary-700)] hover:bg-ui-hover-bg dark:text-ui-heading"
-                          >
+                        {isOps && metadataReady ? (
+                          <Popover open={regionFor === p.id} onOpenChange={o => setRegionFor(o ? p.id : null)}>
+                            <PopoverTrigger title="Change region" className={REGION_CHIP}>
+                              <span className="truncate">{regionText(p.assigned_regions)}</span>
+                              <ChevronDown size={14} aria-hidden className="shrink-0" />
+                            </PopoverTrigger>
+                            {regionFor === p.id && (
+                              <RegionPicker profile={p} onClose={() => setRegionFor(null)} onSaved={patch => handleSaved(p.id, patch)} />
+                            )}
+                          </Popover>
+                        ) : isOps ? (
+                          <button type="button" title="Change region" onClick={() => setEditTarget(p)} className={REGION_CHIP}>
                             <span className="truncate">{regionText(p.assigned_regions)}</span>
                             <ChevronDown size={14} aria-hidden className="shrink-0" />
                           </button>
                         ) : (
                           <span className="text-[13px] font-medium text-[var(--color-secondary-700)] dark:text-ui-heading">{regionText(p.assigned_regions)}</span>
                         )}
-                        {regionMenu.openId === p.id && (
-                          <RegionPicker profile={p} style={regionMenu.style} onClose={regionMenu.close} onSaved={patch => handleSaved(p.id, patch)} />
-                        )}
                       </td>
                       <td className="max-w-0 px-2"><p className="m-0 truncate text-[12px] text-ui-body">{(p.manager_id && nameById.get(p.manager_id)) || '—'}</p></td>
                       <td className="px-2 text-[12px] text-ui-body">{p.created_at ? new Date(p.created_at).toLocaleDateString('en-US') : '—'}</td>
                       <td className="px-2"><StatusChip active={p.is_active} /></td>
-                      <td className="relative pr-2 text-center">
+                      <td className="pr-2 text-center">
                         {isOps && (
-                          <>
-                            <button
-                              type="button" aria-label={`Actions for ${name}`} aria-expanded={actionMenu.openId === p.id}
-                              onClick={e => actionMenu.toggle(p.id, e.currentTarget)}
-                              className="inline-grid size-7 place-items-center rounded-[4px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
-                            >
-                              <Ellipsis size={16} />
-                            </button>
-                            {actionMenu.openId === p.id && (
-                              <>
-                                <div className="fixed inset-0 z-20" onClick={actionMenu.close} />
-                                <div role="menu" className="fixed z-30 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03" style={actionMenu.style}>
-                                  <Link href={`/team/${p.id}`} role="menuitem" className={MENU_ITEM} onClick={actionMenu.close}>
-                                    <UserRound aria-hidden /> View profile
-                                  </Link>
-                                  <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { actionMenu.close(); setEditTarget(p); }}>
-                                    <Pencil aria-hidden /> Edit member
-                                  </button>
-                                  <button type="button" role="menuitem" className={cn(MENU_ITEM, 'text-[var(--color-error-normal)]')} onClick={() => { actionMenu.close(); setDeleteTarget(p); }}>
-                                    <Trash2 aria-hidden /> Delete member
-                                  </button>
-                                </div>
-                              </>
-                            )}
-                          </>
+                          <Menu>
+                            <MenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${name}`} />}>
+                              <Ellipsis />
+                            </MenuTrigger>
+                            <MenuContent>
+                              <MenuLinkItem render={<Link href={`/team/${p.id}`} />}>
+                                <UserRound aria-hidden /> View profile
+                              </MenuLinkItem>
+                              <MenuItem onClick={() => setEditTarget(p)}>
+                                <Pencil aria-hidden /> Edit member
+                              </MenuItem>
+                              <MenuItem variant="destructive" onClick={() => setDeleteTarget(p)}>
+                                <Trash2 aria-hidden /> Delete member
+                              </MenuItem>
+                            </MenuContent>
+                          </Menu>
                         )}
                       </td>
                     </tr>

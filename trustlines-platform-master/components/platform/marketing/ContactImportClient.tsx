@@ -15,6 +15,7 @@ import { buildGroups } from '@/lib/marketing/import/group';
 import { planMerge } from '@/lib/marketing/import/merge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuRadioGroup, MenuRadioItem, MenuSeparator, MenuTrigger } from '@/components/ui/menu';
 import {
   IMPORT_FIELDS, IMPORT_FIELD_LABELS,
   type ColumnMapping, type ExistingMatch, type ImportAction, type ImportField, type ImportGroup, type ImportPerson,
@@ -38,7 +39,6 @@ const NAVY_BTN = cn(buttonVariants({ size: 'md' }), 'no-underline');
 const OUTLINE_BTN = cn(buttonVariants({ variant: 'outline', size: 'toolbar' }), 'no-underline');
 const TONE_BTN = 'inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[6px] border-0 px-4 text-[13px] font-medium hover:brightness-95 disabled:opacity-50 [&_svg]:size-4';
 const CHIP = 'inline-flex cursor-pointer items-center rounded-[6px] border border-ui-input-border bg-ui-input-bg px-2.5 py-1 text-[12px] text-ui-body hover:bg-ui-hover-bg';
-const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg disabled:cursor-default disabled:opacity-50';
 const DECISION_LABEL: Record<ImportAction | 'none', string> = { create: 'Add as new', merge: 'Merge', skip: 'Skip', none: 'Choose one' };
 const FIELD = { minHeight: 42, fontSize: 14, borderRadius: 6, borderColor: 'var(--ui-input-border)', background: 'var(--ui-input-bg)' } as const;
 // Compact controls that still show their full text (a fixed 28–30px height clipped the labels).
@@ -116,10 +116,8 @@ export function ContactImportClient() {
   // Match Preview table (Figma 265:20364): ticked rows, expanded rows, row menu, column sort.
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [menuFor, setMenuFor] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<'field' | 'type' | 'status' | 'decision' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const menuRef = useRef<HTMLDivElement>(null);
   const [importing, setImporting] = useState<{ done: number; total: number } | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -131,15 +129,6 @@ export function ContactImportClient() {
       setCampaignId(prev => prev || (list.find(c => /nacs/i.test(c.name)) ?? list[0])?.id || '');
     }).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (!menuFor) return;
-    function onDown(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuFor(null);
-    }
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [menuFor]);
 
   const fileLabel = files.map(f => f.name).join(' + ') || 'Excel file';
   const campaignName = campaigns.find(c => c.id === campaignId)?.name ?? '';
@@ -174,7 +163,7 @@ export function ContactImportClient() {
   useEffect(() => () => { thumbs.forEach(url => URL.revokeObjectURL(url)); }, [thumbs]);
   const [photoNote, setPhotoNote] = useState<string | null>(null);
 
-  function resetReview() { setDone({}); setMatches(null); setDecisions({}); setOutcome(null); setShown(PAGE); setPicked(new Set()); setExpanded(new Set()); setMenuFor(null); }
+  function resetReview() { setDone({}); setMatches(null); setDecisions({}); setOutcome(null); setShown(PAGE); setPicked(new Set()); setExpanded(new Set()); }
 
   async function addFiles(list: FileList | null) {
     if (!list?.length) return;
@@ -855,45 +844,33 @@ export function ContactImportClient() {
                                 {st?.state === 'running' ? <Loader2 size={14} className="animate-spin" aria-label="Importing" /> : DECISION_LABEL[d.action ?? 'none']}
                               </td>
                               <td className="text-center" onClick={e => e.stopPropagation()}>
-                                <div className="relative inline-block" ref={menuFor === g.id ? menuRef : undefined}>
-                                  <button
-                                    type="button"
-                                    aria-label={`Actions for ${nameOf(g)}`} aria-haspopup="menu" aria-expanded={menuFor === g.id}
-                                    onClick={() => setMenuFor(id => (id === g.id ? null : g.id))}
-                                    className="grid size-8 cursor-pointer place-items-center rounded-[6px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
-                                  >
-                                    <MoreHorizontal size={16} aria-hidden />
-                                  </button>
-                                  {menuFor === g.id && (
-                                    <div role="menu" className="absolute right-0 top-[calc(100%+4px)] z-20 flex min-w-[220px] flex-col gap-0.5 rounded-[6px] border border-ui-input-border bg-ui-page-bg p-1.5 text-left shadow-md">
+                                <Menu>
+                                  <MenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions for ${nameOf(g)}`} />}>
+                                    <MoreHorizontal aria-hidden />
+                                  </MenuTrigger>
+                                  <MenuContent className="min-w-[220px]">
+                                    <MenuRadioGroup
+                                      value={d.action}
+                                      onValueChange={(k: ImportAction) => setDecision(g.id, { action: k, target: k === 'merge' ? (d.target ?? m[0]?.prospectId ?? null) : d.target })}
+                                    >
                                       {choices.map(([k, label]) => (
-                                        <button
-                                          key={k} type="button" role="menuitemradio" aria-checked={d.action === k} disabled={locked}
-                                          className={MENU_ITEM}
-                                          onClick={() => { setDecision(g.id, { action: k, target: k === 'merge' ? (d.target ?? m[0]?.prospectId ?? null) : d.target }); setMenuFor(null); }}
-                                        >
-                                          <Check size={14} className={d.action === k ? '' : 'invisible'} aria-hidden /> {label}
-                                        </button>
+                                        <MenuRadioItem key={k} value={k} disabled={locked} closeOnClick>{label}</MenuRadioItem>
                                       ))}
-                                      <div className="my-1 h-px bg-ui-divider" />
-                                      <button
-                                        type="button" role="menuitem" className={MENU_ITEM}
-                                        disabled={d.action === null || locked || !campaignId || !!importing}
-                                        onClick={() => { setMenuFor(null); void importOne(g); }}
-                                      >
-                                        <FolderInput size={14} aria-hidden /> {st?.state === 'error' ? 'Try again' : d.action === 'skip' ? 'Mark skipped' : 'Import this one'}
-                                      </button>
-                                      {st?.state === 'ok' && st.prospectId && (
-                                        <Link role="menuitem" href={`/marketing/prospects/${st.prospectId}`} target="_blank" className={MENU_ITEM}>
-                                          <ExternalLink size={14} aria-hidden /> Open Contact
-                                        </Link>
-                                      )}
-                                      <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { setMenuFor(null); toggleExpanded(g.id); }}>
-                                        <ChevronRight size={14} aria-hidden /> {open ? 'Hide details' : 'Show details'}
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
+                                    </MenuRadioGroup>
+                                    <MenuSeparator />
+                                    <MenuItem disabled={d.action === null || locked || !campaignId || !!importing} onClick={() => void importOne(g)}>
+                                      <FolderInput aria-hidden /> {st?.state === 'error' ? 'Try again' : d.action === 'skip' ? 'Mark skipped' : 'Import this one'}
+                                    </MenuItem>
+                                    {st?.state === 'ok' && st.prospectId && (
+                                      <MenuLinkItem render={<Link href={`/marketing/prospects/${st.prospectId}`} target="_blank" />}>
+                                        <ExternalLink aria-hidden /> Open Contact
+                                      </MenuLinkItem>
+                                    )}
+                                    <MenuItem onClick={() => toggleExpanded(g.id)}>
+                                      <ChevronRight aria-hidden /> {open ? 'Hide details' : 'Show details'}
+                                    </MenuItem>
+                                  </MenuContent>
+                                </Menu>
                               </td>
                             </tr>
                             {open && (

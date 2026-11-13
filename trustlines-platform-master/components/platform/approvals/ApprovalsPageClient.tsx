@@ -37,10 +37,10 @@ import { ApprovalReviewDialog } from './ApprovalReviewDialog';
 import { DOC_LABELS } from './docLabels';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { popupBase } from '@/components/ui/field-styles';
 import { feedback } from '@/components/ui/feedback-toast';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
+import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
 import { modalSecondaryButtonClass } from '@/components/ui/modal';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
@@ -141,9 +141,6 @@ const MOBILE_BTN =
 // Figma 481:23048 applied-filter chip: 36px, surface fill, navy outline (light) / soft outline (dark), × to remove.
 const FILTER_CHIP = 'inline-flex h-9 items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] bg-ui-surface px-3 font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-ui-body dark:border-ui-text-secondary dark:text-ui-heading';
 const FILTER_CHIP_X = 'grid place-items-center rounded-[2px] text-current opacity-80 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring';
-// Bulk-bar dropdowns: same panel and hover as the platform's other menus (Select list, row menus).
-const BULK_MENU = `${popupBase} absolute right-0 top-full z-30 mt-1 p-1`;
-const BULK_MENU_ITEM = 'flex w-full cursor-pointer items-center rounded-[4px] border-0 bg-transparent px-2.5 py-1.5 text-left text-[13px] text-ui-body outline-none transition-colors hover:bg-ui-hover-bg hover:text-ui-heading focus-visible:bg-ui-hover-bg dark:hover:bg-white/10 dark:focus-visible:bg-white/10';
 
 // Sample fallback items matching the reference specification exactly
 const SAMPLE_REQUESTS: UnifiedRequestRow[] = [
@@ -323,7 +320,6 @@ export function ApprovalsPageClient() {
   const [archivedIds, setArchivedIds] = useState<Record<string, boolean>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
-  const [bulkMenu, setBulkMenu] = useState<'status' | 'owner' | null>(null);
 
   // Column visibility
   const [visibleColumns, setVisibleColumns] = useState(DEFAULT_VISIBLE_COLUMNS);
@@ -512,7 +508,6 @@ export function ApprovalsPageClient() {
 
   function clearSelection() {
     setSelectedIds({});
-    setBulkMenu(null);
   }
 
   function applyToSelected(patch: RowOverride) {
@@ -521,7 +516,6 @@ export function ApprovalsPageClient() {
       selectedRows.forEach(r => { next[r.id] = { ...next[r.id], ...patch }; });
       return next;
     });
-    setBulkMenu(null);
   }
 
   function bulkChangeStatus(status: StatusType) {
@@ -777,45 +771,36 @@ export function ApprovalsPageClient() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <Button variant="outline" aria-expanded={bulkMenu === 'status'} onClick={() => setBulkMenu(bulkMenu === 'status' ? null : 'status')}>
+        <Menu>
+          <MenuTrigger render={<Button variant="outline" />}>
             Change status
             <ChevronDown className="size-3.5" />
-          </Button>
-          {bulkMenu === 'status' && (
-            <div className={`${BULK_MENU} w-48`}>
-              {STATUS_OPTIONS.map(s => (
-                <button key={s} type="button" onClick={() => bulkChangeStatus(s)} className={BULK_MENU_ITEM}>
-                  {renderStatusPill(s)}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+          </MenuTrigger>
+          <MenuContent className="w-48">
+            {STATUS_OPTIONS.map(s => (
+              <MenuItem key={s} onClick={() => bulkChangeStatus(s)}>
+                {renderStatusPill(s)}
+              </MenuItem>
+            ))}
+          </MenuContent>
+        </Menu>
 
-        <div className="relative">
-          <Button variant="outline" aria-expanded={bulkMenu === 'owner'} onClick={() => setBulkMenu(bulkMenu === 'owner' ? null : 'owner')}>
+        <Menu>
+          <MenuTrigger render={<Button variant="outline" />}>
             <UserRound className="size-3.5" />
             Assign owner
-          </Button>
-          {bulkMenu === 'owner' && (
-            <div className={`${BULK_MENU} w-52`}>
-              {ownerOptions.map(o => (
-                <button
-                  key={o.name}
-                  type="button"
-                  onClick={() => bulkAssignOwner(o.name, o.initials)}
-                  className={`${BULK_MENU_ITEM} gap-2 font-medium`}
-                >
-                  <span className="w-5 h-5 rounded-full bg-secondary-100 text-primary-500 dark:bg-secondary-700 dark:text-primary-100 flex items-center justify-center font-semibold text-[9px] shrink-0">
-                    {o.initials}
-                  </span>
-                  {o.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+          </MenuTrigger>
+          <MenuContent className="w-52">
+            {ownerOptions.map(o => (
+              <MenuItem key={o.name} className="font-medium" onClick={() => bulkAssignOwner(o.name, o.initials)}>
+                <span className="w-5 h-5 rounded-full bg-secondary-100 text-primary-500 dark:bg-secondary-700 dark:text-primary-100 flex items-center justify-center font-semibold text-[9px] shrink-0">
+                  {o.initials}
+                </span>
+                {o.name}
+              </MenuItem>
+            ))}
+          </MenuContent>
+        </Menu>
 
         <Button variant="outline" onClick={bulkArchive}>
           <Archive className="size-3.5" />

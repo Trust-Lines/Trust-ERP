@@ -10,7 +10,7 @@ import { Select as FilterSelect } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useFixedMenu } from '@/hooks/use-fixed-menu';
+import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
 
 export interface CustomerRow {
   id: string;
@@ -32,7 +32,6 @@ interface Props {
 // Figma "Customers" (node 299:15806): same list language as Sales Team.
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
-const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-3.5';
 const STATUS_TONE: Record<string, string> = { active: 't9', prospect: 't2', inactive: 't0' };
 
 type SortKey = 'newest' | 'oldest' | 'name';
@@ -55,9 +54,6 @@ export function CustomersPageClient({ initialCustomers, canEdit }: Props) {
   const [query, setQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortKey>('newest');
   const [showForm, setShowForm] = useState(false);
-  // Row "…" menu pinned to the window: the table scroller clipped it on the last rows.
-  const menu = useFixedMenu(140);
-  const menuId = menu.openId;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -74,7 +70,6 @@ export function CustomersPageClient({ initialCustomers, canEdit }: Props) {
   }, [customers, query, sortBy]);
 
   async function copyEmail(email: string) {
-    menu.close();
     try { await navigator.clipboard.writeText(email); toast.success('Email copied'); }
     catch { toast.error('Could not copy'); }
   }
@@ -180,34 +175,27 @@ export function CustomersPageClient({ initialCustomers, canEdit }: Props) {
                       <td className="px-2.5 text-[12px] text-ui-body">{c.industry ?? '—'}</td>
                       <td className="max-w-0 px-2.5"><p className="m-0 truncate text-[13px] text-ui-body">{contact ?? '—'}</p></td>
                       <td className="px-2"><StatusChip status={c.status} /></td>
-                      <td className="relative pr-2 text-center" onClick={e => e.stopPropagation()}>
-                        <button
-                          type="button" aria-label={`Actions for ${c.name}`} aria-expanded={menuId === c.id}
-                          onClick={e => menu.toggle(c.id, e.currentTarget)}
-                          className="inline-grid size-7 place-items-center rounded-[4px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
-                        >
-                          <Ellipsis size={16} />
-                        </button>
-                        {menuId === c.id && (
-                          <>
-                            <div className="fixed inset-0 z-20" onClick={() => menu.close()} />
-                            <div role="menu" style={menu.style} className="fixed z-30 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
-                              <Link href={`/customers/${c.id}`} role="menuitem" className={MENU_ITEM} onClick={() => menu.close()}>
-                                <ExternalLink aria-hidden /> Open customer
-                              </Link>
-                              {c.email && (
-                                <>
-                                  <a href={`mailto:${c.email}`} role="menuitem" className={MENU_ITEM} onClick={() => menu.close()}>
-                                    <Mail aria-hidden /> Send email
-                                  </a>
-                                  <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => copyEmail(c.email!)}>
-                                    <Copy aria-hidden /> Copy email
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </>
-                        )}
+                      <td className="pr-2 text-center" onClick={e => e.stopPropagation()}>
+                        <Menu>
+                          <MenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${c.name}`} />}>
+                            <Ellipsis />
+                          </MenuTrigger>
+                          <MenuContent>
+                            <MenuLinkItem render={<Link href={`/customers/${c.id}`} />}>
+                              <ExternalLink aria-hidden /> Open customer
+                            </MenuLinkItem>
+                            {c.email && (
+                              <>
+                                <MenuLinkItem render={<a href={`mailto:${c.email}`} />}>
+                                  <Mail aria-hidden /> Send email
+                                </MenuLinkItem>
+                                <MenuItem onClick={() => void copyEmail(c.email!)}>
+                                  <Copy aria-hidden /> Copy email
+                                </MenuItem>
+                              </>
+                            )}
+                          </MenuContent>
+                        </Menu>
                       </td>
                     </tr>
                   );

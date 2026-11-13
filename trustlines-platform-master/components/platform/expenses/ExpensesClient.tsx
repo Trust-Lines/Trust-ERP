@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useFixedMenu } from '@/hooks/use-fixed-menu';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { BanknoteCheck, BanknoteX, CircleDollarSign, Ellipsis, Plus, Receipt, Trash2, Check, Undo2, type LucideIcon } from 'lucide-react';
@@ -14,6 +13,7 @@ import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { CategoryViews } from '@/components/platform/website/CategoryViews';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmModal } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
@@ -38,7 +38,6 @@ const CELL_STRONG = cn('text-[15px] font-semibold', HEADING);
 const FIELD = 'h-10 w-full min-w-0 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
 const FORM_LABEL = 'flex min-w-0 flex-col gap-1 text-[12px] font-medium text-ui-body';
 const ACCENT_BTN = 'gap-2 bg-ui-btn-accent px-8 text-[13px] font-medium text-ui-btn-accent-fg hover:bg-ui-btn-accent hover:opacity-90 dark:bg-ui-btn-accent dark:text-ui-btn-accent-fg dark:hover:bg-ui-btn-accent';
-const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body hover:bg-ui-hover-bg [&_svg]:size-3.5 [&_svg]:shrink-0';
 
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 /** "2026-08-10" → "8/10/2026", no timezone shift. */
@@ -77,8 +76,6 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
   const [category, setCategory] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  // Row "…" menu, pinned to the window so the table's scroll box can't clip it.
-  const menu = useFixedMenu();
   const [removing, setRemoving] = useState<TrustExpense | null>(null);
   const [f, setF] = useState({ category: 'other', description: '', currency: 'USD', amount: '', expense_date: '', project_id: '', supplier_id: '', is_paid: false });
 
@@ -218,26 +215,20 @@ export function ExpensesClient({ initialExpenses, totals, canEdit, projects, sup
                         ) : paidChip(e.is_paid)}
                       </td>
                       {canEdit && (
-                        <td className="relative pr-3 text-center">
-                          <Button
-                            variant="ghost" size="icon-sm" aria-label="Expense actions" aria-expanded={menu.openId === e.id}
-                            onClick={ev => menu.toggle(e.id, ev.currentTarget)}
-                          >
-                            <Ellipsis />
-                          </Button>
-                          {menu.openId === e.id && (
-                            <>
-                              <div className="fixed inset-0 z-20" onClick={() => menu.close()} />
-                              <div role="menu" style={menu.style} className="fixed z-30 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
-                                <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { menu.close(); void togglePaid(e); }}>
-                                  {e.is_paid ? <><Undo2 aria-hidden /> Mark unpaid</> : <><Check aria-hidden /> Mark paid</>}
-                                </button>
-                                <button type="button" role="menuitem" className={cn(MENU_ITEM, 'text-error-normal')} onClick={() => { menu.close(); setRemoving(e); }}>
-                                  <Trash2 aria-hidden /> Delete
-                                </button>
-                              </div>
-                            </>
-                          )}
+                        <td className="pr-3 text-center">
+                          <Menu>
+                            <MenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Expense actions" />}>
+                              <Ellipsis />
+                            </MenuTrigger>
+                            <MenuContent>
+                              <MenuItem onClick={() => void togglePaid(e)}>
+                                {e.is_paid ? <><Undo2 aria-hidden /> Mark unpaid</> : <><Check aria-hidden /> Mark paid</>}
+                              </MenuItem>
+                              <MenuItem variant="destructive" onClick={() => setRemoving(e)}>
+                                <Trash2 aria-hidden /> Delete
+                              </MenuItem>
+                            </MenuContent>
+                          </Menu>
                         </td>
                       )}
                     </tr>
