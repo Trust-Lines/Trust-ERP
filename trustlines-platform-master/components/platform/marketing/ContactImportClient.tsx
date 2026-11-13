@@ -14,6 +14,7 @@ import { buildPeople } from '@/lib/marketing/import/records';
 import { buildGroups } from '@/lib/marketing/import/group';
 import { planMerge } from '@/lib/marketing/import/merge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   IMPORT_FIELDS, IMPORT_FIELD_LABELS,
   type ColumnMapping, type ExistingMatch, type ImportAction, type ImportField, type ImportGroup, type ImportPerson,
@@ -32,8 +33,9 @@ const muted = { color: 'var(--ui-text-secondary)', fontSize: 12 } as const;
 const HEADING_TEXT = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD = 'rounded-[8px] border border-ui-divider bg-ui-page-bg p-5';
 const LABEL = 'mb-[7px] block text-[12px] font-medium leading-4 text-ui-body';
-const NAVY_BTN = 'inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-5 text-[13px] font-medium text-white no-underline hover:brightness-110 disabled:cursor-default disabled:opacity-50 dark:bg-[var(--ui-tab-badge)] [&_svg]:size-4';
-const OUTLINE_BTN = 'inline-flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-[6px] border border-ui-input-border bg-ui-input-bg px-3 text-[12px] font-medium text-ui-body no-underline hover:bg-ui-hover-bg disabled:cursor-default disabled:opacity-50 [&_svg]:size-3.5';
+// Link styles only — real buttons use <Button>.
+const NAVY_BTN = cn(buttonVariants({ size: 'md' }), 'no-underline');
+const OUTLINE_BTN = cn(buttonVariants({ variant: 'outline' }), 'h-9 no-underline');
 const TONE_BTN = 'inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[6px] border-0 px-4 text-[13px] font-medium hover:brightness-95 disabled:opacity-50 [&_svg]:size-4';
 const CHIP = 'inline-flex cursor-pointer items-center rounded-[6px] border border-ui-input-border bg-ui-input-bg px-2.5 py-1 text-[12px] text-ui-body hover:bg-ui-hover-bg';
 const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg disabled:cursor-default disabled:opacity-50';
@@ -485,9 +487,9 @@ export function ContactImportClient() {
             <div className="mb-2 flex items-center justify-between gap-2">
               <span className={cn('text-[12px] font-semibold', HEADING_TEXT)}>Uploads · {files.length} file{files.length === 1 ? '' : 's'}</span>
               <input ref={inputRef} type="file" multiple hidden accept=".xlsx,.xls,.csv" onChange={e => void addFiles(e.target.files)} />
-              <button type="button" className={OUTLINE_BTN} disabled={reading || !!importing} onClick={() => inputRef.current?.click()}>
+              <Button variant="outline" className="h-9" disabled={reading || !!importing} onClick={() => inputRef.current?.click()}>
                 {reading ? <Loader2 className="animate-spin" aria-hidden /> : <Upload aria-hidden />} {files.length ? 'Add file' : 'Choose files'}
-              </button>
+              </Button>
             </div>
 
             {files.length === 0 && (
@@ -549,14 +551,14 @@ export function ContactImportClient() {
 
           <div className="flex items-center justify-between gap-3">
             <Link href="/marketing/prospects" className={OUTLINE_BTN}><ArrowLeft aria-hidden /> Back</Link>
-            <button
-              type="button" className={NAVY_BTN}
-              disabled={checking || groups.length === 0 || !campaignId || !!importing}
+            <Button
+              size="md" className="disabled:pointer-events-auto disabled:cursor-not-allowed"
+              disabled={groups.length === 0 || !campaignId || !!importing} loading={checking}
               title={!campaignId ? 'Choose the event / campaign first' : undefined}
               onClick={() => void checkDuplicates()}
             >
-              {checking && <Loader2 className="animate-spin" aria-hidden />} {matches ? 'Re-check against Contacts' : 'Check for duplicates'}
-            </button>
+              {matches ? 'Re-check against Contacts' : 'Check for duplicates'}
+            </Button>
           </div>
         </section>
 
@@ -568,9 +570,9 @@ export function ContactImportClient() {
               <h2 id="import-file-title" className={cn('m-0 min-w-0 truncate text-[17px] font-semibold', HEADING_TEXT)}>{activeFile.name}</h2>
               <span className="text-[12px] text-ui-body">{Math.max(0, activeFile.sheets[activeFile.sheet].rows.length - activeFile.headerRow - 1)} rows</span>
               {inReview && (
-                <button type="button" className={cn(OUTLINE_BTN, 'ml-auto')} onClick={() => setActiveFileId(null)}>
+                <Button variant="outline" className="ml-auto h-9" onClick={() => setActiveFileId(null)}>
                   <ArrowLeft aria-hidden /> Match Preview
-                </button>
+                </Button>
               )}
             </div>
 
@@ -592,13 +594,13 @@ export function ContactImportClient() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
-              <button
-                type="button" className={OUTLINE_BTN}
+              <Button
+                variant="outline" className="h-9"
                 disabled={!activeFile.mappings.some(m => m.field === 'ignore' && !m.locked && m.sample.length > 0)}
                 onClick={() => ignoredToNotes(activeFile.id)}
               >
                 Add all other columns to Notes
-              </button>
+              </Button>
               <span className="text-[11px] text-ui-text-secondary">
                 Each column becomes a labelled line on the Contact&apos;s Activity, in your file&apos;s order. Columns you set to “Ignore” yourself stay ignored.
               </span>
@@ -666,8 +668,8 @@ export function ContactImportClient() {
                 >
                   <Ban aria-hidden /> Skip All Matches
                 </button>
-                <button
-                  type="button" className={NAVY_BTN}
+                <Button
+                  size="md" className="disabled:pointer-events-auto disabled:cursor-not-allowed"
                   disabled={picked.size > 0 || counts.undecided > 0 || !campaignId || !!importing || toImport === 0}
                   title={counts.undecided > 0 ? `${counts.undecided} still need a decision` : `Import ${toImport} Contacts into ${campaignName}`}
                   onClick={() => void runImport()}
@@ -675,7 +677,7 @@ export function ContactImportClient() {
                   {importing
                     ? <><Loader2 className="animate-spin" aria-hidden /> Importing {importing.done}/{importing.total}…{photoNote ? ` · ${photoNote}` : ''}</>
                     : <><FolderInput aria-hidden /> Import All ({toImport})</>}
-                </button>
+                </Button>
               </span>
             )}
           </div>
@@ -702,7 +704,7 @@ export function ContactImportClient() {
               )}
               <div className="flex gap-2.5">
                 <Link className={NAVY_BTN} href="/marketing/prospects">Open Contacts</Link>
-                <button type="button" className={OUTLINE_BTN} onClick={() => { setFiles([]); resetReview(); }}>Import another file</button>
+                <Button variant="outline" size="md" onClick={() => { setFiles([]); resetReview(); }}>Import another file</Button>
               </div>
             </div>
           )}
@@ -750,29 +752,29 @@ export function ContactImportClient() {
                     >
                       <X size={16} aria-hidden />
                     </button>
-                    <button
-                      type="button" className={cn(OUTLINE_BTN, 'h-9 border-[var(--color-secondary-700)] text-[13px] text-[var(--color-secondary-700)]')}
+                    <Button
+                      variant="outline" className="h-9"
                       disabled={!!importing}
                       onClick={() => { bulk(g => picked.has(g.id) && done[g.id]?.state !== 'ok', 'skip'); setPicked(new Set()); }}
                     >
                       <Forward aria-hidden /> Skip Selected
-                    </button>
-                    <button
-                      type="button" className={cn(OUTLINE_BTN, 'h-9 border-[var(--color-secondary-700)] text-[13px] text-[var(--color-secondary-700)]')}
+                    </Button>
+                    <Button
+                      variant="outline" className="h-9 disabled:pointer-events-auto disabled:cursor-not-allowed"
                       disabled={!!importing || !groups.some(g => picked.has(g.id) && matchOf(g).length > 0)}
                       title="Merge each ticked row into the existing Contact it matches (rows with no match are left as they are)"
                       onClick={() => { bulk(g => picked.has(g.id) && matchOf(g).length > 0 && done[g.id]?.state !== 'ok', 'merge'); setPicked(new Set()); }}
                     >
                       <SquarePlus aria-hidden /> Merge Selected
-                    </button>
-                    <button
-                      type="button" className={cn(NAVY_BTN, 'h-9 text-[13px]')}
+                    </Button>
+                    <Button
+                      className="h-9 disabled:pointer-events-auto disabled:cursor-not-allowed"
                       disabled={!campaignId || !!importing || selectedToImport === 0}
                       title={selectedUndecided > 0 ? `${selectedUndecided} ticked row(s) still need a decision and will be left out` : `Import ${selectedToImport} ticked Contacts into ${campaignName}`}
                       onClick={() => { const only = new Set(picked); setPicked(new Set()); void runImport(only); }}
                     >
                       <FolderInput aria-hidden /> Import Selected
-                    </button>
+                    </Button>
                   </div>
                 )}
                 <div className="overflow-x-auto">
@@ -961,13 +963,13 @@ export function ContactImportClient() {
                                         {label}
                                       </label>
                                     ))}
-                                    <button
-                                      type="button" className={cn(NAVY_BTN, 'ml-auto h-8 px-3 text-[12px]')}
+                                    <Button
+                                      className="ml-auto"
                                       disabled={d.action === null || locked || !campaignId || !!importing}
                                       onClick={() => void importOne(g)}
                                     >
                                       {st?.state === 'error' ? 'Try again' : d.action === 'skip' ? 'Mark skipped' : 'Import this one'}
-                                    </button>
+                                    </Button>
                                   </div>
                                 </td>
                               </tr>
@@ -981,7 +983,7 @@ export function ContactImportClient() {
                 {sortedVisible.length === 0 && <div className="p-5 text-center text-[13px] text-ui-text-secondary">Nothing in this view.</div>}
               </div>
               {sortedVisible.length > shown && (
-                <button type="button" className={cn(OUTLINE_BTN, 'self-center')} onClick={() => setShown(s => s + PAGE)}>Show more ({sortedVisible.length - shown} left)</button>
+                <Button variant="outline" className="h-9 self-center" onClick={() => setShown(s => s + PAGE)}>Show more ({sortedVisible.length - shown} left)</Button>
               )}
             </>
           )}
