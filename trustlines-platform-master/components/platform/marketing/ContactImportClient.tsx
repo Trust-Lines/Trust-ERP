@@ -14,6 +14,7 @@ import { buildPeople } from '@/lib/marketing/import/records';
 import { buildGroups } from '@/lib/marketing/import/group';
 import { planMerge } from '@/lib/marketing/import/merge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select } from '@/components/platform/shared/Select';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuRadioGroup, MenuRadioItem, MenuSeparator, MenuTrigger } from '@/components/ui/menu';
 import {
@@ -455,20 +456,20 @@ export function ContactImportClient() {
           <div className="grid grid-cols-2 gap-2.5">
             <label className="flex min-w-0 flex-col">
               <span className={LABEL}>Event/Campaign <span style={{ color: 'var(--status-t10-fg)' }}>*</span></span>
-              <select className="form-input" value={campaignId} onChange={e => setCampaignId(e.target.value)} style={FIELD} aria-label="Event or campaign these leads belong to">
+              <Select className="form-input" value={campaignId} onChange={e => setCampaignId(e.target.value)} style={FIELD} aria-label="Event or campaign these leads belong to">
                 <option value="">— choose one —</option>
                 {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              </Select>
             </label>
             <label
               className="flex min-w-0 flex-col"
               title="Fills the Needs and Potentials tabs of every NEW Contact, the same way survey leads get them. Merged Contacts are not given a new need."
             >
               <span className={LABEL}>Survey Leads (need + potential)</span>
-              <select className="form-input" value={createNeeds ? 'yes' : 'no'} onChange={e => setCreateNeeds(e.target.value === 'yes')} style={FIELD}>
+              <Select className="form-input" value={createNeeds ? 'yes' : 'no'} onChange={e => setCreateNeeds(e.target.value === 'yes')} style={FIELD}>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
-              </select>
+              </Select>
             </label>
           </div>
 
@@ -566,13 +567,13 @@ export function ContactImportClient() {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-ui-divider pb-5">
-              <select
+              <Select
                 className="form-input" aria-label="Sheet" style={{ ...FIELD, maxWidth: 270 }}
                 value={activeFile.sheet} onChange={e => changeSheet(activeFile.id, Number(e.target.value))}
                 disabled={activeFile.sheets.length < 2}
               >
                 {activeFile.sheets.map((s, i) => <option key={s.name} value={i}>Sheet: {s.name} ({s.rows.length})</option>)}
-              </select>
+              </Select>
               <label className="inline-flex items-center gap-2.5 text-[13px] text-ui-body">
                 Header row:
                 <input
@@ -611,14 +612,14 @@ export function ContactImportClient() {
                         <td className="whitespace-nowrap px-5 py-1.5">{m.header || `Column ${m.index + 1}`}</td>
                         <td className="max-w-[260px] truncate px-3 py-1.5">{m.sample.slice(0, 3).join(' · ') || '—'}</td>
                         <td className="whitespace-nowrap px-3 py-1.5">
-                          <select
+                          <Select
                             className="form-input" value={m.field}
                             onChange={e => changeField(activeFile.id, m.index, e.target.value as ImportField)}
                             aria-label={`Meaning of column ${m.header || m.index + 1}`}
                             style={{ ...smallControl, minHeight: 26, padding: '2px 26px 2px 8px', fontSize: 12, width: 'auto', borderRadius: 4, borderColor: 'var(--color-secondary-700)', color: 'var(--color-secondary-700)' }}
                           >
                             {IMPORT_FIELDS.map(k => <option key={k} value={k}>{IMPORT_FIELD_LABELS[k]}</option>)}
-                          </select>
+                          </Select>
                           {m.basis === 'content' && <span className="ml-1.5 text-[11px] text-ui-text-secondary">guessed from values</span>}
                         </td>
                       </tr>
@@ -637,9 +638,9 @@ export function ContactImportClient() {
             {inReview && !outcome && (
               <label className="inline-flex items-center gap-1.5 text-[12px] text-ui-body">
                 <ListFilter size={14} aria-hidden />
-                <select className="form-input" style={smallControl} value={filter} onChange={e => { setFilter(e.target.value as typeof filter); setShown(PAGE); }} aria-label="Filter matches">
+                <Select className="form-input" style={smallControl} value={filter} onChange={e => { setFilter(e.target.value as typeof filter); setShown(PAGE); }} aria-label="Filter matches">
                   {FILTERS.map(([k, label, n]) => <option key={k} value={k}>{label} ({n})</option>)}
-                </select>
+                </Select>
               </label>
             )}
             {inReview && !outcome && (
@@ -897,9 +898,9 @@ export function ContactImportClient() {
                                           Already in Contacts — {target.strength === 'strong' ? 'likely the same' : 'looks similar'}
                                         </div>
                                         {m.length > 1 && (
-                                          <select className="form-input" style={{ ...smallControl, marginBottom: 6 }} value={target.prospectId} onChange={e => setDecision(g.id, { ...d, target: e.target.value })} aria-label="Which existing Contact">
+                                          <Select className="form-input" style={{ ...smallControl, marginBottom: 6 }} value={target.prospectId} onChange={e => setDecision(g.id, { ...d, target: e.target.value })} aria-label="Which existing Contact">
                                             {m.map(x => <option key={x.prospectId} value={x.prospectId}>{x.displayName}</option>)}
-                                          </select>
+                                          </Select>
                                         )}
                                         <Link href={`/marketing/prospects/${target.prospectId}`} target="_blank" className={cn('text-[14px] font-semibold underline', HEADING_TEXT)}>{target.displayName}</Link>
                                         <div style={muted}>{[target.email, target.phone].filter(Boolean).join(' · ') || 'no email / phone'}</div>

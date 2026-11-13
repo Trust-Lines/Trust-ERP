@@ -5,7 +5,7 @@ import { Loader2, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { toast } from 'sonner';
-// Base UI Select: its list stays inside the dialog's layer (the old drop-in Select drew outside it).
+// Shared Base UI Select: its list stays inside the dialog's layer.
 import { Select } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 

@@ -5,7 +5,7 @@ import {
   useLayoutEffect, useMemo, useRef, useState,
 } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { Check, ChevronDown, Search } from 'lucide-react';
 import { popupBase } from '@/components/ui/field-styles';
 
@@ -16,9 +16,11 @@ import { popupBase } from '@/components/ui/field-styles';
  * Under the hood a REAL <select> stays in the DOM (visually hidden). That keeps everything the
  * browser and libraries already do with selects working unchanged: react-hook-form's register()
  * (ref + value reads/writes), FormData / <form> submission, `required` validation, `name`.
- * What the user sees and clicks is a button + a portal-rendered panel that isn't clipped by
- * overflow:hidden tables/cards, flips upward near the bottom edge, supports the keyboard, and
- * gets a search box once the list is long.
+ * What the user sees and clicks is a button + a panel that isn't clipped by overflow:hidden
+ * tables/cards, flips upward near the bottom edge, supports the keyboard, and gets a search box
+ * once the list is long. The panel is a Base UI Popover (same engine as components/ui/select), so
+ * inside a Modal / Menu / Popover it counts as part of that layer: picking from it never "clicks
+ * outside" and closes the dialog, and focus/Escape behave.
  *
  * Not used on the public survey pages on purpose — the native picker is better on phones.
  */
@@ -69,7 +71,6 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(-1);
-  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number; width: number; maxH: number } | null>(null);
   const [cur, setCur] = useState<string>(() => String(nativeProps.value ?? nativeProps.defaultValue ?? ''));
 
   const items = useMemo(() => { const out: Item[] = []; collect(children, out); return out; }, [children]);
@@ -108,37 +109,6 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
   const selected = options.find(o => o.value === cur);
   const triggerLabel = selected?.label ?? '';
 
-  // ── placement ──
-  useLayoutEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const place = () => {
-      const r = triggerRef.current!.getBoundingClientRect();
-      const below = window.innerHeight - r.bottom - 12;
-      const above = r.top - 12;
-      const flip = below < 200 && above > below;
-      const width = Math.max(r.width, 200);
-      const left = Math.min(Math.max(8, r.left), Math.max(8, window.innerWidth - width - 8));
-      setPos(flip
-        ? { bottom: window.innerHeight - r.top + 4, left, width, maxH: Math.min(PANEL_MAX_H, above) }
-        : { top: r.bottom + 4, left, width, maxH: Math.min(PANEL_MAX_H, below) });
-    };
-    place();
-    window.addEventListener('scroll', place, true);
-    window.addEventListener('resize', place);
-    return () => { window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      const t = e.target as Node;
-      if (triggerRef.current?.contains(t) || panelRef.current?.contains(t)) return;
-      setOpen(false);
-    }
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
-
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
@@ -150,7 +120,6 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
     if (!open) return;
     setQuery('');
     setActive(Math.max(0, options.filter(o => !o.disabled).findIndex(o => o.value === cur)));
-    if (searchable) setTimeout(() => searchRef.current?.focus(), 0);
   }, [open]);
 
   // keep the keyboard-active row in view
@@ -203,27 +172,105 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
   let activeSeen = -1;
   return (
     <>
-      <button
-        ref={triggerRef}
-        type="button"
-        id={id}
-        name={nativeProps.name}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className={`ui-select-trigger ${cls}`.trim()}
-        style={style}
-        onClick={e => { onClick?.(e as unknown as React.MouseEvent<HTMLSelectElement>); if (!e.defaultPrevented && !disabled) setOpen(o => !o); }}
-        onMouseEnter={onMouseEnter as unknown as React.MouseEventHandler<HTMLButtonElement>}
-        onMouseLeave={onMouseLeave as unknown as React.MouseEventHandler<HTMLButtonElement>}
-        onFocus={onFocus as unknown as React.FocusEventHandler<HTMLButtonElement>}
-        onBlur={onBlur as unknown as React.FocusEventHandler<HTMLButtonElement>}
-        onKeyDown={onTriggerKey}
-      >
-        <span className="ui-select-label">{triggerLabel || ' '}</span>
-        {drawChevron && <ChevronDown size={12} className="ui-select-chevron" aria-hidden />}
-      </button>
+      <PopoverPrimitive.Root open={open} onOpenChange={setOpen} modal={false}>
+        <PopoverPrimitive.Trigger
+          ref={triggerRef}
+          type="button"
+          id={id}
+          name={nativeProps.name}
+          disabled={disabled}
+          aria-label={ariaLabel}
+          aria-haspopup="listbox"
+          className={`ui-select-trigger ${cls}`.trim()}
+          style={style}
+          onClick={e => { onClick?.(e as unknown as React.MouseEvent<HTMLSelectElement>); }}
+          onMouseEnter={onMouseEnter as unknown as React.MouseEventHandler<HTMLButtonElement>}
+          onMouseLeave={onMouseLeave as unknown as React.MouseEventHandler<HTMLButtonElement>}
+          onFocus={onFocus as unknown as React.FocusEventHandler<HTMLButtonElement>}
+          onBlur={onBlur as unknown as React.FocusEventHandler<HTMLButtonElement>}
+          onKeyDown={onTriggerKey}
+        >
+          <span className="ui-select-label">{triggerLabel || ' '}</span>
+          {drawChevron && <ChevronDown size={12} className="ui-select-chevron" aria-hidden />}
+        </PopoverPrimitive.Trigger>
+
+        <PopoverPrimitive.Portal>
+          <PopoverPrimitive.Positioner className="z-[10060] outline-none" side="bottom" align="start" sideOffset={4} collisionPadding={8}>
+            <PopoverPrimitive.Popup
+              ref={panelRef}
+              role="listbox"
+              initialFocus={searchable ? searchRef : panelRef}
+              onKeyDown={onPanelKey}
+              onClick={e => e.stopPropagation()}
+              className={popupBase}
+              style={{
+                minWidth: 'max(var(--anchor-width), 200px)',
+                overflow: 'hidden', display: 'flex', flexDirection: 'column',
+                maxHeight: `min(${PANEL_MAX_H}px, var(--available-height))`,
+              }}
+            >
+              {searchable && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <Search size={13} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />
+                  <input
+                    ref={searchRef}
+                    value={query}
+                    onChange={e => { setQuery(e.target.value); setActive(0); }}
+                    placeholder="Search…"
+                    style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 13, padding: '9px 0', color: 'var(--fg-default)' }}
+                  />
+                </div>
+              )}
+              <div style={{ overflowY: 'auto', padding: 6, display: 'grid', gap: 1 }}>
+                {shownOptions.length === 0 && (
+                  <div style={{ fontSize: 12, color: 'var(--fg-faint)', padding: '8px 10px' }}>No matches</div>
+                )}
+                {shown.map((it, i) => {
+                  if (it.kind === 'group') {
+                    return (
+                      <div key={`g${i}`} style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg-faint)', padding: '8px 10px 3px' }}>
+                        {it.label}
+                      </div>
+                    );
+                  }
+                  const isSel = it.value === cur;
+                  let isActive = false;
+                  if (!it.disabled) { activeSeen += 1; isActive = activeSeen === active; }
+                  return (
+                    <button
+                      key={`o${i}-${it.value}`}
+                      type="button"
+                      role="option"
+                      tabIndex={-1}
+                      aria-selected={isSel}
+                      disabled={it.disabled}
+                      data-active={isActive}
+                      onClick={() => choose(it.value)}
+                      onMouseEnter={() => { if (!it.disabled) setActive(shownOptions.findIndex(o => o === it)); }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
+                        border: 'none', borderRadius: 6, padding: '7px 10px', fontSize: 13, cursor: it.disabled ? 'not-allowed' : 'pointer',
+                        // Dark theme: selected option is a light pill (--ui-option-* only exist in .dark).
+                        background: isSel
+                          ? `var(--ui-option-selected-bg, ${isActive ? 'var(--color-primary-700)' : 'transparent'})`
+                          : isActive ? 'var(--ui-option-hover-bg, var(--color-primary-700))' : 'transparent',
+                        color: it.disabled ? 'var(--fg-faint)'
+                          : isSel ? `var(--ui-option-selected-fg, ${isActive ? 'var(--color-primary-50)' : 'inherit'})`
+                          : isActive ? 'var(--color-primary-50)' : 'inherit',
+                        fontWeight: isSel ? 600 : 400,
+                        transition: 'background 80ms',
+                      }}
+                    >
+                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label || ' '}</span>
+                      {isSel && <Check size={14} style={{ flexShrink: 0 }} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </PopoverPrimitive.Popup>
+          </PopoverPrimitive.Positioner>
+        </PopoverPrimitive.Portal>
+      </PopoverPrimitive.Root>
 
       {/* real select — invisible, but it's what forms / react-hook-form / required-validation talk to */}
       <select
@@ -236,80 +283,6 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
       >
         {children}
       </select>
-
-      {open && pos && createPortal(
-        <div
-          ref={panelRef}
-          role="listbox"
-          onKeyDown={onPanelKey}
-          onClick={e => e.stopPropagation()}
-          className={popupBase}
-          style={{
-            position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, width: pos.width, zIndex: 10060,
-            overflow: 'hidden', display: 'flex', flexDirection: 'column',
-            maxHeight: pos.maxH,
-          }}
-        >
-          {searchable && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <Search size={13} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />
-              <input
-                ref={searchRef}
-                value={query}
-                onChange={e => { setQuery(e.target.value); setActive(0); }}
-                placeholder="Search…"
-                style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 13, padding: '9px 0', color: 'var(--fg-default)' }}
-              />
-            </div>
-          )}
-          <div style={{ overflowY: 'auto', padding: 6, display: 'grid', gap: 1 }}>
-            {shownOptions.length === 0 && (
-              <div style={{ fontSize: 12, color: 'var(--fg-faint)', padding: '8px 10px' }}>No matches</div>
-            )}
-            {shown.map((it, i) => {
-              if (it.kind === 'group') {
-                return (
-                  <div key={`g${i}`} style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg-faint)', padding: '8px 10px 3px' }}>
-                    {it.label}
-                  </div>
-                );
-              }
-              const isSel = it.value === cur;
-              let isActive = false;
-              if (!it.disabled) { activeSeen += 1; isActive = activeSeen === active; }
-              return (
-                <button
-                  key={`o${i}-${it.value}`}
-                  type="button"
-                  role="option"
-                  aria-selected={isSel}
-                  disabled={it.disabled}
-                  data-active={isActive}
-                  onClick={() => choose(it.value)}
-                  onMouseEnter={() => { if (!it.disabled) setActive(shownOptions.findIndex(o => o === it)); }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
-                    border: 'none', borderRadius: 6, padding: '7px 10px', fontSize: 13, cursor: it.disabled ? 'not-allowed' : 'pointer',
-                    // Dark theme: selected option is a light pill (--ui-option-* only exist in .dark).
-                    background: isSel
-                      ? `var(--ui-option-selected-bg, ${isActive ? 'var(--color-primary-700)' : 'transparent'})`
-                      : isActive ? 'var(--ui-option-hover-bg, var(--color-primary-700))' : 'transparent',
-                    color: it.disabled ? 'var(--fg-faint)'
-                      : isSel ? `var(--ui-option-selected-fg, ${isActive ? 'var(--color-primary-50)' : 'inherit'})`
-                      : isActive ? 'var(--color-primary-50)' : 'inherit',
-                    fontWeight: isSel ? 600 : 400,
-                    transition: 'background 80ms',
-                  }}
-                >
-                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label || ' '}</span>
-                  {isSel && <Check size={14} style={{ flexShrink: 0 }} />}
-                </button>
-              );
-            })}
-          </div>
-        </div>,
-        document.body,
-      )}
     </>
   );
 });
