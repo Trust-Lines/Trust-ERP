@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { VendorSelect } from '../production/VendorSelect';
 import { AddVendorModal, type Vendor } from '../production/AddVendorModal';
 import { Select } from '@/components/platform/shared/Select';
+import { Button } from '@/components/ui/button';
 
 interface DocItem {
   id:               string;
@@ -522,7 +523,7 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
           {editDocumentId ? <Pencil size={15} aria-hidden /> : showPrices ? <FileText size={15} aria-hidden /> : <ClipboardList size={15} aria-hidden />}
           {editDocumentId ? 'Edit & Resubmit' : (showPrices ? 'Price List' : 'Item List')} — {catLabel}
         </h2>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={16} color="var(--fg-muted)" /></button>
+        <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose}><X size={16} color="var(--fg-muted)" /></Button>
       </div>
 
       <div style={{ padding: '12px 16px' }}>
@@ -807,13 +808,13 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
           {showPrices && totalPrice > 0 && <span> · <strong style={{ color: 'var(--fg-default)' }}>{fmt(totalPrice)}</strong></span>}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={onClose} className="btn btn-secondary" disabled={generating}>Cancel</button>
-          <button onClick={handleGenerate} className="btn btn-primary" disabled={generating} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Button variant="secondary" size="md" onClick={onClose} disabled={generating}>Cancel</Button>
+          <Button size="md" onClick={handleGenerate} disabled={generating}>
             {generating
               ? <><Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> {editDocumentId ? 'Saving Revision…' : 'Generating…'}</>
               : editDocumentId ? <><Check size={13} aria-hidden /> Update & Resubmit</> : <><Download size={13} aria-hidden /> Generate PDF</>
             }
-          </button>
+          </Button>
         </div>
       </div>
 

@@ -278,8 +278,6 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
     toast.success('Project moved to the trash');
     onSaved?.();
   }
-  // The type groups drawn this render, for the Edit Item panel.
-  const groupsByKey = new Map<string, { type: string; items: PItem[]; projectId: string | null; caseId: string | null; customTypeCode: string | null }>();
 
   /** PATCH one row; the reloaded board shows what the server saved (PF code included). */
   async function patchItem(id: string, body: Record<string, unknown>, show?: Partial<PItem>) {
@@ -338,6 +336,222 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
   }
   const nonEmpty = sections.filter(s => s.projects.length > 0);
 
+  function toggle(key: string) {
+    setCollapsed(prev => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; });
+  }
+
+  const moneyStart = COLS.indexOf('pfUsd');
+  const afterMoney = COLS.length - COLS.indexOf('invoiceTl') - 1;
+
+  // The table body is the expensive part of this board (profiled: ~80 ms for 400 rows, ~310 ms for
+  // 1,600). It depends only on the data, pending edits, collapsed groups, column widths and access /
+  // selection — never on which popup is open — so it is built once per change of those and reused
+  // while a status list, picker, panel or menu opens and closes. Its handlers only call state
+  // setters (stable) or read values that are in the dependency list.
+  const colWidthKey = cols.map(c => width(c)).join(',');
+  const { body, groupsByKey } = useMemo(() => {
+    // The type groups drawn in the body, for the Edit Item panel.
+    const groupsByKey = new Map<string, { type: string; items: PItem[]; projectId: string | null; caseId: string | null; customTypeCode: string | null }>();
+    const body = (
+          <tbody>
+            {nonEmpty.map((section, si) => {
+              let secUsd = 0, secTl = 0, secInv = 0, secInvTl = 0;
+  
+              const projectRows = section.projects.map((project, pi) => {
+                const groups = groupItemsByType(project.items || []);
+                const dataRowCount = groups.reduce((n, g) => n + g.items.length, 0);
+                const tone = PROJECT_TONE[computeProjectColor(project)];
+                const barStyle = { background: toneBg(tone), color: toneFg(tone) };
+                const key = `${section.label}:${project.projectNo}`;
+                const isCollapsed = collapsed.has(key);
+                const Chevron = isCollapsed ? ChevronRight : ChevronDown;
+  
+                const totals: Partial<Record<ColumnKey, number>> = {};
+                for (const it of project.items || []) {
+                  totals.pfUsd = (totals.pfUsd ?? 0) + toNumber(it.pfUsd);
+                  totals.pfTl = (totals.pfTl ?? 0) + toNumber(it.pfTl);
+                  totals.invoice = (totals.invoice ?? 0) + toNumber(it.invoice);
+                  totals.invoiceTl = (totals.invoiceTl ?? 0) + toNumber(it.invoiceTl);
+                  secUsd += effUsd(it); secTl += effTl(it);
+                  secInv += toNumber(it.invoice); secInvTl += toNumber(it.invoiceTl);
+                }
+  
+                let dataRowSeen = 0;
+                const bodyRows: React.ReactNode[] = [];
+                groups.forEach((group, gi) => {
+                  const shown = sortForDisplay(group.items.map(view));
+                  const groupKey = `${shown[0]?.caseId ?? shown[0]?.projectId ?? project.projectNo}|${group.type}`;
+                  groupsByKey.set(groupKey, { type: group.type, items: shown, projectId: shown[0]?.projectId ?? null, caseId: shown[0]?.caseId ?? null, customTypeCode: shown[0]?.customTypeCode ?? null });
+                  const allSent = groupAllSent(shown);
+                  const po = poRollup(shown.map(i => i.poSignStatus));
+                  shown.forEach((item, ii) => {
+                    const isFirstDataRow = dataRowSeen === 0;
+                    const isFirstOfGroup = ii === 0;
+                    dataRowSeen++;
+                    bodyRows.push(
+                      <tr key={`${pi}-${gi}-${ii}`}
+                        onContextMenu={canDelRows && item.id ? e => { e.preventDefault(); setRowMenu({ item, point: { x: e.clientX, y: e.clientY } }); } : undefined}>
+                        {cols.map(col => {
+                          if (col === 'projectNo') {
+                            if (!isFirstDataRow) return null;
+                            return (
+                              <td key={col} rowSpan={dataRowCount} className={cn('sticky left-0 z-10 border-r border-ui-divider bg-ui-page-bg p-0', project.id && 'cursor-pointer')}
+                                onContextMenu={e => openProjMenu(e, project, key)}>
+                                {/* A rounded box inside the cell: 7px page-colour margin, 12px corners. */}
+                                {(() => {
+                                  // "P123" shows as "123" (Trust System). Long case codes ("STRAFORD-RE-1",
+                                  // "344-EX-1") get a smaller size so they fit the box, even on a one-row project.
+                                  const no = String(project.projectNo).replace(/^P(?=\d+$)/, '');
+                                  const size = no.length <= 8 ? (dataRowCount > 1 ? 24 : 20) : no.length <= 11 ? 15 : 12;
+                                  return (
+                                    <span title={no} className="absolute inset-[7px] flex items-center justify-center overflow-hidden rounded-[12px] px-1.5 text-center font-medium leading-[1.15] [overflow-wrap:anywhere]"
+                                      style={{ ...barStyle, fontSize: size }}>
+                                      {no}
+                                    </span>
+                                  );
+                                })()}
+                                {/* Half selection: only selects, never opens the menu. */}
+                                {selection?.visible && project.id && (
+                                  <Checkbox aria-label={`Select project ${project.projectNo}`} checked={selection.selected.has(project.id)}
+                                    onCheckedChange={() => selection.toggle(project.id!)} onClick={e => e.stopPropagation()} onContextMenu={e => e.stopPropagation()}
+                                    className="absolute left-[11px] top-[11px] z-[1]" />
+                                )}
+                              </td>
+                            );
+                          }
+                          if (col === 'type') {
+                            if (!isFirstOfGroup) return null;
+                            return (
+                              <td key={col} rowSpan={group.items.length} className={cn(TD, TYPE_TEXT, 'sticky z-10 border-r', canRows && 'cursor-pointer hover:brightness-95')}
+                                onClick={canRows ? e => setPanel({ key: groupKey, point: { x: e.clientX, y: e.clientY } }) : undefined}
+                                style={{ left: typeLeft }}>
+                                {/* Every row of the type SENT: the same full box as the status chips (5px margin,
+                                    6px corners) in the Sent green (New Status 10). Otherwise plain text. */}
+                                {allSent ? (
+                                  <span className="absolute inset-[5px] flex items-center justify-center overflow-hidden rounded-[6px] px-2 text-[14px] font-semibold"
+                                    style={{ background: 'var(--status-n10-bg)', color: 'var(--status-n10-fg)' }}>
+                                    <span className="truncate">{group.type}</span>
+                                  </span>
+                                ) : group.type}
+                                {(() => {
+                                  const r = section.group != null ? groupRanks?.get(`${section.group}|${shown[0]?.projectId}|${group.type.toLowerCase()}`) : undefined;
+                                  return r != null ? (
+                                    <span className="absolute right-1 top-1 z-[1] rounded-[3px] bg-[#dc2626] px-1 text-[10px] font-semibold leading-4 text-white" title={`Rank ${r}`}>#{r}</span>
+                                  ) : null;
+                                })()}
+                              </td>
+                            );
+                          }
+                          if (col === 'poSignStatus') {
+                            if (!isFirstOfGroup) return null;
+                            // One PO cell for the whole type group, filled from top to bottom.
+                            const ids = shown.map(i => i.id).filter(Boolean) as string[];
+                            return (
+                              <StatusCell key={col} rowSpan={group.items.length} opt={signStyle(po)} editable={canStatus && ids.length > 0}
+                                onOpen={a => openMenu('po', ids, po, a)} />
+                            );
+                          }
+                          if (col === 'orderType') return (
+                            <td key={col} className={cn(TD, canRows && item.id && 'cursor-pointer hover:bg-ui-hover-bg')}
+                              onClick={canRows && item.id ? e => setPicker({ kind: 'orderType', item, rect: e.currentTarget.getBoundingClientRect() }) : undefined}>
+                              <OrderType value={item.orderType} />
+                            </td>
+                          );
+                          if (col === 'vendor') return (
+                            <td key={col} className={cn(TD, 'text-[13px] leading-[1.4]', canRows && item.id && 'cursor-pointer hover:bg-ui-hover-bg')}
+                              onClick={canRows && item.id ? e => setPicker({ kind: 'vendor', item, rect: e.currentTarget.getBoundingClientRect() }) : undefined}>
+                              {cellValue(col, item)}
+                            </td>
+                          );
+                          if (col === 'pfSignStatus') return (
+                            <StatusCell key={col} opt={signStyle(item.pfSignStatus)} editable={canStatus && !!item.id}
+                              onOpen={a => openMenu('pf', [item.id!], normalizeSign(item.pfSignStatus), a)} />
+                          );
+                          if (col === 'status') return (
+                            <StatusCell key={col} opt={statusStyle(item.status)} editable={canStatus && !!item.id}
+                              onOpen={a => openMenu('status', [item.id!], normalizeStatus(item.status), a)} />
+                          );
+                          return (
+                            <td key={col} className={cn(TD, col === 'pfCode' && 'text-[13px] leading-[1.4]', isMoneyColumn(col) && 'text-[var(--color-secondary-700)] dark:text-ui-heading')}>
+                              {cellValue(col, item)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  });
+                });
+  
+                return (
+                  <Fragment key={`proj-${pi}`}>
+                    <tr data-project-head={key} onContextMenu={e => openProjMenu(e, project, key)}>
+                      <td colSpan={cols.length} className="border-y border-ui-divider p-2" style={barStyle}>
+                        <button
+                          type="button" onClick={() => toggle(key)} aria-expanded={!isCollapsed}
+                          aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} project ${project.projectNo}`}
+                          className="sticky left-2 flex cursor-pointer items-center border-0 bg-transparent p-0 text-left text-inherit"
+                        >
+                          <Chevron size={24} aria-hidden className="shrink-0" />
+                          {/* Name over address, as in the design ("STNE 440" / "Cherry Hill, 1849 …"). */}
+                          <span className="flex min-w-0 flex-col pl-4 pr-2 leading-normal">
+                            <span className="truncate text-[16px] font-medium">{headName(project)}</span>
+                            {headAddress(project) && <span className="truncate text-[12px] font-normal">{headAddress(project)}</span>}
+                          </span>
+                        </button>
+                      </td>
+                    </tr>
+                    {!isCollapsed && bodyRows}
+                    {!isCollapsed && access.viewMoney && (
+                      <tr>
+                        {/* TOTAL runs the full width from the left edge, under the Project # box (Figma 741:16403). */}
+                        <td colSpan={moneyStart} className="border-y border-ui-divider px-4 py-2.5 text-[14px] font-semibold" style={barStyle}><span className="sticky left-4">TOTAL</span></td>
+                        {MONEY_COLS.map(col => (
+                          <td key={col} className="border-y border-ui-divider px-2 py-2.5" style={barStyle}><MoneyChip col={col} value={totals[col] ?? 0} /></td>
+                        ))}
+                        <td colSpan={afterMoney} className="border-y border-ui-divider" style={barStyle} />
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              });
+  
+              const secTotals: Partial<Record<ColumnKey, number>> = { pfUsd: secUsd, pfTl: secTl, invoice: secInv, invoiceTl: secInvTl };
+              // A region folds like a project (same fold state); its totals row stays visible.
+              const regionKey = `region:${section.label}`;
+              const regionClosed = collapsed.has(regionKey);
+              return (
+                <Fragment key={`sec-${si}`}>
+                  <tr>
+                    <td colSpan={cols.length} className="sticky z-[15] border-y border-ui-divider p-2 text-[#EEF2F6]"
+                      style={{ top: HEAD_H, background: section.group != null ? 'linear-gradient(90deg, #b91c1c, #ef4444)' : regionBg(section.label) }}>
+                      <button
+                        type="button" onClick={() => toggle(regionKey)} aria-expanded={!regionClosed}
+                        aria-label={`${regionClosed ? 'Expand' : 'Collapse'} ${regionTitle(section.label)}`}
+                        className="sticky left-2 flex cursor-pointer items-center border-0 bg-transparent p-0 text-left text-inherit"
+                      >
+                        {regionClosed ? <ChevronRight size={24} aria-hidden className="shrink-0" /> : <ChevronDown size={24} aria-hidden className="shrink-0" />}
+                        <span className={cn('pl-4 pr-2 leading-normal', section.group != null ? 'text-[22px] font-bold text-white' : 'text-[16px] font-medium')}>{regionTitle(section.label)}</span>
+                      </button>
+                    </td>
+                  </tr>
+                  {!regionClosed && projectRows}
+                  {access.viewMoney && <tr>
+                    <td colSpan={moneyStart} className="px-4 py-2.5 text-[14px] font-semibold" style={{ background: BOARD_CSS.sectionTotal.bg, color: BOARD_CSS.sectionTotal.fg }}>
+                      {section.label.toUpperCase()} TOTALS
+                    </td>
+                    {MONEY_COLS.map(col => (
+                      <td key={col} className="px-2 py-2.5" style={{ background: BOARD_CSS.sectionTotal.bg }}><MoneyChip col={col} value={secTotals[col] ?? 0} /></td>
+                    ))}
+                    <td colSpan={afterMoney} style={{ background: BOARD_CSS.sectionTotal.bg }} />
+                  </tr>}
+                </Fragment>
+              );
+            })}
+          </tbody>
+    );
+    return { body, groupsByKey };
+  }, [sections, pending, collapsed, colWidthKey, typeLeft, access, selection, groupRanks]);
+
   if (!nonEmpty.length) {
     return (
       <EmptyState
@@ -347,13 +561,6 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
       />
     );
   }
-
-  function toggle(key: string) {
-    setCollapsed(prev => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; });
-  }
-
-  const moneyStart = COLS.indexOf('pfUsd');
-  const afterMoney = COLS.length - COLS.indexOf('invoiceTl') - 1;
 
   return (
     <div className="overflow-auto rounded-[8px] border border-ui-divider" style={{ maxHeight: 'calc(100dvh - 220px)' }}>
@@ -372,201 +579,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
             ))}
           </tr>
         </thead>
-        <tbody>
-          {nonEmpty.map((section, si) => {
-            let secUsd = 0, secTl = 0, secInv = 0, secInvTl = 0;
-
-            const projectRows = section.projects.map((project, pi) => {
-              const groups = groupItemsByType(project.items || []);
-              const dataRowCount = groups.reduce((n, g) => n + g.items.length, 0);
-              const tone = PROJECT_TONE[computeProjectColor(project)];
-              const barStyle = { background: toneBg(tone), color: toneFg(tone) };
-              const key = `${section.label}:${project.projectNo}`;
-              const isCollapsed = collapsed.has(key);
-              const Chevron = isCollapsed ? ChevronRight : ChevronDown;
-
-              const totals: Partial<Record<ColumnKey, number>> = {};
-              for (const it of project.items || []) {
-                totals.pfUsd = (totals.pfUsd ?? 0) + toNumber(it.pfUsd);
-                totals.pfTl = (totals.pfTl ?? 0) + toNumber(it.pfTl);
-                totals.invoice = (totals.invoice ?? 0) + toNumber(it.invoice);
-                totals.invoiceTl = (totals.invoiceTl ?? 0) + toNumber(it.invoiceTl);
-                secUsd += effUsd(it); secTl += effTl(it);
-                secInv += toNumber(it.invoice); secInvTl += toNumber(it.invoiceTl);
-              }
-
-              let dataRowSeen = 0;
-              const bodyRows: React.ReactNode[] = [];
-              groups.forEach((group, gi) => {
-                const shown = sortForDisplay(group.items.map(view));
-                const groupKey = `${shown[0]?.caseId ?? shown[0]?.projectId ?? project.projectNo}|${group.type}`;
-                groupsByKey.set(groupKey, { type: group.type, items: shown, projectId: shown[0]?.projectId ?? null, caseId: shown[0]?.caseId ?? null, customTypeCode: shown[0]?.customTypeCode ?? null });
-                const allSent = groupAllSent(shown);
-                const po = poRollup(shown.map(i => i.poSignStatus));
-                shown.forEach((item, ii) => {
-                  const isFirstDataRow = dataRowSeen === 0;
-                  const isFirstOfGroup = ii === 0;
-                  dataRowSeen++;
-                  bodyRows.push(
-                    <tr key={`${pi}-${gi}-${ii}`}
-                      onContextMenu={canDelRows && item.id ? e => { e.preventDefault(); setRowMenu({ item, point: { x: e.clientX, y: e.clientY } }); } : undefined}>
-                      {cols.map(col => {
-                        if (col === 'projectNo') {
-                          if (!isFirstDataRow) return null;
-                          return (
-                            <td key={col} rowSpan={dataRowCount} className={cn('sticky left-0 z-10 border-r border-ui-divider bg-ui-page-bg p-0', project.id && 'cursor-pointer')}
-                              onContextMenu={e => openProjMenu(e, project, key)}>
-                              {/* A rounded box inside the cell: 7px page-colour margin, 12px corners. */}
-                              {(() => {
-                                // "P123" shows as "123" (Trust System). Long case codes ("STRAFORD-RE-1",
-                                // "344-EX-1") get a smaller size so they fit the box, even on a one-row project.
-                                const no = String(project.projectNo).replace(/^P(?=\d+$)/, '');
-                                const size = no.length <= 8 ? (dataRowCount > 1 ? 24 : 20) : no.length <= 11 ? 15 : 12;
-                                return (
-                                  <span title={no} className="absolute inset-[7px] flex items-center justify-center overflow-hidden rounded-[12px] px-1.5 text-center font-medium leading-[1.15] [overflow-wrap:anywhere]"
-                                    style={{ ...barStyle, fontSize: size }}>
-                                    {no}
-                                  </span>
-                                );
-                              })()}
-                              {/* Half selection: only selects, never opens the menu. */}
-                              {selection?.visible && project.id && (
-                                <Checkbox aria-label={`Select project ${project.projectNo}`} checked={selection.selected.has(project.id)}
-                                  onCheckedChange={() => selection.toggle(project.id!)} onClick={e => e.stopPropagation()} onContextMenu={e => e.stopPropagation()}
-                                  className="absolute left-[11px] top-[11px] z-[1]" />
-                              )}
-                            </td>
-                          );
-                        }
-                        if (col === 'type') {
-                          if (!isFirstOfGroup) return null;
-                          return (
-                            <td key={col} rowSpan={group.items.length} className={cn(TD, TYPE_TEXT, 'sticky z-10 border-r', canRows && 'cursor-pointer hover:brightness-95')}
-                              onClick={canRows ? e => setPanel({ key: groupKey, point: { x: e.clientX, y: e.clientY } }) : undefined}
-                              style={{ left: typeLeft }}>
-                              {/* Every row of the type SENT: the same full box as the status chips (5px margin,
-                                  6px corners) in the Sent green (New Status 10). Otherwise plain text. */}
-                              {allSent ? (
-                                <span className="absolute inset-[5px] flex items-center justify-center overflow-hidden rounded-[6px] px-2 text-[14px] font-semibold"
-                                  style={{ background: 'var(--status-n10-bg)', color: 'var(--status-n10-fg)' }}>
-                                  <span className="truncate">{group.type}</span>
-                                </span>
-                              ) : group.type}
-                              {(() => {
-                                const r = section.group != null ? groupRanks?.get(`${section.group}|${shown[0]?.projectId}|${group.type.toLowerCase()}`) : undefined;
-                                return r != null ? (
-                                  <span className="absolute right-1 top-1 z-[1] rounded-[3px] bg-[#dc2626] px-1 text-[10px] font-semibold leading-4 text-white" title={`Rank ${r}`}>#{r}</span>
-                                ) : null;
-                              })()}
-                            </td>
-                          );
-                        }
-                        if (col === 'poSignStatus') {
-                          if (!isFirstOfGroup) return null;
-                          // One PO cell for the whole type group, filled from top to bottom.
-                          const ids = shown.map(i => i.id).filter(Boolean) as string[];
-                          return (
-                            <StatusCell key={col} rowSpan={group.items.length} opt={signStyle(po)} editable={canStatus && ids.length > 0}
-                              onOpen={a => openMenu('po', ids, po, a)} />
-                          );
-                        }
-                        if (col === 'orderType') return (
-                          <td key={col} className={cn(TD, canRows && item.id && 'cursor-pointer hover:bg-ui-hover-bg')}
-                            onClick={canRows && item.id ? e => setPicker({ kind: 'orderType', item, rect: e.currentTarget.getBoundingClientRect() }) : undefined}>
-                            <OrderType value={item.orderType} />
-                          </td>
-                        );
-                        if (col === 'vendor') return (
-                          <td key={col} className={cn(TD, 'text-[13px] leading-[1.4]', canRows && item.id && 'cursor-pointer hover:bg-ui-hover-bg')}
-                            onClick={canRows && item.id ? e => setPicker({ kind: 'vendor', item, rect: e.currentTarget.getBoundingClientRect() }) : undefined}>
-                            {cellValue(col, item)}
-                          </td>
-                        );
-                        if (col === 'pfSignStatus') return (
-                          <StatusCell key={col} opt={signStyle(item.pfSignStatus)} editable={canStatus && !!item.id}
-                            onOpen={a => openMenu('pf', [item.id!], normalizeSign(item.pfSignStatus), a)} />
-                        );
-                        if (col === 'status') return (
-                          <StatusCell key={col} opt={statusStyle(item.status)} editable={canStatus && !!item.id}
-                            onOpen={a => openMenu('status', [item.id!], normalizeStatus(item.status), a)} />
-                        );
-                        return (
-                          <td key={col} className={cn(TD, col === 'pfCode' && 'text-[13px] leading-[1.4]', isMoneyColumn(col) && 'text-[var(--color-secondary-700)] dark:text-ui-heading')}>
-                            {cellValue(col, item)}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                });
-              });
-
-              return (
-                <Fragment key={`proj-${pi}`}>
-                  <tr data-project-head={key} onContextMenu={e => openProjMenu(e, project, key)}>
-                    <td colSpan={cols.length} className="border-y border-ui-divider p-2" style={barStyle}>
-                      <button
-                        type="button" onClick={() => toggle(key)} aria-expanded={!isCollapsed}
-                        aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} project ${project.projectNo}`}
-                        className="sticky left-2 flex cursor-pointer items-center border-0 bg-transparent p-0 text-left text-inherit"
-                      >
-                        <Chevron size={24} aria-hidden className="shrink-0" />
-                        {/* Name over address, as in the design ("STNE 440" / "Cherry Hill, 1849 …"). */}
-                        <span className="flex min-w-0 flex-col pl-4 pr-2 leading-normal">
-                          <span className="truncate text-[16px] font-medium">{headName(project)}</span>
-                          {headAddress(project) && <span className="truncate text-[12px] font-normal">{headAddress(project)}</span>}
-                        </span>
-                      </button>
-                    </td>
-                  </tr>
-                  {!isCollapsed && bodyRows}
-                  {!isCollapsed && access.viewMoney && (
-                    <tr>
-                      {/* TOTAL runs the full width from the left edge, under the Project # box (Figma 741:16403). */}
-                      <td colSpan={moneyStart} className="border-y border-ui-divider px-4 py-2.5 text-[14px] font-semibold" style={barStyle}><span className="sticky left-4">TOTAL</span></td>
-                      {MONEY_COLS.map(col => (
-                        <td key={col} className="border-y border-ui-divider px-2 py-2.5" style={barStyle}><MoneyChip col={col} value={totals[col] ?? 0} /></td>
-                      ))}
-                      <td colSpan={afterMoney} className="border-y border-ui-divider" style={barStyle} />
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            });
-
-            const secTotals: Partial<Record<ColumnKey, number>> = { pfUsd: secUsd, pfTl: secTl, invoice: secInv, invoiceTl: secInvTl };
-            // A region folds like a project (same fold state); its totals row stays visible.
-            const regionKey = `region:${section.label}`;
-            const regionClosed = collapsed.has(regionKey);
-            return (
-              <Fragment key={`sec-${si}`}>
-                <tr>
-                  <td colSpan={cols.length} className="sticky z-[15] border-y border-ui-divider p-2 text-[#EEF2F6]"
-                    style={{ top: HEAD_H, background: section.group != null ? 'linear-gradient(90deg, #b91c1c, #ef4444)' : regionBg(section.label) }}>
-                    <button
-                      type="button" onClick={() => toggle(regionKey)} aria-expanded={!regionClosed}
-                      aria-label={`${regionClosed ? 'Expand' : 'Collapse'} ${regionTitle(section.label)}`}
-                      className="sticky left-2 flex cursor-pointer items-center border-0 bg-transparent p-0 text-left text-inherit"
-                    >
-                      {regionClosed ? <ChevronRight size={24} aria-hidden className="shrink-0" /> : <ChevronDown size={24} aria-hidden className="shrink-0" />}
-                      <span className={cn('pl-4 pr-2 leading-normal', section.group != null ? 'text-[22px] font-bold text-white' : 'text-[16px] font-medium')}>{regionTitle(section.label)}</span>
-                    </button>
-                  </td>
-                </tr>
-                {!regionClosed && projectRows}
-                {access.viewMoney && <tr>
-                  <td colSpan={moneyStart} className="px-4 py-2.5 text-[14px] font-semibold" style={{ background: BOARD_CSS.sectionTotal.bg, color: BOARD_CSS.sectionTotal.fg }}>
-                    {section.label.toUpperCase()} TOTALS
-                  </td>
-                  {MONEY_COLS.map(col => (
-                    <td key={col} className="px-2 py-2.5" style={{ background: BOARD_CSS.sectionTotal.bg }}><MoneyChip col={col} value={secTotals[col] ?? 0} /></td>
-                  ))}
-                  <td colSpan={afterMoney} style={{ background: BOARD_CSS.sectionTotal.bg }} />
-                </tr>}
-              </Fragment>
-            );
-          })}
-        </tbody>
+        {body}
       </table>
       {menu && <StatusMenu menu={menu} onPick={v => void pick(v)} onClose={() => setMenu(null)} />}
       {picker?.kind === 'vendor' && (

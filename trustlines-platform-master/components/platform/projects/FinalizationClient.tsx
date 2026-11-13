@@ -12,6 +12,7 @@ import { Select } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ProjectSubpageHeader } from './ProjectSubpageHeader';
 
@@ -139,12 +140,9 @@ export function FinalizationClient({
             <div className="flex min-h-[42px] items-center justify-between gap-3 border-b border-ui-divider pb-4">
               <h2 className={TITLE}>Requests <span>({crs.length})</span></h2>
               {canEdit && !addingCr && (
-                <button
-                  type="button" onClick={() => setAddingCr(true)}
-                  className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent pl-3.5 pr-6 text-[13px] font-medium text-ui-btn-accent-fg hover:opacity-90"
-                >
+                <Button variant="accent" onClick={() => setAddingCr(true)}>
                   <Plus size={16} aria-hidden /> Add Request
-                </button>
+                </Button>
               )}
             </div>
 
@@ -180,12 +178,9 @@ export function FinalizationClient({
                           <>
                             <Select aria-label={`${cr.title} status`} className={SMALL_SELECT} options={statusOptions} value={cr.status}
                               disabled={busy} onValueChange={v => { if (v) void patchCr(cr.id, { status: v }); }} />
-                            <button
-                              type="button" onClick={() => deleteCr(cr.id)} aria-label={`Remove ${cr.title}`}
-                              className="grid size-7 cursor-pointer place-items-center rounded-[4px] border-0 bg-transparent text-error-normal hover:bg-ui-hover-bg"
-                            >
+                            <Button variant="ghost-destructive" size="icon-sm" onClick={() => deleteCr(cr.id)} aria-label={`Remove ${cr.title}`}>
                               <Trash2 size={14} aria-hidden />
-                            </button>
+                            </Button>
                           </>
                         ) : <CrStatusPill status={cr.status} />}
                       </div>
@@ -310,14 +305,12 @@ function CrForm({ contacts, onSave, onCancel }: { contacts: Contact[]; onSave: (
         </label>
       </div>
       <div className="flex gap-2">
-        <button type="button" onClick={submit} disabled={!f.title.trim() || saving}
-          className="inline-flex h-9 cursor-pointer items-center rounded-[6px] border-0 bg-ui-btn-accent px-4 text-[13px] font-medium text-ui-btn-accent-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+        <Button variant="accent" size="toolbar" onClick={submit} disabled={!f.title.trim() || saving}>
           {saving ? 'Saving…' : 'Add'}
-        </button>
-        <button type="button" onClick={onCancel}
-          className="inline-flex h-9 cursor-pointer items-center rounded-[6px] border border-ui-divider bg-transparent px-4 text-[13px] font-medium text-ui-body hover:bg-ui-hover-bg">
+        </Button>
+        <Button variant="outline" size="toolbar" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
     </div>
   );

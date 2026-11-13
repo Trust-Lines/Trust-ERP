@@ -175,10 +175,9 @@ export function DeliveryClient({
           <div className="flex items-center justify-between gap-3">
             <h2 id="punch-list" className={TITLE} title={`${openPunch} open`}>Punch List ({punch.length})</h2>
             {canEdit && !adding && (
-              <button type="button" onClick={() => setAdding(true)}
-                className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent pl-3.5 pr-6 text-[13px] font-medium text-ui-btn-accent-fg hover:opacity-90">
+              <Button variant="accent" size="md" onClick={() => setAdding(true)}>
                 <Plus size={16} aria-hidden /> Add Item
-              </button>
+              </Button>
             )}
           </div>
           {adding && canEdit && <PunchForm onSave={addPunch} onCancel={() => setAdding(false)} />}
@@ -199,10 +198,9 @@ export function DeliveryClient({
                       {it.description && <span className="text-[12px] text-ui-text-secondary">{it.description}</span>}
                     </div>
                     {canEdit && (
-                      <button type="button" onClick={() => delPunch(it.id)} aria-label={`Remove ${it.title}`}
-                        className="grid size-7 cursor-pointer place-items-center rounded-[4px] border-0 bg-transparent text-error-normal hover:bg-ui-hover-bg">
+                      <Button variant="ghost-destructive" size="icon-sm" onClick={() => delPunch(it.id)} aria-label={`Remove ${it.title}`}>
                         <Trash2 size={14} aria-hidden />
-                      </button>
+                      </Button>
                     )}
                   </li>
                 );
@@ -232,19 +230,17 @@ export function DeliveryClient({
                     <span className={LABEL}>Accepted by (customer)</span>
                     <input className={FIELD} value={acceptName} onChange={e => setAcceptName(e.target.value)} placeholder="type.." />
                   </label>
-                  <button type="button" disabled={busy || !acceptName.trim()} onClick={() => patchPlan({ accept: true, acceptedBy: acceptName.trim() })}
-                    className="inline-flex h-[42px] cursor-pointer items-center rounded-[6px] border border-[var(--color-secondary-700)] bg-ui-page-bg px-4 text-[13px] font-medium text-[var(--color-secondary-700)] hover:bg-ui-hover-bg disabled:cursor-not-allowed disabled:opacity-50 dark:border-ui-heading dark:text-ui-heading">
+                  <Button variant="outline" size="md" disabled={busy || !acceptName.trim()} onClick={() => patchPlan({ accept: true, acceptedBy: acceptName.trim() })}>
                     Record Acceptance
-                  </button>
+                  </Button>
                 </>
               )}
               {completed ? (
                 <span className="inline-flex h-[42px] items-center gap-2 text-[13px] text-ui-text-secondary"><PackageCheck className="size-4" aria-hidden /> Project is delivered &amp; complete.</span>
               ) : (
-                <button type="button" disabled={busy || openPunch > 0 || !plan?.customer_accepted} onClick={() => patchPlan({ complete: true })}
-                  className="inline-flex h-[42px] cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-4 text-[13px] font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950">
+                <Button size="md" disabled={busy || openPunch > 0 || !plan?.customer_accepted} onClick={() => patchPlan({ complete: true })}>
                   <PackageCheck className="size-4" aria-hidden /> Mark Delivered and Complete
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -271,10 +267,8 @@ function PunchForm({ onSave, onCancel }: { onSave: (title: string, description: 
           <input className={FIELD} value={description} onChange={e => setDescription(e.target.value)} /></label>
       </div>
       <div className="flex gap-2">
-        <button type="button" disabled={!title.trim()} onClick={() => onSave(title.trim(), description.trim())}
-          className="inline-flex h-9 cursor-pointer items-center rounded-[6px] border-0 bg-ui-btn-accent px-4 text-[13px] font-medium text-ui-btn-accent-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">Add</button>
-        <button type="button" onClick={onCancel}
-          className="inline-flex h-9 cursor-pointer items-center rounded-[6px] border border-ui-divider bg-transparent px-4 text-[13px] font-medium text-ui-body hover:bg-ui-hover-bg">Cancel</button>
+        <Button variant="accent" size="toolbar" disabled={!title.trim()} onClick={() => onSave(title.trim(), description.trim())}>Add</Button>
+        <Button variant="outline" size="toolbar" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   );
