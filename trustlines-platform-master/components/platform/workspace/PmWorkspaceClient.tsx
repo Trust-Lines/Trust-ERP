@@ -10,7 +10,8 @@ import {
 import { cn } from '@/lib/utils';
 import type { PortfolioRow } from '@/lib/workspace/rows';
 import { Select } from '@/components/platform/shared/Select';
-import { useFixedMenu } from '@/hooks/use-fixed-menu';
+import { Button } from '@/components/ui/button';
+import { Menu, MenuContent, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
 
 // Figma "PM" workspace (node 207:18326). Only what the lifecycle data really has is shown —
 // the design's date-range picker, "Create task", readiness % and "+N new" have no backing data.
@@ -19,7 +20,6 @@ const HEADING_TEXT = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD = 'rounded-[8px] border border-ui-divider bg-ui-page-bg';
 const TH_CLS = 'h-[46px] whitespace-nowrap px-2.5 text-left text-[12px] font-semibold leading-[1.4] text-ui-body';
 const TD_CLS = 'px-2.5 py-2 text-[13px] text-ui-body';
-const MENU_ITEM = 'flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-[4px] border-0 bg-transparent px-3 text-left text-[13px] leading-none text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-4 [&_svg]:shrink-0';
 const PAGE_SIZE = 25;
 const DAY_MS = 86_400_000;
 
@@ -81,8 +81,6 @@ export function PmWorkspaceClient({ rows, seesAll }: { rows: PortfolioRow[]; see
   const [statusFilter, setStatusFilter] = useState<'' | StatusKey>('');
   const [dueSort, setDueSort] = useState<'asc' | 'desc' | null>(null);
   const [page, setPage] = useState(1);
-  // Row "…" menu, pinned to the window so the table's scroller can't clip it.
-  const menu = useFixedMenu(220);
   const [today] = useState(startOfToday);
 
   const active = rows.filter(r => r.phase !== 'COMPLETED');
@@ -317,28 +315,21 @@ export function PmWorkspaceClient({ rows, seesAll }: { rows: PortfolioRow[]; see
                       ) : <span className="text-ui-text-secondary">—</span>}
                     </td>
                     <td className={cn(TD_CLS, 'pr-4')}>
-                      <button
-                        type="button" aria-label={`Actions for ${r.name ?? r.code ?? 'project'}`} aria-haspopup="menu" aria-expanded={menu.openId === r.projectId}
-                        onClick={e => menu.toggle(r.projectId, e.currentTarget)}
-                        className="grid size-8 cursor-pointer place-items-center rounded-[6px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
-                      >
-                        <MoreHorizontal size={16} aria-hidden />
-                      </button>
-                      {menu.openId === r.projectId && (
-                        <>
-                          <div className="fixed inset-0 z-20" onClick={menu.close} />
-                          <div role="menu" style={menu.style} className="fixed z-30 flex w-64 flex-col gap-1 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1.5 text-left shadow-03">
-                            <Link href={`/projects/${r.projectId}`} role="menuitem" className={MENU_ITEM} onClick={menu.close}>
-                              <ExternalLink aria-hidden /> Open project
-                            </Link>
-                            {r.myActions.map(a => (
-                              <Link key={a.code} href={a.href} role="menuitem" className={MENU_ITEM} onClick={menu.close}>
-                                <ArrowRight aria-hidden /> <span className="truncate">{a.action}</span>
-                              </Link>
-                            ))}
-                          </div>
-                        </>
-                      )}
+                      <Menu>
+                        <MenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions for ${r.name ?? r.code ?? 'project'}`} />}>
+                          <MoreHorizontal aria-hidden />
+                        </MenuTrigger>
+                        <MenuContent className="w-64">
+                          <MenuLinkItem render={<Link href={`/projects/${r.projectId}`} />}>
+                            <ExternalLink aria-hidden /> Open project
+                          </MenuLinkItem>
+                          {r.myActions.map(a => (
+                            <MenuLinkItem key={a.code} render={<Link href={a.href} />}>
+                              <ArrowRight aria-hidden /> <span className="truncate">{a.action}</span>
+                            </MenuLinkItem>
+                          ))}
+                        </MenuContent>
+                      </Menu>
                     </td>
                   </tr>
                 );

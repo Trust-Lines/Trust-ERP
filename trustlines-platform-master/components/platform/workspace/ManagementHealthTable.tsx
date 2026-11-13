@@ -7,7 +7,8 @@ import {
   ClipboardCheck, DraftingCompass, Ellipsis, Equal, ExternalLink, Factory, Hammer, Handshake, Target, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useFixedMenu } from '@/hooks/use-fixed-menu';
+import { Button } from '@/components/ui/button';
+import { Menu, MenuContent, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
 import type { PortfolioRow } from '@/lib/workspace/rows';
 
 export interface HealthRow extends PortfolioRow {
@@ -33,7 +34,6 @@ const PHASE_CHIP: Record<string, { tone: string; icon: LucideIcon }> = {
 };
 
 type SortKey = 'project' | 'status' | 'blockers' | 'late' | 'owner';
-const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-3.5 [&_svg]:shrink-0';
 
 function formatLate(days: number | null): string {
   if (days === null) return '—';
@@ -45,9 +45,6 @@ function formatLate(days: number | null): string {
 // Figma "ops_manager" project table (nodes 178:29818 / 174:27618): sortable headers, 36px rows, "…" actions.
 export function ManagementHealthTable({ rows, emptyLabel }: { rows: HealthRow[]; emptyLabel: string }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'blockers', dir: -1 });
-  // Pinned to the window: the table scroller clipped an in-flow menu, so the last rows' "…" did nothing visible.
-  const menu = useFixedMenu(220); // room for "Open project" + a few next actions before flipping up
-  const menuId = menu.openId;
 
   const sorted = useMemo(() => {
     const cmp: Record<SortKey, (a: HealthRow, b: HealthRow) => number> = {
@@ -149,29 +146,22 @@ export function ManagementHealthTable({ rows, emptyLabel }: { rows: HealthRow[];
                   <td className="max-w-0 px-2.5">
                     <p className="m-0 truncate text-[13px] text-ui-text-secondary">{r.ownerName ?? 'Unassigned'}</p>
                   </td>
-                  <td className="relative pr-5 text-center">
-                    <button
-                      type="button" aria-label={`Actions for ${r.code ?? r.name ?? 'project'}`} aria-expanded={menuId === r.projectId}
-                      onClick={e => menu.toggle(r.projectId, e.currentTarget)}
-                      className="inline-grid size-7 place-items-center rounded-[4px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
-                    >
-                      <Ellipsis size={16} />
-                    </button>
-                    {menuId === r.projectId && (
-                      <>
-                        <div className="fixed inset-0 z-20" onClick={menu.close} />
-                        <div role="menu" style={menu.style} className="fixed z-30 w-64 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
-                          <Link href={`/projects/${r.projectId}`} role="menuitem" className={MENU_ITEM} onClick={menu.close}>
-                            <ExternalLink aria-hidden /> Open project
-                          </Link>
-                          {r.myActions.map(a => (
-                            <Link key={a.code} href={a.href} role="menuitem" className={MENU_ITEM} onClick={menu.close}>
-                              <ArrowRight aria-hidden /> <span className="truncate">{a.action}</span>
-                            </Link>
-                          ))}
-                        </div>
-                      </>
-                    )}
+                  <td className="pr-5 text-center">
+                    <Menu>
+                      <MenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${r.code ?? r.name ?? 'project'}`} />}>
+                        <Ellipsis />
+                      </MenuTrigger>
+                      <MenuContent className="w-64">
+                        <MenuLinkItem render={<Link href={`/projects/${r.projectId}`} />}>
+                          <ExternalLink aria-hidden /> Open project
+                        </MenuLinkItem>
+                        {r.myActions.map(a => (
+                          <MenuLinkItem key={a.code} render={<Link href={a.href} />}>
+                            <ArrowRight aria-hidden /> <span className="truncate">{a.action}</span>
+                          </MenuLinkItem>
+                        ))}
+                      </MenuContent>
+                    </Menu>
                   </td>
                 </tr>
               );
