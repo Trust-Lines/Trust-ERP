@@ -11,6 +11,7 @@ import {
 } from './ProductionFlags';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
 import { cn } from '@/lib/utils';
 import type { ProductionAccess } from '@/lib/production/access';
@@ -335,8 +336,8 @@ export function ProductionClient({ access, canAddProject = false }: { access: Pr
         {access.half && selecting && (
           <div className="flex flex-wrap items-center gap-3 rounded-[6px] border border-ui-divider bg-ui-surface px-3 py-2 text-[12px] text-ui-body">
             <label className="inline-flex cursor-pointer items-center gap-1.5">
-              <input type="checkbox" checked={allPicked} disabled={!projectCount}
-                onChange={() => setPicked(allPicked ? new Set() : new Set(visibleProjects.map(p => p.id!)))} />
+              <Checkbox checked={allPicked} disabled={!projectCount}
+                onCheckedChange={() => setPicked(allPicked ? new Set() : new Set(visibleProjects.map(p => p.id!)))} />
               Select All ({projectCount})
             </label>
             <span className="text-ui-text-secondary">{picked.size} selected</span>

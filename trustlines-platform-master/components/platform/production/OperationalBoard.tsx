@@ -14,6 +14,8 @@ import { CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleOff, Drill, F
 import { cn } from '@/lib/utils';
 import { ColumnResizer, useColumnWidths, type SizedColumn } from '@/components/ui/column-resize';
 import { ConfirmModal } from '@/components/ui/modal';
+import { Popover, PopoverContent } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ProjectMenu } from './ProjectMenu';
 import type { ProductionAccess } from '@/lib/production/access';
 import type { PfGroup } from './ProductionFlags';
@@ -107,7 +109,7 @@ const ITEM_KEY: Record<EditKind, keyof PItem> = { status: 'status', pf: 'pfSignS
 const OPTIONS: Record<EditKind, StatusOption[]> = { status: STATUS_OPTIONS, pf: PF_SIGN_OPTIONS, po: PO_SIGN_OPTIONS };
 const MENU_W = 240;
 const MENU_MAX_H = 360;
-interface OpenMenu { kind: EditKind; ids: string[]; current: string; style: React.CSSProperties }
+interface OpenMenu { kind: EditKind; ids: string[]; current: string; rect: DOMRect }
 
 // Figma "Status Chip" (TRUST-LINES ERP 722:804 light / 722:910 dark): 14px icon + 12px medium label,
 // 4px radius, 3px × 8/12px padding, coloured by the status tone (globals.css tokens, theme-aware).
@@ -158,23 +160,22 @@ function StatusCell({ opt, rowSpan, editable, onOpen }: {
 
 function StatusMenu({ menu, onPick, onClose }: { menu: OpenMenu; onPick: (value: string) => void; onClose: () => void }) {
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
     // Scrolling the page or the board closes the list; scrolling the list itself does not.
+    // (Escape and outside clicks are handled by the shared Popover.)
     const onScroll = (e: Event) => { if (!(e.target instanceof Element && e.target.closest('[data-board-popup]'))) onClose(); };
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onClose);
     return () => {
-      window.removeEventListener('keydown', onKey);
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onClose);
     };
   }, [onClose]);
+  const anchor = useMemo(() => ({ getBoundingClientRect: () => menu.rect }), [menu.rect]);
   return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden />
-      <div data-board-popup role="listbox" aria-label="Choose a status" style={{ ...menu.style, width: MENU_W, maxHeight: MENU_MAX_H }}
-        className="fixed z-50 flex flex-col gap-1 overflow-y-auto rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1.5 shadow-03">
+    <Popover open onOpenChange={o => { if (!o) onClose(); }}>
+      <PopoverContent data-board-popup role="listbox" aria-label="Choose a status" anchor={anchor} align="start" sideOffset={2}
+        style={{ width: MENU_W, maxHeight: MENU_MAX_H }}
+        className="gap-1 overflow-y-auto p-1.5">
         {currentFirst(OPTIONS[menu.kind], menu.current).map(o => (
           <button
             key={o.value} type="button" role="option" aria-selected={o.value === menu.current} autoFocus={o.value === menu.current}
@@ -186,8 +187,8 @@ function StatusMenu({ menu, onPick, onClose }: { menu: OpenMenu; onPick: (value:
             {o.hint && <span className="pl-1 text-[11px] text-ui-text-secondary">{o.hint}</span>}
           </button>
         ))}
-      </div>
-    </>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -315,12 +316,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
 
   function openMenu(kind: EditKind, ids: string[], current: string, anchor: HTMLElement) {
     if (!canStatus || !ids.length) return;
-    const r = anchor.getBoundingClientRect();
-    const left = Math.max(8, Math.min(r.left, window.innerWidth - MENU_W - 8));
-    setMenu({
-      kind, ids, current,
-      style: r.bottom + MENU_MAX_H > window.innerHeight ? { left, bottom: window.innerHeight - r.top + 2 } : { left, top: r.bottom + 2 },
-    });
+    setMenu({ kind, ids, current, rect: anchor.getBoundingClientRect() });
   }
 
   async function pick(value: string) {
@@ -435,9 +431,9 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
                               })()}
                               {/* Half selection: only selects, never opens the menu. */}
                               {selection?.visible && project.id && (
-                                <input type="checkbox" aria-label={`Select project ${project.projectNo}`} checked={selection.selected.has(project.id)}
-                                  onChange={() => selection.toggle(project.id!)} onClick={e => e.stopPropagation()} onContextMenu={e => e.stopPropagation()}
-                                  className="absolute left-[13px] top-[13px] z-[1] size-4 cursor-pointer" />
+                                <Checkbox aria-label={`Select project ${project.projectNo}`} checked={selection.selected.has(project.id)}
+                                  onCheckedChange={() => selection.toggle(project.id!)} onClick={e => e.stopPropagation()} onContextMenu={e => e.stopPropagation()}
+                                  className="absolute left-[11px] top-[11px] z-[1]" />
                               )}
                             </td>
                           );

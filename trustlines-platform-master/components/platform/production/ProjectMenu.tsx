@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { ArrowDownCircle, FileText, SquareCheck, Tag, Trash2, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent } from '@/components/ui/popover';
+import { Select } from '@/components/platform/shared/Select';
 import { Modal, ModalContent } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 import { BUCKET_LABELS, TYPE_ORDER, type PProject } from '@/lib/excel/projectsExcelExport';
@@ -38,42 +41,41 @@ export interface ProjectMenuProps {
   selected?: boolean;
 }
 
-/** Where the menu sits: under the header row, at its visible left edge (4px gap). */
-function anchorPos(headKey: string): { left: number; top: number } | null {
-  const head = document.querySelector<HTMLElement>(`[data-project-head="${CSS.escape(headKey)}"]`);
-  if (!head) return null;
-  const row = head.getBoundingClientRect();
-  const btn = head.querySelector('button')?.getBoundingClientRect();
-  return { left: Math.max(8, Math.min(btn?.left ?? row.left, window.innerWidth - 268)), top: row.bottom + 4 };
+const headOf = (headKey: string) => document.querySelector<HTMLElement>(`[data-project-head="${CSS.escape(headKey)}"]`);
+
+/** Where the menu sits: under the header row, at its visible left edge (the shared Popover adds the 4px gap
+ *  and keeps it on screen). contextElement lets it follow the header while the page or the board scrolls. */
+function headAnchor(headKey: string) {
+  return {
+    getBoundingClientRect: () => {
+      const head = headOf(headKey);
+      const row = head?.getBoundingClientRect();
+      if (!row) return DOMRect.fromRect();
+      const btn = head!.querySelector('button')?.getBoundingClientRect();
+      return DOMRect.fromRect({ x: btn?.left ?? row.left, y: row.top, width: 0, height: row.height });
+    },
+    contextElement: headOf(headKey) ?? undefined,
+  };
 }
 
 export function ProjectMenu({ project, headKey, access, groups, onGroupsChanged, onSaved, onDelete, onClose, onSelect, selected }: ProjectMenuProps) {
   const kind = project.kind ?? 'project';
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const [mode, setMode] = useState<Mode>(null);
   const [busy, setBusy] = useState(false);
   const [text, setText] = useState('');
   const [groupOpen, setGroupOpen] = useState(false);
 
-  // Follow the header while the page or the board scrolls.
-  useLayoutEffect(() => {
-    let raf = 0;
-    const place = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { const p = anchorPos(headKey); if (p) setPos(p); else onClose(); }); };
-    setPos(anchorPos(headKey));
-    window.addEventListener('scroll', place, true);
-    window.addEventListener('resize', place);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); };
-  }, [headKey, onClose]);
+  const anchor = useMemo(() => headAnchor(headKey), [headKey]);
+  const [hasHead, setHasHead] = useState(() => !!headOf(headKey));
 
+  // The header can scroll out of the board (virtualised / collapsed): then the menu closes, like before.
   useEffect(() => {
-    if (groupOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (mode) setMode(null); else onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [mode, onClose, groupOpen]);
+    let raf = 0;
+    const check = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { if (headOf(headKey)) setHasHead(true); else onClose(); }); };
+    window.addEventListener('scroll', check, true);
+    window.addEventListener('resize', check);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('scroll', check, true); window.removeEventListener('resize', check); };
+  }, [headKey, onClose]);
 
   async function save(body: Record<string, unknown>, ok: string, fail: string): Promise<boolean> {
     if (!project.id) return false;
@@ -91,19 +93,22 @@ export function ProjectMenu({ project, headKey, access, groups, onGroupsChanged,
 
   const startEdit = (m: 'name' | 'address') => { setText(m === 'name' ? project.editName ?? '' : project.editAddress ?? ''); setMode(m); };
 
-  if (!pos) return null;
+  if (!hasHead) return null;
   const regionNow = project.bucket;
   const projectLabel = project.editName || String(project.projectNo);
 
   return (
     <>
-      {!groupOpen && (
-        <div className="fixed inset-0 z-40" aria-hidden onClick={onClose} onContextMenu={e => { e.preventDefault(); onClose(); }} />
-      )}
-      <div data-board-popup role="menu" aria-label={`Project ${project.projectNo}`}
-        className={cn('fixed z-50 flex min-w-[200px] max-w-[260px] flex-col rounded-[6px] border border-ui-divider bg-ui-surface-elevated py-1 shadow-03',
+      {/* Escape: first leaves an open inline editor, then closes. A click outside closes. While the
+          Add to Group dialog is open it handles Escape / clicks itself. */}
+      <Popover open onOpenChange={(o, details) => {
+        if (o || groupOpen) return;
+        if (details.reason === 'escape-key' && mode) { setMode(null); return; }
+        onClose();
+      }}>
+      <PopoverContent data-board-popup role="menu" aria-label={`Project ${project.projectNo}`} anchor={anchor} align="start"
+        className={cn('min-w-[200px] max-w-[260px] gap-0 p-0 py-1',
           busy && 'pointer-events-none opacity-60', groupOpen && 'hidden')}
-        style={{ left: pos.left, top: pos.top }}
         onContextMenu={e => e.preventDefault()}>
         {/* The price list carries prices: not for roles without PF access (tlines_pm). */}
         {access.viewPf && (
@@ -184,11 +189,12 @@ export function ProjectMenu({ project, headKey, access, groups, onGroupsChanged,
             </button>
           </>
         )}
-      </div>
-      {groupOpen && project.id && (
-        <AddToGroupModal projectId={project.id} projectLabel={projectLabel} types={typesOf(project)} groups={groups}
-          onChanged={onGroupsChanged} onClose={onClose} />
-      )}
+        {groupOpen && project.id && (
+          <AddToGroupModal projectId={project.id} projectLabel={projectLabel} types={typesOf(project)} groups={groups}
+            onChanged={onGroupsChanged} onClose={onClose} />
+        )}
+      </PopoverContent>
+      </Popover>
     </>
   );
 }
@@ -242,9 +248,9 @@ function TypesEditor({ project, busy, onSave, onCancel }: {
       <span className="text-[12px] font-medium text-ui-heading">Select project types:</span>
       {all.map(t => (
         <label key={t.type} className="flex cursor-pointer items-center gap-2 text-[13px] text-ui-body">
-          <input type="checkbox" checked={checked.has(t.type)} onChange={e => {
+          <Checkbox checked={checked.has(t.type)} onCheckedChange={on => {
             setConfirming(false);
-            setChecked(s => { const n = new Set(s); if (e.target.checked) n.add(t.type); else n.delete(t.type); return n; });
+            setChecked(s => { const n = new Set(s); if (on) n.add(t.type); else n.delete(t.type); return n; });
           }} />
           {t.type}{t.custom && <span className="text-[11px] text-ui-text-secondary">(custom)</span>}
         </label>
@@ -322,22 +328,22 @@ function AddToGroupModal({ projectId, projectLabel, types, groups, onChanged, on
           ) : (
             <>
               <label className="flex flex-col gap-1 text-[12px] font-medium text-ui-heading">Type
-                <select className={SELECT} value={type} onChange={e => setType(e.target.value)}>
+                <Select className={SELECT} value={type} onChange={e => setType(e.target.value)}>
                   {types.map(t => <option key={t.type} value={t.type}>{t.type}{added.has(t.type) ? ' (already added)' : ''}</option>)}
-                </select>
+                </Select>
               </label>
               <label className="flex flex-col gap-1 text-[12px] font-medium text-ui-heading">Group
-                <select className={SELECT} value={groupId} onChange={e => setGroupId(e.target.value)}>
+                <Select className={SELECT} value={groupId} onChange={e => setGroupId(e.target.value)}>
                   <option value="new">+ Create New Group</option>
                   {groups.map(g => <option key={g.id} value={g.id}>Group {g.number}</option>)}
-                </select>
+                </Select>
               </label>
               {group && (
                 <label className="flex flex-col gap-1 text-[12px] font-medium text-ui-heading">Rank
-                  <select className={SELECT} value={rank} onChange={e => setRank(Number(e.target.value))}>
+                  <Select className={SELECT} value={rank} onChange={e => setRank(Number(e.target.value))}>
                     {ranks.map(r => <option key={r} value={r}>Rank {r}</option>)}
                     <option value={maxRank + 1}>+ New rank ({maxRank + 1})</option>
-                  </select>
+                  </Select>
                 </label>
               )}
               {already && <p className="m-0 text-[12px] text-error-normal">This type is already in that group.</p>}
