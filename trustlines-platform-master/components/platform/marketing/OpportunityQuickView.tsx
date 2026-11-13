@@ -26,7 +26,7 @@ import type { OpportunityStage, PotentialStatus, LeadTiming } from '@/types/data
 import { feedback } from '@/components/ui/feedback-toast';
 import { DealDocuments } from '@/components/platform/sales/DealDocuments';
 import { DealDesign } from '@/components/platform/sales/DealDesign';
-import { ConfirmModal } from '@/components/ui/modal';
+import { ConfirmModal, ModalPanel } from '@/components/ui/modal';
 import { Textarea } from '@/components/ui/textarea';
 import { Button, buttonVariants } from '@/components/ui/button';
 
@@ -146,19 +146,6 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
       if (Object.keys(found).length) setImageLinks(prev => ({ ...prev, ...found }));
     })();
   }, [notes, apiBase]);
-
-  const mouseDownOnBackdrop = useRef(false);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (popupOpen) return; // the open popup closes itself on Esc
-      if (lightbox) { setLightbox(null); return; }
-      onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, lightbox, popupOpen]);
 
   async function saveField(name: string, value: unknown, extra?: Record<string, unknown>) {
     setOpp(prev => (prev ? { ...prev, [name]: value, ...extra } : prev));
@@ -308,13 +295,14 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
 
   // Figma "Lead detail" (node 305:10279): header, 2×2 field cards + Files, Activity on the right.
   return (
-    <div
-      onMouseDown={e => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
-      onClick={e => { if (mouseDownOnBackdrop.current && e.target === e.currentTarget) onClose(); }}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3vh 16px' }}
+    // Escape / dimmed-area click: an open confirm closes itself first, then an open image, then the panel.
+    <ModalPanel
+      onOpenChange={o => { if (o || popupOpen) return; if (lightbox) { setLightbox(null); return; } onClose(); }}
+      aria-label={title}
+      layerClassName="z-[10000]"
+      containerClassName="px-4 py-[3vh]"
     >
       <div
-        role="dialog" aria-modal="true" aria-label={title}
         onClick={e => e.stopPropagation()}
         className="qv-root flex h-[94vh] w-[96vw] max-w-[1616px] flex-col gap-6 overflow-hidden rounded-card bg-ui-page-bg p-8 shadow-04"
       >
@@ -813,7 +801,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
         confirmLabel="Remove"
         onConfirm={async () => { if (removingFile) await deleteFile(removingFile); }}
       />
-    </div>
+    </ModalPanel>
   );
 }
 

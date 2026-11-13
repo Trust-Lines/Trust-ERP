@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ModalPanel } from '@/components/ui/modal';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { buildCardTabs, isShipped, type CardDeal, type CardPhase, type CardProject, type CardTab, type ChipTone } from '@/lib/dashboard/cardTabs';
 import type { ProjectFinance } from '@/lib/finance/projectTotals';
@@ -45,7 +46,6 @@ export function BoardItemView({ item, section, assignees, canEdit, onClose }: {
   const [error, setError] = React.useState<string | null>(null);
   const [selected, setSelected] = React.useState<string | null>(null);
   const [openDeal, setOpenDeal] = React.useState<CardDeal | null>(null);
-  const mouseDownOnBackdrop = React.useRef(false);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -57,12 +57,6 @@ export function BoardItemView({ item, section, assignees, canEdit, onClose }: {
       .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load this project'); });
     return () => { cancelled = true; };
   }, [item]);
-
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !openDeal) onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, openDeal]);
 
   const today = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
   const tabs = React.useMemo(
@@ -82,13 +76,14 @@ export function BoardItemView({ item, section, assignees, canEdit, onClose }: {
   const stageInk = `color-mix(in srgb, ${section.accent} 60%, black)`;
 
   return (
-    <div
-      onMouseDown={e => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
-      onClick={e => { if (mouseDownOnBackdrop.current && e.target === e.currentTarget) onClose(); }}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3vh 16px' }}
+    // While a deal is open on top, Escape / clicks belong to that deal, not this panel.
+    <ModalPanel
+      onOpenChange={o => { if (!o && !openDeal) onClose(); }}
+      aria-label={item.title}
+      layerClassName="z-[10000]"
+      containerClassName="px-4 py-[3vh]"
     >
       <div
-        role="dialog" aria-modal="true" aria-label={item.title}
         className="flex h-[94vh] w-[96vw] max-w-[1616px] flex-col gap-6 overflow-hidden rounded-[11px] bg-ui-page-bg p-8 shadow-04"
       >
         {/* ── Page heading ─────────────────────────────────────────── */}
@@ -180,7 +175,7 @@ export function BoardItemView({ item, section, assignees, canEdit, onClose }: {
       {openDeal && (
         <OpportunityQuickView opportunityId={openDeal.id} kind={openDeal.kind} assignees={assignees} canEdit={canEdit} onClose={() => setOpenDeal(null)} />
       )}
-    </div>
+    </ModalPanel>
   );
 }
 
