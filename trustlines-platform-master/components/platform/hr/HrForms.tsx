@@ -108,9 +108,9 @@ export function NewOrderDialog({ open, onOpenChange, onCreate }: {
       canSubmit={!!name.trim() && !!dueDate}
       onSubmit={() => onCreate({ name: name.trim(), reference: reference.trim() || null, dueDate })}
     >
-      <Field label="Item name">{id => <Input id={id} value={name} onChange={e => setName(e.target.value)} required autoFocus />}</Field>
-      <Field label="Reference">{id => <Input id={id} value={reference} onChange={e => setReference(e.target.value)} placeholder="#SE89846" />}</Field>
-      <Field label="Delivery date">{id => <Input id={id} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} required />}</Field>
+      <Field label="Item name">{id => <Input id={id} value={name} onChange={e => setName(e.target.value)} required autoFocus className="h-11 text-[15px]" />}</Field>
+      <Field label="Reference">{id => <Input id={id} value={reference} onChange={e => setReference(e.target.value)} placeholder="#SE89846" className="h-11 text-[15px]" />}</Field>
+      <Field label="Delivery date">{id => <Input id={id} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} required className="h-11 text-[15px] [&::-webkit-calendar-picker-indicator]:size-4" />}</Field>
     </FormDialog>
   );
 }
