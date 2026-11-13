@@ -25,10 +25,12 @@ function PopoverContent({
   side = "bottom",
   align = "end",
   sideOffset = 4,
+  anchor,
   children,
   ...props
 }: Omit<PopoverPrimitive.Popup.Props, "className"> & { className?: string } &
-  Pick<PopoverPrimitive.Positioner.Props, "side" | "align" | "sideOffset">) {
+  // anchor: position against something other than the trigger, e.g. a table cell rect or a click point.
+  Pick<PopoverPrimitive.Positioner.Props, "side" | "align" | "sideOffset" | "anchor">) {
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Positioner
@@ -36,6 +38,7 @@ function PopoverContent({
         side={side}
         align={align}
         sideOffset={sideOffset}
+        anchor={anchor}
         collisionPadding={8}
       >
         <PopoverPrimitive.Popup

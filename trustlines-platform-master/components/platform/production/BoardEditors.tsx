@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Menu, MenuContent, MenuGroup, MenuGroupLabel, MenuItem } from '@/components/ui/menu';
 import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
+import { Popover, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 // Production tracker editors for TYPE, VENDOR and ORDER TYPE, and the row's right-click menu —
@@ -17,7 +18,8 @@ import { cn } from '@/lib/utils';
 export interface BoardVendor { id: string; code: string | null; name: string; fixedMillworkCodes?: boolean }
 
 const vendorLabel = (v: BoardVendor) => (v.code ? `${v.code} - ${v.name}` : v.name);
-const POPUP = 'fixed z-50 flex flex-col overflow-hidden rounded-[6px] border border-ui-divider bg-ui-surface-elevated shadow-03';
+/** Board popups use the shared Popover; this only trims its default padding / gap. */
+const PANEL = 'gap-0 overflow-hidden p-0';
 const INPUT = 'h-8 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-2.5 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-ui-focus-ring';
 const OPTION = 'flex w-full cursor-pointer items-center gap-2 border-0 bg-transparent px-3 py-1.5 text-left text-[13px] text-ui-body';
 
@@ -35,12 +37,6 @@ export function useBoardLists() {
   }, []);
   useEffect(() => { void reloadVendors(); void reloadOrderTypes(); }, [reloadVendors, reloadOrderTypes]);
   return { vendors, orderTypes, reloadVendors, reloadOrderTypes };
-}
-
-/** Where a popup sits: under the anchor, flipped up / left when it would leave the window. */
-export function popupStyle(rect: { left: number; top: number; bottom: number }, w: number, h: number): CSSProperties {
-  const left = Math.max(8, Math.min(rect.left, window.innerWidth - w - 8));
-  return rect.bottom + h > window.innerHeight ? { left, bottom: Math.max(8, window.innerHeight - rect.top + 2), width: w } : { left, top: rect.bottom + 2, width: w };
 }
 
 function useDismiss(onClose: () => void) {
@@ -143,21 +139,22 @@ export function VendorPicker({ rect, current, vendors, onPick, onClose, onVendor
   const [query, setQuery] = useState('');
   const [creating, setCreating] = useState<string | null>(null);
   useDismiss(creating ? () => {} : onClose);
+  const anchor = useMemo(() => ({ getBoundingClientRect: () => rect }), [rect]);
   return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden />
-      <div data-board-popup className={POPUP} style={popupStyle(rect, Math.max(320, rect.width), 350)}>
+    <Popover open onOpenChange={o => { if (!o && creating === null) onClose(); }}>
+      <PopoverContent data-board-popup aria-label="Vendor" anchor={anchor} align="start" sideOffset={2}
+        className={PANEL} style={{ width: Math.max(320, rect.width) }}>
         <div className="border-b border-ui-divider p-2">
           <input autoFocus className={INPUT} placeholder="Select or type to filter..." aria-label="Vendor" value={query} onChange={e => setQuery(e.target.value)}
             onKeyDown={e => { if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === 'Tab') (e.currentTarget.parentElement?.nextElementSibling as HTMLElement | null)?.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, bubbles: true })); }} />
         </div>
         <VendorList vendors={vendors} current={current} query={query} onPick={onPick} onVendorsChanged={() => void onVendorsChanged()} onCreate={setCreating} />
-      </div>
-      {creating !== null && (
-        <AddVendorForm initialName={creating} onClose={() => setCreating(null)}
-          onCreated={async v => { setCreating(null); await onVendorsChanged(); onPick(v); }} />
-      )}
-    </>
+        {creating !== null && (
+          <AddVendorForm initialName={creating} onClose={() => setCreating(null)}
+            onCreated={async v => { setCreating(null); await onVendorsChanged(); onPick(v); }} />
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -260,18 +257,19 @@ export function OrderTypePicker({ rect, current, options, onPick, onClear, onClo
 }) {
   const [query, setQuery] = useState('');
   useDismiss(onClose);
+  const anchor = useMemo(() => ({ getBoundingClientRect: () => rect }), [rect]);
   return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden />
-      <div data-board-popup className={POPUP} style={popupStyle(rect, Math.max(260, rect.width), 350)}>
+    <Popover open onOpenChange={o => { if (!o) onClose(); }}>
+      <PopoverContent data-board-popup aria-label="Order type" anchor={anchor} align="start" sideOffset={2}
+        className={PANEL} style={{ width: Math.max(260, rect.width) }}>
         <div className="flex gap-1.5 border-b border-ui-divider p-2">
           <input autoFocus className={INPUT} placeholder="Select or type to filter..." aria-label="Order type" value={query} onChange={e => setQuery(e.target.value)}
             onKeyDown={e => { if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab'].includes(e.key)) (e.currentTarget.parentElement?.nextElementSibling as HTMLElement | null)?.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, bubbles: true })); }} />
           {current && <Button size="xs" variant="secondary" onClick={onClear}>Clear</Button>}
         </div>
         <OrderTypeList options={options} current={current} query={query} onPick={onPick} onAdded={onAdded} />
-      </div>
-    </>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -327,11 +325,6 @@ export function EditItemPanel({ point, type, items, vendors, orderTypes, canAdd,
     if (dirty && auto) void flush();
     onClose();
   }, [dirty, auto, flush, onClose]);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !field && creating === null) close(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [close, field, creating]);
 
   async function go(delta: number) {
     if (dirty) await flush();
@@ -343,19 +336,24 @@ export function EditItemPanel({ point, type, items, vendors, orderTypes, canAdd,
     if (id) { setDraft(null); setWantId(id); }
   }
 
-  const W = 360, H = 420;
-  const style: CSSProperties = {
-    width: W,
-    left: Math.max(8, Math.min(point.x + 8, window.innerWidth - W - 8)),
-    top: Math.max(8, Math.min(point.y + 8, window.innerHeight - H - 8)),
-  };
+  // Opens just below-right of the click point; flips / shifts to stay on screen.
+  const anchor = useMemo(() => ({
+    getBoundingClientRect: () => DOMRect.fromRect({ x: point.x + 8, y: point.y, width: 0, height: 0 }),
+  }), [point.x, point.y]);
   if (!item) return null;
   const v = vendors.find(x => x.id === vendorId) ?? null;
 
   return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={close} aria-hidden />
-      <div data-board-popup role="dialog" aria-label={`Edit ${type} Item`} className={cn(POPUP, 'gap-3 p-4')} style={style}>
+    // Escape: ignored while a vendor / order-type list or Add Vendor is open (they handle it), like before.
+    // Click outside: always closes (via close(), which flushes or asks about unsaved changes).
+    <Popover open onOpenChange={(o, details) => {
+      if (o) return;
+      if (details.reason === 'escape-key' && (field || creating !== null)) return;
+      if (creating !== null) return;
+      close();
+    }}>
+      <PopoverContent data-board-popup aria-label={`Edit ${type} Item`} anchor={anchor} align="start" sideOffset={8}
+        className={cn(PANEL, 'w-[360px] gap-3 p-4')}>
         <div className="flex items-center gap-2">
           <h3 className="m-0 flex-1 text-[15px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">
             Edit {type} Item{items.length > 1 && <span className="ml-1.5 text-[12px] font-normal text-ui-text-secondary">{index + 1} of {items.length}</span>}
@@ -415,12 +413,12 @@ export function EditItemPanel({ point, type, items, vendors, orderTypes, canAdd,
           ? <p className="m-0 flex items-center gap-1.5 text-[11px] text-ui-text-secondary"><span className="size-1.5 animate-pulse rounded-full bg-[var(--color-info-normal)]" aria-hidden />Changes will be auto-saved in 300ms...</p>
           : <Button size="sm" onClick={() => void flush()}>Save changes</Button>)}
         {vendorId && <p className="m-0 text-[11px] text-ui-text-secondary">PF code will be automatically generated when you save</p>}
-      </div>
-      {creating !== null && (
-        <AddVendorForm initialName={creating} onClose={() => setCreating(null)}
-          onCreated={async nv => { setCreating(null); await onVendorsChanged(); setDraft({ vendorId: nv.id, orderType }); setField(null); }} />
-      )}
-    </>
+        {creating !== null && (
+          <AddVendorForm initialName={creating} onClose={() => setCreating(null)}
+            onCreated={async nv => { setCreating(null); await onVendorsChanged(); setDraft({ vendorId: nv.id, orderType }); setField(null); }} />
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
