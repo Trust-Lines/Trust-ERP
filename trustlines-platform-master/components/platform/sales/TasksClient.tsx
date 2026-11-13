@@ -1,17 +1,18 @@
 'use client';
 
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Check, Ellipsis, ExternalLink, ListChecks, Plus, RefreshCw, RotateCcw, Search, UserRound, X } from 'lucide-react';
+import { Check, Ellipsis, ExternalLink, ListChecks, Plus, RefreshCw, RotateCcw, Search, UserRound } from 'lucide-react';
 import { formatDate } from '@/lib/formatDate';
 import { Select as FilterSelect, Select } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { EmptyState } from '@/components/ui/empty-state';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { findStatusTag } from '@/lib/status/tags';
@@ -439,12 +440,7 @@ function NewTaskDialog({ deals, assignees, onClose, onCreated }: {
   const [assigneeId, setAssigneeId] = useState('');
   const [due, setDue] = useState('');
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const formId = useId();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -476,18 +472,17 @@ function NewTaskDialog({ deals, assignees, onClose, onCreated }: {
   }
 
   return (
-    <div className="fixed inset-0 z-[10000] grid place-items-center bg-black/45 p-4" onClick={onClose}>
-      <form
-        role="dialog" aria-modal="true" aria-labelledby="new-task-title"
-        onClick={e => e.stopPropagation()} onSubmit={submit}
-        className="flex w-full max-w-[480px] flex-col gap-4 rounded-card bg-ui-page-bg p-6 shadow-04"
-      >
-        <div className="flex items-center justify-between">
-          <h2 id="new-task-title" className={cn('m-0 text-[20px] font-semibold', HEADING)}>New Task</h2>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
-            <X className="size-4" />
+    <Modal open onOpenChange={o => { if (!o) onClose(); }}>
+      <ModalContent
+        title="New Task"
+        footer={<>
+          <ModalClose render={<Button variant="secondary" size="md" className={modalSecondaryButtonClass} />}>Cancel</ModalClose>
+          <Button type="submit" form={formId} variant="accent" size="md" loading={saving} disabled={!title.trim() || !dealId}>
+            Add task
           </Button>
-        </div>
+        </>}
+      >
+      <form id={formId} onSubmit={submit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1.5 text-[14px] font-medium text-ui-body">
           Task
           <Input autoFocus required aria-label="Task" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Send the revised proposal" className="h-10 text-[14px]" />
@@ -520,15 +515,8 @@ function NewTaskDialog({ deals, assignees, onClose, onCreated }: {
             />
           </div>
         </div>
-        <div className="flex justify-end gap-2.5 pt-1">
-          <Button variant="secondary" size="md" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="accent" size="md" loading={saving} disabled={!title.trim() || !dealId}>
-            Add task
-          </Button>
-        </div>
       </form>
-    </div>
+      </ModalContent>
+    </Modal>
   );
 }

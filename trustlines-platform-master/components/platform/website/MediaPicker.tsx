@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Folder, ChevronRight, X, Loader2, Check } from 'lucide-react';
+import { Folder, ChevronRight, Loader2, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Modal, ModalContent } from '@/components/ui/modal';
 import { thumb } from '@/lib/web-cms/config';
 
 interface Entry { type: 'file' | 'folder'; name: string; path: string; url?: string }
@@ -42,29 +44,26 @@ export function MediaPicker({ multiple, onClose, onPick }: Props) {
   };
 
   return (
-    <div
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{ background: 'var(--bg-surface, #fff)', borderRadius: 14, width: 'min(920px, 100%)', maxHeight: '86vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 60px rgba(0,0,0,.3)' }}
+    <Modal open onOpenChange={o => { if (!o) onClose(); }}>
+      <ModalContent
+        size="xl"
+        title="Image library"
+        footer={multiple ? <>
+          <span className="mr-auto text-[12.5px] text-ui-text-secondary">{selected.length} selected</span>
+          <Button disabled={!selected.length} onClick={() => onPick(selected)}>Add selected</Button>
+        </> : undefined}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 18px', borderBottom: '1px solid var(--border-subtle)' }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>Image library</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 12.5, marginLeft: 12, flexWrap: 'wrap', flex: 1 }}>
-            <button className="btn btn-ghost btn-sm" onClick={() => setPath('/')}>All images</button>
-            {crumbs.map((c, i) => (
-              <span key={i} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                <ChevronRight size={12} style={{ opacity: .5 }} />
-                <button className="btn btn-ghost btn-sm" onClick={() => setPath('/' + crumbs.slice(0, i + 1).join('/'))}>{c}</button>
-              </span>
-            ))}
-          </div>
-          <button className="btn btn-ghost btn-sm" onClick={onClose} aria-label="Close"><X size={16} /></button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 12.5, flexWrap: 'wrap', marginBottom: 12 }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setPath('/')}>All images</button>
+          {crumbs.map((c, i) => (
+            <span key={i} style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <ChevronRight size={12} style={{ opacity: .5 }} />
+              <button className="btn btn-ghost btn-sm" onClick={() => setPath('/' + crumbs.slice(0, i + 1).join('/'))}>{c}</button>
+            </span>
+          ))}
         </div>
 
-        <div style={{ padding: 18, overflowY: 'auto', flex: 1, minHeight: 240 }}>
+        <div style={{ minHeight: 240 }}>
           {loading ? (
             <div style={{ textAlign: 'center', padding: 48, color: 'var(--fg-subtle)' }}><Loader2 size={20} className="animate-spin" /></div>
           ) : error ? (
@@ -96,14 +95,7 @@ export function MediaPicker({ multiple, onClose, onPick }: Props) {
             </div>
           )}
         </div>
-
-        {multiple && (
-          <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 12.5, color: 'var(--fg-subtle)' }}>{selected.length} selected</span>
-            <button className="btn btn-primary" disabled={!selected.length} onClick={() => onPick(selected)}>Add selected</button>
-          </div>
-        )}
-      </div>
-    </div>
+      </ModalContent>
+    </Modal>
   );
 }

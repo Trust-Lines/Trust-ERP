@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Loader2, Plus, X, FileText, Download, ExternalLink, Maximize2, Camera, PenLine, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Modal, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import type { PdfSection, PdfItem } from '@/lib/pdf/PriceListPdf';
@@ -758,26 +760,26 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
         </div>
       </div>
 
-      {etdOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => !statusBusy && setEtdOpen(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-surface)', borderRadius: 12, width: 'min(360px, 94vw)', padding: 18 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Mark as ORDERED</div>
-            <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 12 }}>STD is set to today. Pick the <b>Estimated Delivery Date (ETD)</b> — required.</div>
-            <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)' }}>Estimated Delivery Date</label>
-            <input type="date" value={etdValue} onChange={e => setEtdValue(e.target.value)} autoFocus
-              style={{ width: '100%', boxSizing: 'border-box', fontSize: 13, padding: '8px 10px', border: '1px solid var(--border-default)', borderRadius: 7, marginTop: 4 }} />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-              <button onClick={() => setEtdOpen(false)} disabled={statusBusy} className="btn btn-ghost btn-sm">Cancel</button>
-              <button
-                onClick={async () => { if (!etdValue) { toast.error('Pick an ETD'); return; } await applyStatus('ORDERED', etdValue); setEtdOpen(false); }}
-                disabled={statusBusy || !etdValue}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 7, border: 'none', background: (statusBusy || !etdValue) ? 'var(--ui-divider)' : 'var(--ui-btn-solid)', color: (statusBusy || !etdValue) ? 'var(--ui-text-secondary)' : 'var(--ui-btn-solid-fg)', fontSize: 13, fontWeight: 700, cursor: (statusBusy || !etdValue) ? 'default' : 'pointer' }}>
-                {statusBusy ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : null} Confirm ORDERED
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal open={etdOpen} onOpenChange={o => { if (!o && !statusBusy) setEtdOpen(false); }}>
+        <ModalContent
+          size="sm"
+          title="Mark as ORDERED"
+          description={<>STD is set to today. Pick the <b>Estimated Delivery Date (ETD)</b> — required.</>}
+          footer={<>
+            <Button variant="secondary" className={modalSecondaryButtonClass} onClick={() => setEtdOpen(false)} disabled={statusBusy}>Cancel</Button>
+            <Button
+              loading={statusBusy} disabled={!etdValue}
+              onClick={async () => { if (!etdValue) { toast.error('Pick an ETD'); return; } await applyStatus('ORDERED', etdValue); setEtdOpen(false); }}
+            >
+              Confirm ORDERED
+            </Button>
+          </>}
+        >
+          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)' }}>Estimated Delivery Date</label>
+          <input type="date" value={etdValue} onChange={e => setEtdValue(e.target.value)} autoFocus
+            style={{ width: '100%', boxSizing: 'border-box', fontSize: 13, padding: '8px 10px', border: '1px solid var(--border-default)', borderRadius: 7, marginTop: 4 }} />
+        </ModalContent>
+      </Modal>
 
       {showAssembly && (
         <AssemblyModal

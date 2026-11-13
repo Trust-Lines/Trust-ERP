@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { toast } from 'sonner';
 import { suggestVendorCode } from '@/lib/production/vendorCode';
 
@@ -38,15 +39,17 @@ export function AddVendorModal({
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-      onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: 'var(--bg-surface)', borderRadius: 10, width: 460, maxWidth: '94vw', boxShadow: '0 24px 64px rgba(0,0,0,0.35)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
-          <div style={{ fontSize: 16, fontWeight: 700 }}>Add New Vendor</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={18} color="#666" /></button>
-        </div>
-
-        <div style={{ padding: '18px 20px' }}>
+    // layerClassName: opened from the document generator, which sits above the normal z-50 layer.
+    <Modal open onOpenChange={o => { if (!o) onClose(); }}>
+      <ModalContent
+        title="Add New Vendor"
+        layerClassName="z-[10000]"
+        footer={<>
+          <ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Cancel</ModalClose>
+          <Button onClick={create} loading={saving} disabled={!name.trim()}>Create Vendor</Button>
+        </>}
+      >
+        <div>
           <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
             Vendor Name <span style={{ color: '#dc2626' }}>*</span>
           </label>
@@ -80,23 +83,8 @@ export function AddVendorModal({
             </div>
           </div>
         </div>
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '14px 20px', borderTop: '1px solid var(--border-subtle)' }}>
-          <button onClick={onClose} style={{ padding: '8px 18px', borderRadius: 6, border: '1px solid var(--border-default)', background: 'var(--bg-surface)', cursor: 'pointer', fontSize: 13 }}>
-            Cancel
-          </button>
-          <button onClick={create} disabled={saving || !name.trim()} style={{
-            padding: '8px 20px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 700,
-            background: name.trim() ? '#1a6b6b' : '#cbd5e1', color: '#fff',
-            cursor: (saving || !name.trim()) ? 'default' : 'pointer',
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-          }}>
-            {saving && <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />}
-            Create Vendor
-          </button>
-        </div>
-      </div>
-    </div>
+      </ModalContent>
+    </Modal>
   );
 }
 

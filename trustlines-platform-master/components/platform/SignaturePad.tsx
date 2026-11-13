@@ -1,7 +1,9 @@
 'use client';
 
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { X, Trash2, Upload, Check, Loader2, PenLine, Camera } from 'lucide-react';
+import { Trash2, Upload, Check, Loader2, PenLine, Camera } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Modal, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { toast } from 'sonner';
 
 interface Props {
@@ -31,9 +33,14 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
   const lastPt                      = useRef<{ x: number; y: number } | null>(null);
   const hasDrawn                    = useRef(false);
 
+  // The dialog draws its content a moment after opening, so wait for the canvas element itself
+  // (canvasEl) instead of assuming it exists on the first render.
+  const [canvasEl, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
+  const attachCanvas = useCallback((el: HTMLCanvasElement | null) => { canvasRef.current = el; setCanvasEl(el); }, []);
+
   useEffect(() => {
     if (mode !== 'draw') return;
-    const canvas = canvasRef.current;
+    const canvas = canvasEl;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -42,7 +49,7 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
     hasDrawn.current = false;
-  }, [mode]);
+  }, [mode, canvasEl]);
 
   const reprocess = useCallback(async (src: string) => {
     setProcessing(true);
@@ -166,16 +173,20 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: 'var(--bg-surface)', borderRadius: 10, padding: '20px 24px', width: 500, maxWidth: '95vw', boxShadow: '0 24px 64px rgba(0,0,0,0.35)' }}>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>Your Signature</div>
-            <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1 }}>Saved once — stamped on PDFs when you approve</div>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={16} color="#666" /></button>
-        </div>
+    // disablePointerDismissal: like before, a click on the backdrop must not throw away a drawn signature.
+    // layerClassName: it opens from other dialogs (approval review, PF / PO tabs) and must stay on top.
+    <Modal open disablePointerDismissal onOpenChange={o => { if (!o && !saving) onClose(); }}>
+      <ModalContent
+        title="Your Signature"
+        description="Saved once — stamped on PDFs when you approve"
+        layerClassName="z-[10000]"
+        footer={<>
+          <Button variant="secondary" className={modalSecondaryButtonClass} onClick={onClose}>Cancel</Button>
+          <Button onClick={save} loading={saving} disabled={processing}>
+            {processing ? <><Loader2 className="animate-spin" aria-hidden /> Processing…</> : <><Check aria-hidden /> Save Signature</>}
+          </Button>
+        </>}
+      >
 
         {existingBase64 && (
           <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--status-success-bg)', border: '1px solid color-mix(in srgb, var(--status-success) 35%, transparent)', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -214,7 +225,7 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
               backgroundColor: '#fff',
             }}>
               <canvas
-                ref={canvasRef}
+                ref={attachCanvas}
                 width={456} height={140}
                 onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
                 onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
@@ -286,28 +297,7 @@ export function SignaturePad({ existingBase64, onSaved, onClose }: Props) {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 18, justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ padding: '7px 18px', borderRadius: 5, border: '1px solid var(--border-default)', background: 'var(--bg-surface)', cursor: 'pointer', fontSize: 13 }}>
-            Cancel
-          </button>
-          <button onClick={save} disabled={saving || processing} style={{
-            padding: '7px 20px', borderRadius: 5, border: 'none',
-            background: '#1a6b6b', color: '#fff',
-            cursor: (saving || processing) ? 'default' : 'pointer',
-            fontSize: 13, fontWeight: 700,
-            opacity: (saving || processing) ? 0.75 : 1,
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-          }}>
-            {saving
-              ? <><Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />Saving…</>
-              : processing
-                ? <><Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />Processing…</>
-                : <><Check size={13} />Save Signature</>
-            }
-          </button>
-        </div>
-
-      </div>
-    </div>
+      </ModalContent>
+    </Modal>
   );
 }

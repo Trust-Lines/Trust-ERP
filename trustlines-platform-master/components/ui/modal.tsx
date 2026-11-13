@@ -26,6 +26,8 @@ const popupVariants = cva(
         sm: "max-w-[400px]",
         md: "max-w-[480px]",
         lg: "max-w-[640px]",
+        // Wide pickers / editors (image library, assembly links).
+        xl: "max-w-[960px]",
       },
     },
     defaultVariants: { size: "md" },
@@ -53,14 +55,16 @@ type ModalContentProps = VariantProps<typeof popupVariants> & {
   /** Show the × button in the header. Default true. */
   showClose?: boolean
   className?: string
+  /** Extra classes on the backdrop and popup — e.g. a higher z-index when opened from an overlay that sits above z-50. */
+  layerClassName?: string
   children?: React.ReactNode
 }
 
-function ModalContent({ title, description, footer, showClose = true, size, className, children }: ModalContentProps) {
+function ModalContent({ title, description, footer, showClose = true, size, className, layerClassName, children }: ModalContentProps) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Backdrop className={backdropClass} />
-      <DialogPrimitive.Popup data-slot="modal" className={cn(popupVariants({ size }), className)}>
+      <DialogPrimitive.Backdrop className={cn(backdropClass, layerClassName)} />
+      <DialogPrimitive.Popup data-slot="modal" className={cn(popupVariants({ size }), layerClassName, className)}>
         <div className="flex items-start gap-3 px-5 pt-5 pb-3">
           <div className="min-w-0 flex-1 space-y-1">
             <DialogPrimitive.Title className={titleClass}>{title}</DialogPrimitive.Title>

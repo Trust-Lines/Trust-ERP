@@ -1,14 +1,15 @@
 'use client';
 
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowDownUp, Building2, Copy, Ellipsis, ExternalLink, Mail, Plus, Search, UserRoundPlus, X } from 'lucide-react';
+import { ArrowDownUp, Building2, Copy, Ellipsis, ExternalLink, Mail, Plus, Search, UserRoundPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
+import { Modal, ModalContent } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
 
@@ -212,29 +213,16 @@ export function CustomersPageClient({ initialCustomers, canEdit }: Props) {
 }
 
 function NewCustomerDialog({ onSave, onClose }: { onSave: (c: NewCustomer) => Promise<boolean>; onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
   return (
-    <div className="fixed inset-0 z-[10000] grid place-items-center bg-black/45 p-4" onClick={onClose}>
-      <div
-        role="dialog" aria-modal="true" aria-labelledby="new-customer-title" onClick={e => e.stopPropagation()}
-        className="flex max-h-[90vh] w-full max-w-[680px] flex-col gap-6 overflow-y-auto rounded-[8px] border border-ui-divider bg-ui-page-bg p-5 shadow-04"
+    <Modal open onOpenChange={o => { if (!o) onClose(); }}>
+      <ModalContent
+        size="lg"
+        title="New Customer"
+        description="Add an end customer to keep their contacts, addresses, meetings and projects together."
       >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 id="new-customer-title" className={cn('m-0 text-[20px] font-semibold leading-[1.45]', HEADING)}>New Customer</h2>
-            <p className="m-0 mt-1 text-[13px] text-ui-body">Add an end customer to keep their contacts, addresses, meetings and projects together.</p>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="grid size-8 place-items-center rounded-[6px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg">
-            <X size={16} />
-          </button>
-        </div>
         <CustomerForm onSave={onSave} onCancel={onClose} />
-      </div>
-    </div>
+      </ModalContent>
+    </Modal>
   );
 }
 

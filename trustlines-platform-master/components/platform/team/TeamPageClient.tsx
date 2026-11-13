@@ -1,7 +1,7 @@
 'use client';
 
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -20,6 +20,7 @@ import type { UserRole } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
+import { Modal, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover';
 
@@ -418,12 +419,6 @@ function EditModal({
   const [serviceIds, setServiceIds]   = useState<string[]>(profile.service_line_ids ?? []);
   const [assignedRegions, setAssignedRegions] = useState<string[]>(profile.assigned_regions ?? []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
   const toggle = (list: string[], set: (v: string[]) => void, value: string) =>
     set(list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
 
@@ -471,21 +466,16 @@ function EditModal({
   const dash = { value: '', label: '—' };
 
   return (
-    <div className="fixed inset-0 z-[10000] grid place-items-center bg-black/45 p-4" onClick={onClose}>
-      <div
-        role="dialog" aria-modal="true" aria-labelledby="edit-member-title" onClick={e => e.stopPropagation()}
-        className="flex max-h-[90vh] w-full max-w-[600px] flex-col gap-6 overflow-y-auto rounded-[8px] border border-ui-divider bg-ui-page-bg p-5 shadow-04"
+    <Modal open onOpenChange={o => { if (!o && !saving) onClose(); }}>
+      <ModalContent
+        size="lg"
+        title="Edit member"
+        description={profile.email}
+        footer={<>
+          <Button variant="secondary" size="md" className={modalSecondaryButtonClass} onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button size="md" onClick={handleSave} disabled={!fullName.trim()} loading={saving}>Save changes</Button>
+        </>}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 id="edit-member-title" className={cn('m-0 text-[20px] font-semibold leading-[1.45]', HEADING)}>Edit member</h2>
-            <p className="m-0 mt-1 text-[13px] text-ui-body">{profile.email}</p>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="grid size-8 place-items-center rounded-[6px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg">
-            <X size={16} />
-          </button>
-        </div>
-
         <div className="flex flex-col gap-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -628,13 +618,8 @@ function EditModal({
             Active account
           </label>
         </div>
-
-        <div className="flex items-center justify-between gap-3 border-t border-ui-divider pt-5">
-          <Button variant="secondary" size="md" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button size="md" onClick={handleSave} disabled={!fullName.trim()} loading={saving}>Save changes</Button>
-        </div>
-      </div>
-    </div>
+      </ModalContent>
+    </Modal>
   );
 }
 
