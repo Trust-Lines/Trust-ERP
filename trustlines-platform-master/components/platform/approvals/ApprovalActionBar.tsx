@@ -6,16 +6,16 @@ import { toast } from 'sonner';
 import { feedback } from '@/components/ui/feedback-toast';
 
 export interface ApprovalActionBarProps {
-  approvalId:   string;
-  projectId:    string;
+  approvalId: string;
+  projectId: string;
   isFinalStage: boolean;
-  versionNum:   number | null;
+  versionNum: number | null;
   userSignature: string | null | undefined;
   onNeedSignature?: (resume: () => void) => void;
-  onDone:            () => void;
+  onDone: () => void;
   onApproveOptimistic?: () => void;
-  onPdfSigned?:      () => void;
-  onSynced?:         () => void;
+  onPdfSigned?: () => void;
+  onSynced?: () => void;
   size?: 'sm' | 'md';
 }
 
@@ -24,14 +24,14 @@ export function ApprovalActionBar({
   userSignature, onNeedSignature, onDone, onApproveOptimistic, onPdfSigned, onSynced,
   size = 'sm',
 }: ApprovalActionBarProps) {
-  const [acting, setActing]         = useState(false);
-  const [rejecting, setRejecting]   = useState(false);
+  const [acting, setActing] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
 
   const md = size === 'md';
   const padBtn = md ? '7px 16px' : '4px 10px';
-  const fsBtn  = md ? 13 : 11;
-  const icon   = md ? 13 : 10;
+  const fsBtn = md ? 13 : 11;
+  const icon = md ? 13 : 10;
 
   async function act(action: 'approve' | 'reject') {
     if (action === 'approve' && userSignature === null) {
@@ -162,3 +162,5 @@ export function ApprovalActionBar({
     </div>
   );
 }
+
+
