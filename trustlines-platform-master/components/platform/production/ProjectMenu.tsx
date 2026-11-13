@@ -107,6 +107,7 @@ export function ProjectMenu({ project, headKey, access, groups, onGroupsChanged,
         onClose();
       }}>
       <PopoverContent data-board-popup role="menu" aria-label={`Project ${project.projectNo}`} anchor={anchor} align="start"
+        backdrop={!groupOpen} onBackdropContextMenu={onClose}
         className={cn('min-w-[200px] max-w-[260px] gap-0 p-0 py-1',
           busy && 'pointer-events-none opacity-60', groupOpen && 'hidden')}
         onContextMenu={e => e.preventDefault()}>

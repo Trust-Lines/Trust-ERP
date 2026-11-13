@@ -26,13 +26,28 @@ function PopoverContent({
   align = "end",
   sideOffset = 4,
   anchor,
+  backdrop = false,
+  onBackdropContextMenu,
   children,
   ...props
-}: Omit<PopoverPrimitive.Popup.Props, "className"> & { className?: string } &
+}: Omit<PopoverPrimitive.Popup.Props, "className"> & {
+  className?: string
+  /** Invisible full-screen layer behind the popover: a click outside only closes it (it never reaches
+   *  what is underneath). For popups that replaced a hand-made click-catcher overlay. */
+  backdrop?: boolean
+  /** With backdrop: a right-click outside is swallowed (no browser menu) and this runs. */
+  onBackdropContextMenu?: () => void
+} &
   // anchor: position against something other than the trigger, e.g. a table cell rect or a click point.
   Pick<PopoverPrimitive.Positioner.Props, "side" | "align" | "sideOffset" | "anchor">) {
   return (
     <PopoverPrimitive.Portal>
+      {backdrop && (
+        <PopoverPrimitive.Backdrop
+          className="fixed inset-0 z-[10049]"
+          onContextMenu={(e) => { e.preventDefault(); onBackdropContextMenu?.() }}
+        />
+      )}
       <PopoverPrimitive.Positioner
         className="z-[10050] outline-none"
         side={side}

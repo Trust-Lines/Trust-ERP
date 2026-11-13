@@ -173,7 +173,7 @@ function StatusMenu({ menu, onPick, onClose }: { menu: OpenMenu; onPick: (value:
   const anchor = useMemo(() => ({ getBoundingClientRect: () => menu.rect }), [menu.rect]);
   return (
     <Popover open onOpenChange={o => { if (!o) onClose(); }}>
-      <PopoverContent data-board-popup role="listbox" aria-label="Choose a status" anchor={anchor} align="start" sideOffset={2}
+      <PopoverContent data-board-popup backdrop role="listbox" aria-label="Choose a status" anchor={anchor} align="start" sideOffset={2}
         style={{ width: MENU_W, maxHeight: MENU_MAX_H }}
         className="gap-1 overflow-y-auto p-1.5">
         {currentFirst(OPTIONS[menu.kind], menu.current).map(o => (
