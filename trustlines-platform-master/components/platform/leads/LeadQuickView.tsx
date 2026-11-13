@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { X, Plus, Trash2, Loader2, ExternalLink } from 'lucide-react';
@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Select, type SelectOption } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { ModalPanel } from '@/components/ui/modal';
 import { OPPORTUNITY_STATUS_TAG } from '@/lib/status/tags';
 
 interface TaskRow {
@@ -36,7 +37,6 @@ export function LeadQuickView({ intakeId, assignees, onClose }: {
   const [intake, setIntake] = useState<Intake | null>(null);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const mouseDownOnBackdrop = useRef(false);
   const [saving, setSaving] = useState(false);
   const [newTask, setNewTask] = useState('');
 
@@ -53,12 +53,6 @@ export function LeadQuickView({ intakeId, assignees, onClose }: {
   }, [intakeId]);
 
   useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   async function saveField(name: string, value: unknown) {
     setIntake(prev => (prev ? { ...prev, [name]: value } : prev));
@@ -112,10 +106,11 @@ export function LeadQuickView({ intakeId, assignees, onClose }: {
   const openTasks = tasks.filter(t => t.status !== 'done').length;
 
   return (
-    <div
-      onMouseDown={e => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
-      onClick={e => { if (mouseDownOnBackdrop.current && e.target === e.currentTarget) onClose(); }}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 10000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '4vh 16px', overflowY: 'auto' }}
+    <ModalPanel
+      onOpenChange={o => { if (!o) onClose(); }}
+      aria-label={code ?? 'Lead'}
+      layerClassName="z-[10000]"
+      containerClassName="items-start overflow-y-auto px-4 py-[4vh]"
     >
       <div
         onClick={e => e.stopPropagation()}
@@ -221,7 +216,7 @@ export function LeadQuickView({ intakeId, assignees, onClose }: {
           </div>
         )}
       </div>
-    </div>
+    </ModalPanel>
   );
 }
 

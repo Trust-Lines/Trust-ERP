@@ -83,6 +83,51 @@ function ModalContent({ title, description, footer, showClose = true, size, clas
   )
 }
 
+type ModalPanelProps = {
+  /** Default true: mount the component to show it, unmount (or onOpenChange(false)) to hide it. */
+  open?: boolean
+  /** Called with false on Escape or a click on the dimmed area. Ignore it to keep the panel open. */
+  onOpenChange: (open: boolean) => void
+  "aria-label"?: string
+  /** The full-screen layer that centres the panel: alignment, padding, scrolling. */
+  containerClassName?: string
+  /** Extra classes on the backdrop and layer — e.g. z-[10000] to sit above other overlays. */
+  layerClassName?: string
+  /** The panel itself (your own card / page layout). */
+  children: React.ReactNode
+}
+
+/**
+ * Large custom-layout dialog (quick views, full-page panels) that keeps its own card design.
+ * Same behaviour as Modal: focus moves in and is trapped, Escape closes, page scroll is locked,
+ * focus returns to the opener, and nested Modals / Menus / Selects inside it count as part of it.
+ * The panel isn't transformed, so position:fixed children (image lightboxes) still cover the screen.
+ * A click on the dimmed area closes it; a drag that starts inside the panel and ends outside does not.
+ */
+function ModalPanel({ open = true, onOpenChange, containerClassName, layerClassName, children, ...aria }: ModalPanelProps) {
+  const downOnLayer = React.useRef(false)
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={(o) => onOpenChange(o)}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Backdrop className={cn(backdropClass, layerClassName)} />
+        <DialogPrimitive.Popup
+          data-slot="modal-panel"
+          aria-label={aria["aria-label"]}
+          className={cn(
+            "fixed inset-0 z-50 flex items-center justify-center p-4 outline-none transition-opacity duration-150 data-starting-style:opacity-0 data-ending-style:opacity-0",
+            layerClassName,
+            containerClassName
+          )}
+          onMouseDown={(e) => { downOnLayer.current = e.target === e.currentTarget }}
+          onClick={(e) => { if (downOnLayer.current && e.target === e.currentTarget) onOpenChange(false) }}
+        >
+          {children}
+        </DialogPrimitive.Popup>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  )
+}
+
 type ConfirmModalProps = {
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -187,5 +232,5 @@ function ConfirmModal({
   )
 }
 
-export { Modal, ModalTrigger, ModalClose, ModalContent, ConfirmModal, modalSecondaryButtonClass, modalDangerButtonClass }
-export type { ModalContentProps, ConfirmModalProps }
+export { Modal, ModalTrigger, ModalClose, ModalContent, ModalPanel, ConfirmModal, modalSecondaryButtonClass, modalDangerButtonClass }
+export type { ModalContentProps, ModalPanelProps, ConfirmModalProps }

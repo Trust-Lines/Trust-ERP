@@ -7,6 +7,7 @@ import { ProspectDetailClient } from './ProspectDetailClient';
 import { compressImage, MAX_UPLOAD_BYTES } from '@/lib/client/compressImage';
 import { uploadImageDirect } from '@/lib/client/directDropboxUpload';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ModalPanel } from '@/components/ui/modal';
 
 interface ContactNote {
   id: string; prospect_contact_id: string; author_name: string | null; author_id?: string | null;
@@ -64,16 +65,6 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
       if (Object.keys(found).length) setImageLinks(prev => ({ ...prev, ...found }));
     })();
   }, [notes, prospectId]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (lightbox) { setLightbox(null); return; }
-      onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, lightbox]);
 
   const contacts: ContactLite[] = data?.contacts ?? [];
   const primaryContact = contacts.find(c => c.is_primary) ?? contacts[0] ?? null;
@@ -138,13 +129,14 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
     setNotes(prev => prev.filter(x => x.id !== n.id));
   }
 
-  const mouseDownOnBackdrop = useRef(false);
 
   return (
-    <div
-      onMouseDown={e => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
-      onClick={e => { if (mouseDownOnBackdrop.current && e.target === e.currentTarget) onClose(); }}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3vh 16px' }}
+    // Escape / dimmed-area click: an open image closes first, then the panel.
+    <ModalPanel
+      onOpenChange={o => { if (o) return; if (lightbox) { setLightbox(null); return; } onClose(); }}
+      aria-label={data?.prospect?.display_name ?? 'Contact'}
+      layerClassName="z-[10000]"
+      containerClassName="px-4 py-[3vh]"
     >
       <div
         onClick={e => e.stopPropagation()}
@@ -307,6 +299,6 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
         </div>
       )}
       <style>{`.qv-spin{animation:qv-spin 1s linear infinite}@keyframes qv-spin{to{transform:rotate(360deg)}}`}</style>
-    </div>
+    </ModalPanel>
   );
 }
