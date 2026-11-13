@@ -11,6 +11,7 @@ import type { QuickViewTarget } from '@/lib/marketing/quickViewLink';
 import { MarketingPipelineNav } from './MarketingPipelineNav';
 import type { OpportunityStage, ProjectType, LeadEntityType } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export interface DealRow {
   id: string;
@@ -83,7 +84,6 @@ const FILTER_STYLE: React.CSSProperties = {
 };
 const TH_CLS = 'h-[46px] whitespace-nowrap px-2.5 text-left text-[12px] font-semibold leading-[1.4] text-ui-body';
 const TD_CLS = 'px-2.5 py-2 text-[13px] text-ui-body';
-const CHECKBOX_CLS = 'size-4 cursor-pointer accent-[var(--color-secondary-700)]';
 
 const PRIORITY: Record<DealRow['priority'], { label: string; Icon: typeof ChevronsUp; color: string }> = {
   high: { label: 'High', Icon: ChevronsUp, color: 'var(--status-t10-fg)' },
@@ -253,9 +253,10 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
             <thead>
               <tr className="border-b border-ui-divider bg-ui-surface">
                 <th className={cn(TH_CLS, 'w-9 pl-[18px]')}>
-                  <input
-                    type="checkbox" className={CHECKBOX_CLS} checked={allSelected} aria-label="Select all"
-                    onChange={() => setSelected(allSelected ? new Set() : new Set(filteredDeals.map(d => d.id)))}
+                  <Checkbox
+                    checked={allSelected} aria-label="Select all"
+                    indeterminate={!allSelected && selected.size > 0}
+                    onCheckedChange={() => setSelected(allSelected ? new Set() : new Set(filteredDeals.map(d => d.id)))}
                   />
                 </th>
                 <th className={TH_CLS}>
@@ -289,8 +290,8 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
                     className={cn('h-16 cursor-pointer border-t border-ui-divider hover:bg-ui-surface', isSelected && 'bg-ui-selected-bg')}
                   >
                     <td className={cn(TD_CLS, 'pl-[18px]')} onClick={e => e.stopPropagation()}>
-                      <input
-                        type="checkbox" className={CHECKBOX_CLS} checked={isSelected} onChange={() => toggle(d.id)}
+                      <Checkbox
+                        checked={isSelected} onCheckedChange={() => toggle(d.id)}
                         aria-label={`Select ${d.title || d.lead_display_name}`}
                       />
                     </td>
