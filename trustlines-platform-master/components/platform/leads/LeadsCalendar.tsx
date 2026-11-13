@@ -71,18 +71,18 @@ export function LeadsCalendar({ leads, onOpen }: { leads: Lead[]; onOpen: (id: s
                     color: isToday ? '#fff' : 'var(--fg-subtle)',
                     ...(isToday ? { background: 'var(--brand-teal)', width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' } : {}),
                   }}>{day}</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {dayLeads.slice(0, 4).map(l => (
                       <button key={l.id} type="button" onClick={() => onOpen(l.id)} title={l.name} style={{
-                        display: 'flex', alignItems: 'center', gap: 4, border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%',
-                        fontSize: 11, padding: '2px 5px', borderRadius: 4, background: 'var(--bg-sunken)', color: 'var(--fg-default)',
+                        display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%',
+                        fontSize: 13, lineHeight: '18px', padding: '5px 8px', borderRadius: 6, background: 'var(--bg-sunken)', color: 'var(--fg-default)',
                         overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
                       }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: PRIORITY_COLOR[l.priority], flexShrink: 0 }} />
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: PRIORITY_COLOR[l.priority], flexShrink: 0 }} />
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.name}</span>
                       </button>
                     ))}
-                    {dayLeads.length > 4 && <span title={dayLeads.slice(4).map(l => l.name).join(', ')} style={{ fontSize: 10, color: 'var(--fg-faint)' }}>+{dayLeads.length - 4} more</span>}
+                    {dayLeads.length > 4 && <span title={dayLeads.slice(4).map(l => l.name).join(', ')} style={{ fontSize: 12, color: 'var(--fg-faint)' }}>+{dayLeads.length - 4} more</span>}
                   </div>
                 </>
               )}
