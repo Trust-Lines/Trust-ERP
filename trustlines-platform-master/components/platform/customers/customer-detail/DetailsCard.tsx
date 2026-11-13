@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { useState } from 'react';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Modal, ModalContent } from '@/components/ui/modal';
 import type { Customer } from './types';
 import { DetailCard, HEADING } from './ui';
 
@@ -40,29 +40,12 @@ function DetailList({ customer }: { customer: Customer }) {
 }
 
 function EditDialog({ customer, onSave, onCancel }: { customer: Customer; onSave: (p: Partial<Customer>) => Promise<void>; onCancel: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onCancel]);
   return (
-    <div className="fixed inset-0 z-[10000] grid place-items-center bg-black/45 p-4" onClick={onCancel}>
-      <div
-        role="dialog" aria-modal="true" aria-labelledby="edit-customer-title" onClick={e => e.stopPropagation()}
-        className="flex max-h-[90vh] w-full max-w-[680px] flex-col gap-6 overflow-y-auto rounded-[8px] border border-ui-divider bg-ui-page-bg p-5 shadow-04"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 id="edit-customer-title" className={cn('m-0 text-[20px] font-semibold leading-[1.45]', HEADING)}>Edit Customer</h2>
-            <p className="m-0 mt-1 text-[13px] text-ui-body">Update {customer.name}&apos;s details.</p>
-          </div>
-          <button type="button" onClick={onCancel} aria-label="Close" className="grid size-8 place-items-center rounded-[6px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg">
-            <X size={16} />
-          </button>
-        </div>
+    <Modal open onOpenChange={o => { if (!o) onCancel(); }}>
+      <ModalContent size="lg" title="Edit Customer" description={<>Update {customer.name}&apos;s details.</>}>
         <CustomerEditForm customer={customer} onSave={onSave} onCancel={onCancel} />
-      </div>
-    </div>
+      </ModalContent>
+    </Modal>
   );
 }
 

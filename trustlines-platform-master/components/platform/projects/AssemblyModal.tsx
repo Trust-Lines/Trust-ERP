@@ -1,9 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, X, Link2 } from 'lucide-react';
+import { Loader2, Link2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { toast } from 'sonner';
-import { Select } from '@/components/platform/shared/Select';
+// Base UI Select: its list stays inside the dialog's layer (the old drop-in Select drew outside it).
+import { Select } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 
 type ItemRef = { code: string; description: string };
@@ -78,26 +81,20 @@ export function AssemblyModal({ projectId, catGroup, currentPfCode, onClose, onS
   );
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-surface)', borderRadius: 12, width: 'min(960px, 96vw)', maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border-subtle)' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <Link2 size={16} color="#1a6b6b" />
-            <span style={{ fontSize: 15, fontWeight: 700 }}>Assembly — what mounts onto what</span>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-subtle)' }}><X size={18} /></button>
-        </div>
-
+    <Modal open onOpenChange={o => { if (!o) onClose(); }}>
+      <ModalContent size="xl" title={<span className="inline-flex items-center gap-2"><Link2 size={16} aria-hidden /> Assembly — what mounts onto what</span>}>
         {loading ? (
           <div style={{ padding: 50, textAlign: 'center' }}><Loader2 size={20} style={{ animation: 'spin 1s linear infinite', color: 'var(--fg-subtle)' }} /></div>
         ) : (
-          <div style={{ padding: 16, overflowY: 'auto' }}>
+          <div>
             <div style={{ display: 'flex', gap: 14 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', marginBottom: 6 }}>THIS PF (mounts)</div>
-                <Select value={sourcePf ?? ''} onChange={e => { setSourcePf(e.target.value); setSrcSel(new Set()); }} style={{ width: '100%', fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border-default)', marginBottom: 8 }}>
-                  {pfs.map(p => <option key={p.pfCode} value={p.pfCode}>{p.pfCode}</option>)}
-                </Select>
+                <Select
+                  aria-label="This PF" className="mb-2 w-full text-[12px]"
+                  value={sourcePf ?? ''} onValueChange={v => { setSourcePf(v ?? ''); setSrcSel(new Set()); }}
+                  options={pfs.map(p => ({ value: p.pfCode, label: p.pfCode }))}
+                />
                 <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 8, maxHeight: 320, overflowY: 'auto' }}>
                   {sourceItems.length ? sourceItems.map((it, i) => itemRow(it, i, srcSel, setSrcSel)) : <div style={{ padding: 12, fontSize: 11, color: 'var(--fg-faint)' }}>No items.</div>}
                 </div>
@@ -107,10 +104,11 @@ export function AssemblyModal({ projectId, catGroup, currentPfCode, onClose, onS
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)', marginBottom: 6 }}>ONTO THIS PF</div>
-                <Select value={targetPf ?? ''} onChange={e => { setTargetPf(e.target.value || null); setTgtSel(new Set()); }} style={{ width: '100%', fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border-default)', marginBottom: 8 }}>
-                  <option value="">Select a PF…</option>
-                  {otherPfs.map(p => <option key={p.pfCode} value={p.pfCode}>{p.pfCode}</option>)}
-                </Select>
+                <Select
+                  aria-label="Onto this PF" className="mb-2 w-full text-[12px]"
+                  value={targetPf ?? ''} onValueChange={v => { setTargetPf(v || null); setTgtSel(new Set()); }}
+                  options={[{ value: '', label: 'Select a PF…' }, ...otherPfs.map(p => ({ value: p.pfCode, label: p.pfCode }))]}
+                />
                 <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 8, maxHeight: 320, overflowY: 'auto' }}>
                   {targetPf ? (targetItems.length ? targetItems.map((it, i) => itemRow(it, i, tgtSel, setTgtSel)) : <div style={{ padding: 12, fontSize: 11, color: 'var(--fg-faint)' }}>No items.</div>) : <div style={{ padding: 12, fontSize: 11, color: 'var(--fg-faint)' }}>Pick a PF to list its items.</div>}
                 </div>
@@ -123,10 +121,10 @@ export function AssemblyModal({ projectId, catGroup, currentPfCode, onClose, onS
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-              <button onClick={onClose} className="btn btn-ghost btn-sm">Close</button>
-              <button onClick={save} disabled={saving || !srcSel.size || !tgtSel.size} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 7, border: 'none', background: (saving || !srcSel.size || !tgtSel.size) ? '#cbd5e1' : '#1a2b4b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: (saving || !srcSel.size || !tgtSel.size) ? 'default' : 'pointer' }}>
-                {saving ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Link2 size={13} />} Save relationship
-              </button>
+              <ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Close</ModalClose>
+              <Button onClick={save} loading={saving} disabled={!srcSel.size || !tgtSel.size}>
+                <Link2 size={13} aria-hidden /> Save relationship
+              </Button>
             </div>
 
             {links.length > 0 && (
@@ -144,7 +142,7 @@ export function AssemblyModal({ projectId, catGroup, currentPfCode, onClose, onS
             )}
           </div>
         )}
-      </div>
-    </div>
+      </ModalContent>
+    </Modal>
   );
 }

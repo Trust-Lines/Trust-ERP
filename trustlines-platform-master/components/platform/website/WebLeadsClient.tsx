@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Inbox, Mail, Phone, Building2, MapPin, Trash2, UserPlus, X, Loader2, Download } from 'lucide-react';
+import { Inbox, Mail, Phone, Building2, MapPin, Trash2, UserPlus, Loader2, Download } from 'lucide-react';
 import { LEAD_STATUSES, LEAD_STATUS_LABEL, type LeadStatus } from '@/lib/web-cms/leads';
 import { Select } from '@/components/platform/shared/Select';
 import { CategoryViews } from './CategoryViews';
+import { Modal, ModalContent } from '@/components/ui/modal';
 
 export interface WebLeadRow {
   id: string; kind: 'contact' | 'newsletter'; name: string | null; phone: string | null; email: string | null;
@@ -197,12 +198,8 @@ export function WebLeadsClient({ initial, canEdit, loadError, contactBase = '/ma
       )}
 
       {converting && (
-        <div onClick={() => !busy && setConverting(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-surface, #fff)', borderRadius: 14, width: 'min(520px, 100%)', padding: 22, boxShadow: '0 24px 60px rgba(0,0,0,.3)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>Add to Contacts</div>
-              <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setConverting(null)}><X size={16} /></button>
-            </div>
+        <Modal open onOpenChange={o => { if (!o && !busy) setConverting(null); }}>
+          <ModalContent title="Add to Contacts">
             {converting.dups === null ? (
               <div style={{ textAlign: 'center', padding: 24 }}><Loader2 size={20} className="animate-spin" /></div>
             ) : (
@@ -230,8 +227,8 @@ export function WebLeadsClient({ initial, canEdit, loadError, contactBase = '/ma
                 </button>
               </>
             )}
-          </div>
-        </div>
+          </ModalContent>
+        </Modal>
       )}
     </>
   );

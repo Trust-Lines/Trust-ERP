@@ -1,14 +1,15 @@
 'use client';
 
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
-import { useEffect, useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowDownUp, Copy, Ellipsis, Mail, Search, UserRoundPlus, X } from 'lucide-react';
+import { ArrowDownUp, Copy, Ellipsis, Mail, Search, UserRoundPlus } from 'lucide-react';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
 
 export interface SalesRepRow {
@@ -281,12 +282,7 @@ function InviteDialog({ regionClients, onClose, onInvited }: { regionClients: Re
   const [fullName, setFullName] = useState('');
   const [regionId, setRegionId] = useState('');
   const [inviting, setInviting] = useState(false);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const formId = useId();
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -315,18 +311,15 @@ function InviteDialog({ regionClients, onClose, onInvited }: { regionClients: Re
   }
 
   return (
-    <div className="fixed inset-0 z-[10000] grid place-items-center bg-black/45 p-4" onClick={onClose}>
-      <form
-        role="dialog" aria-modal="true" aria-labelledby="invite-rep-title"
-        onClick={e => e.stopPropagation()} onSubmit={handleInvite}
-        className="flex w-full max-w-[480px] flex-col gap-4 rounded-card bg-ui-page-bg p-6 shadow-04"
+    <Modal open onOpenChange={o => { if (!o) onClose(); }}>
+      <ModalContent
+        title="Invite to team"
+        footer={<>
+          <ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Cancel</ModalClose>
+          <Button type="submit" form={formId} variant="accent" loading={inviting} disabled={!email.trim() || !fullName.trim()}>Send invite</Button>
+        </>}
       >
-        <div className="flex items-center justify-between">
-          <h2 id="invite-rep-title" className={cn('m-0 text-[18px] font-semibold', HEADING)}>Invite to team</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="grid size-8 place-items-center rounded-[6px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg">
-            <X size={16} />
-          </button>
-        </div>
+      <form id={formId} onSubmit={handleInvite} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-body">
           Full name
           <input autoFocus required className={FIELD} placeholder="e.g. Jane Doe" value={fullName} onChange={e => setFullName(e.target.value)} />
@@ -343,15 +336,8 @@ function InviteDialog({ regionClients, onClose, onInvited }: { regionClients: Re
             options={[{ value: '', label: 'No region (assign later)' }, ...regionClients.map(c => ({ value: c.id, label: regionLabel(c) }))]}
           />
         </div>
-        <div className="flex justify-end gap-2.5 pt-1">
-          <button type="button" onClick={onClose} className={cn('h-9 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent px-5 text-[13px] font-medium hover:bg-ui-hover-bg dark:border-ui-heading', HEADING)}>
-            Cancel
-          </button>
-          <button type="submit" disabled={inviting || !email.trim() || !fullName.trim()} className="h-9 rounded-[6px] border-0 bg-ui-btn-accent px-6 text-[13px] font-medium text-ui-btn-accent-fg hover:opacity-90 disabled:opacity-50">
-            {inviting ? 'Inviting…' : 'Send invite'}
-          </button>
-        </div>
       </form>
-    </div>
+      </ModalContent>
+    </Modal>
   );
 }

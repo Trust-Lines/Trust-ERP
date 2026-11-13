@@ -132,12 +132,19 @@ export function TrashClient({ projects, purgeDays }: { projects: TrashedProject[
       </div>
 
       {conflict && (
-        <div role="dialog" aria-modal="true" aria-labelledby="trash-conflict-title" className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
-          <div className="flex w-[90%] max-w-[420px] flex-col gap-3.5 rounded-[10px] border border-ui-divider bg-ui-surface-elevated p-7 shadow-xl">
-            <div className="flex items-center gap-2.5">
-              <TriangleAlert size={20} style={{ color: 'var(--status-warning-fg)' }} aria-hidden />
-              <span id="trash-conflict-title" className={cn('text-[15px] font-semibold', HEADING_TEXT)}>Code conflict</span>
-            </div>
+        <ConfirmModal
+          open
+          onOpenChange={o => { if (!o) setConflict(null); }}
+          title={<span className="inline-flex items-center gap-2.5"><TriangleAlert size={20} style={{ color: 'var(--status-warning-fg)' }} aria-hidden /> Code conflict</span>}
+          tone="destructive"
+          confirmLabel="Delete trashed version forever"
+          onConfirm={async () => {
+            const target = projects.find(p => p.id === conflict.projectId);
+            setConflict(null);
+            if (target) await run([target], 'purge', true);
+          }}
+        >
+          <div className="flex flex-col gap-3.5">
             <p className="m-0 text-[13px] text-ui-body">
               An active project already uses code <strong>{conflict.code}</strong>:
             </p>
@@ -147,24 +154,8 @@ export function TrashClient({ projects, purgeDays }: { projects: TrashedProject[
             <p className="m-0 text-[13px] text-ui-body">
               You can permanently delete the trashed version, or go update the active project&apos;s code first.
             </p>
-            <div className="flex justify-end gap-2.5">
-              <button type="button" className={RESTORE_BTN} onClick={() => setConflict(null)}>Cancel</button>
-              <button
-                type="button"
-                className={DELETE_BTN}
-                style={DELETE_STYLE}
-                disabled={busy}
-                onClick={async () => {
-                  const target = projects.find(p => p.id === conflict.projectId);
-                  setConflict(null);
-                  if (target) await run([target], 'purge', true);
-                }}
-              >
-                Delete trashed version forever
-              </button>
-            </div>
           </div>
-        </div>
+        </ConfirmModal>
       )}
 
       <div className="flex flex-col gap-5 rounded-[10px] border border-ui-divider bg-ui-surface-elevated p-6">
