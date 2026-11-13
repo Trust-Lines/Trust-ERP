@@ -47,20 +47,20 @@ export function LeadsBoard({ leads, onStatusChange, onContextMenu, onOpen }: Pro
               if (id) onStatusChange(id, meta.key);
             }}
             style={{
-              width: 280, flexShrink: 0, borderRadius: 'var(--radius-md)',
+              width: 320, flexShrink: 0, borderRadius: 'var(--radius-md)',
               background: isOver ? 'color-mix(in srgb, var(--brand-teal) 8%, var(--bg-subtle))' : 'var(--bg-subtle)',
               border: `1px solid ${isOver ? 'var(--brand-teal)' : 'var(--border-subtle)'}`,
               transition: 'background 120ms, border-color 120ms',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
               <StatusBadge group="lead_stage" status={OPPORTUNITY_STATUS_TAG[meta.key] ?? meta.key} label={meta.label} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-subtle)' }}>{allCards.length}</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg-subtle)' }}>{allCards.length}</span>
             </div>
 
-            <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 60 }}>
+            <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 10, minHeight: 60 }}>
               {allCards.length === 0 && (
-                <div style={{ fontSize: 12, color: 'var(--fg-faint)', textAlign: 'center', padding: '16px 0', fontStyle: 'italic' }}>
+                <div style={{ fontSize: 14, color: 'var(--fg-faint)', textAlign: 'center', padding: '20px 0', fontStyle: 'italic' }}>
                   {isOver ? 'Drop here' : '—'}
                 </div>
               )}
@@ -78,48 +78,48 @@ export function LeadsBoard({ leads, onStatusChange, onContextMenu, onOpen }: Pro
                     onClick={() => onOpen?.(l.id)}
                     style={{
                       background: l.archived ? 'var(--bg-subtle)' : 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)',
-                      padding: '10px 11px', cursor: 'grab', opacity: dragId === l.id ? 0.5 : 1,
+                      padding: '14px 14px', cursor: 'grab', opacity: dragId === l.id ? 0.5 : 1,
                       boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                     }}
                   >
                     <div>
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, justifyContent: 'space-between' }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-default)', lineHeight: 1.3 }}>{l.name}</div>
-                        <Flag size={13} color={PRIORITY_COLOR[l.priority]} fill={l.priority === 'low' ? 'none' : PRIORITY_COLOR[l.priority]} style={{ flexShrink: 0, marginTop: 2 }} />
+                        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg-default)', lineHeight: 1.3 }}>{l.name}</div>
+                        <Flag size={16} color={PRIORITY_COLOR[l.priority]} fill={l.priority === 'low' ? 'none' : PRIORITY_COLOR[l.priority]} style={{ flexShrink: 0, marginTop: 2 }} />
                       </div>
-                      {l.project_no && <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--fg-faint)', marginTop: 2 }}>{l.project_no}</div>}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                      {l.project_no && <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--fg-faint)', marginTop: 3 }}>{l.project_no}</div>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                         {l.assignee && l.assignee !== 'Unassigned' && (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            <Avatar name={l.assignee} size="xs" />
+                            <Avatar name={l.assignee} size="sm" />
                           </span>
                         )}
-                        {m && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-muted)' }}>{m}</span>}
+                        {m && <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg-muted)' }}>{m}</span>}
                         {l.project_type && l.project_type !== '—' && (
-                          <span style={{ fontSize: 10.5, padding: '1px 6px', borderRadius: 'var(--radius-pill)', background: 'var(--bg-sunken)', color: 'var(--fg-muted)' }}>{l.project_type}</span>
+                          <span style={{ fontSize: 12.5, padding: '2px 8px', borderRadius: 'var(--radius-pill)', background: 'var(--bg-sunken)', color: 'var(--fg-muted)' }}>{l.project_type}</span>
                         )}
                         {(overdue || dueToday) && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 'var(--radius-pill)', fontSize: 10, fontWeight: 700, background: overdue ? 'var(--status-danger-bg)' : 'var(--status-warning-bg)', color: overdue ? 'var(--status-danger-fg)' : 'var(--status-warning-fg)' }}>
-                            <Clock size={9} /> {overdue ? 'Overdue' : 'Today'}
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 700, background: overdue ? 'var(--status-danger-bg)' : 'var(--status-warning-bg)', color: overdue ? 'var(--status-danger-fg)' : 'var(--status-warning-fg)' }}>
+                            <Clock size={11} /> {overdue ? 'Overdue' : 'Today'}
                           </span>
                         )}
                         {!!l.tasks_total && (
                           <span title={`${l.tasks_done ?? 0}/${l.tasks_total} subtasks done`}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 700, color: (l.tasks_done ?? 0) === l.tasks_total ? 'var(--brand-teal-600)' : 'var(--status-warning-fg)' }}>
-                            <CheckSquare size={11} /> {l.tasks_done ?? 0}/{l.tasks_total}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 700, color: (l.tasks_done ?? 0) === l.tasks_total ? 'var(--brand-teal-600)' : 'var(--status-warning-fg)' }}>
+                            <CheckSquare size={13} /> {l.tasks_done ?? 0}/{l.tasks_total}
                           </span>
                         )}
                         {!!l.checklist_total && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, color: (l.checklist_done ?? 0) === l.checklist_total ? 'var(--brand-teal-600)' : 'var(--fg-faint)' }}>
-                            <CheckSquare size={11} /> {l.checklist_done ?? 0}/{l.checklist_total}
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, color: (l.checklist_done ?? 0) === l.checklist_total ? 'var(--brand-teal-600)' : 'var(--fg-faint)' }}>
+                            <CheckSquare size={13} /> {l.checklist_done ?? 0}/{l.checklist_total}
                           </span>
                         )}
                       </div>
                       {!!l.tags?.length && (
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                           {l.tags.slice(0, 4).map(t => (
-                            <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, padding: '1px 6px', borderRadius: 'var(--radius-pill)', background: 'var(--brand-teal-100)', color: 'var(--brand-teal-600)', border: '1px solid var(--color-secondary-100)' }}>
-                              <Tag size={8} /> {t}
+                            <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, padding: '2px 8px', borderRadius: 'var(--radius-pill)', background: 'var(--brand-teal-100)', color: 'var(--brand-teal-600)', border: '1px solid var(--color-secondary-100)' }}>
+                              <Tag size={10} /> {t}
                             </span>
                           ))}
                         </div>
