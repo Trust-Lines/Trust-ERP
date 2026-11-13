@@ -2180,6 +2180,15 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-11-13 (Figma: General Manager dashboard, frontend only) — no migration
+- Figma node 778:11311 "General Manager" → /dashboard for general_manager only (other roles still redirect to /tlines-pm).
+- New: components/platform/dashboard/GeneralManagerDashboard.tsx (header, Daily overview hero, My Tasks from pending
+  document_approvals, 3 KPI tiles from projects/document_approvals counts).
+- Changed: app/(platform)/dashboard/page.tsx (role check fails closed; counts via admin client after explicit role check).
+- Not built (no backing code yet): date pickers, Accounts/Company filters, Columns picker, Create task, Total Payments tile,
+  4-company board columns (kept on /tlines-pm).
+- Verified: eslint 0 errors, tsc clean for these files, vitest 791 passed. Browser check not run (needs GM login).
+
 2026-11-09 (Mobile app — slice 2: all modules) — migration 145 NEW, APPLIED live (verified)
 - Migration 145_hr_and_warehouse.sql: hr_requests (leave | correction; matches the web HR "Requests" model),
   hr_shifts, warehouse_locations — RLS on, service-role only. types/database.ts updated.
