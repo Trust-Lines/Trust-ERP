@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import type { UserRole } from '@/types/database';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/menu';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { cn } from '@/lib/utils';
 
@@ -122,35 +123,24 @@ function InlineForm({
 function ContextMenu({ isActive, onEdit, onDeactivate, onReactivate, onDelete }: {
   isActive: boolean; onEdit?: () => void; onDeactivate: () => void; onReactivate: () => void; onDelete: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const menuBtn = (label: string, onClick: () => void, danger = false) => (
-    <button
-      type="button" role="menuitem"
-      className={cn('block w-full cursor-pointer rounded-[4px] border-0 bg-transparent px-3 py-2 text-left text-[13px] hover:bg-ui-hover-bg', danger ? 'text-error-normal' : 'text-ui-body')}
-      onClick={() => { setOpen(false); onClick(); }}
-    >{label}</button>
-  );
-  const divider = <div className="my-0.5 h-px bg-ui-divider" />;
   return (
-    <div className="relative w-12 text-center" onClick={e => e.stopPropagation()}>
-      <Button
-        variant="ghost" size="icon-sm" aria-label="More actions" aria-expanded={open}
-        onClick={() => setOpen(o => !o)}
-      >
-        <MoreHorizontal />
-      </Button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div role="menu" className="absolute right-0 top-full z-20 mt-1 min-w-[140px] rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
-            {onEdit && menuBtn('Edit', onEdit)}
-            {onEdit && divider}
-            {isActive
-              ? menuBtn('Deactivate', onDeactivate, true)
-              : <>{menuBtn('Reactivate', onReactivate)}{divider}{menuBtn('Delete', onDelete, true)}</>}
-          </div>
-        </>
-      )}
+    <div className="w-12 text-center" onClick={e => e.stopPropagation()}>
+      <Menu>
+        <MenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="More actions" />}>
+          <MoreHorizontal />
+        </MenuTrigger>
+        <MenuContent className="min-w-[140px]">
+          {onEdit && <MenuItem onClick={onEdit}>Edit</MenuItem>}
+          {onEdit && <MenuSeparator />}
+          {isActive
+            ? <MenuItem variant="destructive" onClick={onDeactivate}>Deactivate</MenuItem>
+            : <>
+                <MenuItem onClick={onReactivate}>Reactivate</MenuItem>
+                <MenuSeparator />
+                <MenuItem variant="destructive" onClick={onDelete}>Delete</MenuItem>
+              </>}
+        </MenuContent>
+      </Menu>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { ArrowDownUp, CalendarDays, Ellipsis, Pencil, Plus, Search, Trash2 } fro
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
 import { Avatar } from '@/components/ui/avatar';
 import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { TagInput } from '@/components/ui/tag-input';
@@ -230,35 +231,20 @@ function TeamCard({ team: t, now, next, clashes, canEdit, onEdit, onDelete }: {
 
 /** The card's "…" button: Edit / Delete. */
 function CardMenu({ name, onEdit, onDelete }: { name: string; onEdit: () => void; onDelete: () => void }) {
-  const [open, setOpen] = React.useState(false);
-  const ref = React.useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', close);
-    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', close); };
-  }, [open]);
-  const item = 'flex h-8 w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 text-left text-[13px]';
   return (
-    <div ref={ref} className="relative shrink-0">
-      <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label={`Actions for ${name}`} onClick={() => setOpen(o => !o)}
-        className="inline-flex h-5 w-[42px] cursor-pointer items-center justify-center rounded-[4px] border border-[var(--color-secondary-700)] bg-transparent text-[var(--color-secondary-700)] dark:border-ui-heading dark:text-ui-heading">
+    <Menu>
+      {/* Card-style trigger (Figma): small outlined pill, not a toolbar button. */}
+      <MenuTrigger
+        aria-label={`Actions for ${name}`}
+        className="inline-flex h-5 w-[42px] shrink-0 cursor-pointer items-center justify-center rounded-[4px] border border-[var(--color-secondary-700)] bg-transparent text-[var(--color-secondary-700)] dark:border-ui-heading dark:text-ui-heading"
+      >
         <Ellipsis size={20} />
-      </button>
-      {open && (
-        <div role="menu" className="absolute bottom-full right-0 z-20 mb-1 flex w-40 flex-col rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1.5 shadow-03">
-          <button type="button" role="menuitem" onClick={() => { setOpen(false); onEdit(); }} className={cn(item, 'text-ui-body hover:bg-ui-hover-bg')}>
-            <Pencil size={14} /> Edit team
-          </button>
-          <button type="button" role="menuitem" onClick={() => { setOpen(false); onDelete(); }} className={cn(item, 'text-[var(--status-t10-fg)] hover:bg-[var(--status-t10-bg)]')}>
-            <Trash2 size={14} /> Delete team
-          </button>
-        </div>
-      )}
-    </div>
+      </MenuTrigger>
+      <MenuContent side="top" className="w-40">
+        <MenuItem onClick={onEdit}><Pencil /> Edit team</MenuItem>
+        <MenuItem variant="destructive" onClick={onDelete}><Trash2 /> Delete team</MenuItem>
+      </MenuContent>
+    </Menu>
   );
 }
 

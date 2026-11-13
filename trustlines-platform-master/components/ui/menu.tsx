@@ -38,10 +38,12 @@ function MenuContent({
   side = "bottom",
   align = "end",
   sideOffset = 4,
+  anchor,
   children,
   ...props
 }: MenuPrimitive.Popup.Props &
-  Pick<MenuPrimitive.Positioner.Props, "side" | "align" | "sideOffset">) {
+  // anchor: position against something other than the trigger, e.g. a right-click point.
+  Pick<MenuPrimitive.Positioner.Props, "side" | "align" | "sideOffset" | "anchor">) {
   return (
     <MenuPrimitive.Portal>
       <MenuPrimitive.Positioner
@@ -49,6 +51,7 @@ function MenuContent({
         side={side}
         align={align}
         sideOffset={sideOffset}
+        anchor={anchor}
         collisionPadding={8}
       >
         <MenuPrimitive.Popup

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Trash2, Loader2, FolderKanban, Plus, Search, UserRoundPen, SquareDashed, Eye,
@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { PersonFace } from '@/components/ui/avatar-directory';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { Checkbox as UiCheckbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TRUST_STAGE_LABEL, TRUST_STAGE_ORDER } from '@/lib/projects/listInfo';
 import type { TrustStage } from '@/lib/trust/board';
 
@@ -101,20 +102,9 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
   const [page, setPage]               = useState(1);
   const [selected, setSelected]       = useState<Set<string>>(new Set());
   const [deleting, setDeleting]       = useState(false);
-  const [columnsOpen, setColumnsOpen] = useState(false);
   const [hidden, setHidden]           = useState<Set<OptionalColumn>>(new Set(['margin']));
-  const columnsRef = useRef<HTMLDivElement>(null);
   const hideSensitive = userRole === 'tlines_pm';
   const canDelete     = ['ops_manager', 'general_manager'].includes(userRole);
-
-  useEffect(() => {
-    if (!columnsOpen) return;
-    function onDown(e: MouseEvent) {
-      if (columnsRef.current && !columnsRef.current.contains(e.target as Node)) setColumnsOpen(false);
-    }
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [columnsOpen]);
 
   const owners = useMemo(
     () => [...new Set(projects.map(p => p.owner?.full_name).filter(Boolean) as string[])].sort(),
@@ -350,37 +340,28 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
               Move {selected.size} to trash
             </button>
           )}
-          <div ref={columnsRef} className="relative">
-            <button
-              aria-haspopup="menu"
-              aria-expanded={columnsOpen}
-              onClick={() => setColumnsOpen(o => !o)}
-              className={cn(CONTROL, 'cursor-pointer')}
-            >
+          {/* Checkbox list (stays open while ticking) — a Popover, not an action Menu. */}
+          <Popover>
+            <PopoverTrigger className={cn(CONTROL, 'cursor-pointer')}>
               <Eye aria-hidden /> Columns <ChevronDown aria-hidden />
-            </button>
-            {columnsOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 top-[calc(100%+4px)] z-20 flex min-w-[180px] flex-col gap-0.5 rounded-[6px] border border-ui-input-border bg-ui-page-bg p-1.5 shadow-md"
-              >
-                {(Object.keys(COLUMN_LABEL) as OptionalColumn[])
-                  .filter(c => !(hideSensitive && c === 'margin'))
-                  .map(c => (
-                    <label
-                      key={c}
-                      className="flex cursor-pointer items-center gap-2 rounded-[4px] px-2 py-1.5 text-[13px] text-ui-body hover:bg-ui-hover-bg"
-                    >
-                      <UiCheckbox
-                        checked={!hidden.has(c)}
-                        onCheckedChange={() => toggleColumn(c)}
-                      />
-                      {COLUMN_LABEL[c]}
-                    </label>
-                  ))}
-              </div>
-            )}
-          </div>
+            </PopoverTrigger>
+            <PopoverContent aria-label="Columns" className="min-w-[180px] gap-0.5 p-1.5">
+              {(Object.keys(COLUMN_LABEL) as OptionalColumn[])
+                .filter(c => !(hideSensitive && c === 'margin'))
+                .map(c => (
+                  <label
+                    key={c}
+                    className="flex cursor-pointer items-center gap-2 rounded-[4px] px-2 py-1.5 text-[13px] text-ui-body hover:bg-ui-hover-bg"
+                  >
+                    <UiCheckbox
+                      checked={!hidden.has(c)}
+                      onCheckedChange={() => toggleColumn(c)}
+                    />
+                    {COLUMN_LABEL[c]}
+                  </label>
+                ))}
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 

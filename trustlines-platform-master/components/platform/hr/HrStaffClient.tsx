@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import { PersonFace } from '@/components/ui/avatar-directory';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
+import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -34,7 +35,6 @@ const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
 const TD = 'px-2.5 text-[13px] whitespace-nowrap text-ui-body';
 const TOOLBAR_SELECT = 'inline-flex h-10 w-auto cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pr-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:pr-3 dark:text-ui-heading [&_svg]:size-3.5';
-const MENU_ITEM = 'flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-[4px] border-0 bg-transparent px-3 text-left text-[13px] leading-none text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-4 [&_svg]:shrink-0';
 const NO_DATA = '—';
 
 const fmtDate = (iso: string | null) => {
@@ -49,16 +49,6 @@ export function HrStaffClient({ staff, canInvite }: { staff: HrStaffRow[]; canIn
   const [sortBy, setSortBy] = useState<SortKey>('newest');
   const [role, setRole] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [menuId, setMenuId] = useState<string | null>(null);
-  // Fixed-position row menu so the table's horizontal scroller can't clip it.
-  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
-  useEffect(() => {
-    if (!menuId) return;
-    const close = () => setMenuId(null);
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-    return () => { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close); };
-  }, [menuId]);
 
   const roleOptions = useMemo(() => {
     const roles = [...new Set(staff.map(s => s.role).filter((r): r is string => !!r))]
@@ -79,12 +69,10 @@ export function HrStaffClient({ staff, canInvite }: { staff: HrStaffRow[]; canIn
   }, [staff, query, role, sortBy]);
 
   async function copyEmail(email: string) {
-    setMenuId(null);
     try { await navigator.clipboard.writeText(email); toast.success('Email copied'); }
     catch { toast.error('Could not copy'); }
   }
 
-  const menuRow = menuId ? staff.find(s => s.id === menuId) : null;
 
   return (
     <div className="flex flex-col gap-[30px]">
@@ -191,17 +179,24 @@ export function HrStaffClient({ staff, canInvite }: { staff: HrStaffRow[]; canIn
                       <td className={TD}>{NO_DATA}</td>
                       <td className={TD}>{NO_DATA}</td>
                       <td className="pr-4 text-center">
-                        <button
-                          type="button" aria-label={`Actions for ${name}`} aria-haspopup="menu" aria-expanded={menuId === s.id}
-                          onClick={e => {
-                            const b = e.currentTarget.getBoundingClientRect();
-                            setMenuPos({ top: b.bottom + 4, right: window.innerWidth - b.right });
-                            setMenuId(id => (id === s.id ? null : s.id));
-                          }}
-                          className="inline-grid size-7 cursor-pointer place-items-center rounded-[4px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
-                        >
-                          <Ellipsis size={16} />
-                        </button>
+                        <Menu>
+                          <MenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${name}`} />}>
+                            <Ellipsis />
+                          </MenuTrigger>
+                          <MenuContent>
+                            <MenuLinkItem render={<Link href={`/team/${s.id}`} />}>
+                              <UserRound aria-hidden /> View profile
+                            </MenuLinkItem>
+                            {s.email && <>
+                              <MenuLinkItem render={<a href={`mailto:${s.email}`} />}>
+                                <Mail aria-hidden /> Send email
+                              </MenuLinkItem>
+                              <MenuItem onClick={() => void copyEmail(s.email!)}>
+                                <Copy aria-hidden /> Copy email
+                              </MenuItem>
+                            </>}
+                          </MenuContent>
+                        </Menu>
                       </td>
                     </tr>
                   );
@@ -211,25 +206,6 @@ export function HrStaffClient({ staff, canInvite }: { staff: HrStaffRow[]; canIn
           </div>
         )}
       </div>
-
-      {menuRow && menuPos && (
-        <>
-          <div className="fixed inset-0 z-20" onClick={() => setMenuId(null)} />
-          <div role="menu" style={{ top: menuPos.top, right: menuPos.right }} className="fixed z-30 flex w-44 flex-col gap-1 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1.5 text-left shadow-03">
-            <Link href={`/team/${menuRow.id}`} role="menuitem" className={MENU_ITEM} onClick={() => setMenuId(null)}>
-              <UserRound aria-hidden /> View profile
-            </Link>
-            {menuRow.email && <>
-              <a href={`mailto:${menuRow.email}`} role="menuitem" className={MENU_ITEM} onClick={() => setMenuId(null)}>
-                <Mail aria-hidden /> Send email
-              </a>
-              <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => copyEmail(menuRow.email!)}>
-                <Copy aria-hidden /> Copy email
-              </button>
-            </>}
-          </div>
-        </>
-      )}
 
       {canInvite && <InviteDialog open={inviteOpen} onOpenChange={setInviteOpen} />}
     </div>
