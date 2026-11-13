@@ -142,7 +142,7 @@ export function VendorPicker({ rect, current, vendors, onPick, onClose, onVendor
   const anchor = useMemo(() => ({ getBoundingClientRect: () => rect }), [rect]);
   return (
     <Popover open onOpenChange={o => { if (!o && creating === null) onClose(); }}>
-      <PopoverContent data-board-popup aria-label="Vendor" anchor={anchor} align="start" sideOffset={2}
+      <PopoverContent data-board-popup backdrop aria-label="Vendor" anchor={anchor} align="start" sideOffset={2}
         className={PANEL} style={{ width: Math.max(320, rect.width) }}>
         <div className="border-b border-ui-divider p-2">
           <input autoFocus className={INPUT} placeholder="Select or type to filter..." aria-label="Vendor" value={query} onChange={e => setQuery(e.target.value)}
@@ -260,7 +260,7 @@ export function OrderTypePicker({ rect, current, options, onPick, onClear, onClo
   const anchor = useMemo(() => ({ getBoundingClientRect: () => rect }), [rect]);
   return (
     <Popover open onOpenChange={o => { if (!o) onClose(); }}>
-      <PopoverContent data-board-popup aria-label="Order type" anchor={anchor} align="start" sideOffset={2}
+      <PopoverContent data-board-popup backdrop aria-label="Order type" anchor={anchor} align="start" sideOffset={2}
         className={PANEL} style={{ width: Math.max(260, rect.width) }}>
         <div className="flex gap-1.5 border-b border-ui-divider p-2">
           <input autoFocus className={INPUT} placeholder="Select or type to filter..." aria-label="Order type" value={query} onChange={e => setQuery(e.target.value)}
@@ -352,7 +352,7 @@ export function EditItemPanel({ point, type, items, vendors, orderTypes, canAdd,
       if (creating !== null) return;
       close();
     }}>
-      <PopoverContent data-board-popup aria-label={`Edit ${type} Item`} anchor={anchor} align="start" sideOffset={8}
+      <PopoverContent data-board-popup backdrop aria-label={`Edit ${type} Item`} anchor={anchor} align="start" sideOffset={8}
         className={cn(PANEL, 'w-[360px] gap-3 p-4')}>
         <div className="flex items-center gap-2">
           <h3 className="m-0 flex-1 text-[15px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">
@@ -432,7 +432,7 @@ export function RowMenu({ point, title, onDelete, onClose }: { point: { x: numbe
   }), [point.x, point.y]);
   return (
     <Menu open onOpenChange={open => { if (!open) onClose(); }}>
-      <MenuContent data-board-popup anchor={anchor} side="bottom" align="start" sideOffset={0} className="min-w-[180px]">
+      <MenuContent data-board-popup backdrop onBackdropContextMenu={onClose} anchor={anchor} side="bottom" align="start" sideOffset={0} className="min-w-[180px]">
         <MenuGroup>
           <MenuGroupLabel>{title}</MenuGroupLabel>
           <MenuItem variant="destructive" onClick={onDelete}>

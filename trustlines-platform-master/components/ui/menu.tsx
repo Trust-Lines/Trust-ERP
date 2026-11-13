@@ -39,13 +39,26 @@ function MenuContent({
   align = "end",
   sideOffset = 4,
   anchor,
+  backdrop = false,
+  onBackdropContextMenu,
   children,
   ...props
-}: MenuPrimitive.Popup.Props &
+}: MenuPrimitive.Popup.Props & {
+  /** Invisible full-screen layer: a click outside only closes the menu (never reaches what is underneath). */
+  backdrop?: boolean
+  /** With backdrop: a right-click outside is swallowed (no browser menu) and this runs. */
+  onBackdropContextMenu?: () => void
+} &
   // anchor: position against something other than the trigger, e.g. a right-click point.
   Pick<MenuPrimitive.Positioner.Props, "side" | "align" | "sideOffset" | "anchor">) {
   return (
     <MenuPrimitive.Portal>
+      {backdrop && (
+        <MenuPrimitive.Backdrop
+          className="fixed inset-0 z-[10049]"
+          onContextMenu={(e) => { e.preventDefault(); onBackdropContextMenu?.() }}
+        />
+      )}
       <MenuPrimitive.Positioner
         className="z-[10050] outline-none"
         side={side}
