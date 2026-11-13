@@ -55,7 +55,7 @@ export function MeetingsCard({ meetings, canEdit, contactEmails = [], onSave, on
                       >
                         {m.status}
                         <ChevronDown size={14} aria-hidden />
-                        <select
+                        <Select
                           aria-label={`${m.title} status`}
                           value={m.status}
                           onChange={e => onSetStatus(m.id, e.target.value as Meeting['status'])}
@@ -64,7 +64,7 @@ export function MeetingsCard({ meetings, canEdit, contactEmails = [], onSave, on
                           <option value="scheduled">Scheduled</option>
                           <option value="completed">Completed</option>
                           <option value="cancelled">Cancelled</option>
-                        </select>
+                        </Select>
                       </label>
                     ) : (
                       <span className="inline-flex h-[18px] items-center rounded-[4px] px-2.5 text-[11px] font-medium capitalize leading-4"
