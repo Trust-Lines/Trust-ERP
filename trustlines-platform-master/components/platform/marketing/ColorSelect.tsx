@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState, useLayoutEffect, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
+import { Popover, PopoverContent } from '@/components/ui/popover';
 import { hashColor, readableTextColor } from '@/lib/marketing/pillColor';
 
 // Figma table tag (CRM Board 280:25017): 4px radius, 12px medium, tone bg + fg, chevron inside the tag.
@@ -38,35 +38,10 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useLayoutEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const place = () => {
-      const r = triggerRef.current!.getBoundingClientRect();
-      setPos({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 220) });
-    };
-    place();
-    window.addEventListener('scroll', place, true);
-    window.addEventListener('resize', place);
-    return () => { window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      const t = e.target as Node;
-      if (triggerRef.current?.contains(t) || panelRef.current?.contains(t)) return;
-      setOpen(false);
-    }
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, [open]);
-
-  useEffect(() => { if (open) { setQuery(''); if (searchable) setTimeout(() => inputRef.current?.focus(), 0); } }, [open, searchable]);
+  useEffect(() => { if (open) setQuery(''); }, [open]);
 
   const colorFor = (v: string) => knownColors[v] ?? hashColor(v);
   const filtered = options.filter(o => o.toLowerCase().includes(query.trim().toLowerCase()));
@@ -99,14 +74,26 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
         {!(value && toneFor) && <ChevronDown size={16} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />}
       </button>
 
-      {open && pos && createPortal(
-        <div
-          ref={panelRef}
+      {/* Mounted only while open: lead rows hold up to 9 of these, so a closed picker stays a plain
+          button. The shared Popover handles placement, outside clicks, Escape and focus return. */}
+      {open && (
+        <Popover open onOpenChange={(o, details) => {
+          if (o) return;
+          // A press on our own trigger is "outside" for the Popover; the trigger's click toggles it instead.
+          if (details.reason === 'outside-press' && triggerRef.current?.contains(details.event?.target as Node)) return;
+          setOpen(false);
+        }}>
+        <PopoverContent
+          anchor={triggerRef}
+          align="start"
+          initialFocus={searchable ? inputRef : undefined}
+          finalFocus={triggerRef}
           onClick={e => e.stopPropagation()}
+          className="gap-0 overflow-hidden rounded-[10px] p-0"
           style={{
-            position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 10050,
-            background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 10,
-            boxShadow: '0 12px 32px rgba(0,0,0,.18)', overflow: 'hidden',
+            width: 'max(var(--anchor-width), 220px)',
+            background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)',
+            boxShadow: '0 12px 32px rgba(0,0,0,.18)',
           }}
         >
           {searchable && <input
@@ -166,8 +153,8 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
               </>
             )}
           </div>
-        </div>,
-        document.body,
+        </PopoverContent>
+        </Popover>
       )}
     </>
   );

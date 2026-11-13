@@ -7,6 +7,7 @@ import {
   Hourglass, Palette, Rows3, ScanEye, Search, UserPlus, UserRound, UsersRound, type LucideIcon,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
 import type { LeadBrief, IntakeFile, DesignFile, ProjectMeta } from '@/app/(platform)/design/page';
@@ -97,7 +98,6 @@ export function DesignWorkspace(props: Props) {
   const [sortBy, setSortBy] = useState<SortKey>('newest');
   // Column visibility (Columns menu) — remembered per browser.
   const [hiddenCols, setHiddenCols] = useState<Set<ColKey>>(new Set(DEFAULT_HIDDEN));
-  const [colsOpen, setColsOpen] = useState(false);
   useEffect(() => {
     try {
       const raw = localStorage.getItem(COLS_STORAGE);
@@ -289,24 +289,21 @@ export function DesignWorkspace(props: Props) {
                       options={[{ value: 'newest', label: 'Newest' }, { value: 'oldest', label: 'Oldest' }, { value: 'due', label: 'Due date' }]} />
                   </div>
                   {tab === 'jobs' && (
-                    <div className="relative">
-                      <button type="button" aria-expanded={colsOpen} className={cn(FILTER_CLS, 'gap-2 px-3')} onClick={() => setColsOpen(o => !o)}>
+                    // Checkbox list that stays open while ticking: shared Popover; backdrop keeps the old
+                    // behaviour (a click outside only closes it).
+                    <Popover>
+                      <PopoverTrigger className={cn(FILTER_CLS, 'gap-2 px-3')}>
                         <Columns2 aria-hidden /> Columns <ChevronDown aria-hidden />
-                      </button>
-                      {colsOpen && (
-                        <>
-                          <div className="fixed inset-0 z-20" onClick={() => setColsOpen(false)} />
-                          <div className="absolute right-0 top-full z-30 mt-1.5 w-48 rounded-[8px] border border-ui-divider bg-ui-surface-elevated p-1.5 shadow-lg">
-                            {COLUMNS.map(c => (
-                              <label key={c.key} className={cn('flex items-center gap-2 rounded-[6px] px-2.5 py-1.5 text-[12px]', c.key === 'job' ? 'text-ui-text-secondary' : 'cursor-pointer text-ui-body hover:bg-ui-hover-bg')}>
-                                <Checkbox disabled={c.key === 'job'} checked={c.key === 'job' || !hiddenCols.has(c.key)} onCheckedChange={() => toggleCol(c.key)} />
-                                {c.label}
-                              </label>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
+                      </PopoverTrigger>
+                      <PopoverContent backdrop aria-label="Columns" sideOffset={6} className="w-48 gap-0 rounded-[8px] p-1.5 shadow-lg">
+                        {COLUMNS.map(c => (
+                          <label key={c.key} className={cn('flex items-center gap-2 rounded-[6px] px-2.5 py-1.5 text-[12px]', c.key === 'job' ? 'text-ui-text-secondary' : 'cursor-pointer text-ui-body hover:bg-ui-hover-bg')}>
+                            <Checkbox disabled={c.key === 'job'} checked={c.key === 'job' || !hiddenCols.has(c.key)} onCheckedChange={() => toggleCol(c.key)} />
+                            {c.label}
+                          </label>
+                        ))}
+                      </PopoverContent>
+                    </Popover>
                   )}
                 </div>
                 <span aria-hidden className="h-9 w-px bg-ui-divider" />

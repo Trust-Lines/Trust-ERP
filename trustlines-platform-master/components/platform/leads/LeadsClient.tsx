@@ -32,6 +32,7 @@ import { STATUS_META, type Lead, type OpportunityStatus } from './types';
 import { STATUS_TO_STAGE } from '@/lib/marketing/opportunityRows';
 import { REGIONS } from '@/lib/regions';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select } from '@/components/ui/select';
 import { feedback } from '@/components/ui/feedback-toast';
 import { ConfirmModal } from '@/components/ui/modal';
@@ -305,7 +306,6 @@ export function LeadsClient({
 
   // Column visibility (Columns menu) — remembered per browser.
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(DEFAULT_HIDDEN_COLUMNS));
-  const [colsOpen, setColsOpen] = useState(false);
   useEffect(() => {
     try {
       const raw = localStorage.getItem('leadsTable.hiddenCols.v2');
@@ -524,31 +524,23 @@ export function LeadsClient({
             </div>
 
             {view === 'list' && (
-              <div className="relative">
-                <button
-                  type="button"
-                  aria-expanded={colsOpen}
-                  className={cn(FILTER_CLS, 'gap-2 px-3')}
-                  onClick={e => { e.stopPropagation(); setColsOpen(o => !o); }}
-                >
+              // Checkbox list that stays open while ticking: shared Popover; backdrop keeps the old
+              // behaviour (a click outside only closes it).
+              <Popover>
+                <PopoverTrigger className={cn(FILTER_CLS, 'gap-2 px-3')} onClick={e => e.stopPropagation()}>
                   <Columns2 aria-hidden />
                   Columns
                   <ChevronDown aria-hidden />
-                </button>
-                {colsOpen && (
-                  <>
-                    <div className="fixed inset-0 z-20" onClick={() => setColsOpen(false)} />
-                    <div className="absolute right-0 top-full mt-1.5 z-30 w-52 max-h-80 overflow-auto bg-ui-surface-elevated border border-ui-divider rounded-xl shadow-lg p-1.5">
-                      {LEAD_COLUMNS.map((c, i) => (
-                        <label key={c} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs ${i === 0 ? 'text-primary-400 dark:text-primary-300' : 'text-primary-700 dark:text-primary-100 hover:bg-primary-50 dark:hover:bg-primary-700 cursor-pointer'}`}>
-                          <Checkbox disabled={i === 0} checked={i === 0 || !hiddenCols.has(c)} onCheckedChange={() => toggleCol(c)} />
-                          {c}
-                        </label>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+                </PopoverTrigger>
+                <PopoverContent backdrop aria-label="Columns" sideOffset={6} className="w-52 max-h-80 gap-0 overflow-auto rounded-xl p-1.5 shadow-lg">
+                  {LEAD_COLUMNS.map((c, i) => (
+                    <label key={c} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs ${i === 0 ? 'text-primary-400 dark:text-primary-300' : 'text-primary-700 dark:text-primary-100 hover:bg-primary-50 dark:hover:bg-primary-700 cursor-pointer'}`}>
+                      <Checkbox disabled={i === 0} checked={i === 0 || !hiddenCols.has(c)} onCheckedChange={() => toggleCol(c)} />
+                      {c}
+                    </label>
+                  ))}
+                </PopoverContent>
+              </Popover>
             )}
 
             <Link href="/leads/trash" aria-label="Trash" title="Trash" className={cn(FILTER_CLS, 'px-2.5 no-underline')}>
