@@ -28,6 +28,7 @@ import { DealDocuments } from '@/components/platform/sales/DealDocuments';
 import { DealDesign } from '@/components/platform/sales/DealDesign';
 import { ConfirmModal } from '@/components/ui/modal';
 import { Textarea } from '@/components/ui/textarea';
+import { Button, buttonVariants } from '@/components/ui/button';
 
 type Deal = Record<string, unknown>;
 interface ProspectInfo { display_name: string; industry: string | null; brand_name: string | null }
@@ -357,31 +358,25 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
             {saving && <Loader2 size={16} className="qv-spin text-ui-text-secondary" aria-label="Saving" />}
             {/* Marketing → Sales: the Potential becomes an Opportunity on Sales → Handoffs. */}
             {kind === 'potential' && canEdit && opp && !opp.converted_opportunity_id && !['lost', 'cancelled'].includes(String(opp.status)) && (
-              <button
-                type="button" onClick={() => setAskConvert(true)} disabled={converting}
-                className="inline-flex h-10 items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent px-5 text-[13px] font-medium text-ui-btn-accent-fg transition-opacity hover:opacity-90 disabled:opacity-60"
-              >
-                {converting ? <Loader2 size={16} className="qv-spin" aria-hidden /> : <SendHorizontal size={16} aria-hidden />}
+              <Button size="md" onClick={() => setAskConvert(true)} loading={converting}>
+                <SendHorizontal className="size-4" aria-hidden />
                 Convert to Opportunity
-              </button>
+              </Button>
             )}
             {kind === 'potential' && !!opp?.converted_opportunity_id && <Chip tone="t9" icon={CircleCheck}>Converted — with Sales</Chip>}
             {opp?.prospect_id ? (
               <Link
                 href={`/marketing/prospects/${opp.prospect_id}`}
                 title="Contacts, locations & other Needs for this Lead"
-                className={cn('inline-flex h-10 items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] pl-3.5 pr-6 text-[13px] font-medium no-underline transition-colors hover:bg-ui-hover-bg dark:border-ui-heading', HEADING)}
+                className={cn(buttonVariants({ variant: 'outline', size: 'md' }), 'no-underline')}
               >
-                <SquareArrowOutUpRight size={16} aria-hidden />
+                <SquareArrowOutUpRight className="size-4" aria-hidden />
                 Lead Profile
               </Link>
             ) : null}
-            <button
-              type="button" onClick={onClose} aria-label="Close"
-              className="grid size-10 place-items-center rounded-[6px] border border-ui-divider bg-transparent text-ui-body transition-colors hover:bg-ui-hover-bg"
-            >
-              <X size={18} />
-            </button>
+            <Button variant="outline" size="icon-md" onClick={onClose} aria-label="Close">
+              <X />
+            </Button>
           </div>
         </div>
 
@@ -573,12 +568,9 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                         {canEdit && (
                           <>
                             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={e => uploadMany(e.target.files)} />
-                            <button
-                              type="button" onClick={() => fileInputRef.current?.click()}
-                              className="rounded-[6px] border border-ui-divider bg-ui-input-bg px-3.5 py-2.5 text-[13px] font-medium text-ui-body transition-colors hover:bg-ui-hover-bg"
-                            >
+                            <Button variant="outline" size="md" onClick={() => fileInputRef.current?.click()}>
                               Browse files
-                            </button>
+                            </Button>
                           </>
                         )}
                       </div>
@@ -602,12 +594,13 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                                   <span className="truncate text-[13px] font-medium text-ui-body">{u.name}</span>
                                   <span className="text-[12px] text-error-normal">{formatBytes(u.size)} · {u.error}</span>
                                 </div>
-                                <button
-                                  type="button" onClick={() => setUploads(prev => prev.filter(x => x.key !== u.key))}
-                                  className="shrink-0 rounded-[6px] border border-error-normal bg-transparent px-2.5 py-[7px] text-[13px] font-medium text-error-normal transition-colors hover:bg-error-light dark:hover:bg-error-dark/30"
+                                <Button
+                                  variant="outline"
+                                  className="border-error-normal text-error-normal hover:bg-error-light dark:border-error-normal dark:text-error-normal dark:hover:bg-error-dark/30"
+                                  onClick={() => setUploads(prev => prev.filter(x => x.key !== u.key))}
                                 >
                                   Remove
-                                </button>
+                                </Button>
                               </div>
                             ) : (
                               <div className="flex flex-col gap-2.5">
@@ -756,14 +749,12 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                         originalImageRef.current = picked ?? null; // full-quality original for the direct Dropbox upload
                         setDraftImage(picked ? await compressImage(picked) : null); // small copy = fallback upload
                       }} />
-                    <button type="button" onClick={() => noteFileInputRef.current?.click()} title="Attach image" aria-label="Attach image"
-                      className={cn('flex items-center justify-center rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent py-2.5 transition-colors hover:bg-ui-hover-bg dark:border-ui-heading', HEADING)}>
-                      <Paperclip size={16} />
-                    </button>
-                    <button type="button" onClick={postComment} disabled={posting || (!draft.trim() && !draftImage)} title="Post" aria-label="Post comment"
-                      className="flex items-center justify-center rounded-[6px] border-0 bg-[var(--color-secondary-700)] py-2.5 text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950">
-                      {posting ? <Loader2 size={16} className="qv-spin" /> : <SendHorizontal size={16} />}
-                    </button>
+                    <Button variant="outline" size="md" className="w-full px-0" onClick={() => noteFileInputRef.current?.click()} title="Attach image" aria-label="Attach image">
+                      <Paperclip className="size-4" />
+                    </Button>
+                    <Button size="md" className="w-full px-0" onClick={postComment} loading={posting} disabled={!draft.trim() && !draftImage} title="Post" aria-label="Post comment">
+                      <SendHorizontal className="size-4" />
+                    </Button>
                   </div>
                 </div>
               </div>

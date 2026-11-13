@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { readHideAmounts, writeHideAmounts } from '@/lib/privacy/hideAmounts';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { ThemeSwitch } from '@/components/platform/shared/ThemeSync';
 import { SignaturePad } from '@/components/platform/SignaturePad';
 import { roleLabel } from '@/components/platform/shell/Sidebar';
@@ -21,8 +22,6 @@ const MIN_PASSWORD = 8;
 // Figma "Settings_Profile" (node 348:23559).
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD = 'rounded-[8px] border border-ui-divider bg-ui-page-bg px-5 pb-8 pt-5';
-const BTN_PRIMARY = 'inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-4 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950';
-const BTN_OUTLINE = 'inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-[6px] border border-solid border-[var(--color-secondary-700)] bg-transparent pl-5 pr-6 text-[13px] font-medium text-[var(--color-secondary-700)] transition-colors hover:bg-ui-hover-bg disabled:cursor-not-allowed disabled:opacity-50 dark:border-ui-heading dark:text-ui-heading';
 const FIELD_LABEL = 'text-[12px] font-medium leading-4 text-ui-body';
 const TEXT_INPUT = 'min-h-[42px] w-full rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg p-3 text-[14px] font-semibold leading-[1.5] tracking-[-0.242px] text-[var(--color-secondary-700)] outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring dark:text-ui-heading';
 // The profile banner: secondary-700 fill under a faint radial highlight.
@@ -199,7 +198,8 @@ function PersonalInfoCard({ fullName, email }: { fullName: string; email: string
       <div className="flex w-full flex-col gap-[18px]">
         <div className="flex w-full items-start justify-between gap-4">
           <h2 className={cn('m-0 text-[20px] font-semibold leading-[1.45]', HEADING)}>Personal Information</h2>
-          <button type="button" className={BTN_PRIMARY} disabled title="Name changes are made by an Ops Manager on the Team page">Save Changes</button>
+          {/* Wrapper carries the hint: a disabled Button ignores the pointer, so its own title never shows. */}
+          <span title="Name changes are made by an Ops Manager on the Team page"><Button size="md" disabled>Save Changes</Button></span>
         </div>
         <div className="flex w-full flex-col gap-4">
           <div className="flex w-full flex-col gap-4 sm:flex-row">
@@ -266,7 +266,7 @@ function ChangePasswordCard({ email }: { email: string }) {
               Change the password for <span className="font-medium text-ui-body">{email}</span>
             </p>
           </div>
-          <button type="submit" className={BTN_PRIMARY} disabled={!canSave}>{saving ? 'Saving…' : 'Save Changes'}</button>
+          <Button type="submit" size="md" loading={saving} disabled={!canSave}>Save Changes</Button>
         </div>
 
         <div className="flex w-full flex-col gap-5">
@@ -357,17 +357,17 @@ function BackupCard({ isGeneralManager, canBackUpContacts }: { isGeneralManager:
           <div className="flex flex-wrap items-center gap-4">
             {/* Same roles as POST /api/marketing/backup (MARKETING_MANAGE_ROLES). */}
             {canBackUpContacts && (
-              <button
-                type="button" className={BTN_OUTLINE} onClick={backUpContacts} disabled={backingUpContacts}
+              <Button
+                variant="outline" size="md" onClick={backUpContacts} disabled={backingUpContacts}
                 title="Excel + JSON of every Contact into Dropbox → Marketing/_Backups/Contacts — the same file the nightly job makes"
               >
-                <CloudSync size={16} aria-hidden /> {backingUpContacts ? 'Backing up…' : 'Back up'}
-              </button>
+                <CloudSync className="size-4" aria-hidden /> {backingUpContacts ? 'Backing up…' : 'Back up'}
+              </Button>
             )}
             {isGeneralManager && (
-              <button type="button" className={BTN_PRIMARY} onClick={downloadBackup} disabled={downloading}>
-                <Download size={16} aria-hidden /> {downloading ? 'Preparing…' : 'Download Backup'}
-              </button>
+              <Button size="md" onClick={downloadBackup} disabled={downloading}>
+                <Download className="size-4" aria-hidden /> {downloading ? 'Preparing…' : 'Download Backup'}
+              </Button>
             )}
           </div>
         )}

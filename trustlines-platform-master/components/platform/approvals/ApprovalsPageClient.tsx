@@ -138,15 +138,12 @@ const CHIP_SELECT =
 const MOBILE_BTN =
   'inline-flex h-10 items-center justify-center gap-2 px-3 rounded-md border border-[var(--color-primary-200)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated font-[family-name:var(--font-ui)] text-[14px] font-semibold text-[var(--ui-body)] hover:bg-[var(--color-primary-50)] dark:hover:bg-white/5 transition-colors';
 
-// Bulk bar buttons — same outlined style as "All views".
 // Figma 481:23048 applied-filter chip: 36px, surface fill, navy outline (light) / soft outline (dark), × to remove.
 const FILTER_CHIP = 'inline-flex h-9 items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] bg-ui-surface px-3 font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-ui-body dark:border-ui-text-secondary dark:text-ui-heading';
 const FILTER_CHIP_X = 'grid place-items-center rounded-[2px] text-current opacity-80 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring';
 // Bulk-bar dropdowns: same panel and hover as the platform's other menus (Select list, row menus).
 const BULK_MENU = `${popupBase} absolute right-0 top-full z-30 mt-1 p-1`;
 const BULK_MENU_ITEM = 'flex w-full cursor-pointer items-center rounded-[4px] border-0 bg-transparent px-2.5 py-1.5 text-left text-[13px] text-ui-body outline-none transition-colors hover:bg-ui-hover-bg hover:text-ui-heading focus-visible:bg-ui-hover-bg dark:hover:bg-white/10 dark:focus-visible:bg-white/10';
-const BULK_BTN =
-  'inline-flex h-[30px] items-center justify-center gap-2 px-[9px] rounded-md border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] bg-ui-surface-elevated font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-[var(--ui-body)] hover:bg-[var(--color-primary-50)] dark:hover:bg-white/5 transition-colors';
 
 // Sample fallback items matching the reference specification exactly
 const SAMPLE_REQUESTS: UnifiedRequestRow[] = [
@@ -781,10 +778,10 @@ export function ApprovalsPageClient() {
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
-          <button onClick={() => setBulkMenu(bulkMenu === 'status' ? null : 'status')} className={BULK_BTN}>
+          <Button variant="outline" aria-expanded={bulkMenu === 'status'} onClick={() => setBulkMenu(bulkMenu === 'status' ? null : 'status')}>
             Change status
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
+            <ChevronDown className="size-3.5" />
+          </Button>
           {bulkMenu === 'status' && (
             <div className={`${BULK_MENU} w-48`}>
               {STATUS_OPTIONS.map(s => (
@@ -797,10 +794,10 @@ export function ApprovalsPageClient() {
         </div>
 
         <div className="relative">
-          <button onClick={() => setBulkMenu(bulkMenu === 'owner' ? null : 'owner')} className={BULK_BTN}>
-            <UserRound className="w-3.5 h-3.5" />
+          <Button variant="outline" aria-expanded={bulkMenu === 'owner'} onClick={() => setBulkMenu(bulkMenu === 'owner' ? null : 'owner')}>
+            <UserRound className="size-3.5" />
             Assign owner
-          </button>
+          </Button>
           {bulkMenu === 'owner' && (
             <div className={`${BULK_MENU} w-52`}>
               {ownerOptions.map(o => (
@@ -820,10 +817,10 @@ export function ApprovalsPageClient() {
           )}
         </div>
 
-        <button onClick={bulkArchive} className={BULK_BTN}>
-          <Archive className="w-3.5 h-3.5" />
+        <Button variant="outline" onClick={bulkArchive}>
+          <Archive className="size-3.5" />
           Archive
-        </button>
+        </Button>
 
         <button
           onClick={clearSelection}
@@ -892,21 +889,18 @@ export function ApprovalsPageClient() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleExport}
-              className="hidden md:inline-flex h-9 items-center gap-2 rounded-[6px] border border-ui-divider bg-ui-surface-elevated px-3 text-[13px] font-semibold leading-[1.4] text-ui-body hover:bg-ui-hover-bg transition-colors"
-            >
+            <Button variant="outline" className="hidden h-9 md:inline-flex" onClick={handleExport}>
               <Download className="size-3.5" />
               Export
-            </button>
-            <button
+            </Button>
+            <Button
+              className="size-11 px-0 md:h-9 md:w-auto md:px-3"
               onClick={() => toast.info('New request workflow is linked to project creation.')}
               aria-label="New request"
-              className="inline-flex size-11 justify-center items-center gap-2 md:size-auto md:h-9 md:px-3 text-[13px] font-semibold leading-[1.4] text-ui-btn-accent-fg bg-ui-btn-accent hover:opacity-90 rounded-[6px] transition-opacity"
             >
-              <Plus className="w-5 h-5 md:size-3.5" />
+              <Plus className="size-5 md:size-3.5" />
               <span className="hidden md:inline">New request</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -921,12 +915,9 @@ export function ApprovalsPageClient() {
               <span className="text-amber-800">Your drawn signature will be automatically stamped on verified PDFs.</span>
             </div>
           </div>
-          <button
-            onClick={() => setShowSignaturePad(true)}
-            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-md text-xs shrink-0 transition-colors"
-          >
+          <Button size="xs" className="bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-600 dark:text-white dark:hover:bg-amber-700" onClick={() => setShowSignaturePad(true)}>
             Set up now
-          </button>
+          </Button>
         </div>
       )}
 
@@ -999,18 +990,17 @@ export function ApprovalsPageClient() {
           ))}
 
           <div className="relative">
-          <button
-            type="button"
+          <Button
+            // Figma 481:23052: 36px filled primary.
+            className="h-9"
             onClick={openAddFilter}
-            // Figma 481:23052: 36px filled primary — navy with white text, light fill with dark text in dark mode.
-            className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-ui-divider bg-[var(--color-secondary-700)] px-3 font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-white transition-colors hover:bg-[var(--color-secondary-600)] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring dark:border-transparent dark:bg-primary-50 dark:text-primary-950 dark:hover:bg-primary-100"
           >
             {/* square-dashed-plus icon (design export) */}
             <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
               <path d="M2.91667 1.75C2.60725 1.75 2.3105 1.87292 2.09171 2.09171C1.87292 2.3105 1.75 2.60725 1.75 2.91667M11.0833 1.75C11.3928 1.75 11.6895 1.87292 11.9083 2.09171C12.1271 2.3105 12.25 2.60725 12.25 2.91667M12.25 11.0833C12.25 11.3928 12.1271 11.6895 11.9083 11.9083C11.6895 12.1271 11.3928 12.25 11.0833 12.25M2.91667 12.25C2.60725 12.25 2.3105 12.1271 2.09171 11.9083C1.87292 11.6895 1.75 11.3928 1.75 11.0833M5.25 1.75H5.83333M5.25 12.25H5.83333M8.16667 1.75H8.75M8.16667 12.25H8.75M1.75 5.25V5.83333M12.25 5.25V5.83333M1.75 8.16667V8.75M12.25 8.16667V8.75M7 4.66667V7M7 7V9.33333M7 7H4.66667M7 7H9.33333" strokeWidth="1.16667" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor" />
             </svg>
             Add filter
-          </button>
+          </Button>
 
           {showAddFilter && (
             <div className="absolute left-0 top-full mt-1 w-[340px] bg-ui-surface-elevated border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] rounded-xl shadow-lg p-4 z-30 font-[family-name:var(--font-ui)] text-[13px] leading-[1.4]">
@@ -1076,14 +1066,11 @@ export function ApprovalsPageClient() {
         <div className={`${mobileView === 'table' ? 'hidden md:flex' : 'hidden'} items-center gap-2`}>
           {/* Columns Selector */}
           <div className="relative">
-            <button
-              onClick={() => { setShowColumnsMenu(!showColumnsMenu); setShowDensityMenu(false); }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-ui-surface-elevated border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs dark:bg-transparent dark:border-[var(--ui-body)] dark:text-[var(--ui-heading)] dark:hover:bg-white/5"
-            >
-              <Eye className="w-3.5 h-3.5 text-slate-500" />
+            <Button variant="outline" aria-expanded={showColumnsMenu} onClick={() => { setShowColumnsMenu(!showColumnsMenu); setShowDensityMenu(false); }}>
+              <Eye className="size-3.5" />
               Columns
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
+              <ChevronDown className="size-3" />
+            </Button>
             {showColumnsMenu && (
               <div className="absolute right-0 top-full mt-1 w-[300px] bg-ui-surface-elevated border border-[var(--color-primary-100)] dark:border-[var(--ui-divider-strong)] rounded-xl shadow-lg p-2 z-30 font-[family-name:var(--font-ui)] text-[13px] leading-[1.4]">
                 <div className="flex items-center justify-between px-2 pt-1 pb-2">
@@ -1127,14 +1114,11 @@ export function ApprovalsPageClient() {
 
           {/* Density Selector */}
           <div className="relative">
-            <button
-              onClick={() => { setShowDensityMenu(!showDensityMenu); setShowColumnsMenu(false); }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-ui-surface-elevated border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs dark:bg-transparent dark:border-[var(--ui-body)] dark:text-[var(--ui-heading)] dark:hover:bg-white/5 capitalize"
-            >
-              <List className="w-3.5 h-3.5 text-slate-500" />
+            <Button variant="outline" className="capitalize" aria-expanded={showDensityMenu} onClick={() => { setShowDensityMenu(!showDensityMenu); setShowColumnsMenu(false); }}>
+              <List className="size-3.5" />
               {density}
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
+              <ChevronDown className="size-3" />
+            </Button>
             {showDensityMenu && (
               <div className="absolute right-0 top-full mt-1 w-48 bg-ui-surface-elevated border border-slate-200 rounded-lg shadow-lg py-1 z-30 text-xs">
                 {(['compact', 'normal', 'comfortable'] as Density[]).map(d => (
@@ -1528,21 +1512,13 @@ export function ApprovalsPageClient() {
             />
           </div>
           <div className="mt-3 flex items-center justify-between gap-3">
-            <button
-              onClick={() => setPage(currentPage - 1)}
-              disabled={currentPage <= 1}
-              className={`${MOBILE_BTN} disabled:opacity-50`}
-            >
-              <ChevronLeft className="w-4 h-4" /> Previous
-            </button>
+            <Button variant="outline" size="md" onClick={() => setPage(currentPage - 1)} disabled={currentPage <= 1}>
+              <ChevronLeft className="size-4" /> Previous
+            </Button>
             <span className="text-[13px] text-[var(--ui-text-secondary)]">{currentPage} of {pageCount}</span>
-            <button
-              onClick={() => setPage(currentPage + 1)}
-              disabled={currentPage >= pageCount}
-              className={`${MOBILE_BTN} disabled:opacity-50`}
-            >
-              Next <ChevronRight className="w-4 h-4" />
-            </button>
+            <Button variant="outline" size="md" onClick={() => setPage(currentPage + 1)} disabled={currentPage >= pageCount}>
+              Next <ChevronRight className="size-4" />
+            </Button>
           </div>
         </div>
       )}

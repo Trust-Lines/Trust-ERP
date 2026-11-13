@@ -11,6 +11,7 @@ import { Select as FilterSelect, Select } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { findStatusTag } from '@/lib/status/tags';
@@ -232,31 +233,30 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
             Assigned to me{myOpen > 0 ? ` · ${myOpen}` : ''}
           </button>
           {(mine || fStatus || fAssignee || fOverdue || fToday || search) && (
-            <button
-              type="button"
+            <Button
+              variant="link" className="px-1 text-[13px] font-medium"
               onClick={() => { setMine(false); setFStatus(''); setFAssignee(''); setFOverdue(false); setFToday(false); setSearch(''); }}
-              className="border-0 bg-transparent px-1 text-[13px] font-medium text-ui-link hover:underline"
             >
               Clear filters
-            </button>
+            </Button>
           )}
         </div>
         <div className="flex items-center gap-4">
-          <button
-            type="button" onClick={() => syncFromPipeline(false)} disabled={syncing} title="Create the follow-ups each open deal needs"
-            className={cn('inline-flex h-9 items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent px-3 text-[13px] font-medium leading-[1.35] transition-colors hover:bg-ui-hover-bg disabled:opacity-60 dark:border-ui-heading', HEADING)}
+          <Button
+            variant="outline" className="h-9"
+            onClick={() => syncFromPipeline(false)} disabled={syncing} title="Create the follow-ups each open deal needs"
           >
-            <RefreshCw size={16} className={syncing ? 'animate-spin' : undefined} aria-hidden />
+            <RefreshCw className={cn('size-4', syncing && 'animate-spin')} aria-hidden />
             {syncing ? 'Updating…' : 'Update from pipeline'}
-          </button>
-          <button
-            type="button" onClick={() => setCreating(true)} disabled={deals.length === 0}
+          </Button>
+          <Button
+            className="h-9"
+            onClick={() => setCreating(true)} disabled={deals.length === 0}
             title={deals.length === 0 ? 'No open deals to add a task to' : undefined}
-            className="inline-flex h-9 items-center gap-2 rounded-[6px] border-0 bg-ui-btn-accent pl-7 pr-10 text-[13px] font-medium leading-[1.35] text-ui-btn-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            <Plus size={16} aria-hidden />
+            <Plus className="size-4" aria-hidden />
             New Task
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -376,13 +376,13 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
                       <td className="px-2 text-[12px] whitespace-nowrap text-ui-body">{fmt(t.created_at)}</td>
                       <td className={cn('px-2 text-[12px] whitespace-nowrap', done ? 'text-ui-body' : 'text-ui-text-disabled')}>{fmt(t.completed_at)}</td>
                       <td className="relative pr-2 text-center">
-                        <button
-                          type="button" aria-label={`Actions for ${t.title}`} aria-expanded={menuId === t.id}
+                        <Button
+                          variant="ghost" size="icon-sm" className="text-ui-body"
+                          aria-label={`Actions for ${t.title}`} aria-expanded={menuId === t.id}
                           onClick={e => menu.toggle(t.id, e.currentTarget)}
-                          className="inline-grid size-7 place-items-center rounded-[4px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
                         >
-                          <Ellipsis size={16} />
-                        </button>
+                          <Ellipsis />
+                        </Button>
                         {menuId === t.id && (
                           <>
                             <div className="fixed inset-0 z-20" onClick={() => menu.close()} />
@@ -495,9 +495,9 @@ function NewTaskDialog({ deals, assignees, onClose, onCreated }: {
       >
         <div className="flex items-center justify-between">
           <h2 id="new-task-title" className={cn('m-0 text-[20px] font-semibold', HEADING)}>New Task</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="grid size-8 place-items-center rounded-[6px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg">
-            <X size={16} />
-          </button>
+          <Button variant="ghost" size="icon" className="text-ui-body" onClick={onClose} aria-label="Close">
+            <X className="size-4" />
+          </Button>
         </div>
         <label className="flex flex-col gap-1.5 text-[14px] font-medium text-ui-body">
           Task
@@ -532,12 +532,12 @@ function NewTaskDialog({ deals, assignees, onClose, onCreated }: {
           </div>
         </div>
         <div className="flex justify-end gap-2.5 pt-1">
-          <button type="button" onClick={onClose} className={cn('h-10 rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent px-5 text-[14px] font-medium hover:bg-ui-hover-bg dark:border-ui-heading', HEADING)}>
+          <Button variant="secondary" size="md" onClick={onClose}>
             Cancel
-          </button>
-          <button type="submit" disabled={saving || !title.trim() || !dealId} className="h-10 rounded-[6px] border-0 bg-ui-btn-accent px-6 text-[14px] font-medium text-ui-btn-accent-fg hover:opacity-90 disabled:opacity-50">
-            {saving ? 'Adding…' : 'Add task'}
-          </button>
+          </Button>
+          <Button type="submit" size="md" loading={saving} disabled={!title.trim() || !dealId}>
+            Add task
+          </Button>
         </div>
       </form>
     </div>
