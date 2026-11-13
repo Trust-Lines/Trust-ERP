@@ -234,7 +234,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
           </button>
           {(mine || fStatus || fAssignee || fOverdue || fToday || search) && (
             <Button
-              variant="link" className="px-1 text-[13px] font-medium"
+              variant="link"
               onClick={() => { setMine(false); setFStatus(''); setFAssignee(''); setFOverdue(false); setFToday(false); setSearch(''); }}
             >
               Clear filters
@@ -243,14 +243,14 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
         </div>
         <div className="flex items-center gap-4">
           <Button
-            variant="outline" className="h-9"
+            variant="outline" size="toolbar"
             onClick={() => syncFromPipeline(false)} disabled={syncing} title="Create the follow-ups each open deal needs"
           >
             <RefreshCw className={cn('size-4', syncing && 'animate-spin')} aria-hidden />
             {syncing ? 'Updating…' : 'Update from pipeline'}
           </Button>
           <Button
-            className="h-9"
+            variant="accent" size="toolbar"
             onClick={() => setCreating(true)} disabled={deals.length === 0}
             title={deals.length === 0 ? 'No open deals to add a task to' : undefined}
           >
@@ -377,7 +377,7 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
                       <td className={cn('px-2 text-[12px] whitespace-nowrap', done ? 'text-ui-body' : 'text-ui-text-disabled')}>{fmt(t.completed_at)}</td>
                       <td className="relative pr-2 text-center">
                         <Button
-                          variant="ghost" size="icon-sm" className="text-ui-body"
+                          variant="ghost" size="icon-sm"
                           aria-label={`Actions for ${t.title}`} aria-expanded={menuId === t.id}
                           onClick={e => menu.toggle(t.id, e.currentTarget)}
                         >
@@ -495,7 +495,7 @@ function NewTaskDialog({ deals, assignees, onClose, onCreated }: {
       >
         <div className="flex items-center justify-between">
           <h2 id="new-task-title" className={cn('m-0 text-[20px] font-semibold', HEADING)}>New Task</h2>
-          <Button variant="ghost" size="icon" className="text-ui-body" onClick={onClose} aria-label="Close">
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
             <X className="size-4" />
           </Button>
         </div>
@@ -535,7 +535,7 @@ function NewTaskDialog({ deals, assignees, onClose, onCreated }: {
           <Button variant="secondary" size="md" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" size="md" loading={saving} disabled={!title.trim() || !dealId}>
+          <Button type="submit" variant="accent" size="md" loading={saving} disabled={!title.trim() || !dealId}>
             Add task
           </Button>
         </div>

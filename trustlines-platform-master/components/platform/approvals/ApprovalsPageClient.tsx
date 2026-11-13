@@ -889,12 +889,12 @@ export function ApprovalsPageClient() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" className="hidden h-9 md:inline-flex" onClick={handleExport}>
+            <Button variant="outline" size="toolbar" className="hidden md:inline-flex" onClick={handleExport}>
               <Download className="size-3.5" />
               Export
             </Button>
             <Button
-              className="size-11 px-0 md:h-9 md:w-auto md:px-3"
+              variant="accent" size="toolbar" className="max-md:size-11 max-md:px-0"
               onClick={() => toast.info('New request workflow is linked to project creation.')}
               aria-label="New request"
             >
@@ -915,7 +915,7 @@ export function ApprovalsPageClient() {
               <span className="text-amber-800">Your drawn signature will be automatically stamped on verified PDFs.</span>
             </div>
           </div>
-          <Button size="xs" className="bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-600 dark:text-white dark:hover:bg-amber-700" onClick={() => setShowSignaturePad(true)}>
+          <Button variant="warning" size="xs" onClick={() => setShowSignaturePad(true)}>
             Set up now
           </Button>
         </div>
@@ -992,7 +992,7 @@ export function ApprovalsPageClient() {
           <div className="relative">
           <Button
             // Figma 481:23052: 36px filled primary.
-            className="h-9"
+            size="toolbar"
             onClick={openAddFilter}
           >
             {/* square-dashed-plus icon (design export) */}

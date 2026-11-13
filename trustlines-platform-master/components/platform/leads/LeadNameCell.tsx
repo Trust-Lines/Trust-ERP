@@ -186,7 +186,7 @@ export function LeadNameCell({ lead, today, assignees, onOpen }: {
               />
             </div>
           ) : (
-            <Button variant="ghost" size="xs" className="w-fit text-primary-400 dark:text-primary-300" onClick={() => setAdding(true)}>
+            <Button variant="ghost" size="xs" className="w-fit" onClick={() => setAdding(true)}>
               <Plus size={12} /> Add subtask
             </Button>
           )}

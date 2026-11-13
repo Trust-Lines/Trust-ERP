@@ -218,7 +218,7 @@ export function FinalizationClient({
                   <label className={cn('flex items-center py-2.5', canEdit && !busy ? 'cursor-pointer' : 'cursor-default')}>
                     <span className="flex w-9 shrink-0 justify-center">
                       <Checkbox
-                        className="size-4 rounded-[3px]" checked={item.done} disabled={!canEdit || busy}
+                        checked={item.done} disabled={!canEdit || busy}
                         onCheckedChange={() => void patchSite({ toggle: item.key })} aria-label={item.label}
                       />
                     </span>

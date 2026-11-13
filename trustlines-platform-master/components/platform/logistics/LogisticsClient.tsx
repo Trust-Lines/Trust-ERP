@@ -70,8 +70,7 @@ export function LogisticsClient({ initialContainers, canEdit }: Props) {
       {canEdit && (
         <div className="flex justify-end">
           <Button
-            size="md" onClick={() => setShowForm(s => !s)} aria-expanded={showForm}
-            className="gap-2 bg-ui-btn-accent px-8 text-[13px] font-medium text-ui-btn-accent-fg hover:bg-ui-btn-accent hover:opacity-90 dark:bg-ui-btn-accent dark:text-ui-btn-accent-fg dark:hover:bg-ui-btn-accent"
+            variant="accent" size="md" onClick={() => setShowForm(s => !s)} aria-expanded={showForm}
           >
             <Plus className="size-4" /> New Container
           </Button>

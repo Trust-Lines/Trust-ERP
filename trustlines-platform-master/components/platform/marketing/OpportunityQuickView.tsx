@@ -358,7 +358,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
             {saving && <Loader2 size={16} className="qv-spin text-ui-text-secondary" aria-label="Saving" />}
             {/* Marketing → Sales: the Potential becomes an Opportunity on Sales → Handoffs. */}
             {kind === 'potential' && canEdit && opp && !opp.converted_opportunity_id && !['lost', 'cancelled'].includes(String(opp.status)) && (
-              <Button size="md" onClick={() => setAskConvert(true)} loading={converting}>
+              <Button variant="accent" size="md" onClick={() => setAskConvert(true)} loading={converting}>
                 <SendHorizontal className="size-4" aria-hidden />
                 Convert to Opportunity
               </Button>
@@ -595,8 +595,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                                   <span className="text-[12px] text-error-normal">{formatBytes(u.size)} · {u.error}</span>
                                 </div>
                                 <Button
-                                  variant="outline"
-                                  className="border-error-normal text-error-normal hover:bg-error-light dark:border-error-normal dark:text-error-normal dark:hover:bg-error-dark/30"
+                                  variant="outline-destructive"
                                   onClick={() => setUploads(prev => prev.filter(x => x.key !== u.key))}
                                 >
                                   Remove

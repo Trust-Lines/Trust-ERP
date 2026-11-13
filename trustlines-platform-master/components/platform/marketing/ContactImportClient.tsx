@@ -35,7 +35,7 @@ const CARD = 'rounded-[8px] border border-ui-divider bg-ui-page-bg p-5';
 const LABEL = 'mb-[7px] block text-[12px] font-medium leading-4 text-ui-body';
 // Link styles only — real buttons use <Button>.
 const NAVY_BTN = cn(buttonVariants({ size: 'md' }), 'no-underline');
-const OUTLINE_BTN = cn(buttonVariants({ variant: 'outline' }), 'h-9 no-underline');
+const OUTLINE_BTN = cn(buttonVariants({ variant: 'outline', size: 'toolbar' }), 'no-underline');
 const TONE_BTN = 'inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[6px] border-0 px-4 text-[13px] font-medium hover:brightness-95 disabled:opacity-50 [&_svg]:size-4';
 const CHIP = 'inline-flex cursor-pointer items-center rounded-[6px] border border-ui-input-border bg-ui-input-bg px-2.5 py-1 text-[12px] text-ui-body hover:bg-ui-hover-bg';
 const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg disabled:cursor-default disabled:opacity-50';
@@ -487,7 +487,7 @@ export function ContactImportClient() {
             <div className="mb-2 flex items-center justify-between gap-2">
               <span className={cn('text-[12px] font-semibold', HEADING_TEXT)}>Uploads · {files.length} file{files.length === 1 ? '' : 's'}</span>
               <input ref={inputRef} type="file" multiple hidden accept=".xlsx,.xls,.csv" onChange={e => void addFiles(e.target.files)} />
-              <Button variant="outline" className="h-9" disabled={reading || !!importing} onClick={() => inputRef.current?.click()}>
+              <Button variant="outline" size="toolbar" disabled={reading || !!importing} onClick={() => inputRef.current?.click()}>
                 {reading ? <Loader2 className="animate-spin" aria-hidden /> : <Upload aria-hidden />} {files.length ? 'Add file' : 'Choose files'}
               </Button>
             </div>
@@ -570,7 +570,7 @@ export function ContactImportClient() {
               <h2 id="import-file-title" className={cn('m-0 min-w-0 truncate text-[17px] font-semibold', HEADING_TEXT)}>{activeFile.name}</h2>
               <span className="text-[12px] text-ui-body">{Math.max(0, activeFile.sheets[activeFile.sheet].rows.length - activeFile.headerRow - 1)} rows</span>
               {inReview && (
-                <Button variant="outline" className="ml-auto h-9" onClick={() => setActiveFileId(null)}>
+                <Button variant="outline" size="toolbar" className="ml-auto" onClick={() => setActiveFileId(null)}>
                   <ArrowLeft aria-hidden /> Match Preview
                 </Button>
               )}
@@ -595,7 +595,7 @@ export function ContactImportClient() {
 
             <div className="flex flex-wrap items-center gap-2.5">
               <Button
-                variant="outline" className="h-9"
+                variant="outline" size="toolbar"
                 disabled={!activeFile.mappings.some(m => m.field === 'ignore' && !m.locked && m.sample.length > 0)}
                 onClick={() => ignoredToNotes(activeFile.id)}
               >
@@ -753,14 +753,14 @@ export function ContactImportClient() {
                       <X size={16} aria-hidden />
                     </button>
                     <Button
-                      variant="outline" className="h-9"
+                      variant="outline" size="toolbar"
                       disabled={!!importing}
                       onClick={() => { bulk(g => picked.has(g.id) && done[g.id]?.state !== 'ok', 'skip'); setPicked(new Set()); }}
                     >
                       <Forward aria-hidden /> Skip Selected
                     </Button>
                     <Button
-                      variant="outline" className="h-9 disabled:pointer-events-auto disabled:cursor-not-allowed"
+                      variant="outline" size="toolbar" className="disabled:pointer-events-auto disabled:cursor-not-allowed"
                       disabled={!!importing || !groups.some(g => picked.has(g.id) && matchOf(g).length > 0)}
                       title="Merge each ticked row into the existing Contact it matches (rows with no match are left as they are)"
                       onClick={() => { bulk(g => picked.has(g.id) && matchOf(g).length > 0 && done[g.id]?.state !== 'ok', 'merge'); setPicked(new Set()); }}
@@ -768,7 +768,7 @@ export function ContactImportClient() {
                       <SquarePlus aria-hidden /> Merge Selected
                     </Button>
                     <Button
-                      className="h-9 disabled:pointer-events-auto disabled:cursor-not-allowed"
+                      size="toolbar" className="disabled:pointer-events-auto disabled:cursor-not-allowed"
                       disabled={!campaignId || !!importing || selectedToImport === 0}
                       title={selectedUndecided > 0 ? `${selectedUndecided} ticked row(s) still need a decision and will be left out` : `Import ${selectedToImport} ticked Contacts into ${campaignName}`}
                       onClick={() => { const only = new Set(picked); setPicked(new Set()); void runImport(only); }}
@@ -983,7 +983,7 @@ export function ContactImportClient() {
                 {sortedVisible.length === 0 && <div className="p-5 text-center text-[13px] text-ui-text-secondary">Nothing in this view.</div>}
               </div>
               {sortedVisible.length > shown && (
-                <Button variant="outline" className="h-9 self-center" onClick={() => setShown(s => s + PAGE)}>Show more ({sortedVisible.length - shown} left)</Button>
+                <Button variant="outline" size="toolbar" className="self-center" onClick={() => setShown(s => s + PAGE)}>Show more ({sortedVisible.length - shown} left)</Button>
               )}
             </>
           )}

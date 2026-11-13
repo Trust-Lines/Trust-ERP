@@ -16,7 +16,6 @@ import { ConfirmModal, Modal, ModalClose, ModalContent, modalSecondaryButtonClas
 import { CALENDAR_KINDS, calendarKindLabel, daysBetween, monthGridRange } from '@/lib/marketing/prWorkspace';
 import type { CalendarEntryRow, CampaignOption, SocialPostRow } from '@/lib/marketing/prWorkspaceServer';
 import type { StatusTone } from '@/lib/status/tags';
-import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { Field, PANEL, PageHeading, fmtDay, localToday, sendJson } from './shared';
 
 type CalendarPost = Pick<SocialPostRow, 'id' | 'title' | 'status' | 'planned_on' | 'published_on' | 'account_id'>;
@@ -284,13 +283,13 @@ export function MarketingCalendarClient({ initialMonth, initial, campaigns, canE
             footer={canEdit && (
               <>
                 {entryEdit.id && canDeleteEntry(entryEdit.createdBy) && (
-                  <Button variant="ghost" className="mr-auto text-error-normal"
+                  <Button variant="ghost-destructive" className="mr-auto"
                     onClick={() => { const e = data?.entries.find(x => x.id === entryEdit.id); if (e) setToDelete(e); }}>
                     <Trash2 /> Delete
                   </Button>
                 )}
-                <ModalClose render={<Button variant="secondary" className={cn(modalSecondaryButtonClass, 'h-10 rounded-[6px] font-medium')} />}>Cancel</ModalClose>
-                <Button className={FORM_SUBMIT} onClick={saveEntry}>{entryEdit.id ? 'Save entry' : 'Add entry'}</Button>
+                <ModalClose render={<Button variant="secondary" size="md" className={modalSecondaryButtonClass} />}>Cancel</ModalClose>
+                <Button size="md" onClick={saveEntry}>{entryEdit.id ? 'Save entry' : 'Add entry'}</Button>
               </>
             )}
           >

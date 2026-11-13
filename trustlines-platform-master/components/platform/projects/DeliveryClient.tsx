@@ -165,7 +165,7 @@ export function DeliveryClient({
           </div>
 
           <label className={cn('inline-flex items-center gap-2 self-start text-[12px] font-medium text-ui-body', ro ? 'cursor-default' : 'cursor-pointer')}>
-            <Checkbox className="size-4 rounded-[3px]" checked={plan?.site_confirmed ?? false} disabled={ro}
+            <Checkbox checked={plan?.site_confirmed ?? false} disabled={ro}
               onCheckedChange={c => void patchPlan({ site_confirmed: !!c })} />
             Site Confirmed Ready
           </label>
@@ -191,7 +191,7 @@ export function DeliveryClient({
                 return (
                   <li key={it.id} className="flex items-start gap-2 border-b border-ui-divider py-2.5 last:border-b-0">
                     <span className="flex w-9 shrink-0 justify-center pt-0.5">
-                      <Checkbox className="size-4 rounded-[3px]" checked={done} disabled={!canEdit}
+                      <Checkbox checked={done} disabled={!canEdit}
                         onCheckedChange={() => void togglePunch(it)} aria-label={done ? `Reopen ${it.title}` : `Mark ${it.title} done`} />
                     </span>
                     <div className={cn('flex min-w-0 flex-1 flex-col gap-0.5', done && 'opacity-60')}>

@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select } from '@/components/platform/shared/Select';
 import { ROLE_TYPES, cap, type Contact } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
-import { AddButton, ApproverChip, DetailCard, FORM_BOX, FORM_SUBMIT, IconAction, PrimaryChip, RowList } from './ui';
+import { AddButton, ApproverChip, DetailCard, FORM_BOX, IconAction, PrimaryChip, RowList } from './ui';
 
 export function ContactsCard({ contacts, canEdit, onSave, onDelete }: {
   contacts: Contact[];
@@ -108,8 +108,8 @@ function ContactForm({ contact, onSave, onCancel }: { contact?: Contact; onSave:
         </label>
       </div>
       <div className="flex gap-1.5">
-        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={!f.name.trim() || saving}>{contact ? 'Save' : <><Plus aria-hidden /> Add Contact</>}</Button>
-        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
+        <Button size="md" onClick={submit} loading={saving} disabled={!f.name.trim() || saving}>{contact ? 'Save' : <><Plus aria-hidden /> Add Contact</>}</Button>
+        <Button variant="ghost" size="md" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   );

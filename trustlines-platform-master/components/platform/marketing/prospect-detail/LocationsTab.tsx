@@ -2,7 +2,6 @@
 
 import type { Dispatch, SetStateAction } from 'react';
 import { Button } from '@/components/ui/button';
-import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { Pencil, Trash2, MapPin, Plus } from 'lucide-react';
 import { LocationForm } from './LocationForm';
 import { locationLabel, type ProspectLocation } from './types';
@@ -26,7 +25,7 @@ export function LocationsTab({
     <div>
       {canEdit && (
         <div style={{ marginBottom: 12 }}>
-          <Button className={FORM_SUBMIT} onClick={() => setAddingLocation(s => !s)}><Plus aria-hidden /> Add Location</Button>
+          <Button size="md" onClick={() => setAddingLocation(s => !s)}><Plus aria-hidden /> Add Location</Button>
         </div>
       )}
       {addingLocation && canEdit && (

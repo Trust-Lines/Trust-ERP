@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { FileText, Image as ImageIcon, Link2, Plus, Video } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { FORM_BOX, FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
+import { FORM_BOX } from '@/components/platform/customers/customer-detail/ui';
 import { cn } from '@/lib/utils';
 import { Select } from '@/components/ui/select';
 import { REGIONS, SERVICE_LINES } from '@/lib/regions';
@@ -161,7 +161,7 @@ export function NeedDocumentsSection({ need, canEdit, prospectId, onNeedChange, 
             <span className={LABEL}>State</span>
             <input className={FIELD} value={state} onChange={e => setState(e.target.value)} placeholder="e.g. NY" />
           </label>
-          <Button className={cn(FORM_SUBMIT, 'px-6')} loading={savingSetup} disabled={savingSetup || !draftReady} onClick={saveSetup}>Save</Button>
+          <Button size="md" loading={savingSetup} disabled={savingSetup || !draftReady} onClick={saveSetup}>Save</Button>
           <p className="col-span-full m-0 text-[11px] text-ui-text-secondary">
             Set these once so a project folder can be created the moment a document/link is attached.
           </p>
@@ -184,7 +184,7 @@ export function NeedDocumentsSection({ need, canEdit, prospectId, onNeedChange, 
           <input aria-label="Link URL" className={cn(FIELD, 'w-auto min-w-[160px] flex-1')}
             placeholder="https://…" value={linkUrl} onChange={e => setLinkUrl(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') addLink(); }} />
-          <Button className={cn(FORM_SUBMIT, 'h-auto px-4')} loading={uploading} disabled={uploading || !linkUrl.trim()} onClick={addLink}>
+          <Button size="md" loading={uploading} disabled={uploading || !linkUrl.trim()} onClick={addLink}>
             <Plus aria-hidden /> Add
           </Button>
         </div>

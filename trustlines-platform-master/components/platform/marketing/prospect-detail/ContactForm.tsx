@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { Select } from '@/components/platform/shared/Select';
 import { type Contact } from './types';
 import { FormShell } from './shared';
@@ -39,8 +38,8 @@ export function ContactForm({ initial, onSave, onCancel }: { initial?: Contact; 
       title={initial ? `Edit ${initial.name}` : 'New contact'}
       onCancel={onCancel}
       footer={<>
-        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={!name.trim() || saving}>{initial ? 'Save changes' : 'Save contact'}</Button>
-        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
+        <Button size="md" onClick={submit} loading={saving} disabled={!name.trim() || saving}>{initial ? 'Save changes' : 'Save contact'}</Button>
+        <Button variant="ghost" size="md" onClick={onCancel}>Cancel</Button>
       </>}
     >
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>

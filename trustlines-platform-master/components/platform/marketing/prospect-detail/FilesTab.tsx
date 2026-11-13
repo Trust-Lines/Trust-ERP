@@ -2,7 +2,6 @@
 
 import type { RefObject } from 'react';
 import { Button } from '@/components/ui/button';
-import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { FileText, Paperclip, Trash2 } from 'lucide-react';
 import type { ProspectFile } from './types';
 import { FilesEmptyState } from '@/components/platform/shared/FilesEmptyState';
@@ -21,7 +20,7 @@ export function FilesTab({ files, canEdit, fileInputRef, uploadingFile, onUpload
       {canEdit && (
         <div style={{ marginBottom: 12 }}>
           <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(f); }} />
-          <Button className={FORM_SUBMIT} onClick={() => fileInputRef.current?.click()} loading={uploadingFile} disabled={uploadingFile}>
+          <Button size="md" onClick={() => fileInputRef.current?.click()} loading={uploadingFile} disabled={uploadingFile}>
             <Paperclip aria-hidden /> Attach File
           </Button>
         </div>

@@ -304,7 +304,7 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
                         Open <ExternalLink size={11} aria-hidden />
                       </a>
                     )}
-                    {canEdit && <Button variant="ghost" size="icon" className="text-error-normal" onClick={() => removeDoc(d.id)} title="Remove document" aria-label="Remove document"><Trash2 className="size-4" /></Button>}
+                    {canEdit && <Button variant="ghost-destructive" size="icon" onClick={() => removeDoc(d.id)} title="Remove document" aria-label="Remove document"><Trash2 className="size-4" /></Button>}
                   </li>
                 ))}
               </ul>
@@ -369,7 +369,7 @@ export function ContainerDetailClient({ initialContainer, initialItems, initialD
                         <td className="py-1 pr-3 text-right text-[12px] font-normal text-ui-text-secondary">{i.loaded_at ? dmyShort(i.loaded_at) : '—'}</td>
                         {canEdit && (
                           <td className="py-1 text-right">
-                            <Button variant="ghost" size="icon-sm" className="text-error-normal" onClick={() => unload(i.id)} title="Unload item" aria-label="Unload item"><Trash2 className="size-4" /></Button>
+                            <Button variant="ghost-destructive" size="icon-sm" onClick={() => unload(i.id)} title="Unload item" aria-label="Unload item"><Trash2 className="size-4" /></Button>
                           </td>
                         )}
                       </tr>

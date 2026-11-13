@@ -83,7 +83,7 @@ export function GoogleAccountCard() {
                 <Button variant="secondary" loading={syncing} onClick={sync}><RefreshCw /> Sync now</Button>
                 <a href="/api/me/google/connect" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>Reconnect</a>
                 <ConfirmModal
-                  trigger={<Button variant="ghost" className="ml-auto text-error-normal"><Unplug /> Disconnect</Button>}
+                  trigger={<Button variant="ghost-destructive" className="ml-auto"><Unplug /> Disconnect</Button>}
                   title="Disconnect Google?" description="The ERP stops reading your calendar and can no longer create meetings. Meetings already in Google Calendar stay there."
                   tone="destructive" confirmLabel="Disconnect" onConfirm={disconnect}
                 />

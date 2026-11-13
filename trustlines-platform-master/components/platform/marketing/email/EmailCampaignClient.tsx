@@ -236,7 +236,7 @@ function CampaignEditor({ campaign, canEdit, isManager, userId, mailReady, marke
         campaign={campaign}
         actions={canEdit && (
           <>
-            {canDelete && <Button variant="ghost" className="text-error-normal" onClick={() => setConfirmDelete(true)}><Trash2 /> Delete</Button>}
+            {canDelete && <Button variant="ghost-destructive" onClick={() => setConfirmDelete(true)}><Trash2 /> Delete</Button>}
             {!ro && <Button variant="secondary" onClick={() => save()}>Save draft</Button>}
           </>
         )}
@@ -418,7 +418,7 @@ function CampaignReport({ detail, canEdit, page, setPage, filter, setFilter, onC
           <>
             {c.status === 'sending' && <Button variant="secondary" loading={busy === 'pause'} onClick={() => control('pause')}><Pause /> Pause</Button>}
             {c.status === 'paused' && <Button loading={busy === 'resume'} onClick={() => control('resume')}><Play /> Resume</Button>}
-            {(c.status === 'sending' || c.status === 'paused') && <Button variant="ghost" className="text-error-normal" onClick={() => setConfirmCancel(true)}><X /> Cancel</Button>}
+            {(c.status === 'sending' || c.status === 'paused') && <Button variant="ghost-destructive" onClick={() => setConfirmCancel(true)}><X /> Cancel</Button>}
           </>
         )}
       />

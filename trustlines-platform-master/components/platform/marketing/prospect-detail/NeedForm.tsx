@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select } from '@/components/platform/shared/Select';
 import { PROJECT_TYPE_LABEL, TIMING_LABEL, TIMINGS, PROJECT_TYPES } from '@/lib/marketing/classification';
@@ -61,10 +60,10 @@ export function NeedForm({ heading, initial, defaultRegion, locations, onSave, o
       title={heading ?? (initial ? `Edit ${initial.title}` : 'New need')}
       onCancel={onCancel}
       footer={<>
-        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={!title.trim() || saving || (timing === 'contact_later' && !targetContactDate)}>
+        <Button size="md" onClick={submit} loading={saving} disabled={!title.trim() || saving || (timing === 'contact_later' && !targetContactDate)}>
           {initial ? 'Save changes' : 'Save Need'}
         </Button>
-        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
+        <Button variant="ghost" size="md" onClick={onCancel}>Cancel</Button>
       </>}
     >
       <div style={{ marginBottom: 10 }}>

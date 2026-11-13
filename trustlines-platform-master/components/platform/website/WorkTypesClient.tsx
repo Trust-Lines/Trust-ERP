@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 import { Plus, Images, GripVertical, ArrowUp, ArrowDown, ImagePlus, X, Loader2, AlertTriangle, Layers } from 'lucide-react';
 import type { WorkTypeRow } from '@/lib/web-cms/workTypes';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { MEDIA_BTN } from './ImageField';
 import { WorkTypeTile } from './WorkTypeTile';
 import { uploadToImageKit } from './imagekitClient';
@@ -196,7 +195,7 @@ export function WorkTypesClient({ initial, canEdit, siteUrl, loadError }: Props)
                   <WorkTypeTile slug="new" label={newLabel.trim()} iconUrl={newIcon || null} siteUrl={siteUrl} size={110} />
                 </div>
               )}
-              <Button className={FORM_SUBMIT} loading={adding} disabled={adding} onClick={add}>
+              <Button size="md" loading={adding} disabled={adding} onClick={add}>
                 <Plus aria-hidden /> Add Type
               </Button>
             </div></div>

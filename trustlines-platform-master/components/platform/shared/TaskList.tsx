@@ -84,7 +84,7 @@ export function TaskList({ apiBasePath, assignees }: {
               const done = t.status === 'done';
               return (
                 <li key={t.id} className="flex flex-wrap items-center gap-2 border-b border-ui-divider py-2 last:border-b-0">
-                  <Checkbox className="size-4 rounded-[3px]" checked={done} aria-label={done ? `Re-open ${t.title}` : `Mark ${t.title} done`}
+                  <Checkbox checked={done} aria-label={done ? `Re-open ${t.title}` : `Mark ${t.title} done`}
                     onCheckedChange={() => patchTask(t, { status: done ? 'todo' : 'done' })} />
                   <span className={cn('min-w-0 flex-1 truncate text-[13px]', done ? 'text-ui-text-secondary line-through' : HEADING)}>{t.title}</span>
                   <Select aria-label={`Assignee for ${t.title}`} options={assigneeOptions} value={t.assignee_id ?? ''}
@@ -101,7 +101,7 @@ export function TaskList({ apiBasePath, assignees }: {
         )}
         <form className="flex gap-2" onSubmit={e => { e.preventDefault(); void addTask(); }}>
           <input aria-label="New subtask" placeholder="Add a subtask…" value={newTask} onChange={e => setNewTask(e.target.value)} className={FIELD} />
-          <Button type="submit" variant="outline" size="md" className="h-10 shrink-0" disabled={!newTask.trim()}><Plus aria-hidden /> Add</Button>
+          <Button type="submit" variant="outline" size="md" className="shrink-0" disabled={!newTask.trim()}><Plus aria-hidden /> Add</Button>
         </form>
       </div>
     </section>

@@ -179,7 +179,7 @@ export function MailSettingsCard({ email }: { email: string }) {
               <Button variant="secondary" loading={busy === 'save'} disabled={!!busy || !!notReady} onClick={async () => { if (await save()) toast.success('Saved — send a test email to check it works'); }}>Save</Button>
               {saved && (
                 <ConfirmModal
-                  trigger={<Button variant="ghost" className="ml-auto text-error-normal"><Trash2 /> Remove</Button>}
+                  trigger={<Button variant="ghost-destructive" className="ml-auto"><Trash2 /> Remove</Button>}
                   title="Remove your email account?" description="Your saved password is deleted. Campaigns you’re sending will pause until you connect again."
                   tone="destructive" confirmLabel="Remove" onConfirm={remove}
                 />

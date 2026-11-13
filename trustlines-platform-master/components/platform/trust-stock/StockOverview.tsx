@@ -468,7 +468,7 @@ function PartForm({ part, onDone, onSave, onRemove }: { part: StockPart | null; 
       </label>
       <div className="-mx-5 flex flex-wrap items-center justify-end gap-2 border-t border-ui-divider px-5 pt-4">
         <p className="m-0 mr-auto text-[11px] text-ui-text-secondary">Kept on this device until Trust Stock saving is connected.</p>
-        {part && <Button type="button" variant="ghost" className="text-error-normal" onClick={() => { onRemove(part.id); onDone(); }}>Remove item</Button>}
+        {part && <Button type="button" variant="ghost-destructive" onClick={() => { onRemove(part.id); onDone(); }}>Remove item</Button>}
         <Button type="button" variant="secondary" className={modalSecondaryButtonClass} onClick={onDone}>Cancel</Button>
         <Button type="submit" disabled={!canSave}>{part ? 'Save' : 'Add item'}</Button>
       </div>

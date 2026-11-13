@@ -113,7 +113,7 @@ export function SupplierDetailClient({ supplier, initialInvoices, initialPayment
         </div>
         {canEdit && (
           <div className="flex flex-wrap gap-2">
-            <Button size="md" variant="secondary" className="gap-2 text-[13px] font-medium" onClick={toggleActive} disabled={toggling}>
+            <Button size="md" variant="secondary" onClick={toggleActive} disabled={toggling}>
               <Power className="size-4" /> {supplier.is_active ? 'Deactivate' : 'Reactivate'}
             </Button>
             {/* Figma Delete: soft T10 fill. */}
@@ -240,7 +240,7 @@ function ProfileCard({ supplier, canEdit, onSaved }: { supplier: Supplier; canEd
       <CardHeader
         title="Profile"
         action={canEdit && !edit && (
-          <Button size="md" className="gap-2 pl-[34px] pr-11 text-[13px] font-medium" onClick={() => setEdit(true)}>
+          <Button size="md" onClick={() => setEdit(true)}>
             <Pencil className="size-4" /> Edit
           </Button>
         )}

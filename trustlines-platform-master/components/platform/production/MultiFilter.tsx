@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Trust System filter dropdown: a button with the selected count, a list with a search box on top,
 // checkbox options, "Clear all (n)" at the bottom. Picks inside one filter are OR.
@@ -51,8 +52,8 @@ export function MultiFilter({ label, options, selected, onChange, searchPlacehol
             {shown.length === 0 && <li className="px-2 py-1.5 text-[12px] text-ui-text-secondary">No matches</li>}
             {shown.map(o => (
               <li key={o.value}>
-                <label className="flex cursor-pointer items-center gap-2 rounded-[4px] px-2 py-1.5 text-[13px] text-ui-body hover:bg-ui-hover-bg">
-                  <input type="checkbox" checked={selected.has(o.value)} onChange={() => toggle(o.value)} />
+                <label className="flex cursor-pointer items-center gap-2.5 rounded-[4px] px-2 py-1.5 text-[13px] text-ui-body hover:bg-ui-hover-bg">
+                  <Checkbox checked={selected.has(o.value)} onCheckedChange={() => toggle(o.value)} />
                   <span className="truncate">{o.label}</span>
                 </label>
               </li>

@@ -101,7 +101,6 @@ const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-
 const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-3.5';
 
 // Figma "Selection checkbox": 16px, 3px radius, input border + background.
-const CHECKBOX = 'size-4 rounded-[3px] border-[var(--ui-input-border)] bg-ui-input-bg dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg';
 
 type SortKey = 'newest' | 'oldest' | 'name';
 
@@ -814,7 +813,7 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
                 <tr className="h-[46px] border-b border-ui-divider bg-[var(--ui-table-head-bg,var(--ui-surface))]">
                   <th className="w-[44px] pl-[18px] pr-2.5">
                     <Checkbox
-                      aria-label="Select all members" className={CHECKBOX}
+                      aria-label="Select all members"
                       checked={allSelected} indeterminate={someSelected}
                       onCheckedChange={on => setSelected(on ? new Set(filtered.map(p => p.id)) : new Set())}
                     />
@@ -838,7 +837,7 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
                     <tr key={p.id} className="h-16 border-b border-ui-divider last:border-b-0">
                       <td className="pl-[18px] pr-2.5">
                         <Checkbox
-                          aria-label={`Select ${name}`} className={CHECKBOX}
+                          aria-label={`Select ${name}`}
                           checked={selected.has(p.id)}
                           onCheckedChange={on => setSelected(prev => {
                             const next = new Set(prev);

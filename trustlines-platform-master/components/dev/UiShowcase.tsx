@@ -150,7 +150,15 @@ export function UiShowcase() {
             <div><Label>S</Label><Button size="sm"><BriefcaseBusinessIcon />Primary Button</Button></div>
             <div><Label>M</Label><Button size="md"><BriefcaseBusinessIcon />Primary Button</Button></div>
             <div><Label>L</Label><Button size="lg"><BriefcaseBusinessIcon />Primary Button</Button></div>
+            <div><Label>Toolbar (36px)</Label><Button size="toolbar"><BriefcaseBusinessIcon />Toolbar Button</Button></div>
             <div><Label>Load more (outline, M)</Label><Button variant="outline" size="md">Load More<PlusIcon /></Button></div>
+          </div>
+          <div className="mt-6 flex flex-wrap items-end gap-6">
+            <div><Label>Accent (main CTA)</Label><Button variant="accent"><PlusIcon />New Task</Button></div>
+            <div><Label>Warning</Label><Button variant="warning">Set up now</Button></div>
+            <div><Label>Destructive</Label><Button variant="destructive">Delete</Button></div>
+            <div><Label>Outline destructive</Label><Button variant="outline-destructive">Remove</Button></div>
+            <div><Label>Ghost destructive</Label><Button variant="ghost-destructive"><Trash2Icon />Delete</Button></div>
           </div>
         </Panel>
 

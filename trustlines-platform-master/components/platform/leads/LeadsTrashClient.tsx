@@ -82,7 +82,7 @@ export function LeadsTrashClient({ rows, canPurge }: { rows: TrashRow[]; canPurg
                       <RotateCcw size={13} /> Restore
                     </Button>
                     {canPurge && (
-                      <Button variant="ghost" className="text-error-normal" disabled={busy === r.id} onClick={() => purge(r)}>
+                      <Button variant="ghost-destructive" disabled={busy === r.id} onClick={() => purge(r)}>
                         <Trash2 size={13} /> Delete
                       </Button>
                     )}

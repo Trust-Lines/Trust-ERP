@@ -375,7 +375,7 @@ export function DesignJobSheet(p: Props) {
                       <Link2 aria-hidden /> Open shared folder
                     </a>
                   ) : !sales && (
-                    <Button size="md" className="w-fit pl-3 pr-4 text-[13px] font-medium [&_svg]:size-4" onClick={() => setTab('files')}><Link2 /> Set up in Files</Button>
+                    <Button size="md" className="w-fit" onClick={() => setTab('files')}><Link2 /> Set up in Files</Button>
                   )}
                 </section>
               </TabsContent>
@@ -519,7 +519,7 @@ function NotesTab({ notes, me, onPost }: { notes: Note[] | null; me: string; onP
           onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void send(); } }}
         />
-        <Button size="sm" className="h-10 self-end text-[14px]" disabled={!draft.trim() || sending} onClick={() => void send()}><Send /> {sending ? 'Sending…' : 'Post note'}</Button>
+        <Button size="md" className="self-end" disabled={!draft.trim() || sending} onClick={() => void send()}><Send /> {sending ? 'Sending…' : 'Post note'}</Button>
       </div>
     </div>
   );

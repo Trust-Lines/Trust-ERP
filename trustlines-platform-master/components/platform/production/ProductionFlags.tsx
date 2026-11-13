@@ -346,7 +346,7 @@ export function ManageGroupsModal({ open, onOpenChange, groups, canEdit, onChang
                   <header className="flex items-center justify-between border-b border-ui-divider bg-ui-surface px-3 py-2">
                     <h3 className="m-0 text-[14px] font-semibold text-ui-heading">Group {gr.number}</h3>
                     {canEdit && (
-                      <Button size="sm" variant="ghost" className="text-error-normal" onClick={() => setToDelete(gr)}>
+                      <Button size="sm" variant="ghost-destructive" onClick={() => setToDelete(gr)}>
                         <Trash2 /> Delete group
                       </Button>
                     )}

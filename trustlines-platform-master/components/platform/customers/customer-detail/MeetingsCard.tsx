@@ -8,7 +8,7 @@ import { Select } from '@/components/platform/shared/Select';
 import { MEETING_TYPES, cap, type Meeting } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
-import { AddButton, DetailCard, FORM_BOX, FORM_SUBMIT, IconAction, RowList } from './ui';
+import { AddButton, DetailCard, FORM_BOX, IconAction, RowList } from './ui';
 
 export function MeetingsCard({ meetings, canEdit, contactEmails = [], onSave, onSetStatus, onDelete }: {
   meetings: Meeting[];
@@ -161,8 +161,8 @@ function MeetingForm({ contactEmails, onSave, onCancel }: { contactEmails: strin
         </div>
       )}
       <div className="flex gap-1.5">
-        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={!f.title.trim() || !f.meeting_at || saving}><Plus aria-hidden /> Add Meeting</Button>
-        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
+        <Button size="md" onClick={submit} loading={saving} disabled={!f.title.trim() || !f.meeting_at || saving}><Plus aria-hidden /> Add Meeting</Button>
+        <Button variant="ghost" size="md" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   );

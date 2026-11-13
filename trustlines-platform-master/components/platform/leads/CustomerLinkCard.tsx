@@ -76,7 +76,7 @@ export function CustomerLinkCard({ intakeId, initialCustomer, delivered = false 
             <Contact size={16} style={{ color: 'var(--fg-subtle)' }} />
             <Link href={`/customers/${linked.id}`} style={{ fontWeight: 600, fontSize: 14 }}>{linked.name}</Link>
             <div style={{ flex: 1 }} />
-            <Button variant="ghost" className="text-error-normal" onClick={unlink} disabled={busy}>
+            <Button variant="ghost-destructive" onClick={unlink} disabled={busy}>
               <X size={13} /> Unlink
             </Button>
           </div>
