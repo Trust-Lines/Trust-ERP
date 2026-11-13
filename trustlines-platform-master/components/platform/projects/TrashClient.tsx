@@ -36,7 +36,6 @@ const DELETE_STYLE: React.CSSProperties = { background: 'var(--status-t10-bg)', 
 const TH_CLS = 'whitespace-nowrap px-2.5 py-2.5 text-left text-[12px] font-medium text-ui-text-secondary first:pl-3 last:pr-3';
 const TD_CLS = 'px-2.5 py-3.5 align-middle text-[12px] leading-[1.45] text-ui-body first:pl-3 last:pr-3';
 // Platform checkbox (Figma Form Components › Checkbox), a touch smaller to fit the 12px rows.
-const CHECKBOX_CLS = 'size-4 cursor-pointer [&>span]:size-3';
 
 const DATE_TIME = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 const DATE_ONLY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -203,7 +202,7 @@ export function TrashClient({ projects, purgeDays }: { projects: TrashedProject[
               <thead>
                 <tr className="bg-ui-surface">
                   <th className={cn(TH_CLS, 'w-9')}>
-                    <Checkbox className={CHECKBOX_CLS} checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all" />
+                    <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all" />
                   </th>
                   <th className={TH_CLS}>Item</th>
                   <th className={cn(TH_CLS, 'w-[150px]')}>Deleted by</th>
@@ -220,7 +219,7 @@ export function TrashClient({ projects, purgeDays }: { projects: TrashedProject[
                   return (
                     <tr key={p.id} className={cn('border-b border-ui-divider', isSelected ? 'bg-ui-selected-bg' : 'bg-ui-surface-elevated')}>
                       <td className={TD_CLS}>
-                        <Checkbox className={CHECKBOX_CLS} checked={isSelected} onCheckedChange={() => toggle(p.id)} aria-label={`Select ${p.name}`} />
+                        <Checkbox checked={isSelected} onCheckedChange={() => toggle(p.id)} aria-label={`Select ${p.name}`} />
                       </td>
                       <td className={TD_CLS}>
                         <div className="flex flex-col gap-1">

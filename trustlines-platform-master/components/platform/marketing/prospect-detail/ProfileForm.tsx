@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { Building2, Users, Globe, Tag } from 'lucide-react';
 import { SourceSelect } from '../SourceSelect';
 import { TagMultiSelect } from '../TagMultiSelect';
@@ -77,8 +76,8 @@ export function ProfileForm({ prospect, primaryContact, onSave, onSaveContact, o
       title="Edit profile"
       onCancel={onCancel}
       footer={<>
-        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={saving}>{'Save changes'}</Button>
-        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
+        <Button size="md" onClick={submit} loading={saving} disabled={saving}>{'Save changes'}</Button>
+        <Button variant="ghost" size="md" onClick={onCancel}>Cancel</Button>
       </>}
     >
       <FieldSection icon={Building2} title="Identity">

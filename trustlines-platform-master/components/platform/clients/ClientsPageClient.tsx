@@ -299,7 +299,7 @@ export function ClientsPageClient({ initialClients, userRole, canEdit }: Props) 
                     <span className="text-[16px] font-semibold text-ui-text-secondary">{count} Service{count !== 1 ? 's' : ''}</span>
                     {isOps && (
                       <Button
-                        className="h-[38px] gap-2 pl-3 pr-5 text-[13px] font-medium"
+                        size="toolbar"
                         onClick={e => { e.stopPropagation(); setAddCompanyFor(client.id); setExpanded(prev => new Set([...prev, client.id])); }}
                       >
                         <Plus className="size-4" /> Add Service

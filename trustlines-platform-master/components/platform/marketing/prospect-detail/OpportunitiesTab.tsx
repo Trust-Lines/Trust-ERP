@@ -60,7 +60,7 @@ export function OpportunitiesTab({
                       nowhere else to "open" to, Sales's /leads board is where it actually
                       lives once handed off. */}
                   {canEdit && ['new', 'marketing_qualification'].includes(o.stage) && (
-                    <Button size="md" className="h-9 shrink-0" onClick={() => onHandOff(o.id, o.title)} disabled={handingOffId === o.id}>
+                    <Button size="toolbar" className="shrink-0" onClick={() => onHandOff(o.id, o.title)} disabled={handingOffId === o.id}>
                       {handingOffId === o.id ? 'Sending…' : 'Hand off to Sales'}
                     </Button>
                   )}

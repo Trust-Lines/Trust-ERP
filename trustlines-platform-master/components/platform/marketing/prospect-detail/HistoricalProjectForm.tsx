@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { FormShell, OptionButton } from './shared';
 import { Select } from '@/components/platform/shared/Select';
 import { PROJECT_TYPE_LABEL, PROJECT_TYPES } from '@/lib/marketing/classification';
@@ -35,10 +34,10 @@ export function HistoricalProjectForm({ onSave, onCancel }: { onSave: (p: Record
       title="New past project"
       onCancel={onCancel}
       footer={<>
-        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={!valid || saving}>
+        <Button size="md" onClick={submit} loading={saving} disabled={!valid || saving}>
           Save project
         </Button>
-        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
+        <Button variant="ghost" size="md" onClick={onCancel}>Cancel</Button>
       </>}
     >
       <div style={{ marginBottom: 10 }}>

@@ -2,7 +2,7 @@
 
 import { Building2, CircleCheck, CircleDashed, CircleX, X, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { DetailCard, FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
+import { DetailCard } from '@/components/platform/customers/customer-detail/ui';
 import { cn } from '@/lib/utils';
 import type { NeedClassification } from '@/types/database';
 import { NEED_CLASSIFICATION_LABEL } from './types';
@@ -55,7 +55,6 @@ export function OptionButton({ active, onClick, children }: { active: boolean; o
     <Button
       variant={active ? 'primary' : 'outline'}
       aria-pressed={active}
-      className={cn('rounded-[6px] font-medium', active && FORM_SUBMIT, active && 'h-8 px-3')}
       onClick={onClick}
     >
       {children}

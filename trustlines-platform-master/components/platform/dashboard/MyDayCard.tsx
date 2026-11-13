@@ -36,7 +36,6 @@ const COLLAPSED_ROWS = 6;
 const GRID = 'grid grid-cols-[48px_minmax(0,279fr)_minmax(0,214fr)_minmax(0,180fr)_minmax(0,181fr)_108px] items-center';
 const TH = 'inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-[13px] font-semibold leading-[1.4] text-ui-body';
 const TH_ACTIVE = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
-const CHECKBOX = 'size-4 rounded-[3px] border-[var(--ui-input-border)] bg-ui-input-bg dark:border-[#4D6E98] dark:bg-ui-input-bg';
 
 export function MyDayCard({ className, full = false }: { className?: string; full?: boolean }) {
   const [data, setData] = useState<MyDayData | null>(null);
@@ -84,7 +83,7 @@ export function MyDayCard({ className, full = false }: { className?: string; ful
       <div className={cn(GRID, 'h-[50px] border-b border-ui-divider bg-ui-surface pr-2.5')}>
         <span className="flex justify-center">
           <Checkbox
-            aria-label="Select all tasks" className={CHECKBOX} checked={allSelected}
+            aria-label="Select all tasks" checked={allSelected}
             onCheckedChange={() => setSelected(allSelected ? new Set() : new Set(shown.map((_, i) => i)))}
           />
         </span>
@@ -118,7 +117,7 @@ export function MyDayCard({ className, full = false }: { className?: string; ful
             return (
               <div key={`${item.href}-${i}`} className={cn(GRID, 'h-9 border-b border-ui-divider bg-ui-surface-elevated pr-2.5 last:border-b-0')}>
                 <span className="flex justify-center">
-                  <Checkbox aria-label={`Select ${item.label}`} className={CHECKBOX} checked={selected.has(i)} onCheckedChange={() => toggle(i)} />
+                  <Checkbox aria-label={`Select ${item.label}`} checked={selected.has(i)} onCheckedChange={() => toggle(i)} />
                 </span>
                 <Link href={item.href} className="truncate text-[13px] leading-[1.4] text-ui-body no-underline hover:underline">{item.label}</Link>
                 <span>

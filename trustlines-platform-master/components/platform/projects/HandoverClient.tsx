@@ -148,8 +148,8 @@ export function HandoverClient(props: Props) {
                   />
                 </label>
                 {canEdit && (complete
-                  ? <Button className="h-10 px-6 font-medium" onClick={() => patch({ reopen: true })} disabled={busy}>Reopen</Button>
-                  : <Button className="h-10 px-6 font-medium" onClick={() => patch({ complete: true })} disabled={busy}>Mark complete</Button>)}
+                  ? <Button size="md" onClick={() => patch({ reopen: true })} disabled={busy}>Reopen</Button>
+                  : <Button size="md" onClick={() => patch({ complete: true })} disabled={busy}>Mark complete</Button>)}
               </div>
             </div>
 
@@ -162,7 +162,7 @@ export function HandoverClient(props: Props) {
                     <label className={cn('flex items-center gap-1.5', clickable ? 'cursor-pointer' : 'cursor-default')}
                       title={isAuto ? 'Set automatically from the project’s data' : undefined}>
                       <span className="flex w-9 justify-center px-2.5">
-                        <Checkbox checked={item.done} disabled={!clickable} onCheckedChange={() => clickable && patch({ toggle: item.key })} className="size-4" />
+                        <Checkbox checked={item.done} disabled={!clickable} onCheckedChange={() => clickable && patch({ toggle: item.key })} />
                       </span>
                       <span className={cn('pr-2.5 text-[12px] font-medium text-ui-body', item.done && 'line-through opacity-70')}>{item.label}</span>
                       <span
@@ -210,7 +210,7 @@ export function HandoverClient(props: Props) {
                       <span className="text-[15px] font-medium leading-4 text-ui-body">Attached to this project</span>
                     </div>
                     {canEdit && (
-                      <Button variant="ghost" size="icon-sm" onClick={() => detach(a)} disabled={busy} aria-label={`Detach ${ci?.name ?? 'contact'}`} className="text-error-normal">
+                      <Button variant="ghost-destructive" size="icon-sm" onClick={() => detach(a)} disabled={busy} aria-label={`Detach ${ci?.name ?? 'contact'}`}>
                         <X aria-hidden />
                       </Button>
                     )}

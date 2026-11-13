@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select } from '@/components/platform/shared/Select';
 import { ADDRESS_TYPES, type Address } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
-import { AddButton, DetailCard, FORM_BOX, FORM_SUBMIT, IconAction, PrimaryChip, RowList } from './ui';
+import { AddButton, DetailCard, FORM_BOX, IconAction, PrimaryChip, RowList } from './ui';
 
 export function AddressesCard({ addresses, canEdit, onSave, onDelete }: {
   addresses: Address[];
@@ -108,8 +108,8 @@ function AddressForm({ address, onSave, onCancel }: { address?: Address; onSave:
         <Checkbox checked={f.is_primary} onCheckedChange={v => setF(p => ({ ...p, is_primary: v }))} /> Primary address
       </label>
       <div className="flex gap-1.5">
-        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={saving}>{address ? 'Save' : <><Plus aria-hidden /> Add Address</>}</Button>
-        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
+        <Button size="md" onClick={submit} loading={saving} disabled={saving}>{address ? 'Save' : <><Plus aria-hidden /> Add Address</>}</Button>
+        <Button variant="ghost" size="md" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   );

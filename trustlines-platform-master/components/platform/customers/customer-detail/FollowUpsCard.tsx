@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { todayISO, type Assignee, type FollowUp } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
-import { AddButton, DetailCard, FORM_BOX, FORM_SUBMIT, IconAction, RowList } from './ui';
+import { AddButton, DetailCard, FORM_BOX, IconAction, RowList } from './ui';
 
 export function FollowUpsCard({ followUps, assignees, canEdit, onSave, onSetStatus, onDelete }: {
   followUps: FollowUp[];
@@ -106,8 +106,8 @@ function FollowUpForm({ assignees, onSave, onCancel }: {
           </Select></div>
       </div>
       <div className="flex gap-1.5">
-        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={!note.trim() || !dueDate || saving}><Plus aria-hidden /> Add Follow-up</Button>
-        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
+        <Button size="md" onClick={submit} loading={saving} disabled={!note.trim() || !dueDate || saving}><Plus aria-hidden /> Add Follow-up</Button>
+        <Button variant="ghost" size="md" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   );

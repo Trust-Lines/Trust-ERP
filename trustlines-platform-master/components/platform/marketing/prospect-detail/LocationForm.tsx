@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { FORM_SUBMIT } from '@/components/platform/customers/customer-detail/ui';
 import { type ProspectLocation } from './types';
 import { FormShell } from './shared';
 
@@ -29,8 +28,8 @@ export function LocationForm({ initial, onSave, onCancel }: { initial?: Prospect
       title={initial ? `Edit ${initial.location_name || 'location'}` : 'New location'}
       onCancel={onCancel}
       footer={<>
-        <Button className={FORM_SUBMIT} onClick={submit} loading={saving} disabled={saving}>{initial ? 'Save changes' : 'Save location'}</Button>
-        <Button variant="ghost" className="h-auto" onClick={onCancel}>Cancel</Button>
+        <Button size="md" onClick={submit} loading={saving} disabled={saving}>{initial ? 'Save changes' : 'Save location'}</Button>
+        <Button variant="ghost" size="md" onClick={onCancel}>Cancel</Button>
       </>}
     >
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>

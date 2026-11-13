@@ -5,7 +5,8 @@ import { Loader2Icon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // Figma: DAY 03 › Components › Buttons. Colours are 2026 palette tokens only.
-// Sizes S/M/L = 32/40/48px. The Figma "Ghost" column is the disabled look.
+// Sizes S/M/L = 32/40/48px, plus `toolbar` (36px) for filter bars. The Figma "Ghost" column is the disabled look.
+// Pass className for layout only (margin, width, alignment) — looks come from `variant` / `size`.
 const buttonVariantsBase = cva(
   "group/button relative inline-flex shrink-0 items-center justify-center border border-transparent font-semibold leading-[1.5] whitespace-nowrap transition-colors select-none outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring disabled:pointer-events-none aria-busy:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
@@ -21,6 +22,18 @@ const buttonVariantsBase = cva(
           "bg-transparent text-primary-700 hover:bg-ui-hover-bg disabled:text-grey-200 dark:text-primary-100 dark:hover:bg-white/5 dark:disabled:text-primary-500",
         destructive:
           "bg-error-normal text-primary-50 hover:bg-error-dark disabled:bg-grey-100 disabled:text-grey-200",
+        // Outlined destructive action that shouldn't shout (e.g. "Remove" on a failed upload row).
+        "outline-destructive":
+          "border-error-normal bg-transparent text-error-normal hover:bg-error-light disabled:border-grey-200 disabled:text-grey-200 dark:hover:bg-error-dark/30",
+        // Text-only destructive action (Delete / Remove / Disconnect links in cards and dialogs).
+        "ghost-destructive":
+          "bg-transparent text-error-normal hover:bg-error-light disabled:text-grey-200 dark:hover:bg-error-dark/30",
+        // The page's one main call-to-action (New Task, New request, Convert…) — brand accent fill.
+        accent:
+          "bg-ui-btn-accent text-ui-btn-accent-fg hover:opacity-90 disabled:bg-grey-100 disabled:text-grey-200",
+        // Call-to-action inside a warning notice (e.g. "Set up now" on the signature banner).
+        warning:
+          "bg-warning-dark text-white hover:bg-warning-dark/90 disabled:bg-grey-100 disabled:text-grey-200",
         link: "h-auto! border-0 p-0! text-ui-link underline-offset-4 hover:underline",
         // Legacy shadcn name, kept so existing callers keep working.
         default:
@@ -30,6 +43,8 @@ const buttonVariantsBase = cva(
         sm: "h-8 gap-1.5 rounded-[4px] px-3 text-[13px] [&_svg:not([class*='size-'])]:size-4",
         md: "h-10 gap-2 rounded-[6px] px-4 text-[14px] [&_svg:not([class*='size-'])]:size-[18px]",
         lg: "h-12 gap-2.5 rounded-[8px] px-5 text-[16px] [&_svg:not([class*='size-'])]:size-5",
+        // 36px — matches the filter bars' inputs / selects (h-9), so toolbar buttons line up with them.
+        toolbar: "h-9 gap-1.5 rounded-[6px] px-3 text-[13px] [&_svg:not([class*='size-'])]:size-4",
         icon: "size-8 rounded-[4px] [&_svg:not([class*='size-'])]:size-5",
         "icon-md": "size-10 rounded-[6px] [&_svg:not([class*='size-'])]:size-5",
         "icon-lg": "size-12 rounded-[8px] [&_svg:not([class*='size-'])]:size-6",

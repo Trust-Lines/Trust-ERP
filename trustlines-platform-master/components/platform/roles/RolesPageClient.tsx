@@ -36,8 +36,6 @@ const GROUP_ICONS: Record<PermCategory, LucideIcon> = {
   page: Monitor, edit: PenLine, sign: Signature, view: Eye, notify: Bell, progress: TrendingUp,
 };
 
-// Figma "Primary button" at the Roles page's 32px height: #2B3D55 light, #EEF2F6 dark.
-const ACTION_BTN = 'gap-2 rounded-[6px] px-4 font-medium bg-[var(--color-secondary-700)] text-ui-btn-primary-fg hover:bg-[var(--color-secondary-600)] active:bg-[var(--color-secondary-600)] dark:bg-[var(--color-secondary-50)]';
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-[var(--color-secondary-50)]';
 
 // A role's stored pair is tint + strong colour. Dark mode swaps them, like the status tones in globals.css.
@@ -185,7 +183,7 @@ function PermissionEditor({
                 <h2 className={`m-0 text-[20px] font-semibold leading-normal ${HEADING}`}>{group.title}</h2>
                 <span className="ml-1 whitespace-nowrap text-[12px] text-ui-text-secondary">{granted}/{keys.length} enabled</span>
               </div>
-              <Button className={ACTION_BTN} onClick={() => setGroup(keys, !allOn)}>
+              <Button onClick={() => setGroup(keys, !allOn)}>
                 {allOn ? <ToggleLeft aria-hidden /> : <ToggleRight aria-hidden />}
                 {allOn ? 'Clear All' : 'Enable All'}
               </Button>
@@ -277,7 +275,7 @@ export function RolesPageClient({ initialRoles }: Props) {
           <div className="flex items-center justify-between gap-3 border-b border-ui-divider bg-ui-surface py-2.5 pl-4 pr-2.5">
             <h2 className={`m-0 text-[20px] font-semibold leading-9 ${HEADING}`}>Roles</h2>
             <Button
-              className="gap-2 rounded-[6px] bg-ui-btn-accent px-4 font-medium text-ui-btn-accent-fg hover:bg-ui-btn-accent hover:brightness-95 active:bg-ui-btn-accent dark:bg-ui-btn-accent dark:text-ui-btn-accent-fg dark:hover:bg-ui-btn-accent"
+              variant="accent"
               onClick={() => setShowNew(true)}
             >
               <Plus size={14} aria-hidden /> Add Role
@@ -302,10 +300,10 @@ export function RolesPageClient({ initialRoles }: Props) {
                 <div className="flex flex-wrap items-center gap-2">
                   {isDirty && (
                     <>
-                      <Button variant="outline" className="rounded-[6px] bg-ui-surface-elevated font-medium"
+                      <Button variant="outline"
                         onClick={() => setPendingPerms(prev => { const n = { ...prev }; delete n[current.name]; return n; })}
                         disabled={saving}>Discard</Button>
-                      <Button className={ACTION_BTN} onClick={handleSave} loading={saving} disabled={saving}>Save changes</Button>
+                      <Button onClick={handleSave} loading={saving} disabled={saving}>Save changes</Button>
                     </>
                   )}
                   <Button

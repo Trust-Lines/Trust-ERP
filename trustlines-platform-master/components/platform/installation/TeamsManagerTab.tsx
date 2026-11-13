@@ -136,7 +136,7 @@ export function TeamsManagerTab({ teams, rows, today, clashes, canEdit, setupNee
               options={[{ value: '', label: 'Project' }, ...projectOptions]} />
           )}
           {canEdit && (
-            <Button className="ml-auto h-10" onClick={() => setEditing('new')}><Plus /> New team</Button>
+            <Button size="md" className="ml-auto" onClick={() => setEditing('new')}><Plus /> New team</Button>
           )}
         </div>
 
