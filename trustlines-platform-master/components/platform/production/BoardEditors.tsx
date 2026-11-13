@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Menu, MenuContent, MenuGroup, MenuGroupLabel, MenuItem } from '@/components/ui/menu';
 import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 
@@ -425,17 +426,22 @@ export function EditItemPanel({ point, type, items, vendors, orderTypes, canAdd,
 
 // ── Row right-click menu ────────────────────────────────────────────────────────────────────
 export function RowMenu({ point, title, onDelete, onClose }: { point: { x: number; y: number }; title: string; onDelete: () => void; onClose: () => void }) {
+  // Still closes on page scroll / resize: it's pinned to the click point, not to the row.
   useDismiss(onClose);
+  // Shared Menu anchored at the right-click point (no trigger button).
+  const anchor = useMemo(() => ({
+    getBoundingClientRect: () => DOMRect.fromRect({ x: point.x, y: point.y, width: 0, height: 0 }),
+  }), [point.x, point.y]);
   return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} onContextMenu={e => { e.preventDefault(); onClose(); }} aria-hidden />
-      <div data-board-popup role="menu" className={cn(POPUP, 'min-w-[180px] py-1')}
-        style={{ left: Math.min(point.x, window.innerWidth - 200), top: Math.min(point.y, window.innerHeight - 90) }}>
-        <p className="m-0 px-3 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wide text-ui-text-secondary">{title}</p>
-        <button type="button" role="menuitem" onClick={onDelete} className={cn(OPTION, 'text-error-normal hover:bg-error-light')}>
-          <Trash2 size={14} aria-hidden /> Delete Row
-        </button>
-      </div>
-    </>
+    <Menu open onOpenChange={open => { if (!open) onClose(); }}>
+      <MenuContent data-board-popup anchor={anchor} side="bottom" align="start" sideOffset={0} className="min-w-[180px]">
+        <MenuGroup>
+          <MenuGroupLabel>{title}</MenuGroupLabel>
+          <MenuItem variant="destructive" onClick={onDelete}>
+            <Trash2 aria-hidden /> Delete Row
+          </MenuItem>
+        </MenuGroup>
+      </MenuContent>
+    </Menu>
   );
 }

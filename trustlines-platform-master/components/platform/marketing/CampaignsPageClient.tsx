@@ -1,7 +1,7 @@
 'use client';
 
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, Megaphone, AlertTriangle, Copy, Check, Trash2, Plus, ArrowDown, ArrowUp, MoreHorizontal, Pencil, ExternalLink } from 'lucide-react';
@@ -11,7 +11,8 @@ import { US_STATES } from '@/lib/usStates';
 import type { CampaignStatus, CampaignType } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
 import { Checkbox } from '@/components/ui/checkbox';
 
 export interface CampaignRow {
@@ -60,7 +61,6 @@ const FILTER_STYLE: React.CSSProperties = {
 };
 const TH_CLS = 'h-[46px] whitespace-nowrap px-2.5 text-left text-[12px] font-semibold leading-[1.4] text-ui-body';
 const TD_CLS = 'px-2.5 py-2 text-[13px] text-ui-body';
-const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-3.5';
 
 const DATE_UPPER = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 function formatDate(iso: string | null): string {
@@ -106,19 +106,7 @@ export function CampaignsPageClient({ initialCampaigns, canEdit, canSeeAll, load
   const [typeFilter, setTypeFilter] = useState('');
   const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [menuId, setMenuId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuId) return;
-    function onDown(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuId(null);
-    }
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [menuId]);
-
   // Runs the existing per-campaign trash endpoint one by one — it carries its own auth + audit log.
   async function trashCampaigns(targets: CampaignRow[]) {
     if (targets.length === 0) return;
@@ -312,35 +300,22 @@ export function CampaignsPageClient({ initialCampaigns, canEdit, canSeeAll, load
                     <td className={cn(TD_CLS, 'text-center')}>{c.submission_count}</td>
                     <td className={cn(TD_CLS, 'whitespace-nowrap')}>{formatDate(c.created_at)}</td>
                     <td className={cn(TD_CLS, 'pr-[18px]')} onClick={e => e.stopPropagation()}>
-                      <div className="relative" ref={menuId === c.id ? menuRef : undefined}>
-                        <button
-                          type="button"
-                          aria-label={`Actions for ${c.name}`}
-                          aria-haspopup="menu"
-                          aria-expanded={menuId === c.id}
-                          onClick={() => setMenuId(id => (id === c.id ? null : c.id))}
-                          className="grid size-8 cursor-pointer place-items-center rounded-[6px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
-                        >
-                          <MoreHorizontal size={16} aria-hidden />
-                        </button>
-                        {menuId === c.id && (
-                          <div role="menu" className="absolute right-0 top-[calc(100%+4px)] z-20 flex min-w-[170px] flex-col gap-0.5 rounded-[6px] border border-ui-input-border bg-ui-page-bg p-1.5 shadow-md">
-                            <Link role="menuitem" href={`/marketing/campaigns/${c.id}`} className={MENU_ITEM}><ExternalLink aria-hidden /> Open</Link>
-                            {canEdit && c.status !== 'closed' && (
-                              <Link role="menuitem" href={`/marketing/campaigns/${c.id}/edit`} className={MENU_ITEM}><Pencil aria-hidden /> Edit</Link>
-                            )}
-                            {canEdit && (
-                              <button
-                                type="button" role="menuitem" className={MENU_ITEM}
-                                style={{ color: 'var(--status-t10-fg)' }}
-                                onClick={() => { setMenuId(null); void trashCampaigns([c]); }}
-                              >
-                                <Trash2 aria-hidden /> Delete
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      <Menu>
+                        <MenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions for ${c.name}`} />}>
+                          <MoreHorizontal aria-hidden />
+                        </MenuTrigger>
+                        <MenuContent className="min-w-[170px]">
+                          <MenuLinkItem render={<Link href={`/marketing/campaigns/${c.id}`} />}><ExternalLink aria-hidden /> Open</MenuLinkItem>
+                          {canEdit && c.status !== 'closed' && (
+                            <MenuLinkItem render={<Link href={`/marketing/campaigns/${c.id}/edit`} />}><Pencil aria-hidden /> Edit</MenuLinkItem>
+                          )}
+                          {canEdit && (
+                            <MenuItem variant="destructive" onClick={() => void trashCampaigns([c])}>
+                              <Trash2 aria-hidden /> Delete
+                            </MenuItem>
+                          )}
+                        </MenuContent>
+                      </Menu>
                     </td>
                   </tr>
                 );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Filter, FolderOutput, Loader2, Pencil, Plus, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import {
 } from './ProductionFlags';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Button } from '@/components/ui/button';
+import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
 import { cn } from '@/lib/utils';
 import type { ProductionAccess } from '@/lib/production/access';
 import { STATUS_OPTIONS, normalizeStatus } from '@/lib/production/statuses';
@@ -50,7 +51,6 @@ export function ProductionClient({ access, canAddProject = false }: { access: Pr
   const [search, setSearch] = useState('');
   const [sel, setSel] = useState(noFilters);
   const [quick, setQuick] = useState<Set<QuickToken>>(new Set());
-  const [editMenu, setEditMenu] = useState(false);
   const [todoOpen, setTodoOpen] = useState(false);
   const [groupsOpen, setGroupsOpen] = useState(false);
   const [vendors, setVendors] = useState<{ id: string; code: string | null; name: string }[]>([]);
@@ -241,16 +241,6 @@ export function ProductionClient({ access, canAddProject = false }: { access: Pr
     void load();
   }
 
-  // Edit menu (Today's PFs & Follow Up / Groups).
-  const editRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!editMenu) return;
-    const onDown = (e: MouseEvent) => { if (editRef.current && !editRef.current.contains(e.target as Node)) setEditMenu(false); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setEditMenu(false); };
-    document.addEventListener('mousedown', onDown);
-    window.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDown); window.removeEventListener('keydown', onKey); };
-  }, [editMenu]);
 
   const BAR_BTN = 'inline-flex h-8 cursor-pointer items-center rounded-[6px] border-0 px-3 text-[12px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-40';
 
@@ -312,22 +302,15 @@ export function ProductionClient({ access, canAddProject = false }: { access: Pr
               onChange={next => setSel(prev => ({ ...prev, [k]: next }))} />
           ))}
           {projectsTab && (
-            <div ref={editRef} className="relative">
-              <button type="button" aria-haspopup="menu" aria-expanded={editMenu} onClick={() => setEditMenu(o => !o)}
-                className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-3.5 text-[13px] font-medium text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring dark:bg-primary-50 dark:text-primary-950">
+            <Menu>
+              <MenuTrigger render={<Button size="toolbar" />}>
                 <Pencil size={14} aria-hidden /> Edit
-              </button>
-              {editMenu && (
-                <div role="menu" className="absolute left-0 top-10 z-50 flex min-w-[220px] flex-col rounded-[6px] border border-ui-divider bg-ui-surface-elevated py-1 shadow-03">
-                  {access.todo && (
-                    <button type="button" role="menuitem" onClick={() => { setEditMenu(false); setTodoOpen(true); }}
-                      className="cursor-pointer border-0 bg-transparent px-3 py-2 text-left text-[13px] text-ui-body hover:bg-ui-hover-bg">Today&apos;s PFs &amp; Follow Up</button>
-                  )}
-                  <button type="button" role="menuitem" onClick={() => { setEditMenu(false); setGroupsOpen(true); }}
-                    className="cursor-pointer border-0 bg-transparent px-3 py-2 text-left text-[13px] text-ui-body hover:bg-ui-hover-bg">Groups</button>
-                </div>
-              )}
-            </div>
+              </MenuTrigger>
+              <MenuContent align="start" className="min-w-[220px]">
+                {access.todo && <MenuItem onClick={() => setTodoOpen(true)}>Today&apos;s PFs &amp; Follow Up</MenuItem>}
+                <MenuItem onClick={() => setGroupsOpen(true)}>Groups</MenuItem>
+              </MenuContent>
+            </Menu>
           )}
           <QuickChips tokens={quick} onToggle={toggleQuick} flags={pf.flags} groups={pf.groups} projectsTab={projectsTab} showPf={access.viewPf} />
         </div>

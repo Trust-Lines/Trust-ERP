@@ -2,11 +2,12 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { ChevronDown, LogOut, Settings, Shield } from 'lucide-react';
 import { ThemeSwitch } from '@/components/platform/shared/ThemeSync';
 import { PersonFace } from '@/components/ui/avatar-directory';
 import { ViewAsMenuItem } from './ViewAs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 // Design: Figma "TRUST-LINES ERP" → "Shell (Task 11)" → "User dropdown" (99:12105), light + dark.
 export function userInitials(name: string) {
@@ -42,33 +43,18 @@ export function UserMenu({
   variant: 'topbar' | 'rail';
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
   const initials = userInitials(userName);
-
-  useEffect(() => {
-    if (!open) return;
-    // A dropdown inside the menu (View as role) draws its list in a portal: clicks and Esc there
-    // belong to that list, not "outside" this menu.
-    const inPopup = (t: EventTarget | null) => t instanceof Element && !!t.closest('[data-slot="select-content"]');
-    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node) && !inPopup(e.target)) setOpen(false); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !inPopup(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
-  }, [open]);
 
   const close = () => setOpen(false);
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        aria-expanded={open}
-        aria-haspopup="menu"
+    // Account panel: a Popover (it holds the theme switch and the View-as picker, not only actions).
+    // Base UI keeps the View-as dropdown's own popup counted as "inside", so picking a role doesn't close it.
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
         aria-label="Account menu"
         title={variant === 'rail' ? `${userName} (${roleDisplay})` : undefined}
-        className="flex cursor-pointer items-center gap-[9px] rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-700 dark:focus-visible:outline-primary-50"
+        className="flex cursor-pointer items-center gap-[9px] rounded-md border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-700 dark:focus-visible:outline-primary-50"
       >
         <span
           className={`flex items-center justify-center overflow-hidden rounded-md bg-secondary-100 text-primary-500 dark:bg-secondary-700 dark:text-primary-100 ${
@@ -80,15 +66,15 @@ export function UserMenu({
         {variant === 'topbar' && (
           <ChevronDown className={`h-3 w-3 text-primary-500 transition-transform dark:text-primary-100 ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
         )}
-      </button>
+      </PopoverTrigger>
 
-      {open && (
-        <div
-          role="menu"
-          className={`z-50 w-72 rounded-xl border border-primary-100 bg-white p-3 shadow-[0_16px_48px_rgba(10,12,15,0.12)] dark:border-primary-600 dark:bg-secondary-800 ${
-            variant === 'rail' ? 'fixed bottom-5 left-[80px]' : 'absolute top-full right-0 mt-2'
-          }`}
-        >
+      <PopoverContent
+        aria-label="Account"
+        side={variant === 'rail' ? 'right' : 'bottom'}
+        align="end"
+        sideOffset={variant === 'rail' ? 12 : 8}
+        className="w-72 gap-0 rounded-xl border-primary-100 bg-white p-3 shadow-[0_16px_48px_rgba(10,12,15,0.12)] dark:border-primary-600 dark:bg-secondary-800"
+      >
           <div className="flex items-start gap-3 p-3">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary-100 text-[11px] text-primary-500 dark:bg-secondary-700 dark:text-primary-100">
               <PersonFace name={userName} fallback={initials} />
@@ -107,22 +93,21 @@ export function UserMenu({
 
           <ViewAsMenuItem />
 
-          <Link href="/settings" role="menuitem" onClick={close} className={OPTION}>
+          <Link href="/settings" onClick={close} className={OPTION}>
             <Settings className={ICON} strokeWidth={1.5} aria-hidden="true" />
             Settings
           </Link>
-          <Link href="/audit" role="menuitem" onClick={close} className={OPTION}>
+          <Link href="/audit" onClick={close} className={OPTION}>
             <Shield className={ICON} strokeWidth={1.5} aria-hidden="true" />
             Audit &amp; Security
           </Link>
           <form action="/api/auth/signout" method="POST">
-            <button type="submit" role="menuitem" onClick={clearDocgenDrafts} className={`${OPTION} cursor-pointer`}>
+            <button type="submit" onClick={clearDocgenDrafts} className={`${OPTION} cursor-pointer`}>
               <LogOut className={ICON} strokeWidth={1.5} aria-hidden="true" />
               Sign out
             </button>
           </form>
-        </div>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }
