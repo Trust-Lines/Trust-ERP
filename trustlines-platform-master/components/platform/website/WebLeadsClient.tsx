@@ -105,7 +105,7 @@ export function WebLeadsClient({ initial, canEdit, loadError, contactBase = '/ma
           onChange={v => setStatusFilter(v as typeof statusFilter)}
         />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Select className="form-input" value={kindFilter} onChange={e => setKindFilter(e.target.value as typeof kindFilter)} style={{ width: 170, height: 40 }}>
+          <Select className="form-input" value={kindFilter} onChange={e => setKindFilter(e.target.value as typeof kindFilter)} style={{ width: 170, height: 40, paddingRight: 10 }}>
             <option value="all">Contact form + Newsletter</option>
             <option value="contact">Contact form only</option>
             <option value="newsletter">Newsletter only</option>

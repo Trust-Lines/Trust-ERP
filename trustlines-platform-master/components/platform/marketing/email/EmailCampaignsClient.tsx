@@ -187,7 +187,7 @@ function SuppressionList({ canEdit, isManager }: { canEdit: boolean; isManager: 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="relative w-full max-w-[320px]">
           <Search size={16} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" aria-hidden />
-          <Input className="h-10 pl-8 text-[13px]" placeholder="Search addresses…" value={query} onChange={e => setQuery(e.target.value)} aria-label="Search addresses" />
+          <Input className="h-10 pl-8 dark:pl-8 text-[13px]" placeholder="Search addresses…" value={query} onChange={e => setQuery(e.target.value)} aria-label="Search addresses" />
         </div>
         {canEdit && <Button variant="secondary" onClick={() => setAdding(true)}><Ban /> Add address</Button>}
       </div>
@@ -219,8 +219,8 @@ function SuppressionList({ canEdit, isManager }: { canEdit: boolean; isManager: 
           <><ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Cancel</ModalClose><Button onClick={add}>Add address</Button></>
         )}>
           <div className="flex flex-col gap-4">
-            <Field label="Email address" htmlFor="sup-email"><Input id="sup-email" type="email" value={email} onChange={e => setEmail(e.target.value)} /></Field>
-            <Field label="Note (optional)" htmlFor="sup-note"><Input id="sup-note" value={note} placeholder="e.g. asked by phone not to be emailed" onChange={e => setNote(e.target.value)} /></Field>
+            <Field label="Email address" htmlFor="sup-email" className="[&>label]:text-[14px]"><Input id="sup-email" type="email" className="h-10 text-[14px]" value={email} onChange={e => setEmail(e.target.value)} /></Field>
+            <Field label="Note (optional)" htmlFor="sup-note" className="[&>label]:text-[14px]"><Input id="sup-note" className="h-10 text-[14px]" value={note} placeholder="e.g. asked by phone not to be emailed" onChange={e => setNote(e.target.value)} /></Field>
           </div>
         </ModalContent>
       </Modal>

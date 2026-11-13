@@ -73,7 +73,7 @@ export const normalizeStatus = (value: string | null | undefined): string => {
 export const signStyle = (value: string | null | undefined): StatusOption => SIGN[normalizeSign(value)];
 export const statusStyle = (value: string | null | undefined): StatusOption => {
   const v = normalizeStatus(value);
-  return STATUS_OPTIONS.find(o => o.value === v) ?? opt(v, v.replace(/_/g, ' '), 't0', 'circle-off');
+  return STATUS_OPTIONS.find(o => o.value === v) ?? opt(v, v.replace(/_/g, ' '), 'n1', 'circle-off');
 };
 
 /**

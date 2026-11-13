@@ -9,6 +9,7 @@ import { ArrowLeft, Trash2, ExternalLink } from 'lucide-react';
 import { BLOG_CATEGORIES, slugify } from '@/lib/web-cms/config';
 import { ImageField } from './ImageField';
 import { SectionsEditor, type EditorSection } from './SectionsEditor';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export interface EditorPost {
   id: string | null;
@@ -110,7 +111,7 @@ export function PostEditorClient({ initial, canEdit, siteUrl }: Props) {
           <div className="card"><div className="card-body">
             {sectionTitle('Publishing')}
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 6, cursor: ro ? 'default' : 'pointer' }}>
-              <input type="checkbox" disabled={ro} checked={post.is_published} onChange={e => set('is_published', e.target.checked)} />
+              <Checkbox disabled={ro} checked={post.is_published} onCheckedChange={v => set('is_published', !!v)} />
               {post.is_published ? 'Published' : 'Draft — hidden from the website'}
             </label>
             {scheduled && <div style={{ fontSize: 12, color: '#d97706', marginBottom: 10 }}>Scheduled — appears on {post.published_at}.</div>}

@@ -255,7 +255,6 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
                 <th className={cn(TH_CLS, 'w-9 pl-[18px]')}>
                   <Checkbox
                     checked={allSelected} aria-label="Select all"
-                    indeterminate={!allSelected && selected.size > 0}
                     onCheckedChange={() => setSelected(allSelected ? new Set() : new Set(filteredDeals.map(d => d.id)))}
                   />
                 </th>

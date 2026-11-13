@@ -179,14 +179,27 @@ export interface PProject {
   projectName?: string;
   color?: ProjectColor;
   isUrgent?: boolean;
+  /** Half-year assignment (Trust System "Half"): FIRST_HALF / SECOND_HALF + year. */
+  halfOfYear?: string | null;
+  halfYear?: number | null;
   containerDate?: string | null;
   bucket?: string;
+  /** Production tracker: the T-ERP project or case behind the block, for the project menu. */
+  id?: string;
+  kind?: 'project' | 'direct_order' | 'missing_extra';
+  /** The Trust System id (project / case), for "Belge Hazırla". */
+  trustId?: string | null;
+  /** The name and address the menu edits (the header shows them split from projectName). */
+  editName?: string;
+  editAddress?: string;
   items: PItem[];
 }
 
 export interface PSection {
   label: string;
   projects: PProject[];
+  /** Production tracker grouped view: the PF group's number (the band is a group, not a region). */
+  group?: number;
 }
 
 export function computeProjectColor(project: PProject): ProjectColor {
@@ -636,6 +649,8 @@ export interface ExportProjectsOptions {
   visibleColumns?: ColumnKey[];
   isColumnVisible?: (key: ColumnKey) => boolean;
   filename?: string;
+  /** Leave the Project Total sheet out (roles without the money columns). */
+  skipProjectTotal?: boolean;
 }
 
 export async function exportProjectsWorkbook(opts: ExportProjectsOptions): Promise<void> {
@@ -650,17 +665,29 @@ export async function exportProjectsWorkbook(opts: ExportProjectsOptions): Promi
   if (opts.missingExtra) writeProjectsSheet(wb, 'Missing & Extra', opts.missingExtra, cols);
   if (opts.directOrders) writeProjectsSheet(wb, 'Direct Orders', opts.directOrders, cols);
 
-  const ptData = opts.projectTotal ?? buildProjectTotalFromSections({
-    projects: opts.projects,
-    missingExtra: opts.missingExtra ?? [],
-    directOrders: opts.directOrders ?? [],
-  });
-  writeProjectTotalSheet(wb, ptData, opts.projectTotalRate ?? 41.23);
+  if (!opts.skipProjectTotal) {
+    const ptData = opts.projectTotal ?? buildProjectTotalFromSections({
+      projects: opts.projects,
+      missingExtra: opts.missingExtra ?? [],
+      directOrders: opts.directOrders ?? [],
+    });
+    writeProjectTotalSheet(wb, ptData, opts.projectTotalRate ?? 41.23);
+  }
 
   const dateStr = new Date().toISOString().slice(0, 10);
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   saveAs(blob, opts.filename || `Projects_${dateStr}.xlsx`);
+}
+
+/** One tab's sheet on its own (Missing & Extra / Direct Orders tabs of the Production tracker). */
+export async function exportBoardSheet(opts: { sheetName: string; sections: PSection[]; filename: string; visibleColumns?: ColumnKey[] }): Promise<void> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Projects Export';
+  wb.created = new Date();
+  writeProjectsSheet(wb, opts.sheetName, opts.sections, opts.visibleColumns ?? DEFAULT_VISIBLE_COLUMNS);
+  const buffer = await wb.xlsx.writeBuffer();
+  saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), opts.filename);
 }
 
 export const BOARD_CSS = {

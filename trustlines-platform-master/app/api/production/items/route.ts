@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { typesForCategories } from '@/lib/production/board';
 import { requireProductionWrite } from '@/lib/production/guard';
+import { PROD_KEYS } from '@/lib/production/access';
 import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
@@ -65,7 +66,7 @@ export async function GET(req: NextRequest) {
  * SIGN, else NOT SIGNED. No vendor, no PF code, NOT ORDERED.
  */
 export async function POST(req: NextRequest) {
-  const { user, admin, deny } = await requireProductionWrite();
+  const { user, admin, deny } = await requireProductionWrite(PROD_KEYS.editRows);
   if (deny) return deny;
 
   const body = await req.json().catch(() => ({})) as Record<string, unknown>;

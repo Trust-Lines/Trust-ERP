@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 
@@ -200,7 +201,7 @@ export function AddVendorForm({ initialName, onCreated, onClose }: { initialName
               onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))} />
           </label>
           <label className="flex items-start gap-2 text-[12px] text-ui-body">
-            <input type="checkbox" checked={fixed} onChange={e => setFixed(e.target.checked)} className="mt-0.5" />
+            <Checkbox checked={fixed} onCheckedChange={v => setFixed(!!v)} className="mt-0.5" />
             Millwork PF code by order type (Basic → M01, Selective → M02, Custom → M03)
           </label>
           <p className="m-0 rounded-[6px] bg-ui-surface px-3 py-2 text-[12px] text-ui-body">

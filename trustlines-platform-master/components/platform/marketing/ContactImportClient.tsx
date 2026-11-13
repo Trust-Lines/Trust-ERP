@@ -13,6 +13,7 @@ import { autoMapColumns, detectHeaderRow } from '@/lib/marketing/import/columns'
 import { buildPeople } from '@/lib/marketing/import/records';
 import { buildGroups } from '@/lib/marketing/import/group';
 import { planMerge } from '@/lib/marketing/import/merge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   IMPORT_FIELDS, IMPORT_FIELD_LABELS,
   type ColumnMapping, type ExistingMatch, type ImportAction, type ImportField, type ImportGroup, type ImportPerson,
@@ -35,7 +36,6 @@ const NAVY_BTN = 'inline-flex h-10 shrink-0 cursor-pointer items-center justify-
 const OUTLINE_BTN = 'inline-flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-[6px] border border-ui-input-border bg-ui-input-bg px-3 text-[12px] font-medium text-ui-body no-underline hover:bg-ui-hover-bg disabled:cursor-default disabled:opacity-50 [&_svg]:size-3.5';
 const TONE_BTN = 'inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[6px] border-0 px-4 text-[13px] font-medium hover:brightness-95 disabled:opacity-50 [&_svg]:size-4';
 const CHIP = 'inline-flex cursor-pointer items-center rounded-[6px] border border-ui-input-border bg-ui-input-bg px-2.5 py-1 text-[12px] text-ui-body hover:bg-ui-hover-bg';
-const CHECKBOX_CLS = 'size-4 cursor-pointer accent-[var(--color-secondary-700)]';
 const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg disabled:cursor-default disabled:opacity-50';
 const DECISION_LABEL: Record<ImportAction | 'none', string> = { create: 'Add as new', merge: 'Merge', skip: 'Skip', none: 'Choose one' };
 const FIELD = { minHeight: 42, fontSize: 14, borderRadius: 6, borderColor: 'var(--ui-input-border)', background: 'var(--ui-input-bg)' } as const;
@@ -780,13 +780,13 @@ export function ContactImportClient() {
                     <thead className="bg-ui-surface">
                       <tr className="h-11 border-b border-ui-divider text-left">
                         <th className="w-12 text-center">
-                          <input
-                            type="checkbox" className={CHECKBOX_CLS} aria-label="Select all in this view"
-                            ref={el => { if (el) el.indeterminate = pageRows.some(g => picked.has(g.id)) && !pageRows.every(g => picked.has(g.id)); }}
+                          <Checkbox
+                            aria-label="Select all in this view"
+                            indeterminate={pageRows.some(g => picked.has(g.id)) && !pageRows.every(g => picked.has(g.id))}
                             checked={pageRows.length > 0 && pageRows.every(g => picked.has(g.id))}
-                            onChange={e => setPicked(prev => {
+                            onCheckedChange={v => setPicked(prev => {
                               const next = new Set(prev);
-                              for (const g of pageRows) { if (e.target.checked) next.add(g.id); else next.delete(g.id); }
+                              for (const g of pageRows) { if (v) next.add(g.id); else next.delete(g.id); }
                               return next;
                             })}
                           />
@@ -828,10 +828,10 @@ export function ContactImportClient() {
                               aria-expanded={open}
                             >
                               <td className="text-center" onClick={e => e.stopPropagation()}>
-                                <input
-                                  type="checkbox" className={CHECKBOX_CLS} checked={picked.has(g.id)}
+                                <Checkbox
+                                  checked={picked.has(g.id)}
                                   aria-label={`Select ${nameOf(g)}`}
-                                  onChange={() => setPicked(prev => { const n = new Set(prev); if (n.has(g.id)) n.delete(g.id); else n.add(g.id); return n; })}
+                                  onCheckedChange={() => setPicked(prev => { const n = new Set(prev); if (n.has(g.id)) n.delete(g.id); else n.add(g.id); return n; })}
                                 />
                               </td>
                               <td className="max-w-0 pr-4">

@@ -286,15 +286,15 @@ function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
         <form id="hr-invite-form" onSubmit={submit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-heading">
             Full name
-            <Input autoFocus required value={fullName} onChange={e => setFullName(e.target.value)} placeholder="e.g. Jane Doe" />
+            <Input autoFocus required className="h-10 text-[14px]" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="e.g. Jane Doe" />
           </label>
           <label className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-heading">
             Email
-            <Input required type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" />
+            <Input required type="email" className="h-10 text-[14px]" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" />
           </label>
           <div className="flex flex-col gap-1.5 text-[12px] font-medium text-ui-heading">
             <label htmlFor="hr-invite-role">Role</label>
-            <Select id="hr-invite-role" value={role} onValueChange={v => setRole(v ?? '')} placeholder="Choose a role" options={INVITE_ROLES} />
+            <Select id="hr-invite-role" className="h-10 text-[14px] [&_svg]:size-5" value={role} onValueChange={v => setRole(v ?? '')} placeholder="Choose a role" options={INVITE_ROLES} />
           </div>
         </form>
       </ModalContent>

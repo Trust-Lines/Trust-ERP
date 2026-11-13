@@ -17,6 +17,7 @@ import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem } 
 import { TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
 import { defaultCompanySideForRole } from '@/lib/profile/metadata';
 import { trustDashboard } from '@/lib/dashboard/trustView';
+import { buildDealNames, type DealName } from '@/lib/board/cardName';
 
 // Same set /marketing/opportunities uses to gate its own quick-view edits — reused here so
 // the popup opened from the dashboard board follows the exact same edit rule, not a new one.
@@ -138,12 +139,33 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   // The Trust Lines dashboard shows every branch; the T-Lines one only the viewer's regions.
   // The board's "Accounts" view groups every card under its client: a key client when the name
   // matches one (same rule as Clients Opportunity, lib/keyClients/match), else the card's own name.
+  // A card's name comes from its Sales deal (lib/board/cardName.ts): the Brand when filled
+  // ("VIC" for #1188), else the lead's customer name, else the Trust / project name. The deal is
+  // found by project number AND address. Read on every page load, so a Sales edit shows at once.
+  const loadDealNames = async (): Promise<DealName[]> => {
+    type Row = { id: string; title: string | null; brand: string | null; external_project_code: string | null; project_id?: string | null;
+      prospects: { organization_name: string | null; display_name: string | null } | null };
+    const toDeal = (kind: DealName['kind']) => (r: Row): DealName => ({
+      kind, id: r.id, projectNo: r.external_project_code, projectId: r.project_id ?? null, address: r.title, brand: r.brand,
+      customer: r.prospects?.organization_name || r.prospects?.display_name || null,
+    });
+    try {
+      const [o, pt] = await Promise.all([
+        admin.from('opportunities').select('id, title, brand, external_project_code, project_id, prospects(organization_name, display_name)')
+          .is('deleted_at', null).order('updated_at', { ascending: false }).limit(5000),
+        admin.from('prospect_potentials').select('id, title, brand, external_project_code, prospects(organization_name, display_name)')
+          .is('deleted_at', null).order('updated_at', { ascending: false }).limit(5000),
+      ]) as unknown as [{ data: Row[] | null }, { data: Row[] | null }];
+      return [...(o.data ?? []).map(toDeal('opportunity')), ...(pt.data ?? []).map(toDeal('potential'))];
+    } catch { return []; }
+  };
   const loadAccountMatcher = async () => {
     try { return buildMatcher((await loadKeyClients(admin)).clients); } catch { return buildMatcher([]); }
   };
-  const [{ data: projectRows }, opportunities, trust, accountMatcher] = regionCodes.length === 0 && view === 'tlines'
-    ? [{ data: [] }, [] as ClientOpportunityRow[], { projects: [], error: null }, buildMatcher([])]
-    : await Promise.all([projectQuery, loadClientOpps(), loadTrustProjects(), loadAccountMatcher()]);
+  const [{ data: projectRows }, opportunities, trust, accountMatcher, dealRows] = regionCodes.length === 0 && view === 'tlines'
+    ? [{ data: [] }, [] as ClientOpportunityRow[], { projects: [], error: null }, buildMatcher([]), [] as DealName[]]
+    : await Promise.all([projectQuery, loadClientOpps(), loadTrustProjects(), loadAccountMatcher(), loadDealNames()]);
+  const dealNames = buildDealNames(dealRows, projectNumber);
   const accountOf = (name: string | null | undefined, keyClientId?: string, keyClientName?: string) => {
     if (keyClientId && keyClientName) return { key: `kc:${keyClientId}`, name: keyClientName };
     const kc = accountMatcher.byName(name);
@@ -186,12 +208,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const trustToday = new Date().toISOString().slice(0, 10);
   const allTrustCards = trustProjects.map(p => {
     const e = classifyTrustProject(p, trustToday);
+    const brand = dealNames.forCard(p.projectNo, p.address);
     const item: BoardCardItem = {
       id: p.id, kind: 'trust',
       badgeTop: `#${p.projectNo}`, badgeBottom: '',
-      title: p.name,
+      title: brand ?? p.name,
       subtitle: p.address,
-      account: accountOf(p.name),
+      account: accountOf(brand ?? p.name),
       company: companyByNo.get(p.projectNo) ?? null,
       category: (p.types ?? []).map(typeLabel).filter(Boolean).join(', ') || null,
       pmName: null, pmLabel: '',
@@ -225,7 +248,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         trustError={trust.error}
         users={allUsers ?? []}
         canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
-        top={<div key="top-summary"><LiveRefresh name="tlines-pm" tables={['documents', 'document_approvals', 'projects']} /><TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={t.kpis} /></div>}
+        top={<div key="top-summary"><LiveRefresh name="tlines-pm" tables={['documents', 'document_approvals', 'projects', 'opportunities']} /><TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={t.kpis} /></div>}
       />
     );
   }
@@ -280,7 +303,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       return {
         id: o.id, kind: 'opportunity',
         badgeTop: top, badgeBottom: bottom,
-        title: o.client,
+        title: dealNames.forDeal(o.kind, o.id) ?? o.client,
         subtitle: o.site || (prospectPlace.get(o.prospectId) ?? null),
         account: accountOf(o.client, o.keyClientId, o.client),
         // Which of our companies: ClickUp's "Industry", else the code prefix ("STSE507").
@@ -303,13 +326,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       const [top, bottom] = projectBadge(p.code);
       const date = p.est_delivery_date ?? p.closed_deal_date;
       const no = projectNumber(p.code);
+      const name = dealNames.forCard(no, p.site_location, p.id) ?? p.name;
       return {
         projectNo: no,
         trustItems: no ? trustByNo.get(no) ?? null : null,
         id: p.id, kind: 'project', badgeTop: top, badgeBottom: bottom,
-        title: p.name,
+        title: name,
         subtitle: p.site_location,
-        account: accountOf(p.name),
+        account: accountOf(name),
         // Which of our companies (Store Maker / Premium / Design Build): set on the project, else its code.
         company: p.service_line && SERVICE_LINE_VALUES.includes(p.service_line) ? p.service_line : serviceLineFromCode(p.code),
         onHold: heldProjects.has(p.id),
@@ -430,6 +454,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   return (
     <BranchBoard
       accounts
+      byPm
       columns={columns}
       assignees={marketingAssignees ?? []}
       canEdit={canEditOpportunities}
@@ -439,7 +464,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
       // A server element passed as a prop into a client component is checked like a list child in
       // dev (React 19 / Next 16) — the key only silences that false "unique key" warning.
-      top={<div key="top-summary"><LiveRefresh name="tlines-pm" tables={['documents', 'document_approvals', 'projects']} /><TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} /></div>}
+      top={<div key="top-summary"><LiveRefresh name="tlines-pm" tables={['documents', 'document_approvals', 'projects', 'opportunities']} /><TopSummaryRow fullName={profile?.full_name ?? ''} role={userRole} kpis={kpis} /></div>}
     />
   );
 }

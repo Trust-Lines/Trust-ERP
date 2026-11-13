@@ -4,16 +4,19 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   DEFAULT_VISIBLE_COLUMNS, COLUMN_LABELS,
-  computeProjectColor, projectColorCss, groupItemsByType, groupAllSent,
+  computeProjectColor, groupItemsByType, groupAllSent,
   vendorText, effUsd, effTl, toNumber, fmtDateCss,
   isDateColumn, isMoneyColumn, BOARD_CSS,
-  type PSection, type PItem, type ColumnKey,
+  type PSection, type PItem, type PProject, type ColumnKey,
 } from '@/lib/excel/projectsExcelExport';
 import { EmptyState } from '@/components/ui/empty-state';
 import { CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleOff, Drill, Factory, Hourglass, Loader, Package, Pause, Send, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ColumnResizer, useColumnWidths, type SizedColumn } from '@/components/ui/column-resize';
 import { ConfirmModal } from '@/components/ui/modal';
+import { ProjectMenu } from './ProjectMenu';
+import type { ProductionAccess } from '@/lib/production/access';
+import type { PfGroup } from './ProductionFlags';
 import { EditItemPanel, OrderTypePicker, RowMenu, VendorPicker, useBoardLists, type PanelItem } from './BoardEditors';
 import {
   PF_SIGN_OPTIONS, PO_SIGN_OPTIONS, STATUS_OPTIONS, currentFirst, normalizeSign, normalizeStatus, poRollup,
@@ -30,8 +33,28 @@ const WIDTHS: Partial<Record<ColumnKey, number>> = {
   rdy: 102, snd: 124, pfUsd: 100, pfTl: 103, invoice: 101, invoiceTl: 117, paymentRule: 116,
 };
 const MONEY_COLS: ColumnKey[] = ['pfUsd', 'pfTl', 'invoice', 'invoiceTl'];
-const BAR_COLORS = ['#414346', '#848484'];
-const TEXT_ON_BAR = 'text-[#EEF2F6]';
+const NO_ACCESS: ProductionAccess = {
+  tabProjects: false, tabMissingExtra: false, tabDirectOrders: false, viewMoney: false, export: false, editStatus: false,
+  editRows: false, deleteRows: false, editProjects: false, deleteProjects: false, todo: false, groups: false, half: false,
+  viewPf: false,
+};
+// Figma "Projects table" (TRUST-LINES ERP 728:13023, colours 728:14366 / 14370 / 14374 / 14378): a
+// project's header row, its Project # box and its TOTAL row take the project's colour as a tone —
+// the colour rule is unchanged, only the tones are new (globals.css tokens, light + dark):
+//   default (was orange) → New Status 02 grey (#C0C0C0 / #2B2B2B, Figma 728:14366 as updated) · PO signed / ready → T2 blue
+//   every row SENT → New Status 10 green  · urgent / container ≤ 10 days → T10 red
+const PROJECT_TONE: Record<ReturnType<typeof computeProjectColor>, string> = { orange: 'n2', blue: 't2', green: 'n10', red: 't10' };
+// Region bands (Figma 741:17517 / 17523 / 17528 / 17533): one colour per region, light text, a
+// chevron that folds the region's projects away. HQ / TC have no design yet and use the NE colour.
+const REGION_BG: Record<string, string> = { NE: '#465B6D', SE: '#3B472B', NW: '#2E5BA3', CVW: '#7A655E' };
+function regionBg(label: string): string {
+  const words = label.toUpperCase().split(/\s+/);
+  const k = Object.keys(REGION_BG).find(r => words.includes(r));
+  return k ? REGION_BG[k] : REGION_BG.NE;
+}
+const regionTitle = (label: string) => label.replace(/^TLines(?=\s)/i, 'T Lines');
+const toneBg = (t: string) => `var(--status-${t}-bg)`;
+const toneFg = (t: string) => `var(--status-${t}-fg)`;
 
 // Every cell has a right border: vertical lines between all columns, like a spreadsheet.
 const TD = 'overflow-hidden text-ellipsis whitespace-nowrap border-b border-r border-ui-divider bg-ui-page-bg px-2 py-2.5 text-left align-middle text-[12px] text-ui-body';
@@ -67,7 +90,7 @@ function Chip({ css, children }: { css: { bg: string; fg: string } | null; child
   return (
     <span
       className="inline-flex min-w-[70px] items-center justify-center whitespace-nowrap rounded-[4px] py-2 pl-2.5 pr-2 text-[12px] font-medium leading-4"
-      style={{ background: red ? '#FF0000' : css?.bg ?? 'var(--status-t0-bg)', color: red ? '#FFFFFF' : css?.fg ?? 'var(--status-t0-fg)' }}
+      style={{ background: red ? '#FF0000' : css?.bg ?? 'var(--status-n1-bg)', color: red ? '#FFFFFF' : css?.fg ?? 'var(--status-n1-fg)' }}
     >
       {children}
     </span>
@@ -184,7 +207,17 @@ function sortForDisplay(items: PItem[]): PItem[] {
 
 // No order type yet = an empty cell (was a red "-" chip), as in the Trust System.
 function OrderType({ value }: { value?: string | null }) {
-  return value ? <Chip css={{ bg: 'var(--status-t0-bg)', fg: 'var(--status-t0-fg)' }}>{value}</Chip> : null;
+  // The table grey (Figma 728:14366, New Status 01: #EBEBEB / #3D3D43, dark #3D3D43 / #DDDDDD).
+  return value ? <Chip css={{ bg: 'var(--status-n1-bg)', fg: 'var(--status-n1-fg)' }}>{value}</Chip> : null;
+}
+
+function headName(p: { projectNo: string | number; projectName?: string }): string {
+  const name = (p.projectName ?? '').trim();
+  return name ? name.split(' - ')[0] : String(p.projectNo);
+}
+function headAddress(p: { projectName?: string }): string {
+  const parts = (p.projectName ?? '').split(' - ');
+  return parts.slice(1).join(' - ').trim();
 }
 
 function MoneyChip({ col, value }: { col: ColumnKey; value: number }) {
@@ -195,7 +228,16 @@ function MoneyChip({ col, value }: { col: ColumnKey; value: number }) {
   );
 }
 
-export function OperationalBoard({ sections, canEdit = false, onSaved }: { sections: PSection[]; canEdit?: boolean; onSaved?: () => void }) {
+export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], onGroupsChanged, onSaved, groupRanks, selection }: {
+  sections: PSection[];
+  /** Roles page → Production Board switches. */
+  access?: ProductionAccess;
+  groups?: PfGroup[]; onGroupsChanged?: () => void; onSaved?: () => void;
+  /** Groups view: rank of "group|projectId|type" for the type cell's badge. */
+  groupRanks?: Map<string, number>;
+  /** Half toolbar: the selection box on each Project # cell, shown once "Select" was used. */
+  selection?: { selected: Set<string>; toggle: (id: string) => void; visible: boolean };
+}) {
   // Column widths like the accounting sheet: fit the widest text, drag a header edge to resize,
   // double-click to fit again; remembered in this browser.
   const allItems = useMemo(() => sections.flatMap(s => s.projects.flatMap(p => p.items ?? [])), [sections]);
@@ -209,6 +251,9 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
   })), []);
   const { width, startResize, fit } = useColumnWidths('production-tracker-widths', sizing, allItems);
   const typeLeft = width('projectNo');
+  const canStatus = access.editStatus, canRows = access.editRows, canDelRows = access.deleteRows;
+  // Without "Money columns" the four money columns and the TOTAL rows are left out.
+  const cols = COLS.filter(c => (access.viewMoney || !MONEY_COLS.includes(c)) && (access.viewPf || (c !== 'pfCode' && c !== 'pfSignStatus')));
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [menu, setMenu] = useState<OpenMenu | null>(null);
   const lists = useBoardLists();
@@ -216,6 +261,22 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
   const [panel, setPanel] = useState<{ key: string; point: { x: number; y: number } } | null>(null);
   const [rowMenu, setRowMenu] = useState<{ item: PItem; point: { x: number; y: number } } | null>(null);
   const [toDelete, setToDelete] = useState<PItem | null>(null);
+  // Project menu (right click on a Project # box or a project header).
+  const [projMenu, setProjMenu] = useState<{ project: PProject; headKey: string } | null>(null);
+  const [projToDelete, setProjToDelete] = useState<PProject | null>(null);
+  const openProjMenu = (e: React.MouseEvent, project: PProject, headKey: string) => {
+    if (!project.id) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setProjMenu(m => (m?.headKey === headKey ? null : { project, headKey }));
+  };
+  async function deleteProject(p: PProject) {
+    const res = await fetch(`/api/production/blocks/${p.id}?kind=${p.kind ?? 'project'}`, { method: 'DELETE' }).catch(() => null);
+    const b = await res?.json().catch(() => ({}));
+    if (!res?.ok) { toast.error(b?.error ?? 'Could not delete the project'); throw new Error('delete'); }
+    toast.success('Project moved to the trash');
+    onSaved?.();
+  }
   // The type groups drawn this render, for the Edit Item panel.
   const groupsByKey = new Map<string, { type: string; items: PItem[]; projectId: string | null; caseId: string | null; customTypeCode: string | null }>();
 
@@ -253,7 +314,7 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
   const view = (it: PItem): PItem => (it.id && pending[it.id] ? { ...it, ...pending[it.id] } : it);
 
   function openMenu(kind: EditKind, ids: string[], current: string, anchor: HTMLElement) {
-    if (!canEdit || !ids.length) return;
+    if (!canStatus || !ids.length) return;
     const r = anchor.getBoundingClientRect();
     const left = Math.max(8, Math.min(r.left, window.innerWidth - MENU_W - 8));
     setMenu({
@@ -300,13 +361,13 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
 
   return (
     <div className="overflow-auto rounded-[8px] border border-ui-divider" style={{ maxHeight: 'calc(100dvh - 220px)' }}>
-      <table className="table-fixed border-separate border-spacing-0" style={{ width: `max(${COLS.reduce((t, c) => t + width(c), 0)}px, 100%)` }}>
+      <table className="table-fixed border-separate border-spacing-0" style={{ width: `max(${cols.reduce((t, c) => t + width(c), 0)}px, 100%)` }}>
         <colgroup>
-          {COLS.map(c => <col key={c} style={{ width: width(c) }} />)}
+          {cols.map(c => <col key={c} style={{ width: width(c) }} />)}
         </colgroup>
         <thead>
           <tr>
-            {COLS.map(col => (
+            {cols.map(col => (
               <th key={col} className={cn('sticky top-0 z-20 whitespace-nowrap border-b border-r border-ui-divider bg-ui-surface px-2 text-left text-[12px] font-semibold leading-[1.4] text-ui-body', col === 'projectNo' && 'left-0 z-30', col === 'type' && 'z-30')}
                 style={{ height: HEAD_H, ...(col === 'type' ? { left: typeLeft } : {}) }}>
                 <ColumnResizer label={LABELS[col] ?? COLUMN_LABELS[col]} onResize={e => startResize(col, e)} onFit={() => fit(col)} />
@@ -322,8 +383,8 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
             const projectRows = section.projects.map((project, pi) => {
               const groups = groupItemsByType(project.items || []);
               const dataRowCount = groups.reduce((n, g) => n + g.items.length, 0);
-              const projColor = projectColorCss(computeProjectColor(project));
-              const barColor = BAR_COLORS[pi % BAR_COLORS.length];
+              const tone = PROJECT_TONE[computeProjectColor(project)];
+              const barStyle = { background: toneBg(tone), color: toneFg(tone) };
               const key = `${section.label}:${project.projectNo}`;
               const isCollapsed = collapsed.has(key);
               const Chevron = isCollapsed ? ChevronRight : ChevronDown;
@@ -352,23 +413,55 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
                   dataRowSeen++;
                   bodyRows.push(
                     <tr key={`${pi}-${gi}-${ii}`}
-                      onContextMenu={canEdit && item.id ? e => { e.preventDefault(); setRowMenu({ item, point: { x: e.clientX, y: e.clientY } }); } : undefined}>
-                      {COLS.map(col => {
+                      onContextMenu={canDelRows && item.id ? e => { e.preventDefault(); setRowMenu({ item, point: { x: e.clientX, y: e.clientY } }); } : undefined}>
+                      {cols.map(col => {
                         if (col === 'projectNo') {
                           if (!isFirstDataRow) return null;
                           return (
-                            <td key={col} rowSpan={dataRowCount + 1} className="sticky left-0 z-10 border-r border-ui-divider text-center text-[24px] font-medium text-[var(--ui-page-bg)]" style={{ background: projColor }}>
-                              {String(project.projectNo)}
+                            <td key={col} rowSpan={dataRowCount} className={cn('sticky left-0 z-10 border-r border-ui-divider bg-ui-page-bg p-0', project.id && 'cursor-pointer')}
+                              onContextMenu={e => openProjMenu(e, project, key)}>
+                              {/* A rounded box inside the cell: 7px page-colour margin, 12px corners. */}
+                              {(() => {
+                                // "P123" shows as "123" (Trust System). Long case codes ("STRAFORD-RE-1",
+                                // "344-EX-1") get a smaller size so they fit the box, even on a one-row project.
+                                const no = String(project.projectNo).replace(/^P(?=\d+$)/, '');
+                                const size = no.length <= 8 ? (dataRowCount > 1 ? 24 : 20) : no.length <= 11 ? 15 : 12;
+                                return (
+                                  <span title={no} className="absolute inset-[7px] flex items-center justify-center overflow-hidden rounded-[12px] px-1.5 text-center font-medium leading-[1.15] [overflow-wrap:anywhere]"
+                                    style={{ ...barStyle, fontSize: size }}>
+                                    {no}
+                                  </span>
+                                );
+                              })()}
+                              {/* Half selection: only selects, never opens the menu. */}
+                              {selection?.visible && project.id && (
+                                <input type="checkbox" aria-label={`Select project ${project.projectNo}`} checked={selection.selected.has(project.id)}
+                                  onChange={() => selection.toggle(project.id!)} onClick={e => e.stopPropagation()} onContextMenu={e => e.stopPropagation()}
+                                  className="absolute left-[13px] top-[13px] z-[1] size-4 cursor-pointer" />
+                              )}
                             </td>
                           );
                         }
                         if (col === 'type') {
                           if (!isFirstOfGroup) return null;
                           return (
-                            <td key={col} rowSpan={group.items.length} className={cn(TD, TYPE_TEXT, 'sticky z-10 border-r', canEdit && 'cursor-pointer hover:brightness-95')}
-                              onClick={canEdit ? e => setPanel({ key: groupKey, point: { x: e.clientX, y: e.clientY } }) : undefined}
-                              style={{ left: typeLeft, ...(allSent ? { background: BOARD_CSS.typeAllSent.bg, color: BOARD_CSS.typeAllSent.fg, borderLeft: '3px solid #052e16', fontWeight: 700 } : {}) }}>
-                              {group.type}
+                            <td key={col} rowSpan={group.items.length} className={cn(TD, TYPE_TEXT, 'sticky z-10 border-r', canRows && 'cursor-pointer hover:brightness-95')}
+                              onClick={canRows ? e => setPanel({ key: groupKey, point: { x: e.clientX, y: e.clientY } }) : undefined}
+                              style={{ left: typeLeft }}>
+                              {/* Every row of the type SENT: the same full box as the status chips (5px margin,
+                                  6px corners) in the Sent green (New Status 10). Otherwise plain text. */}
+                              {allSent ? (
+                                <span className="absolute inset-[5px] flex items-center justify-center overflow-hidden rounded-[6px] px-2 text-[14px] font-semibold"
+                                  style={{ background: 'var(--status-n10-bg)', color: 'var(--status-n10-fg)' }}>
+                                  <span className="truncate">{group.type}</span>
+                                </span>
+                              ) : group.type}
+                              {(() => {
+                                const r = section.group != null ? groupRanks?.get(`${section.group}|${shown[0]?.projectId}|${group.type.toLowerCase()}`) : undefined;
+                                return r != null ? (
+                                  <span className="absolute right-1 top-1 z-[1] rounded-[3px] bg-[#dc2626] px-1 text-[10px] font-semibold leading-4 text-white" title={`Rank ${r}`}>#{r}</span>
+                                ) : null;
+                              })()}
                             </td>
                           );
                         }
@@ -377,28 +470,28 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
                           // One PO cell for the whole type group, filled from top to bottom.
                           const ids = shown.map(i => i.id).filter(Boolean) as string[];
                           return (
-                            <StatusCell key={col} rowSpan={group.items.length} opt={signStyle(po)} editable={canEdit && ids.length > 0}
+                            <StatusCell key={col} rowSpan={group.items.length} opt={signStyle(po)} editable={canStatus && ids.length > 0}
                               onOpen={a => openMenu('po', ids, po, a)} />
                           );
                         }
                         if (col === 'orderType') return (
-                          <td key={col} className={cn(TD, canEdit && item.id && 'cursor-pointer hover:bg-ui-hover-bg')}
-                            onClick={canEdit && item.id ? e => setPicker({ kind: 'orderType', item, rect: e.currentTarget.getBoundingClientRect() }) : undefined}>
+                          <td key={col} className={cn(TD, canRows && item.id && 'cursor-pointer hover:bg-ui-hover-bg')}
+                            onClick={canRows && item.id ? e => setPicker({ kind: 'orderType', item, rect: e.currentTarget.getBoundingClientRect() }) : undefined}>
                             <OrderType value={item.orderType} />
                           </td>
                         );
                         if (col === 'vendor') return (
-                          <td key={col} className={cn(TD, 'text-[13px] leading-[1.4]', canEdit && item.id && 'cursor-pointer hover:bg-ui-hover-bg')}
-                            onClick={canEdit && item.id ? e => setPicker({ kind: 'vendor', item, rect: e.currentTarget.getBoundingClientRect() }) : undefined}>
+                          <td key={col} className={cn(TD, 'text-[13px] leading-[1.4]', canRows && item.id && 'cursor-pointer hover:bg-ui-hover-bg')}
+                            onClick={canRows && item.id ? e => setPicker({ kind: 'vendor', item, rect: e.currentTarget.getBoundingClientRect() }) : undefined}>
                             {cellValue(col, item)}
                           </td>
                         );
                         if (col === 'pfSignStatus') return (
-                          <StatusCell key={col} opt={signStyle(item.pfSignStatus)} editable={canEdit && !!item.id}
+                          <StatusCell key={col} opt={signStyle(item.pfSignStatus)} editable={canStatus && !!item.id}
                             onOpen={a => openMenu('pf', [item.id!], normalizeSign(item.pfSignStatus), a)} />
                         );
                         if (col === 'status') return (
-                          <StatusCell key={col} opt={statusStyle(item.status)} editable={canEdit && !!item.id}
+                          <StatusCell key={col} opt={statusStyle(item.status)} editable={canStatus && !!item.id}
                             onOpen={a => openMenu('status', [item.id!], normalizeStatus(item.status), a)} />
                         );
                         return (
@@ -414,28 +507,31 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
 
               return (
                 <Fragment key={`proj-${pi}`}>
-                  <tr>
-                    <td colSpan={COLS.length} className="border-b border-ui-divider p-2" style={{ background: barColor }}>
+                  <tr data-project-head={key} onContextMenu={e => openProjMenu(e, project, key)}>
+                    <td colSpan={cols.length} className="border-y border-ui-divider p-2" style={barStyle}>
                       <button
                         type="button" onClick={() => toggle(key)} aria-expanded={!isCollapsed}
                         aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} project ${project.projectNo}`}
-                        className={cn('sticky left-2 flex items-center gap-4 border-0 bg-transparent p-0 text-left', TEXT_ON_BAR)}
+                        className="sticky left-2 flex cursor-pointer items-center border-0 bg-transparent p-0 text-left text-inherit"
                       >
-                        <Chevron size={24} aria-hidden />
-                        <span className="text-[16px] font-medium">
-                          {isCollapsed && project.projectName ? `${project.projectNo} · ${project.projectName}` : project.projectName || project.projectNo}
+                        <Chevron size={24} aria-hidden className="shrink-0" />
+                        {/* Name over address, as in the design ("STNE 440" / "Cherry Hill, 1849 …"). */}
+                        <span className="flex min-w-0 flex-col pl-4 pr-2 leading-normal">
+                          <span className="truncate text-[16px] font-medium">{headName(project)}</span>
+                          {headAddress(project) && <span className="truncate text-[12px] font-normal">{headAddress(project)}</span>}
                         </span>
                       </button>
                     </td>
                   </tr>
                   {!isCollapsed && bodyRows}
-                  {!isCollapsed && (
+                  {!isCollapsed && access.viewMoney && (
                     <tr>
-                      <td colSpan={moneyStart - 1} className={cn('px-4 py-2.5 text-[14px] font-semibold', TEXT_ON_BAR)} style={{ background: barColor }}>TOTAL</td>
+                      {/* TOTAL runs the full width from the left edge, under the Project # box (Figma 741:16403). */}
+                      <td colSpan={moneyStart} className="border-y border-ui-divider px-4 py-2.5 text-[14px] font-semibold" style={barStyle}><span className="sticky left-4">TOTAL</span></td>
                       {MONEY_COLS.map(col => (
-                        <td key={col} className="px-2 py-2.5" style={{ background: barColor }}><MoneyChip col={col} value={totals[col] ?? 0} /></td>
+                        <td key={col} className="border-y border-ui-divider px-2 py-2.5" style={barStyle}><MoneyChip col={col} value={totals[col] ?? 0} /></td>
                       ))}
-                      <td colSpan={afterMoney} style={{ background: barColor }} />
+                      <td colSpan={afterMoney} className="border-y border-ui-divider" style={barStyle} />
                     </tr>
                   )}
                 </Fragment>
@@ -443,15 +539,26 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
             });
 
             const secTotals: Partial<Record<ColumnKey, number>> = { pfUsd: secUsd, pfTl: secTl, invoice: secInv, invoiceTl: secInvTl };
+            // A region folds like a project (same fold state); its totals row stays visible.
+            const regionKey = `region:${section.label}`;
+            const regionClosed = collapsed.has(regionKey);
             return (
               <Fragment key={`sec-${si}`}>
                 <tr>
-                  <td colSpan={COLS.length} className="sticky z-[15] px-4 py-2 text-[14px] font-semibold" style={{ top: HEAD_H, background: BOARD_CSS.sectionHeader.bg, color: BOARD_CSS.sectionHeader.fg }}>
-                    <span className="sticky left-4">{section.label}</span>
+                  <td colSpan={cols.length} className="sticky z-[15] border-y border-ui-divider p-2 text-[#EEF2F6]"
+                    style={{ top: HEAD_H, background: section.group != null ? 'linear-gradient(90deg, #b91c1c, #ef4444)' : regionBg(section.label) }}>
+                    <button
+                      type="button" onClick={() => toggle(regionKey)} aria-expanded={!regionClosed}
+                      aria-label={`${regionClosed ? 'Expand' : 'Collapse'} ${regionTitle(section.label)}`}
+                      className="sticky left-2 flex cursor-pointer items-center border-0 bg-transparent p-0 text-left text-inherit"
+                    >
+                      {regionClosed ? <ChevronRight size={24} aria-hidden className="shrink-0" /> : <ChevronDown size={24} aria-hidden className="shrink-0" />}
+                      <span className={cn('pl-4 pr-2 leading-normal', section.group != null ? 'text-[22px] font-bold text-white' : 'text-[16px] font-medium')}>{regionTitle(section.label)}</span>
+                    </button>
                   </td>
                 </tr>
-                {projectRows}
-                <tr>
+                {!regionClosed && projectRows}
+                {access.viewMoney && <tr>
                   <td colSpan={moneyStart} className="px-4 py-2.5 text-[14px] font-semibold" style={{ background: BOARD_CSS.sectionTotal.bg, color: BOARD_CSS.sectionTotal.fg }}>
                     {section.label.toUpperCase()} TOTALS
                   </td>
@@ -459,7 +566,7 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
                     <td key={col} className="px-2 py-2.5" style={{ background: BOARD_CSS.sectionTotal.bg }}><MoneyChip col={col} value={secTotals[col] ?? 0} /></td>
                   ))}
                   <td colSpan={afterMoney} style={{ background: BOARD_CSS.sectionTotal.bg }} />
-                </tr>
+                </tr>}
               </Fragment>
             );
           })}
@@ -479,11 +586,25 @@ export function OperationalBoard({ sections, canEdit = false, onSaved }: { secti
         const g = groupsByKey.get(panel.key)!;
         const items: PanelItem[] = g.items.filter(i => i.id).map(i => ({ id: i.id!, pfCode: i.pfCode ?? null, vendorId: i.vendorId ?? null, orderType: i.orderType ?? null }));
         return (
-          <EditItemPanel point={panel.point} type={g.type} items={items} vendors={lists.vendors} orderTypes={lists.orderTypes} canAdd={canEdit}
+          <EditItemPanel point={panel.point} type={g.type} items={items} vendors={lists.vendors} orderTypes={lists.orderTypes} canAdd={canRows}
             onSave={(id, patch) => patchItem(id, patch)} onAddItem={() => addItem(g)} onClose={() => setPanel(null)}
             onVendorsChanged={() => lists.reloadVendors()} onOrderTypesChanged={() => void lists.reloadOrderTypes()} />
         );
       })()}
+      {projMenu && (
+        <ProjectMenu key={projMenu.headKey} project={projMenu.project} headKey={projMenu.headKey} access={access}
+          groups={groups} onGroupsChanged={() => onGroupsChanged?.()} onSaved={() => onSaved?.()}
+          onDelete={() => setProjToDelete(projMenu.project)} onClose={() => setProjMenu(null)}
+          onSelect={selection && projMenu.project.id ? () => selection.toggle(projMenu.project.id!) : undefined}
+          selected={!!projMenu.project.id && !!selection?.selected.has(projMenu.project.id)} />
+      )}
+      <ConfirmModal
+        open={!!projToDelete} onOpenChange={o => { if (!o) setProjToDelete(null); }}
+        title="Delete this project?" tone="destructive" confirmLabel="Delete Project"
+        description={projToDelete ? `Are you sure you want to delete the project "${projToDelete.editName || projToDelete.projectNo}"?` : undefined}
+        warning="It goes to the trash and can be restored from there."
+        onConfirm={async () => { if (projToDelete) await deleteProject(projToDelete); setProjToDelete(null); }}
+      />
       {rowMenu && (
         <RowMenu point={rowMenu.point} title={rowMenu.item.type ?? 'Row'} onClose={() => setRowMenu(null)}
           onDelete={() => { const it = rowMenu.item; setRowMenu(null); setToDelete(it); }} />

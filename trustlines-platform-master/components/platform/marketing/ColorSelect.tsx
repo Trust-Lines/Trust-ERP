@@ -11,10 +11,10 @@ function TonePill({ tone, label, chevron }: { tone: string; label: string; chevr
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 4, maxWidth: '100%', minWidth: 0, padding: chevron ? '3px 8px 3px 10px' : '3px 10px', borderRadius: 4,
       background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)`,
-      fontSize: 12, fontWeight: 500, lineHeight: '16px', whiteSpace: 'nowrap',
+      fontSize: 13.5, fontWeight: 500, lineHeight: '18px', whiteSpace: 'nowrap',
     }}>
       <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
-      {chevron && <ChevronDown size={14} style={{ flexShrink: 0 }} />}
+      {chevron && <ChevronDown size={16} style={{ flexShrink: 0 }} />}
     </span>
   );
 }
@@ -90,13 +90,13 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
         }}
       >
         {value && toneFor ? <TonePill tone={toneFor(value)} label={value} chevron /> : value && renderPill ? renderPill(value) : value ? (
-          <span style={{ background: colorFor(value), color: readableTextColor(colorFor(value)), fontSize: 10.5, fontWeight: 600, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span style={{ background: colorFor(value), color: readableTextColor(colorFor(value)), fontSize: 12.5, fontWeight: 600, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {value}
           </span>
         ) : (
           <span style={{ fontSize: 11.5, color: 'var(--fg-faint)', padding: '0 4px' }}>{placeholder}</span>
         )}
-        {!(value && toneFor) && <ChevronDown size={11} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />}
+        {!(value && toneFor) && <ChevronDown size={16} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />}
       </button>
 
       {open && pos && createPortal(
@@ -144,7 +144,7 @@ export function ColorSelect({ value, options, knownColors, onChange, placeholder
                   onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                 >
                   {toneFor ? <TonePill tone={toneFor(o)} label={o} /> : renderPill ? renderPill(o) : (
-                    <span style={{ background: bg, color: readableTextColor(bg), fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 999 }}>
+                    <span style={{ background: bg, color: readableTextColor(bg), fontSize: 12.5, fontWeight: 600, padding: '4px 12px', borderRadius: 999 }}>
                       {o}
                     </span>
                   )}

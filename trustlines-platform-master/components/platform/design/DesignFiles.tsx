@@ -158,7 +158,7 @@ export function DesignFiles({ jobId, initialPath = '', onVersionFiles, onSharedU
         {DESIGN_QUICK_FOLDERS.map(q => (
           <button
             key={q.path} type="button" onClick={() => setPath(q.path)} aria-pressed={path === q.path}
-            className="h-7 rounded-[4px] border border-ui-divider bg-ui-surface-elevated px-2.5 text-[12px] text-ui-body hover:bg-ui-hover-bg aria-pressed:border-[var(--color-secondary-700)] aria-pressed:font-semibold dark:aria-pressed:border-ui-heading"
+            className="h-9 rounded-[4px] border border-ui-divider bg-ui-surface-elevated px-3 text-[14px] text-ui-body hover:bg-ui-hover-bg aria-pressed:border-[var(--color-secondary-700)] aria-pressed:font-semibold dark:aria-pressed:border-ui-heading"
           >
             {q.label}
           </button>
@@ -166,7 +166,7 @@ export function DesignFiles({ jobId, initialPath = '', onVersionFiles, onSharedU
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <nav aria-label="Folder" className="flex min-w-0 flex-wrap items-center gap-1 text-[13px]">
+        <nav aria-label="Folder" className="flex min-w-0 flex-wrap items-center gap-1 text-[14px]">
           <button type="button" onClick={() => setPath('')} className={cn('border-0 bg-transparent p-0 font-semibold hover:underline', HEADING)}>Design folder</button>
           {crumbs.map((c, i) => (
             <span key={i} className="inline-flex items-center gap-1">

@@ -63,10 +63,10 @@ export function MaterialsClient() {
           <input type="search" aria-label="Search materials" placeholder="Search name, code, supplier…" value={q} onChange={e => setQ(e.target.value)}
             className="h-9 w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-2.5 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring" />
         </div>
-        <Select aria-label="Category" className="h-9 w-[170px]" value={category} onValueChange={v => setCategory(v ?? '')}
+        <Select aria-label="Category" className="h-10 w-[170px] text-[14px]" value={category} onValueChange={v => setCategory(v ?? '')}
           options={[{ value: '', label: 'All categories' }, ...MATERIAL_CATEGORIES.map(c => ({ value: c, label: categoryLabel(c) }))]} />
         <button type="button" aria-pressed={showInactive} onClick={() => setShowInactive(s => !s)}
-          className="h-9 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-body aria-pressed:bg-ui-selected-bg">
+          className="h-10 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[14px] text-ui-body aria-pressed:bg-ui-selected-bg">
           {showInactive ? 'Hide discontinued' : 'Show discontinued'}
         </button>
       </div>

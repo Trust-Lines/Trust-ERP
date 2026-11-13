@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
@@ -57,6 +58,8 @@ const RECIPIENT_FILTERS: Option[] = [
   { value: 'unsubscribed', label: 'Unsubscribed' }, { value: 'failed', label: 'Failed' }, { value: 'queued', label: 'Waiting' }, { value: 'skipped', label: 'Skipped' },
 ];
 const WHEN = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+// Audience dropdowns: 40px tall, 14px text, 16px chevron (same as the other dialog dropdowns).
+const AUDIENCE_SELECT = 'h-10 w-full px-3 text-[14px] rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg text-ui-heading [&_.ui-select-chevron]:size-4';
 const SAMPLE: Record<string, string> = { name: 'Acme Retail', first_name: 'Jordan', company: 'Acme Retail', industry: 'Retail', region: 'T-Lines North East', state: 'GA', source: 'Trade Fair', email: 'jordan@example.com' };
 const rateText = (v: number | null) => (v === null ? '—' : `${v}%`);
 const editing = (c: EmailCampaignRow) => c.status === 'draft' || c.status === 'scheduled' || (c.status === 'paused' && !c.started_at);
@@ -114,7 +117,7 @@ function Heading({ campaign, back = true, actions }: { campaign: EmailCampaignRo
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        {back && <Link href="/marketing/email" className="inline-flex w-fit items-center gap-1 text-[11px] font-semibold text-ui-nav-active hover:underline"><ArrowLeft size={12} /> Email Campaigns</Link>}
+        {back && <Link href="/marketing/email" className="inline-flex w-fit items-center gap-1 text-[11px] font-semibold text-ui-nav-active hover:underline"><ArrowLeft size={16} /> Email Campaigns</Link>}
         <h1 className={cn('m-0 flex flex-wrap items-center gap-3 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>
           {campaign.name} <StatusBadge group="email_campaign" status={campaign.status} />
         </h1>
@@ -241,12 +244,12 @@ function CampaignEditor({ campaign, canEdit, isManager, userId, mailReady, marke
 
       {campaign.status === 'scheduled' && (
         <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-[6px] bg-info-light px-3 py-2.5 text-[12px] text-info-dark">
-          <span><CalendarClock className="mr-1 inline size-4 align-text-bottom" /> Scheduled for {campaign.scheduled_at ? WHEN.format(new Date(campaign.scheduled_at)) : '—'} to {fmtNumber(campaign.recipient_count)} recipients. Unschedule it to make changes.</span>
+          <span><CalendarClock className="mr-1 inline size-5 align-text-bottom" /> Scheduled for {campaign.scheduled_at ? WHEN.format(new Date(campaign.scheduled_at)) : '—'} to {fmtNumber(campaign.recipient_count)} recipients. Unschedule it to make changes.</span>
           {canEdit && <Button size="sm" variant="secondary" loading={busy === 'unschedule'} onClick={unschedule}>Unschedule</Button>}
         </div>
       )}
       {campaign.last_error && (
-        <div role="alert" className="flex items-start gap-2 rounded-[6px] bg-error-light px-3 py-2.5 text-[12px] text-error-dark"><CircleAlert className="mt-px size-4 shrink-0" /> {campaign.last_error}</div>
+        <div role="alert" className="flex items-start gap-2 rounded-[6px] bg-error-light px-3 py-2.5 text-[12px] text-error-dark"><CircleAlert className="mt-px size-5 shrink-0" /> {campaign.last_error}</div>
       )}
       {!mailReady && canEdit && (
         <div role="note" className="rounded-[6px] bg-warning-light px-3 py-2.5 text-[12px] text-warning-dark">
@@ -259,12 +262,12 @@ function CampaignEditor({ campaign, canEdit, isManager, userId, mailReady, marke
         <section className={cn(PANEL, 'flex flex-col gap-4 p-6')}>
           <h2 className="m-0 text-[15px] font-semibold text-ui-heading">1 · Details</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label="Campaign name (only the team sees it)" htmlFor="c-name"><Input id="c-name" value={form.name} onChange={e => setF({ name: e.target.value })} /></Field>
+            <Field label="Campaign name (only the team sees it)" htmlFor="c-name"><Input id="c-name" className="h-10 text-[14px]" value={form.name} onChange={e => setF({ name: e.target.value })} /></Field>
             <Field label="Subject line" htmlFor="c-subject" hint="Merge fields work here too, e.g. “{{first_name}}, see you at NACS”.">
-              <Input id="c-subject" value={form.subject} onChange={e => setF({ subject: e.target.value })} />
+              <Input id="c-subject" className="h-10 text-[14px]" value={form.subject} onChange={e => setF({ subject: e.target.value })} />
             </Field>
             <Field label="Preview text (optional)" htmlFor="c-pre" hint="The grey line inbox apps show after the subject." className="md:col-span-2">
-              <Input id="c-pre" value={form.preheader} onChange={e => setF({ preheader: e.target.value })} />
+              <Input id="c-pre" className="h-10 text-[14px]" value={form.preheader} onChange={e => setF({ preheader: e.target.value })} />
             </Field>
           </div>
         </section>
@@ -277,7 +280,7 @@ function CampaignEditor({ campaign, canEdit, isManager, userId, mailReady, marke
               <p className="m-0 text-[12px] text-ui-text-secondary">The Contacts that match every filter below. Unsubscribed and bounced addresses are always left out.</p>
             </div>
             <div className="flex items-center gap-2 rounded-[8px] bg-ui-hover-bg px-3 py-2" aria-live="polite">
-              <Users className="size-4 text-ui-text-secondary" />
+              <Users className="size-5 text-ui-text-secondary" />
               {count ? (
                 <span className="text-[13px]"><strong className="tabular-nums text-ui-heading">{fmtNumber(count.recipients)}</strong> recipients
                   <span className="text-[11px] text-ui-text-secondary"> · {fmtNumber(count.matched)} Contacts matched{count.noEmail ? `, ${fmtNumber(count.noEmail)} without email` : ''}{count.suppressed ? `, ${fmtNumber(count.suppressed)} unsubscribed` : ''}</span>
@@ -287,26 +290,26 @@ function CampaignEditor({ campaign, canEdit, isManager, userId, mailReady, marke
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Field label="Campaign / event">
-              <Select aria-label="Campaign or event" value={audience.campaignId ?? ''} options={[{ value: '', label: 'Any' }, ...marketingCampaigns]} onValueChange={v => setA({ campaignId: v || undefined })} disabled={ro} />
+              <Select aria-label="Campaign or event" className={AUDIENCE_SELECT} value={audience.campaignId ?? ''} options={[{ value: '', label: 'Any' }, ...marketingCampaigns]} onValueChange={v => setA({ campaignId: v || undefined })} disabled={ro} />
             </Field>
             <Field label="Region">
-              <Select aria-label="Region" value={audience.region ?? ''} options={[{ value: '', label: 'Any region' }, ...regions]} onValueChange={v => setA({ region: v || undefined })} disabled={ro} />
+              <Select aria-label="Region" className={AUDIENCE_SELECT} value={audience.region ?? ''} options={[{ value: '', label: 'Any region' }, ...regions]} onValueChange={v => setA({ region: v || undefined })} disabled={ro} />
             </Field>
             <Field label="Source">
-              <Select aria-label="Source" value={audience.sources?.[0] ?? ''} options={[{ value: '', label: 'Any source' }, ...sources.map(s => ({ value: s, label: s }))]} onValueChange={v => setA({ sources: v ? [v] : undefined })} disabled={ro} />
+              <Select aria-label="Source" className={AUDIENCE_SELECT} value={audience.sources?.[0] ?? ''} options={[{ value: '', label: 'Any source' }, ...sources.map(s => ({ value: s, label: s }))]} onValueChange={v => setA({ sources: v ? [v] : undefined })} disabled={ro} />
             </Field>
             <Field label="Classification">
-              <Select aria-label="Classification" value={audience.status ?? ''} options={STATUS_OPTIONS} onValueChange={v => setA({ status: v || undefined })} disabled={ro} />
+              <Select aria-label="Classification" className={AUDIENCE_SELECT} value={audience.status ?? ''} options={STATUS_OPTIONS} onValueChange={v => setA({ status: v || undefined })} disabled={ro} />
             </Field>
             <Field label="Projects">
-              <Select aria-label="Projects" value={audience.projectStatus ?? ''} options={PROJECT_OPTIONS} onValueChange={v => setA({ projectStatus: v || undefined })} disabled={ro} />
+              <Select aria-label="Projects" className={AUDIENCE_SELECT} value={audience.projectStatus ?? ''} options={PROJECT_OPTIONS} onValueChange={v => setA({ projectStatus: v || undefined })} disabled={ro} />
             </Field>
-            <Field label="Name contains" htmlFor="c-q"><Input id="c-q" value={audience.q ?? ''} onChange={e => setA({ q: e.target.value || undefined })} /></Field>
+            <Field label="Name contains" htmlFor="c-q"><Input id="c-q" className="h-10 text-[14px]" value={audience.q ?? ''} onChange={e => setA({ q: e.target.value || undefined })} /></Field>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-[12px] text-ui-body">
             {([['surveyOnly', 'Came from a survey'], ['followUpOverdue', 'Follow-up overdue'], ['includePeople', 'Also email the people saved inside each Contact']] as const).map(([k, l]) => (
               <label key={k} className="flex items-center gap-2">
-                <input type="checkbox" className="size-4 accent-[var(--color-secondary-700)]" checked={!!audience[k]} onChange={e => setA({ [k]: e.target.checked || undefined })} /> {l}
+                <Checkbox checked={!!audience[k]} onCheckedChange={v => setA({ [k]: v || undefined })} /> {l}
               </label>
             ))}
           </div>
@@ -320,7 +323,7 @@ function CampaignEditor({ campaign, canEdit, isManager, userId, mailReady, marke
               <h2 className="m-0 text-[15px] font-semibold text-ui-heading">3 · Content</h2>
               <p className="m-0 text-[12px] text-ui-text-secondary">HTML or plain text. The unsubscribe link and the company address are added at the bottom automatically.</p>
             </div>
-            <Select className="w-[240px]" aria-label="Start from a template" value="" placeholder={templates.length ? 'Start from a template…' : 'No templates yet'}
+            <Select className={cn(AUDIENCE_SELECT, 'w-[240px]')} aria-label="Start from a template" value="" placeholder={templates.length ? 'Start from a template…' : 'No templates yet'}
               options={templates.map(t => ({ value: t.id, label: t.name }))} disabled={ro || !templates.length}
               onValueChange={v => { const t = templates.find(x => x.id === v); if (t) setF({ body_html: t.body_html, subject: form.subject || t.subject }); }} />
           </div>
@@ -348,13 +351,13 @@ function CampaignEditor({ campaign, canEdit, isManager, userId, mailReady, marke
         <section className={cn(PANEL, 'flex flex-col gap-4 p-6')}>
           <h2 className="m-0 text-[15px] font-semibold text-ui-heading">4 · Test and send</h2>
           <div className="flex flex-wrap items-end gap-3">
-            <Button variant="secondary" loading={busy === 'test'} disabled={!!busy || !mailReady} onClick={sendTest}><FlaskConical /> Send a test to me</Button>
+            <Button variant="secondary" className="[&_svg]:size-5" loading={busy === 'test'} disabled={!!busy || !mailReady} onClick={sendTest}><FlaskConical /> Send a test to me</Button>
             <span className="mx-2 hidden h-8 w-px bg-ui-divider sm:block" aria-hidden />
             <Field label="Send later" htmlFor="c-when">
-              <Input id="c-when" type="datetime-local" className="w-[230px]" value={when} onChange={e => setWhen(e.target.value)} />
+              <Input id="c-when" type="datetime-local" className="h-10 w-[230px] text-[14px]" value={when} onChange={e => setWhen(e.target.value)} />
             </Field>
-            <Button variant="secondary" loading={busy === 'schedule'} disabled={!!busy || !ready} onClick={schedule}><CalendarClock /> Schedule</Button>
-            <Button className="ml-auto" disabled={!!busy || !ready} onClick={() => setConfirmSend(true)}><Send /> Send now</Button>
+            <Button variant="secondary" className="[&_svg]:size-5" loading={busy === 'schedule'} disabled={!!busy || !ready} onClick={schedule}><CalendarClock /> Schedule</Button>
+            <Button className="ml-auto [&_svg]:size-5" disabled={!!busy || !ready} onClick={() => setConfirmSend(true)}><Send /> Send now</Button>
           </div>
           <p className="m-0 text-[11px] text-ui-text-secondary">
             Emails go out from your mailbox in batches of about 40 every 10 minutes, up to your daily limit (Settings → Email sending); a large audience continues the next day.

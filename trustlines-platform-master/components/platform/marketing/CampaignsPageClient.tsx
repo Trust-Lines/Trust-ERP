@@ -12,6 +12,7 @@ import type { CampaignStatus, CampaignType } from '@/types/database';
 import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { buttonVariants } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export interface CampaignRow {
   id: string;
@@ -59,7 +60,6 @@ const FILTER_STYLE: React.CSSProperties = {
 };
 const TH_CLS = 'h-[46px] whitespace-nowrap px-2.5 text-left text-[12px] font-semibold leading-[1.4] text-ui-body';
 const TD_CLS = 'px-2.5 py-2 text-[13px] text-ui-body';
-const CHECKBOX_CLS = 'size-4 cursor-pointer accent-[var(--color-secondary-700)]';
 const MENU_ITEM = 'flex w-full cursor-pointer items-center gap-2 rounded-[4px] border-0 bg-transparent px-2 py-1.5 text-left text-[13px] text-ui-body no-underline hover:bg-ui-hover-bg [&_svg]:size-3.5';
 
 const DATE_UPPER = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -252,9 +252,9 @@ export function CampaignsPageClient({ initialCampaigns, canEdit, canSeeAll, load
             <thead>
               <tr className="border-b border-ui-divider bg-ui-surface">
                 <th className={cn(TH_CLS, 'w-9 pl-[18px]')}>
-                  <input
-                    type="checkbox" className={CHECKBOX_CLS} checked={allSelected} aria-label="Select all"
-                    onChange={() => setSelected(allSelected ? new Set() : new Set(filtered.map(c => c.id)))}
+                  <Checkbox
+                    checked={allSelected} aria-label="Select all"
+                    onCheckedChange={() => setSelected(allSelected ? new Set() : new Set(filtered.map(c => c.id)))}
                   />
                 </th>
                 <th className={TH_CLS} aria-sort={nameSort ? (nameSort === 'asc' ? 'ascending' : 'descending') : undefined}>
@@ -288,7 +288,7 @@ export function CampaignsPageClient({ initialCampaigns, canEdit, canSeeAll, load
                     className={cn('h-16 cursor-pointer border-t border-ui-divider hover:bg-ui-surface', isSelected && 'bg-ui-selected-bg')}
                   >
                     <td className={cn(TD_CLS, 'pl-[18px]')} onClick={e => e.stopPropagation()}>
-                      <input type="checkbox" className={CHECKBOX_CLS} checked={isSelected} onChange={() => toggle(c.id)} aria-label={`Select ${c.name}`} />
+                      <Checkbox checked={isSelected} onCheckedChange={() => toggle(c.id)} aria-label={`Select ${c.name}`} />
                     </td>
                     <td className={cn(TD_CLS, 'max-w-[260px]')}>
                       <div className="flex items-center gap-2">

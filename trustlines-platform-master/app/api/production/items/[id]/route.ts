@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { computeBoardPfCode, isFurnitureOrder, pfOwnerForCase, pfOwnerForProject, PF_CODE_SIGN_STATUSES } from '@/lib/production/pfCode';
 import { datesForStatusChange, type DateField } from '@/lib/production/board';
 import { requireProductionWrite } from '@/lib/production/guard';
+import { NO_PF_ROLES, PROD_KEYS, STATUS_FIELDS } from '@/lib/production/access';
 import { logAudit } from '@/lib/audit/log';
 import { maybeEmitItemsReady } from '@/lib/events/triggers';
 
@@ -13,14 +14,24 @@ const EDITABLE = new Set([
   'payment_rule', 'container_no', 'container_date',
   'assigned_to', 'priority', 'start_date', 'target_date',
 ]);
+const MONEY_FIELDS = new Set(['pf_usd', 'pf_tl', 'invoice', 'invoice_tl', 'expenses_usd', 'expenses_tl']);
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  // Same rule as DELETE: changing a production row needs edit.production (was any signed-in user).
-  const { user, admin, deny } = await requireProductionWrite();
+  // Roles page → Production Board: status cells need "Change statuses", the other fields "Edit
+  // rows", money fields also "Money columns" (each follows edit.production until set).
+  const body = await req.json().catch(() => ({})) as Record<string, unknown>;
+  const sent = Object.keys(body).filter(k => EDITABLE.has(k));
+  const keys = new Set<string>();
+  for (const k of sent) {
+    keys.add(STATUS_FIELDS.has(k) ? PROD_KEYS.editStatus : PROD_KEYS.editRows);
+    if (MONEY_FIELDS.has(k)) keys.add(PROD_KEYS.viewMoney);
+  }
+  const { user, role, admin, deny } = await requireProductionWrite(keys.size ? [...keys] : 'edit.production');
   if (deny) return deny;
+  if (NO_PF_ROLES.has(role) && sent.some(k => k === 'pf_sign_status' || MONEY_FIELDS.has(k))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   const { id } = await params;
-
-  const body = await req.json() as Record<string, unknown>;
 
   const { data: item } = await admin
     .from('production_items')
@@ -71,14 +82,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         };
         owner = proj ? pfOwnerForProject(proj.code, proj.trust_raw?.projectNo) : '';
       }
-      // This vendor's other live rows under the same project / case hold their numbers.
-      let sib = admin.from('production_items').select('pf_code').eq('vendor_id', nextVendorId).neq('id', id)
-        .is('deleted_at', null).not('pf_code', 'is', null);
+      // This vendor's other rows under the same project / case. Live rows hold their numbers;
+      // trashed rows count too for the max + 1 sequence, so deleted numbers aren't reused.
+      let sib = admin.from('production_items').select('pf_code, deleted_at').eq('vendor_id', nextVendorId).neq('id', id)
+        .not('pf_code', 'is', null);
       sib = item.case_id ? sib.eq('case_id', item.case_id) : sib.eq('project_id', item.project_id).eq('source', item.source);
-      const { data: siblings } = await sib as { data: { pf_code: string }[] | null };
+      const { data: siblings } = await sib as { data: { pf_code: string; deleted_at: string | null }[] | null };
       update.pf_code = computeBoardPfCode({
         vendorCode: vendor?.code ?? null, fixedMillwork: fixed, owner, type: item.type,
-        customTypeCode: item.custom_type_code, orderType: nextOrderType, siblingCodes: (siblings ?? []).map(r => r.pf_code),
+        customTypeCode: item.custom_type_code, orderType: nextOrderType,
+        siblingCodes: (siblings ?? []).filter(r => !r.deleted_at).map(r => r.pf_code),
+        allSiblingCodes: (siblings ?? []).map(r => r.pf_code),
       });
     }
   }
@@ -112,7 +126,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const { user, admin, deny } = await requireProductionWrite();
+  const { user, admin, deny } = await requireProductionWrite(PROD_KEYS.deleteRows);
   if (deny) return deny;
   const { id } = await params;
 

@@ -35,6 +35,9 @@ const toForm = (s: Saved | null, fallback: string[]): Form => s?.smtp_host
 const label = 'text-[12px] font-medium text-ui-body';
 const SECURITY = [{ value: 'tls', label: 'SSL/TLS (usually port 465)' }, { value: 'starttls', label: 'STARTTLS (usually port 587)' }];
 const SENDER = [{ value: 'own', label: 'This mailbox (below)' }, { value: 'default', label: 'The platform’s default account' }];
+// Card fields: 40px tall, 14px text. Dropdowns also get a 16px chevron (the shared Select draws 12px).
+const FIELD_CLS = 'h-10 text-[14px]';
+const SELECT_CLS = 'h-10 w-full px-3 text-[14px] rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg text-ui-heading [&_.ui-select-chevron]:size-4';
 
 export function LeadMailSettingsCard() {
   const [loading, setLoading] = useState(true);
@@ -133,21 +136,21 @@ export function LeadMailSettingsCard() {
             )}
 
             <label className="flex flex-col gap-1"><span className={label}>Send website leads to (one address per line, or comma-separated)</span>
-              <Textarea rows={3} value={form.recipients} placeholder={'al@tlines.us\nhamzag@trust-lines.com'} onChange={e => set({ recipients: e.target.value })} />
+              <Textarea rows={3} className="text-[14px]" value={form.recipients} placeholder={'al@tlines.us\nhamzag@trust-lines.com'} onChange={e => set({ recipients: e.target.value })} />
             </label>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="flex flex-col gap-1">
                 <span className={label}>Send from</span>
-                <Select aria-label="Send from" value={form.use_sender ? 'own' : 'default'} options={SENDER} onValueChange={v => set({ use_sender: v === 'own' })} />
+                <Select aria-label="Send from" className={SELECT_CLS}value={form.use_sender ? 'own' : 'default'} options={SENDER} onValueChange={v => set({ use_sender: v === 'own' })} />
               </div>
               {form.use_sender && (
                 <>
                   <label className="flex flex-col gap-1"><span className={label}>Sender name</span>
-                    <Input value={form.from_name} placeholder="TLINES" onChange={e => set({ from_name: e.target.value })} />
+                    <Input className={FIELD_CLS} value={form.from_name}placeholder="TLINES" onChange={e => set({ from_name: e.target.value })} />
                   </label>
                   <label className="flex flex-col gap-1"><span className={label}>From address</span>
-                    <Input type="email" value={form.from_email} onChange={e => set({ from_email: e.target.value, ...(form.smtp_user === form.from_email ? { smtp_user: e.target.value } : {}) })} />
+                    <Input className={FIELD_CLS} type="email" value={form.from_email} onChange={e => set({ from_email: e.target.value, ...(form.smtp_user === form.from_email ? { smtp_user: e.target.value } : {}) })} />
                   </label>
                 </>
               )}
@@ -158,22 +161,22 @@ export function LeadMailSettingsCard() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                   <div className="flex flex-col gap-1">
                     <span className={label}>Email provider</span>
-                    <Select aria-label="Email provider" value={form.preset} options={SMTP_PRESETS.map(p => ({ value: p.value, label: p.label }))} onValueChange={v => pickPreset(v ?? 'custom')} />
+                    <Select aria-label="Email provider" className={SELECT_CLS} value={form.preset} options={SMTP_PRESETS.map(p => ({ value: p.value, label: p.label }))} onValueChange={v => pickPreset(v ?? 'custom')} />
                   </div>
                   <label className="flex flex-col gap-1"><span className={label}>SMTP server</span>
-                    <Input value={form.smtp_host} placeholder="smtp.example.com" onChange={e => set({ smtp_host: e.target.value, preset: 'custom' })} />
+                    <Input className={FIELD_CLS} value={form.smtp_host}placeholder="smtp.example.com" onChange={e => set({ smtp_host: e.target.value, preset: 'custom' })} />
                   </label>
                   <label className="flex flex-col gap-1"><span className={label}>Port</span>
-                    <Input type="number" inputMode="numeric" value={form.smtp_port} onChange={e => set({ smtp_port: e.target.value })} />
+                    <Input className={FIELD_CLS} type="number" inputMode="numeric"value={form.smtp_port} onChange={e => set({ smtp_port: e.target.value })} />
                   </label>
                   <div className="flex flex-col gap-1"><span className={label}>Security</span>
-                    <Select aria-label="Security" value={form.smtp_secure ? 'tls' : 'starttls'} options={SECURITY} onValueChange={v => set({ smtp_secure: v === 'tls' })} />
+                    <Select aria-label="Security" className={SELECT_CLS} value={form.smtp_secure ? 'tls' : 'starttls'} options={SECURITY} onValueChange={v => set({ smtp_secure: v === 'tls' })} />
                   </div>
                   <label className="flex flex-col gap-1 md:col-span-2"><span className={label}>Username</span>
-                    <Input value={form.smtp_user} autoComplete="off" onChange={e => set({ smtp_user: e.target.value })} />
+                    <Input className={FIELD_CLS} value={form.smtp_user}autoComplete="off" onChange={e => set({ smtp_user: e.target.value })} />
                   </label>
                   <label className="flex flex-col gap-1 md:col-span-2"><span className={label}>{hasPassword ? 'Password (leave empty to keep the saved one)' : 'Password / app password'}</span>
-                    <Input type="password" autoComplete="new-password" value={form.smtp_pass} placeholder={hasPassword ? '•••••••• saved' : ''} onChange={e => set({ smtp_pass: e.target.value })} />
+                    <Input className={FIELD_CLS} type="password"autoComplete="new-password" value={form.smtp_pass} placeholder={hasPassword ? '•••••••• saved' : ''} onChange={e => set({ smtp_pass: e.target.value })} />
                   </label>
                 </div>
                 <p className="m-0 rounded-[6px] bg-info-light px-3 py-2 text-[12px] text-info-dark">{preset.help}</p>

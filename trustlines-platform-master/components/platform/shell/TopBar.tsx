@@ -99,7 +99,7 @@ export function TopBar({
       <div className="flex min-w-0 shrink items-center gap-6">
         <PageSearch sections={sections} />
         {breadcrumbs.length > 0 ? (
-          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-xs leading-[1.4] text-primary-400 dark:text-primary-200">
+          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-[14px] leading-[1.4] text-primary-400 dark:text-primary-200">
             {breadcrumbs.map((crumb, idx) => {
               const isLast = idx === breadcrumbs.length - 1;
               return (

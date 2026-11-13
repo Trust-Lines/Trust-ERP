@@ -1194,13 +1194,11 @@ export function ApprovalsPageClient() {
             <thead className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-slate-50 [&_th]:shadow-[inset_0_-1px_0_#e2e8f0]">
               <tr className="text-xs font-medium text-slate-500 select-none">
                 <th className="w-10 px-4 py-3 text-center">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={isAllSelected}
-                    ref={el => { if (el) el.indeterminate = isSomeSelected; }}
-                    onChange={handleSelectAll}
+                    indeterminate={isSomeSelected}
+                    onCheckedChange={handleSelectAll}
                     aria-label="Select all requests"
-                    className="w-4 h-4 rounded accent-[var(--color-secondary-700)] dark:accent-[var(--ui-tab-badge)] cursor-pointer"
                   />
                 </th>
 
@@ -1309,12 +1307,10 @@ export function ApprovalsPageClient() {
                       >
                         {/* Checkbox */}
                         <td className={`w-10 px-4 ${paddingClass} text-center`} onClick={e => handleSelectRow(row.id, e)}>
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={isSelected}
-                            onChange={() => {}}
+                            onCheckedChange={() => {}}
                             aria-label={`Select request ${row.code}`}
-                            className="w-4 h-4 rounded accent-[var(--color-secondary-700)] dark:accent-[var(--ui-tab-badge)] cursor-pointer"
                           />
                         </td>
 

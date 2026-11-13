@@ -6,6 +6,7 @@ import { Copy, FilePlus2, FileSignature, Pencil, Plus, Send, Trash2, X } from 'l
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { ConfirmModal, Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
@@ -332,7 +333,7 @@ function SendDialog({ kind, doc, defaultTo, onClose, onSent }: {
         footer={<><ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Cancel</ModalClose><Button loading={busy} onClick={send}><Send /> {byEmail ? 'Send' : 'Create link'}</Button></>}>
         <div className="flex flex-col gap-3">
           <label className="flex items-center gap-2 text-[12px] text-ui-body">
-            <input type="checkbox" checked={byEmail} onChange={e => setByEmail(e.target.checked)} /> Email the link now from my mailbox
+            <Checkbox checked={byEmail} onCheckedChange={v => setByEmail(!!v)} /> Email the link now from my mailbox
           </label>
           {byEmail && <>
             <label className={field}>To<Input type="email" value={to} onChange={e => setTo(e.target.value)} /></label>

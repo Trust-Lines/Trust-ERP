@@ -4,11 +4,15 @@ import { computeBoardPfCode, fixedMillworkSlot, pfOwnerForCase, pfOwnerForProjec
 const base = { fixedMillwork: false, owner: '440', type: 'Millwork', siblingCodes: [] as string[] };
 
 describe('production tracker PF codes (Trust System rules)', () => {
-  it('normal vendor: next free number for vendor + project + letter', () => {
+  it('normal vendor: max + 1 for vendor + project + letter, trashed rows counted', () => {
     expect(computeBoardPfCode({ ...base, vendorCode: 'KYA' })).toBe('KYA-440-M01');
     expect(computeBoardPfCode({ ...base, vendorCode: 'KYA', siblingCodes: ['KYA-440-M01'] })).toBe('KYA-440-M02');
-    // A deleted M02 holds no number (only live siblings are passed in).
-    expect(computeBoardPfCode({ ...base, vendorCode: 'KYA', siblingCodes: ['KYA-440-M01', 'KYA-440-M03'] })).toBe('KYA-440-M02');
+    // Gaps are not filled: max + 1.
+    expect(computeBoardPfCode({ ...base, vendorCode: 'KYA', siblingCodes: ['KYA-440-M01', 'KYA-440-M03'] })).toBe('KYA-440-M04');
+    // A deleted M02 still holds its number, so it is never handed out again.
+    expect(computeBoardPfCode({ ...base, vendorCode: 'KYA', siblingCodes: ['KYA-440-M01'], allSiblingCodes: ['KYA-440-M01', 'KYA-440-M02'] })).toBe('KYA-440-M03');
+    // Other vendors / projects / letters don't count.
+    expect(computeBoardPfCode({ ...base, vendorCode: 'KYA', siblingCodes: ['KYA-441-M05', 'GOS-440-M07', 'KYA-440-F02'] })).toBe('KYA-440-M01');
     expect(computeBoardPfCode({ ...base, vendorCode: 'MKR', type: 'Image', siblingCodes: ['MKR-440-I01'] })).toBe('MKR-440-I02');
   });
 
@@ -19,6 +23,8 @@ describe('production tracker PF codes (Trust System rules)', () => {
     expect(computeBoardPfCode({ ...ysm, orderType: 'selective/custom' })).toBe('YSM-440-M03');
     expect(computeBoardPfCode({ ...ysm, orderType: 'IMAGE' })).toBe('YSM-440-M04');
     expect(computeBoardPfCode({ ...ysm, orderType: null, siblingCodes: ['YSM-440-M04'] })).toBe('YSM-440-M05');
+    // M04+: lowest free among live rows; a trashed M04 holds no number.
+    expect(computeBoardPfCode({ ...ysm, orderType: null, siblingCodes: ['YSM-440-M05'], allSiblingCodes: ['YSM-440-M04', 'YSM-440-M05'] })).toBe('YSM-440-M04');
     // Two rows with the same order type share the code.
     expect(computeBoardPfCode({ ...ysm, orderType: 'STANDARD / BASIC', siblingCodes: ['YSM-440-M01'] })).toBe('YSM-440-M01');
     expect(fixedMillworkSlot('STANDARD / SELECTIVE')).toBe(2);

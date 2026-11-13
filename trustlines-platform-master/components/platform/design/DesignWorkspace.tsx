@@ -423,11 +423,11 @@ export function DesignWorkspace(props: Props) {
                   className={cn('flex w-[260px] shrink-0 flex-col rounded-[8px] border bg-ui-surface transition-colors', over ? 'border-[var(--color-secondary-700)] dark:border-ui-heading' : 'border-ui-divider')}
                 >
                   <div className="flex items-center gap-2 border-b border-ui-divider px-3 py-2.5">
-                    <StatusBadge group="design_job" status={status} size="sm" />
-                    <span className="text-[12px] font-semibold text-ui-text-secondary">{cards.length}</span>
+                    <StatusBadge group="design_job" status={status} size="sm" className="h-7 px-2.5 text-[13px] [&_svg]:size-4" />
+                    <span className="text-[14px] font-semibold text-ui-text-secondary">{cards.length}</span>
                   </div>
                   <div className="flex min-h-[70px] flex-col gap-2 p-2">
-                    {cards.length === 0 && <p className="m-0 py-4 text-center text-[12px] italic text-ui-text-secondary">{over ? 'Drop here' : '—'}</p>}
+                    {cards.length === 0 && <p className="m-0 py-4 text-center text-[14px] italic text-ui-text-secondary">{over ? 'Drop here' : '—'}</p>}
                     {cards.map(j => {
                       const designer = j.assigned_designer_id ? designerMap[j.assigned_designer_id] : null;
                       return (

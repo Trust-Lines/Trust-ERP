@@ -699,7 +699,8 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
   const [deleteTarget, setDeleteTarget] = useState<ProfileRow | null>(null);
   const [query, setQuery]           = useState('');
   const [sortBy, setSortBy]         = useState<SortKey>('newest');
-  const [menuId, setMenuId]         = useState<string | null>(null);
+  // Row "…" menu is fixed to the window (not inside the table's scroll box) so the last row's menu isn't clipped.
+  const actionMenu = useFixedMenu(112);
   const [selected, setSelected]     = useState<Set<string>>(new Set());
   const isOps = canEdit ?? (userRole === 'ops_manager');
 
@@ -878,23 +879,23 @@ export function TeamPageClient({ profiles: init, clients, franchises: rawFranchi
                         {isOps && (
                           <>
                             <button
-                              type="button" aria-label={`Actions for ${name}`} aria-expanded={menuId === p.id}
-                              onClick={() => setMenuId(id => (id === p.id ? null : p.id))}
+                              type="button" aria-label={`Actions for ${name}`} aria-expanded={actionMenu.openId === p.id}
+                              onClick={e => actionMenu.toggle(p.id, e.currentTarget)}
                               className="inline-grid size-7 place-items-center rounded-[4px] border-0 bg-transparent text-ui-body hover:bg-ui-hover-bg"
                             >
                               <Ellipsis size={16} />
                             </button>
-                            {menuId === p.id && (
+                            {actionMenu.openId === p.id && (
                               <>
-                                <div className="fixed inset-0 z-20" onClick={() => setMenuId(null)} />
-                                <div role="menu" className="absolute right-2 top-full z-30 mt-1 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03">
-                                  <Link href={`/team/${p.id}`} role="menuitem" className={MENU_ITEM} onClick={() => setMenuId(null)}>
+                                <div className="fixed inset-0 z-20" onClick={actionMenu.close} />
+                                <div role="menu" className="fixed z-30 w-44 rounded-[6px] border border-ui-divider bg-ui-surface-elevated p-1 text-left shadow-03" style={actionMenu.style}>
+                                  <Link href={`/team/${p.id}`} role="menuitem" className={MENU_ITEM} onClick={actionMenu.close}>
                                     <UserRound aria-hidden /> View profile
                                   </Link>
-                                  <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { setMenuId(null); setEditTarget(p); }}>
+                                  <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => { actionMenu.close(); setEditTarget(p); }}>
                                     <Pencil aria-hidden /> Edit member
                                   </button>
-                                  <button type="button" role="menuitem" className={cn(MENU_ITEM, 'text-[var(--color-error-normal)]')} onClick={() => { setMenuId(null); setDeleteTarget(p); }}>
+                                  <button type="button" role="menuitem" className={cn(MENU_ITEM, 'text-[var(--color-error-normal)]')} onClick={() => { actionMenu.close(); setDeleteTarget(p); }}>
                                     <Trash2 aria-hidden /> Delete member
                                   </button>
                                 </div>
