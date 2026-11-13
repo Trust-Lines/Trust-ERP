@@ -28,6 +28,7 @@ import { DealDocuments } from '@/components/platform/sales/DealDocuments';
 import { DealDesign } from '@/components/platform/sales/DealDesign';
 import { ConfirmModal, ModalPanel } from '@/components/ui/modal';
 import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button, buttonVariants } from '@/components/ui/button';
 
 type Deal = Record<string, unknown>;
@@ -952,28 +953,17 @@ function Inp({ value, onSave, type = 'text', ph, muted }: { value: string | numb
 }
 
 // Custom combobox, not a native <select> — the browser's own dropdown chrome (especially on
-// Windows) looks dated next to the rest of this panel.
+// Windows) looks dated next to the rest of this panel. The list is the shared Popover, so it is
+// never clipped by the panel and counts as part of the quick view (focus, Escape, outside clicks).
 function Sel({ value, onChange, opts, emphasize }: { value: string; onChange: (v: string) => void; opts: [string, string][]; emphasize?: boolean }) {
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
   const current = opts.find(([v]) => v === value)?.[1] ?? opts[0]?.[1] ?? '';
 
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, [open]);
-
   return (
-    <div ref={wrapRef} style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-      <button
-        type="button"
+    <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+      <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
         aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen(s => !s)}
         className="qv-input"
         style={{
           ...fieldBox, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, cursor: 'pointer',
@@ -982,13 +972,10 @@ function Sel({ value, onChange, opts, emphasize }: { value: string; onChange: (v
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{current}</span>
         <ChevronDown size={16} style={{ flexShrink: 0, transform: open ? 'rotate(180deg)' : undefined, transition: 'transform .12s' }} />
-      </button>
+      </PopoverTrigger>
 
-      {open && (
-        <div role="listbox" style={{
-          position: 'absolute', top: '100%', left: 0, marginTop: 4, minWidth: '100%', width: 'max-content', maxWidth: 260, zIndex: 100,
-          background: 'var(--ui-surface-elevated)', border: '1px solid var(--ui-divider)', borderRadius: 6,
-          boxShadow: 'var(--shadow-03)', maxHeight: 260, overflowY: 'auto', padding: 4,
+        <PopoverContent role="listbox" align="start" className="gap-0 overflow-y-auto p-1" onClick={e => e.stopPropagation()} style={{
+          minWidth: 'var(--anchor-width)', width: 'max-content', maxWidth: 260, maxHeight: 260,
         }}>
           {opts.map(([v, l]) => (
             <button
@@ -1002,8 +989,8 @@ function Sel({ value, onChange, opts, emphasize }: { value: string; onChange: (v
               {l}
             </button>
           ))}
-        </div>
-      )}
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
