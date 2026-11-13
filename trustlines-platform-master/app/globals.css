@@ -2058,12 +2058,15 @@ html[data-hide-amounts] [data-money] { -webkit-text-security: disc; text-securit
 .dark .ui-select-trigger.form-input {
   border-radius: 10px;
   padding-left: 14px;
-  padding-right: 38px;
   border-color: var(--ui-control-border);
   color: var(--ui-heading);
   background-repeat: no-repeat;
   background-position: right 14px center;
 }
+/* .form-select paints its own chevron, so it needs the 38px right gutter. The Select component
+   draws its chevron as a flex child instead, so the trigger gets the same 14px as the left side. */
+.dark .form-select { padding-right: 38px; }
+.dark .ui-select-trigger.form-input { padding-right: 14px; }
 .dark .form-select:hover,
 .dark .ui-select-trigger.form-input:hover { border-color: #5A6779; }
 .dark .ui-select-trigger.form-input .ui-select-chevron { color: var(--ui-body); }
