@@ -13,7 +13,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from '@/components/ui/select';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { roleLabel } from '@/components/platform/shell/Sidebar';
-import { regionLogoByCode, shellLogo } from '@/lib/regionLogo';
+import { BranchLogo } from '@/components/platform/dashboard/BranchLogo';
 import { byUrgency, isOpen, isOverdue, todayKey, SOURCE_LABEL, type MyTask, type MyTaskStatus } from '@/lib/myWorkspace/taskTypes';
 import type { MyApproval } from '@/lib/approvals/mine';
 import type { Installation } from '@/lib/installations/compute';
@@ -375,8 +375,8 @@ export function WorkspaceDashboard({ userName, role, projects, designDocs, acces
             className={cn('flex h-9 min-w-[120px] flex-1 cursor-pointer items-center justify-center rounded-[6px] border-0 transition-[opacity,box-shadow] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring',
               region && region !== r.key ? 'opacity-45 hover:opacity-80' : 'hover:opacity-90', region === r.key && 'ring-2 ring-offset-2 ring-offset-ui-surface-elevated')}
             style={{ background: r.color, ['--tw-ring-color' as string]: r.color }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={shellLogo(regionLogoByCode(r.key))} alt={r.label} className="h-[18px] w-auto brightness-0 invert" />
+            {/* Figma 818:37269 + 818:37281: the TLines mark over the region name */}
+            <BranchLogo code={r.key} height={30} />
           </button>
         ))}
         <Select aria-label="Regions" className="h-9 w-[130px]" value={region}

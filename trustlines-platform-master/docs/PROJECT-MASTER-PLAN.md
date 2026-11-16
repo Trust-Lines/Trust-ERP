@@ -2263,6 +2263,15 @@ Project architecture:
   Technical / PO + PF, To Order, To Production, Assembly, Ready for Installation; Union connectors between boxes.
 - Changed: components/platform/installation/GanttTab.tsx. Verified: eslint clean; browser not checked (login).
 
+2026-11-16 (Branch logos from Figma 818:37269 + 818:37281) — no migration, no new API
+- New shared BranchLogo (components/platform/dashboard/BranchLogo.tsx): TLines mark + wordmark over the region
+  name (NORTH EAST / SOUTH EAST / NATIONWIDE / WEST), Figma SVGs, scaled as one block.
+- Used in the My Workspace dashboard region tabs (was the cropped PNG, inverted) and every board column header
+  (replaces the PNG crop + the West-only logo). New assets: public/figma/dashboard/{ne-mark,ne-tlines,ne-label,
+  se-label,nw-label}.svg. Note: Figma labels TLINES_NW "NATIONWIDE" (lib/regions says "North West").
+- Changed: BranchLogo.tsx (new), BranchBoard.tsx, WorkspaceDashboard.tsx. Verified: eslint clean, tsc only the
+  pre-existing pdfjs-dist error; browser not checked (login).
+
 2026-11-16 (Installation Gantt: undated stages as the row status, Figma 811:12864) — no migration, no new API
 - Decision (user): only the 7 dated stages are drawn on the timeline; stages without stored dates are shown only
   as the row's status (Status column + row tint + project chip colour) while the project is in them.
