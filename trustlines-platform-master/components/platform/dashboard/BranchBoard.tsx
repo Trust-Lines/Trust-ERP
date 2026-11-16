@@ -1,5 +1,6 @@
 'use client';
 
+import { MultiFilter } from '@/components/platform/production/MultiFilter';
 import * as React from 'react';
 import Link from 'next/link';
 import { ChevronDown, ChevronRight, MapPinOff, Pause, Plus } from 'lucide-react';
@@ -610,37 +611,8 @@ function Column({ column, isOpen, onToggle, onOpen, accounts }: {
 
 // Figma "View tabs" (node 572:29189) controls: same look as the Leads page filters.
 const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg pl-3 pr-2 text-[13px] font-medium leading-normal text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading [&_svg]:size-3.5';
-const HIDDEN_COLS_KEY = 'dashboard.hiddenColumns.v1';
-
-/** Branch buttons: one per column, in the branch's own colour with its logo. Each click shows /
- *  hides that column; any number can be on. Off = faded. The last one on can't be turned off. */
-function ColumnButtons({ columns, hidden, onToggle }: {
-  columns: BoardColumn[]; hidden: Set<string>; onToggle: (code: string) => void;
-}) {
-  return (
-    <div role="group" aria-label="Branches shown" className="flex flex-wrap items-center gap-2">
-      {columns.map(c => {
-        const shown = !hidden.has(c.regionCode);
-        const last = shown && columns.filter(x => !hidden.has(x.regionCode)).length === 1;
-        const label = c.name ?? c.title ?? c.regionCode;
-        return (
-          <button
-            key={c.regionCode} type="button" aria-pressed={shown} aria-label={label} title={label}
-            disabled={last} onClick={() => onToggle(c.regionCode)}
-            className={`flex h-11 min-w-[120px] items-center justify-center rounded-[8px] border-2 border-solid px-4 transition-[opacity,filter,box-shadow] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring ${shown ? 'border-transparent shadow-[0_1px_3px_rgba(0,0,0,0.18)]' : 'border-transparent opacity-35 grayscale-[40%] hover:opacity-60'} ${last ? 'cursor-default' : 'cursor-pointer hover:brightness-110'}`}
-            style={{ background: c.headerColor }}
-          >
-            {c.title
-              ? <span className="text-[13px] font-semibold text-white">{c.title}</span>
-              : c.logoCode === 'CVW'
-                ? <WestLogo height={26} />
-                : <CroppedLogo src={c.logoSrc} code={c.logoCode} className="h-[26px]" />}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+// Columns picked in the Branches dropdown (none = every column), remembered per browser.
+const SHOWN_COLS_KEY = 'dashboard.shownColumns.v1';
 
 /** The board's date filter state — owned by BranchBoard so the dashboard layout can show it in
  *  the page heading while the board still filters by it. */
@@ -707,20 +679,22 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
     return pmColumns(regionColumns, i => personOf(i, 'tlines_pm'), id => names.get(id) ?? 'Unknown');
   }, [byPmNow, regionColumns, people, personOf]);
 
-  // Columns menu — remembered per browser.
-  const [hidden, setHidden] = React.useState<Set<string>>(new Set());
+  // Branches dropdown: the columns picked (none = all) — remembered per browser.
+  const [picked, setPicked] = React.useState<Set<string>>(new Set());
   React.useEffect(() => {
     try {
-      const raw = localStorage.getItem(HIDDEN_COLS_KEY);
-      if (raw) setHidden(new Set(JSON.parse(raw) as string[]));
+      const raw = localStorage.getItem(SHOWN_COLS_KEY);
+      if (raw) setPicked(new Set(JSON.parse(raw) as string[]));
     } catch { /* storage unavailable — show every column */ }
   }, []);
-  const toggleColumn = (code: string) => setHidden(prev => {
-    const next = new Set(prev);
-    if (next.has(code)) next.delete(code); else next.add(code);
-    try { localStorage.setItem(HIDDEN_COLS_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
-    return next;
-  });
+  const changePicked = (next: Set<string>) => {
+    setPicked(next);
+    try { localStorage.setItem(SHOWN_COLS_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
+  };
+  const columnOptions = React.useMemo(
+    () => columns.map(c => ({ value: c.regionCode, label: c.name ?? c.title ?? c.regionCode })),
+    [columns],
+  );
 
   // Stage bars: every stage starts open. Each bar folds / opens only its own stage in its own
   // column — keyed by column + stage.
@@ -742,12 +716,12 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
     const keep = (i: BoardCardItem) =>
       inRange(i.dateISO) && (!company || (company === NO_COMPANY ? !i.company : i.company === company))
       && byPerson(i, 'trust_pm', trustPm) && byPerson(i, 'tlines_pm', tlinesPm);
-    const shown = columns.filter(c => !hidden.has(c.regionCode));
+    const shown = columns.filter(c => picked.has(c.regionCode));
     return (shown.length ? shown : columns).map(column => ({
       ...column,
       sections: column.sections.map(s => ({ ...s, items: s.items.filter(keep) })),
     }));
-  }, [columns, hidden, dateFrom, dateTo, company, trustPm, tlinesPm, personOf]);
+  }, [columns, picked, dateFrom, dateTo, company, trustPm, tlinesPm, personOf]);
 
   // Stages / Accounts, remembered per browser. Every account starts open; a click folds it.
   const [view, setView] = React.useState<BoardView>('stages');
@@ -789,7 +763,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
           <FilterSelect aria-label="Companies" value={company} options={COMPANY_OPTIONS} onValueChange={v => setCompany(v ?? '')} className={FILTER_CLS} />
           <FilterSelect aria-label="Trust PM" value={trustPm} options={trustPmOptions} onValueChange={v => setTrustPm(v ?? '')} className={FILTER_CLS} />
           <FilterSelect aria-label="T-Lines PM" value={tlinesPm} options={tlinesPmOptions} onValueChange={v => setTlinesPm(v ?? '')} className={FILTER_CLS} />
-          <ColumnButtons columns={columns} hidden={hidden} onToggle={toggleColumn} />
+          <MultiFilter label={byPmNow ? 'T-Lines PM columns' : 'Branches'} options={columnOptions} selected={picked} onChange={changePicked} />
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           {datesInBar && <DateFilters {...dates} />}
