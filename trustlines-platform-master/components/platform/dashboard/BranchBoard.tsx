@@ -31,6 +31,8 @@ export interface BoardCardItem {
   category: string | null;
   pmName: string | null;
   pmLabel: string;
+  /** Installation team shown on the card (set by the board when known). */
+  teamName?: string | null;
   /** T-Lines PM of a card without "Assign to" (installation, delivered project). */
   tlinesPmId?: string | null;
   onHold: boolean;
@@ -69,16 +71,19 @@ const assignKey = (item: BoardCardItem, role: AssignRole) =>
 
 /** "Assign to" on the cards — every active user, chosen from the design-system Select. */
 const AssignContext = React.createContext<{
+  /** Every user, to name whoever is already assigned. */
   options: { value: string; label: string }[];
+  /** Who can be picked / filtered by: T-Lines PMs only. */
+  pmOptions: { value: string; label: string }[];
   canAssign: boolean;
   assigned: Record<string, string | null>;
   assign: (item: BoardCardItem, role: AssignRole, userId: string | null) => void;
-}>({ options: [], canAssign: false, assigned: {}, assign: () => {} });
+}>({ options: [], pmOptions: [], canAssign: false, assigned: {}, assign: () => {} });
 
 const UNASSIGNED = '';
 
 function AssignBox({ item, section, role }: { item: BoardCardItem; section: BoardSection; role: AssignRole }) {
-  const { options, canAssign, assigned, assign } = React.useContext(AssignContext);
+  const { options, pmOptions, canAssign, assigned, assign } = React.useContext(AssignContext);
   const key = assignKey(item, role);
   const saved = role === 'tlines_pm' ? item.assign?.tlinesUserId ?? null : item.assign?.userId ?? null;
   const current = key in assigned ? assigned[key] : saved;
@@ -96,7 +101,9 @@ function AssignBox({ item, section, role }: { item: BoardCardItem; section: Boar
       {canAssign ? (
         <FilterSelect
           aria-label={`${ROLE_LABEL[role]} for ${item.assign?.label ?? ''}`}
-          options={[{ value: UNASSIGNED, label: 'Unassigned' }, ...options]}
+          options={[{ value: UNASSIGNED, label: 'Unassigned' }, ...pmOptions,
+            // Someone assigned before who isn't a T-Lines PM: still shown, so the pick isn't lost.
+            ...(current && !pmOptions.some(o => o.value === current) ? options.filter(o => o.value === current) : [])]}
           value={current ?? UNASSIGNED}
           onValueChange={v => assign(item, role, v || null)}
           className="h-auto min-h-0 gap-0.5 border-0 bg-transparent p-0 text-[9px] font-semibold leading-normal text-[inherit] hover:border-0 dark:border-0 dark:bg-transparent dark:p-0 dark:text-[inherit] [&_svg]:size-3"
@@ -615,11 +622,11 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
   const [company, setCompany] = React.useState('');
 
   // People filters: by the card's Trust PM and by its T-Lines PM ('' = everyone, NOBODY = unassigned).
-  const { options: people, assigned } = React.useContext(AssignContext);
+  const { options: people, pmOptions, assigned } = React.useContext(AssignContext);
   const [trustPm, setTrustPm] = React.useState('');
   const [tlinesPm, setTlinesPm] = React.useState('');
-  const trustPmOptions = React.useMemo(() => [{ value: '', label: 'All Trust PMs' }, { value: NOBODY, label: 'Unassigned' }, ...people], [people]);
-  const tlinesPmOptions = React.useMemo(() => [{ value: '', label: 'All T-Lines PMs' }, { value: NOBODY, label: 'Unassigned' }, ...people], [people]);
+  const trustPmOptions = React.useMemo(() => [{ value: '', label: 'All Trust PMs' }, { value: NOBODY, label: 'Unassigned' }, ...pmOptions], [pmOptions]);
+  const tlinesPmOptions = React.useMemo(() => [{ value: '', label: 'All T-Lines PMs' }, { value: NOBODY, label: 'Unassigned' }, ...pmOptions], [pmOptions]);
   /** A card's person for a role, as shown on it now (including picks made on this page). A
    *  project card has no Trust PM; its T-Lines PM is the project's own PM. */
   const personOf = React.useCallback((i: BoardCardItem, role: AssignRole): string | null => {
@@ -780,7 +787,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   subheading?: string;
   columns: BoardColumn[];
   /** Everyone who can be picked in a Trust card's "Assign to", and whether this viewer may. */
-  users?: { id: string; full_name: string }[];
+  users?: { id: string; full_name: string; role?: string | null }[];
   canAssign?: boolean;
   /** Why the Trust System sections are empty, when it couldn't be read. */
   trustError?: string | null;
@@ -796,6 +803,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   const [open, setOpen] = React.useState<{ item: BoardCardItem; section: BoardSection } | null>(null);
   const [assigned, setAssigned] = React.useState<Record<string, string | null>>({});
   const assignOptions = React.useMemo(() => users.map(u => ({ value: u.id, label: u.full_name })), [users]);
+  const pmOptions = React.useMemo(() => users.filter(u => u.role === 'tlines_pm').map(u => ({ value: u.id, label: u.full_name })), [users]);
   const assign = React.useCallback(async (item: BoardCardItem, role: AssignRole, userId: string | null) => {
     if (!item.assign) return;
     const key = assignKey(item, role);
@@ -814,7 +822,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
       toast.error(e instanceof Error ? e.message : 'Could not save the assignment');
     }
   }, [assigned]);
-  const assignCtx = React.useMemo(() => ({ options: assignOptions, canAssign, assigned, assign }), [assignOptions, canAssign, assigned, assign]);
+  const assignCtx = React.useMemo(() => ({ options: assignOptions, pmOptions, canAssign, assigned, assign }), [assignOptions, pmOptions, canAssign, assigned, assign]);
   const handleOpen: OpenCard = (item, section) => setOpen({ item, section });
   const dates = useDateRange();
   const isDashboard = layout === 'dashboard';

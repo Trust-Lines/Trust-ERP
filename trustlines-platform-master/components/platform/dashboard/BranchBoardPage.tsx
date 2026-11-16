@@ -242,8 +242,8 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
   const [assignRows, { data: allUsers }] = await Promise.all([
     fetchInChunks(boardIds, chunk => admin.from('board_assignees').select('item_kind, item_id, stage, user_id').in('item_id', chunk))
       .catch(() => []),   // table not there yet (migration 137)
-    admin.from('profiles').select('id, full_name').eq('is_active', true).not('full_name', 'is', null).order('full_name', { ascending: true }),
-  ]) as [{ item_kind: string; item_id: string; stage: string; user_id: string }[], { data: { id: string; full_name: string }[] | null }];
+    admin.from('profiles').select('id, full_name, role').eq('is_active', true).not('full_name', 'is', null).order('full_name', { ascending: true }),
+  ]) as [{ item_kind: string; item_id: string; stage: string; user_id: string }[], { data: { id: string; full_name: string; role: string | null }[] | null }];
   const assigneeOf = new Map(assignRows.map(a => [`${a.item_kind}:${a.item_id}:${a.stage}`, a.user_id]));
   // The T-Lines PM looks after the card's account, not one stage: when the card has none set for
   // the stage it is in now, the one set in another stage stays, else our project's T-Lines PM
@@ -374,10 +374,6 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
       .limit(2000) as { data: InstallRow[] | null; error: { message: string } | null };
     if (error) console.error('[dashboard] installation plan unavailable (migration 142?):', error.message);
     installRows = data ?? [];
-    if (userRole === 'tlines_pm') {
-      const ownNos = new Set(projects.map(p => projectNumber(p.code)).filter(Boolean));
-      installRows = installRows.filter(i => ownNos.has(projectNumber(i.project_no)));
-    }
     // Their "Assign to" (Trust PM / T-Lines PM per stage: installation, completed), stored like
     // the Trust cards' under item_kind 'trust' with the installation's id.
     const installAssign = await fetchInChunks(installRows.map(i => i.id), chunk => admin.from('board_assignees')
@@ -417,7 +413,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
     if (place && !prospectPlace.has(l.prospect_id)) prospectPlace.set(l.prospect_id, place);
   }
 
-  const columns: BoardColumn[] = visibleRegions.map(r => {
+  const allColumns: BoardColumn[] = visibleRegions.map(r => {
     const regionProjects = projects.filter(p => p.region === r.code);
     // Like the PROJECTS PROGRESS sheet: grouped by client (A–Z), newest first within a client.
     const regionOpportunities = opportunities.filter(o => o.region === r.code)
@@ -548,6 +544,13 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
       sections,
     };
   });
+
+  // A T-Lines PM sees only the cards they are the T-Lines PM of — every stage, installation and
+  // completed included (they own the job end to end). Done here, on the server, not in the browser.
+  const columns = userRole !== 'tlines_pm' ? allColumns : allColumns.map(c => ({
+    ...c,
+    sections: c.sections.map(s => ({ ...s, items: s.items.filter(i => (i.assign?.tlinesUserId ?? i.tlinesPmId ?? null) === user.id) })),
+  }));
 
   const { data: marketingAssignees } = await admin.from('profiles')
     .select('id, full_name')
