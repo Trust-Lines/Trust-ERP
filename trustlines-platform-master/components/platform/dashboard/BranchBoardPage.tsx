@@ -102,8 +102,16 @@ const SECTION_DEFS = [
 const HEADER_COLORS: Record<string, string> = {
   TLINES_NE: '#5E758E',
   TLINES_SE: '#68715B',
-  TLINES_NW: 'rgba(164,42,44,0.84)',
+  TLINES_NW: 'var(--board-branch-nationwide)',
   CVW:       '#624D46',
+};
+
+// Alternating account strips are independent Figma palette values, not calculated shades.
+const ACCOUNT_ALT_COLORS: Record<string, string> = {
+  TLINES_NE: '#465B6C',
+  TLINES_SE: '#3A462B',
+  TLINES_NW: '#2D5BA2',
+  CVW:       '#79645E',
 };
 
 function categoryLabel(values: string[] | null | undefined): string | null {
@@ -497,7 +505,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
         dateLabel: fmtDate(date),
         href: '',
         note: i.blockers,
-        statuses: [i.status, i.team].filter((s): s is string => !!s),
+        statuses: i.status ? [i.status] : [],
         projectNo: no,
         trustItems: trustByNo.get(no) ?? null,
       };
@@ -536,6 +544,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
       logoSrc: regionLogoByCode(r.dropboxShort),
       logoCode: r.dropboxShort,
       headerColor: HEADER_COLORS[r.code] ?? HEADER_COLORS.TLINES_NE,
+      accountAltColor: ACCOUNT_ALT_COLORS[r.code] ?? ACCOUNT_ALT_COLORS.TLINES_NE,
       sections,
     };
   });

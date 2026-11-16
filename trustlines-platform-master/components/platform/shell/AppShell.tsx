@@ -83,7 +83,7 @@ export function AppShell({
         {/* Main Content Area — sized to its own content now, not forced to viewport height */}
         <main className={cn('min-w-0 bg-ui-page-bg transition-[margin] duration-200', aiOpen && 'lg:mr-[383px]')}>
           {/* Every page uses the full width of the screen (it used to stop at 1200px, centred). */}
-          <div className="main-inner main-inner--full w-full" style={{ padding: '24px' }}>
+          <div className="main-inner main-inner--full w-full" style={{ padding: pathname === '/dashboard' ? '28px' : '24px' }}>
             {children}
           </div>
         </main>

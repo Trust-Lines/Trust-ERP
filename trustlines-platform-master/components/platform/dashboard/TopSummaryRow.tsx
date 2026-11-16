@@ -99,7 +99,7 @@ function Kpi({ item }: { item: KpiItem }) {
  *  the dashboard layout puts its KPI tiles under the board's filter bar instead. */
 export function DailyOverview({ fullName, role }: { fullName: string; role: string }) {
   return (
-    <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[527px_minmax(0,1fr)]">
+    <div className="mb-8 grid grid-cols-1 gap-4 xl:grid-cols-[527px_minmax(0,1fr)]">
       <GreetingCard fullName={fullName} role={role} />
       <MyDayCard variant="tasks" className="h-[266px]" />
     </div>
