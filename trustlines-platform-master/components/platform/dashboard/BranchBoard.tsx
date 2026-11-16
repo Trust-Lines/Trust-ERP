@@ -330,7 +330,8 @@ function ViewToggle({ view, onView }: { view: BoardView; onView: (v: BoardView) 
 
 // Columns by region (the branch logos) or by T-Lines PM: one column per PM with the cards they
 // look after in every region, the PM's name in the header. Remembered per browser.
-type ColumnsBy = 'regions' | 'pms';
+// 'pms' = by T-Lines PM, 'trust_pms' = by Trust Lines PM (the card's Trust PM).
+type ColumnsBy = 'regions' | 'pms' | 'trust_pms';
 const COLUMNS_BY_KEY = 'tl_board_columns_by';
 const PM_COLORS = ['#465B6D', '#3B472B', '#2E5BA3', '#7A655E', '#5B4B8A', '#8A5A2B', '#2F6F6A', '#7A3E55'];
 const UNASSIGNED_COLOR = '#6B7280';
@@ -348,11 +349,12 @@ function ColumnsByToggle({ by, onBy }: { by: ColumnsBy; onBy: (v: ColumnsBy) => 
     <div role="group" aria-label="Columns by" className="flex h-9 items-center gap-0.5 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg p-[2px]">
       {opt('regions', 'Regions')}
       {opt('pms', 'T-Lines PMs')}
+      {opt('trust_pms', 'Trust Lines PMs')}
     </div>
   );
 }
 
-/** Regroup the region columns into one column per T-Lines PM (Unassigned last), keeping the stages. */
+/** Regroup the region columns into one column per PM (T-Lines or Trust Lines; Unassigned last), keeping the stages. */
 function pmColumns(columns: BoardColumn[], pmOf: (i: BoardCardItem) => string | null, nameOf: (id: string) => string): BoardColumn[] {
   const order: BoardSection[] = [];
   for (const c of columns) for (const s of c.sections) if (!order.some(o => o.key === s.key)) order.push(s);
@@ -368,7 +370,7 @@ function pmColumns(columns: BoardColumn[], pmOf: (i: BoardCardItem) => string | 
   return ids.map((id, i) => ({
     regionCode: `pm:${id}`,
     title: id === NOBODY ? 'Unassigned' : nameOf(id),
-    name: id === NOBODY ? 'No T-Lines PM' : nameOf(id),
+    name: id === NOBODY ? 'No PM' : nameOf(id),
     logoSrc: '', logoCode: '',
     headerColor: id === NOBODY ? UNASSIGNED_COLOR : PM_COLORS[i % PM_COLORS.length],
     sections: order.map(s => ({ ...s, items: byPm.get(id)!.get(s.key) ?? [] })),
@@ -654,18 +656,22 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
 
   const [columnsBy, setColumnsBy] = React.useState<ColumnsBy>('regions');
   React.useEffect(() => {
-    try { if (offerPm && localStorage.getItem(COLUMNS_BY_KEY) === 'pms') setColumnsBy('pms'); } catch { /* storage blocked */ }
+    try {
+      const v = localStorage.getItem(COLUMNS_BY_KEY);
+      if (offerPm && (v === 'pms' || v === 'trust_pms')) setColumnsBy(v);
+    } catch { /* storage blocked */ }
   }, [offerPm]);
   const changeColumnsBy = (v: ColumnsBy) => {
     setColumnsBy(v);
     try { localStorage.setItem(COLUMNS_BY_KEY, v); } catch { /* storage blocked */ }
   };
-  const byPmNow = offerPm && columnsBy === 'pms';
+  const byPmNow = offerPm && columnsBy !== 'regions';
   const columns = React.useMemo(() => {
     if (!byPmNow) return regionColumns;
     const names = new Map(people.map(p => [p.value, p.label]));
-    return pmColumns(regionColumns, i => personOf(i, 'tlines_pm'), id => names.get(id) ?? 'Unknown');
-  }, [byPmNow, regionColumns, people, personOf]);
+    const role: AssignRole = columnsBy === 'trust_pms' ? 'trust_pm' : 'tlines_pm';
+    return pmColumns(regionColumns, i => personOf(i, role), id => names.get(id) ?? 'Unknown');
+  }, [byPmNow, columnsBy, regionColumns, people, personOf]);
 
   // Branches dropdown: the columns picked (none = all) — remembered per browser.
   const [picked, setPicked] = React.useState<Set<string>>(new Set());
@@ -751,7 +757,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
           <FilterSelect aria-label="Companies" value={company} options={COMPANY_OPTIONS} onValueChange={v => setCompany(v ?? '')} className={FILTER_CLS} />
           <FilterSelect aria-label="Trust PM" value={trustPm} options={trustPmOptions} onValueChange={v => setTrustPm(v ?? '')} className={FILTER_CLS} />
           <FilterSelect aria-label="T-Lines PM" value={tlinesPm} options={tlinesPmOptions} onValueChange={v => setTlinesPm(v ?? '')} className={FILTER_CLS} />
-          <MultiFilter label={byPmNow ? 'T-Lines PM columns' : 'Branches'} options={columnOptions} selected={picked} onChange={changePicked} />
+          <MultiFilter label={!byPmNow ? 'Branches' : columnsBy === 'trust_pms' ? 'Trust Lines PM columns' : 'T-Lines PM columns'} options={columnOptions} selected={picked} onChange={changePicked} />
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           {datesInBar && <DateFilters {...dates} />}
