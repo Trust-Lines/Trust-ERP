@@ -74,6 +74,8 @@ const OPPORTUNITY_EDIT_ROLES = [...SALES_HANDOFF_ROLES, ...MARKETING_ROLES];
 const boardTone = (k: string) => ({ accent: `var(--board-${k}-fg)`, bg: `var(--board-${k}-bg)`, solid: `var(--board-${k}-fg)` });
 const SECTION_DEFS = [
   { key: 'opportunity',   label: 'Clients Opportunity',    ...boardTone('opportunity') },
+  // Everyone else's open deals (not a key client) — hidden until the board's Leads button.
+  { key: 'leads',         label: 'Leads',                  ...boardTone('opportunity') },
   { key: 'finalization',  label: 'Finalization',           ...boardTone('finalization') },
   { key: 'technical',     label: 'Technical / PO + PF',    ...boardTone('technical') },
   { key: 'to_production', label: 'To Production',          ...boardTone('to-production') },
@@ -172,11 +174,11 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
   // they're signed; everything else waits until it's a project.
   const loadClientOpps = async (): Promise<ClientOpportunityRow[]> => {
     try {
-      // Key clients' deals and the leads' (everyone else's) — the board's Clients / Leads filter splits them.
+      // Key clients' deals and the leads' (everyone else's, the Leads section).
       const r = await loadClientOpportunities(admin, { includeLeads: true });
-      // Only deals with a project number, like the PROJECTS PROGRESS sheet — a numberless
-      // Potential is too early for the board.
-      return Object.values(r.regions).flat().filter(o => !!o.region && regionCodes.includes(o.region) && !!o.projectNo);
+      // Clients: only deals with a project number, like the PROJECTS PROGRESS sheet — a numberless
+      // Potential is too early. Leads: every open one ("full", behind the Leads button).
+      return Object.values(r.regions).flat().filter(o => !!o.region && regionCodes.includes(o.region) && (!!o.projectNo || !o.isClient));
     } catch (e) {
       console.error('[dashboard] client opportunities unavailable (migration 134?):', e instanceof Error ? e.message : e);
       return [];
@@ -304,7 +306,8 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
       dateISO: e.dateISO,
       dateLabel: fmtDate(e.dateISO),
       href: '',
-      note: e.note,
+      // The Technical note lists PF codes: never for tlines_pm.
+      note: noPf ? null : e.note,
       statuses: typeStatuses(p),
       projectNo: p.projectNo,
       trustItems: cardItems(p.items),
@@ -419,7 +422,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
     const regionOpportunities = opportunities.filter(o => o.region === r.code)
       .sort((a, b) => a.client.localeCompare(b.client) || b.createdAt.localeCompare(a.createdAt));
 
-    const opportunityItems: BoardCardItem[] = regionOpportunities.map(o => {
+    const toDealCard = (o: ClientOpportunityRow): BoardCardItem => {
       // Badge = the sheet's project number ("#507"); deals without one keep their code / "OP".
       const [top, bottom] = o.projectNo ? [`#${o.projectNo}`, ''] : opportunityBadge(o.projectCode);
       // ClickUp's "date created" when imported (when it became an opportunity there), else ours.
@@ -444,7 +447,9 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
         projectNo: o.projectNo,
         trustItems: o.projectNo ? trustByNo.get(o.projectNo) ?? null : null,
       };
-    });
+    };
+    const opportunityItems = regionOpportunities.filter(o => o.isClient).map(toDealCard);
+    const leadItems = regionOpportunities.filter(o => !o.isClient).map(toDealCard);
 
     const toCardItem = (p: ProjectRow): BoardCardItem => {
       const [top, bottom] = projectBadge(p.code);
@@ -518,6 +523,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
 
     const itemsByKey: Record<string, BoardCardItem[]> = {
       opportunity:   opportunityItems,                     // already in client order
+      leads:         leadItems,
       finalization:  trustItems(r.code, 'finalization').sort(byDate),
       technical:     trustItems(r.code, 'technical').sort(byDate),
       to_production: trustItems(r.code, 'to_production').sort(byDate),
@@ -647,6 +653,8 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
       columns={columns}
       assignees={marketingAssignees ?? []}
       canEdit={canEditOpportunities}
+      // A card's company: managers can always set it; a T-Lines PM only when it has none.
+      companyEdit={['general_manager', 'ops_manager'].includes(userRole) ? 'any' : userRole === 'tlines_pm' ? 'empty' : 'none'}
       canCreateTask={SALES_INTAKE_ROLES.includes(userRole)}
       trustError={trust.error}
       users={allUsers ?? []}
