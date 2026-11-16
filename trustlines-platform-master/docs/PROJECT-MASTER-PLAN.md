@@ -2211,6 +2211,12 @@ Project architecture:
 - Dark "General Manager" (818:21465): heading, filter bar, 4 KPI tiles, headers and stage colours already match the dark
   tokens. Fixed dark On Hold card: --board-hold-bg #3A3F47 → #343D4B, --board-hold-fg #E6E8EC → #C0C0C0 (Figma 818:21885).
   Changed: app/globals.css. Browser check not run (login).
+- Accounts view (818:35501 / column 818:35912), /dashboard and /tlines-pm: account bars are now flat full-width strips,
+  alternating a darker shade (color-mix 75% black) and the branch colour, with a white number badge (the client's project
+  number when all its cards share one, else the card count) + 12 px uppercase name + chevron; 8 px gaps. Accounts and the
+  stages inside them start folded; an open account shows its stages behind a thin left rail; stage bars there have no dot,
+  8 px padding and the dashed outline only while open. "Collapse all" now reads "Expand all" by default.
+  Changed: BranchBoard.tsx. Verified: eslint clean; tsc only the pre-existing pdfjs-dist error. Browser check not run (login).
   Changed: BranchBoard.tsx + 3 SVGs. Verified: eslint clean; tsc only the pre-existing pdfjs-dist error. Browser check not run (login).
 
 2026-11-16 (sidebar: Dashboard icon always navigates) — no migration, no new API
