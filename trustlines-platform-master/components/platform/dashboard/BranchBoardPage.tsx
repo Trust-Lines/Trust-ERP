@@ -13,7 +13,8 @@ import { loadClientOpportunities, loadKeyClients, type ClientOpportunityRow } fr
 import { buildMatcher, nameTokens, projectNumber } from '@/lib/keyClients/match';
 import { quickViewLink } from '@/lib/marketing/quickViewLink';
 import { KEY_CLIENT_ADMIN_ROLES } from '@/lib/keyClients/roles';
-import { classifyTrustProject, loadTrustProjects, typeLabel, typeStatuses, type TrustStage } from '@/lib/trust/board';
+import { NO_PF_ROLES } from '@/lib/production/access';
+import { classifyTrustProject, loadTrustProjects, typeLabel, typeStatuses, type TrustItem, type TrustStage } from '@/lib/trust/board';
 import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem } from '@/components/platform/dashboard/BranchBoard';
 import { DailyOverview, TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
 import { StatTile } from '@/components/platform/dashboard/StatTile';
@@ -266,7 +267,12 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
       ?? tlinesByNo.get(projectNumber(projectNo) ?? '') ?? null,
   });
   // The popup's PO + PF / Production / Shipping tabs: the Trust types of the card's project number.
-  const trustByNo = new Map(trustProjects.map(p => [p.projectNo, p.items ?? []]));
+  // tlines_pm never receives PF fields (AGENTS.md §2): the cards' Trust types go out without the
+  // PF code / PF sign status. Stages were already worked out from the full data above.
+  const noPf = NO_PF_ROLES.has(userRole);
+  const cardItems = (items: TrustItem[] | null | undefined): TrustItem[] =>
+    (items ?? []).map(i => (noPf ? { ...i, pfCode: null, pfSignStatus: null } : i));
+  const trustByNo = new Map(trustProjects.map(p => [p.projectNo, cardItems(p.items)]));
   // A Trust System card only has a number: its company is that of our project / deal with the
   // same number (project: service_line or code prefix; deal: ClickUp Industry or code prefix).
   const companyByNo = new Map<string, string>();
@@ -300,7 +306,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
       note: e.note,
       statuses: typeStatuses(p),
       projectNo: p.projectNo,
-      trustItems: p.items ?? [],
+      trustItems: cardItems(p.items),
     };
     return { region: p.bucket, stage: e.stage, item, createdAt: p.createdAt };
   });
