@@ -3,14 +3,16 @@
 import * as React from 'react';
 import Link from 'next/link';
 import {
-  Award, CircleCheck, ClipboardCheck, Hammer, Loader, Ship, type LucideIcon,
+  ArrowUpFromDot, Award, CircleCheck, ClipboardCheck, Cog, DraftingCompass, Hammer, Loader, MessagesSquare, Ship,
+  UsersRound, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   BRANCHES, addDays, alertOf, type Branch, type Clash, type Installation,
 } from '@/lib/installations/compute';
 import {
-  LIFE_STAGE, currentStage, lifecycleSegments, type LifeSegment, type LifeStage, type ProjectMilestones,
+  LIFE_STAGE, UNDATED_STAGE, currentStage, lifecycleSegments,
+  type LifeSegment, type LifeStage, type ProjectMilestones, type UndatedStage,
 } from '@/lib/installations/lifecycle';
 import { projectNumber } from '@/lib/keyClients/match';
 import { HEADING, SCOPE_COLOR } from './shared';
@@ -48,9 +50,28 @@ const LEFT = [
   { key: 'status', label: 'Status', w: 130 },
 ] as const;
 const LEFT_W = LEFT.reduce((n, c) => n + c.w, 0);
+// Figma 818:11574: store, dates and assignee text start at the cell edge (right padding only).
+const FLUSH = new Set<string>(['name', 'dates', 'assignee']);
 
 const fg = (s: LifeStage) => `var(--board-${LIFE_STAGE[s].tone}-fg)`;
 const bg = (s: LifeStage) => `var(--board-${LIFE_STAGE[s].tone}-bg)`;
+
+const UNDATED_ICON: Record<UndatedStage, LucideIcon> = {
+  queued: Loader, initial_meeting: UsersRound, initial_design: DraftingCompass, proposal: DraftingCompass,
+  negotiation: MessagesSquare, finalization: DraftingCompass, technical: Cog, to_production: ArrowUpFromDot,
+};
+interface RowStatus { label: string; fg: string; bg: string; Icon: LucideIcon }
+/**
+ * The row's status (Figma 811:12864): the dated stage, unless the project is still before
+ * production — then the undated stage it is in (sales stage / Trust board) is more precise.
+ */
+function rowStatus(dated: LifeStage | null, undated: UndatedStage | null): RowStatus | null {
+  if (undated && (!dated || dated === 'opportunity')) {
+    const t = UNDATED_STAGE[undated].tone;
+    return { label: UNDATED_STAGE[undated].label, fg: `var(--${t}-fg)`, bg: `var(--${t}-bg)`, Icon: UNDATED_ICON[undated] };
+  }
+  return dated ? { label: LIFE_STAGE[dated].label, fg: fg(dated), bg: bg(dated), Icon: STAGE_ICON[dated] } : null;
+}
 
 const daysIn = (key: string) => new Date(Date.UTC(+key.slice(0, 4), +key.slice(5, 7), 0)).getUTCDate();
 const monthHead = (key: string) =>
@@ -73,17 +94,18 @@ function monthsBetween(a: string, b: string): string[] {
 /** Width a full chip needs (icon + label at 12px); narrower stages show the icon only. */
 const chipWidth = (label: string) => 34 + label.length * 6.4;
 
-export function GanttTab({ rows, months: planMonths, today, clashes, projectByNo, milestonesByNo }: {
+export function GanttTab({ rows, months: planMonths, today, clashes, projectByNo, milestonesByNo, undatedByNo = {} }: {
   rows: Installation[]; months: string[]; today: string; clashes: Map<string, Clash[]>; projectByNo: Record<string, string>;
   milestonesByNo: Record<string, ProjectMilestones>;
+  undatedByNo?: Record<string, UndatedStage>;
 }) {
   const [colorBy, setColorBy] = React.useState<ColorBy>('branch');
 
   const lives = React.useMemo(() => rows.map(r => {
     const no = projectNumber(r.project_no);
     const segments = lifecycleSegments(no ? milestonesByNo[no] ?? null : null, r, today);
-    return { row: r, segments, stage: currentStage(segments, today) };
-  }), [rows, milestonesByNo, today]);
+    return { row: r, segments, status: rowStatus(currentStage(segments, today), no ? undatedByNo[no] ?? null : null) };
+  }), [rows, milestonesByNo, undatedByNo, today]);
 
   // The plan's months, widened to every drawn stage (production often starts months earlier).
   const months = React.useMemo(() => {
@@ -154,7 +176,7 @@ export function GanttTab({ rows, months: planMonths, today, clashes, projectByNo
           <div className="sticky top-0 z-[3] flex h-[46px] border-b border-ui-divider bg-ui-surface">
             <div className="sticky left-0 z-[4] flex border-r border-ui-body bg-ui-surface" style={{ width: LEFT_W }}>
               {LEFT.map((c, i) => (
-                <div key={c.key} className={cn('flex items-center px-2 text-[12px] font-semibold leading-[1.4] text-ui-body', i === 0 && 'pl-4')} style={{ width: c.w }}>
+                <div key={c.key} className={cn('flex items-center px-2 text-[12px] font-semibold leading-[1.4] text-ui-body', i === 0 && 'pl-4', FLUSH.has(c.key) && 'pl-0')} style={{ width: c.w }}>
                   {c.label}
                 </div>
               ))}
@@ -167,47 +189,46 @@ export function GanttTab({ rows, months: planMonths, today, clashes, projectByNo
           </div>
 
           {/* rows */}
-          {lives.map(({ row: r, segments, stage }) => {
+          {lives.map(({ row: r, segments, status }) => {
             const s = r.planned_start, f = r.planned_finish ?? r.planned_start;
             const alert = alertOf(r, today);
             const red = !!alert?.text.startsWith('Overdue') || clashes.has(r.id);
             const tentative = r.confidence === 'Tentative';
-            const tint = stage ? bg(stage) : undefined;
-            const ink = stage ? fg(stage) : undefined;
+            const tint = status?.bg;
+            const ink = status?.fg;
             const no = projectNumber(r.project_no);
             const projectId = no ? projectByNo[no] : undefined;
-            const StatusIcon = stage ? STAGE_ICON[stage] : null;
             return (
               <div key={r.id} className="flex border-b border-ui-divider" style={{ height: ROW_H }}>
                 {/* Figma 818:11615 — the row in its current stage's tint, text in the stage colour */}
-                <div className={cn('sticky left-0 z-[2] flex items-center border-r border-ui-body', !stage && 'bg-ui-page-bg')}
+                <div className={cn('sticky left-0 z-[2] flex items-center border-r border-ui-body', !status && 'bg-ui-page-bg')}
                   style={{ width: LEFT_W, background: tint, color: ink }}>
                   <Cell w={LEFT[0].w} className="px-2">
-                    <ProjectChip text={r.project_no || '—'} href={projectId ? `/projects/${projectId}` : null} stage={stage} />
+                    <ProjectChip text={r.project_no || '—'} href={projectId ? `/projects/${projectId}` : null} status={status} />
                   </Cell>
-                  <Cell w={LEFT[1].w} className={cn('font-semibold', !stage && HEADING)} title={r.project_name ?? undefined}>{r.project_name || '—'}</Cell>
+                  <Cell w={LEFT[1].w} className={cn('pl-0 font-semibold', !status && HEADING)} title={r.project_name ?? undefined}>{r.project_name || '—'}</Cell>
                   <Cell w={LEFT[2].w}>
                     {r.branch
                       ? <span className="inline-flex h-[21px] w-[43px] items-center justify-center rounded-[2px] text-[16px] font-medium leading-4 text-white" style={{ background: REGION[r.branch].color }} title={r.branch}>{REGION[r.branch].label}</span>
                       : <span className="opacity-60">—</span>}
                   </Cell>
-                  <Cell w={LEFT[3].w} className={cn('text-[14px] font-medium', !stage && HEADING)}>{s ? `${dayMonth(s)} - ${dayMonth(f!)}` : '—'}</Cell>
-                  <Cell w={LEFT[4].w} className={cn('text-[14px] font-medium', !stage && HEADING)} title={r.pm_name ?? r.team ?? undefined}>
+                  <Cell w={LEFT[3].w} className={cn('pl-0 text-[14px] font-medium', !status && HEADING)}>{s ? `${dayMonth(s)} - ${dayMonth(f!)}` : '—'}</Cell>
+                  <Cell w={LEFT[4].w} className={cn('pl-0 text-[14px] font-medium', !status && HEADING)} title={r.pm_name ?? r.team ?? undefined}>
                     {r.pm_name || r.team || <span className="opacity-60">TBD</span>}
                   </Cell>
                   <Cell w={LEFT[5].w} className="gap-1 text-[12px] font-medium leading-4">
-                    {stage && StatusIcon
-                      ? <><StatusIcon size={14} aria-hidden className="shrink-0" /><span className="truncate">{LIFE_STAGE[stage].label}</span></>
+                    {status
+                      ? <><status.Icon size={14} aria-hidden className="shrink-0" /><span className="truncate" title={status.label}>{status.label}</span></>
                       : <span className="text-ui-text-secondary">No dates yet</span>}
                   </Cell>
                 </div>
 
-                <div className="relative shrink-0" style={{ width: timelineW, background: tint ? `color-mix(in srgb, ${tint} 45%, transparent)` : undefined }}>
+                <div className="relative shrink-0" style={{ width: timelineW, background: tint }}>
                   {/* month columns, dashed weeks */}
                   <div className="absolute inset-0 flex" aria-hidden>
                     {months.map(m => (
-                      <div key={m} className="flex h-full shrink-0 border-r border-ui-text-secondary/40" style={{ width: MONTH_W }}>
-                        {[0, 1, 2, 3].map(q => <div key={q} className={cn('h-full flex-1', q < 3 && 'border-r border-dashed border-ui-text-secondary/40')} />)}
+                      <div key={m} className="flex h-full shrink-0 border-r border-ui-text-secondary" style={{ width: MONTH_W }}>
+                        {[0, 1, 2, 3].map(q => <div key={q} className={cn('h-full flex-1', q < 3 && 'border-r border-dashed border-ui-text-secondary')} />)}
                       </div>
                     ))}
                   </div>
@@ -234,39 +255,62 @@ function Segment({ seg, x0, x1, install, title }: {
   /** The installation stage keeps the plan's own signals: branch / company fill, red outline, stripes. */
   install: { color: string; red: boolean; tentative: boolean } | null;
 }) {
-  const w = Math.max(6, x1 - x0);
   const label = LIFE_STAGE[seg.stage].label;
   const Icon = STAGE_ICON[seg.stage];
-  const full = w >= chipWidth(label) + 8;
+  const full = x1 - x0 >= chipWidth(label) + 8;
+  // Figma 811:13079: a stage too short for its chip is a 36px square with just the stage icon.
+  const w = full ? x1 - x0 : Math.max(36, x1 - x0);
   const fill = install
     ? (install.tentative
       ? `repeating-linear-gradient(135deg, color-mix(in srgb, ${install.color} 55%, transparent) 0 5px, color-mix(in srgb, ${install.color} 20%, transparent) 5px 10px)`
       : `color-mix(in srgb, ${install.color} 35%, transparent)`)
-    : `color-mix(in srgb, ${bg(seg.stage)} 70%, transparent)`;
+    : bg(seg.stage);
+  // Figma 811:12864: Completed is no span, just an outlined chip right after the installation.
+  if (seg.stage === 'completed') {
+    return (
+      <span
+        title={title}
+        className="absolute top-1/2 inline-flex h-6 -translate-y-1/2 items-center gap-1 whitespace-nowrap rounded-[4px] border pl-2 pr-3 text-[12px] font-medium leading-4"
+        style={{ left: x1 + 11, background: bg(seg.stage), borderColor: fg(seg.stage), color: fg(seg.stage) }}
+      >
+        <Icon size={14} aria-hidden className="shrink-0" />
+        {label}
+      </span>
+    );
+  }
   return (
     <div
       title={title}
-      className={cn('absolute top-1/2 flex h-9 -translate-y-1/2 items-center rounded-[4px] border', seg.open && 'border-dashed', install?.red && 'border-[1.5px]')}
+      // Figma 811:12864: the labelled chip sits in the middle of its stage box.
+      className={cn('absolute top-1/2 flex h-9 -translate-y-1/2 items-center rounded-[4px] border', full && 'justify-center', seg.open && 'border-dashed', install?.red && 'border-[1.5px]')}
       style={{
         left: x0, width: w, background: fill,
-        borderColor: install?.red ? 'var(--color-error-normal)' : `color-mix(in srgb, ${fg(seg.stage)} 45%, transparent)`,
+        // Figma 811:12702: box in the stage's light tone, outlined in its dark tone.
+        borderColor: install?.red ? 'var(--color-error-normal)' : fg(seg.stage),
       }}
     >
-      <span
-        className={cn('ml-1 inline-flex h-[22px] shrink-0 items-center gap-1 whitespace-nowrap rounded-[4px] text-[12px] font-medium leading-4', full ? 'pl-2 pr-3' : 'px-1')}
-        style={{ background: fg(seg.stage), color: bg(seg.stage) }}
-      >
-        <Icon size={14} aria-hidden className="shrink-0" />
-        {full ? label : <span className="sr-only">{label}</span>}
-      </span>
+      {full ? (
+        <span
+          className="inline-flex h-[22px] shrink-0 items-center gap-1 whitespace-nowrap rounded-[4px] pl-2 pr-3 text-[12px] font-medium leading-4"
+          style={{ background: fg(seg.stage), color: bg(seg.stage) }}
+        >
+          <Icon size={14} aria-hidden className="shrink-0" />
+          {label}
+        </span>
+      ) : (
+        <span className="ml-[7px] inline-flex shrink-0" style={{ color: fg(seg.stage) }}>
+          <Icon size={20} aria-hidden />
+          <span className="sr-only">{label}</span>
+        </span>
+      )}
     </div>
   );
 }
 
-function ProjectChip({ text, href, stage }: { text: string; href: string | null; stage: LifeStage | null }) {
+function ProjectChip({ text, href, status }: { text: string; href: string | null; status: RowStatus | null }) {
   const cls = 'inline-flex max-w-full items-center justify-center truncate rounded-[4px] px-4 py-2 text-[16px] font-medium leading-4 no-underline';
-  const style = stage ? { background: fg(stage), color: bg(stage) } : undefined;
-  const plain = !stage && 'bg-[var(--color-secondary-700)] text-white dark:bg-primary-50 dark:text-primary-950';
+  const style = status ? { background: status.fg, color: status.bg } : undefined;
+  const plain = !status && 'bg-[var(--color-secondary-700)] text-white dark:bg-primary-50 dark:text-primary-950';
   return href
     ? <Link href={href} className={cn(cls, plain, 'hover:brightness-110')} style={style}>{text}</Link>
     : <span className={cn(cls, plain)} style={style}>{text}</span>;

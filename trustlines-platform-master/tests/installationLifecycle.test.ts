@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { currentStage, lifecycleSegments, milestonesFrom, type MilestoneItem } from '@/lib/installations/lifecycle';
+import { currentStage, lifecycleSegments, milestonesFrom, undatedStage, type MilestoneItem } from '@/lib/installations/lifecycle';
 
 const TODAY = '2026-11-09';
 const item = (p: Partial<MilestoneItem>): MilestoneItem => ({
@@ -51,5 +51,16 @@ describe('lifecycleSegments', () => {
 
   it('draws nothing without any dates', () => {
     expect(lifecycleSegments(null, install(), TODAY)).toEqual([]);
+  });
+});
+
+describe('undatedStage', () => {
+  it('prefers the Trust board stage, then the opportunity sales stage', () => {
+    expect(undatedStage('technical', 'negotiation')).toBe('technical');
+    expect(undatedStage('in_production', 'negotiation')).toBe('negotiation'); // dated on the timeline instead
+    expect(undatedStage(null, 'sales_design')).toBe('initial_design');
+    expect(undatedStage(null, 'new')).toBe('queued');
+    expect(undatedStage(null, 'closed_won')).toBeNull();
+    expect(undatedStage(undefined, null)).toBeNull();
   });
 });

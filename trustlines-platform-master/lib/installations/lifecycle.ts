@@ -107,6 +107,38 @@ export function lifecycleSegments(m: ProjectMilestones | null, install: InstallD
   });
 }
 
+// ── Stages without stored dates (Figma 811:12864) ─────────────────────────────────────────
+// Not drawn on the timeline — only shown as the row's status while the project is in them.
+// From the Trust System board (lib/trust/board: finalization / technical / to_production) and,
+// before that, the opportunity's sales stage (opportunities.stage).
+export type UndatedStage =
+  | 'queued' | 'initial_meeting' | 'initial_design' | 'proposal' | 'negotiation'
+  | 'finalization' | 'technical' | 'to_production';
+
+/** Label and colour token prefix (globals.css `--{tone}-fg` / `-bg`). */
+export const UNDATED_STAGE: Record<UndatedStage, { label: string; tone: string }> = {
+  queued:          { label: 'Queued',              tone: 'process-a0' },
+  initial_meeting: { label: 'Initial Meeting',     tone: 'process-a1' },
+  initial_design:  { label: 'Initial Design',      tone: 'process-a2' },
+  proposal:        { label: 'Proposal',            tone: 'process-a2' },
+  negotiation:     { label: 'Negotiation',         tone: 'process-a3' },
+  finalization:    { label: 'Finalization',        tone: 'board-finalization' },
+  technical:       { label: 'Technical / PO + PF', tone: 'board-technical' },
+  to_production:   { label: 'To Production',       tone: 'board-to-production' },
+};
+
+const OPP_STAGE: Record<string, UndatedStage> = {
+  new: 'queued', marketing_qualification: 'queued', qualified_for_sales: 'queued',
+  sales_handoff: 'queued', sales_accepted: 'queued',
+  discovery: 'initial_meeting', sales_design: 'initial_design', proposal: 'proposal', negotiation: 'negotiation',
+};
+
+/** The undated stage a project is in: the Trust board stage first, else the opportunity's. */
+export function undatedStage(trustStage: string | null | undefined, oppStage: string | null | undefined): UndatedStage | null {
+  if (trustStage === 'to_production' || trustStage === 'technical' || trustStage === 'finalization') return trustStage;
+  return (oppStage && OPP_STAGE[oppStage]) || null;
+}
+
 /** The stage the project is in today: the newest stage that has started (Completed wins). */
 export function currentStage(segments: LifeSegment[], today: string): LifeStage | null {
   if (segments.some(s => s.stage === 'completed')) return 'completed';

@@ -12,7 +12,7 @@ import {
   BRANCHES, SCOPES, STATUSES, addDays, alertOf, doubleBookings, durationDays, fmtDate, headcount, isClosed,
   planMonths, resolveTeams, statusNeedsUpdate, suggestedStatus, type InstallTeam, type Installation, type RowPatch,
 } from '@/lib/installations/compute';
-import type { ProjectMilestones } from '@/lib/installations/lifecycle';
+import type { ProjectMilestones, UndatedStage } from '@/lib/installations/lifecycle';
 import { HEADING } from './shared';
 import { DashboardTab } from './DashboardTab';
 import { ColumnsMenu, REGISTER_COLUMNS, REGISTER_SORTS, RegisterTab, type RegisterColumn, type RegisterSort } from './RegisterTab';
@@ -44,9 +44,10 @@ const SORT_KEY = 'tl_install_sort';
 const COLS_KEY = 'tl_install_hidden_cols';
 const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg pl-3 pr-2 text-[13px] font-medium leading-normal text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading [&_svg]:size-3.5';
 
-export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded, setupNeeded, loadError, canEdit, projectByNo, milestonesByNo = {}, today }: {
+export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded, setupNeeded, loadError, canEdit, projectByNo, milestonesByNo = {}, undatedByNo = {}, today }: {
   /** Real stage dates per project number, for the Gantt (lib/installations/lifecycle). */
   milestonesByNo?: Record<string, ProjectMilestones>;
+  undatedByNo?: Record<string, UndatedStage>;
   initialRows: Installation[];
   initialTeams: InstallTeam[];
   /** install_teams missing (migration 143 not run yet). */
@@ -357,7 +358,7 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
               onSave={(id, patch) => { void save(id, patch); }} onAdd={() => setEditing('new')} onEdit={r => setEditing(r)}
               onDelete={remove} pmNames={pmNames} teams={teams} />
           )}
-          {tab === 'gantt' && <GanttTab rows={visible} months={months} today={today} clashes={clashesAll} projectByNo={projectByNo} milestonesByNo={milestonesByNo} />}
+          {tab === 'gantt' && <GanttTab rows={visible} months={months} today={today} clashes={clashesAll} projectByNo={projectByNo} milestonesByNo={milestonesByNo} undatedByNo={undatedByNo} />}
           {tab === 'teamsMgr' && (
             <TeamsManagerTab teams={teams} rows={rows} today={today} clashes={clashesAll} canEdit={canEdit} setupNeeded={teamsSetupNeeded} projectByNo={projectByNo}
               onCreate={createTeam} onUpdate={updateTeam} onDelete={t => { void deleteTeam(t); }} />
