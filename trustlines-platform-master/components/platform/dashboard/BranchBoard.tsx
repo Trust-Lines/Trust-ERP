@@ -3,7 +3,8 @@
 import { MultiFilter } from '@/components/platform/production/MultiFilter';
 import * as React from 'react';
 import Link from 'next/link';
-import { CalendarDays, ChevronDown, ChevronRight, MapPinOff, Pause, Plus } from 'lucide-react';
+import { BriefcaseBusiness, CalendarDays, ChevronDown, ChevronRight, CircleCheck, Factory, MapPinOff, Pause, Plus, UserRound, Wrench } from 'lucide-react';
+import { StatTile } from './StatTile';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Select as FilterSelect } from '@/components/ui/select';
@@ -602,7 +603,16 @@ function useDateRange() {
 }
 type DateRange = ReturnType<typeof useDateRange>;
 
-function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates, datesInBar, kpis, pageScroll = false }: {
+// KPI row of the dashboard: counted from the cards the filters leave on the board.
+const COUNT_TILES: { label: string; keys: string[]; icon: React.ReactNode; color: string; onColor: string }[] = [
+  { label: 'Active Projects', keys: ['finalization', 'technical', 'to_production', 'in_production', 'shipped', 'ready'], icon: <BriefcaseBusiness strokeWidth={1.5} />, color: 'var(--ui-btn-solid)', onColor: 'var(--ui-surface-elevated)' },
+  { label: 'Clients Opportunity', keys: ['opportunity'], icon: <UserRound strokeWidth={1.5} />, color: 'var(--status-t4-fg)', onColor: 'var(--status-t4-bg)' },
+  { label: 'In Production', keys: ['to_production', 'in_production', 'shipped'], icon: <Factory strokeWidth={1.5} />, color: 'var(--status-t9-fg)', onColor: 'var(--status-t9-bg)' },
+  { label: 'Installation', keys: ['installation'], icon: <Wrench strokeWidth={1.5} />, color: 'var(--status-t6-fg)', onColor: 'var(--status-t6-bg)' },
+  { label: 'Completed', keys: ['completed'], icon: <CircleCheck strokeWidth={1.5} />, color: 'var(--color-success-normal)', onColor: 'var(--color-success-light)' },
+];
+
+function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates, datesInBar, kpis, counts = false, pageScroll = false }: {
   columns: BoardColumn[]; onOpen: OpenCard;
   /** Offer the "Accounts" view. */
   accounts: boolean;
@@ -613,6 +623,8 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
   datesInBar: boolean;
   /** Dashboard layout: KPI tiles between the filter bar and the columns (Figma 767:14785). */
   kpis?: React.ReactNode;
+  /** Show the KPI row counted from the filtered cards (dashboard layout). */
+  counts?: boolean;
   /** General Manager frame: columns expand in the page and use the Figma 16px gutter. */
   pageScroll?: boolean;
 }) {
@@ -752,7 +764,15 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
         </div>
       </div>
       {/* Figma 818:31780: 16 px between filter bar, KPI row and columns (gap-2 + my-2). */}
-      {kpis && <div className="my-2">{kpis}</div>}
+      {(counts || kpis) && (
+        <div className="my-2 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
+          {counts && COUNT_TILES.map(t => {
+            const n = visible.reduce((sum, c) => sum + c.sections.filter(s => t.keys.includes(s.key)).reduce((a, s) => a + s.items.length, 0), 0);
+            return <StatTile key={t.label} compact label={t.label} value={n} icon={t.icon} sub="Cards shown with the filters above" color={t.color} onColor={t.onColor} />;
+          })}
+          {kpis}
+        </div>
+      )}
       {/* items-start: columns must NOT stretch to match the tallest one (grid's default). */}
       <div
         className={byPmNow
@@ -851,7 +871,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
         />
         </>
       ) : (
-        <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} dates={dates} datesInBar={!isDashboard} kpis={kpis} pageScroll={isDashboard} />
+        <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} dates={dates} datesInBar={!isDashboard} kpis={kpis} counts={isDashboard} pageScroll={isDashboard} />
       )}
       {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} onClose={() => setOpen(null)} />}
     </AssignContext.Provider>

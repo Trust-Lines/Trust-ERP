@@ -26,11 +26,27 @@ export function Sparkline({ values, color }: { values: number[]; color: string }
 
 /** `color` is the tone's text colour, `onColor` the text on a `color` fill (Figma: the tone's own
  *  background), so the "+N New" badge reads as a dark-on-pale chip in dark mode (node 714:36443). */
-export function StatTile({ label, value, icon, sub, badge, color, onColor, spark, href }: {
+export function StatTile({ label, value, icon, sub, badge, color, onColor, spark, href, compact = false }: {
   label: string; value: ReactNode; icon: ReactNode; sub: string; badge?: string; color: string; onColor: string;
   /** Real counts only; omit (or pass []) when there's no series — no sparkline is drawn then. */
   spark?: number[]; href?: string;
+  /** Small tile: label over the number, no sub-line or sparkline (the board's KPI row). */
+  compact?: boolean;
 }) {
+  if (compact) {
+    const small = (
+      <>
+        <span className="truncate text-[11px] font-medium uppercase leading-[1.4] tracking-[-0.2px]" style={{ color }} title={sub}>{label}</span>
+        <span className="flex items-center gap-1 text-[22px] font-semibold leading-none [&_svg]:size-[16px]" style={{ color }}>
+          <span className="tabular-nums">{value}</span>{icon}
+        </span>
+      </>
+    );
+    const c = cn('rounded-[10px] border border-ui-divider bg-ui-surface-elevated', 'flex min-w-0 flex-col gap-1 px-3 py-2 no-underline');
+    return href
+      ? <Link href={href} className={cn(c, 'transition-shadow hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] focus-visible:outline-2 focus-visible:outline-ui-focus-ring')}>{small}</Link>
+      : <div className={c}>{small}</div>;
+  }
   const body = (
     <>
       <span className="flex items-start justify-between gap-2">
