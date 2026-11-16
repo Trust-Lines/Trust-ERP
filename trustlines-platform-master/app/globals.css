@@ -222,7 +222,7 @@
   --ui-body: var(--color-primary-500);
   --ui-text-secondary: var(--color-primary-400);
   --ui-text-disabled: var(--color-primary-300);
-  --ui-btn-primary: var(--color-secondary-500);
+  --ui-btn-primary: var(--color-secondary-700);
   --ui-btn-primary-fg: #FFFFFF;
   --ui-btn-accent: var(--color-accent-400);
   --ui-btn-accent-fg: #FFFFFF;
@@ -328,7 +328,7 @@
   --board-ready-fg: #0B2633;         --board-ready-bg: #99BED0;
   --board-installation-fg: #0B331F;  --board-installation-bg: #99D0B5;
   --board-completed-fg: #18330B;     --board-completed-bg: #ABD099;
-  --board-hold-bg: #EBEBEB;
+  --board-hold-bg: #F0F2F5;   /* Figma On Hold card 818:31921: Basic UI "Main surfaces + cards" */
   --board-hold-fg: #2B2B2B;
 
   --background: oklch(1 0 0);
@@ -598,8 +598,8 @@
   --board-ready-fg: #99BED0;         --board-ready-bg: #0B2633;
   --board-installation-fg: #99D0B5;  --board-installation-bg: #0B331F;
   --board-completed-fg: #ABD099;     --board-completed-bg: #18330B;
-  --board-hold-bg: #3A3F47;
-  --board-hold-fg: #E6E8EC;
+  --board-hold-bg: #343D4B;   /* Figma dark On Hold card 818:21885: "Main surfaces + cards" */
+  --board-hold-fg: #C0C0C0;   /* Figma Process/A0 foreground (dark) */
 
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

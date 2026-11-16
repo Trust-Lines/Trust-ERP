@@ -95,13 +95,13 @@ function Kpi({ item }: { item: KpiItem }) {
   );
 }
 
-/** Figma "General Manager" Daily overview (767:14630): greeting hero + My Day / My Tasks only —
+/** Figma "General Manager" Daily overview (818:31640): greeting hero + My Tasks card only —
  *  the dashboard layout puts its KPI tiles under the board's filter bar instead. */
 export function DailyOverview({ fullName, role }: { fullName: string; role: string }) {
   return (
-    <div className="mb-[30px] grid grid-cols-1 gap-[22px] xl:grid-cols-[minmax(0,527fr)_minmax(0,1011fr)]">
+    <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[527px_minmax(0,1fr)]">
       <GreetingCard fullName={fullName} role={role} />
-      <MyDayCard className="h-[268px]" />
+      <MyDayCard variant="tasks" className="h-[266px]" />
     </div>
   );
 }

@@ -2180,6 +2180,39 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-11-16 (Figma 818:31501 "General Manager" — new palette check) — no migration, no new API
+- Compared Figma "Basic UI Colors" + Process/Status variables with app/globals.css: scales and board stage colors already match.
+- Fixed: light `--ui-btn-primary` now `--color-secondary-700` (#2B3D55, Figma "Primary button") instead of secondary-500.
+- Changed: app/globals.css. Not verified in browser (login required).
+- Branch column header colours now match Figma node fills: North East #5E758E, South East #68715B, Nationwide rgba(164,42,44,0.84), West #624D46 (was #465B6D / #3B472B / #2E5BA3 / #7A655E). Changed: components/platform/dashboard/BranchBoardPage.tsx.
+- Verified: eslint clean on BranchBoardPage.tsx; vitest 791 passed, 9 skipped.
+- Layout pass vs 818:31501 (frontend only, same /api/my-day feed): /dashboard My Tasks is now the Figma card (818:31665):
+  title + count chip + View All, tinted rounded rows, no table header (MyDayCard variant="tasks"; /tlines-pm keeps the table).
+  Daily overview 527 px hero + 16 px gaps; filter bar gets its border (818:31781); 16 px between filter bar, KPI row and board.
+  KPI tile tones now navy / t4 / t4 / t9 / t6 as in 818:31798. Board / sidebar / top bar already matched — unchanged.
+- Changed: components/platform/dashboard/MyDayCard.tsx, TopSummaryRow.tsx, BranchBoard.tsx, BranchBoardPage.tsx.
+- Verified: eslint clean on the four files; tsc only reports the generated .next/dev/types file. Browser check not run (login).
+- "Total Payments" KPI tile (818:31871): new components/platform/dashboard/PaymentsTile.tsx sums supplier payments from the
+  existing GET /api/suppliers (USD big number; TL / EUR in the sub-line, never added together; links to /suppliers).
+  Shown only to SUPPLIER_READ_ROLES (vendor cost — tlines_pm never gets it); other roles keep the Pending Approvals tile.
+  No "+N New" badge / sparkline: the endpoint has no payment dates. Verified: tsc + eslint clean. Browser check not run (login).
+- KPI row (818:31835): "In Production" tile removed by request, and Figma's duplicate "Total Clients Opportunity" tile
+  dropped too — /dashboard now has 4 tiles in 4 columns: Active Projects, Total Clients Opportunity, Deals Closed,
+  Total Payments (or Pending Approvals). Changed: BranchBoardPage.tsx. Verified: tsc + eslint clean.
+- Board cards (818:31921 On Hold, 818:31945 dated): light --board-hold-bg #EBEBEB → #F0F2F5 (Figma "Main surfaces + cards");
+  "Assign to" / PM boxes now 6px label over 9px name (was 8 / 10), on /dashboard and /tlines-pm.
+  Changed: app/globals.css, components/platform/dashboard/BranchBoard.tsx. Verified: eslint clean. Browser check not run (login).
+- Branch column header (818:31889): colour / 105 px bar / 11 px radius already matched; logo enlarged 62 → 67 px tall
+  (~114 px wide, Figma 116 × 67). Changed: BranchBoard.tsx. Verified: eslint + tsc clean.
+- West column header (818:34126): CVW.png is the wide "CVW.TLines / WEST" wordmark (~200 px at 67 px tall); the header now
+  draws Figma's "TLines / WEST" logo (116 × 67) from downloaded assets public/figma/dashboard/west-{mark,tlines,label}.svg.
+  The Columns menu chip uses the same logo, scaled to 26 px tall (so all four chips read "TLines / <branch>").
+  South East / Nationwide (818:32634 / 818:33379) already matched.
+- Dark "General Manager" (818:21465): heading, filter bar, 4 KPI tiles, headers and stage colours already match the dark
+  tokens. Fixed dark On Hold card: --board-hold-bg #3A3F47 → #343D4B, --board-hold-fg #E6E8EC → #C0C0C0 (Figma 818:21885).
+  Changed: app/globals.css. Browser check not run (login).
+  Changed: BranchBoard.tsx + 3 SVGs. Verified: eslint clean; tsc only the pre-existing pdfjs-dist error. Browser check not run (login).
+
 2026-11-16 (sidebar: Dashboard icon always navigates) — no migration, no new API
 - Dashboard rail icon (single-page group) now pushes /dashboard itself on click and clears the rail preview (`browsing`),
   so returning from another section (e.g. My Workspace) to the Dashboard always works.

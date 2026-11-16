@@ -17,6 +17,8 @@ import { classifyTrustProject, loadTrustProjects, typeLabel, typeStatuses, type 
 import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem } from '@/components/platform/dashboard/BranchBoard';
 import { DailyOverview, TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
 import { StatTile } from '@/components/platform/dashboard/StatTile';
+import { PaymentsTile } from '@/components/platform/dashboard/PaymentsTile';
+import { SUPPLIER_READ_ROLES } from '@/lib/suppliers/config';
 import { getRolePermissions } from '@/lib/permissions/server';
 import { pageAllowed } from '@/lib/permissions/catalog';
 import { defaultCompanySideForRole } from '@/lib/profile/metadata';
@@ -47,12 +49,13 @@ function weeklyCounts(dates: (string | null | undefined)[], weeks = 6): number[]
   return counts;
 }
 
+// Figma "General Manager" KPI row (818:31798): navy, t4, t4, t9 (Deals Closed), t6 (last tile).
 const TILE_TONES = [
   { color: 'var(--ui-btn-solid)', onColor: 'var(--ui-surface-elevated)' },
   { color: 'var(--status-t4-fg)', onColor: 'var(--status-t4-bg)' },
-  { color: 'var(--status-t5-fg)', onColor: 'var(--status-t5-bg)' },
-  { color: 'var(--status-t6-fg)', onColor: 'var(--status-t6-bg)' },
+  { color: 'var(--status-t4-fg)', onColor: 'var(--status-t4-bg)' },
   { color: 'var(--status-t9-fg)', onColor: 'var(--status-t9-bg)' },
+  { color: 'var(--status-t6-fg)', onColor: 'var(--status-t6-bg)' },
 ];
 const TILE_ICON: Record<KpiItem['key'], LucideIcon> = {
   active: BriefcaseBusiness, design: DraftingCompass, production: Factory, finalizing: Hammer, approvals: ClipboardPenLine,
@@ -95,11 +98,12 @@ const SECTION_DEFS = [
   { key: 'completed',     label: 'Completed',              ...boardTone('completed') },
 ] as const;
 
+// Branch header colours from Figma "General Manager" (818:31888 / 818:32634 / 818:33379 / 818:34126).
 const HEADER_COLORS: Record<string, string> = {
-  TLINES_NE: '#465B6D',
-  TLINES_SE: '#3B472B',
-  TLINES_NW: '#2E5BA3',
-  CVW:       '#7A655E',
+  TLINES_NE: '#5E758E',
+  TLINES_SE: '#68715B',
+  TLINES_NW: 'rgba(164,42,44,0.84)',
+  CVW:       '#624D46',
 };
 
 function categoryLabel(values: string[] | null | undefined): string | null {
@@ -574,30 +578,31 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
   ];
 
   // ── Dashboard layout: Figma KPI tiles (767:14785) — real counts from the data loaded above.
-  // Figma's "Total Payments" tile has no payment source in the platform, so Approvals (real)
-  // takes that slot; Figma's duplicated "Total Clients Opportunity" tile shows In Production.
+  // Figma's "Total Payments" tile = supplier payments (PaymentsTile) for finance roles; others keep
+  // Approvals (real) in that slot. Figma's duplicated "Total Clients Opportunity" tile and In Production are not shown.
   let dashboardKpis: ReactNode;
   if (isDashboard) {
-    const [activeKpi, , productionKpi] = kpis;
+    const [activeKpi] = kpis;
     const oppNew = opportunities.filter(o => o.createdAt >= weekAgo).length;
     const closedDeals = projects.filter(p => !!p.closed_deal_date);
-    const productionStages: TrustStage[] = ['to_production', 'in_production', 'shipped'];
     const tone = (i: number) => TILE_TONES[i];
+    // Four tiles (Figma's duplicate "Total Clients Opportunity" dropped by request) — 4 columns.
     dashboardKpis = (
-      <div key="kpis" className={TILE_ROW}>
+      <div key="kpis" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Active Projects" value={activeKpi.value} icon={<BriefcaseBusiness strokeWidth={1.5} />} href={activeKpi.href} badge={activeKpi.badge}
           sub={useTrust ? 'Trust System projects' : `${overdueCount} overdue`}
           spark={useTrust ? weeklyCounts(trustCards.map(c => c.createdAt)) : weeklyCounts(projects.map(p => p.created_at))} {...tone(0)} />
         <StatTile label="Total Clients Opportunity" value={opportunities.length} icon={<UserRound strokeWidth={1.5} />}
           badge={oppNew > 0 ? `+${oppNew} New` : undefined} sub="Key clients’ open deals"
           spark={weeklyCounts(opportunities.map(o => o.createdAt))} {...tone(1)} />
-        <StatTile label="In Production" value={productionKpi.value} icon={<Factory strokeWidth={1.5} />} href={productionKpi.href} badge={productionKpi.badge}
-          sub="To production → shipped"
-          spark={useTrust ? weeklyCounts(trustCards.filter(c => productionStages.includes(c.stage)).map(c => c.createdAt)) : undefined} {...tone(2)} />
         <StatTile label="Deals Closed" value={closedDeals.length} icon={<CircleCheck strokeWidth={1.5} />} href="/projects"
           sub="Projects with a closed deal date" spark={weeklyCounts(closedDeals.map(p => p.closed_deal_date))} {...tone(3)} />
-        <StatTile label="Pending Approvals" value={approvals.length} icon={<ClipboardPenLine strokeWidth={1.5} />} href="/approvals"
-          sub={isApprovalsAdmin ? 'Waiting for a decision' : 'Waiting for you'} {...tone(4)} />
+        {/* Figma "Total Payments" (818:31871): supplier payments, only for roles that may read vendor
+            cost (same SUPPLIER_READ_ROLES as /api/suppliers); everyone else keeps Pending Approvals. */}
+        {(SUPPLIER_READ_ROLES as readonly string[]).includes(userRole)
+          ? <PaymentsTile {...tone(4)} />
+          : <StatTile label="Pending Approvals" value={approvals.length} icon={<ClipboardPenLine strokeWidth={1.5} />} href="/approvals"
+              sub={isApprovalsAdmin ? 'Waiting for a decision' : 'Waiting for you'} {...tone(4)} />}
       </div>
     );
   }
