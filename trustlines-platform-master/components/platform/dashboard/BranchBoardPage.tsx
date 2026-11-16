@@ -211,16 +211,24 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
     ? [{ data: [] }, [] as ClientOpportunityRow[], { projects: [], error: null }, buildMatcher([]), [] as DealName[]]
     : await Promise.all([projectQuery, loadClientOpps(), loadTrustProjects(), loadAccountMatcher(), loadDealNames()]);
   const dealNames = buildDealNames(dealRows, projectNumber);
-  const accountOf = (name: string | null | undefined, keyClientId?: string, keyClientName?: string) => {
+  // `alts`: other names of the same job (its Trust System / plan name). A card's Sales brand can be
+  // the store's own name ("RICHFILED FOOD MART") while the job belongs to a key client ("HUB"):
+  // the account is the first key client any of its names matches.
+  const accountOf = (name: string | null | undefined, keyClientId?: string, keyClientName?: string, alts: (string | null | undefined)[] = []) => {
     if (keyClientId && keyClientName) return { key: `kc:${keyClientId}`, name: keyClientName };
-    const kc = accountMatcher.byName(name);
-    if (kc) return { key: `kc:${kc.id}`, name: kc.name };
+    for (const n of [name, ...alts]) {
+      const kc = accountMatcher.byName(n);
+      if (kc) return { key: `kc:${kc.id}`, name: kc.name };
+    }
     // "ALBURAK 1" / "ALBURAK 2" are the same client's sites: drop a trailing site number.
     const base = (name ?? '').trim().replace(/[\s#-]*\d+$/, '').trim() || (name ?? '').trim();
     const tokens = nameTokens(base);
     return { key: tokens.length ? `n:${tokens.join(' ')}` : 'n:', name: base || 'No client' };
   };
   const trustProjects = trust.projects;
+  // A project number's Trust System name ("HUB"), for the account of cards named after their brand.
+  const trustNameByNo = new Map<string, string>();
+  for (const tp of trustProjects) { const n = projectNumber(tp.projectNo); if (n && tp.name && !trustNameByNo.has(n)) trustNameByNo.set(n, tp.name); }
   // "Assign to" on every card, one person per card per stage (board_assignees, migration 137) —
   // empty until it's applied. Keyed "kind:id:stage".
   const boardIds = [...trustProjects.map(p => p.id), ...opportunities.map(o => o.id)];
@@ -280,7 +288,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
       badgeTop: `#${p.projectNo}`, badgeBottom: '',
       title: brand ?? p.name,
       subtitle: p.address,
-      account: accountOf(brand ?? p.name),
+      account: accountOf(brand ?? p.name, undefined, undefined, [p.name]),
       company: companyByNo.get(p.projectNo) ?? null,
       category: (p.types ?? []).map(typeLabel).filter(Boolean).join(', ') || null,
       pmName: null, pmLabel: '',
@@ -442,7 +450,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
         id: p.id, kind: 'project', badgeTop: top, badgeBottom: bottom,
         title: name,
         subtitle: p.site_location,
-        account: accountOf(name),
+        account: accountOf(name, undefined, undefined, [p.name, no ? trustNameByNo.get(no) : null]),
         // Which of our companies (Store Maker / Premium / Design Build): set on the project, else its code.
         company: p.service_line && SERVICE_LINE_VALUES.includes(p.service_line) ? p.service_line : serviceLineFromCode(p.code),
         onHold: heldProjects.has(p.id),
@@ -474,7 +482,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
         badgeTop: `#${label}`, badgeBottom: '',
         title: name,
         subtitle: i.city_state,
-        account: accountOf(name),
+        account: accountOf(name, undefined, undefined, [i.project_name, trustNameByNo.get(no)]),
         company: companyByNo.get(no) ?? null,
         category: i.scope,
         pmName: i.pm_name, pmLabel: 'PM',
