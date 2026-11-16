@@ -237,11 +237,22 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
     admin.from('profiles').select('id, full_name').eq('is_active', true).not('full_name', 'is', null).order('full_name', { ascending: true }),
   ]) as [{ item_kind: string; item_id: string; stage: string; user_id: string }[], { data: { id: string; full_name: string }[] | null }];
   const assigneeOf = new Map(assignRows.map(a => [`${a.item_kind}:${a.item_id}:${a.stage}`, a.user_id]));
+  // The T-Lines PM looks after the card's account, not one stage: when the card has none set for
+  // the stage it is in now, the one set in another stage stays, else our project's T-Lines PM
+  // (projects.tlines_pm_id) for the same project number.
+  const tlinesAnyStage = new Map<string, string>();
+  for (const a of assignRows) if (a.stage.endsWith(':tlines_pm')) tlinesAnyStage.set(`${a.item_kind}:${a.item_id}`, a.user_id);
+  const tlinesByNo = new Map<string, string>();
+  for (const pr of (projectRows ?? []) as { code: string; tlines_pm_id: string | null }[]) {
+    const no = projectNumber(pr.code);
+    if (no && pr.tlines_pm_id && !tlinesByNo.has(no)) tlinesByNo.set(no, pr.tlines_pm_id);
+  }
   // Two people per card per stage: the Trust PM (plain stage) and the T-Lines PM ("<stage>:tlines_pm").
-  const assignFor = (kind: string, id: string, stage: string, label: string) => ({
+  const assignFor = (kind: string, id: string, stage: string, label: string, projectNo?: string | null) => ({
     kind, stage, label,
     userId: assigneeOf.get(`${kind}:${id}:${stage}`) ?? null,
-    tlinesUserId: assigneeOf.get(`${kind}:${id}:${stage}:tlines_pm`) ?? null,
+    tlinesUserId: assigneeOf.get(`${kind}:${id}:${stage}:tlines_pm`) ?? tlinesAnyStage.get(`${kind}:${id}`)
+      ?? (projectNo ? tlinesByNo.get(projectNo) : undefined) ?? null,
   });
   // The popup's PO + PF / Production / Shipping tabs: the Trust types of the card's project number.
   const trustByNo = new Map(trustProjects.map(p => [p.projectNo, p.items ?? []]));
@@ -270,7 +281,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
       company: companyByNo.get(p.projectNo) ?? null,
       category: (p.types ?? []).map(typeLabel).filter(Boolean).join(', ') || null,
       pmName: null, pmLabel: '',
-      assign: assignFor('trust', p.id, e.stage, `#${p.projectNo}`),
+      assign: assignFor('trust', p.id, e.stage, `#${p.projectNo}`, p.projectNo),
       onHold: e.onHold,
       dateISO: e.dateISO,
       dateLabel: fmtDate(e.dateISO),
@@ -401,7 +412,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
         category: categoryLabel(o.projectTypes.length ? o.projectTypes : o.projectTypeRaw ? [o.projectTypeRaw] : null),
         pmName: o.ownerId ? pmNames.get(o.ownerId) ?? null : null,
         pmLabel: o.ownerIsSales ? 'Sales Owner' : 'Marketing Owner',
-        assign: assignFor(o.kind, o.id, 'opportunity', o.projectNo ? `#${o.projectNo}` : o.site),
+        assign: assignFor(o.kind, o.id, 'opportunity', o.projectNo ? `#${o.projectNo}` : o.site, o.projectNo),
         onHold: o.stage === 'on_hold',
         dateISO: becameOpportunityDate,
         dateLabel: fmtDate(becameOpportunityDate),
