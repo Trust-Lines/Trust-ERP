@@ -285,22 +285,30 @@ type OpenCard = (item: BoardCardItem, section: BoardSection) => void;
 
 // Figma stage block (node 818:12765): a dashed outline in the stage tone around a tinted stage
 // bar (dot, uppercase label, count, chevron that opens / closes the stage) and its cards.
-function Section({ section, open, onToggle, onOpen }: {
+function Section({ section, open, onToggle, onOpen, variant = 'stages' }: {
   section: BoardSection; open: boolean; onToggle: () => void; onOpen: OpenCard;
+  /** 'account' = a stage inside an account (Figma 818:35938): no dot, 8 px padding, and the
+   *  dashed outline only while the stage is open. */
+  variant?: 'stages' | 'account';
 }) {
   const empty = section.items.length === 0;
   const Chevron = open ? ChevronDown : ChevronRight;
   const fg = section.labelColor ?? section.accent;
+  const inAccount = variant === 'account';
+  const outlined = !inAccount || open;
   return (
-    <div className="flex shrink-0 flex-col gap-2 rounded-[5px] border border-dashed" style={{ borderColor: section.accent }}>
+    <div
+      className={`flex shrink-0 flex-col gap-2 rounded-[5px] ${outlined ? 'border border-dashed' : ''}`}
+      style={outlined ? { borderColor: section.accent } : undefined}
+    >
       <button
         type="button"
         aria-expanded={open}
         onClick={onToggle}
-        className="flex w-full cursor-pointer items-center gap-1 rounded-[4px] border-0 px-1 py-2 text-left transition-[filter] hover:brightness-[0.97] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
+        className={`flex w-full cursor-pointer items-center gap-1 rounded-[4px] border-0 ${inAccount ? 'p-2' : 'px-1 py-2'} text-left transition-[filter] hover:brightness-[0.97] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring`}
         style={{ background: section.bg, color: fg }}
       >
-        <span aria-hidden className="size-1 shrink-0 rounded-full" style={{ background: fg }} />
+        {!inAccount && <span aria-hidden className="size-1 shrink-0 rounded-full" style={{ background: fg }} />}
         <span className="min-w-0 truncate text-[14px] font-semibold uppercase leading-normal">{section.label}</span>
         <span className="flex-1 shrink-0 text-right text-[13px] font-semibold uppercase leading-normal tracking-[1.3px]">{section.items.length}</span>
         <Chevron size={16} aria-hidden className="shrink-0" />
@@ -482,34 +490,58 @@ function accountGroups(column: BoardColumn): AccountGroup[] {
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
-function Account({ group, color, collapsed, onToggle, onOpen }: {
-  group: AccountGroup; color: string; collapsed: boolean; onToggle: () => void; onOpen: OpenCard;
+/** The account bar's badge: the project number when every card of the client shares one, else
+ *  the card count (Figma shows a number like "#SM507" there). */
+function accountBadge(group: AccountGroup): string {
+  const nos = new Set(group.sections.flatMap(s => s.items.map(i => [i.badgeTop, i.badgeBottom].filter(Boolean).join(' '))));
+  return nos.size === 1 ? [...nos][0] : String(group.count);
+}
+
+function Account({ group, color, shade, collapsed, onToggle, onOpen }: {
+  group: AccountGroup; color: string;
+  /** Every other bar a darker shade of the branch colour (Figma 818:35913 / 818:35920). */
+  shade: boolean;
+  collapsed: boolean; onToggle: () => void; onOpen: OpenCard;
 }) {
   const Icon = collapsed ? ChevronRight : ChevronDown;
-  // Inside an account every stage starts open; each stage bar folds only its own stage.
-  const [closed, setClosed] = React.useState<Set<string>>(() => new Set());
-  const toggleStage = (key: string) => setClosed(prev => {
+  // Figma Accounts view (818:35912): inside an account every stage starts folded; a stage bar
+  // opens only its own stage.
+  const [open, setOpen] = React.useState<Set<string>>(() => new Set());
+  const toggleStage = (key: string) => setOpen(prev => {
     const next = new Set(prev);
     if (next.has(key)) next.delete(key); else next.add(key);
     return next;
   });
-  // Same build as a stage bar (Section), in the branch colour: the client's bar, then its stages
-  // full width underneath — so the Accounts view reads exactly like the Stages view.
+  const bg = shade ? `color-mix(in srgb, ${color} 75%, black)` : color;
+  const badge = accountBadge(group);
   return (
-    <div className="flex shrink-0 flex-col gap-4">
+    <div className="-mx-3 flex shrink-0 flex-col gap-2">
+      {/* Figma account bar: full-width flat strip, white number badge in the bar colour, name, chevron. */}
       <button
         type="button" aria-expanded={!collapsed} onClick={onToggle}
-        className="flex w-full cursor-pointer items-center gap-1 rounded-[6px] border-0 px-2 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.18)] text-left text-white transition-[filter] hover:brightness-110 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
-        style={{ background: color }}
+        aria-label={`${group.name}, ${group.count} ${group.count === 1 ? 'card' : 'cards'}`}
+        className="flex w-full cursor-pointer items-center justify-between gap-2 border-0 p-2 text-left text-white transition-[filter] hover:brightness-110 focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ui-focus-ring"
+        style={{ background: bg }}
       >
-        <span aria-hidden className="size-1 shrink-0 rounded-full bg-white" />
-        <span className="min-w-0 truncate text-[15px] font-bold uppercase leading-normal">{group.name}</span>
-        <span className="flex-1 shrink-0 text-right text-[13px] font-semibold uppercase leading-normal tracking-[1.3px]">{group.count}</span>
+        <span className="flex min-w-0 items-center gap-1">
+          <span className="flex h-[18px] shrink-0 items-center justify-center whitespace-nowrap rounded-[4px] bg-white px-1.5 py-0.5 text-[14px] font-medium leading-normal" style={{ color: bg }}>
+            {badge}
+          </span>
+          <span className="min-w-0 truncate text-[12px] font-semibold uppercase leading-normal">{group.name}</span>
+        </span>
         <Icon size={16} aria-hidden className="shrink-0" />
       </button>
-      {!collapsed && group.sections.map(section => (
-        <Section key={section.key} section={section} open={!closed.has(section.key)} onToggle={() => toggleStage(section.key)} onOpen={onOpen} />
-      ))}
+      {!collapsed && (
+        // Its stages, indented behind a thin rail (Figma "Line 156").
+        <div className="mx-3 flex gap-2">
+          <span aria-hidden className="w-px shrink-0 self-stretch bg-ui-divider" />
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            {group.sections.map(section => (
+              <Section key={section.key} variant="account" section={section} open={open.has(section.key)} onToggle={() => toggleStage(section.key)} onOpen={onOpen} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -544,19 +576,20 @@ function ColumnShell({ column, children }: { column: BoardColumn; children: Reac
 function Column({ column, isOpen, onToggle, onOpen, accounts }: {
   column: BoardColumn; isOpen: (key: string, index: number) => boolean; onToggle: (key: string, index: number) => void; onOpen: OpenCard;
   /** Accounts view: this column's client groups and which ones are folded. */
-  accounts?: { groups: AccountGroup[]; collapsed: Set<string>; toggle: (key: string) => void } | null;
+  accounts?: { groups: AccountGroup[]; expanded: Set<string>; toggle: (key: string) => void } | null;
 }) {
   if (accounts) {
     return (
       <ColumnShell column={column}>
-        {/* One white panel, like the Stages view. */}
-        <div className="flex shrink-0 flex-col gap-4 rounded-[11px] bg-ui-surface-elevated px-3 pb-3.5 pt-2">
+        {/* One panel, like the Stages view; Figma 818:35912: 8 px between account bars, which run
+            edge to edge of the panel (-mx-3 cancels its side padding). */}
+        <div className="flex shrink-0 flex-col gap-2 overflow-hidden rounded-[11px] bg-ui-surface-elevated px-3 pb-3.5 pt-2">
           {accounts.groups.length === 0 ? (
             <p className="m-0 p-1 text-[12px] text-ui-body">No Active Projects</p>
-          ) : accounts.groups.map(g => {
+          ) : accounts.groups.map((g, i) => {
             const key = `${column.regionCode}|${g.key}`;
             return (
-              <Account key={g.key} group={g} color={column.headerColor} collapsed={accounts.collapsed.has(key)}
+              <Account key={g.key} group={g} color={column.headerColor} shade={i % 2 === 0} collapsed={!accounts.expanded.has(key)}
                 onToggle={() => accounts.toggle(key)} onOpen={onOpen} />
             );
           })}
@@ -725,8 +758,9 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
     setView(v);
     try { localStorage.setItem(VIEW_KEY, v); } catch { /* storage blocked */ }
   };
-  const [collapsed, setCollapsed] = React.useState<Set<string>>(() => new Set());
-  const toggleAccount = React.useCallback((key: string) => setCollapsed(c => {
+  // Figma Accounts view (818:35501): every account starts folded; a click opens it.
+  const [expanded, setExpanded] = React.useState<Set<string>>(() => new Set());
+  const toggleAccount = React.useCallback((key: string) => setExpanded(c => {
     const next = new Set(c);
     if (next.has(key)) next.delete(key); else next.add(key);
     return next;
@@ -740,9 +774,9 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
     () => (groupsByColumn ? [...groupsByColumn.entries()].flatMap(([region, gs]) => gs.map(g => `${region}|${g.key}`)) : []),
     [groupsByColumn],
   );
-  const allFolded = allKeys.length > 0 && allKeys.every(k => collapsed.has(k));
+  const allOpen = allKeys.length > 0 && allKeys.every(k => expanded.has(k));
   const collapseAll = groupsByColumn && allKeys.length > 0
-    ? { label: allFolded ? 'Expand all' : 'Collapse all', run: () => setCollapsed(allFolded ? new Set() : new Set(allKeys)) }
+    ? { label: allOpen ? 'Collapse all' : 'Expand all', run: () => setExpanded(allOpen ? new Set() : new Set(allKeys)) }
     : null;
 
   return (
@@ -779,7 +813,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
         {visible.map(column => (
           <Column
             key={column.regionCode} column={column} isOpen={isOpen} onToggle={onToggle} onOpen={onOpen}
-            accounts={groupsByColumn ? { groups: groupsByColumn.get(column.regionCode) ?? [], collapsed, toggle: toggleAccount } : null}
+            accounts={groupsByColumn ? { groups: groupsByColumn.get(column.regionCode) ?? [], expanded, toggle: toggleAccount } : null}
           />
         ))}
       </div>
