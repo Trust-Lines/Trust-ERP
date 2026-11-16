@@ -822,17 +822,23 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
       {/* Every board filter sits here, right above the columns. Dashboard: Figma "View tabs" (818:31781). */}
       <div className={`flex min-h-12 flex-wrap items-center justify-between gap-2.5 rounded-[8px] bg-ui-surface px-2 py-1.5${datesInBar ? '' : ' border border-ui-divider'}`}>
         <div className="flex flex-wrap items-center gap-2.5">
-          {offerPm && <ColumnsByToggle by={columnsBy} onBy={changeColumnsBy} />}
-          {accounts && <ViewToggle view={view} onView={changeView} />}
-          <FilterSelect aria-label="Companies" value={company} options={COMPANY_OPTIONS} onValueChange={v => setCompany(v ?? '')} className={FILTER_CLS} />
-          {leadCount > 0 && (
-            <button type="button" aria-pressed={showLeads} onClick={() => setShowLeads(v => !v)}
-              className={`${FILTER_CLS} pr-3 ${showLeads ? 'border-[var(--color-secondary-700)] bg-ui-selected-bg dark:border-ui-heading' : ''}`}>
-              {showLeads ? 'Hide leads' : 'Show leads'} ({leadCount})
-            </button>
+          {gantt && <GanttToggle gantt={gantt} pending={ganttPending} onGo={goGantt} />}
+          {/* Gantt rows are installation-plan projects: only Branches + dates apply, the card filters hide. */}
+          {!showGantt && (
+            <>
+              {offerPm && <ColumnsByToggle by={columnsBy} onBy={changeColumnsBy} />}
+              {accounts && <ViewToggle view={view} onView={changeView} />}
+              <FilterSelect aria-label="Companies" value={company} options={COMPANY_OPTIONS} onValueChange={v => setCompany(v ?? '')} className={FILTER_CLS} />
+              {leadCount > 0 && (
+                <button type="button" aria-pressed={showLeads} onClick={() => setShowLeads(v => !v)}
+                  className={`${FILTER_CLS} pr-3 ${showLeads ? 'border-[var(--color-secondary-700)] bg-ui-selected-bg dark:border-ui-heading' : ''}`}>
+                  {showLeads ? 'Hide leads' : 'Show leads'} ({leadCount})
+                </button>
+              )}
+              <FilterSelect aria-label="Trust PM" value={trustPm} options={trustPmOptions} onValueChange={v => setTrustPm(v ?? '')} className={FILTER_CLS} />
+              <FilterSelect aria-label="T-Lines PM" value={tlinesPm} options={tlinesPmOptions} onValueChange={v => setTlinesPm(v ?? '')} className={FILTER_CLS} />
+            </>
           )}
-          <FilterSelect aria-label="Trust PM" value={trustPm} options={trustPmOptions} onValueChange={v => setTrustPm(v ?? '')} className={FILTER_CLS} />
-          <FilterSelect aria-label="T-Lines PM" value={tlinesPm} options={tlinesPmOptions} onValueChange={v => setTlinesPm(v ?? '')} className={FILTER_CLS} />
           <MultiFilter label={!byPmNow ? 'Branches' : columnsBy === 'trust_pms' ? 'Trust Lines PM columns' : 'T-Lines PM columns'} options={columnOptions} selected={picked} onChange={changePicked} />
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -884,7 +890,9 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
   );
 }
 
-export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false, byPm = false, layout = 'board', kpis, companyEdit = 'none' }: {
+export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false, byPm = false, layout = 'board', kpis, companyEdit = 'none', gantt }: {
+  /** /dashboard only: the "View as Gantt chart" toggle and, while it shows, its data. */
+  gantt?: BoardGantt;
   /** 'dashboard' = Figma "General Manager" (767:13745) on /dashboard: General / Dashboard crumbs,
    *  date range in the heading, KPI tiles under the filter bar. 'board' = /tlines-pm as before. */
   layout?: 'board' | 'dashboard';
