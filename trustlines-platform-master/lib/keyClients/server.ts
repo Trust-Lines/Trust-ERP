@@ -23,8 +23,10 @@ export interface ClientOpportunityRow {
   kind: 'opportunity' | 'potential';
   id: string;                  // opportunity or potential id
   prospectId: string;
-  keyClientId: string;
-  client: string;              // key client name ("Teddy")
+  keyClientId: string;         // '' for a lead (not a key client)
+  client: string;              // key client name ("Teddy"); a lead's brand / contact name
+  /** A key client's deal; false = a lead's (only with includeLeads). */
+  isClient: boolean;
   brand: string | null;        // as written on the deal ("Teddy's")
   projectNo: string | null;    // "507"
   projectCode: string | null;  // "STSE507"
@@ -85,8 +87,9 @@ async function readAll(build: (from: number, to: number) => PromiseLike<{ data: 
 const OPP_COLS = 'id, prospect_id, title, brand, industry_raw, stage, region, external_project_code, external_stage_label, to_do_raw, next_action, next_action_date, deadline, project_types, project_type_raw, request_raw, priority, external_created_at, created_at, sales_owner_id, marketing_owner_id';
 const POT_COLS = 'id, prospect_id, title, brand, industry_raw, status, region, external_project_code, external_stage_label, to_do_raw, target_contact_date, due_date, project_type_raw, request_raw, priority, external_created_at, created_at, assigned_to';
 
-/** Every open deal of a key client, grouped by region (sheet order). */
-export async function loadClientOpportunities(admin: any): Promise<{
+/** Every open deal of a key client, grouped by region (sheet order). `includeLeads`: also the open
+ *  deals of everyone else (isClient false), named after their brand / contact. */
+export async function loadClientOpportunities(admin: any, { includeLeads = false }: { includeLeads?: boolean } = {}): Promise<{
   regions: Record<string, ClientOpportunityRow[]>;
   clients: { id: string; name: string; count: number }[];
   total: number;
@@ -114,11 +117,12 @@ export async function loadClientOpportunities(admin: any): Promise<{
 
   const add = (o: any, kind: ClientOpportunityRow['kind']) => {
     const client = matcher.forOpportunity(o, namesOf.get(o.prospect_id) ?? []);
-    if (!client) return;
+    if (!client && !includeLeads) return;
+    const leadName = String(o.brand ?? '').trim() || (namesOf.get(o.prospect_id) ?? []).find(n => String(n ?? '').trim()) || 'No client';
     if (String(o.external_stage_label ?? '').trim().toUpperCase() === PARKED_LABEL && !matcher.includedItem(o.id)) return;
     const isOpp = kind === 'opportunity';
     const row: ClientOpportunityRow = {
-      kind, id: o.id, prospectId: o.prospect_id, keyClientId: client.id, client: client.name,
+      kind, id: o.id, prospectId: o.prospect_id, keyClientId: client?.id ?? '', client: client?.name ?? leadName, isClient: !!client,
       brand: o.brand ?? null, projectNo: projectNumber(o.external_project_code), projectCode: o.external_project_code ?? null,
       industry: o.industry_raw ?? null,
       site: o.title, region: o.region ?? null, stage: isOpp ? o.stage : o.status, stageLabel: o.external_stage_label ?? null,
@@ -133,7 +137,7 @@ export async function loadClientOpportunities(admin: any): Promise<{
       matchedBy: linked.has(o.id) || linked.has(o.prospect_id) ? 'link' : 'name',
     };
     (regions[o.region ?? ''] ??= []).push(row);
-    perClient.set(client.id, (perClient.get(client.id) ?? 0) + 1);
+    if (client) perClient.set(client.id, (perClient.get(client.id) ?? 0) + 1);
   };
   for (const o of opps) add(o, 'opportunity');
   for (const p of pots) add(p, 'potential');
