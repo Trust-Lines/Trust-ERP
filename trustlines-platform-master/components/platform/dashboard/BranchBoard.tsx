@@ -5,6 +5,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { BriefcaseBusiness, CalendarDays, ChevronDown, ChevronRight, CircleCheck, Factory, MapPinOff, Pause, Plus, UserRound, Wrench } from 'lucide-react';
 import { StatTile } from './StatTile';
+import { Avatar } from '@/components/ui/avatar';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Select as FilterSelect } from '@/components/ui/select';
@@ -141,6 +142,8 @@ export interface BoardSection {
 
 export interface BoardColumn {
   regionCode: string;
+  /** A person's column (PM columns): photo, name, role and card count in the header. */
+  person?: { userId: string | null; subtitle: string };
   /** Shown in the Columns menu (e.g. "T-Lines North East"). */
   name?: string;
   logoSrc: string;
@@ -355,7 +358,7 @@ function ColumnsByToggle({ by, onBy }: { by: ColumnsBy; onBy: (v: ColumnsBy) => 
 }
 
 /** Regroup the region columns into one column per PM (T-Lines or Trust Lines; Unassigned last), keeping the stages. */
-function pmColumns(columns: BoardColumn[], pmOf: (i: BoardCardItem) => string | null, nameOf: (id: string) => string): BoardColumn[] {
+function pmColumns(columns: BoardColumn[], pmOf: (i: BoardCardItem) => string | null, nameOf: (id: string) => string, subtitle: string): BoardColumn[] {
   const order: BoardSection[] = [];
   for (const c of columns) for (const s of c.sections) if (!order.some(o => o.key === s.key)) order.push(s);
   const byPm = new Map<string, Map<string, BoardCardItem[]>>();
@@ -371,6 +374,7 @@ function pmColumns(columns: BoardColumn[], pmOf: (i: BoardCardItem) => string | 
     regionCode: `pm:${id}`,
     title: id === NOBODY ? 'Unassigned' : nameOf(id),
     name: id === NOBODY ? 'No PM' : nameOf(id),
+    person: { userId: id === NOBODY ? null : id, subtitle: id === NOBODY ? 'No PM assigned' : subtitle },
     logoSrc: '', logoCode: '',
     headerColor: id === NOBODY ? UNASSIGNED_COLOR : PM_COLORS[i % PM_COLORS.length],
     sections: order.map(s => ({ ...s, items: byPm.get(id)!.get(s.key) ?? [] })),
@@ -523,6 +527,27 @@ function Account({ group, color, altColor, shade, collapsed, onToggle, onOpen }:
   );
 }
 
+/** Figma PM column header (845:43825): photo, name over role, card count in a pale chip — on the
+ *  column's own colour. The count follows the board filters (the column is already filtered). */
+function PersonHeader({ column }: { column: BoardColumn }) {
+  const count = column.sections.reduce((n, s) => n + s.items.length, 0);
+  const name = column.title ?? column.name ?? '';
+  return (
+    <span className="flex w-full min-w-0 items-center gap-2 px-5">
+      <Avatar userId={column.person?.userId ?? undefined} name={column.person?.userId ? name : undefined}
+        className="h-[51px] w-[52px] rounded-[4px] bg-[var(--ui-page-bg)] text-[18px] text-ui-heading" />
+      <span className="flex min-w-0 flex-1 flex-col justify-center p-1 text-[var(--color-secondary-50)]">
+        <span className="truncate text-[24px] font-semibold leading-normal">{name}</span>
+        <span className="truncate text-[12px] font-medium leading-[1.35]">{column.person?.subtitle}</span>
+      </span>
+      <span className="flex shrink-0 items-center justify-center rounded-[4px] bg-[var(--color-secondary-50)] px-2 py-1 text-[20px] font-medium leading-normal tabular-nums"
+        style={{ color: column.headerColor }} aria-label={`${count} cards`}>
+        {count}
+      </span>
+    </span>
+  );
+}
+
 /** A branch column card. The compact board uses an inner scroll box; the General Manager frame
  * expands every stage down the document and relies on normal page scrolling. */
 function ColumnShell({ column, children, pageScroll = false }: { column: BoardColumn; children: React.ReactNode; pageScroll?: boolean }) {
@@ -538,7 +563,9 @@ function ColumnShell({ column, children, pageScroll = false }: { column: BoardCo
           The wrapper's own padding + background cover the cards as they pass beneath. */}
       <div className="sticky top-0 z-10 shrink-0 bg-ui-surface pb-2.5 pt-2.5">
         <div className="flex h-[105px] items-center justify-center rounded-[11px] py-[13px]" style={{ background: column.headerColor }}>
-          {column.title
+          {column.person
+            ? <PersonHeader column={column} />
+            : column.title
             ? <span className="px-3 text-center text-[20px] font-semibold leading-tight text-white">{column.title}</span>
             // Figma branch header (818:31889): logo block ~116 × 67 px inside the 105 px bar.
             : <BranchLogo code={column.logoCode} />}
@@ -670,7 +697,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
     if (!byPmNow) return regionColumns;
     const names = new Map(people.map(p => [p.value, p.label]));
     const role: AssignRole = columnsBy === 'trust_pms' ? 'trust_pm' : 'tlines_pm';
-    return pmColumns(regionColumns, i => personOf(i, role), id => names.get(id) ?? 'Unknown');
+    return pmColumns(regionColumns, i => personOf(i, role), id => names.get(id) ?? 'Unknown', role === 'trust_pm' ? 'Trust Lines PM' : 'T-Lines PM');
   }, [byPmNow, columnsBy, regionColumns, people, personOf]);
 
   // Branches dropdown: the columns picked (none = all) — remembered per browser.
