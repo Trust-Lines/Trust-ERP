@@ -2219,6 +2219,64 @@ Project architecture:
   Changed: BranchBoard.tsx. Verified: eslint clean; tsc only the pre-existing pdfjs-dist error. Browser check not run (login).
   Changed: BranchBoard.tsx + 3 SVGs. Verified: eslint clean; tsc only the pre-existing pdfjs-dist error. Browser check not run (login).
 
+2026-11-16 (Figma 784:18261 — Installation Plan Gantt as project lifecycle) — no migration, no new API
+- Gantt tab redrawn: left list Project # (stage-coloured chip, links to the project) / Project/Store / Region chip
+  (NE SE NW W in the branch header colours) / Start - Finish / Assigned to (PM, else team) / Status (current stage + icon);
+  each row tinted in its current stage colour (--board-* tokens, dark mode swaps). The timeline draws the project's life as
+  dated stages with a dark stage chip at each start (icon only when narrow); months widen to cover every drawn stage.
+- Real dates only (decided with the user): Opportunity (opportunity created → projects.closed_deal_date), Production in
+  Progress (first production_items.std), Ready to Receive (RTR), Ready (RDY, else RTD), Shipped (last container date,
+  else FTD/SND) → Installation (planned start → finish) → Completed (status Completed). Design-phase stages (Queued,
+  Initial Design, Modification, Negotiation, Finalization, Technical, To Order, Assembly) have no stored dates — not drawn
+  until a stage-history log exists. Installation stage keeps branch/company fill, tentative stripes, red overdue/clash outline.
+- New lib/installations/lifecycle.ts (pure) + tests/installationLifecycle.test.ts. The installation page now also reads,
+  read-only and bounded to the plan's projects: projects.closed_deal_date, production_items milestone dates, opportunities
+  created_at (dates only — no PF codes, vendors or money). Page already requires page.installation.
+- Changed: app/(platform)/tlines-pm/installation/page.tsx, components/platform/installation/{GanttTab,InstallationClient}.tsx.
+- Verified: vitest (lifecycle + installations) pass; eslint clean; tsc only the pre-existing pdfjs-dist error.
+  Browser check not run (login).
+- Follow-up: a stage-change log (migration) so the design-phase stages get real dates.
+
+2026-11-16 (Installation Gantt: stage colours from Figma 811:12702) — no migration, no new API
+- Gantt rows now use the stage tint solid (was 45%); stage boxes are filled with the stage's light tone and
+  outlined in its dark tone (was faded); week/month grid lines in secondary-text colour. Installation box keeps
+  branch/company fill, stripes and red outline. Union connectors between design-phase stages not drawn (those
+  stages have no dates yet).
+- Changed: components/platform/installation/GanttTab.tsx. Verified: eslint clean; browser not checked (login).
+
+2026-11-16 (Installation Gantt: project row from Figma 818:11574) — no migration, no new API
+- Project/Store, Start - Finish and Assigned to cells (and their headers) start at the cell edge, right padding
+  only, as in the design. The design's "Initial Meeting" stage (Process A1 #FFECFF/#995599, users-round icon)
+  is not shown: the system has no such stage or date for it.
+- Changed: components/platform/installation/GanttTab.tsx. Verified: eslint clean; browser not checked (login).
+
+2026-11-16 (Installation Gantt: short stages as icon squares, Figma 811:13079) — no migration, no new API
+- A stage too short for its labelled chip is now a 36×36 box (stage light tone, dark-tone border) with a 20px
+  stage icon in the dark tone, instead of a tiny dark chip. Label stays in the tooltip and for screen readers.
+- Changed: components/platform/installation/GanttTab.tsx. Verified: eslint clean; browser not checked (login).
+
+2026-11-16 (Installation Gantt: full-lifecycle row, Figma 811:12864) — no migration, no new API
+- Labelled stage chips now sit centred in their stage box (were at the left edge).
+- Completed is no longer a one-day box: it is an outlined chip (light tone, dark border and text, circle-check)
+  placed just after the installation box.
+- Still not drawn (no stored dates): Queued, Initial Design, Modification, Negotiation, Finalization,
+  Technical / PO + PF, To Order, To Production, Assembly, Ready for Installation; Union connectors between boxes.
+- Changed: components/platform/installation/GanttTab.tsx. Verified: eslint clean; browser not checked (login).
+
+2026-11-16 (Installation Gantt: undated stages as the row status, Figma 811:12864) — no migration, no new API
+- Decision (user): only the 7 dated stages are drawn on the timeline; stages without stored dates are shown only
+  as the row's status (Status column + row tint + project chip colour) while the project is in them.
+- Undated stage = Trust System board stage (Finalization / Technical / PO + PF / To Production, via the existing
+  read-only lib/trust/board classifier), else the newest opportunity's sales stage (new…sales_accepted → Queued,
+  discovery → Initial Meeting, sales_design → Initial Design, proposal → Proposal, negotiation → Negotiation).
+  Used only while the dated stage is none or Opportunity; any later dated stage wins.
+- installation/page.tsx now also reads opportunities.stage and calls loadTrustProjects() (server-side, never
+  throws; stage names only). New tokens --process-a0..a3-fg/-bg (light + dark) in globals.css.
+- Changed: lib/installations/lifecycle.ts (UndatedStage, UNDATED_STAGE, undatedStage), app/(platform)/tlines-pm/
+  installation/page.tsx, components/platform/installation/{GanttTab,InstallationClient}.tsx, app/globals.css,
+  tests/installationLifecycle.test.ts.
+- Verified: vitest lifecycle 6/6; eslint clean; tsc only the pre-existing pdfjs-dist error. Browser not checked (login).
+
 2026-11-16 (sidebar: Dashboard icon always navigates) — no migration, no new API
 - Dashboard rail icon (single-page group) now pushes /dashboard itself on click and clears the rail preview (`browsing`),
   so returning from another section (e.g. My Workspace) to the Dashboard always works.

@@ -330,6 +330,11 @@
   --board-completed-fg: #18330B;     --board-completed-bg: #ABD099;
   --board-hold-bg: #F0F2F5;   /* Figma On Hold card 818:31921: Basic UI "Main surfaces + cards" */
   --board-hold-fg: #2B2B2B;
+  /* Figma "Process" A0–A3 (811:12864): sales stages before Opportunity (Gantt row status) */
+  --process-a0-fg: #2B2B2B; --process-a0-bg: #C0C0C0;
+  --process-a1-fg: #995599; --process-a1-bg: #FFECFF;
+  --process-a2-fg: #615599; --process-a2-bg: #EFECFF;
+  --process-a3-fg: #558299; --process-a3-bg: #ECF9FF;
 
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -600,6 +605,10 @@
   --board-completed-fg: #ABD099;     --board-completed-bg: #18330B;
   --board-hold-bg: #343D4B;   /* Figma dark On Hold card 818:21885: "Main surfaces + cards" */
   --board-hold-fg: #C0C0C0;   /* Figma Process/A0 foreground (dark) */
+  --process-a0-fg: #C0C0C0; --process-a0-bg: #2B2B2B;
+  --process-a1-fg: #FFECFF; --process-a1-bg: #995599;
+  --process-a2-fg: #EFECFF; --process-a2-bg: #615599;
+  --process-a3-fg: #ECF9FF; --process-a3-bg: #558299;
 
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
