@@ -9,6 +9,7 @@ import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { BoardItemView } from './BoardItemView';
+import { BranchLogo } from './BranchLogo';
 import type { TrustItem } from '@/lib/trust/board';
 import { SERVICE_LINES } from '@/lib/regions';
 
@@ -138,61 +139,6 @@ export interface BoardColumn {
   sections: BoardSection[];
   /** A text header instead of the branch logo (the Trust Lines dashboard's stage columns). */
   title?: string;
-}
-
-// The source PNGs (public/TLINES LOGOS PNG) are 4500x4500 canvases with a lot of transparent
-// padding baked in around the actual mark — measured once (bounding box of non-transparent
-// pixels) so the header can crop straight to the logo instead of shrinking it to fit the pad.
-const LOGO_INSET: Record<string, { l: number; t: number; r: number; b: number }> = {
-  NE:  { l: 23.8,  t: 34.53, r: 23.8,  b: 34.6 },
-  SE:  { l: 23.8,  t: 34.53, r: 23.8,  b: 34.6 },
-  NW:  { l: 23.8,  t: 34.53, r: 23.8,  b: 34.6 },
-  CVW: { l: 13.27, t: 37.93, r: 13.27, b: 38 },
-};
-
-function CroppedLogo({ src, code, className }: { src: string; code: string; className?: string }) {
-  const inset = LOGO_INSET[code] ?? { l: 0, t: 0, r: 0, b: 0 };
-  const w = 100 - inset.l - inset.r;
-  const h = 100 - inset.t - inset.b;
-  return (
-    <span className={`relative block overflow-hidden ${className ?? ''}`} style={{ aspectRatio: `${w} / ${h}` }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        alt=""
-        src={src}
-        className="absolute max-w-none"
-        style={{
-          width: `${(100 / w) * 100}%`,
-          height: `${(100 / h) * 100}%`,
-          left: `${-(inset.l / w) * 100}%`,
-          top: `${-(inset.t / h) * 100}%`,
-          filter: 'brightness(0) invert(1)',
-        }}
-      />
-    </span>
-  );
-}
-
-/** Figma West branch header logo (818:34126): the TLines mark + wordmark over "WEST", as drawn —
- *  the CVW.png file is the wider "CVW.TLines" wordmark, so the column header uses Figma's assets. */
-const WEST_W = 116, WEST_H = 67.3;
-function WestLogo({ height = WEST_H }: { height?: number }) {
-  // Drawn at its Figma size (116 × 67.3) and scaled as a whole, so the small Columns-menu chip
-  // shows the same logo as the column header.
-  const s = height / WEST_H;
-  /* eslint-disable @next/next/no-img-element */
-  return (
-    <span className="relative block shrink-0" style={{ width: WEST_W * s, height: WEST_H * s }} role="img" aria-label="T-Lines West">
-      <span className="absolute left-0 top-0 flex w-[116px] origin-top-left flex-col items-center gap-3" style={{ transform: `scale(${s})` }}>
-        <span className="relative block h-[45.3px] w-[94.2px]">
-          <img src="/figma/dashboard/west-mark.svg" alt="" width={93.9656} height={27.2137} className="absolute left-0 top-0 block max-w-none" />
-          <img src="/figma/dashboard/west-tlines.svg" alt="" width={94.065} height={21.8596} className="absolute left-[0.11px] top-[23.42px] block max-w-none" />
-        </span>
-        <img src="/figma/dashboard/west-label.svg" alt="" width={47.1942} height={10.602} className="block max-w-none" />
-      </span>
-    </span>
-  );
-  /* eslint-enable @next/next/no-img-element */
 }
 
 /** "2026-05-26" → ["MAY", "26", "2026"] for the card's date tile (no time-zone shift). */
@@ -564,9 +510,7 @@ function ColumnShell({ column, children }: { column: BoardColumn; children: Reac
           {column.title
             ? <span className="px-3 text-center text-[20px] font-semibold leading-tight text-white">{column.title}</span>
             // Figma branch header (818:31889): logo block ~116 × 67 px inside the 105 px bar.
-            : column.logoCode === 'CVW'
-              ? <WestLogo />
-              : <CroppedLogo src={column.logoSrc} code={column.logoCode} className="h-[67px]" />}
+            : <BranchLogo code={column.logoCode} />}
         </div>
       </div>
       {children}
