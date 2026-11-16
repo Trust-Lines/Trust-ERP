@@ -247,12 +247,22 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
     const no = projectNumber(pr.code);
     if (no && pr.tlines_pm_id && !tlinesByNo.has(no)) tlinesByNo.set(no, pr.tlines_pm_id);
   }
+  // …and the T-Lines PM set on a Trust / deal card with that number, so every card of one project
+  // (Trust, deal, installation) shows the same PM.
+  for (const p of trustProjects) {
+    const no = projectNumber(p.projectNo), pm = tlinesAnyStage.get(`trust:${p.id}`);
+    if (no && pm && !tlinesByNo.has(no)) tlinesByNo.set(no, pm);
+  }
+  for (const o of opportunities) {
+    const no = projectNumber(o.projectNo), pm = tlinesAnyStage.get(`${o.kind}:${o.id}`);
+    if (no && pm && !tlinesByNo.has(no)) tlinesByNo.set(no, pm);
+  }
   // Two people per card per stage: the Trust PM (plain stage) and the T-Lines PM ("<stage>:tlines_pm").
   const assignFor = (kind: string, id: string, stage: string, label: string, projectNo?: string | null) => ({
     kind, stage, label,
     userId: assigneeOf.get(`${kind}:${id}:${stage}`) ?? null,
     tlinesUserId: assigneeOf.get(`${kind}:${id}:${stage}:tlines_pm`) ?? tlinesAnyStage.get(`${kind}:${id}`)
-      ?? (projectNo ? tlinesByNo.get(projectNo) : undefined) ?? null,
+      ?? tlinesByNo.get(projectNumber(projectNo) ?? '') ?? null,
   });
   // The popup's PO + PF / Production / Shipping tabs: the Trust types of the card's project number.
   const trustByNo = new Map(trustProjects.map(p => [p.projectNo, p.items ?? []]));
@@ -440,6 +450,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
         onHold: heldProjects.has(p.id),
         category: categoryLabel(p.categories),
         pmName: p.tlines_pm_id ? pmNames.get(p.tlines_pm_id) ?? null : null,
+        tlinesPmId: p.tlines_pm_id,
         pmLabel: 'T Lines PM',
         dateISO: date,
         dateLabel: fmtDate(date),
@@ -469,6 +480,9 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
         company: companyByNo.get(no) ?? null,
         category: i.scope,
         pmName: i.pm_name, pmLabel: 'PM',
+        // T-Lines PM: set on this install (board_assignees, "installation:tlines_pm"), else the
+        // project number's.
+        tlinesPmId: tlinesAnyStage.get(`trust:${i.id}`) ?? tlinesByNo.get(no) ?? null,
         onHold: i.status === 'On Hold',
         dateISO: date,
         dateLabel: fmtDate(date),

@@ -31,6 +31,8 @@ export interface BoardCardItem {
   category: string | null;
   pmName: string | null;
   pmLabel: string;
+  /** T-Lines PM of a card without "Assign to" (installation, delivered project). */
+  tlinesPmId?: string | null;
   onHold: boolean;
   // Raw yyyy-mm-dd (project: est. delivery, falling back to closed-deal date; opportunity: the
   // date it became an opportunity — ClickUp's own creation date, reliably set, unlike the
@@ -604,6 +606,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
       if (key in assigned) return assigned[key];
       return role === 'tlines_pm' ? i.assign.tlinesUserId ?? null : i.assign.userId;
     }
+    if (role === 'tlines_pm' && i.tlinesPmId) return i.tlinesPmId;
     if (role === 'tlines_pm' && i.pmName) return people.find(p => p.label === i.pmName)?.value ?? null;
     return null;
   }, [assigned, people]);
