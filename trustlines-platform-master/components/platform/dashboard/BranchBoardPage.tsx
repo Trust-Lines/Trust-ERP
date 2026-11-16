@@ -102,8 +102,16 @@ const SECTION_DEFS = [
 const HEADER_COLORS: Record<string, string> = {
   TLINES_NE: '#5E758E',
   TLINES_SE: '#68715B',
-  TLINES_NW: 'rgba(164,42,44,0.84)',
+  TLINES_NW: 'var(--board-branch-nationwide)',
   CVW:       '#624D46',
+};
+
+// Alternating account strips are independent Figma palette values, not calculated shades.
+const ACCOUNT_ALT_COLORS: Record<string, string> = {
+  TLINES_NE: '#465B6C',
+  TLINES_SE: '#3A462B',
+  TLINES_NW: '#2D5BA2',
+  CVW:       '#79645E',
 };
 
 function categoryLabel(values: string[] | null | undefined): string | null {
@@ -444,23 +452,26 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
     // A card per install, opened like a Trust card (the popup gathers everything by number).
     const toInstallCard = (i: InstallRow): BoardCardItem => {
       const no = i.project_no as string;
-      const name = dealNames.forCard(no, i.city_state) ?? i.project_name ?? `#${no}`;
+      // The plan's numbers often carry their own "#" ("#12PG") — show it once, not "##12PG".
+      const shown = `#${no.replace(/^#+/, '').trim()}`;
+      const name = dealNames.forCard(no, i.city_state) ?? i.project_name ?? shown;
       const date = i.planned_finish ?? i.planned_start;
       return {
         id: i.id, kind: 'trust',
-        badgeTop: `#${no}`, badgeBottom: '',
+        badgeTop: shown, badgeBottom: '',
         title: name,
         subtitle: i.city_state,
         account: accountOf(name),
         company: companyByNo.get(no) ?? null,
         category: i.scope,
         pmName: i.pm_name, pmLabel: 'PM',
+        teamName: i.team,
         onHold: i.status === 'On Hold',
         dateISO: date,
         dateLabel: fmtDate(date),
         href: '',
         note: i.blockers,
-        statuses: [i.status, i.team].filter((s): s is string => !!s),
+        statuses: i.status ? [i.status] : [],
         projectNo: no,
         trustItems: trustByNo.get(no) ?? null,
       };
@@ -499,6 +510,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
       logoSrc: regionLogoByCode(r.dropboxShort),
       logoCode: r.dropboxShort,
       headerColor: HEADER_COLORS[r.code] ?? HEADER_COLORS.TLINES_NE,
+      accountAltColor: ACCOUNT_ALT_COLORS[r.code] ?? ACCOUNT_ALT_COLORS.TLINES_NE,
       sections,
     };
   });

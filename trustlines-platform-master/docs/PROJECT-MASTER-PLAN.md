@@ -2180,6 +2180,26 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-11-16 (Figma 818:21465 — dark General Manager dashboard alignment) — no migration, no API change
+- Added a theme-specific Nationwide header token: solid #A42A2C in the light frame and the Figma
+  rgba(164, 42, 44, 0.84) treatment in the dark frame.
+- Date fields, view/column segmented controls, the date preset, and the collapse control now use the
+  semantic input-border token (#4D6E98 in dark mode), matching the Figma controls.
+- The existing dark board stage palette and card surfaces were verified against the frame and already match.
+- Changed: app/globals.css, components/platform/dashboard/BranchBoard.tsx, BranchBoardPage.tsx.
+- Verified: ESLint clean; Vitest 797 passed, 9 skipped. `next build` compiled this change, then failed in
+  the unrelated Trust Stock PDF viewer because the existing `pdfjs-dist` dependency cannot be resolved.
+
+2026-11-16 (Figma 818:30410 — dashboard branch/account colours visible) — no migration, no API change
+- Replaced the Accounts view's generated `color-mix()` shades with the exact secondary colour assigned to
+  each Figma branch column: North East #465B6C, South East #3A462B, Nationwide #2D5BA2, West #79645E.
+- Nationwide's branch header is now the solid Figma #A42A2C (was rendered at 84% opacity), and board columns
+  now include the Figma #D2D7E0 divider border through the existing semantic token.
+- Changed: components/platform/dashboard/BranchBoard.tsx, BranchBoardPage.tsx.
+- Verified: ESLint clean on both changed dashboard files; Vitest 797 passed, 9 skipped. `next build` compiled
+  the change, then hit the pre-existing generated `.next/dev/types/validator.ts` corruption (`ected`) after
+  the existing `pdfjs-dist` resolution warnings.
+
 2026-11-16 (Figma 818:31501 "General Manager" — new palette check) — no migration, no new API
 - Compared Figma "Basic UI Colors" + Process/Status variables with app/globals.css: scales and board stage colors already match.
 - Fixed: light `--ui-btn-primary` now `--color-secondary-700` (#2B3D55, Figma "Primary button") instead of secondary-500.
@@ -2262,6 +2282,13 @@ Project architecture:
 - Still not drawn (no stored dates): Queued, Initial Design, Modification, Negotiation, Finalization,
   Technical / PO + PF, To Order, To Production, Assembly, Ready for Installation; Union connectors between boxes.
 - Changed: components/platform/installation/GanttTab.tsx. Verified: eslint clean; browser not checked (login).
+
+2026-11-16 (Dashboard Installation / Completed cards, Figma 818:30410) — no migration, no new API
+- Install-plan numbers that already start with "#" no longer show twice ("##12PG" → "#12PG").
+- The install team moved out of the status chips into its own people box ("Team:") beside the PM box, like the
+  design's two "Assigned to" boxes; only the install status stays as a chip.
+- Changed: BranchBoard.tsx (teamName, PeopleBox), BranchBoardPage.tsx. Verified: eslint clean, tsc only the
+  pre-existing pdfjs-dist error; browser not checked (login).
 
 2026-11-16 (Branch logos from Figma 818:37269 + 818:37281) — no migration, no new API
 - New shared BranchLogo (components/platform/dashboard/BranchLogo.tsx): TLines mark + wordmark over the region
@@ -4091,4 +4118,4 @@ Customer = T-Lines'ın gerçek son müşterisi
 Ana prensip:
 
 > Aynı proje, farklı ekipler için farklı workspace ve farklı görünürlükle gösterilir; ayrı proje kayıtlarına bölünmez.
-  
+

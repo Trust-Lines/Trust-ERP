@@ -118,11 +118,11 @@ export function TopBar({
               );
             })}
           </nav>
-        ) : (
+        ) : pathname !== '/dashboard' ? (
           <h1 className="truncate text-[13px] font-medium leading-[1.4] text-primary-500 dark:text-primary-100">
             {currentTitle}
           </h1>
-        )}
+        ) : null}
       </div>
 
       {/* ── Right: notifications & account ─────────────────────── */}
@@ -135,7 +135,7 @@ export function TopBar({
         >
           <Bell className="h-[27px] w-[27px]" strokeWidth={1.5} />
           {notificationCount > 0 && (
-            <span className="absolute top-0.5 left-[23px] flex h-3 min-w-3 items-center justify-center rounded-[3px] bg-accent-400 px-0.5 text-[11px] leading-none text-white">
+            <span className="absolute top-0.5 left-[23px] flex h-3 min-w-3 items-center justify-center rounded-[3px] bg-accent-400 px-0.5 text-[11px] leading-none text-ui-btn-accent-fg">
               {notificationCount > 9 ? '9+' : notificationCount}
             </span>
           )}

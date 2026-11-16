@@ -3,7 +3,7 @@
 import { MultiFilter } from '@/components/platform/production/MultiFilter';
 import * as React from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronRight, MapPinOff, Pause, Plus } from 'lucide-react';
+import { CalendarDays, ChevronDown, ChevronRight, MapPinOff, Pause, Plus } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { Select as FilterSelect } from '@/components/ui/select';
@@ -31,6 +31,8 @@ export interface BoardCardItem {
   category: string | null;
   pmName: string | null;
   pmLabel: string;
+  /** Installation cards: the install team, in its own people box beside the PM. */
+  teamName?: string | null;
   onHold: boolean;
   // Raw yyyy-mm-dd (project: est. delivery, falling back to closed-deal date; opportunity: the
   // date it became an opportunity — ClickUp's own creation date, reliably set, unlike the
@@ -136,6 +138,8 @@ export interface BoardColumn {
   logoSrc: string;
   logoCode: string;
   headerColor: string;
+  /** Secondary account-strip colour from the Figma branch palette. */
+  accountAltColor?: string;
   sections: BoardSection[];
   /** A text header instead of the branch logo (the Trust Lines dashboard's stage columns). */
   title?: string;
@@ -147,6 +151,15 @@ function dateParts(iso: string | null): [string, string, string] | null {
   if (!m) return null;
   const month = new Date(Date.UTC(+m[1], +m[2] - 1, 1)).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase();
   return [month, m[3], m[1]];
+}
+
+function PeopleBox({ label, name, color }: { label: string; name: string; color: string }) {
+  return (
+    <span className="flex min-w-0 max-w-[150px] flex-col rounded-[4px] border-[0.5px] border-solid px-1.5 py-0.5 leading-normal" style={{ borderColor: color }} title={name}>
+      <span className="text-[6px]">{label}:</span>
+      <span className="truncate text-[9px] font-semibold">{name}</span>
+    </span>
+  );
 }
 
 function Card({ item, section, onOpen }: {
@@ -196,10 +209,11 @@ function Card({ item, section, onOpen }: {
             <AssignBox item={item} section={section} role="trust_pm" />
             <AssignBox item={item} section={section} role="tlines_pm" />
           </span>
-        ) : item.pmName && (
-          <span className="flex w-fit max-w-[150px] flex-col rounded-[4px] border-[0.5px] border-solid px-1.5 py-0.5 leading-normal" style={{ borderColor: fg }}>
-            <span className="text-[6px]">{item.pmLabel}:</span>
-            <span className="truncate text-[9px] font-semibold">{item.pmName}</span>
+        ) : (item.pmName || item.teamName) && (
+          // Figma card people boxes (818:30410): side by side, 6px label over a 9px name.
+          <span className="flex min-w-0 items-center gap-1.5">
+            {item.pmName && <PeopleBox label={item.pmLabel} name={item.pmName} color={fg} />}
+            {item.teamName && <PeopleBox label="Team" name={item.teamName} color={fg} />}
           </span>
         )}
         {(item.subtitle || item.note) && (
@@ -273,7 +287,7 @@ function Section({ section, open, onToggle, onOpen, variant = 'stages' }: {
 
 type Preset = '' | 'week' | 'month';
 const PRESETS = [{ value: '', label: 'All dates' }, { value: 'week', label: 'This week' }, { value: 'month', label: 'This month' }];
-const DATE_INPUT = 'h-9 rounded-[6px] border border-ui-divider bg-ui-input-bg px-3 text-[13px] font-medium text-ui-body outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
+const DATE_INPUT = 'h-9 w-[124px] rounded-[6px] border border-ui-divider bg-ui-input-bg py-0 pl-9 pr-2 text-[13px] font-medium text-ui-body outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring [&::-webkit-calendar-picker-indicator]:opacity-0';
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function presetRange(p: Preset): [string, string] {
@@ -299,7 +313,7 @@ function ViewToggle({ view, onView }: { view: BoardView; onView: (v: BoardView) 
     </button>
   );
   return (
-    <div role="group" aria-label="Group cards by" className="flex h-9 items-center gap-0.5 rounded-[6px] border border-ui-divider bg-ui-input-bg p-[2px]">
+    <div role="group" aria-label="Group cards by" className="flex h-9 items-center gap-0.5 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg p-[2px]">
       {opt('stages', 'Stages')}
       {opt('accounts', 'Accounts')}
     </div>
@@ -323,7 +337,7 @@ function ColumnsByToggle({ by, onBy }: { by: ColumnsBy; onBy: (v: ColumnsBy) => 
     </button>
   );
   return (
-    <div role="group" aria-label="Columns by" className="flex h-9 items-center gap-0.5 rounded-[6px] border border-ui-divider bg-ui-input-bg p-[2px]">
+    <div role="group" aria-label="Columns by" className="flex h-9 items-center gap-0.5 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg p-[2px]">
       {opt('regions', 'Regions')}
       {opt('pms', 'T-Lines PMs')}
     </div>
@@ -370,15 +384,21 @@ function DateFilters({ from, to, preset, onFrom, onTo, onPreset, stacked = false
     >
       <label className={labelCls}>
         From
-        <input type="date" value={from} onChange={e => onFrom(e.target.value)} className={DATE_INPUT} />
+        <span className="relative">
+          <CalendarDays size={16} strokeWidth={1.5} aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-ui-body" />
+          <input type="date" value={from} onChange={e => onFrom(e.target.value)} className={DATE_INPUT} />
+        </span>
       </label>
       <label className={labelCls}>
         To
-        <input type="date" value={to} onChange={e => onTo(e.target.value)} className={DATE_INPUT} />
+        <span className="relative">
+          <CalendarDays size={16} strokeWidth={1.5} aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-ui-body" />
+          <input type="date" value={to} onChange={e => onTo(e.target.value)} className={DATE_INPUT} />
+        </span>
       </label>
       <FilterSelect
         aria-label="Date range" value={preset} options={PRESETS} onValueChange={v => onPreset((v ?? '') as Preset)}
-        className="h-9 w-auto rounded-[6px] border-ui-divider bg-ui-input-bg text-[13px] font-medium text-ui-body dark:rounded-[6px] dark:border-ui-divider dark:bg-ui-input-bg"
+        className={`h-9 w-auto rounded-[6px] bg-ui-input-bg text-[13px] font-medium text-ui-body dark:rounded-[6px] dark:bg-ui-input-bg ${stacked ? 'border-ui-divider dark:border-ui-divider' : 'border-[var(--ui-input-border)] dark:border-[var(--ui-input-border)]'}`}
       />
     </div>
   );
@@ -444,9 +464,9 @@ function accountBadge(group: AccountGroup): string {
   return nos.size === 1 ? [...nos][0] : String(group.count);
 }
 
-function Account({ group, color, shade, collapsed, onToggle, onOpen }: {
-  group: AccountGroup; color: string;
-  /** Every other bar a darker shade of the branch colour (Figma 818:35913 / 818:35920). */
+function Account({ group, color, altColor, shade, collapsed, onToggle, onOpen }: {
+  group: AccountGroup; color: string; altColor?: string;
+  /** Every other bar uses the branch's second Figma colour (818:30797 / 30967 / 31137 / 31309). */
   shade: boolean;
   collapsed: boolean; onToggle: () => void; onOpen: OpenCard;
 }) {
@@ -459,7 +479,7 @@ function Account({ group, color, shade, collapsed, onToggle, onOpen }: {
     if (next.has(key)) next.delete(key); else next.add(key);
     return next;
   });
-  const bg = shade ? `color-mix(in srgb, ${color} 75%, black)` : color;
+  const bg = shade ? (altColor ?? color) : color;
   const badge = accountBadge(group);
   return (
     <div className="-mx-3 flex shrink-0 flex-col gap-2">
@@ -493,8 +513,9 @@ function Account({ group, color, shade, collapsed, onToggle, onOpen }: {
   );
 }
 
-/** A branch column card: logo header pinned on top, and the card itself is the scroll box. */
-function ColumnShell({ column, children }: { column: BoardColumn; children: React.ReactNode }) {
+/** A branch column card. The compact board uses an inner scroll box; the General Manager frame
+ * expands every stage down the document and relies on normal page scrolling. */
+function ColumnShell({ column, children, pageScroll = false }: { column: BoardColumn; children: React.ReactNode; pageScroll?: boolean }) {
   // A column is at most one screen tall (screen minus the 80px top bar and a small gap) — a fixed
   // CSS height, never re-measured while the page scrolls, so the page's own length never changes
   // under the wheel. What doesn't fit scrolls inside the column; at its end the wheel carries on
@@ -502,7 +523,7 @@ function ColumnShell({ column, children }: { column: BoardColumn; children: Reac
   // overflow-y-scroll: the scrollbar track is always there, so a column looks the same whether
   // its stages overflow or not (no width jump when a stage opens).
   return (
-    <div className="flex min-h-0 flex-col rounded-[16px] bg-ui-surface px-2.5 pb-2.5 max-h-[calc(100dvh-96px)] overflow-y-scroll overflow-x-hidden [scrollbar-width:thin]">
+    <div className={`flex min-h-0 flex-col rounded-[16px] border border-ui-divider bg-ui-surface px-2.5 pb-2.5 ${pageScroll ? 'overflow-hidden' : 'max-h-[calc(100dvh-96px)] overflow-y-scroll overflow-x-hidden [scrollbar-width:thin]'}`}>
       {/* Logo header stays pinned at the top of its column; only the stages scroll under it.
           The wrapper's own padding + background cover the cards as they pass beneath. */}
       <div className="sticky top-0 z-10 shrink-0 bg-ui-surface pb-2.5 pt-2.5">
@@ -518,14 +539,15 @@ function ColumnShell({ column, children }: { column: BoardColumn; children: Reac
   );
 }
 
-function Column({ column, isOpen, onToggle, onOpen, accounts }: {
+function Column({ column, isOpen, onToggle, onOpen, accounts, pageScroll = false }: {
   column: BoardColumn; isOpen: (key: string, index: number) => boolean; onToggle: (key: string, index: number) => void; onOpen: OpenCard;
+  pageScroll?: boolean;
   /** Accounts view: this column's client groups and which ones are folded. */
   accounts?: { groups: AccountGroup[]; expanded: Set<string>; toggle: (key: string) => void } | null;
 }) {
   if (accounts) {
     return (
-      <ColumnShell column={column}>
+      <ColumnShell column={column} pageScroll={pageScroll}>
         {/* One panel, like the Stages view; Figma 818:35912: 8 px between account bars, which run
             edge to edge of the panel (-mx-3 cancels its side padding). */}
         <div className="flex shrink-0 flex-col gap-2 overflow-hidden rounded-[11px] bg-ui-surface-elevated px-3 pb-3.5 pt-2">
@@ -534,7 +556,7 @@ function Column({ column, isOpen, onToggle, onOpen, accounts }: {
           ) : accounts.groups.map((g, i) => {
             const key = `${column.regionCode}|${g.key}`;
             return (
-              <Account key={g.key} group={g} color={column.headerColor} shade={i % 2 === 0} collapsed={!accounts.expanded.has(key)}
+              <Account key={g.key} group={g} color={column.headerColor} altColor={column.accountAltColor} shade={i % 2 === 0} collapsed={!accounts.expanded.has(key)}
                 onToggle={() => accounts.toggle(key)} onOpen={onOpen} />
             );
           })}
@@ -543,7 +565,7 @@ function Column({ column, isOpen, onToggle, onOpen, accounts }: {
     );
   }
   return (
-    <ColumnShell column={column}>
+    <ColumnShell column={column} pageScroll={pageScroll}>
       <div className="flex shrink-0 flex-col gap-4 rounded-[11px] bg-ui-surface-elevated px-3 pb-3.5 pt-2">
         {column.sections.map((section, i) => (
           <Section key={section.key} section={section} open={isOpen(`${column.regionCode}:${section.key}`, i)} onToggle={() => onToggle(`${column.regionCode}:${section.key}`, i)} onOpen={onOpen} />
@@ -573,7 +595,7 @@ function useDateRange() {
 }
 type DateRange = ReturnType<typeof useDateRange>;
 
-function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates, datesInBar, kpis }: {
+function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates, datesInBar, kpis, pageScroll = false }: {
   columns: BoardColumn[]; onOpen: OpenCard;
   /** Offer the "Accounts" view. */
   accounts: boolean;
@@ -584,6 +606,8 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
   datesInBar: boolean;
   /** Dashboard layout: KPI tiles between the filter bar and the columns (Figma 767:14785). */
   kpis?: React.ReactNode;
+  /** General Manager frame: columns expand in the page and use the Figma 16px gutter. */
+  pageScroll?: boolean;
 }) {
   const { from: dateFrom, to: dateTo } = dates;
 
@@ -713,7 +737,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
           {datesInBar && <DateFilters {...dates} />}
           {collapseAll && (
             <button type="button" onClick={collapseAll.run}
-              className="h-9 rounded-[6px] border border-ui-divider bg-ui-input-bg px-3 text-[13px] font-medium text-ui-body hover:text-ui-heading">
+              className="h-9 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] font-medium text-ui-body hover:text-ui-heading">
               {collapseAll.label}
             </button>
           )}
@@ -724,13 +748,14 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
       {/* items-start: columns must NOT stretch to match the tallest one (grid's default). */}
       <div
         className={byPmNow
-          ? 'grid items-start gap-2.5 overflow-x-auto pb-2 [grid-template-columns:repeat(var(--board-cols),minmax(320px,1fr))]'
-          : 'grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2 xl:[grid-template-columns:repeat(var(--board-cols),minmax(0,1fr))]'}
+          ? `grid items-start overflow-x-auto pb-2 [grid-template-columns:repeat(var(--board-cols),minmax(320px,1fr))] ${pageScroll ? 'gap-4' : 'gap-2.5'}`
+          : `grid grid-cols-1 items-start sm:grid-cols-2 xl:[grid-template-columns:repeat(var(--board-cols),minmax(0,1fr))] ${pageScroll ? 'gap-4' : 'gap-2.5'}`}
         style={{ '--board-cols': visible.length } as React.CSSProperties}
       >
         {visible.map(column => (
           <Column
             key={column.regionCode} column={column} isOpen={isOpen} onToggle={onToggle} onOpen={onOpen}
+            pageScroll={pageScroll}
             accounts={groupsByColumn ? { groups: groupsByColumn.get(column.regionCode) ?? [], expanded, toggle: toggleAccount } : null}
           />
         ))}
@@ -817,7 +842,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
         />
         </>
       ) : (
-        <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} dates={dates} datesInBar={!isDashboard} kpis={kpis} />
+        <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} dates={dates} datesInBar={!isDashboard} kpis={kpis} pageScroll={isDashboard} />
       )}
       {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} onClose={() => setOpen(null)} />}
     </AssignContext.Provider>
