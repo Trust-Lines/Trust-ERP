@@ -15,7 +15,11 @@ import { quickViewLink } from '@/lib/marketing/quickViewLink';
 import { KEY_CLIENT_ADMIN_ROLES } from '@/lib/keyClients/roles';
 import { NO_PF_ROLES } from '@/lib/production/access';
 import { classifyTrustProject, loadTrustProjects, typeLabel, typeStatuses, type TrustItem, type TrustStage } from '@/lib/trust/board';
-import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem } from '@/components/platform/dashboard/BranchBoard';
+import { BranchBoard, type BoardColumn, type BoardSection, type BoardCardItem, type BoardGantt } from '@/components/platform/dashboard/BranchBoard';
+import type { DashboardGanttData } from '@/components/platform/dashboard/DashboardGantt';
+import { loadGanttStageData } from '@/lib/installations/ganttData';
+import { tableMissing } from '@/lib/installations/access';
+import type { InstallTeam, Installation } from '@/lib/installations/compute';
 import { DailyOverview, TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
 import { StatTile } from '@/components/platform/dashboard/StatTile';
 import { PaymentsTile } from '@/components/platform/dashboard/PaymentsTile';
@@ -125,7 +129,11 @@ function opportunityBadge(externalProjectCode: string | null): [string, string] 
   return i === -1 ? [externalProjectCode, ''] : [externalProjectCode.slice(0, i), externalProjectCode.slice(i + 1)];
 }
 
-export async function BranchBoardPage({ viewParam, layout }: { viewParam?: string; layout: BranchBoardLayout }) {
+export async function BranchBoardPage({ viewParam, layout, ganttParam = false }: {
+  viewParam?: string; layout: BranchBoardLayout;
+  /** /dashboard?gantt=1 — show the installation plan's lifecycle Gantt instead of the board. */
+  ganttParam?: boolean;
+}) {
   const isDashboard = layout === 'dashboard';
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -367,7 +375,8 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
     pm_name: string | null; status: string | null; blockers: string | null;
   };
   let installRows: InstallRow[] = [];
-  if (regionCodes.length > 0 && pageAllowed(userRole, await getRolePermissions(admin, userRole), 'page.installation')) {
+  const mayOpenInstallations = pageAllowed(userRole, await getRolePermissions(admin, userRole), 'page.installation');
+  if (regionCodes.length > 0 && mayOpenInstallations) {
     const { data, error } = await admin.from('installations')
       .select('id, project_no, project_name, branch, city_state, planned_start, planned_finish, team, scope, pm_name, status, blockers')
       .order('sort_order', { ascending: true })
@@ -638,10 +647,39 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
           sub={isApprovalsAdmin ? 'Waiting for a decision' : 'Waiting for you'} {...TILE_TONES[4]} />;
   }
 
+  // ── Dashboard Gantt view ("View as Gantt chart", ?gantt=1) ──────────────────────────────────
+  // Offered to the same people as the installation plan (page.installation — same switch as
+  // /tlines-pm/installation and /api/installations). Its data is read only while it shows, so the
+  // board's own render pays nothing. Rows: the plan's projects in the viewer's branches (a plan
+  // row without a branch only when every branch is visible); dates only — no PF, vendor or money.
+  let gantt: BoardGantt | undefined;
+  if (isDashboard && mayOpenInstallations && regionCodes.length > 0) {
+    const active = ganttParam;
+    let data: DashboardGanttData | null = null;
+    if (active) {
+      const [{ data: planRows, error: planError }, { data: teamRows }, { data: projectRefs }] = await Promise.all([
+        admin.from('installations').select('*').order('sort_order', { ascending: true }).limit(2000),
+        admin.from('install_teams').select('*').order('sort_order', { ascending: true }).order('name'),
+        admin.from('projects').select('id, code, closed_deal_date').is('deleted_at', null).limit(5000),
+      ]) as [{ data: Installation[] | null; error: { code?: string; message: string } | null }, { data: InstallTeam[] | null }, { data: { id: string; code: string | null; closed_deal_date: string | null }[] | null }];
+      if (planError) console.error('[dashboard] gantt: installation plan unavailable:', planError.message);
+      const branches = new Set(visibleRegions.map(r => r.dropboxShort));
+      const everyBranch = visibleRegions.length === REGIONS.length;
+      const rows = (planRows ?? []).filter(r => (r.branch ? branches.has(r.branch) : everyBranch));
+      const stages = await loadGanttStageData(admin, rows, projectRefs ?? [], trustToday, trustProjects);
+      data = {
+        ...stages, rows, teams: teamRows ?? [], today: trustToday,
+        error: planError ? (tableMissing(planError) ? 'The installation plan isn’t set up in the database yet (migration 142).' : 'The installation plan could not be loaded.') : null,
+      };
+    }
+    gantt = { active, href: active ? '/dashboard' : '/dashboard?gantt=1', data };
+  }
+
   return (
     <BranchBoard
       accounts
       byPm
+      gantt={gantt}
       layout={layout}
       kpis={dashboardKpis}
       columns={columns}

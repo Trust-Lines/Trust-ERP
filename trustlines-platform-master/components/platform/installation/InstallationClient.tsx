@@ -12,11 +12,10 @@ import {
   BRANCHES, SCOPES, STATUSES, addDays, alertOf, doubleBookings, durationDays, fmtDate, headcount, isClosed,
   planMonths, resolveTeams, statusNeedsUpdate, suggestedStatus, type InstallTeam, type Installation, type RowPatch,
 } from '@/lib/installations/compute';
-import type { ProjectMilestones, UndatedStage } from '@/lib/installations/lifecycle';
 import { HEADING } from './shared';
 import { DashboardTab } from './DashboardTab';
-import { ColumnsMenu, REGISTER_COLUMNS, REGISTER_SORTS, RegisterTab, type RegisterColumn, type RegisterSort } from './RegisterTab';
-import { GanttTab } from './GanttTab';
+import { ColumnsMenu, REGISTER_COLUMNS, REGISTER_SORTS, RegisterTab, sorters, type RegisterColumn, type RegisterSort } from './RegisterTab';
+import { GANTT_COLUMNS, GanttTab, type GanttColumn } from './GanttTab';
 import { TeamsManagerTab, type TeamDraft } from './TeamsManagerTab';
 import { RowEditModal } from './RowEditModal';
 
@@ -42,12 +41,10 @@ const dayLabel = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', mo
 const shortMonth = (m: string) => new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7) - 1, 1)).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }).toUpperCase();
 const SORT_KEY = 'tl_install_sort';
 const COLS_KEY = 'tl_install_hidden_cols';
+const GANTT_COLS_KEY = 'tl_install_gantt_hidden_cols';
 const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg pl-3 pr-2 text-[13px] font-medium leading-normal text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading [&_svg]:size-3.5';
 
-export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded, setupNeeded, loadError, canEdit, projectByNo, milestonesByNo = {}, undatedByNo = {}, today }: {
-  /** Real stage dates per project number, for the Gantt (lib/installations/lifecycle). */
-  milestonesByNo?: Record<string, ProjectMilestones>;
-  undatedByNo?: Record<string, UndatedStage>;
+export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded, setupNeeded, loadError, canEdit, projectByNo, today }: {
   initialRows: Installation[];
   initialTeams: InstallTeam[];
   /** install_teams missing (migration 143 not run yet). */
@@ -111,6 +108,21 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
     setHiddenCols(n);
     try { localStorage.setItem(COLS_KEY, JSON.stringify([...n])); } catch { /* storage blocked */ }
   };
+  // Gantt columns (Figma 651:31965), remembered per browser like the register's.
+  const [ganttHidden, setGanttHidden] = React.useState<Set<GanttColumn>>(new Set());
+  React.useEffect(() => {
+    try { const h = localStorage.getItem(GANTT_COLS_KEY); if (h) setGanttHidden(new Set(JSON.parse(h) as GanttColumn[])); } catch { /* storage blocked */ }
+  }, []);
+  const saveGanttHidden = (n: Set<GanttColumn>) => {
+    setGanttHidden(n);
+    try { localStorage.setItem(GANTT_COLS_KEY, JSON.stringify([...n])); } catch { /* storage blocked */ }
+  };
+  const toggleGanttCol = (k: GanttColumn) => {
+    const n = new Set(ganttHidden); if (n.has(k)) n.delete(k); else n.add(k);
+    saveGanttHidden(n);
+  };
+  const setAllGanttCols = (show: boolean) =>
+    saveGanttHidden(new Set(show ? [] : GANTT_COLUMNS.filter(c => !('locked' in c)).map(c => c.key)));
 
   const clashesAll = React.useMemo(() => doubleBookings(rows), [rows]);
   const pmNames = React.useMemo(() => [...new Set(rows.map(r => r.pm_name?.trim()).filter((x): x is string => !!x))].sort(), [rows]);
@@ -144,6 +156,21 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
     });
   }, [rows, q, branch, pm, scope, status, hideDone, drill, today, clashesAll, from, to]);
   const filtered = visible.length !== rows.length;
+  // The Gantt's bar (Figma 651:32054) has only search, dates and sort — the register's other
+  // filters / drill-downs don't apply there, so they can't hide rows without showing why.
+  const ganttRows = React.useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return rows.filter(r => {
+      if (needle && ![r.project_no, r.project_name, r.city_state, r.team, r.pm_name, r.notes, r.blockers].some(v => v?.toLowerCase().includes(needle))) return false;
+      if (from || to) {
+        const rs = r.planned_start, re = r.planned_finish ?? r.planned_start;
+        if (!rs || !re) return false;
+        if (from && re < from) return false;
+        if (to && rs > to) return false;
+      }
+      return true;
+    }).sort(sorters[sort]);
+  }, [rows, q, from, to, sort]);
 
   // ── saving ──────────────────────────────────────────────────────────────────────────────────
   /** Saves cells of one row (shown at once, put back if the server says no). */
@@ -242,6 +269,36 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
   };
 
   // ── render ──────────────────────────────────────────────────────────────────────────────────
+  // Toolbar pieces shared by the register's filter bar and the Gantt's own (Figma 651:32054).
+  const searchNode = (
+    <label className="relative flex items-center">
+      <Search size={16} className="pointer-events-none absolute left-2.5 text-ui-text-secondary" aria-hidden />
+      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search project…" aria-label="Search project, team, PM, notes"
+        className="h-9 w-[285px] max-w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-2.5 text-[13px] leading-[1.45] text-ui-heading outline-none placeholder:text-ui-text-secondary focus:border-[var(--ui-focus-ring)]" />
+    </label>
+  );
+  const dateNode = (
+    <div className="flex items-center gap-2.5" role="group" aria-label="Date range">
+      <DatePicker value={fromISO(from)} onValueChange={d => pickDate('from', toISO(d))} aria-label="From date" placeholder="Any"
+        prefix={<span className="text-[11px] leading-[1.35] text-ui-body">From</span>} formatValue={dayLabel} iconEnd className={DATE_CLS} />
+      <DatePicker value={fromISO(to)} onValueChange={d => pickDate('to', toISO(d))} aria-label="To date" placeholder="Any"
+        prefix={<span className="text-[11px] leading-[1.35] text-ui-body">To</span>} formatValue={dayLabel} iconEnd className={DATE_CLS} />
+      {(from || to) && (
+        <button type="button" onClick={() => pickMonth('')} aria-label="Clear dates" title="Clear dates"
+          className="inline-grid size-8 cursor-pointer place-items-center rounded-[6px] border-0 bg-transparent text-ui-text-secondary hover:bg-ui-hover-bg hover:text-ui-heading">
+          <X size={14} />
+        </button>
+      )}
+    </div>
+  );
+  const sortNode = (
+    <span className="relative inline-flex items-center">
+      <ArrowDownUp size={14} aria-hidden className="pointer-events-none absolute left-3 z-[1] text-[var(--color-secondary-700)] dark:text-ui-heading" />
+      <FilterSelect aria-label="Sort" value={sort} onValueChange={v => pickSort((v ?? 'newest') as RegisterSort)}
+        className={cn(FILTER_CLS, 'gap-2 pl-[34px] pr-3 dark:pl-[34px]')} options={REGISTER_SORTS.map(o => ({ value: o.value, label: o.label }))} />
+    </span>
+  );
+
   return (
     <div className="flex flex-col gap-4">
       {/* Figma 620:33811 — page heading */}
@@ -292,14 +349,10 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
           </div>
 
           {/* Figma 629:5556 — search + filters left, sort + columns right (register only). Not on
-              the Dashboard, which always shows the whole plan. */}
-          {tab !== 'dashboard' && tab !== 'teamsMgr' && (
+              the Dashboard, which always shows the whole plan; the Gantt has its own bar. */}
+          {tab === 'register' && (
           <div className="mt-3 flex flex-wrap items-center gap-2.5">
-            <label className="relative flex items-center">
-              <Search size={16} className="pointer-events-none absolute left-2.5 text-ui-text-secondary" aria-hidden />
-              <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search project…" aria-label="Search project, team, PM, notes"
-                className="h-9 w-[285px] max-w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-[34px] pr-2.5 text-[13px] leading-[1.45] text-ui-heading outline-none placeholder:text-ui-text-secondary focus:border-[var(--ui-focus-ring)]" />
-            </label>
+            {searchNode}
             <FilterSelect aria-label="Branch" value={branch} onValueChange={v => setBranch(v ?? '')} className={FILTER_CLS}
               options={[{ value: '', label: 'All Branches' }, ...BRANCHES.map(b => ({ value: b, label: b }))]} />
             <FilterSelect aria-label="Project manager" value={pm} onValueChange={v => setPm(v ?? '')} className={FILTER_CLS}
@@ -323,28 +376,11 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <FilterSelect aria-label="Month" value={month} onValueChange={v => pickMonth(v ?? '')} className={cn(FILTER_CLS, 'gap-2 px-3 dark:px-3')}
                 options={[{ value: '', label: from || to ? 'Custom' : 'All months' }, ...months.map(m => ({ value: m, label: shortMonth(m) }))]} />
-              <div className="flex items-center gap-2.5" role="group" aria-label="Date range">
-                <DatePicker value={fromISO(from)} onValueChange={d => pickDate('from', toISO(d))} aria-label="From date" placeholder="Any"
-                  prefix={<span className="text-[11px] leading-[1.35] text-ui-body">From</span>} formatValue={dayLabel} iconEnd className={DATE_CLS} />
-                <DatePicker value={fromISO(to)} onValueChange={d => pickDate('to', toISO(d))} aria-label="To date" placeholder="Any"
-                  prefix={<span className="text-[11px] leading-[1.35] text-ui-body">To</span>} formatValue={dayLabel} iconEnd className={DATE_CLS} />
-                {(from || to) && (
-                  <button type="button" onClick={() => pickMonth('')} aria-label="Clear dates" title="Clear dates"
-                    className="inline-grid size-8 cursor-pointer place-items-center rounded-[6px] border-0 bg-transparent text-ui-text-secondary hover:bg-ui-hover-bg hover:text-ui-heading">
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-            {tab === 'register' && (
+              {dateNode}
               <div className="flex items-center gap-2">
-                <span className="relative inline-flex items-center">
-                  <ArrowDownUp size={14} aria-hidden className="pointer-events-none absolute left-3 z-[1] text-[var(--color-secondary-700)] dark:text-ui-heading" />
-                  <FilterSelect aria-label="Sort" value={sort} onValueChange={v => pickSort((v ?? 'newest') as RegisterSort)}
-                    className={cn(FILTER_CLS, 'gap-2 pl-[34px] pr-3 dark:pl-[34px]')} options={REGISTER_SORTS.map(o => ({ value: o.value, label: o.label }))} />
-                </span>
+                {sortNode}
                 <ColumnsMenu hidden={hiddenCols} onToggle={toggleCol} onSetAll={setAllCols} />
               </div>
-            )}
             </div>
           </div>
           )}
@@ -358,7 +394,13 @@ export function InstallationClient({ initialRows, initialTeams, teamsSetupNeeded
               onSave={(id, patch) => { void save(id, patch); }} onAdd={() => setEditing('new')} onEdit={r => setEditing(r)}
               onDelete={remove} pmNames={pmNames} teams={teams} />
           )}
-          {tab === 'gantt' && <GanttTab rows={visible} months={months} today={today} clashes={clashesAll} projectByNo={projectByNo} milestonesByNo={milestonesByNo} undatedByNo={undatedByNo} />}
+          {tab === 'gantt' && (
+            <div className="mt-3">
+              <GanttTab rows={ganttRows} today={today} clashes={clashesAll} projectByNo={projectByNo}
+                search={searchNode} dateRange={dateNode} sortControl={sortNode}
+                hidden={ganttHidden} onToggleCol={toggleGanttCol} onSetAllCols={setAllGanttCols} />
+            </div>
+          )}
           {tab === 'teamsMgr' && (
             <TeamsManagerTab teams={teams} rows={rows} today={today} clashes={clashesAll} canEdit={canEdit} setupNeeded={teamsSetupNeeded} projectByNo={projectByNo}
               onCreate={createTeam} onUpdate={updateTeam} onDelete={t => { void deleteTeam(t); }} />

@@ -4,7 +4,8 @@ import { BranchBoardPage } from '@/components/platform/dashboard/BranchBoardPage
 // date range, greeting + My Tasks, the /tlines-pm board filters, KPI tiles, then the 4-branch
 // board. Same data, visibility rules (RLS session, region scope, tlines_pm own projects,
 // marketing → /marketing) and filters as /tlines-pm — BranchBoardPage is shared by both.
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
-  const { view } = await searchParams;
-  return <BranchBoardPage viewParam={view} layout="dashboard" />;
+// ?gantt=1 swaps the board for the installation plan's lifecycle Gantt ("View as Gantt chart").
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ view?: string; gantt?: string }> }) {
+  const { view, gantt } = await searchParams;
+  return <BranchBoardPage viewParam={view} layout="dashboard" ganttParam={gantt === '1'} />;
 }
