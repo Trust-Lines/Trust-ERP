@@ -2180,6 +2180,12 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-11-16 (sidebar: Dashboard icon always navigates) — no migration, no new API
+- Dashboard rail icon (single-page group) now pushes /dashboard itself on click and clears the rail preview (`browsing`),
+  so returning from another section (e.g. My Workspace) to the Dashboard always works.
+- Changed: components/platform/shell/Sidebar.tsx.
+- Verified: vitest myWorkspace + pagePermissions 16 passed; eslint clean on Sidebar.tsx. Browser check not run (login).
+
 2026-11-16 (Figma 818:12353 — updated "General Manager" board) — no migration, no new API
 - Board restyle (both /dashboard and /tlines-pm, shared BranchBoard): stage block = dashed outline + tinted stage bar;
   card = number badge beside the title, outlined people boxes, white date tile (MAY / 26 / 2026) or "On Hold" tile,

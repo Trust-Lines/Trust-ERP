@@ -411,13 +411,28 @@ export function Sidebar({
               const Icon = s.icon;
               const active = s.key === shownKey;
               const cls = `${RAIL_ITEM_BASE} ${active ? RAIL_ACTIVE : RAIL_IDLE}`;
-              // A single-page group goes straight to its page.
+              // A single-page group goes straight to its page. The click pushes the route itself and
+              // drops any rail preview (`browsing`), so leaving another section always lands here —
+              // a plain Link alone could be left behind when the previous group had set `browsing`.
               if (s.items.length === 1) {
+                const target = s.items[0].href;
                 return (
                   <RailTip
                     key={s.key}
                     label={s.title}
-                    render={<IntentLink href={s.items[0].href} aria-label={s.title} aria-current={s.key === pageSectionKey ? 'page' : undefined} className={cls} />}
+                    render={
+                      <IntentLink
+                        href={target}
+                        aria-label={s.title}
+                        aria-current={s.key === pageSectionKey ? 'page' : undefined}
+                        className={cls}
+                        onClick={e => {
+                          e.preventDefault();
+                          setBrowsing(null);
+                          if (pathname !== target) router.push(target);
+                        }}
+                      />
+                    }
                   >
                     <Icon className={RAIL_ICON} strokeWidth={1.5} />
                   </RailTip>
