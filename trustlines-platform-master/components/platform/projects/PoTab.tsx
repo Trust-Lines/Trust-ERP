@@ -9,6 +9,7 @@ import { DocumentApprovalRail } from '../approvals/DocumentApprovalRail';
 import { approvalStagesFor } from '@/lib/approvals/stageConfig';
 import { ConfirmModal } from '@/components/ui/modal';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 
 const SignaturePad = dynamic(() => import('../SignaturePad').then(m => ({ default: m.SignaturePad })), { ssr: false });
 
@@ -151,20 +152,19 @@ export function PoTab({ projectId, userId, userRole, userPerms, catGroup, catego
             <div style={{ padding: 12, borderBottom: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {/* The Client PM reviews / signs / holds POs but does not generate them (server returns 403). */}
               {userRole !== 'tlines_pm' && (
-              <button onClick={generate} disabled={generating || !hasPriceList} title={hasPriceList ? '' : 'Generate the Item Price List first'} style={{
-                width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                padding: '9px 12px', borderRadius: 8, border: hasPriceList ? '1px solid transparent' : '1px solid var(--border-default)', background: hasPriceList ? '#1a2b4b' : 'var(--bg-sunken)', color: hasPriceList ? '#fff' : 'var(--fg-faint)', fontSize: 12, fontWeight: 700, cursor: hasPriceList ? 'pointer' : 'not-allowed',
-              }}>{generating ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={13} />} Generate PO</button>
+              // pointer-events-auto while disabled: keeps the "Generate the Item Price List first" hint.
+              <Button className="w-full disabled:pointer-events-auto disabled:cursor-not-allowed" onClick={generate} disabled={generating || !hasPriceList} title={hasPriceList ? '' : 'Generate the Item Price List first'}>
+                {generating ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={13} />} Generate PO
+              </Button>
               )}
               {canHold && (
                 <>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={openHold} disabled={holding} title="Put the order on HOLD / T (a reason is required)" style={{
-                      flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 8px', borderRadius: 7,
-                      border: '1px solid var(--status-danger)', fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                      background: onHold ? 'var(--status-danger)' : 'transparent', color: onHold ? '#fff' : 'var(--status-danger)',
-                    }}><Pause size={11} /> {onHold ? 'ON HOLD / T' : 'HOLD / T'}</button>
-                    <button onClick={() => holdT(true)} disabled={holding || !onHold} style={{ flex: 1, padding: '7px 8px', borderRadius: 7, border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--fg-default)', fontSize: 11, fontWeight: 600, cursor: onHold ? 'pointer' : 'not-allowed', opacity: onHold ? 1 : 0.5 }}>Release</button>
+                    {/* Filled red while the order is on hold, outlined otherwise (same as before). */}
+                    <Button variant={onHold ? 'destructive' : 'outline-destructive'} className="flex-1" onClick={openHold} disabled={holding} title="Put the order on HOLD / T (a reason is required)">
+                      <Pause size={11} /> {onHold ? 'ON HOLD / T' : 'HOLD / T'}
+                    </Button>
+                    <Button variant="outline" className="flex-1" onClick={() => holdT(true)} disabled={holding || !onHold}>Release</Button>
                   </div>
                   {onHold && holdNote && (
                     <div style={{ marginTop: 2, padding: '6px 8px', background: 'var(--status-danger-bg)', border: '1px solid var(--status-danger)', borderRadius: 6, fontSize: 10, color: 'var(--status-danger-fg)' }}>

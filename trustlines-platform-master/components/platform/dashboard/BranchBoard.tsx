@@ -79,25 +79,25 @@ function AssignBox({ item, section, role }: { item: BoardCardItem; section: Boar
   const saved = role === 'tlines_pm' ? item.assign?.tlinesUserId ?? null : item.assign?.userId ?? null;
   const current = key in assigned ? assigned[key] : saved;
   const name = options.find(o => o.value === current)?.label ?? null;
-  // Figma "id-badge" (node 572:29260): solid stage tone, white text.
+  // Figma "id-badge" (node 818:12783): hairline border in the stage tone, text in the stage tone.
   return (
     <span
-      className="flex min-w-0 max-w-[170px] shrink flex-col justify-center rounded-[6px] px-2.5 py-1 leading-normal text-white"
-      style={{ background: section.solid ?? section.accent }}
+      className="flex min-w-0 max-w-[150px] shrink flex-col justify-center rounded-[4px] border-[0.5px] border-solid px-1.5 py-0.5 leading-normal"
+      style={{ borderColor: section.accent, color: section.accent }}
       onClick={e => e.stopPropagation()}
       onKeyDown={e => e.stopPropagation()}
     >
-      <span className="text-[10px] opacity-90">{ROLE_LABEL[role]}:</span>
+      <span className="text-[8px]">{ROLE_LABEL[role]}:</span>
       {canAssign ? (
         <FilterSelect
           aria-label={`${ROLE_LABEL[role]} for ${item.assign?.label ?? ''}`}
           options={[{ value: UNASSIGNED, label: 'Unassigned' }, ...options]}
           value={current ?? UNASSIGNED}
           onValueChange={v => assign(item, role, v || null)}
-          className="h-auto min-h-0 gap-0.5 border-0 bg-transparent p-0 text-[13px] font-semibold leading-normal text-white hover:border-0 dark:border-0 dark:bg-transparent dark:p-0 dark:text-white [&_svg]:size-3.5"
+          className="h-auto min-h-0 gap-0.5 border-0 bg-transparent p-0 text-[10px] font-semibold leading-normal text-[inherit] hover:border-0 dark:border-0 dark:bg-transparent dark:p-0 dark:text-[inherit] [&_svg]:size-3"
         />
       ) : (
-        <span className="truncate text-[13px] font-semibold">{name ?? 'Unassigned'}</span>
+        <span className="truncate text-[10px] font-semibold">{name ?? 'Unassigned'}</span>
       )}
     </span>
   );
@@ -171,97 +171,119 @@ function CroppedLogo({ src, code, className }: { src: string; code: string; clas
   );
 }
 
+/** "2026-05-26" → ["MAY", "26", "2026"] for the card's date tile (no time-zone shift). */
+function dateParts(iso: string | null): [string, string, string] | null {
+  const m = iso?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const month = new Date(Date.UTC(+m[1], +m[2] - 1, 1)).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase();
+  return [month, m[3], m[1]];
+}
+
 function Card({ item, section, onOpen }: {
   item: BoardCardItem; section: BoardSection; onOpen: OpenCard;
 }) {
   // Cards hold the Assign to dropdown, so no card is a <button> (a control can't sit inside one).
-  // Figma card (node 572:29240): stage tint, number badge on the top edge, 16px title, 10px meta.
-  const solid = section.solid ?? section.accent;
+  // Figma card (node 818:12773 / 818:12797): stage tint (grey when On Hold), number badge in the
+  // stage tone beside a 16px title, people boxes, 10px address, and a white tile on the right
+  // with the date (MAY / 26 / 2026) or "On Hold".
+  const fg = section.accent;
+  const tint = section.bg;
+  const date = dateParts(item.dateISO);
   return (
     <div
       role="button"
       tabIndex={0}
-      className="relative flex w-full cursor-pointer flex-col gap-[3px] rounded-[8px] pb-2.5 pl-3 pr-2.5 pt-4 text-left transition-[filter,box-shadow] hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)] hover:brightness-[0.98] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
-      style={{ background: section.bg, color: section.accent }}
+      className="flex w-full cursor-pointer items-stretch justify-between gap-2 rounded-[4px] px-1.5 py-2.5 text-left transition-[filter,box-shadow] hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)] hover:brightness-[0.98] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring"
+      style={{ background: item.onHold ? 'var(--board-hold-bg)' : tint, color: fg }}
       onClick={() => onOpen(item, section)}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(item, section); } }}
     >
-      <span
-        className="absolute -top-3 left-[9px] flex h-5 min-w-[87px] items-center justify-center whitespace-nowrap rounded-[4px] px-1.5 py-0.5 text-[14px] font-medium leading-normal text-white"
-        style={{ background: solid }}
-      >
-        {[item.badgeTop, item.badgeBottom].filter(Boolean).join(' ')}
-      </span>
-      <span className="flex w-full items-start justify-between gap-2">
-        <span className="min-w-0">
-          <span className="flex items-center gap-2">
-            <span className="min-w-0 truncate text-[16px] font-bold leading-normal">{item.title}</span>
-            {item.onHold && (
-              <span className="inline-flex h-3.5 shrink-0 items-center gap-0.5 rounded-[2px] bg-ui-surface-elevated px-0.5 py-px text-[10px] font-medium leading-normal" style={{ color: 'var(--status-t0-fg)' }}>
-                <Pause size={10} aria-hidden /> On Hold
-              </span>
-            )}
+      <span className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span
+            className="flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-[4px] px-1.5 py-0.5 text-[14px] font-medium leading-normal"
+            style={{ background: fg, color: tint }}
+          >
+            {[item.badgeTop, item.badgeBottom].filter(Boolean).join(' ')}
           </span>
-          {item.category && <span className="block truncate text-[10px] leading-normal">{item.category}</span>}
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-[16px] font-bold leading-[1.1]">{item.title}</span>
+            {item.category && <span className="truncate text-[10px] font-medium leading-normal">{item.category}</span>}
+          </span>
         </span>
-        {item.dateLabel && <span className="shrink-0 text-[10px] leading-normal">{item.dateLabel}</span>}
-      </span>
-      {item.statuses && item.statuses.length > 0 && (
-        <span className="flex flex-wrap gap-1">
-          {item.statuses.map(s => (
-            <span key={s} className="inline-flex h-4 items-center rounded-full px-1.5 text-[10px] font-semibold leading-none text-white"
-              style={{ background: solid }}>
-              {s}
-            </span>
-          ))}
-        </span>
-      )}
-      <span className="flex w-full items-end justify-between gap-2">
-        <span className="min-w-0">
-          <span className="block truncate text-[10px] leading-normal">{item.subtitle}</span>
-          {item.note && <span className="block text-[10px] font-bold leading-normal">{item.note}</span>}
-        </span>
+        {item.statuses && item.statuses.length > 0 && (
+          <span className="flex flex-wrap gap-1">
+            {item.statuses.map(s => (
+              <span key={s} className="inline-flex h-4 items-center rounded-full px-1.5 text-[10px] font-semibold leading-none"
+                style={{ background: fg, color: tint }}>
+                {s}
+              </span>
+            ))}
+          </span>
+        )}
         {item.assign ? (
-          <span className="flex min-w-0 shrink-0 items-end gap-1.5">
+          <span className="flex min-w-0 items-center gap-1.5">
             <AssignBox item={item} section={section} role="trust_pm" />
             <AssignBox item={item} section={section} role="tlines_pm" />
           </span>
         ) : item.pmName && (
-          <span className="flex max-w-[170px] shrink-0 flex-col rounded-[6px] px-2.5 py-1 leading-normal text-white" style={{ background: solid }}>
-            <span className="text-[10px] opacity-90">{item.pmLabel}:</span>
-            <span className="truncate text-[13px] font-semibold">{item.pmName}</span>
+          <span className="flex w-fit max-w-[150px] flex-col rounded-[4px] border-[0.5px] border-solid px-1.5 py-0.5 leading-normal" style={{ borderColor: fg }}>
+            <span className="text-[8px]">{item.pmLabel}:</span>
+            <span className="truncate text-[10px] font-semibold">{item.pmName}</span>
+          </span>
+        )}
+        {(item.subtitle || item.note) && (
+          <span className="min-w-0">
+            {item.subtitle && <span className="block truncate text-[10px] leading-normal">{item.subtitle}</span>}
+            {item.note && <span className="block text-[10px] font-bold leading-normal">{item.note}</span>}
           </span>
         )}
       </span>
+      {(item.onHold || date) && (
+        <span className="flex w-16 shrink-0 items-center justify-center rounded-[4px] bg-ui-surface-elevated px-1.5 py-px">
+          {item.onHold ? (
+            <span className="flex items-center gap-0.5 text-[10px] font-medium leading-normal" style={{ color: 'var(--board-hold-fg)' }}>
+              <Pause size={10} aria-hidden /> On Hold
+            </span>
+          ) : date && (
+            <span className="flex flex-col items-center gap-1 whitespace-nowrap text-center" aria-label={item.dateLabel ?? undefined}>
+              <span className="text-[14px] leading-[10px] tracking-[-0.308px]">{date[0]}</span>
+              <span className="text-[24px] font-semibold leading-[18px]">{date[1]}</span>
+              <span className="text-[12px] leading-[10px]">{date[2]}</span>
+            </span>
+          )}
+        </span>
+      )}
     </div>
   );
 }
 
 type OpenCard = (item: BoardCardItem, section: BoardSection) => void;
 
-// Figma stage bar (node 572:29233): solid stage tone, dot, uppercase label, count and a chevron
-// that opens / closes the stage's cards.
+// Figma stage block (node 818:12765): a dashed outline in the stage tone around a tinted stage
+// bar (dot, uppercase label, count, chevron that opens / closes the stage) and its cards.
 function Section({ section, open, onToggle, onOpen }: {
   section: BoardSection; open: boolean; onToggle: () => void; onOpen: OpenCard;
 }) {
   const empty = section.items.length === 0;
   const Chevron = open ? ChevronDown : ChevronRight;
+  const fg = section.labelColor ?? section.accent;
   return (
-    <div className="flex shrink-0 flex-col gap-6">
+    <div className="flex shrink-0 flex-col gap-2 rounded-[5px] border border-dashed" style={{ borderColor: section.accent }}>
       <button
         type="button"
         aria-expanded={open}
         onClick={onToggle}
-        className="flex w-full cursor-pointer items-center gap-1 rounded-[4px] border-0 px-1 py-2 text-left text-white transition-[filter] hover:brightness-110 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
-        style={{ background: section.solid ?? section.labelColor ?? section.accent }}
+        className="flex w-full cursor-pointer items-center gap-1 rounded-[4px] border-0 px-1 py-2 text-left transition-[filter] hover:brightness-[0.97] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring"
+        style={{ background: section.bg, color: fg }}
       >
-        <span aria-hidden className="size-1 shrink-0 rounded-full bg-white" />
+        <span aria-hidden className="size-1 shrink-0 rounded-full" style={{ background: fg }} />
         <span className="min-w-0 truncate text-[14px] font-semibold uppercase leading-normal">{section.label}</span>
         <span className="flex-1 shrink-0 text-right text-[13px] font-semibold uppercase leading-normal tracking-[1.3px]">{section.items.length}</span>
         <Chevron size={16} aria-hidden className="shrink-0" />
       </button>
       {open && (empty ? (
-        <p className="-mt-4 mb-0 truncate rounded-[8px] p-3 text-[12px] leading-normal" style={{ background: section.bg, color: section.accent }}>
+        <p className="m-0 truncate px-2 pb-2 text-[12px] leading-normal" style={{ color: section.accent }}>
           {section.emptyLabel}
         </p>
       ) : (
@@ -354,20 +376,25 @@ function pmColumns(columns: BoardColumn[], pmOf: (i: BoardCardItem) => string | 
 }
 
 /** The board's date filter (From / To / preset), shown in the filter bar above the columns. */
-function DateFilters({ from, to, preset, onFrom, onTo, onPreset }: {
+function DateFilters({ from, to, preset, onFrom, onTo, onPreset, stacked = false }: {
   from: string; to: string; preset: Preset;
   onFrom: (v: string) => void; onTo: (v: string) => void; onPreset: (p: Preset) => void;
+  /** Figma "Date range" (767:13865): the From / To labels sit above their fields. */
+  stacked?: boolean;
 }) {
+  const labelCls = stacked
+    ? 'flex flex-col gap-[5px] text-[11px] leading-[1.35] text-ui-body'
+    : 'flex items-center gap-1.5 text-[11px] leading-[1.35] text-ui-body';
   return (
     <div
-      className="flex flex-wrap items-center gap-2.5"
+      className={stacked ? 'flex flex-wrap items-end gap-3' : 'flex flex-wrap items-center gap-2.5'}
       title="Project cards: delivery date. Opportunity cards: date it became an opportunity (ClickUp creation date). Cards with no date are hidden while a filter is set."
     >
-      <label className="flex items-center gap-1.5 text-[11px] leading-[1.35] text-ui-body">
+      <label className={labelCls}>
         From
         <input type="date" value={from} onChange={e => onFrom(e.target.value)} className={DATE_INPUT} />
       </label>
-      <label className="flex items-center gap-1.5 text-[11px] leading-[1.35] text-ui-body">
+      <label className={labelCls}>
         To
         <input type="date" value={to} onChange={e => onTo(e.target.value)} className={DATE_INPUT} />
       </label>
@@ -379,17 +406,25 @@ function DateFilters({ from, to, preset, onFrom, onTo, onPreset }: {
   );
 }
 
-function PageHead({ canCreateTask, heading = 'T-Lines PM Board', subheading = 'Keep handoffs moving. Clear the blockers before they affect delivery.' }: {
-  canCreateTask: boolean; heading?: string; subheading?: string;
+type Crumb = { label: string; href: string };
+const BOARD_CRUMBS: Crumb[] = [{ label: 'T-Lines PM', href: '/tlines-pm' }, { label: 'Board', href: '/tlines-pm' }];
+// Figma "General Manager" page heading (node 767:13860).
+const DASHBOARD_CRUMBS: Crumb[] = [{ label: 'General', href: '/dashboard' }, { label: 'Dashboard', href: '/dashboard' }];
+
+function PageHead({ canCreateTask, heading = 'T-Lines PM Board', subheading = 'Keep handoffs moving. Clear the blockers before they affect delivery.', crumbs = BOARD_CRUMBS, dates }: {
+  canCreateTask: boolean; heading?: string; subheading?: string; crumbs?: Crumb[];
+  /** Dashboard layout: the date range sits in the heading, left of Create task (Figma 767:13865). */
+  dates?: React.ReactNode;
 }) {
   return (
     <div className="mb-[30px] flex flex-wrap items-center justify-between gap-4">
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <PageCrumbs items={[{ label: 'T-Lines PM', href: '/tlines-pm' }, { label: 'Board', href: '/tlines-pm' }]} />
+        <PageCrumbs items={crumbs} />
         <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">{heading}</h1>
         <p className="m-0 text-[13px] text-ui-body">{subheading}</p>
       </div>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-end gap-3">
+        {dates}
         {canCreateTask && (
           <Link href="/sales-tasks" className="inline-flex h-9 items-center gap-2 rounded-[6px] bg-ui-btn-accent px-3 text-[13px] font-medium text-ui-btn-accent-fg no-underline hover:brightness-95">
             <Plus size={16} aria-hidden /> Create task
@@ -546,20 +581,34 @@ function ColumnButtons({ columns, hidden, onToggle }: {
   );
 }
 
-function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm }: {
+/** The board's date filter state — owned by BranchBoard so the dashboard layout can show it in
+ *  the page heading while the board still filters by it. */
+function useDateRange() {
+  const [from, setFrom] = React.useState('');
+  const [to, setTo] = React.useState('');
+  const [preset, setPreset] = React.useState<Preset>('');
+  return {
+    from, to, preset,
+    onPreset: (p: Preset) => { const [f, t] = presetRange(p); setPreset(p); setFrom(f); setTo(t); },
+    onFrom: (v: string) => { setFrom(v); setPreset(''); },
+    onTo: (v: string) => { setTo(v); setPreset(''); },
+  };
+}
+type DateRange = ReturnType<typeof useDateRange>;
+
+function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates, datesInBar, kpis }: {
   columns: BoardColumn[]; onOpen: OpenCard;
   /** Offer the "Accounts" view. */
   accounts: boolean;
   /** Offer columns by T-Lines PM instead of region. */
   byPm: boolean;
+  dates: DateRange;
+  /** Board layout: the date filter sits in this bar (dashboard layout: in the page heading). */
+  datesInBar: boolean;
+  /** Dashboard layout: KPI tiles between the filter bar and the columns (Figma 767:14785). */
+  kpis?: React.ReactNode;
 }) {
-  const [dateFrom, setDateFrom] = React.useState('');
-  const [dateTo, setDateTo] = React.useState('');
-  const [preset, setPreset] = React.useState<Preset>('');
-  const applyPreset = (p: Preset) => {
-    const [from, to] = presetRange(p);
-    setPreset(p); setDateFrom(from); setDateTo(to);
-  };
+  const { from: dateFrom, to: dateTo } = dates;
 
   // Which of our companies to show ('' = All Companies, the default).
   const [company, setCompany] = React.useState('');
@@ -681,10 +730,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm }: {
           <ColumnButtons columns={columns} hidden={hidden} onToggle={toggleColumn} />
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <DateFilters
-            from={dateFrom} to={dateTo} preset={preset} onPreset={applyPreset}
-            onFrom={v => { setDateFrom(v); setPreset(''); }} onTo={v => { setDateTo(v); setPreset(''); }}
-          />
+          {datesInBar && <DateFilters {...dates} />}
           {collapseAll && (
             <button type="button" onClick={collapseAll.run}
               className="h-9 rounded-[6px] border border-ui-divider bg-ui-input-bg px-3 text-[13px] font-medium text-ui-body hover:text-ui-heading">
@@ -693,6 +739,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm }: {
           )}
         </div>
       </div>
+      {kpis && <div className="my-3">{kpis}</div>}
       {/* items-start: columns must NOT stretch to match the tallest one (grid's default). */}
       <div
         className={byPmNow
@@ -711,7 +758,12 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm }: {
   );
 }
 
-export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false, byPm = false }: {
+export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false, byPm = false, layout = 'board', kpis }: {
+  /** 'dashboard' = Figma "General Manager" (767:13745) on /dashboard: General / Dashboard crumbs,
+   *  date range in the heading, KPI tiles under the filter bar. 'board' = /tlines-pm as before. */
+  layout?: 'board' | 'dashboard';
+  /** Dashboard layout only: the KPI row. */
+  kpis?: React.ReactNode;
   /** Offer the "Accounts" view: each column's cards grouped by client, biggest client first. */
   accounts?: boolean;
   /** Offer "T-Lines PMs" columns: one column per T-Lines PM instead of per region. */
@@ -757,10 +809,16 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   }, [assigned]);
   const assignCtx = React.useMemo(() => ({ options: assignOptions, canAssign, assigned, assign }), [assignOptions, canAssign, assigned, assign]);
   const handleOpen: OpenCard = (item, section) => setOpen({ item, section });
+  const dates = useDateRange();
+  const isDashboard = layout === 'dashboard';
 
   return (
     <AssignContext.Provider value={assignCtx}>
-      <PageHead heading={heading} subheading={subheading} canCreateTask={canCreateTask} />
+      <PageHead
+        heading={heading ?? (isDashboard ? 'Dashboard' : undefined)} subheading={subheading} canCreateTask={canCreateTask}
+        crumbs={isDashboard ? DASHBOARD_CRUMBS : BOARD_CRUMBS}
+        dates={isDashboard && columns.length > 0 ? <DateFilters {...dates} stacked /> : undefined}
+      />
       {top}
       {trustError && (
         <p role="status" className="m-0 rounded-[8px] px-3 py-2 text-[13px] font-medium" style={{ background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}>
@@ -768,14 +826,17 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
         </p>
       )}
       {columns.length === 0 ? (
+        <>
+        {kpis && <div className="mb-3">{kpis}</div>}
         <EmptyState
           boxed
           icon={<MapPinOff />}
           title="No branch is assigned to your account yet"
           description="Ask an admin to set your region on the Team page."
         />
+        </>
       ) : (
-        <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} />
+        <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} dates={dates} datesInBar={!isDashboard} kpis={kpis} />
       )}
       {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} onClose={() => setOpen(null)} />}
     </AssignContext.Provider>

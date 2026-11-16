@@ -533,12 +533,10 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
         <div style={{ display: 'flex', minHeight: 580 }}>
           <div style={{ width: 252, borderRight: '1px solid var(--border-subtle)', flexShrink: 0, display: 'flex', flexDirection: 'column', background: 'var(--bg-subtle)' }}>
             <div style={{ padding: 12, borderBottom: '1px solid var(--border-subtle)' }}>
-              <button
+              <Button
+                className="w-full"
                 onClick={() => { if (activeVendor) { const f = filterSectionsByVendor(itemList, activeVendor); const ft = activeType ? f.filter(s => (s.typeLabel?.trim() || '') === activeType) : f; setEditSections(ft.length ? enrichPrices(ft) : blankSections(catGroup, activeVendor)); } setShowEditor(true); setSelectedDocId(null); }}
-                style={{
-                  width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: '9px 12px', borderRadius: 8, border: 'none', background: 'var(--ui-btn-solid)', color: 'var(--ui-btn-solid-fg)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                }}><Plus size={14} /> New PF</button>
+              ><Plus size={14} /> New PF</Button>
             </div>
             <div style={{ overflowY: 'auto', flex: 1, padding: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 6px 8px' }}>
@@ -567,9 +565,9 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
                       <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 99, background: d.status === 'approved' ? 'var(--status-success-bg)' : 'var(--status-warning-bg)', color: d.status === 'approved' ? 'var(--status-success-fg)' : 'var(--status-warning-fg)' }}>{d.status === 'draft' ? 'DRAFT' : d.status.toUpperCase()}</span>
                       {d.status !== 'approved' && (
-                        <button onClick={e => { e.stopPropagation(); void deletePf(d.id, code); }} title="Delete this PF" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger-fg)', padding: 2, lineHeight: 0 }}>
+                        <Button variant="ghost-destructive" size="icon-xs" onClick={e => { e.stopPropagation(); void deletePf(d.id, code); }} title="Delete this PF" aria-label="Delete this PF">
                           <Trash2 size={13} />
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -621,9 +619,9 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                       );
                     })}
                     {pfStatus === 'ASSEMBLY' && (
-                      <button onClick={() => setShowAssembly(true)} style={{ width: '100%', marginTop: 6, padding: '7px 9px', borderRadius: 6, border: '1px solid var(--brand-teal)', background: 'var(--brand-teal-100)', color: 'var(--brand-teal)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                      <Button variant="outline" className="mt-1.5 w-full" onClick={() => setShowAssembly(true)}>
                         🔗 Open assembly relationships
-                      </button>
+                      </Button>
                     )}
                     {pfStatus === 'RECEIVED' && (
                       <button onClick={() => toast.info('QC step — coming soon')} style={{ width: '100%', marginTop: 6, padding: '7px 9px', borderRadius: 6, border: '1px solid var(--status-warning-fg)', background: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
@@ -681,23 +679,15 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {vendorTypes.length > 1 && (
-              <button onClick={generateAllTypes} disabled={generating} title="Generate one PF per TYPE section" style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 7,
-                border: '1px solid var(--border-strong)', background: 'var(--bg-surface)', color: 'var(--fg-default)', fontSize: 13, fontWeight: 700,
-                cursor: generating ? 'default' : 'pointer',
-              }}>
+              <Button variant="outline" size="md" onClick={generateAllTypes} disabled={generating} title="Generate one PF per TYPE section">
                 {generating ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <FileText size={13} />}
                 Generate all {vendorTypes.length} types
-              </button>
+              </Button>
             )}
-            <button onClick={generate} disabled={generating || !itemCount} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 7, border: 'none',
-              background: itemCount ? 'var(--ui-btn-solid)' : 'var(--ui-divider)', color: itemCount ? 'var(--ui-btn-solid-fg)' : 'var(--ui-text-secondary)', fontSize: 13, fontWeight: 700,
-              cursor: (generating || !itemCount) ? 'default' : 'pointer',
-            }}>
+            <Button size="md" onClick={generate} disabled={generating || !itemCount}>
               {generating ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <FileText size={13} />}
               Generate this type
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -735,14 +725,14 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
                                 <td style={pfTd}><input value={it.description} onChange={e => updItem(si, ci, sbi, gi, ii, { description: e.target.value })} style={{ ...pfInput, color: 'var(--fg-default)', fontWeight: 600 }} placeholder="Description" /></td>
                                 <td style={pfTd}><input type="number" min={0} value={it.quantity || ''} onChange={e => updItem(si, ci, sbi, gi, ii, { quantity: parseInt(e.target.value) || 0 })} style={{ ...pfInput, textAlign: 'center' }} /></td>
                                 <td style={pfTd}><input type="number" min={0} value={it.unitPrice ?? ''} onChange={e => updItem(si, ci, sbi, gi, ii, { unitPrice: e.target.value === '' ? null : parseFloat(e.target.value) })} style={{ ...pfInput, textAlign: 'right' }} placeholder="0.00" /></td>
-                                <td style={{ ...pfTd, textAlign: 'center' }}><button onClick={() => removeItem(si, ci, sbi, gi, ii)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger-fg)', padding: 2 }}><X size={12} /></button></td>
+                                <td style={{ ...pfTd, textAlign: 'center' }}><Button variant="ghost-destructive" size="icon-xs" aria-label="Remove item" onClick={() => removeItem(si, ci, sbi, gi, ii)}><X size={12} /></Button></td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
-                        <button onClick={() => addItem(si, ci, sbi, gi)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, margin: '5px 8px', fontSize: 11, color: 'var(--brand-teal, #1a6b6b)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                        <Button variant="ghost" size="xs" className="mx-2 my-1" onClick={() => addItem(si, ci, sbi, gi)}>
                           <Plus size={11} /> Add item
-                        </button>
+                        </Button>
                       </div>
                     ))}
                   </div>

@@ -24,12 +24,13 @@ import { can } from '@/lib/permissions/can';
 import type { ProjectStage, ProjectPhase } from '@/types/database';
 import type { StepRecord } from '@/lib/workflow/steps';
 import { cn } from '@/lib/utils';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { PROJECT_FINANCE_READ_ROLES } from '@/lib/finance/projectTotals';
 
 // Figma "Project Detail" (node 245:28820).
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
-const BTN_OUTLINE = 'inline-flex h-10 items-center justify-center gap-2 rounded-[6px] border border-solid border-[var(--color-secondary-700)] bg-transparent px-3.5 text-[13px] font-semibold text-[var(--color-secondary-700)] no-underline transition-colors hover:bg-ui-hover-bg dark:border-ui-heading dark:text-ui-heading';
-const BTN_PRIMARY = 'inline-flex h-10 items-center justify-center gap-3 rounded-[6px] border-0 bg-[var(--color-secondary-700)] px-5 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 dark:bg-primary-50 dark:text-primary-950';
+// Header links look like outline buttons (shared Button styles).
+const BTN_OUTLINE = cn(buttonVariants({ variant: 'outline', size: 'md' }), 'no-underline');
 
 export interface ProfileSnippet { id: string; full_name: string }
 
@@ -486,7 +487,7 @@ export function ProjectDetailClient({
             {(userRole === 'ops_manager' || userRole === 'general_manager') && (
               <Link href={`/projects/${project.id}/edit`} className={BTN_OUTLINE}>Edit</Link>
             )}
-            <button type="button" className={BTN_PRIMARY}><FolderInput size={16} aria-hidden /> Export File</button>
+            <Button size="md"><FolderInput size={16} aria-hidden /> Export File</Button>
             {can(userRole, 'project:delete') && (
               <button
                 type="button"
