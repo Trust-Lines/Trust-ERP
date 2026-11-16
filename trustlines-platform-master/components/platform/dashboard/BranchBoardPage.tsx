@@ -370,6 +370,15 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
       const ownNos = new Set(projects.map(p => projectNumber(p.code)).filter(Boolean));
       installRows = installRows.filter(i => ownNos.has(projectNumber(i.project_no)));
     }
+    // Their "Assign to" (Trust PM / T-Lines PM per stage: installation, completed), stored like
+    // the Trust cards' under item_kind 'trust' with the installation's id.
+    const installAssign = await fetchInChunks(installRows.map(i => i.id), chunk => admin.from('board_assignees')
+      .select('item_kind, item_id, stage, user_id').eq('item_kind', 'trust').in('item_id', chunk))
+      .catch(() => []) as { item_kind: string; item_id: string; stage: string; user_id: string }[];
+    for (const a of installAssign) {
+      assigneeOf.set(`${a.item_kind}:${a.item_id}:${a.stage}`, a.user_id);
+      if (a.stage.endsWith(':tlines_pm')) tlinesAnyStage.set(`${a.item_kind}:${a.item_id}`, a.user_id);
+    }
   }
   const INSTALLING = ['In Progress', 'Delayed', 'On Hold'];
   const isInstalling = (i: InstallRow) => i.status !== 'Completed'
@@ -480,9 +489,9 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
         company: companyByNo.get(no) ?? null,
         category: i.scope,
         pmName: i.pm_name, pmLabel: 'PM',
-        // T-Lines PM: set on this install (board_assignees, "installation:tlines_pm"), else the
-        // project number's.
-        tlinesPmId: tlinesAnyStage.get(`trust:${i.id}`) ?? tlinesByNo.get(no) ?? null,
+        // Trust PM / T-Lines PM like every other card; the T-Lines PM falls back to the one set
+        // in the other stage, else the project number's.
+        assign: assignFor('trust', i.id, i.status === 'Completed' ? 'completed' : 'installation', `#${label}`, no),
         onHold: i.status === 'On Hold',
         dateISO: date,
         dateLabel: fmtDate(date),
