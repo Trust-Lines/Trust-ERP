@@ -172,7 +172,8 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
   // they're signed; everything else waits until it's a project.
   const loadClientOpps = async (): Promise<ClientOpportunityRow[]> => {
     try {
-      const r = await loadClientOpportunities(admin);
+      // Key clients' deals and the leads' (everyone else's) — the board's Clients / Leads filter splits them.
+      const r = await loadClientOpportunities(admin, { includeLeads: true });
       // Only deals with a project number, like the PROJECTS PROGRESS sheet — a numberless
       // Potential is too early for the board.
       return Object.values(r.regions).flat().filter(o => !!o.region && regionCodes.includes(o.region) && !!o.projectNo);
@@ -428,7 +429,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
         badgeTop: top, badgeBottom: bottom,
         title: dealNames.forDeal(o.kind, o.id) ?? o.client,
         subtitle: o.site || (prospectPlace.get(o.prospectId) ?? null),
-        account: accountOf(o.client, o.keyClientId, o.client),
+        account: accountOf(o.client, o.keyClientId || undefined, o.isClient ? o.client : undefined),
         // Which of our companies: ClickUp's "Industry", else the code prefix ("STSE507").
         company: serviceLineFromIndustry(o.industry) ?? serviceLineFromCode(o.projectCode),
         category: categoryLabel(o.projectTypes.length ? o.projectTypes : o.projectTypeRaw ? [o.projectTypeRaw] : null),

@@ -122,6 +122,11 @@ function AssignBox({ item, section, role }: { item: BoardCardItem; section: Boar
 const NO_COMPANY = '__none';
 /** People filters: "Unassigned". */
 const NOBODY = '__nobody';
+const AUDIENCE_OPTIONS = [
+  { value: '', label: 'Clients & Leads' },
+  { value: 'client', label: 'Clients' },
+  { value: 'lead', label: 'Leads' },
+];
 const COMPANY_OPTIONS = [
   { value: '', label: 'All Companies' },
   ...SERVICE_LINES.map(s => ({ value: s.value, label: s.label })),
@@ -661,6 +666,8 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
 
   // Which of our companies to show ('' = All Companies, the default).
   const [company, setCompany] = React.useState('');
+  // Clients (a key client's card) / Leads (everyone else's) — '' = both.
+  const [audience, setAudience] = React.useState<'' | 'client' | 'lead'>('');
 
   // People filters: by the card's Trust PM and by its T-Lines PM ('' = everyone, NOBODY = unassigned).
   const { options: people, pmOptions, assigned } = React.useContext(AssignContext);
@@ -734,15 +741,17 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
     };
     const byPerson = (i: BoardCardItem, role: AssignRole, want: string) =>
       !want || (want === NOBODY ? !personOf(i, role) : personOf(i, role) === want);
+    const isClient = (i: BoardCardItem) => !!i.account?.key.startsWith('kc:');
     const keep = (i: BoardCardItem) =>
       inRange(i.dateISO) && (!company || (company === NO_COMPANY ? !i.company : i.company === company))
+      && (!audience || (audience === 'client') === isClient(i))
       && byPerson(i, 'trust_pm', trustPm) && byPerson(i, 'tlines_pm', tlinesPm);
     const shown = columns.filter(c => picked.has(c.regionCode));
     return (shown.length ? shown : columns).map(column => ({
       ...column,
       sections: column.sections.map(s => ({ ...s, items: s.items.filter(keep) })),
     }));
-  }, [columns, picked, dateFrom, dateTo, company, trustPm, tlinesPm, personOf]);
+  }, [columns, picked, dateFrom, dateTo, company, audience, trustPm, tlinesPm, personOf]);
 
   // Stages / Accounts, remembered per browser. Every account starts open; a click folds it.
   const [view, setView] = React.useState<BoardView>('stages');
@@ -782,6 +791,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
           {offerPm && <ColumnsByToggle by={columnsBy} onBy={changeColumnsBy} />}
           {accounts && <ViewToggle view={view} onView={changeView} />}
           <FilterSelect aria-label="Companies" value={company} options={COMPANY_OPTIONS} onValueChange={v => setCompany(v ?? '')} className={FILTER_CLS} />
+          <FilterSelect aria-label="Clients or leads" value={audience} options={AUDIENCE_OPTIONS} onValueChange={v => setAudience((v ?? '') as '' | 'client' | 'lead')} className={FILTER_CLS} />
           <FilterSelect aria-label="Trust PM" value={trustPm} options={trustPmOptions} onValueChange={v => setTrustPm(v ?? '')} className={FILTER_CLS} />
           <FilterSelect aria-label="T-Lines PM" value={tlinesPm} options={tlinesPmOptions} onValueChange={v => setTlinesPm(v ?? '')} className={FILTER_CLS} />
           <MultiFilter label={!byPmNow ? 'Branches' : columnsBy === 'trust_pms' ? 'Trust Lines PM columns' : 'T-Lines PM columns'} options={columnOptions} selected={picked} onChange={changePicked} />
