@@ -124,11 +124,6 @@ function AssignBox({ item, section, role }: { item: BoardCardItem; section: Boar
 const NO_COMPANY = '__none';
 /** People filters: "Unassigned". */
 const NOBODY = '__nobody';
-const AUDIENCE_OPTIONS = [
-  { value: '', label: 'Clients & Leads' },
-  { value: 'client', label: 'Clients' },
-  { value: 'lead', label: 'Leads' },
-];
 const COMPANY_OPTIONS = [
   { value: '', label: 'All Companies' },
   ...SERVICE_LINES.map(s => ({ value: s.value, label: s.label })),
@@ -698,8 +693,9 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
 
   // Which of our companies to show ('' = All Companies, the default).
   const [company, setCompany] = React.useState('');
-  // Clients (a key client's card) / Leads (everyone else's) — '' = both.
-  const [audience, setAudience] = React.useState<'' | 'client' | 'lead'>('');
+  // Leads (everyone else's open deals): their section stays hidden until this is on.
+  const [showLeads, setShowLeads] = React.useState(false);
+  const leadCount = React.useMemo(() => regionColumns.reduce((n, c) => n + (c.sections.find(s => s.key === 'leads')?.items.length ?? 0), 0), [regionColumns]);
 
   // People filters: by the card's Trust PM and by its T-Lines PM ('' = everyone, NOBODY = unassigned).
   const { options: people, pmOptions, assigned } = React.useContext(AssignContext);
@@ -781,17 +777,15 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
     };
     const byPerson = (i: BoardCardItem, role: AssignRole, want: string) =>
       !want || (want === NOBODY ? !personOf(i, role) : personOf(i, role) === want);
-    const isClient = (i: BoardCardItem) => !!i.account?.key.startsWith('kc:');
     const keep = (i: BoardCardItem) =>
       inRange(i.dateISO) && (!company || (company === NO_COMPANY ? !i.company : i.company === company))
-      && (!audience || (audience === 'client') === isClient(i))
       && byPerson(i, 'trust_pm', trustPm) && byPerson(i, 'tlines_pm', tlinesPm);
     const shown = columns.filter(c => picked.has(c.regionCode));
     return (shown.length ? shown : columns).map(column => ({
       ...column,
-      sections: column.sections.map(s => ({ ...s, items: s.items.filter(keep) })),
+      sections: column.sections.filter(s => showLeads || s.key !== 'leads').map(s => ({ ...s, items: s.items.filter(keep) })),
     }));
-  }, [columns, picked, dateFrom, dateTo, company, audience, trustPm, tlinesPm, personOf]);
+  }, [columns, picked, dateFrom, dateTo, company, showLeads, trustPm, tlinesPm, personOf]);
 
   // Stages / Accounts, remembered per browser. Every account starts open; a click folds it.
   const [view, setView] = React.useState<BoardView>('stages');
@@ -828,17 +822,17 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
       {/* Every board filter sits here, right above the columns. Dashboard: Figma "View tabs" (818:31781). */}
       <div className={`flex min-h-12 flex-wrap items-center justify-between gap-2.5 rounded-[8px] bg-ui-surface px-2 py-1.5${datesInBar ? '' : ' border border-ui-divider'}`}>
         <div className="flex flex-wrap items-center gap-2.5">
-          {gantt && <GanttToggle gantt={gantt} pending={ganttPending} onGo={goGantt} />}
-          {!showGantt && (
-            <>
-              {offerPm && <ColumnsByToggle by={columnsBy} onBy={changeColumnsBy} />}
-              {accounts && <ViewToggle view={view} onView={changeView} />}
-              <FilterSelect aria-label="Companies" value={company} options={COMPANY_OPTIONS} onValueChange={v => setCompany(v ?? '')} className={FILTER_CLS} />
-              <FilterSelect aria-label="Clients or leads" value={audience} options={AUDIENCE_OPTIONS} onValueChange={v => setAudience((v ?? '') as '' | 'client' | 'lead')} className={FILTER_CLS} />
-              <FilterSelect aria-label="Trust PM" value={trustPm} options={trustPmOptions} onValueChange={v => setTrustPm(v ?? '')} className={FILTER_CLS} />
-              <FilterSelect aria-label="T-Lines PM" value={tlinesPm} options={tlinesPmOptions} onValueChange={v => setTlinesPm(v ?? '')} className={FILTER_CLS} />
-            </>
+          {offerPm && <ColumnsByToggle by={columnsBy} onBy={changeColumnsBy} />}
+          {accounts && <ViewToggle view={view} onView={changeView} />}
+          <FilterSelect aria-label="Companies" value={company} options={COMPANY_OPTIONS} onValueChange={v => setCompany(v ?? '')} className={FILTER_CLS} />
+          {leadCount > 0 && (
+            <button type="button" aria-pressed={showLeads} onClick={() => setShowLeads(v => !v)}
+              className={`${FILTER_CLS} pr-3 ${showLeads ? 'border-[var(--color-secondary-700)] bg-ui-selected-bg dark:border-ui-heading' : ''}`}>
+              {showLeads ? 'Hide leads' : 'Show leads'} ({leadCount})
+            </button>
           )}
+          <FilterSelect aria-label="Trust PM" value={trustPm} options={trustPmOptions} onValueChange={v => setTrustPm(v ?? '')} className={FILTER_CLS} />
+          <FilterSelect aria-label="T-Lines PM" value={tlinesPm} options={tlinesPmOptions} onValueChange={v => setTlinesPm(v ?? '')} className={FILTER_CLS} />
           <MultiFilter label={!byPmNow ? 'Branches' : columnsBy === 'trust_pms' ? 'Trust Lines PM columns' : 'T-Lines PM columns'} options={columnOptions} selected={picked} onChange={changePicked} />
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -890,9 +884,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
   );
 }
 
-export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false, byPm = false, layout = 'board', kpis, gantt }: {
-  /** /dashboard only: the "View as Gantt chart" toggle and, while it shows, its data. */
-  gantt?: BoardGantt;
+export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false, byPm = false, layout = 'board', kpis, companyEdit = 'none' }: {
   /** 'dashboard' = Figma "General Manager" (767:13745) on /dashboard: General / Dashboard crumbs,
    *  date range in the heading, KPI tiles under the filter bar. 'board' = /tlines-pm as before. */
   layout?: 'board' | 'dashboard';
@@ -909,6 +901,8 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   /** Everyone who can be picked in a Trust card's "Assign to", and whether this viewer may. */
   users?: { id: string; full_name: string; role?: string | null }[];
   canAssign?: boolean;
+  /** Who may set a card's company in its popup: 'any' always, 'empty' only when it has none. */
+  companyEdit?: 'any' | 'empty' | 'none';
   /** Why the Trust System sections are empty, when it couldn't be read. */
   trustError?: string | null;
   canCreateTask: boolean;
@@ -973,7 +967,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
       ) : (
         <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} dates={dates} datesInBar={!isDashboard} kpis={kpis} counts={isDashboard} pageScroll={isDashboard} gantt={gantt} />
       )}
-      {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} onClose={() => setOpen(null)} />}
+      {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} companyEdit={companyEdit} onClose={() => setOpen(null)} />}
     </AssignContext.Provider>
   );
 }

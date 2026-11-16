@@ -17,6 +17,8 @@ import { typeLabel, type TrustItem } from '@/lib/trust/board';
 import { STAGE_LABELS } from '@/lib/workflow/machine';
 import type { ProjectStage } from '@/types/database';
 import type { BoardCardItem, BoardSection } from './BranchBoard';
+import { useRouter } from 'next/navigation';
+import { SERVICE_LINES, serviceLineLabel } from '@/lib/regions';
 
 // Design: Figma "TRUST-LINES ERP" → "Page content" (node 359:25337) — the popup a dashboard card
 // opens. Left: one tab per stage the project has reached (lib/dashboard/cardTabs); middle: that
@@ -35,9 +37,11 @@ const notYet = () => toast.info('Not connected yet');
 
 interface CardData { project: CardProject | null; deals: CardDeal[]; finance: ProjectFinance | null; allowed: string[] }
 
-export function BoardItemView({ item, section, assignees, canEdit, onClose }: {
+export function BoardItemView({ item, section, assignees, canEdit, companyEdit = 'none', onClose }: {
   item: BoardCardItem;
   section: BoardSection;
+  /** Set the card's company here: 'any' always, 'empty' only while it has none. */
+  companyEdit?: 'any' | 'empty' | 'none';
   assignees: { id: string; full_name: string }[];
   canEdit: boolean;
   onClose: () => void;
@@ -63,10 +67,36 @@ export function BoardItemView({ item, section, assignees, canEdit, onClose }: {
     () => (data ? buildCardTabs({ deals: data.deals, project: data.project, trustItems: item.trustItems ?? null, finance: data.finance, today, allowed: data.allowed }) : []),
     [data, item.trustItems, today],
   );
-  // Opens on the stage the card sits in: its deal, else the furthest stage reached.
+  // Opens on the Opportunity: the card's own deal, else the latest Opportunity (then Potential),
+  // else the furthest stage reached.
   const active = tabs.find(t => t.key === selected)
     ?? tabs.find(t => t.view === 'deal' && t.deal.id === item.id)
+    ?? tabs.filter(t => t.phase === 'opportunity').at(-1)
+    ?? tabs.filter(t => t.phase === 'potential').at(-1)
     ?? tabs.at(-1) ?? null;
+
+  // The card's company (Store Maker / Premium / Design Build).
+  const [company, setCompany] = React.useState<string | null>(item.company ?? null);
+  const [savingCompany, setSavingCompany] = React.useState(false);
+  const canSetCompany = companyEdit === 'any' || (companyEdit === 'empty' && !company);
+  const router = useRouter();
+  async function saveCompany(value: string) {
+    if (!value || value === company) return;
+    setSavingCompany(true);
+    try {
+      const kind = item.kind === 'opportunity' ? (item.assign?.kind === 'potential' ? 'potential' : 'opportunity') : item.kind;
+      const res = await fetch('/api/tlines-dashboard/company', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, id: item.id, no: item.projectNo ?? null, serviceLine: value }),
+      });
+      const b = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(b?.error ?? 'Could not save the company');
+      setCompany(value);
+      toast.success(`Company set: ${serviceLineLabel(value)}`);
+      router.refresh();
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Could not save the company'); }
+    finally { setSavingCompany(false); }
+  }
   const pick = (phase: CardPhase) => {
     const t = phase === 'project' ? tabs.find(x => x.phase === 'project') : tabs.filter(x => x.phase === phase).at(-1);
     if (t) setSelected(t.key);
@@ -91,6 +121,11 @@ export function BoardItemView({ item, section, assignees, canEdit, onClose }: {
           <div className="flex min-w-0 flex-col gap-4">
             <div className="flex min-w-0 flex-col">
               <div className="flex min-w-0 items-center gap-4">
+                {(item.badgeTop || item.badgeBottom) && (
+                  <span className="flex h-9 shrink-0 items-center rounded-[6px] px-2.5 text-[20px] font-semibold leading-none" style={{ background: section.bg, color: stageInk }}>
+                    {[item.badgeTop, item.badgeBottom].filter(Boolean).join(' ')}
+                  </span>
+                )}
                 <h2 className={`m-0 truncate text-[28px] font-semibold leading-[1.35] ${HEADING}`}>{item.title}</h2>
                 {item.onHold && <Chip tone="t0" icon={Pause}>On Hold</Chip>}
               </div>
@@ -101,6 +136,21 @@ export function BoardItemView({ item, section, assignees, canEdit, onClose }: {
               {section.label}
             </span>
             {item.subtitle && <p className="m-0 truncate text-[14px] leading-[1.35] text-ui-text-secondary">{item.subtitle}</p>}
+            <div className="flex items-center gap-2 text-[13px] text-ui-body">
+              <span className="font-medium text-ui-text-secondary">Company:</span>
+              {canSetCompany ? (
+                <FilterSelect
+                  aria-label="Company"
+                  options={[...(company ? [] : [{ value: '', label: 'Choose the company…' }]), ...SERVICE_LINES.map(s => ({ value: s.value, label: s.label }))]}
+                  value={company ?? ''}
+                  disabled={savingCompany}
+                  onValueChange={v => void saveCompany(v ?? '')}
+                  className={`h-8 w-[200px] text-[13px] ${company ? '' : 'border-[var(--status-t0-fg)]'}`}
+                />
+              ) : (
+                <span className="font-semibold">{company ? serviceLineLabel(company) : 'Not set'}</span>
+              )}
+            </div>
           </div>
 
           <div className="flex shrink-0 flex-col items-end justify-between gap-6 self-stretch">
