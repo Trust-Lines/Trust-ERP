@@ -14,7 +14,7 @@ type Totals = Record<'USD' | 'TL' | 'EUR', number>;
 
 const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 
-export function PaymentsTile({ color, onColor }: { color: string; onColor: string }) {
+export function PaymentsTile({ color, onColor, compact = false }: { color: string; onColor: string; compact?: boolean }) {
   const [paid, setPaid] = useState<Totals | null>(null);
   const [error, setError] = useState(false);
 
@@ -45,6 +45,7 @@ export function PaymentsTile({ color, onColor }: { color: string; onColor: strin
       href="/suppliers"
       color={color}
       onColor={onColor}
+      compact={compact}
     />
   );
 }

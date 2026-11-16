@@ -25,7 +25,7 @@ import { defaultCompanySideForRole } from '@/lib/profile/metadata';
 import { trustDashboard } from '@/lib/dashboard/trustView';
 import { buildDealNames, type DealName } from '@/lib/board/cardName';
 import {
-  BriefcaseBusiness, CircleCheck, ClipboardPenLine, DraftingCompass, Factory, Hammer, PackageOpen, Pause, PenLine, Ship, UserRound,
+  BriefcaseBusiness, ClipboardPenLine, DraftingCompass, Factory, Hammer, PackageOpen, Pause, PenLine, Ship,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -33,21 +33,6 @@ import {
 // (layout "dashboard", Figma TRUST-LINES ERP → "General Manager" node 767:13745): same data,
 // same visibility rules and the same board filters — only the page chrome differs.
 export type BranchBoardLayout = 'board' | 'dashboard';
-
-/** Oldest → newest counts per week for the last `weeks` weeks (KPI sparklines; real data only). */
-function weeklyCounts(dates: (string | null | undefined)[], weeks = 6): number[] {
-  const DAY = 24 * 3600 * 1000;
-  const end = Date.now();
-  const counts = new Array<number>(weeks).fill(0);
-  for (const d of dates) {
-    if (!d) continue;
-    const t = new Date(d).getTime();
-    if (Number.isNaN(t) || t > end) continue;
-    const ago = Math.floor((end - t) / (7 * DAY));
-    if (ago < weeks) counts[weeks - 1 - ago] += 1;
-  }
-  return counts;
-}
 
 // Figma "General Manager" KPI row (818:31798): navy, t4, t4, t9 (Deals Closed), t6 (last tile).
 const TILE_TONES = [
@@ -626,34 +611,16 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
     { key: 'approvals', label: 'Approvals', value: approvals.length, href: '/approvals', badge: approvals.length > 0 ? 'Pending' : undefined },
   ];
 
-  // ── Dashboard layout: Figma KPI tiles (767:14785) — real counts from the data loaded above.
-  // Figma's "Total Payments" tile = supplier payments (PaymentsTile) for finance roles; others keep
-  // Approvals (real) in that slot. Figma's duplicated "Total Clients Opportunity" tile and In Production are not shown.
+  // ── Dashboard layout: the project counts are counted in the board from the cards its filters
+  // leave (BranchBoard COUNT_TILES). Only the one tile that isn't a card count comes from here:
+  // supplier payments for roles that may read vendor cost (SUPPLIER_READ_ROLES, as /api/suppliers),
+  // Pending Approvals for everyone else.
   let dashboardKpis: ReactNode;
   if (isDashboard) {
-    const [activeKpi] = kpis;
-    const oppNew = opportunities.filter(o => o.createdAt >= weekAgo).length;
-    const closedDeals = projects.filter(p => !!p.closed_deal_date);
-    const tone = (i: number) => TILE_TONES[i];
-    // Four tiles (Figma's duplicate "Total Clients Opportunity" dropped by request) — 4 columns.
-    dashboardKpis = (
-      <div key="kpis" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile label="Active Projects" value={activeKpi.value} icon={<BriefcaseBusiness strokeWidth={1.5} />} href={activeKpi.href} badge={activeKpi.badge}
-          sub={useTrust ? 'Trust System projects' : `${overdueCount} overdue`}
-          spark={useTrust ? weeklyCounts(trustCards.map(c => c.createdAt)) : weeklyCounts(projects.map(p => p.created_at))} {...tone(0)} />
-        <StatTile label="Total Clients Opportunity" value={opportunities.length} icon={<UserRound strokeWidth={1.5} />}
-          badge={oppNew > 0 ? `+${oppNew} New` : undefined} sub="Key clients’ open deals"
-          spark={weeklyCounts(opportunities.map(o => o.createdAt))} {...tone(1)} />
-        <StatTile label="Deals Closed" value={closedDeals.length} icon={<CircleCheck strokeWidth={1.5} />} href="/projects"
-          sub="Projects with a closed deal date" spark={weeklyCounts(closedDeals.map(p => p.closed_deal_date))} {...tone(3)} />
-        {/* Figma "Total Payments" (818:31871): supplier payments, only for roles that may read vendor
-            cost (same SUPPLIER_READ_ROLES as /api/suppliers); everyone else keeps Pending Approvals. */}
-        {(SUPPLIER_READ_ROLES as readonly string[]).includes(userRole)
-          ? <PaymentsTile {...tone(4)} />
-          : <StatTile label="Pending Approvals" value={approvals.length} icon={<ClipboardPenLine strokeWidth={1.5} />} href="/approvals"
-              sub={isApprovalsAdmin ? 'Waiting for a decision' : 'Waiting for you'} {...tone(4)} />}
-      </div>
-    );
+    dashboardKpis = (SUPPLIER_READ_ROLES as readonly string[]).includes(userRole)
+      ? <PaymentsTile key="payments" compact {...TILE_TONES[4]} />
+      : <StatTile key="approvals" compact label="Pending Approvals" value={approvals.length} icon={<ClipboardPenLine strokeWidth={1.5} />} href="/approvals"
+          sub={isApprovalsAdmin ? 'Waiting for a decision' : 'Waiting for you'} {...TILE_TONES[4]} />;
   }
 
   return (
