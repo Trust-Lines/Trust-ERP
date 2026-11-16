@@ -2206,6 +2206,9 @@ Project architecture:
   components/platform/installation/{GanttTab,LifecycleGantt (renamed from GanttTab),InstallationClient,RegisterTab}.tsx,
   lib/installations/ganttData.ts.
 - Verified: tsc (only the pre-existing pdfjs-dist error), eslint clean, vitest 797 passed / 9 skipped.
+- Fidelity pass vs 651:31965: Overdue chip uses t10 status tones (651:32420); Tentative legend swatch is the
+  striped square with no outline (651:32080); week / month grid lines draw over the bars (651:32224).
+  Browser check not run (login).
 
 2026-11-16 (Figma 818:21465 — dark General Manager dashboard alignment) — no migration, no API change
 - Added a theme-specific Nationwide header token: solid #A42A2C in the light frame and the Figma

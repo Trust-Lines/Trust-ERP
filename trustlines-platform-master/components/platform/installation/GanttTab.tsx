@@ -81,6 +81,9 @@ export function GanttTab({ rows, today, clashes, projectByNo, search, dateRange,
   const last = months[months.length - 1];
   const end = `${last}-${String(daysIn(last)).padStart(2, '0')}`;
   const timelineW = months.length * MONTH_W;
+  // Empty space after the last month so a chip placed after a bar at the chart's end
+  // ("Not Started") can be scrolled fully into view.
+  const tailW = 160;
 
   /** x of the start of a day on the timeline, clamped to the chart. */
   const dayX = (iso: string) => {
@@ -95,7 +98,7 @@ export function GanttTab({ rows, today, clashes, projectByNo, search, dateRange,
     colorBy === 'branch' ? (r.branch ? BRANCH_COLOR[r.branch] : NO_COLOR) : (SCOPE_COLOR[(r.scope ?? '').toUpperCase()] ?? NO_COLOR);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 max-w-full flex-col gap-3">
       {/* Figma 651:32054 — search, colour toggle, legends | dates, sort, columns */}
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div className="flex flex-wrap items-center gap-2.5">
@@ -118,7 +121,8 @@ export function GanttTab({ rows, today, clashes, projectByNo, search, dateRange,
           </Legend>
           <Legend label="Bar markings">
             <span className="inline-flex items-center gap-2 text-[12px] font-medium leading-4 text-[var(--status-t0-fg)]">
-              <span className="size-4 rounded-[3px] border border-[var(--status-t0-fg)] bg-[repeating-linear-gradient(135deg,var(--status-t0-fg)_0_1.5px,transparent_1.5px_4px)]" aria-hidden />
+              {/* Figma 651:32080 "Subtract": a striped rounded square, no outline */}
+              <span className="size-4 rounded-[3px] bg-[repeating-linear-gradient(-36deg,var(--status-t0-fg)_0_2.2px,transparent_2.2px_4.6px)]" aria-hidden />
               Tentative
             </span>
             <span className="inline-flex items-center gap-2 text-[12px] font-medium leading-4 text-[var(--color-error-normal)]">
@@ -138,11 +142,13 @@ export function GanttTab({ rows, today, clashes, projectByNo, search, dateRange,
         </div>
       </div>
 
-      <div className="max-h-[calc(100dvh-280px)] overflow-auto rounded-[8px] border border-ui-divider bg-ui-page-bg">
-        <div style={{ width: leftW + timelineW }}>
+      {/* Layers: grid / today line 1, bar chips 2, sticky left columns 3, heading row 4, its left cell 5 —
+          so nothing on the timeline can paint over the project columns while scrolling. */}
+      <div className="max-h-[calc(100dvh-280px)] min-w-0 max-w-full overflow-auto overscroll-x-contain rounded-[8px] border border-ui-divider bg-ui-page-bg">
+        <div style={{ width: leftW + timelineW + tailW }}>
           {/* Figma 651:32116 / 651:32207 — column headings */}
-          <div className="sticky top-0 z-[3] flex h-[46px] border-b border-ui-divider bg-ui-surface">
-            <div className="sticky left-0 z-[4] flex border-r border-ui-divider bg-ui-surface" style={{ width: leftW }}>
+          <div className="sticky top-0 z-[4] flex h-[46px] border-b border-ui-divider bg-ui-surface">
+            <div className="sticky left-0 z-[5] flex shrink-0 border-r border-ui-divider bg-ui-surface" style={{ width: leftW }}>
               {cols.map((c, i) => (
                 <div key={c.key} className={cn('flex items-center pr-2 text-[12px] font-semibold leading-[1.4] text-ui-body', i === 0 ? 'pl-4' : c.key === 'branch' || c.key === 'team' ? 'pl-2' : 'pl-0')} style={{ width: c.w }}>
                   {c.label}
@@ -154,6 +160,7 @@ export function GanttTab({ rows, today, clashes, projectByNo, search, dateRange,
                 {monthHead(m)}
               </div>
             ))}
+            <div className="shrink-0" style={{ width: tailW }} aria-hidden />
           </div>
 
           {/* Figma 651:32129 / 651:32222 — one row per installation */}
@@ -168,10 +175,13 @@ export function GanttTab({ rows, today, clashes, projectByNo, search, dateRange,
             const no = projectNumber(r.project_no);
             const projectId = no ? projectByNo[no] : undefined;
             const members = headcount(r);
+            // Chip ≈ 8px padding + ~8.5px per character at 15px. A short install (1–2 days) still draws a bar
+            // wide enough to hold its chip with 10px each side — the chip always sits inside the bar.
+            const barW = Math.max(x1 - x0, 8 + chip.label.length * 8.5 + 20);
             const title = `${r.project_no ?? ''} ${r.project_name ?? ''}\n${s ? `${dayMonth(s)} - ${dayMonth(f!)}` : 'No dates'} · ${chip.label}${clashes.has(r.id) ? '\nDouble-booked' : ''}`;
             return (
               <div key={r.id} className="flex border-b border-ui-divider" style={{ height: ROW_H }}>
-                <div className="sticky left-0 z-[2] flex items-center border-r border-ui-divider bg-ui-page-bg" style={{ width: leftW }}>
+                <div className="sticky left-0 z-[3] flex shrink-0 items-center border-r border-ui-divider bg-ui-page-bg" style={{ width: leftW }}>
                   {cols.map(c => {
                     switch (c.key) {
                       case 'no': return (
@@ -190,9 +200,12 @@ export function GanttTab({ rows, today, clashes, projectByNo, search, dateRange,
                         </Cell>
                       );
                       case 'team': return (
-                        <Cell key={c.key} w={c.w} className="px-2" title={r.team ?? undefined}>
+                        <Cell key={c.key} w={c.w} className="pl-2 pr-4" title={r.team ?? undefined}>
+                          {/* Long team names end in "…" inside the chip (full name on hover), never cut mid-letter. */}
                           {r.team
-                            ? <span className={cn('inline-flex h-[30px] max-w-full items-center truncate rounded-[4px] bg-ui-input-bg pl-4 pr-2.5 text-[14px] font-medium leading-4', HEADING)}>{r.team}</span>
+                            ? <span className={cn('flex h-[30px] min-w-0 max-w-full items-center rounded-[4px] bg-ui-input-bg pl-4 pr-2.5 text-[14px] font-medium leading-4', HEADING)}>
+                                <span className="min-w-0 truncate">{r.team}</span>
+                              </span>
                             : <span className="text-ui-text-secondary">TBD</span>}
                         </Cell>
                       );
@@ -202,9 +215,9 @@ export function GanttTab({ rows, today, clashes, projectByNo, search, dateRange,
                   })}
                 </div>
 
-                <div className="relative shrink-0" style={{ width: timelineW }}>
-                  {/* month columns: dashed weeks, solid month end */}
-                  <div className="absolute inset-0 flex" aria-hidden>
+                <div className="relative shrink-0" style={{ width: timelineW + tailW }}>
+                  {/* month columns: dashed weeks, solid month end — drawn over the bar, as in Figma 651:32224 */}
+                  <div className="pointer-events-none absolute inset-0 z-[1] flex" aria-hidden>
                     {months.map(m => (
                       <div key={m} className="flex h-full shrink-0" style={{ width: MONTH_W }}>
                         {[0, 1, 2, 3].map(q => <div key={q} className={cn('h-full flex-1 border-r border-ui-divider', q < 3 && 'border-dashed')} />)}
@@ -213,15 +226,20 @@ export function GanttTab({ rows, today, clashes, projectByNo, search, dateRange,
                   </div>
                   {s && (
                     <div title={title}
-                      className={cn('absolute top-1/2 h-9 -translate-y-1/2 rounded-[4px]', red && 'border-[1.5px] border-[var(--color-error-normal)]')}
+                      className={cn('absolute top-1.5 flex h-9 items-center rounded-[4px]', red && 'border-[1.5px] border-[var(--color-error-normal)]')}
                       style={{
-                        left: x0, width: Math.max(x1 - x0, 24),
+                        left: x0, width: barW,
                         background: tentative
                           ? `repeating-linear-gradient(135deg, ${color} 0 6px, color-mix(in srgb, ${color} 45%, transparent) 6px 12px)`
                           : color,
                       }}>
-                      <span className={cn('absolute left-2.5 top-1/2 inline-flex h-[23px] -translate-y-1/2 items-center whitespace-nowrap rounded-[4px] px-1 text-[15px] font-medium leading-4',
-                        chip.red ? 'bg-[var(--color-error-normal)] text-white' : cn('bg-ui-surface-elevated', HEADING))}>
+                      <span className={cn('inline-flex h-[23px] shrink-0 items-center whitespace-nowrap rounded-[4px] px-1 text-[15px] font-medium leading-4',
+                        // Figma 651:32420: Overdue in the t10 status tones; others on the elevated surface.
+                        chip.red ? 'z-[2] bg-[var(--status-t10-bg)] text-[var(--status-t10-fg)]' : cn('z-[2] bg-ui-surface-elevated', HEADING),
+                        // Sticky to the bar's visible start (just right of the project columns), so a bar that
+                        // starts off-screen keeps its chip in view and inside the bar — never over the Team column.
+                        'sticky ml-2.5')}
+                        style={{ left: leftW + 10 }}>
                         {chip.label}
                       </span>
                     </div>
