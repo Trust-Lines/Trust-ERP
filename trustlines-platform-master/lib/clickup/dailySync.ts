@@ -263,7 +263,7 @@ async function syncDeals(admin: any, { write, actorId, report, campaignId }: { w
     if (!prospectId) {
       // A contact added in this same run (dry run) still counts as found.
       const addedNow = c.contactExternalRef && [...report.contacts.added, ...report.contacts.extraContacts].some(x => x.ref === c.contactExternalRef);
-      if (!(addedNow && !write)) { report.deals.skipped.push({ ...it, note: 'its ClickUp contact isn’t in the app', contactRef: c.contactExternalRef ?? null }); continue; }
+      if (!(addedNow && !write)) { report.deals.skipped.push({ ...it, note: c.contactExternalRef ? 'its ClickUp contact isn’t in the app' : 'no contact is set on it in ClickUp', contactRef: c.contactExternalRef ?? null }); continue; }
     }
 
     const bucket = c.outcome.kind === 'potential' ? report.deals.potentials : report.deals.opportunities;
