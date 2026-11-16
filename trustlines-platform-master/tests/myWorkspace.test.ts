@@ -107,10 +107,13 @@ describe('My Tasks — only my rows, with each module’s access rules', () => {
 describe('My Workspace in the sidebar', () => {
   const links = (role: string) => buildNavSections(role as UserRole, DEFAULT_PERMISSIONS[role] ?? {}).flatMap(s => s.items.map(i => i.href));
 
-  it('is the first group, for every role, before T-Lines PM', () => {
+  it('is the first group after the Dashboard icon, for every role, before T-Lines PM', () => {
     for (const role of Object.keys(DEFAULT_PERMISSIONS)) {
       const sections = buildNavSections(role as UserRole, DEFAULT_PERMISSIONS[role]);
-      expect(sections[0]?.key, role).toBe('my-workspace');
+      // 2026-11-16: the main dashboard has its own one-page rail icon above My Workspace.
+      const rest = sections[0]?.key === 'dashboard' ? sections.slice(1) : sections;
+      if (sections[0]?.key === 'dashboard') expect(sections[0].items.map(i => i.href), role).toEqual(['/dashboard']);
+      expect(rest[0]?.key, role).toBe('my-workspace');
       expect(pageAllowed(role, DEFAULT_PERMISSIONS[role], 'page.my_workspace'), role).toBe(true);
     }
     expect(links('tlines_pm')).toEqual(expect.arrayContaining([

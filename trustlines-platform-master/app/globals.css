@@ -314,8 +314,22 @@
   --stage-ready-solid: #216B2E;
   --stage-ready-fg: #216B2E;
   --stage-ready-bg: #CFF6D6;
-  --dash-hero-bg: radial-gradient(circle at 22% 54%, #4C5767 0%, #2B3D55 70%);
-  --dash-hero-fg: var(--color-secondary-100);
+  /* Greeting card — Figma "General Manager" (818:12493): accent orange, white text. */
+  --dash-hero-bg: #FF511A;
+  --dash-hero-fg: #FFFFFF;
+  /* Dashboard board stages — Figma "General Manager" (818:12353). fg = text / dashed border /
+     number badge, bg = stage bar + card tint. Dark mode swaps them (below). */
+  --board-opportunity-fg: #662866;   --board-opportunity-bg: #DFB8DF;
+  --board-finalization-fg: #322866;  --board-finalization-bg: #BFB8DF;
+  --board-technical-fg: #285166;     --board-technical-bg: #B8D2DF;
+  --board-to-production-fg: #3D6628; --board-to-production-bg: #C5DFB8;
+  --board-production-fg: #120B33;    --board-production-bg: #A299D0;
+  --board-shipped-fg: #330B33;       --board-shipped-bg: #D099D0;
+  --board-ready-fg: #0B2633;         --board-ready-bg: #99BED0;
+  --board-installation-fg: #0B331F;  --board-installation-bg: #99D0B5;
+  --board-completed-fg: #18330B;     --board-completed-bg: #ABD099;
+  --board-hold-bg: #EBEBEB;
+  --board-hold-fg: #2B2B2B;
 
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -573,8 +587,19 @@
   --stage-shipped-bg: #9B5435;
   --stage-ready-fg: #CFF6D6;
   --stage-ready-bg: #216B2E;
-  --dash-hero-bg: radial-gradient(circle at 22% 54%, #B7C2D1 0%, #CCD7E5 70%);
-  --dash-hero-fg: var(--color-secondary-700);
+  --dash-hero-bg: #FF511A;
+  --dash-hero-fg: #FFFFFF;
+  --board-opportunity-fg: #DFB8DF;   --board-opportunity-bg: #662866;
+  --board-finalization-fg: #BFB8DF;  --board-finalization-bg: #322866;
+  --board-technical-fg: #B8D2DF;     --board-technical-bg: #285166;
+  --board-to-production-fg: #C5DFB8; --board-to-production-bg: #3D6628;
+  --board-production-fg: #A299D0;    --board-production-bg: #120B33;
+  --board-shipped-fg: #D099D0;       --board-shipped-bg: #330B33;
+  --board-ready-fg: #99BED0;         --board-ready-bg: #0B2633;
+  --board-installation-fg: #99D0B5;  --board-installation-bg: #0B331F;
+  --board-completed-fg: #ABD099;     --board-completed-bg: #18330B;
+  --board-hold-bg: #3A3F47;
+  --board-hold-fg: #E6E8EC;
 
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

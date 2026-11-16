@@ -9,6 +9,7 @@ import {
   HardHat,
   LayoutDashboard,
   FolderKanban,
+  Columns3,
   CheckSquare,
   Factory,
   ClipboardCheck,
@@ -106,11 +107,18 @@ export const ROLE_LABELS: Record<string, string> = {
 // the branch board (was "Dashboard" at /dashboard), the PM workspace (was Supply → PM) and
 // meetings. "Dashboard" will come back as separate per-section dashboards.
 const TLINES_PM_NAV: NavItem[] = [
-  { label: 'Board',        href: '/tlines-pm', icon: LayoutDashboard, perm: 'page.dashboard' },
+  { label: 'Board',        href: '/tlines-pm', icon: Columns3,        perm: 'page.dashboard' },
   { label: 'PM Workspace', href: '/pm',        icon: ClipboardList,   perm: 'page.pm' },
   // The installation plan (was the "Installation_Planning" workbook).
   { label: 'Installation', href: '/tlines-pm/installation', icon: CalendarRange, perm: 'page.installation' },
   // "My meetings" moved to My Workspace → Calendar & Meetings (2026-11-11).
+];
+
+// 2026-11-16: the main dashboard gets its own rail icon (Figma "General Manager" 767:13745,
+// "layout-dashboard" as the first active destination). A one-page group, so the rail icon links
+// straight to /dashboard. Same page key as the board: /dashboard shows the same data.
+const DASHBOARD_NAV: NavItem[] = [
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, perm: 'page.dashboard', exact: true },
 ];
 
 // 2026-11-11: My Workspace — one person's own work, whatever their department: tasks assigned
@@ -302,6 +310,7 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
   const salesItems = allowed(salesNav);
   const showSales = salesItems.some(i => i !== CUSTOMERS_ITEM);
   const sections: NavSection[] = [
+    { key: 'dashboard', title: 'Dashboard', icon: LayoutDashboard, items: allowed(DASHBOARD_NAV) },
     { key: 'my-workspace', title: 'My Workspace', icon: UserRound, items: allowed(MY_WORKSPACE_NAV) },
     { key: 'tlines-pm', title: 'T-Lines PM', icon: HardHat, items: allowed(TLINES_PM_NAV) },
     { key: 'marketing', title: 'Marketing', icon: Megaphone, items: marketingNav },
@@ -354,10 +363,20 @@ export function Sidebar({
     .map(s => ({ key: s.key, len: activeHrefIn(s, pathname).length }))
     .filter(s => s.len > 0)
     .sort((a, b) => b.len - a.len)[0]?.key ?? null;
-  const shownKey = browsing ?? pageSectionKey ?? sections[0]?.key ?? null;
+  // A page outside every group falls back to the first real group, never to the Dashboard icon.
+  const firstGroupKey = sections.find(s => s.key !== 'dashboard')?.key ?? null;
+  const shownKey = browsing ?? pageSectionKey ?? firstGroupKey ?? sections[0]?.key ?? null;
   const shown = sections.find(s => s.key === shownKey);
   const shownActiveHref = shown && shown.key === pageSectionKey ? activeHrefIn(shown, pathname) : '';
   const canSettings = pageAllowed(userRole, userPerms, 'page.settings');
+  // The Dashboard rail icon opens the dashboard on its own: no secondary panel beside it.
+  const dashboardOnly = shown?.key === 'dashboard';
+  const panelOpen = !collapsed && !dashboardOnly;
+  function togglePanel() {
+    if (panelOpen) { setCollapsedPersisted(true); return; }
+    if (collapsed) setCollapsedPersisted(false);
+    if (dashboardOnly && firstGroupKey) setBrowsing(firstGroupKey);
+  }
 
   return (
     <aside
@@ -373,17 +392,17 @@ export function Sidebar({
       >
         <div className="flex w-full flex-col items-center gap-10">
           <RailTip
-            label={collapsed ? 'Open sidebar' : 'Close sidebar'}
+            label={panelOpen ? 'Close sidebar' : 'Open sidebar'}
             render={
               <button
                 type="button"
-                onClick={() => setCollapsedPersisted(!collapsed)}
-                aria-label={collapsed ? 'Open sidebar' : 'Close sidebar'}
+                onClick={togglePanel}
+                aria-label={panelOpen ? 'Close sidebar' : 'Open sidebar'}
                 className="grid h-6 w-6 cursor-pointer place-items-center rounded text-secondary-700 hover:text-primary-500 dark:text-primary-50 dark:hover:text-primary-200"
               />
             }
           >
-            {collapsed ? <PanelLeftOpen className={RAIL_ICON} strokeWidth={1.5} /> : <PanelLeftClose className={RAIL_ICON} strokeWidth={1.5} />}
+            {panelOpen ? <PanelLeftClose className={RAIL_ICON} strokeWidth={1.5} /> : <PanelLeftOpen className={RAIL_ICON} strokeWidth={1.5} />}
           </RailTip>
 
           <div className="flex w-full flex-col items-center gap-[30px]">
@@ -413,7 +432,14 @@ export function Sidebar({
                       type="button"
                       aria-label={s.title}
                       aria-pressed={active}
-                      onClick={() => { setBrowsing(s.key); if (collapsed) setCollapsedPersisted(false); }}
+                      // A group icon goes to the group's first page (unless you're already in that
+                      // group) and opens its panel — so leaving the Dashboard (which has no panel)
+                      // always lands somewhere. The active state flips at once via `browsing`.
+                      onClick={() => {
+                        setBrowsing(s.key);
+                        if (collapsed) setCollapsedPersisted(false);
+                        if (s.key !== pageSectionKey && s.items[0]) router.push(s.items[0].href);
+                      }}
                       // Hovering a group = intent to open one of its pages: warm their loading shells.
                       onMouseEnter={() => s.items.forEach(i => router.prefetch(i.href))}
                       className={`${cls} cursor-pointer`}
@@ -445,7 +471,7 @@ export function Sidebar({
       </nav>
 
       {/* ── Group panel ───────────────────────────────────────── */}
-      {!collapsed && (
+      {panelOpen && (
         <div className="flex h-full w-[232px] flex-col justify-between overflow-y-auto overflow-x-hidden border-r border-primary-100 bg-ui-page-bg px-4 pt-6 pb-5 scrollbar-none dark:border-primary-600">
           <div className="flex w-full flex-col gap-[52px]">
             <BrandLogo logoSrc={logoSrc} />

@@ -2180,6 +2180,40 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-11-16 (Figma 818:12353 — updated "General Manager" board) — no migration, no new API
+- Board restyle (both /dashboard and /tlines-pm, shared BranchBoard): stage block = dashed outline + tinted stage bar;
+  card = number badge beside the title, outlined people boxes, white date tile (MAY / 26 / 2026) or "On Hold" tile,
+  grey card when On Hold. New --board-* stage palette in globals.css (light + dark swap).
+- Two new stages: Installation and Completed, from the installation plan (installations table): In Progress / Delayed /
+  On Hold or started by planned_start → Installation; status Completed → Completed (newest 50 per column). Read only
+  when the viewer has page.installation; tlines_pm only their own project numbers. A delivered project whose install
+  is listed there leaves Ready For Installation.
+- Greeting card: Figma orange (--dash-hero-bg #FF511A, white text, 16px radius) + 4 chevron strokes
+  (public/figma/dashboard/greeting-line-1..4.svg, downloaded from Figma).
+- Changed: app/globals.css, components/platform/dashboard/BranchBoard.tsx, BranchBoardPage.tsx, TopSummaryRow.tsx.
+- Verified: eslint 0 errors, tsc only the pre-existing pdfjs-dist error, vitest 791 passed. Browser check not run (login).
+
+2026-11-16 (Figma 767:13745 "General Manager" → main /dashboard, frontend only) — no migration, no new API
+- /dashboard is now the main dashboard for every role that reaches the board (was: GM-only summary, others redirected
+  to /tlines-pm). Same data, visibility (RLS session, region scope, tlines_pm own projects, marketing → /marketing) and
+  the SAME /tlines-pm filters (Columns by, Stages/Accounts, Companies, Trust PM, T-Lines PM, Columns, date range).
+- Layout per Figma: "General / Dashboard" heading with From / To / preset + Create task; greeting + My Day/My Tasks;
+  filter bar; 5 KPI tiles (Active Projects, Total Clients Opportunity, In Production, Deals Closed, Pending Approvals —
+  real counts, 6-week sparklines from real dates); 4-branch board.
+- Sidebar: new standalone "Dashboard" rail icon (layout-dashboard, first) → /dashboard. T-Lines PM → "Board" kept
+  (icon now Columns3). On /dashboard the 232px group panel is hidden (rail only); the panel toggle there opens the first
+  real group. Pages outside every group fall back to that first real group, not to Dashboard.
+- Default landing: /, /home and login (via /home) already redirect to /dashboard — unchanged.
+- New: components/platform/dashboard/BranchBoardPage.tsx (the former /tlines-pm page body, shared, layout "board" |
+  "dashboard"); components/platform/dashboard/StatTile.tsx (Figma KPI tile + sparkline, moved out of WorkspaceDashboard).
+- Changed: app/(platform)/dashboard/page.tsx, app/(platform)/tlines-pm/page.tsx (thin wrappers), BranchBoard.tsx (layout
+  + kpis props, date state lifted), TopSummaryRow.tsx (DailyOverview export), WorkspaceDashboard.tsx (uses StatTile),
+  Sidebar.tsx, tests/myWorkspace.test.ts (Dashboard icon sits above My Workspace).
+- Not built: Figma "Total Payments" tile (no payment data source) — Pending Approvals in that slot. GeneralManagerDashboard.tsx
+  (2026-11-13) is no longer rendered; left in place.
+- Verified: eslint 0 errors on changed files; tsc only the pre-existing pdfjs-dist error; vitest 791 passed. Browser check
+  not run (needs a signed-in session).
+
 2026-11-13 (Figma: General Manager dashboard, frontend only) — no migration
 - Figma node 778:11311 "General Manager" → /dashboard for general_manager only (other roles still redirect to /tlines-pm).
 - New: components/platform/dashboard/GeneralManagerDashboard.tsx (header, Daily overview hero, My Tasks from pending

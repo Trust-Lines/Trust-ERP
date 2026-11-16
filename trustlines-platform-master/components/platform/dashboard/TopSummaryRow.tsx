@@ -36,21 +36,35 @@ function greeting(now: Date): string {
   return h < 12 ? 'Good Morning,' : h < 18 ? 'Good Afternoon,' : 'Good Evening,';
 }
 
+// Figma "My Day" hero (818:12493): four faint chevron strokes on the right (818:12513–12516),
+// placed from the card's right edge so they stay put as the card width changes.
+const HERO_LINES = [{ right: 65, top: -65 }, { right: 20, top: -50 }, { right: -25, top: -36 }, { right: -70, top: -22 }];
+
 function GreetingCard({ fullName, role }: { fullName: string; role: string }) {
   const now = new Date();
   return (
     <div
-      className="flex min-h-[268px] flex-col justify-between rounded-[10px] border border-ui-divider p-5"
+      className="relative flex min-h-[266px] flex-col justify-between overflow-hidden rounded-[16px] p-5"
       style={{ background: 'var(--dash-hero-bg)', color: 'var(--dash-hero-fg)' }}
     >
-      <div className="flex flex-col gap-2.5">
-        <p suppressHydrationWarning className="m-0 text-[24px] font-semibold leading-[1.35]">{greeting(now)}</p>
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        {HERO_LINES.map((p, i) => (
+          <div key={i} className="absolute flex h-[349px] w-[199px] items-center justify-center" style={{ right: p.right, top: p.top }}>
+            <div className="flex-none rotate-[17.91deg] skew-x-[2.89deg]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/figma/dashboard/greeting-line-${i + 1}.svg`} alt="" width={126} height={326} className="block max-w-none" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="relative flex flex-col gap-2.5">
+        <p suppressHydrationWarning className="m-0 text-[24px] font-medium leading-[1.35]">{greeting(now)}</p>
         <div>
           <p className="m-0 truncate text-[36px] font-semibold leading-normal">{fullName}</p>
           <p className="m-0 text-[16px] font-medium leading-[1.35]">{roleLabel(role)}</p>
         </div>
       </div>
-      <div className="flex items-center gap-2.5">
+      <div className="relative flex items-center gap-2.5">
         <CalendarDays size={51} strokeWidth={1.25} aria-hidden className="shrink-0" />
         <div suppressHydrationWarning>
           <p suppressHydrationWarning className="m-0 text-[16px] font-medium leading-[1.35]">{now.toLocaleDateString('en-GB', { weekday: 'long' })}</p>
@@ -78,6 +92,17 @@ function Kpi({ item }: { item: KpiItem }) {
         </span>
       </span>
     </Link>
+  );
+}
+
+/** Figma "General Manager" Daily overview (767:14630): greeting hero + My Day / My Tasks only —
+ *  the dashboard layout puts its KPI tiles under the board's filter bar instead. */
+export function DailyOverview({ fullName, role }: { fullName: string; role: string }) {
+  return (
+    <div className="mb-[30px] grid grid-cols-1 gap-[22px] xl:grid-cols-[minmax(0,527fr)_minmax(0,1011fr)]">
+      <GreetingCard fullName={fullName} role={role} />
+      <MyDayCard className="h-[268px]" />
+    </div>
   );
 }
 
