@@ -186,7 +186,9 @@ export function ClickUpReviewClient() {
                       <td className={cn(TD, 'font-semibold text-ui-heading')}>{s.name}</td>
                       <td className={TD}>{REGION[s.region] ?? s.region}</td>
                       <td className={TD}>
-                        {waitsFor ? <>Waits for <strong>{waitsFor}</strong>{decided ? ' — decided, comes in tonight' : ' (decide above)'}</> : s.note ?? '—'}
+                        {waitsFor ? <>Waits for <strong>{waitsFor}</strong>{decided ? ' — decided, comes in tonight' : ' (decide above)'}</>
+                          : !s.contactRef ? <>No contact is chosen on it <strong>in ClickUp</strong> — choose one there and it comes in on the next run.</>
+                          : s.note ?? '—'}
                       </td>
                     </tr>
                   );
