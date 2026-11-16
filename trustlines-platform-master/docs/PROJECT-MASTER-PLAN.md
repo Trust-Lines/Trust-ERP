@@ -2219,6 +2219,24 @@ Project architecture:
   Changed: BranchBoard.tsx. Verified: eslint clean; tsc only the pre-existing pdfjs-dist error. Browser check not run (login).
   Changed: BranchBoard.tsx + 3 SVGs. Verified: eslint clean; tsc only the pre-existing pdfjs-dist error. Browser check not run (login).
 
+2026-11-16 (Figma 784:18261 — Installation Plan Gantt as project lifecycle) — no migration, no new API
+- Gantt tab redrawn: left list Project # (stage-coloured chip, links to the project) / Project/Store / Region chip
+  (NE SE NW W in the branch header colours) / Start - Finish / Assigned to (PM, else team) / Status (current stage + icon);
+  each row tinted in its current stage colour (--board-* tokens, dark mode swaps). The timeline draws the project's life as
+  dated stages with a dark stage chip at each start (icon only when narrow); months widen to cover every drawn stage.
+- Real dates only (decided with the user): Opportunity (opportunity created → projects.closed_deal_date), Production in
+  Progress (first production_items.std), Ready to Receive (RTR), Ready (RDY, else RTD), Shipped (last container date,
+  else FTD/SND) → Installation (planned start → finish) → Completed (status Completed). Design-phase stages (Queued,
+  Initial Design, Modification, Negotiation, Finalization, Technical, To Order, Assembly) have no stored dates — not drawn
+  until a stage-history log exists. Installation stage keeps branch/company fill, tentative stripes, red overdue/clash outline.
+- New lib/installations/lifecycle.ts (pure) + tests/installationLifecycle.test.ts. The installation page now also reads,
+  read-only and bounded to the plan's projects: projects.closed_deal_date, production_items milestone dates, opportunities
+  created_at (dates only — no PF codes, vendors or money). Page already requires page.installation.
+- Changed: app/(platform)/tlines-pm/installation/page.tsx, components/platform/installation/{GanttTab,InstallationClient}.tsx.
+- Verified: vitest (lifecycle + installations) pass; eslint clean; tsc only the pre-existing pdfjs-dist error.
+  Browser check not run (login).
+- Follow-up: a stage-change log (migration) so the design-phase stages get real dates.
+
 2026-11-16 (sidebar: Dashboard icon always navigates) — no migration, no new API
 - Dashboard rail icon (single-page group) now pushes /dashboard itself on click and clears the rail preview (`browsing`),
   so returning from another section (e.g. My Workspace) to the Dashboard always works.
