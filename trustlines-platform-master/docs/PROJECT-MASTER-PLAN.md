@@ -1321,6 +1321,9 @@ Eksik küçük detaylarda mevcut mimariye ve bu dosyaya uygun en güvenli karar 
 
 ```text
 Project architecture:
+- Gantt (2026-11-16): the lifecycle Gantt (every stage of a plan project) is on /dashboard → "View as Gantt chart"
+  (page.installation roles only). /tlines-pm/installation's Gantt tab is the simpler installation-only chart (Figma
+  651:31965). T-Lines PM Gantt rework is a later task.
 - Mobile app (T-ERP) slice 2 (2026-11-09): every mobile-design module now has screens on real APIs — HR (leave /
   punch-correction requests, manager approvals, team status, shift plans, monthly timesheet, work site), projects
   (items, docs, notes / site report, punch, CRs, delivery plan + customer acceptance, contacts), product card (status,
@@ -1608,6 +1611,8 @@ Project architecture:
 > Claude `devam et` komutunda ilk tamamlanmamış görevden başlamalıdır.
 
 ```text
+[x] Lifecycle Gantt moved to /dashboard ("View as Gantt chart"); Installation Gantt tab rebuilt from Figma 651:31965. (2026-11-16)
+[ ] T-Lines PM Gantt rework (design pending from the user).
 [x] Requests redesign polish: 32px/600 heading, 13px/600 breadcrumb label, and T4 Design chip styling. (2026-10-19)
 [x] 1. Audit all current uses of clients and client_companies.  (DONE — AUDIT_PHASE0_CLIENTS.md)
 [x] 2. Produce a safe rename / compatibility map.               (DONE — AUDIT_PHASE0_CLIENTS.md §3–4)
@@ -2180,6 +2185,31 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-11-16 (Lifecycle Gantt → /dashboard; Installation Gantt tab from Figma 651:31965) — no migration, no new API
+- /dashboard: new "View as Gantt chart" toggle in the board's filter bar (in place, URL ?gantt=1; "View as board"
+  goes back). It shows the lifecycle Gantt that was the Installation Plan's Gantt tab (Figma 784:18261, now
+  components/platform/installation/LifecycleGantt.tsx) for the installation plan's rows. Offered only to roles with
+  page.installation (same switch as /tlines-pm/installation); rows limited to the viewer's branches. Follows the board's
+  Branches pick and date range; card-only filters hide while it shows. Its data (installations, install_teams, stage
+  dates) is read on the server only while the Gantt is open — the board render pays nothing. Loading rows while
+  switching, empty state, error state (plan table missing / unreadable).
+- Stage-date loading moved out of the installation page into lib/installations/ganttData.ts (loadGanttStageData,
+  projectIdByNumber); items / opportunities now grouped once in memory (was a filter per project). The dashboard
+  reuses the Trust System projects it already read.
+- /tlines-pm/installation → Gantt Chart rebuilt from Figma 651:31965: search, Color by Branch / Company + legends,
+  From / To, sort (Newest…), Columns menu; left Project # / Project/Store / Branch chip / Assigned Team / Members
+  (team head count) / Start - Finish; one bar per installation (planned start → finish) in branch / company colour with
+  a status chip (Overdue in red), tentative striped, overdue / double-booked outlined, today line. The register's
+  branch / PM / company / status filters don't apply on this tab. Installation page no longer loads stage dates.
+- Changed: app/(platform)/dashboard/page.tsx, app/(platform)/tlines-pm/installation/page.tsx,
+  components/platform/dashboard/{BranchBoard,BranchBoardPage,DashboardGantt}.tsx,
+  components/platform/installation/{GanttTab,LifecycleGantt (renamed from GanttTab),InstallationClient,RegisterTab}.tsx,
+  lib/installations/ganttData.ts.
+- Verified: tsc (only the pre-existing pdfjs-dist error), eslint clean, vitest 797 passed / 9 skipped.
+- Fidelity pass vs 651:31965: Overdue chip uses t10 status tones (651:32420); Tentative legend swatch is the
+  striped square with no outline (651:32080); week / month grid lines draw over the bars (651:32224).
+  Browser check not run (login).
+
 2026-11-16 (Figma 818:21465 — dark General Manager dashboard alignment) — no migration, no API change
 - Added a theme-specific Nationwide header token: solid #A42A2C in the light frame and the Figma
   rgba(164, 42, 44, 0.84) treatment in the dark frame.

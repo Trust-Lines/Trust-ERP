@@ -3,7 +3,9 @@
 import { MultiFilter } from '@/components/platform/production/MultiFilter';
 import * as React from 'react';
 import Link from 'next/link';
-import { BriefcaseBusiness, CalendarDays, ChevronDown, ChevronRight, CircleCheck, Factory, MapPinOff, Pause, Plus, UserRound, Wrench } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { DashboardGantt, type DashboardGanttData } from './DashboardGantt';
+import { BriefcaseBusiness, CalendarDays, ChartGantt, Columns3, ChevronDown, ChevronRight, CircleCheck, Factory, MapPinOff, Pause, Plus, UserRound, Wrench } from 'lucide-react';
 import { StatTile } from './StatTile';
 import { Avatar } from '@/components/ui/avatar';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -331,6 +333,34 @@ function ViewToggle({ view, onView }: { view: BoardView; onView: (v: BoardView) 
   );
 }
 
+/** /dashboard Gantt view: on for people who may open the installation plan (page.installation). */
+export interface BoardGantt {
+  /** The Gantt is showing (URL ?gantt=1). */
+  active: boolean;
+  /** Where the toggle goes: the Gantt view when off, the board when on. */
+  href: string;
+  /** Loaded by the server only while the Gantt is showing. */
+  data: DashboardGanttData | null;
+}
+
+// "View as Gantt chart" — swaps the branch board for the lifecycle Gantt in place. The data is
+// read on the server only while the Gantt shows, so the toggle is a navigation (?gantt=1); the
+// button shows it is working and the chart area its loading rows until the server answers.
+function GanttToggle({ gantt, pending, onGo }: { gantt: BoardGantt; pending: boolean; onGo: () => void }) {
+  const Icon = gantt.active ? Columns3 : ChartGantt;
+  return (
+    <button
+      type="button" onClick={onGo} aria-pressed={gantt.active} aria-busy={pending} disabled={pending}
+      className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-[6px] border px-3 text-[13px] font-semibold leading-[1.4] transition-colors disabled:cursor-wait disabled:opacity-70 ${gantt.active
+        ? 'border-transparent bg-[var(--ui-btn-solid)] text-[var(--ui-btn-solid-fg)]'
+        : 'border-[var(--ui-input-border)] bg-ui-input-bg text-[var(--color-secondary-700)] hover:bg-ui-hover-bg dark:text-ui-heading'}`}
+    >
+      <Icon size={16} aria-hidden />
+      {gantt.active ? 'View as board' : 'View as Gantt chart'}
+    </button>
+  );
+}
+
 // Columns by region (the branch logos) or by T-Lines PM: one column per PM with the cards they
 // look after in every region, the PM's name in the header. Remembered per browser.
 // 'pms' = by T-Lines PM, 'trust_pms' = by Trust Lines PM (the card's Trust PM).
@@ -641,8 +671,10 @@ const COUNT_TILES: { label: string; keys: string[]; icon: React.ReactNode; color
   { label: 'Completed', keys: ['completed'], icon: <CircleCheck strokeWidth={1.5} />, color: 'var(--color-success-normal)', onColor: 'var(--color-success-light)' },
 ];
 
-function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates, datesInBar, kpis, counts = false, pageScroll = false }: {
+function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates, datesInBar, kpis, counts = false, pageScroll = false, gantt }: {
   columns: BoardColumn[]; onOpen: OpenCard;
+  /** Dashboard: the "View as Gantt chart" toggle (absent = not offered). */
+  gantt?: BoardGantt;
   /** Offer the "Accounts" view. */
   accounts: boolean;
   /** Offer columns by T-Lines PM instead of region. */
@@ -695,7 +727,15 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
     setColumnsBy(v);
     try { localStorage.setItem(COLUMNS_BY_KEY, v); } catch { /* storage blocked */ }
   };
-  const byPmNow = offerPm && columnsBy !== 'regions';
+  // Gantt view: rows are installation-plan projects, so only the Branches pick and the date range
+  // apply; the card filters (company, clients/leads, PMs, columns by PM) are hidden meanwhile.
+  const router = useRouter();
+  const [ganttPending, startGantt] = React.useTransition();
+  const showGantt = !!gantt?.active;
+  // Optimistic: the chart area shows its loading rows while the server reads the Gantt data.
+  const openingGantt = ganttPending && !showGantt;
+  const goGantt = () => { if (gantt) startGantt(() => router.push(gantt.href, { scroll: false })); };
+  const byPmNow = offerPm && columnsBy !== 'regions' && !showGantt;
   const columns = React.useMemo(() => {
     if (!byPmNow) return regionColumns;
     const names = new Map(people.map(p => [p.value, p.label]));
@@ -797,7 +837,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           {datesInBar && <DateFilters {...dates} />}
-          {collapseAll && (
+          {collapseAll && !showGantt && (
             <button type="button" onClick={collapseAll.run}
               className="h-9 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] font-medium text-ui-body hover:text-ui-heading">
               {collapseAll.label}
@@ -806,6 +846,15 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
         </div>
       </div>
       {/* Figma 818:31780: 16 px between filter bar, KPI row and columns (gap-2 + my-2). */}
+      {(showGantt || openingGantt) ? (
+        <div className="mt-2">
+          <DashboardGantt
+            data={openingGantt ? null : gantt?.data ?? null}
+            branches={regionColumns.filter(c => picked.has(c.regionCode)).map(c => c.logoCode).filter(Boolean)}
+            from={dateFrom} to={dateTo}
+          />
+        </div>
+      ) : (<>
       {(counts || kpis) && (
         <div className="my-2 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
           {counts && COUNT_TILES.map(t => {
@@ -830,6 +879,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
           />
         ))}
       </div>
+      </>)}
     </div>
   );
 }
@@ -915,7 +965,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
         />
         </>
       ) : (
-        <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} dates={dates} datesInBar={!isDashboard} kpis={kpis} counts={isDashboard} pageScroll={isDashboard} />
+        <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} dates={dates} datesInBar={!isDashboard} kpis={kpis} counts={isDashboard} pageScroll={isDashboard} gantt={gantt} />
       )}
       {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} companyEdit={companyEdit} onClose={() => setOpen(null)} />}
     </AssignContext.Provider>

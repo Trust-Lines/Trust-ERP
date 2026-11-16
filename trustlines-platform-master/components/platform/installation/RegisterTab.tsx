@@ -61,7 +61,7 @@ type Props = {
   hidden: Set<RegisterColumn>;
 };
 
-const sorters: Record<RegisterSort, (a: Installation, b: Installation) => number> = {
+export const sorters: Record<RegisterSort, (a: Installation, b: Installation) => number> = {
   newest: (a, b) => b.sort_order - a.sort_order,
   oldest: (a, b) => a.sort_order - b.sort_order,
   start: (a, b) => (a.planned_start ?? '9999').localeCompare(b.planned_start ?? '9999') || a.sort_order - b.sort_order,
@@ -335,14 +335,18 @@ function TeamCell({ row, teams, readOnly, onPick }: {
 }
 
 // ── toolbar pieces (rendered by InstallationClient beside the filters) ───────────────────────
-export function ColumnsMenu({ hidden, onToggle, onSetAll }: {
-  hidden: Set<RegisterColumn>; onToggle: (k: RegisterColumn) => void;
+type MenuColumn<K extends string> = { readonly key: K; readonly label: string; readonly locked?: boolean };
+
+/** Show / hide columns. Defaults to the register's columns; the Gantt passes its own list. */
+export function ColumnsMenu<K extends string = RegisterColumn>({ hidden, onToggle, onSetAll, columns = REGISTER_COLUMNS as unknown as readonly MenuColumn<K>[] }: {
+  hidden: Set<K>; onToggle: (k: K) => void;
   /** true = show every column, false = hide every column that can be hidden. */
   onSetAll: (show: boolean) => void;
+  columns?: readonly MenuColumn<K>[];
 }) {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
-  const toggleable = REGISTER_COLUMNS.filter(c => !('locked' in c));
+  const toggleable = columns.filter(c => !c.locked);
   const shown = toggleable.filter(c => !hidden.has(c.key)).length;
   const all = shown === toggleable.length;
   React.useEffect(() => {
@@ -367,9 +371,9 @@ export function ColumnsMenu({ hidden, onToggle, onSetAll }: {
             Select all
           </label>
           <div className="my-1 h-px shrink-0 bg-ui-divider" aria-hidden />
-          {REGISTER_COLUMNS.map(c => (
-            <label key={c.key} className={cn('flex h-8 items-center gap-2 rounded-[4px] px-2 text-[13px] text-ui-body hover:bg-ui-hover-bg', 'locked' in c ? 'cursor-default opacity-60' : 'cursor-pointer')}>
-              <Checkbox checked={!hidden.has(c.key)} onCheckedChange={() => onToggle(c.key)} disabled={'locked' in c} />
+          {columns.map(c => (
+            <label key={c.key} className={cn('flex h-8 items-center gap-2 rounded-[4px] px-2 text-[13px] text-ui-body hover:bg-ui-hover-bg', c.locked ? 'cursor-default opacity-60' : 'cursor-pointer')}>
+              <Checkbox checked={!hidden.has(c.key)} onCheckedChange={() => onToggle(c.key)} disabled={!!c.locked} />
               {c.label}
             </label>
           ))}

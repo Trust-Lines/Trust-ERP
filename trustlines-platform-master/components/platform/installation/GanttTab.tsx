@@ -2,181 +2,155 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import {
-  ArrowUpFromDot, Award, CircleCheck, ClipboardCheck, Cog, DraftingCompass, Hammer, Loader, MessagesSquare, Ship,
-  UsersRound, type LucideIcon,
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
-  BRANCHES, addDays, alertOf, type Branch, type Clash, type Installation,
+  BRANCHES, addDays, alertOf, headcount, isClosed, monthsBetween, suggestedStatus,
+  type Branch, type Clash, type Installation,
 } from '@/lib/installations/compute';
-import {
-  LIFE_STAGE, UNDATED_STAGE, currentStage, lifecycleSegments,
-  type LifeSegment, type LifeStage, type ProjectMilestones, type UndatedStage,
-} from '@/lib/installations/lifecycle';
 import { projectNumber } from '@/lib/keyClients/match';
-import { HEADING, SCOPE_COLOR } from './shared';
+import { BRANCH_COLOR, HEADING, SCOPE_COLOR } from './shared';
+import { ColumnsMenu } from './RegisterTab';
 
-// Figma 784:18261 — Gantt chart: a project list on the left (number chip, store, region, dates,
-// assignee, current stage) tinted in the project's current stage colour, and on the right one
-// 300px column per month (dashed lines split it into weeks) with the project's life drawn as dated
-// stages — a dark chip at the start of each stage. Only stages with real dates are drawn
-// (lib/installations/lifecycle). Overdue / double-booked installs are outlined red, tentative
-// ones striped, and an accent line marks today.
+// Figma 651:31965 — Installation Plan → Gantt Chart: the plan's installations only (the whole
+// project life is on /dashboard → "View as Gantt chart"). Left: Project #, Project/Store, Branch,
+// Assigned Team, Members, Start - Finish. Right: one 300px column per month split into weeks by
+// dashed lines, one bar per installation (planned start → finish) in its branch / company colour
+// with its status chip at the start. Tentative = striped, overdue / double-booked = red outline,
+// the accent line is today.
 const MONTH_W = 300;
 const ROW_H = 49;
 type ColorBy = 'branch' | 'scope';
 
-// Legend colours from the design (lighter than the fills so the text stays readable).
+// Legend colours from the design (lighter than the bar fills so the text stays readable).
 const LEGEND_COLOR: Record<Branch, string> = { NE: '#4A7599', SE: '#607D39', NW: '#2C64BE', CVW: '#A98B81' };
-// Region chips — same colours as the dashboard's branch headers (Figma 818:31889 …).
-const REGION: Record<Branch, { color: string; label: string }> = {
-  NE: { color: '#5E758E', label: 'NE' },
-  SE: { color: '#68715B', label: 'SE' },
-  NW: { color: 'rgba(164,42,44,0.84)', label: 'NW' },
-  CVW: { color: '#624D46', label: 'W' },
-};
-const STAGE_ICON: Record<LifeStage, LucideIcon> = {
-  opportunity: Award, production: Loader, ready_to_receive: ClipboardCheck, ready: ClipboardCheck,
-  shipped: Ship, installation: Hammer, completed: CircleCheck,
-};
+const NO_COLOR = '#5E6F87';
 
-const LEFT = [
-  { key: 'no', label: 'Project #', w: 129 },
-  { key: 'name', label: 'Project/Store', w: 155 },
-  { key: 'region', label: 'Region', w: 90 },
-  { key: 'dates', label: 'Start - Finish', w: 154 },
-  { key: 'assignee', label: 'Assigned to', w: 147 },
-  { key: 'status', label: 'Status', w: 130 },
+export const GANTT_COLUMNS = [
+  { key: 'no', label: 'Project #', w: 129, locked: true },
+  { key: 'name', label: 'Project/Store', w: 157, locked: true },
+  { key: 'branch', label: 'Branch', w: 88 },
+  { key: 'team', label: 'Assigned Team', w: 285 },
+  { key: 'members', label: 'Members', w: 123 },
+  { key: 'dates', label: 'Start - Finish', w: 142 },
 ] as const;
-const LEFT_W = LEFT.reduce((n, c) => n + c.w, 0);
-// Figma 818:11574: store, dates and assignee text start at the cell edge (right padding only).
-const FLUSH = new Set<string>(['name', 'dates', 'assignee']);
+export type GanttColumn = (typeof GANTT_COLUMNS)[number]['key'];
 
-const fg = (s: LifeStage) => `var(--board-${LIFE_STAGE[s].tone}-fg)`;
-const bg = (s: LifeStage) => `var(--board-${LIFE_STAGE[s].tone}-bg)`;
-
-const UNDATED_ICON: Record<UndatedStage, LucideIcon> = {
-  queued: Loader, initial_meeting: UsersRound, initial_design: DraftingCompass, proposal: DraftingCompass,
-  negotiation: MessagesSquare, finalization: DraftingCompass, technical: Cog, to_production: ArrowUpFromDot,
-};
-interface RowStatus { label: string; fg: string; bg: string; Icon: LucideIcon }
-/**
- * The row's status (Figma 811:12864): the dated stage, unless the project is still before
- * production — then the undated stage it is in (sales stage / Trust board) is more precise.
- */
-function rowStatus(dated: LifeStage | null, undated: UndatedStage | null): RowStatus | null {
-  if (undated && (!dated || dated === 'opportunity')) {
-    const t = UNDATED_STAGE[undated].tone;
-    return { label: UNDATED_STAGE[undated].label, fg: `var(--${t}-fg)`, bg: `var(--${t}-bg)`, Icon: UNDATED_ICON[undated] };
-  }
-  return dated ? { label: LIFE_STAGE[dated].label, fg: fg(dated), bg: bg(dated), Icon: STAGE_ICON[dated] } : null;
-}
-
-const daysIn = (key: string) => new Date(Date.UTC(+key.slice(0, 4), +key.slice(5, 7), 0)).getUTCDate();
 const monthHead = (key: string) =>
   new Date(Date.UTC(+key.slice(0, 4), +key.slice(5, 7) - 1, 1))
     .toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' }).toUpperCase();
 /** "10 AUG" */
 const dayMonth = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).toUpperCase();
-/** Every yyyy-mm from `a` to `b` (inclusive). */
-function monthsBetween(a: string, b: string): string[] {
-  const out: string[] = [];
-  let y = +a.slice(0, 4), m = +a.slice(5, 7);
-  const ey = +b.slice(0, 4), em = +b.slice(5, 7);
-  while (y < ey || (y === ey && m <= em)) {
-    out.push(`${y}-${String(m).padStart(2, '0')}`);
-    m += 1; if (m > 12) { m = 1; y += 1; }
-  }
-  return out;
-}
-/** Width a full chip needs (icon + label at 12px); narrower stages show the icon only. */
-const chipWidth = (label: string) => 34 + label.length * 6.4;
+const daysIn = (key: string) => new Date(Date.UTC(+key.slice(0, 4), +key.slice(5, 7), 0)).getUTCDate();
 
-export function GanttTab({ rows, months: planMonths, today, clashes, projectByNo, milestonesByNo, undatedByNo = {} }: {
-  rows: Installation[]; months: string[]; today: string; clashes: Map<string, Clash[]>; projectByNo: Record<string, string>;
-  milestonesByNo: Record<string, ProjectMilestones>;
-  undatedByNo?: Record<string, UndatedStage>;
+/** The bar's chip: the plan's status, "Overdue" when the finish date has passed. */
+function chipOf(r: Installation, today: string): { label: string; red: boolean } {
+  if (!isClosed(r) && !!alertOf(r, today)?.text.startsWith('Overdue')) return { label: 'Overdue', red: true };
+  const s = r.status ?? suggestedStatus(r, today);
+  return { label: s ?? 'No status', red: s === 'Delayed' };
+}
+
+export function GanttTab({ rows, today, clashes, projectByNo, search, dateRange, sortControl, hidden, onToggleCol, onSetAllCols }: {
+  /** Already filtered (search / dates) and sorted by the page. */
+  rows: Installation[];
+  today: string;
+  clashes: Map<string, Clash[]>;
+  projectByNo: Record<string, string>;
+  /** The page's own toolbar controls, placed where the design puts them. */
+  search: React.ReactNode;
+  dateRange: React.ReactNode;
+  sortControl: React.ReactNode;
+  hidden: Set<GanttColumn>;
+  onToggleCol: (k: GanttColumn) => void;
+  onSetAllCols: (show: boolean) => void;
 }) {
   const [colorBy, setColorBy] = React.useState<ColorBy>('branch');
+  const cols = GANTT_COLUMNS.filter(c => !hidden.has(c.key));
+  const leftW = cols.reduce((n, c) => n + c.w, 0);
 
-  const lives = React.useMemo(() => rows.map(r => {
-    const no = projectNumber(r.project_no);
-    const segments = lifecycleSegments(no ? milestonesByNo[no] ?? null : null, r, today);
-    return { row: r, segments, status: rowStatus(currentStage(segments, today), no ? undatedByNo[no] ?? null : null) };
-  }), [rows, milestonesByNo, undatedByNo, today]);
-
-  // The plan's months, widened to every drawn stage (production often starts months earlier).
+  // Months: every month a shown bar touches (always including today's), at least six wide.
   const months = React.useMemo(() => {
-    const ds = lives.flatMap(l => l.segments.flatMap(s => [s.start, s.end]));
-    const lo = [planMonths[0] ? `${planMonths[0]}-01` : null, ...ds].filter((x): x is string => !!x).sort()[0];
-    const hi = [planMonths.at(-1) ? `${planMonths.at(-1)}-01` : null, ...ds].filter((x): x is string => !!x).sort().at(-1);
-    return lo && hi ? monthsBetween(lo, hi) : planMonths;
-  }, [lives, planMonths]);
-
-  const first = months[0];
+    const ds = rows.flatMap(r => [r.planned_start, r.planned_finish]).filter((d): d is string => !!d).sort();
+    const lo = [ds[0], today].filter(Boolean).sort()[0]!;
+    let hi = [ds.at(-1), today].filter((d): d is string => !!d).sort().at(-1)!;
+    const min = addDays(`${lo.slice(0, 7)}-01`, 31 * 5);
+    if (hi < min) hi = min;
+    return monthsBetween(lo.slice(0, 7), hi.slice(0, 7));
+  }, [rows, today]);
+  const start = `${months[0]}-01`;
   const last = months[months.length - 1];
-  const start = first ? `${first}-01` : today;
-  const end = last ? `${last}-${String(daysIn(last)).padStart(2, '0')}` : today;
+  const end = `${last}-${String(daysIn(last)).padStart(2, '0')}`;
   const timelineW = months.length * MONTH_W;
+  // Empty space after the last month so a chip placed after a bar at the chart's end
+  // ("Not Started") can be scrolled fully into view.
+  const tailW = 160;
 
-  /** x of the start of a day (yyyy-mm-dd) on the timeline, clamped to the chart. */
+  /** x of the start of a day on the timeline, clamped to the chart. */
   const dayX = (iso: string) => {
     if (iso < start) return 0;
     if (iso > end) return timelineW;
     const key = iso.slice(0, 7);
     const i = months.indexOf(key);
-    if (i < 0) return iso < start ? 0 : timelineW;
     return i * MONTH_W + ((+iso.slice(8, 10) - 1) / daysIn(key)) * MONTH_W;
   };
   const todayX = today >= start && today <= end ? dayX(today) : null;
-  const installColor = (r: Installation) =>
-    colorBy === 'branch' ? (r.branch ? LEGEND_COLOR[r.branch] : '#8A94A3') : (SCOPE_COLOR[(r.scope ?? '').toUpperCase()] ?? '#8A94A3');
+  const colorOf = (r: Installation) =>
+    colorBy === 'branch' ? (r.branch ? BRANCH_COLOR[r.branch] : NO_COLOR) : (SCOPE_COLOR[(r.scope ?? '').toUpperCase()] ?? NO_COLOR);
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Figma 784:18355 — colour toggle + legends */}
-      <div className="flex flex-wrap items-center gap-2.5">
-        <div className="flex items-center gap-2.5" role="group" aria-label="Colour installation bars by">
-          {(['branch', 'scope'] as ColorBy[]).map(c => (
-            <button key={c} type="button" onClick={() => setColorBy(c)} aria-pressed={colorBy === c}
-              className={cn('inline-flex h-9 cursor-pointer items-center rounded-[6px] border px-3 text-[13px] font-semibold leading-[1.4]',
-                colorBy === c
-                  ? 'border-transparent bg-[var(--color-secondary-700)] text-white dark:bg-primary-50 dark:text-primary-950'
-                  : 'border-ui-body bg-ui-page-bg text-ui-body hover:text-ui-heading')}>
-              {c === 'branch' ? 'Color by Branch' : 'Color by Company'}
-            </button>
-          ))}
+    <div className="flex min-w-0 max-w-full flex-col gap-3">
+      {/* Figma 651:32054 — search, colour toggle, legends | dates, sort, columns */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {search}
+          <div className="flex items-center gap-2.5" role="group" aria-label="Colour bars by">
+            {(['branch', 'scope'] as ColorBy[]).map(c => (
+              <button key={c} type="button" onClick={() => setColorBy(c)} aria-pressed={colorBy === c}
+                className={cn('inline-flex h-9 cursor-pointer items-center rounded-[6px] border px-3 text-[13px] font-semibold leading-[1.4]',
+                  colorBy === c
+                    ? 'border-transparent bg-[var(--color-secondary-700)] text-white dark:bg-primary-50 dark:text-primary-950'
+                    : 'border-ui-body bg-ui-page-bg text-ui-body hover:text-ui-heading')}>
+                {c === 'branch' ? 'Color by Branch' : 'Color by Company'}
+              </button>
+            ))}
+          </div>
+          <Legend label="Bar colours">
+            {colorBy === 'branch'
+              ? BRANCHES.map(b => <LegendItem key={b} color={LEGEND_COLOR[b]} label={b} />)
+              : Object.entries(SCOPE_COLOR).map(([k, c]) => <LegendItem key={k} color={c} label={k.toLowerCase().replace(/\b\w/g, m => m.toUpperCase())} />)}
+          </Legend>
+          <Legend label="Bar markings">
+            <span className="inline-flex items-center gap-2 text-[12px] font-medium leading-4 text-[var(--status-t0-fg)]">
+              {/* Figma 651:32080 "Subtract": a striped rounded square, no outline */}
+              <span className="size-4 rounded-[3px] bg-[repeating-linear-gradient(-36deg,var(--status-t0-fg)_0_2.2px,transparent_2.2px_4.6px)]" aria-hidden />
+              Tentative
+            </span>
+            <span className="inline-flex items-center gap-2 text-[12px] font-medium leading-4 text-[var(--color-error-normal)]">
+              <span className="size-4 rounded-[3px] border-[1.5px] border-[var(--color-error-normal)]" aria-hidden />
+              Overdue / double-booked
+            </span>
+            <span className="inline-flex items-center gap-2 text-[12px] font-medium leading-4 text-[var(--color-accent-500,#E63700)]">
+              <span className="h-4 w-[3px] bg-[var(--color-accent-500,#E63700)]" aria-hidden />
+              Today
+            </span>
+          </Legend>
         </div>
-        <Legend>
-          {colorBy === 'branch'
-            ? BRANCHES.map(b => <LegendItem key={b} color={LEGEND_COLOR[b]} label={b} />)
-            : Object.entries(SCOPE_COLOR).map(([k, c]) => <LegendItem key={k} color={c} label={k.toLowerCase().replace(/\b\w/g, m => m.toUpperCase())} />)}
-        </Legend>
-        <Legend>
-          <span className="inline-flex items-center gap-2 text-[12px] font-medium leading-4 text-[var(--status-t0-fg)]">
-            <span className="size-4 rounded-[3px] border border-[var(--status-t0-fg)] bg-[repeating-linear-gradient(135deg,var(--status-t0-fg)_0_1.5px,transparent_1.5px_4px)]" aria-hidden />
-            Tentative
-          </span>
-          <span className="inline-flex items-center gap-2 text-[12px] font-medium leading-4 text-[var(--color-error-normal)]">
-            <span className="size-4 rounded-[3px] border-[1.5px] border-[var(--color-error-normal)]" aria-hidden />
-            Overdue / double-booked
-          </span>
-          <span className="inline-flex items-center gap-2 text-[12px] font-medium leading-4 text-[var(--color-accent-500,#E63700)]">
-            <span className="h-4 w-[3px] bg-[var(--color-accent-500,#E63700)]" aria-hidden />
-            Today
-          </span>
-        </Legend>
+        <div className="flex flex-wrap items-center gap-2">
+          {dateRange}
+          {sortControl}
+          <ColumnsMenu<GanttColumn> columns={GANTT_COLUMNS} hidden={hidden} onToggle={onToggleCol} onSetAll={onSetAllCols} />
+        </div>
       </div>
 
-      <div className="max-h-[calc(100dvh-280px)] overflow-auto rounded-[8px] border border-ui-divider bg-ui-page-bg">
-        <div style={{ width: LEFT_W + timelineW }}>
-          {/* header */}
-          <div className="sticky top-0 z-[3] flex h-[46px] border-b border-ui-divider bg-ui-surface">
-            <div className="sticky left-0 z-[4] flex border-r border-ui-body bg-ui-surface" style={{ width: LEFT_W }}>
-              {LEFT.map((c, i) => (
-                <div key={c.key} className={cn('flex items-center px-2 text-[12px] font-semibold leading-[1.4] text-ui-body', i === 0 && 'pl-4', FLUSH.has(c.key) && 'pl-0')} style={{ width: c.w }}>
+      {/* Layers: grid / today line 1, bar chips 2, sticky left columns 3, heading row 4, its left cell 5 —
+          so nothing on the timeline can paint over the project columns while scrolling. */}
+      <div className="max-h-[calc(100dvh-280px)] min-w-0 max-w-full overflow-auto overscroll-x-contain rounded-[8px] border border-ui-divider bg-ui-page-bg">
+        <div style={{ width: leftW + timelineW + tailW }}>
+          {/* Figma 651:32116 / 651:32207 — column headings */}
+          <div className="sticky top-0 z-[4] flex h-[46px] border-b border-ui-divider bg-ui-surface">
+            <div className="sticky left-0 z-[5] flex shrink-0 border-r border-ui-divider bg-ui-surface" style={{ width: leftW }}>
+              {cols.map((c, i) => (
+                <div key={c.key} className={cn('flex items-center pr-2 text-[12px] font-semibold leading-[1.4] text-ui-body', i === 0 ? 'pl-4' : c.key === 'branch' || c.key === 'team' ? 'pl-2' : 'pl-0')} style={{ width: c.w }}>
                   {c.label}
                 </div>
               ))}
@@ -186,57 +160,90 @@ export function GanttTab({ rows, months: planMonths, today, clashes, projectByNo
                 {monthHead(m)}
               </div>
             ))}
+            <div className="shrink-0" style={{ width: tailW }} aria-hidden />
           </div>
 
-          {/* rows */}
-          {lives.map(({ row: r, segments, status }) => {
+          {/* Figma 651:32129 / 651:32222 — one row per installation */}
+          {rows.map(r => {
             const s = r.planned_start, f = r.planned_finish ?? r.planned_start;
-            const alert = alertOf(r, today);
-            const red = !!alert?.text.startsWith('Overdue') || clashes.has(r.id);
+            const chip = chipOf(r, today);
+            const red = chip.label === 'Overdue' || clashes.has(r.id);
             const tentative = r.confidence === 'Tentative';
-            const tint = status?.bg;
-            const ink = status?.fg;
+            const color = colorOf(r);
+            const x0 = s ? dayX(s) : 0;
+            const x1 = f ? dayX(addDays(f, 1)) : 0;
             const no = projectNumber(r.project_no);
             const projectId = no ? projectByNo[no] : undefined;
+            const members = headcount(r);
+            // Chip ≈ 8px padding + ~8.5px per character at 15px. A short install (1–2 days) still draws a bar
+            // wide enough to hold its chip with 10px each side — the chip always sits inside the bar.
+            const barW = Math.max(x1 - x0, 8 + chip.label.length * 8.5 + 20);
+            const title = `${r.project_no ?? ''} ${r.project_name ?? ''}\n${s ? `${dayMonth(s)} - ${dayMonth(f!)}` : 'No dates'} · ${chip.label}${clashes.has(r.id) ? '\nDouble-booked' : ''}`;
             return (
               <div key={r.id} className="flex border-b border-ui-divider" style={{ height: ROW_H }}>
-                {/* Figma 818:11615 — the row in its current stage's tint, text in the stage colour */}
-                <div className={cn('sticky left-0 z-[2] flex items-center border-r border-ui-body', !status && 'bg-ui-page-bg')}
-                  style={{ width: LEFT_W, background: tint, color: ink }}>
-                  <Cell w={LEFT[0].w} className="px-2">
-                    <ProjectChip text={r.project_no || '—'} href={projectId ? `/projects/${projectId}` : null} status={status} />
-                  </Cell>
-                  <Cell w={LEFT[1].w} className={cn('pl-0 font-semibold', !status && HEADING)} title={r.project_name ?? undefined}>{r.project_name || '—'}</Cell>
-                  <Cell w={LEFT[2].w}>
-                    {r.branch
-                      ? <span className="inline-flex h-[21px] w-[43px] items-center justify-center rounded-[2px] text-[16px] font-medium leading-4 text-white" style={{ background: REGION[r.branch].color }} title={r.branch}>{REGION[r.branch].label}</span>
-                      : <span className="opacity-60">—</span>}
-                  </Cell>
-                  <Cell w={LEFT[3].w} className={cn('pl-0 text-[14px] font-medium', !status && HEADING)}>{s ? `${dayMonth(s)} - ${dayMonth(f!)}` : '—'}</Cell>
-                  <Cell w={LEFT[4].w} className={cn('pl-0 text-[14px] font-medium', !status && HEADING)} title={r.pm_name ?? r.team ?? undefined}>
-                    {r.pm_name || r.team || <span className="opacity-60">TBD</span>}
-                  </Cell>
-                  <Cell w={LEFT[5].w} className="gap-1 text-[12px] font-medium leading-4">
-                    {status
-                      ? <><status.Icon size={14} aria-hidden className="shrink-0" /><span className="truncate" title={status.label}>{status.label}</span></>
-                      : <span className="text-ui-text-secondary">No dates yet</span>}
-                  </Cell>
+                <div className="sticky left-0 z-[3] flex shrink-0 items-center border-r border-ui-divider bg-ui-page-bg" style={{ width: leftW }}>
+                  {cols.map(c => {
+                    switch (c.key) {
+                      case 'no': return (
+                        <Cell key={c.key} w={c.w} className="pl-4 pr-2 font-semibold">
+                          {projectId
+                            ? <Link href={`/projects/${projectId}`} className={cn('truncate underline-offset-2 hover:underline', HEADING)}>{r.project_no || '—'}</Link>
+                            : <span className={cn('truncate', HEADING)}>{r.project_no || '—'}</span>}
+                        </Cell>
+                      );
+                      case 'name': return <Cell key={c.key} w={c.w} className={cn('pr-2 font-semibold', HEADING)} title={r.project_name ?? undefined}>{r.project_name || '—'}</Cell>;
+                      case 'branch': return (
+                        <Cell key={c.key} w={c.w} className="px-2">
+                          {r.branch
+                            ? <span className="inline-flex items-center justify-center rounded-[4px] px-4 py-2 text-[12px] font-medium leading-4 text-white" style={{ background: BRANCH_COLOR[r.branch] }}>{r.branch}</span>
+                            : <span className="text-ui-text-secondary">—</span>}
+                        </Cell>
+                      );
+                      case 'team': return (
+                        <Cell key={c.key} w={c.w} className="pl-2 pr-4" title={r.team ?? undefined}>
+                          {/* Long team names end in "…" inside the chip (full name on hover), never cut mid-letter. */}
+                          {r.team
+                            ? <span className={cn('flex h-[30px] min-w-0 max-w-full items-center rounded-[4px] bg-ui-input-bg pl-4 pr-2.5 text-[14px] font-medium leading-4', HEADING)}>
+                                <span className="min-w-0 truncate">{r.team}</span>
+                              </span>
+                            : <span className="text-ui-text-secondary">TBD</span>}
+                        </Cell>
+                      );
+                      case 'members': return <Cell key={c.key} w={c.w} className={cn('pr-2 text-[14px] font-semibold', HEADING)}>{members || <span className="text-ui-text-secondary">—</span>}</Cell>;
+                      case 'dates': return <Cell key={c.key} w={c.w} className={cn('pr-2 text-[14px] font-medium', HEADING)}>{s ? `${dayMonth(s)} - ${dayMonth(f!)}` : <span className="text-ui-text-secondary">No dates</span>}</Cell>;
+                    }
+                  })}
                 </div>
 
-                <div className="relative shrink-0" style={{ width: timelineW, background: tint }}>
-                  {/* month columns, dashed weeks */}
-                  <div className="absolute inset-0 flex" aria-hidden>
+                <div className="relative shrink-0" style={{ width: timelineW + tailW }}>
+                  {/* month columns: dashed weeks, solid month end — drawn over the bar, as in Figma 651:32224 */}
+                  <div className="pointer-events-none absolute inset-0 z-[1] flex" aria-hidden>
                     {months.map(m => (
-                      <div key={m} className="flex h-full shrink-0 border-r border-ui-text-secondary" style={{ width: MONTH_W }}>
-                        {[0, 1, 2, 3].map(q => <div key={q} className={cn('h-full flex-1', q < 3 && 'border-r border-dashed border-ui-text-secondary')} />)}
+                      <div key={m} className="flex h-full shrink-0" style={{ width: MONTH_W }}>
+                        {[0, 1, 2, 3].map(q => <div key={q} className={cn('h-full flex-1 border-r border-ui-divider', q < 3 && 'border-dashed')} />)}
                       </div>
                     ))}
                   </div>
-                  {segments.map(seg => (
-                    <Segment key={seg.stage} seg={seg} x0={dayX(seg.start)} x1={dayX(addDays(seg.end, 1))}
-                      install={seg.stage === 'installation' ? { color: installColor(r), red, tentative } : null}
-                      title={`${r.project_no ?? ''} ${r.project_name ?? ''}\n${LIFE_STAGE[seg.stage].label}: ${dayMonth(seg.start)}${seg.end !== seg.start ? ` - ${dayMonth(seg.end)}` : ''}${seg.open ? ' (ongoing)' : ''}${seg.stage === 'installation' && alert ? `\n${alert.text}` : ''}${seg.stage === 'installation' && clashes.has(r.id) ? '\nDouble-booked' : ''}`} />
-                  ))}
+                  {s && (
+                    <div title={title}
+                      className={cn('absolute top-1.5 flex h-9 items-center rounded-[4px]', red && 'border-[1.5px] border-[var(--color-error-normal)]')}
+                      style={{
+                        left: x0, width: barW,
+                        background: tentative
+                          ? `repeating-linear-gradient(135deg, ${color} 0 6px, color-mix(in srgb, ${color} 45%, transparent) 6px 12px)`
+                          : color,
+                      }}>
+                      <span className={cn('inline-flex h-[23px] shrink-0 items-center whitespace-nowrap rounded-[4px] px-1 text-[15px] font-medium leading-4',
+                        // Figma 651:32420: Overdue in the t10 status tones; others on the elevated surface.
+                        chip.red ? 'z-[2] bg-[var(--status-t10-bg)] text-[var(--status-t10-fg)]' : cn('z-[2] bg-ui-surface-elevated', HEADING),
+                        // Sticky to the bar's visible start (just right of the project columns), so a bar that
+                        // starts off-screen keeps its chip in view and inside the bar — never over the Team column.
+                        'sticky ml-2.5')}
+                        style={{ left: leftW + 10 }}>
+                        {chip.label}
+                      </span>
+                    </div>
+                  )}
                   {todayX !== null && <div className="pointer-events-none absolute inset-y-0 z-[1] w-0.5 bg-[var(--color-accent-500,#E63700)]" style={{ left: todayX }} aria-hidden />}
                 </div>
               </div>
@@ -249,79 +256,12 @@ export function GanttTab({ rows, months: planMonths, today, clashes, projectByNo
   );
 }
 
-/** One dated stage: a tinted span with the stage's dark chip at its start (Figma "Status Chip"). */
-function Segment({ seg, x0, x1, install, title }: {
-  seg: LifeSegment; x0: number; x1: number; title: string;
-  /** The installation stage keeps the plan's own signals: branch / company fill, red outline, stripes. */
-  install: { color: string; red: boolean; tentative: boolean } | null;
-}) {
-  const label = LIFE_STAGE[seg.stage].label;
-  const Icon = STAGE_ICON[seg.stage];
-  const full = x1 - x0 >= chipWidth(label) + 8;
-  // Figma 811:13079: a stage too short for its chip is a 36px square with just the stage icon.
-  const w = full ? x1 - x0 : Math.max(36, x1 - x0);
-  const fill = install
-    ? (install.tentative
-      ? `repeating-linear-gradient(135deg, color-mix(in srgb, ${install.color} 55%, transparent) 0 5px, color-mix(in srgb, ${install.color} 20%, transparent) 5px 10px)`
-      : `color-mix(in srgb, ${install.color} 35%, transparent)`)
-    : bg(seg.stage);
-  // Figma 811:12864: Completed is no span, just an outlined chip right after the installation.
-  if (seg.stage === 'completed') {
-    return (
-      <span
-        title={title}
-        className="absolute top-1/2 inline-flex h-6 -translate-y-1/2 items-center gap-1 whitespace-nowrap rounded-[4px] border pl-2 pr-3 text-[12px] font-medium leading-4"
-        style={{ left: x1 + 11, background: bg(seg.stage), borderColor: fg(seg.stage), color: fg(seg.stage) }}
-      >
-        <Icon size={14} aria-hidden className="shrink-0" />
-        {label}
-      </span>
-    );
-  }
-  return (
-    <div
-      title={title}
-      // Figma 811:12864: the labelled chip sits in the middle of its stage box.
-      className={cn('absolute top-1/2 flex h-9 -translate-y-1/2 items-center rounded-[4px] border', full && 'justify-center', seg.open && 'border-dashed', install?.red && 'border-[1.5px]')}
-      style={{
-        left: x0, width: w, background: fill,
-        // Figma 811:12702: box in the stage's light tone, outlined in its dark tone.
-        borderColor: install?.red ? 'var(--color-error-normal)' : fg(seg.stage),
-      }}
-    >
-      {full ? (
-        <span
-          className="inline-flex h-[22px] shrink-0 items-center gap-1 whitespace-nowrap rounded-[4px] pl-2 pr-3 text-[12px] font-medium leading-4"
-          style={{ background: fg(seg.stage), color: bg(seg.stage) }}
-        >
-          <Icon size={14} aria-hidden className="shrink-0" />
-          {label}
-        </span>
-      ) : (
-        <span className="ml-[7px] inline-flex shrink-0" style={{ color: fg(seg.stage) }}>
-          <Icon size={20} aria-hidden />
-          <span className="sr-only">{label}</span>
-        </span>
-      )}
-    </div>
-  );
-}
-
-function ProjectChip({ text, href, status }: { text: string; href: string | null; status: RowStatus | null }) {
-  const cls = 'inline-flex max-w-full items-center justify-center truncate rounded-[4px] px-4 py-2 text-[16px] font-medium leading-4 no-underline';
-  const style = status ? { background: status.fg, color: status.bg } : undefined;
-  const plain = !status && 'bg-[var(--color-secondary-700)] text-white dark:bg-primary-50 dark:text-primary-950';
-  return href
-    ? <Link href={href} className={cn(cls, plain, 'hover:brightness-110')} style={style}>{text}</Link>
-    : <span className={cn(cls, plain)} style={style}>{text}</span>;
-}
-
 function Cell({ w, className, title, children }: { w: number; className?: string; title?: string; children: React.ReactNode }) {
-  return <div className={cn('flex min-w-0 items-center truncate px-2 text-[13px]', className)} style={{ width: w }} title={title}>{children}</div>;
+  return <div className={cn('flex min-w-0 items-center truncate text-[13px] leading-[1.4]', className)} style={{ width: w }} title={title}>{children}</div>;
 }
 
-function Legend({ children }: { children: React.ReactNode }) {
-  return <div className="flex h-9 items-center gap-5 rounded-[6px] border border-ui-body px-4">{children}</div>;
+function Legend({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div role="group" aria-label={label} className="flex h-9 items-center gap-5 rounded-[6px] border border-[#5E6F87] px-4">{children}</div>;
 }
 
 function LegendItem({ color, label }: { color: string; label: string }) {
