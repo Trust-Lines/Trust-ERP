@@ -92,12 +92,12 @@ function AssignBox({ item, section, role }: { item: BoardCardItem; section: Boar
   // stage tone, 6px label over a 9px name.
   return (
     <span
-      className="flex min-w-0 max-w-[150px] shrink flex-col justify-center rounded-[4px] border-[0.5px] border-solid px-1.5 py-0.5 leading-normal"
+      className="flex min-w-0 max-w-[220px] flex-1 flex-col justify-center gap-0.5 rounded-[6px] border border-solid px-2.5 py-1.5 leading-normal"
       style={{ borderColor: section.accent, color: section.accent }}
       onClick={e => e.stopPropagation()}
       onKeyDown={e => e.stopPropagation()}
     >
-      <span className="text-[6px]">{ROLE_LABEL[role]}:</span>
+      <span className="text-[10px] font-medium opacity-80">{ROLE_LABEL[role]}</span>
       {canAssign ? (
         <FilterSelect
           aria-label={`${ROLE_LABEL[role]} for ${item.assign?.label ?? ''}`}
@@ -106,10 +106,10 @@ function AssignBox({ item, section, role }: { item: BoardCardItem; section: Boar
             ...(current && !pmOptions.some(o => o.value === current) ? options.filter(o => o.value === current) : [])]}
           value={current ?? UNASSIGNED}
           onValueChange={v => assign(item, role, v || null)}
-          className="h-auto min-h-0 gap-0.5 border-0 bg-transparent p-0 text-[9px] font-semibold leading-normal text-[inherit] hover:border-0 dark:border-0 dark:bg-transparent dark:p-0 dark:text-[inherit] [&_svg]:size-3"
+          className="h-auto min-h-0 gap-0.5 border-0 bg-transparent p-0 text-[13px] font-semibold leading-normal text-[inherit] hover:border-0 dark:border-0 dark:bg-transparent dark:p-0 dark:text-[inherit] [&_svg]:size-3.5"
         />
       ) : (
-        <span className="truncate text-[9px] font-semibold">{name ?? 'Unassigned'}</span>
+        <span className="truncate text-[13px] font-semibold">{name ?? 'Unassigned'}</span>
       )}
     </span>
   );
@@ -212,7 +212,7 @@ function Card({ item, section, onOpen }: {
           </span>
         )}
         {item.assign ? (
-          <span className="flex min-w-0 items-center gap-1.5">
+          <span className="mt-1 flex w-full min-w-0 items-stretch gap-2">
             <AssignBox item={item} section={section} role="trust_pm" />
             <AssignBox item={item} section={section} role="tlines_pm" />
           </span>
