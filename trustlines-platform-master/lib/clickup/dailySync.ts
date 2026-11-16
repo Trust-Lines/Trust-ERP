@@ -37,7 +37,24 @@ const DEAL_SOURCES: { id: string; kind: 'view' | 'list'; region: RegionTag; labe
   { id: '901521322569', kind: 'list', region: 'CVW', label: 'Opportunities W', excludeSubtasksAndBlank: true },
 ];
 
-export interface SyncItem { region: string; name: string; ref: string; note?: string }
+export interface SyncItem {
+  region: string; name: string; ref: string; note?: string;
+  /** Held contact: the app record it looks like (ClickUp Review → "Same person, link"). */
+  match?: { table: 'prospects' | 'prospect_contacts'; id: string; name: string };
+  /** Held contact: its ClickUp email / phone, to compare on the review screen. */
+  email?: string | null; phone?: string | null;
+  /** Skipped deal: the ClickUp contact it waits for. */
+  contactRef?: string | null;
+}
+
+/** ClickUp Review "Different person, add as new": these held contacts come in on the next run. */
+export const REVIEW_DECISION_ACTION = 'clickup.review_decision';
+async function loadAddNewRefs(admin: any): Promise<Set<string>> {
+  const { data, error } = await admin.from('audit_log').select('new_value').eq('action', REVIEW_DECISION_ACTION).limit(5000);
+  if (error) return new Set();
+  return new Set(((data ?? []) as { new_value: { ref?: string; decision?: string } | null }[])
+    .filter(r => r.new_value?.decision === 'add_new' && r.new_value.ref).map(r => r.new_value!.ref!));
+}
 export interface SyncReport {
   write: boolean;
   contacts: { added: SyncItem[]; extraContacts: SyncItem[]; held: SyncItem[]; failed: SyncItem[] };
@@ -101,32 +118,40 @@ async function syncContacts(admin: any, { write, actorId, report, campaignId }: 
   const contactRefs = new Set(contacts.filter(c => c.external_source === 'clickup' && c.external_ref).map(c => c.external_ref!));
 
   // Hand-added people (no ClickUp id) by email / phone, and every email already in the app.
-  const manual = new Map<string, string>();
+  type Match = NonNullable<SyncItem['match']>;
+  const manual = new Map<string, Match>();
+  const addNew = await loadAddNewRefs(admin);
   const anyEmail = new Set<string>();
   for (const p of prospects) {
     if (p.deleted_at) continue;
     const e = normEmail(p.main_email), ph = normPhone(p.main_phone);
     if (e) anyEmail.add(e);
     if (p.external_ref) continue;
-    if (e && !manual.has(`e:${e}`)) manual.set(`e:${e}`, p.display_name ?? 'a contact');
-    if (ph && !manual.has(`p:${ph}`)) manual.set(`p:${ph}`, p.display_name ?? 'a contact');
+    const m: Match = { table: 'prospects', id: p.id, name: p.display_name ?? 'a contact' };
+    if (e && !manual.has(`e:${e}`)) manual.set(`e:${e}`, m);
+    if (ph && !manual.has(`p:${ph}`)) manual.set(`p:${ph}`, m);
   }
   for (const c of contacts) {
     const e = normEmail(c.email), ph = normPhone(c.phone);
     if (e) anyEmail.add(e);
     if (c.external_ref) continue;
-    if (e && !manual.has(`e:${e}`)) manual.set(`e:${e}`, c.name ?? 'a contact');
-    if (ph && !manual.has(`p:${ph}`)) manual.set(`p:${ph}`, c.name ?? 'a contact');
+    const m: Match = { table: 'prospect_contacts', id: c.id, name: c.name ?? 'a contact' };
+    if (e && !manual.has(`e:${e}`)) manual.set(`e:${e}`, m);
+    if (ph && !manual.has(`p:${ph}`)) manual.set(`p:${ph}`, m);
   }
-  const holdReason = (c: ProspectCandidate) => {
+  // A person decided on the review screen that it's someone else: no hold.
+  const holdReason = (c: ProspectCandidate): { note: string; match?: Match } | null => {
+    if (addNew.has(c.externalRef)) return null;
     const e = normEmail(c.email), ph = normPhone(c.phone);
     const m = (e && manual.get(`e:${e}`)) || (ph && manual.get(`p:${ph}`));
-    if (m) return `looks like “${m}”, added by hand in the app`;
-    if (e && anyEmail.has(e)) return 'its email is already in the app';
+    if (m) return { note: `looks like “${m.name}”, added by hand in the app`, match: m };
+    if (e && anyEmail.has(e)) return { note: 'its email is already in the app' };
     return null;
   };
   const item = (c: ProspectCandidate, note?: string): SyncItem =>
     ({ region: c.region, name: c.organizationName ?? c.personName ?? c.contactName ?? c.externalRef, ref: c.externalRef, ...(note ? { note } : {}) });
+  const heldItem = (c: ProspectCandidate, h: { note: string; match?: Match }): SyncItem =>
+    ({ ...item(c, h.note), ...(h.match ? { match: h.match } : {}), email: c.email ?? null, phone: c.phone ?? null });
   const contactRow = (c: ProspectCandidate, prospectId: string, primary: boolean) => ({
     prospect_id: prospectId, name: c.contactName, title: c.title, email: c.email, phone: c.phone,
     linkedin_url: c.linkedinUrl, other_contact: c.otherContact, whatsapp: c.whatsapp, company2_phone: c.company2Phone,
@@ -136,7 +161,7 @@ async function syncContacts(admin: any, { write, actorId, report, campaignId }: 
   async function addTopLevel(c: ProspectCandidate) {
     if (prospectByRef.has(c.externalRef) || contactRefs.has(c.externalRef)) return;
     const hold = holdReason(c);
-    if (hold) { report.contacts.held.push(item(c, hold)); return; }
+    if (hold) { report.contacts.held.push(heldItem(c, hold)); return; }
     if (!write) { report.contacts.added.push(item(c)); prospectByRef.set(c.externalRef, 'dry-run'); return; }
     try {
       let originalCampaignId: string | null = null;
@@ -186,7 +211,7 @@ async function syncContacts(admin: any, { write, actorId, report, campaignId }: 
       // Parent not in the app: imported as its own company/person (as the manual import does).
       if (!parentId) { await addTopLevel(c); continue; }
       const hold = holdReason(c);
-      if (hold) { report.contacts.held.push(item(c, hold)); continue; }
+      if (hold) { report.contacts.held.push(heldItem(c, hold)); continue; }
       if (!write || parentId === 'dry-run') { report.contacts.extraContacts.push(item(c)); contactRefs.add(c.externalRef); continue; }
       const { error } = await admin.from('prospect_contacts').insert(contactRow(c, parentId, false));
       if (error) report.contacts.failed.push(item(c, `contact: ${error.message}`));
@@ -238,7 +263,7 @@ async function syncDeals(admin: any, { write, actorId, report, campaignId }: { w
     if (!prospectId) {
       // A contact added in this same run (dry run) still counts as found.
       const addedNow = c.contactExternalRef && [...report.contacts.added, ...report.contacts.extraContacts].some(x => x.ref === c.contactExternalRef);
-      if (!(addedNow && !write)) { report.deals.skipped.push({ ...it, note: 'its ClickUp contact isn’t in the app' }); continue; }
+      if (!(addedNow && !write)) { report.deals.skipped.push({ ...it, note: 'its ClickUp contact isn’t in the app', contactRef: c.contactExternalRef ?? null }); continue; }
     }
 
     const bucket = c.outcome.kind === 'potential' ? report.deals.potentials : report.deals.opportunities;

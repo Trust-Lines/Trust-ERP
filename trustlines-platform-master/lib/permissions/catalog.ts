@@ -53,6 +53,7 @@ export const PAGE_ROUTES: { key: string; route: string }[] = [
   { key: 'page.roles',           route: '/roles' },
   { key: 'page.audit',           route: '/audit' },
   { key: 'page.dropbox_wizard',  route: '/dropbox-wizard' },
+  { key: 'page.clickup_review',  route: '/clickup-review' },
   { key: 'page.trash',           route: '/projects/trash' },
   { key: 'page.settings',        route: '/settings' },
 ];
@@ -157,6 +158,7 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'page.roles',          label: 'Roles & Permissions' },
       { key: 'page.audit',          label: 'Audit log' },
       { key: 'page.dropbox_wizard', label: 'Dropbox Wizard' },
+      { key: 'page.clickup_review', label: 'ClickUp Review', hint: 'Contacts the nightly ClickUp sync held back, and the projects waiting for them' },
       { key: 'page.trash',          label: 'Projects Trash' },
     ],
   },
@@ -312,6 +314,8 @@ export const PAGE_LEGACY_ROLES: Record<string, string[]> = {
   'edit.installation': ['general_manager', 'ops_manager', 'tlines_pm', 'trustlines_pm'],
   // Deleting a whole project from the Production Board was these roles only.
   'prod.delete_projects': ['general_manager', 'ops_manager'],
+  // ClickUp Review: the people who got the nightly sync's notification.
+  'page.clickup_review': ['general_manager'],
   'page.sales_web_leads': SALES_INTAKE_ROLES,
   'page.sales_contacts': SALES_INTAKE_ROLES,
   'page.leads': SALES_INTAKE_ROLES,

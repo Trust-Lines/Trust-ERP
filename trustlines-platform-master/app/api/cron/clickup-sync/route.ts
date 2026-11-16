@@ -30,7 +30,7 @@ async function run(req: NextRequest) {
 
   const tell = async (title: string, body: string) => {
     try {
-      await notifyUsers(admin, { userIds: await usersWithRoles(admin, ['general_manager']), projectId: null, type: 'clickup.sync', title, body, link: '/marketing/prospects' });
+      await notifyUsers(admin, { userIds: await usersWithRoles(admin, ['general_manager']), projectId: null, type: 'clickup.sync', title, body, link: '/clickup-review' });
     } catch { /* best effort */ }
   };
 

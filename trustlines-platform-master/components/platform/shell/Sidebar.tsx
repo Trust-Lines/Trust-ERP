@@ -24,7 +24,7 @@ import {
   ScrollText,
   Settings,
   Bell,
-  FolderSearch, FolderSync,
+  FolderSearch, FolderSync, ListRestart,
   Trash2,
   ShieldCheck,
   Globe,
@@ -184,6 +184,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: 'Trash',               href: '/projects/trash', icon: Trash2,       perm: 'page.trash' },
   { label: 'Dropbox Wizard',      href: '/dropbox-wizard', icon: FolderSearch, perm: 'page.dropbox_wizard' },
   { label: 'Dropbox Matching',    href: '/dropbox-matching', icon: FolderSync, perm: 'page.dropbox_wizard' },
+  { label: 'ClickUp Review',      href: '/clickup-review', icon: ListRestart, perm: 'page.clickup_review' },
   { label: 'Audit Log',           href: '/audit',          icon: ScrollText,   perm: 'page.audit' },
   { label: 'Settings',            href: '/settings',       icon: Settings,     perm: 'page.settings' },
 ];
