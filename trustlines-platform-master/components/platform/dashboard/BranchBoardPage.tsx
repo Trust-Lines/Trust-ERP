@@ -245,11 +245,32 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
     admin.from('profiles').select('id, full_name').eq('is_active', true).not('full_name', 'is', null).order('full_name', { ascending: true }),
   ]) as [{ item_kind: string; item_id: string; stage: string; user_id: string }[], { data: { id: string; full_name: string }[] | null }];
   const assigneeOf = new Map(assignRows.map(a => [`${a.item_kind}:${a.item_id}:${a.stage}`, a.user_id]));
+  // The T-Lines PM looks after the card's account, not one stage: when the card has none set for
+  // the stage it is in now, the one set in another stage stays, else our project's T-Lines PM
+  // (projects.tlines_pm_id) for the same project number.
+  const tlinesAnyStage = new Map<string, string>();
+  for (const a of assignRows) if (a.stage.endsWith(':tlines_pm')) tlinesAnyStage.set(`${a.item_kind}:${a.item_id}`, a.user_id);
+  const tlinesByNo = new Map<string, string>();
+  for (const pr of (projectRows ?? []) as { code: string; tlines_pm_id: string | null }[]) {
+    const no = projectNumber(pr.code);
+    if (no && pr.tlines_pm_id && !tlinesByNo.has(no)) tlinesByNo.set(no, pr.tlines_pm_id);
+  }
+  // …and the T-Lines PM set on a Trust / deal card with that number, so every card of one project
+  // (Trust, deal, installation) shows the same PM.
+  for (const p of trustProjects) {
+    const no = projectNumber(p.projectNo), pm = tlinesAnyStage.get(`trust:${p.id}`);
+    if (no && pm && !tlinesByNo.has(no)) tlinesByNo.set(no, pm);
+  }
+  for (const o of opportunities) {
+    const no = projectNumber(o.projectNo), pm = tlinesAnyStage.get(`${o.kind}:${o.id}`);
+    if (no && pm && !tlinesByNo.has(no)) tlinesByNo.set(no, pm);
+  }
   // Two people per card per stage: the Trust PM (plain stage) and the T-Lines PM ("<stage>:tlines_pm").
-  const assignFor = (kind: string, id: string, stage: string, label: string) => ({
+  const assignFor = (kind: string, id: string, stage: string, label: string, projectNo?: string | null) => ({
     kind, stage, label,
     userId: assigneeOf.get(`${kind}:${id}:${stage}`) ?? null,
-    tlinesUserId: assigneeOf.get(`${kind}:${id}:${stage}:tlines_pm`) ?? null,
+    tlinesUserId: assigneeOf.get(`${kind}:${id}:${stage}:tlines_pm`) ?? tlinesAnyStage.get(`${kind}:${id}`)
+      ?? tlinesByNo.get(projectNumber(projectNo) ?? '') ?? null,
   });
   // The popup's PO + PF / Production / Shipping tabs: the Trust types of the card's project number.
   const trustByNo = new Map(trustProjects.map(p => [p.projectNo, p.items ?? []]));
@@ -278,7 +299,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
       company: companyByNo.get(p.projectNo) ?? null,
       category: (p.types ?? []).map(typeLabel).filter(Boolean).join(', ') || null,
       pmName: null, pmLabel: '',
-      assign: assignFor('trust', p.id, e.stage, `#${p.projectNo}`),
+      assign: assignFor('trust', p.id, e.stage, `#${p.projectNo}`, p.projectNo),
       onHold: e.onHold,
       dateISO: e.dateISO,
       dateLabel: fmtDate(e.dateISO),
@@ -355,7 +376,16 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
     installRows = data ?? [];
     if (userRole === 'tlines_pm') {
       const ownNos = new Set(projects.map(p => projectNumber(p.code)).filter(Boolean));
-      installRows = installRows.filter(i => !!i.project_no && ownNos.has(i.project_no));
+      installRows = installRows.filter(i => ownNos.has(projectNumber(i.project_no)));
+    }
+    // Their "Assign to" (Trust PM / T-Lines PM per stage: installation, completed), stored like
+    // the Trust cards' under item_kind 'trust' with the installation's id.
+    const installAssign = await fetchInChunks(installRows.map(i => i.id), chunk => admin.from('board_assignees')
+      .select('item_kind, item_id, stage, user_id').eq('item_kind', 'trust').in('item_id', chunk))
+      .catch(() => []) as { item_kind: string; item_id: string; stage: string; user_id: string }[];
+    for (const a of installAssign) {
+      assigneeOf.set(`${a.item_kind}:${a.item_id}:${a.stage}`, a.user_id);
+      if (a.stage.endsWith(':tlines_pm')) tlinesAnyStage.set(`${a.item_kind}:${a.item_id}`, a.user_id);
     }
   }
   const INSTALLING = ['In Progress', 'Delayed', 'On Hold'];
@@ -409,7 +439,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
         category: categoryLabel(o.projectTypes.length ? o.projectTypes : o.projectTypeRaw ? [o.projectTypeRaw] : null),
         pmName: o.ownerId ? pmNames.get(o.ownerId) ?? null : null,
         pmLabel: o.ownerIsSales ? 'Sales Owner' : 'Marketing Owner',
-        assign: assignFor(o.kind, o.id, 'opportunity', o.projectNo ? `#${o.projectNo}` : o.site),
+        assign: assignFor(o.kind, o.id, 'opportunity', o.projectNo ? `#${o.projectNo}` : o.site, o.projectNo),
         onHold: o.stage === 'on_hold',
         dateISO: becameOpportunityDate,
         dateLabel: fmtDate(becameOpportunityDate),
@@ -437,6 +467,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
         onHold: heldProjects.has(p.id),
         category: categoryLabel(p.categories),
         pmName: p.tlines_pm_id ? pmNames.get(p.tlines_pm_id) ?? null : null,
+        tlinesPmId: p.tlines_pm_id,
         pmLabel: 'T Lines PM',
         dateISO: date,
         dateLabel: fmtDate(date),
@@ -448,24 +479,27 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
     const regionInstalls = installRows.filter(i => i.branch === r.dropboxShort && !!i.project_no);
     const installingRows = regionInstalls.filter(isInstalling);
     const completedRows = regionInstalls.filter(i => i.status === 'Completed');
-    const installNos = new Set([...installingRows, ...completedRows].map(i => i.project_no));
+    // The plan writes numbers its own way ("#480 STG 1", "#408M"): match on the digits.
+    const installNos = new Set([...installingRows, ...completedRows].map(i => projectNumber(i.project_no)));
     // A card per install, opened like a Trust card (the popup gathers everything by number).
     const toInstallCard = (i: InstallRow): BoardCardItem => {
-      const no = i.project_no as string;
-      // The plan's numbers often carry their own "#" ("#12PG") — show it once, not "##12PG".
-      const shown = `#${no.replace(/^#+/, '').trim()}`;
-      const name = dealNames.forCard(no, i.city_state) ?? i.project_name ?? shown;
+      // Badge: the plan's number without its own "#" (the badge adds one); lookups: the digits.
+      const label = (i.project_no as string).replace(/^#+\s*/, '');
+      const no = projectNumber(label) ?? label;
+      const name = dealNames.forCard(no, i.city_state) ?? i.project_name ?? `#${no}`;
       const date = i.planned_finish ?? i.planned_start;
       return {
         id: i.id, kind: 'trust',
-        badgeTop: shown, badgeBottom: '',
+        badgeTop: `#${label}`, badgeBottom: '',
         title: name,
         subtitle: i.city_state,
         account: accountOf(name),
         company: companyByNo.get(no) ?? null,
         category: i.scope,
         pmName: i.pm_name, pmLabel: 'PM',
-        teamName: i.team,
+        // Trust PM / T-Lines PM like every other card; the T-Lines PM falls back to the one set
+        // in the other stage, else the project number's.
+        assign: assignFor('trust', i.id, i.status === 'Completed' ? 'completed' : 'installation', `#${label}`, no),
         onHold: i.status === 'On Hold',
         dateISO: date,
         dateLabel: fmtDate(date),
