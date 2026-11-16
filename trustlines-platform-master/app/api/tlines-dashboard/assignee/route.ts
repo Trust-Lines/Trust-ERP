@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { requireTlinesDashboard } from '@/lib/keyClients/access';
 
 const KINDS = ['trust', 'opportunity', 'potential'];
-const STAGES = ['opportunity', 'finalization', 'technical', 'to_production', 'in_production', 'shipped'];
+// installation / completed: the installation plan's cards (item_id = installations.id).
+const STAGES = ['opportunity', 'finalization', 'technical', 'to_production', 'in_production', 'shipped', 'installation', 'completed'];
 
 // Every card has two people per stage: its Trust PM and its T-Lines PM.
 const ROLES = ['trust_pm', 'tlines_pm'];
