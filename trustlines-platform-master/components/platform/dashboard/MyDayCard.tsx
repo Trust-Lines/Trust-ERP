@@ -37,7 +37,15 @@ const GRID = 'grid grid-cols-[48px_minmax(0,279fr)_minmax(0,214fr)_minmax(0,180f
 const TH = 'inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-[13px] font-semibold leading-[1.4] text-ui-body';
 const TH_ACTIVE = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 
-export function MyDayCard({ className, full = false }: { className?: string; full?: boolean }) {
+// Figma "General Manager" My Tasks card (node 818:31665): title + count chip + View All, then
+// tinted rounded rows (checkbox, task, status chip, priority, details, row action) — no header row.
+const TASK_GRID = 'grid grid-cols-[48px_minmax(0,303fr)_minmax(0,301fr)_minmax(0,152fr)_minmax(0,146fr)_48px] items-center';
+
+export function MyDayCard({ className, full = false, variant = 'table' }: {
+  className?: string; full?: boolean;
+  /** 'tasks' = the General Manager dashboard's My Tasks card (Figma 818:31665). */
+  variant?: 'table' | 'tasks';
+}) {
   const [data, setData] = useState<MyDayData | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -77,6 +85,68 @@ export function MyDayCard({ className, full = false }: { className?: string; ful
     setSelected(prev => { const next = new Set(prev); if (next.has(i)) next.delete(i); else next.add(i); return next; });
   }
   const allSelected = shown.length > 0 && shown.every((_, i) => selected.has(i));
+
+  const status = loading ? (
+    <p role="status" className="m-auto p-6 text-[13px] text-ui-body">Loading your day…</p>
+  ) : error ? (
+    <p role="alert" className="m-auto p-6 text-[13px] text-ui-body">Couldn&apos;t load your day. Refresh to try again.</p>
+  ) : items.length === 0 ? (
+    <EmptyState size="sm" className="m-auto justify-center p-6" icon={<ClipboardList />} title="Nothing needs you right now." />
+  ) : null;
+
+  if (variant === 'tasks') {
+    return (
+      <div className={cn('flex min-w-0 flex-col gap-3 overflow-hidden rounded-[16px] border border-ui-divider bg-ui-surface-elevated px-1 pt-3', className)}>
+        <div className="flex items-center justify-between gap-3 pl-4 pr-2">
+          <div className="flex items-center gap-2">
+            <h2 className="m-0 text-[20px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">My Tasks</h2>
+            {!loading && !error && (
+              <span className="rounded-[4px] bg-ui-surface px-[9px] py-[3px] text-[15px] font-semibold leading-[1.4] text-[var(--color-secondary-700)] dark:text-ui-heading">{items.length}</span>
+            )}
+          </div>
+          {!full && (
+            <Link
+              href="/workspace/tasks"
+              className="inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-[6px] bg-[var(--color-secondary-700)] px-3 text-[13px] font-medium leading-[1.35] text-white no-underline hover:opacity-90 dark:bg-[#EEF2F6] dark:text-[#0A0C0F]"
+            >
+              View All <ArrowUpRight size={16} aria-hidden />
+            </Link>
+          )}
+        </div>
+        {status ?? (
+          <ul className="m-0 flex min-h-0 flex-1 list-none flex-col gap-1 overflow-y-auto px-2 pb-2">
+            {shown.map((item, i) => {
+              const p = PRIORITY[item.tone ?? 'default'];
+              const Icon = p.icon;
+              const chip = CHIP[item.tone ?? 'default'];
+              const ChipIcon = chip.icon;
+              return (
+                <li key={`${item.href}-${i}`} className={cn(TASK_GRID, 'min-h-9 shrink-0 rounded-[6px] bg-ui-surface pr-5')}>
+                  <span className="flex justify-center">
+                    <Checkbox aria-label={`Select ${item.label}`} checked={selected.has(i)} onCheckedChange={() => toggle(i)} />
+                  </span>
+                  <Link href={item.href} className="truncate pr-4 text-[13px] leading-[1.4] text-[var(--color-secondary-700)] no-underline hover:underline dark:text-ui-heading">{item.label}</Link>
+                  <span className="min-w-0 pr-4">
+                    <span className="inline-flex max-w-full items-center gap-1 rounded-[4px] py-[3px] pl-2 pr-2.5 text-[12px] font-medium leading-4" style={{ background: `var(--status-${chip.tone}-bg)`, color: `var(--status-${chip.tone}-fg)` }}>
+                      <ChipIcon size={14} aria-hidden className="shrink-0" />
+                      <span className="truncate">{item.badge ?? item.section}</span>
+                    </span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-[13px] leading-[1.4]" style={{ color: p.color }}>
+                    <Icon size={13} aria-hidden /> {p.label}
+                  </span>
+                  <span className="truncate text-[13px] leading-[1.4] text-ui-text-secondary">{item.sublabel ?? item.section}</span>
+                  <Link href={item.href} aria-label={`Open ${item.label}`} className="flex justify-center text-ui-body">
+                    <Ellipsis size={16} aria-hidden />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={cn('flex min-w-0 flex-col overflow-hidden rounded-[10px] border border-ui-divider bg-ui-page-bg', className)}>

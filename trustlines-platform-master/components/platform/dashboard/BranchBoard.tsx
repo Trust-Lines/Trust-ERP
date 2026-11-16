@@ -79,7 +79,8 @@ function AssignBox({ item, section, role }: { item: BoardCardItem; section: Boar
   const saved = role === 'tlines_pm' ? item.assign?.tlinesUserId ?? null : item.assign?.userId ?? null;
   const current = key in assigned ? assigned[key] : saved;
   const name = options.find(o => o.value === current)?.label ?? null;
-  // Figma "id-badge" (node 818:12783): hairline border in the stage tone, text in the stage tone.
+  // Figma "id-badge" (node 818:12783 / 818:31931): hairline border in the stage tone, text in the
+  // stage tone, 6px label over a 9px name.
   return (
     <span
       className="flex min-w-0 max-w-[150px] shrink flex-col justify-center rounded-[4px] border-[0.5px] border-solid px-1.5 py-0.5 leading-normal"
@@ -87,17 +88,17 @@ function AssignBox({ item, section, role }: { item: BoardCardItem; section: Boar
       onClick={e => e.stopPropagation()}
       onKeyDown={e => e.stopPropagation()}
     >
-      <span className="text-[8px]">{ROLE_LABEL[role]}:</span>
+      <span className="text-[6px]">{ROLE_LABEL[role]}:</span>
       {canAssign ? (
         <FilterSelect
           aria-label={`${ROLE_LABEL[role]} for ${item.assign?.label ?? ''}`}
           options={[{ value: UNASSIGNED, label: 'Unassigned' }, ...options]}
           value={current ?? UNASSIGNED}
           onValueChange={v => assign(item, role, v || null)}
-          className="h-auto min-h-0 gap-0.5 border-0 bg-transparent p-0 text-[10px] font-semibold leading-normal text-[inherit] hover:border-0 dark:border-0 dark:bg-transparent dark:p-0 dark:text-[inherit] [&_svg]:size-3"
+          className="h-auto min-h-0 gap-0.5 border-0 bg-transparent p-0 text-[9px] font-semibold leading-normal text-[inherit] hover:border-0 dark:border-0 dark:bg-transparent dark:p-0 dark:text-[inherit] [&_svg]:size-3"
         />
       ) : (
-        <span className="truncate text-[10px] font-semibold">{name ?? 'Unassigned'}</span>
+        <span className="truncate text-[9px] font-semibold">{name ?? 'Unassigned'}</span>
       )}
     </span>
   );
@@ -171,6 +172,28 @@ function CroppedLogo({ src, code, className }: { src: string; code: string; clas
   );
 }
 
+/** Figma West branch header logo (818:34126): the TLines mark + wordmark over "WEST", as drawn —
+ *  the CVW.png file is the wider "CVW.TLines" wordmark, so the column header uses Figma's assets. */
+const WEST_W = 116, WEST_H = 67.3;
+function WestLogo({ height = WEST_H }: { height?: number }) {
+  // Drawn at its Figma size (116 × 67.3) and scaled as a whole, so the small Columns-menu chip
+  // shows the same logo as the column header.
+  const s = height / WEST_H;
+  /* eslint-disable @next/next/no-img-element */
+  return (
+    <span className="relative block shrink-0" style={{ width: WEST_W * s, height: WEST_H * s }} role="img" aria-label="T-Lines West">
+      <span className="absolute left-0 top-0 flex w-[116px] origin-top-left flex-col items-center gap-3" style={{ transform: `scale(${s})` }}>
+        <span className="relative block h-[45.3px] w-[94.2px]">
+          <img src="/figma/dashboard/west-mark.svg" alt="" width={93.9656} height={27.2137} className="absolute left-0 top-0 block max-w-none" />
+          <img src="/figma/dashboard/west-tlines.svg" alt="" width={94.065} height={21.8596} className="absolute left-[0.11px] top-[23.42px] block max-w-none" />
+        </span>
+        <img src="/figma/dashboard/west-label.svg" alt="" width={47.1942} height={10.602} className="block max-w-none" />
+      </span>
+    </span>
+  );
+  /* eslint-enable @next/next/no-img-element */
+}
+
 /** "2026-05-26" → ["MAY", "26", "2026"] for the card's date tile (no time-zone shift). */
 function dateParts(iso: string | null): [string, string, string] | null {
   const m = iso?.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -228,8 +251,8 @@ function Card({ item, section, onOpen }: {
           </span>
         ) : item.pmName && (
           <span className="flex w-fit max-w-[150px] flex-col rounded-[4px] border-[0.5px] border-solid px-1.5 py-0.5 leading-normal" style={{ borderColor: fg }}>
-            <span className="text-[8px]">{item.pmLabel}:</span>
-            <span className="truncate text-[10px] font-semibold">{item.pmName}</span>
+            <span className="text-[6px]">{item.pmLabel}:</span>
+            <span className="truncate text-[9px] font-semibold">{item.pmName}</span>
           </span>
         )}
         {(item.subtitle || item.note) && (
@@ -507,7 +530,10 @@ function ColumnShell({ column, children }: { column: BoardColumn; children: Reac
         <div className="flex h-[105px] items-center justify-center rounded-[11px] py-[13px]" style={{ background: column.headerColor }}>
           {column.title
             ? <span className="px-3 text-center text-[20px] font-semibold leading-tight text-white">{column.title}</span>
-            : <CroppedLogo src={column.logoSrc} code={column.logoCode} className="h-[62px]" />}
+            // Figma branch header (818:31889): logo block ~116 × 67 px inside the 105 px bar.
+            : column.logoCode === 'CVW'
+              ? <WestLogo />
+              : <CroppedLogo src={column.logoSrc} code={column.logoCode} className="h-[67px]" />}
         </div>
       </div>
       {children}
@@ -573,7 +599,9 @@ function ColumnButtons({ columns, hidden, onToggle }: {
           >
             {c.title
               ? <span className="text-[13px] font-semibold text-white">{c.title}</span>
-              : <CroppedLogo src={c.logoSrc} code={c.logoCode} className="h-[26px]" />}
+              : c.logoCode === 'CVW'
+                ? <WestLogo height={26} />
+                : <CroppedLogo src={c.logoSrc} code={c.logoCode} className="h-[26px]" />}
           </button>
         );
       })}
@@ -719,8 +747,8 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Every board filter sits here, right above the columns. */}
-      <div className="flex min-h-12 flex-wrap items-center justify-between gap-2.5 rounded-[8px] bg-ui-surface px-2 py-1.5">
+      {/* Every board filter sits here, right above the columns. Dashboard: Figma "View tabs" (818:31781). */}
+      <div className={`flex min-h-12 flex-wrap items-center justify-between gap-2.5 rounded-[8px] bg-ui-surface px-2 py-1.5${datesInBar ? '' : ' border border-ui-divider'}`}>
         <div className="flex flex-wrap items-center gap-2.5">
           {offerPm && <ColumnsByToggle by={columnsBy} onBy={changeColumnsBy} />}
           {accounts && <ViewToggle view={view} onView={changeView} />}
@@ -739,7 +767,8 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
           )}
         </div>
       </div>
-      {kpis && <div className="my-3">{kpis}</div>}
+      {/* Figma 818:31780: 16 px between filter bar, KPI row and columns (gap-2 + my-2). */}
+      {kpis && <div className="my-2">{kpis}</div>}
       {/* items-start: columns must NOT stretch to match the tallest one (grid's default). */}
       <div
         className={byPmNow
