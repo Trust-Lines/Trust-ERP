@@ -358,7 +358,7 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
     installRows = data ?? [];
     if (userRole === 'tlines_pm') {
       const ownNos = new Set(projects.map(p => projectNumber(p.code)).filter(Boolean));
-      installRows = installRows.filter(i => !!i.project_no && ownNos.has(i.project_no));
+      installRows = installRows.filter(i => ownNos.has(projectNumber(i.project_no)));
     }
   }
   const INSTALLING = ['In Progress', 'Delayed', 'On Hold'];
@@ -451,15 +451,18 @@ export async function BranchBoardPage({ viewParam, layout }: { viewParam?: strin
     const regionInstalls = installRows.filter(i => i.branch === r.dropboxShort && !!i.project_no);
     const installingRows = regionInstalls.filter(isInstalling);
     const completedRows = regionInstalls.filter(i => i.status === 'Completed');
-    const installNos = new Set([...installingRows, ...completedRows].map(i => i.project_no));
+    // The plan writes numbers its own way ("#480 STG 1", "#408M"): match on the digits.
+    const installNos = new Set([...installingRows, ...completedRows].map(i => projectNumber(i.project_no)));
     // A card per install, opened like a Trust card (the popup gathers everything by number).
     const toInstallCard = (i: InstallRow): BoardCardItem => {
-      const no = i.project_no as string;
+      // Badge: the plan's number without its own "#" (the badge adds one); lookups: the digits.
+      const label = (i.project_no as string).replace(/^#+\s*/, '');
+      const no = projectNumber(label) ?? label;
       const name = dealNames.forCard(no, i.city_state) ?? i.project_name ?? `#${no}`;
       const date = i.planned_finish ?? i.planned_start;
       return {
         id: i.id, kind: 'trust',
-        badgeTop: `#${no}`, badgeBottom: '',
+        badgeTop: `#${label}`, badgeBottom: '',
         title: name,
         subtitle: i.city_state,
         account: accountOf(name),
