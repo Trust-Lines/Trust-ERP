@@ -5,6 +5,7 @@ import { getRolePermissions } from '@/lib/permissions/server';
 import { pageAllowed } from '@/lib/permissions/catalog';
 import { projectNumber } from '@/lib/keyClients/match';
 import { loadProjectFinance } from '@/lib/finance/projectTotals';
+import { NO_PF_ROLES } from '@/lib/production/access';
 import { CARD_TAB_PERMS, type CardDeal, type CardProject } from '@/lib/dashboard/cardTabs';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +28,11 @@ export async function GET(req: Request) {
   const role = (profile as { role?: string } | null)?.role ?? null;
   const perms = await getRolePermissions(admin, role);
   if (!role || !pageAllowed(role, perms, 'page.dashboard')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  const allowed = Object.entries(CARD_TAB_PERMS).filter(([, key]) => pageAllowed(role, perms, key)).map(([tab]) => tab);
+  // tlines_pm never gets PF fields or money (AGENTS.md §2), whatever the Roles switches say.
+  const NEVER_FOR_NO_PF = new Set(['po_pf', 'finance']);
+  const allowed = Object.entries(CARD_TAB_PERMS)
+    .filter(([tab, key]) => pageAllowed(role, perms, key) && !(NO_PF_ROLES.has(role) && NEVER_FOR_NO_PF.has(tab)))
+    .map(([tab]) => tab);
 
   const q = new URL(req.url).searchParams;
   const no = /^\d{2,10}$/.test(q.get('no') ?? '') ? q.get('no')! : null;
