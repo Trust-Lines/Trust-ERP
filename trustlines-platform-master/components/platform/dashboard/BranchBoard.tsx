@@ -16,6 +16,7 @@ import { BoardItemView } from './BoardItemView';
 import { BranchLogo } from './BranchLogo';
 import type { TrustItem } from '@/lib/trust/board';
 import { SERVICE_LINES } from '@/lib/regions';
+import { projectNumber } from '@/lib/keyClients/match';
 
 // Design: Figma "Tlines-Websites" → "Desktop - 17" (node 60:1139) — the 4-branch board that
 // replaces the old company-wide dashboard. Each column is one real T-Lines region
@@ -689,6 +690,27 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
   /** General Manager frame: columns expand in the page and use the Figma 16px gutter. */
   pageScroll?: boolean;
 }) {
+  // Gantt row → the board's card for that project (the plan's exact label, else its number), so a
+  // row opens the same popup a card does. False when the board has no card for it.
+  const openByProjectNo = React.useMemo(() => {
+    type Hit = { item: BoardCardItem; section: BoardSection };
+    const byLabel = new Map<string, Hit>();
+    const byNo = new Map<string, Hit>();
+    for (const c of regionColumns) for (const section of c.sections) for (const item of section.items) {
+      const label = [item.badgeTop, item.badgeBottom].filter(Boolean).join(' ').replace(/^#+s*/, '').toUpperCase();
+      if (label && !byLabel.has(label)) byLabel.set(label, { item, section });
+      const no = item.projectNo ?? projectNumber(item.badgeTop);
+      if (no && !byNo.has(no)) byNo.set(no, { item, section });
+    }
+    return (projectNo: string) => {
+      const label = projectNo.replace(/^#+s*/, '').toUpperCase();
+      const no = projectNumber(label);
+      const hit = byLabel.get(label) ?? (no ? byNo.get(no) : undefined);
+      if (!hit) return false;
+      onOpen(hit.item, hit.section);
+      return true;
+    };
+  }, [regionColumns, onOpen]);
   const { from: dateFrom, to: dateTo } = dates;
 
   // Which of our companies to show ('' = All Companies, the default).
@@ -858,6 +880,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
             data={openingGantt ? null : gantt?.data ?? null}
             branches={regionColumns.filter(c => picked.has(c.regionCode)).map(c => c.logoCode).filter(Boolean)}
             from={dateFrom} to={dateTo}
+            onOpen={openByProjectNo}
           />
         </div>
       ) : (<>
