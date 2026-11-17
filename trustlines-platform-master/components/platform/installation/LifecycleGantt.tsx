@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import {
   ArrowUpFromDot, Award, CircleCheck, ClipboardCheck, Cog, DraftingCompass, Hammer, Loader, MessagesSquare, Ship,
-  UsersRound, type LucideIcon,
+  UsersRound, ZoomIn, ZoomOut, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -25,7 +25,12 @@ import { HEADING, SCOPE_COLOR } from './shared';
 // stages — a dark chip at the start of each stage. Only stages with real dates are drawn
 // (lib/installations/lifecycle). Overdue / double-booked installs are outlined red, tentative
 // ones striped, and an accent line marks today.
+// Month width in px. Ctrl + wheel / pinch / Ctrl +/- over the chart (or the -/+ buttons) zooms the
+// timeline only, never the page: 60px fits years on screen, 900px shows single days.
 const MONTH_W = 300;
+const MONTH_W_MIN = 60;
+const MONTH_W_MAX = 900;
+const clampMonthW = (w: number) => Math.min(MONTH_W_MAX, Math.max(MONTH_W_MIN, Math.round(w)));
 const ROW_H = 49;
 type ColorBy = 'branch' | 'scope';
 
@@ -102,6 +107,45 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
   undatedByNo?: Record<string, UndatedStage>;
 }) {
   const [colorBy, setColorBy] = React.useState<ColorBy>('branch');
+  const [monthW, setMonthW] = React.useState(MONTH_W);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const hoverRef = React.useRef(false);
+
+  /** Zoom the timeline by `factor`, keeping the date under `clientX` (else the middle) in place. */
+  const zoom = React.useCallback((factor: number | 'reset', clientX?: number) => {
+    const el = scrollRef.current;
+    setMonthW(prev => {
+      const next = factor === 'reset' ? MONTH_W : clampMonthW(prev * factor);
+      if (el && next !== prev) {
+        const rect = el.getBoundingClientRect();
+        const px = (clientX ?? rect.left + LEFT_W + (rect.width - LEFT_W) / 2) - rect.left - LEFT_W;
+        const at = Math.max(0, el.scrollLeft + px) / prev;   // in months from the chart start
+        requestAnimationFrame(() => { el.scrollLeft = at * next - px; });
+      }
+      return next;
+    });
+  }, []);
+
+  // Ctrl + wheel and trackpad pinch (sent as Ctrl + wheel) over the chart, and Ctrl +/-/0 while the
+  // pointer is on it, zoom the timeline instead of the browser page.
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      zoom(Math.exp(-e.deltaY * 0.002), e.clientX);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (!hoverRef.current || !(e.ctrlKey || e.metaKey)) return;
+      if (e.key === '-' || e.key === '_') { e.preventDefault(); zoom(1 / 1.25); }
+      else if (e.key === '=' || e.key === '+') { e.preventDefault(); zoom(1.25); }
+      else if (e.key === '0') { e.preventDefault(); zoom('reset'); }
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('keydown', onKey);
+    return () => { el.removeEventListener('wheel', onWheel); window.removeEventListener('keydown', onKey); };
+  }, [zoom]);
 
   const lives = React.useMemo(() => rows.map(r => {
     const no = projectNumber(r.project_no);
@@ -121,7 +165,7 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
   const last = months[months.length - 1];
   const start = first ? `${first}-01` : today;
   const end = last ? `${last}-${String(daysIn(last)).padStart(2, '0')}` : today;
-  const timelineW = months.length * MONTH_W;
+  const timelineW = months.length * monthW;
 
   /** x of the start of a day (yyyy-mm-dd) on the timeline, clamped to the chart. */
   const dayX = (iso: string) => {
@@ -130,7 +174,7 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
     const key = iso.slice(0, 7);
     const i = months.indexOf(key);
     if (i < 0) return iso < start ? 0 : timelineW;
-    return i * MONTH_W + ((+iso.slice(8, 10) - 1) / daysIn(key)) * MONTH_W;
+    return i * monthW + ((+iso.slice(8, 10) - 1) / daysIn(key)) * monthW;
   };
   const todayX = today >= start && today <= end ? dayX(today) : null;
   const installColor = (r: Installation) =>
@@ -170,9 +214,24 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
             Today
           </span>
         </Legend>
+        <div className="ml-auto flex h-9 items-center rounded-[6px] border border-ui-body" role="group" aria-label="Timeline zoom">
+          <button type="button" onClick={() => zoom(1 / 1.25)} disabled={monthW <= MONTH_W_MIN} aria-label="Zoom out the timeline"
+            title="Zoom out (Ctrl + scroll / Ctrl -)" className="inline-flex h-full cursor-pointer items-center px-2.5 text-ui-body hover:text-ui-heading disabled:cursor-default disabled:opacity-40">
+            <ZoomOut size={16} aria-hidden />
+          </button>
+          <button type="button" onClick={() => zoom('reset')} title="Reset zoom (Ctrl 0)"
+            className="h-full min-w-[52px] cursor-pointer border-x border-ui-body px-2 text-[12px] font-semibold tabular-nums text-ui-body hover:text-ui-heading">
+            {Math.round((monthW / MONTH_W) * 100)}%
+          </button>
+          <button type="button" onClick={() => zoom(1.25)} disabled={monthW >= MONTH_W_MAX} aria-label="Zoom in the timeline"
+            title="Zoom in (Ctrl + scroll / Ctrl +)" className="inline-flex h-full cursor-pointer items-center px-2.5 text-ui-body hover:text-ui-heading disabled:cursor-default disabled:opacity-40">
+            <ZoomIn size={16} aria-hidden />
+          </button>
+        </div>
       </div>
 
-      <div className="max-h-[calc(100dvh-280px)] overflow-auto rounded-[8px] border border-ui-divider bg-ui-page-bg">
+      <div ref={scrollRef} onMouseEnter={() => { hoverRef.current = true; }} onMouseLeave={() => { hoverRef.current = false; }}
+        className="max-h-[calc(100dvh-280px)] overflow-auto rounded-[8px] border border-ui-divider bg-ui-page-bg">
         <div style={{ width: LEFT_W + timelineW }}>
           {/* header */}
           <div className="sticky top-0 z-[3] flex h-[46px] border-b border-ui-divider bg-ui-surface">
@@ -184,7 +243,7 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
               ))}
             </div>
             {months.map(m => (
-              <div key={m} className={cn('flex shrink-0 items-center justify-center border-r border-ui-divider text-[16px] font-semibold leading-[1.4]', HEADING)} style={{ width: MONTH_W }}>
+              <div key={m} className={cn('flex shrink-0 items-center justify-center border-r border-ui-divider text-[16px] font-semibold leading-[1.4]', HEADING, monthW < 90 && 'text-[12px]')} style={{ width: monthW }}>
                 {monthHead(m)}
               </div>
             ))}
@@ -229,8 +288,9 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
                   {/* month columns, dashed weeks */}
                   <div className="absolute inset-0 flex" aria-hidden>
                     {months.map(m => (
-                      <div key={m} className="flex h-full shrink-0 border-r border-ui-text-secondary" style={{ width: MONTH_W }}>
-                        {[0, 1, 2, 3].map(q => <div key={q} className={cn('h-full flex-1', q < 3 && 'border-r border-dashed border-ui-text-secondary')} />)}
+                      <div key={m} className="flex h-full shrink-0 border-r border-ui-text-secondary" style={{ width: monthW }}>
+                        {/* week lines only while there is room for them */}
+                        {monthW >= 120 && [0, 1, 2, 3].map(q => <div key={q} className={cn('h-full flex-1', q < 3 && 'border-r border-dashed border-ui-text-secondary')} />)}
                       </div>
                     ))}
                   </div>
