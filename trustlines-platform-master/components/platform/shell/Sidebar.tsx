@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   CalendarRange,
+  HardDrive,
   HardHat,
   LayoutDashboard,
   FolderKanban,
@@ -137,6 +138,8 @@ const MY_WORKSPACE_NAV: NavItem[] = [
 // IT (Figma "IT Tickets", 828:37587): one-page group, so the rail icon opens the tickets page.
 const IT_NAV: NavItem[] = [
   { label: 'Tickets', href: '/it/tickets', icon: MonitorPcIcon, perm: 'page.it' },
+  // Figma "Items Library" (843:41158): the IT equipment list, same page switch as Tickets.
+  { label: 'Items Library', href: '/it/items', icon: HardDrive, perm: 'page.it' },
 ];
 
 const CUSTOMERS_ITEM: NavItem ={ label: 'Customers', href: '/customers', icon: Contact, perm: 'page.customers' };
