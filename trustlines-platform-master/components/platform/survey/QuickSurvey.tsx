@@ -23,6 +23,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { SurveyField } from "./SurveyField";
 import {
   Building2, Check, Clock3, Loader2,
   MessageCircle, MoreHorizontal, Store, Fuel, ShoppingBasket, Mail,
@@ -274,17 +275,6 @@ function ErrorSummary({ errors }: { errors: SurveyErrors }) {
   );
 }
 
-function Field({ id, label, hint, optional, error, children }: { id: string; label: string; hint?: string; optional?: boolean; error?: string; children: React.ReactNode }) {
-  return (
-    <div className={`gs-field ${error ? "gs-field-error" : ""}`} data-field={id}>
-      <div className="gs-field-label-row"><label htmlFor={id}>{label}</label><span>{optional ? "Optional" : "Required"}</span></div>
-      {hint && <p className="gs-field-hint">{hint}</p>}
-      {children}
-      {error && <p className="gs-error-text" role="alert">{error}</p>}
-    </div>
-  );
-}
-
 function StoreTypeStep({ data, update, error }: { data: SurveyData; update: (n: FieldName, v: string) => void; error?: string }) {
   return (
     <fieldset className={`gs-choice-fieldset ${error ? "gs-has-error" : ""}`} data-field="storeType">
@@ -313,15 +303,15 @@ const bind = (data: SurveyData, update: StepProps["update"], name: FieldName) =>
 function LeaderStep({ data, update, errors }: StepProps) {
   return (
     <div className="gs-form-grid">
-      <Field id="fullName" label="Full name" error={errors.fullName}>
+      <SurveyField id="fullName" label="Full name" error={errors.fullName}>
         <input id="fullName" autoComplete="name" placeholder="Jane Smith" {...bind(data, update, "fullName")} />
-      </Field>
-      <Field id="phone" label="Phone number" error={errors.phone}>
+      </SurveyField>
+      <SurveyField id="phone" label="Phone number" error={errors.phone}>
         <input id="phone" type="tel" autoComplete="tel" placeholder="(555) 000-0000" {...bind(data, update, "phone")} />
-      </Field>
-      <Field id="email" label="Email address" error={errors.email}>
+      </SurveyField>
+      <SurveyField id="email" label="Email address" error={errors.email}>
         <input id="email" type="email" autoComplete="email" placeholder="name@company.com" {...bind(data, update, "email")} />
-      </Field>
+      </SurveyField>
       <div className={`gs-field ${errors.contactPreference ? "gs-field-error" : ""}`} data-field="contactPreference">
         <div className="gs-field-label-row"><label>How should we reach you?</label><span>Required — pick one or more</span></div>
         <div className="gs-tick-grid">
@@ -359,9 +349,9 @@ function TimingAndSendStep({
         </div>
         {errors.timeline && <p className="gs-error-text" role="alert" style={{ color: "#f3c7c2" }}>{errors.timeline}</p>}
 
-        <Field id="note" label="Note" optional hint="Anything else we should know?">
+        <SurveyField id="note" label="Note" optional hint="Anything else we should know?">
           <textarea id="note" rows={4} placeholder="Write a note…" {...bind(data, update, "note")} />
-        </Field>
+        </SurveyField>
 
         <label className="gs-consent-row">
           <input type="checkbox" checked={consentAccepted} onChange={e => onConsentChange(e.target.checked)} />

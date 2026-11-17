@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import type { PortfolioRow } from '@/lib/workspace/rows';
 import { Select } from '@/components/platform/shared/Select';
 import { Button } from '@/components/ui/button';
+import { ToneChip } from '@/components/ui/tone-chip';
 import { Menu, MenuContent, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
 
 // Figma "PM" workspace (node 207:18326). Only what the lifecycle data really has is shown —
@@ -32,29 +33,19 @@ const asDate = (iso: string) => new Date(iso.length === 10 ? `${iso}T00:00:00` :
 const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
 
 type Tone = 't0' | 't2' | 't6' | 't7' | 't10';
-function Chip({ tone, icon: Icon, children }: { tone: Tone; icon?: typeof Check; children: React.ReactNode }) {
-  return (
-    <span
-      className="inline-flex items-center gap-1 whitespace-nowrap rounded-[4px] py-[3px] pl-2 pr-2.5 text-[12px] font-medium leading-4"
-      style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}
-    >
-      {Icon && <Icon size={14} aria-hidden />}{children}
-    </span>
-  );
-}
 
 function priorityChip(p: number) {
-  if (p >= 70) return <Chip tone="t10" icon={CircleAlert}>High priority</Chip>;
-  if (p >= 50) return <Chip tone="t7" icon={Clock}>Medium</Chip>;
-  return <Chip tone="t2" icon={Clock}>Normal</Chip>;
+  if (p >= 70) return <ToneChip tone="t10" icon={CircleAlert}>High priority</ToneChip>;
+  if (p >= 50) return <ToneChip tone="t7" icon={Clock}>Medium</ToneChip>;
+  return <ToneChip tone="t2" icon={Clock}>Normal</ToneChip>;
 }
 
 function dueChip(iso: string, isOverdue: boolean) {
   const days = Math.round((asDate(iso).getTime() - startOfToday()) / DAY_MS);
-  if (isOverdue || days < 0) return <Chip tone="t10" icon={TriangleAlert}>{Math.abs(days)} day{Math.abs(days) === 1 ? '' : 's'} overdue</Chip>;
-  if (days === 0) return <Chip tone="t7" icon={Clock}>Today</Chip>;
-  if (days === 1) return <Chip tone="t7" icon={Clock}>Tomorrow</Chip>;
-  return <Chip tone="t2" icon={CalendarClock}>Upcoming</Chip>;
+  if (isOverdue || days < 0) return <ToneChip tone="t10" icon={TriangleAlert}>{Math.abs(days)} day{Math.abs(days) === 1 ? '' : 's'} overdue</ToneChip>;
+  if (days === 0) return <ToneChip tone="t7" icon={Clock}>Today</ToneChip>;
+  if (days === 1) return <ToneChip tone="t7" icon={Clock}>Tomorrow</ToneChip>;
+  return <ToneChip tone="t2" icon={CalendarClock}>Upcoming</ToneChip>;
 }
 
 type StatusKey = 'waiting' | 'blocked' | 'on_hold' | 'on_track';
@@ -153,7 +144,7 @@ export function PmWorkspaceClient({ rows, seesAll }: { rows: PortfolioRow[]; see
         <section className={cn(CARD, 'flex flex-col bg-ui-surface p-5')} aria-labelledby="pm-waiting-title">
           <div className="flex flex-wrap items-center gap-2">
             <h2 id="pm-waiting-title" className={cn('m-0 text-[17px] font-semibold', HEADING_TEXT)}>Waiting on me</h2>
-            <Chip tone="t0" icon={Clock}>{waiting.length} open</Chip>
+            <ToneChip tone="t0" icon={Clock}>{waiting.length} open</ToneChip>
             <span className="ml-auto text-[11px] text-ui-text-secondary">Ordered by urgency</span>
           </div>
           <p className="mb-2 mt-1 text-[11px] text-ui-text-secondary">Your next step on each project — approvals, handovers and blockers assigned to you.</p>
@@ -289,7 +280,7 @@ export function PmWorkspaceClient({ rows, seesAll }: { rows: PortfolioRow[]; see
                     <td className={TD_CLS}>{r.phaseLabel}</td>
                     <td className={TD_CLS}>
                       <span title={r.blockers.map(b => b.message).join(' · ') || undefined}>
-                        <Chip tone={st.tone} icon={st.icon}>{st.label}</Chip>
+                        <ToneChip tone={st.tone} icon={st.icon}>{st.label}</ToneChip>
                       </span>
                     </td>
                     <td className={cn(TD_CLS, 'max-w-[240px] truncate')}>

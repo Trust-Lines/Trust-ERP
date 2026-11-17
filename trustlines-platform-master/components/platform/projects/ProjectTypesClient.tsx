@@ -6,6 +6,7 @@ import { FileText, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import { STATUS_CHAIN } from '@/lib/production/board';
 import { Select } from '@/components/ui/select';
+import { Field } from '@/components/ui/field';
 import { DatePicker } from '@/components/ui/date-picker';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -101,42 +102,42 @@ export function ProjectTypesClient({
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.06fr)_minmax(0,1.06fr)_minmax(0,0.58fr)_minmax(0,1fr)_minmax(0,1fr)_149px]">
-              <Field label="Sub-Status">
+              <Field variant="loose" label="Sub-Status">
                 {canEdit ? (
                   <Select aria-label="Sub-status" className={INPUT} options={statusOptions} value={r.status}
                     disabled={busy === r.id + 'status'} onValueChange={v => { if (v) void patch(r.id, 'status', v); }} />
                 ) : <span className={READ}><StatusBadge group="production" status={PRODUCTION_ITEM_STATUS_TAG[r.status] ?? r.status} label={statusLabel(r.status)} /></span>}
               </Field>
 
-              <Field label="Owner">
+              <Field variant="loose" label="Owner">
                 {canEdit ? (
                   <Select aria-label="Owner" className={INPUT} options={ownerOptions} value={r.assigned_to ?? ''}
                     disabled={busy === r.id + 'assigned_to'} onValueChange={v => void patch(r.id, 'assigned_to', v || null)} />
                 ) : <span className={READ}>{personName(r.assigned_to)}</span>}
               </Field>
 
-              <Field label="Priority">
+              <Field variant="loose" label="Priority">
                 {canEdit ? (
                   <Select aria-label="Priority" className={INPUT} options={priorityOptions} value={r.priority ?? ''}
                     disabled={busy === r.id + 'priority'} onValueChange={v => void patch(r.id, 'priority', v || null)} />
                 ) : <span className={cn(READ, 'capitalize', PRIORITY_TONE[r.priority ?? ''])}>{r.priority ?? '—'}</span>}
               </Field>
 
-              <Field label="Start Date">
+              <Field variant="loose" label="Start Date">
                 {canEdit ? (
                   <DatePicker aria-label="Start date" placeholder="No date" className={DATE_INPUT}
                     value={parseISODate(r.start_date)} onValueChange={d => void patch(r.id, 'start_date', toISODate(d))} />
                 ) : <span className={READ}>{r.start_date ? formatDate(r.start_date) : '—'}</span>}
               </Field>
 
-              <Field label="Target Date">
+              <Field variant="loose" label="Target Date">
                 {canEdit ? (
                   <DatePicker aria-label="Target date" placeholder="No date" className={DATE_INPUT}
                     value={parseISODate(r.target_date)} onValueChange={d => void patch(r.id, 'target_date', toISODate(d))} />
                 ) : <span className={READ}>{r.target_date ? formatDate(r.target_date) : '—'}</span>}
               </Field>
 
-              <Field label="PO / PF sign">
+              <Field variant="loose" label="PO / PF sign">
                 {/* Figma 467:19723 / 470:21970: an input-filled box with no border (only visible in dark). */}
                 <span className={cn(READ, 'rounded-[6px] bg-ui-input-bg px-3')}>
                   PO: {r.po_sign_status ? statusLabel(r.po_sign_status) : '—'} · PF: {r.pf_sign_status ? statusLabel(r.pf_sign_status) : '—'}
@@ -172,11 +173,3 @@ export function ProjectTypesClient({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-[7px]">
-      <span className="text-[12px] font-medium leading-4 text-ui-body">{label}</span>
-      {children}
-    </div>
-  );
-}

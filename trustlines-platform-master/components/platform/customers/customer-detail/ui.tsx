@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { CircleDashed, Pencil, Plus, Star, Trash2, type LucideIcon } from 'lucide-react';
+import { ToneChip } from '@/components/ui/tone-chip';
 import { cn } from '@/lib/utils';
 
 // Shared pieces for Figma "Customer detail" (node 304:2563).
@@ -58,14 +59,18 @@ export function IconAction({ kind, label, onClick }: { kind: 'delete' | 'edit'; 
 /** Small 18px status chip used inside rows. */
 export function MiniChip({ tone, icon: Icon, star, children }: { tone: string; icon?: LucideIcon; star?: boolean; children: ReactNode }) {
   return (
-    <span
-      className="inline-flex h-[18px] shrink-0 items-center gap-1 rounded-[4px] pl-2 pr-2.5 text-[11px] font-medium leading-4 whitespace-nowrap"
-      style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}
+    <ToneChip
+      tone={tone}
+      className="h-[18px] py-0 text-[11px]"
+      icon={(star || Icon) && (
+        <>
+          {star && <Star size={10} fill="currentColor" strokeWidth={0} aria-hidden />}
+          {Icon && <Icon size={12} aria-hidden />}
+        </>
+      )}
     >
-      {star && <Star size={10} fill="currentColor" strokeWidth={0} aria-hidden />}
-      {Icon && <Icon size={12} aria-hidden />}
       {children}
-    </span>
+    </ToneChip>
   );
 }
 

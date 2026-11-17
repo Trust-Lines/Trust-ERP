@@ -13,7 +13,7 @@ import { Select as FilterSelect } from '@/components/ui/select';
 import {
   BRANCHES, byStart, installersOf, isActive, teamHeadcount, type Clash, type InstallTeam, type Installation,
 } from '@/lib/installations/compute';
-import { BRANCH_COLOR, HEADING } from './shared';
+import { BRANCH_COLOR, EmptyBox, HEADING } from './shared';
 
 export type TeamDraft = { name: string; branch: string | null; members: string[]; size: number | null; notes: string | null; active: boolean };
 
@@ -323,10 +323,6 @@ function MembersList({ members }: { members: Member[] }) {
       })}
     </div>
   );
-}
-
-function EmptyBox({ children }: { children: React.ReactNode }) {
-  return <p className="m-0 rounded-[8px] border border-ui-divider bg-ui-page-bg px-4 py-8 text-center text-[13px] text-ui-text-secondary">{children}</p>;
 }
 
 function TeamFormModal({ open, team, onClose, onSave }: {
