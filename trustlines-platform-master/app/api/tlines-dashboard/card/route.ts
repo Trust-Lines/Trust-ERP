@@ -4,8 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getRolePermissions } from '@/lib/permissions/server';
 import { pageAllowed } from '@/lib/permissions/catalog';
 import { projectNumber } from '@/lib/keyClients/match';
-import { loadProjectFinance } from '@/lib/finance/projectTotals';
-import { NO_PF_ROLES } from '@/lib/production/access';
+import { loadCardDetails, moneyLevel } from '@/lib/dashboard/cardDetails';
 import { CARD_TAB_PERMS, type CardDeal, type CardProject } from '@/lib/dashboard/cardTabs';
 
 export const dynamic = 'force-dynamic';
@@ -13,9 +12,11 @@ const UUID = /^[0-9a-f-]{36}$/i;
 
 // Dashboard → a card's popup: everything we hold for its project number (read-only).
 //   GET ?no=490&kind=trust|opportunity|potential|project&id=<card id>
-// → { project, deals, finance, allowed }: our project with that number (or the card's own), the
-// Potentials / Opportunities with that number or linked to it, and its finance totals. The Trust
-// System's types come with the card itself.
+// → { project, deals, details, allowed }: our project with that number (or the card's own), the
+// Potentials / Opportunities with that number or linked to it, and the project's details
+// (lib/dashboard/cardDetails: people, dates, production rows, containers, installation, finance).
+// Prices are cut on the server: the general manager gets everything, the T-Lines side only PO
+// prices, the Trust Lines side only PF. The Trust System's types come with the card itself.
 // Open to whoever has the Dashboard page; each tab follows its own switch on the Roles page
 // ("Dashboard project popup") — `allowed` lists the ones this role sees, and what it may not see
 // isn't sent.
@@ -28,11 +29,12 @@ export async function GET(req: Request) {
   const role = (profile as { role?: string } | null)?.role ?? null;
   const perms = await getRolePermissions(admin, role);
   if (!role || !pageAllowed(role, perms, 'page.dashboard')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  // tlines_pm never gets PF fields or money (AGENTS.md §2), whatever the Roles switches say.
-  const NEVER_FOR_NO_PF = new Set(['po_pf', 'finance']);
+  // tlines_pm never gets PF fields, vendors, cost or margin (AGENTS.md §2): moneyLevel gives the
+  // T-Lines side PO prices only, and loadCardDetails leaves everything else out.
   const allowed = Object.entries(CARD_TAB_PERMS)
-    .filter(([tab, key]) => pageAllowed(role, perms, key) && !(NO_PF_ROLES.has(role) && NEVER_FOR_NO_PF.has(tab)))
+    .filter(([, key]) => pageAllowed(role, perms, key))
     .map(([tab]) => tab);
+  const level = moneyLevel(role, (perms as { all?: boolean } | null)?.all === true);
 
   const q = new URL(req.url).searchParams;
   const no = /^\d{2,10}$/.test(q.get('no') ?? '') ? q.get('no')! : null;
@@ -91,7 +93,9 @@ export async function GET(req: Request) {
     ];
   }
 
-  const finance = project && allowed.includes('finance') ? await loadProjectFinance(admin, project.id) : null;
+  const details = await loadCardDetails(admin, { projectId: project?.id ?? null, no, level, financeTab: allowed.includes('finance') });
+  if (!allowed.includes('installation')) details.installs = [];
+  if (!allowed.includes('finance')) details.finance = null;
 
-  return NextResponse.json({ project, deals, finance, allowed });
+  return NextResponse.json({ project, deals, details, allowed });
 }

@@ -14,8 +14,10 @@ import { ToneChip } from '@/components/ui/tone-chip';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { BoardTaskPanel } from './BoardTaskPanel';
 import { projectNumber } from '@/lib/keyClients/match';
-import { buildCardTabs, isShipped, type CardDeal, type CardPhase, type CardProject, type CardTab, type ChipTone } from '@/lib/dashboard/cardTabs';
-import type { ProjectFinance } from '@/lib/finance/projectTotals';
+import {
+  buildCardTabs, isShipped, type CardDeal, type CardDetails, type CardInstall, type CardItemDetail, type CardMoney, type CardPhase,
+  type CardProject, type CardProjectExtra, type CardTab, type ChipTone, type MoneyLevel,
+} from '@/lib/dashboard/cardTabs';
 import { typeLabel, type TrustItem } from '@/lib/trust/board';
 import { STAGE_LABELS } from '@/lib/workflow/machine';
 import type { ProjectStage } from '@/types/database';
@@ -39,7 +41,7 @@ const TONE_ICON: Record<ChipTone, LucideIcon | 'in-review'> = { t0: CircleDashed
 
 const notYet = () => toast.info('Not connected yet');
 
-interface CardData { project: CardProject | null; deals: CardDeal[]; finance: ProjectFinance | null; allowed: string[] }
+interface CardData { project: CardProject | null; deals: CardDeal[]; details: CardDetails | null; allowed: string[] }
 
 export function BoardItemView({ item, section, assignees, canEdit, companyEdit = 'none', staff = [], everyone = [], meId = null, canEditTrustTasks = false, onClose }: {
   item: BoardCardItem;
@@ -76,7 +78,7 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
 
   const today = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
   const tabs = React.useMemo(
-    () => (data ? buildCardTabs({ deals: data.deals, project: data.project, trustItems: item.trustItems ?? null, finance: data.finance, today, allowed: data.allowed }) : []),
+    () => (data ? buildCardTabs({ deals: data.deals, project: data.project, trustItems: item.trustItems ?? null, details: data.details ?? null, today, allowed: data.allowed }) : []),
     [data, item.trustItems, today],
   );
   // Opens on the Opportunity: the card's own deal, else the latest Opportunity (then Potential),
@@ -239,7 +241,7 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
           </div>
           <div role="tabpanel" className="min-w-0 flex-1 overflow-y-auto rounded-[8px] border border-solid border-ui-divider bg-ui-surface p-6">
             {error ? <p className="m-0 text-[13px] font-medium" style={{ color: 'var(--status-t10-fg)' }}>{error}</p>
-              : active ? <Detail tab={active} project={data?.project ?? null} today={today} onOpenDeal={setOpenDeal} />
+              : active ? <Detail tab={active} project={data?.project ?? null} details={data?.details ?? null} today={today} onOpenDeal={setOpenDeal} />
               : data && <EmptyState size="sm" icon={<CircleDashed />} title="No stages yet" description="Its Potential, Opportunity and project stages show up here as it moves along." />}
           </div>
         </div>
@@ -268,7 +270,9 @@ function Chip({ tone, icon, children }: { tone: ChipTone; icon?: LucideIcon; chi
   );
 }
 
-function Detail({ tab, project, today, onOpenDeal }: { tab: CardTab; project: CardProject | null; today: string; onOpenDeal: (d: CardDeal) => void }) {
+function Detail({ tab, project, details, today, onOpenDeal }: {
+  tab: CardTab; project: CardProject | null; details: CardDetails | null; today: string; onOpenDeal: (d: CardDeal) => void;
+}) {
   if (tab.view === 'deal') {
     const d = tab.deal;
     return (
@@ -281,20 +285,212 @@ function Detail({ tab, project, today, onOpenDeal }: { tab: CardTab; project: Ca
       </Panel>
     );
   }
-  if (tab.view === 'finalization') {
+  if (tab.view === 'finalization') return <ProjectDetail project={project} extra={details?.extra ?? null} money={details?.money ?? 'none'} />;
+  if (tab.view === 'installation') return <InstallDetail installs={tab.installs} />;
+  if (tab.view === 'items') {
+    return details?.items.length
+      ? <RowsTable tab={tab} rows={details.items} money={details.money} today={today} />
+      : <ItemsTable tab={tab} today={today} />;
+  }
+  return <FinanceDetail finance={tab.finance} />;
+}
+
+/** Finalization: everything we hold on the project — overview, dates, people, commercial terms. */
+function ProjectDetail({ project, extra, money }: { project: CardProject | null; extra: CardProjectExtra | null; money: MoneyLevel }) {
+  if (!project) {
     return (
-      <Panel title="Finalization" action={project && <ActionLink href={`/projects/${project.id}`}>Open project <ExternalLink size={14} aria-hidden /></ActionLink>}>
-        {project ? (
-          <Fields rows={[
-            ['Project', `${project.code} — ${project.name}`], ['Stage', STAGE_LABELS[project.currentStage as ProjectStage] ?? project.currentStage],
-            ['Site', project.site], ['Closed deal', fmtDate(project.closedDealDate)], ['Est. delivery', fmtDate(project.estDeliveryDate)],
-          ]} />
-        ) : <p className="m-0 text-[13px] text-ui-text-secondary">In the Trust System — not opened as a project here yet.</p>}
+      <Panel title="Finalization">
+        <p className="m-0 text-[13px] text-ui-text-secondary">In the Trust System — not opened as a project here yet.</p>
       </Panel>
     );
   }
-  if (tab.view === 'items') return <ItemsTable tab={tab} today={today} />;
-  return <FinanceDetail finance={tab.finance} />;
+  const commercial: [string, string | null][] = [];
+  if (extra && (money === 'all' || money === 'po')) {
+    commercial.push(['Deal value', extra.dealValue ? money_(extra.dealValue, extra.currency ?? 'USD') : null], ['Payment terms', extra.paymentTerms ?? null]);
+  }
+  if (extra && money === 'all') commercial.push(['Margin target', extra.marginTarget != null ? `${extra.marginTarget}%` : null]);
+  return (
+    <Panel title="Finalization" action={<ActionLink href={`/projects/${project.id}`}>Open project <ExternalLink size={14} aria-hidden /></ActionLink>}>
+      <Section title="Project">
+        <Fields rows={[
+          ['Project', `${project.code} — ${project.name}`], ['Stage', STAGE_LABELS[project.currentStage as ProjectStage] ?? project.currentStage],
+          ['Client', extra?.client], ['Company', extra?.company ? serviceLineLabel(extra.company) : null],
+          ['Region', extra?.region], ['Site', project.site],
+          ['Scope', extra?.categories.length ? extra.categories.map(c => typeLabel(c) ?? c).join(', ') : null], ['Opened', fmtDate(extra?.createdAt)],
+        ]} />
+        {extra?.scope && <p className="m-0 whitespace-pre-line rounded-[8px] bg-ui-page-bg px-5 py-3 text-[13px] text-ui-body">{extra.scope}</p>}
+      </Section>
+      <Section title="Dates">
+        <Fields rows={[
+          ['Closed deal', fmtDate(project.closedDealDate)], ['Est. finalization', fmtDate(extra?.estFinalization)],
+          ['Est. production start', fmtDate(extra?.estProductionStart)],
+          ['Est. delivery', [fmtDate(project.estDeliveryDate), extra?.hardDeadline ? '(hard deadline)' : null].filter(Boolean).join(' ') || null],
+          ['Actual delivery', fmtDate(extra?.actualDelivery)],
+        ]} />
+      </Section>
+      {extra && (
+        <Section title="People">
+          <Fields rows={extra.people.map(p => [p.label, p.name] as [string, string | null])} />
+        </Section>
+      )}
+      {commercial.length > 0 && (
+        <Section title="Commercial">
+          <Fields rows={commercial} />
+        </Section>
+      )}
+    </Panel>
+  );
+}
+
+/** PO + PF / Production / Shipping from our production rows, money cut to the viewer's level. */
+function RowsTable({ tab, rows, money, today }: { tab: Extract<CardTab, { view: 'items' }>; rows: CardItemDetail[]; money: MoneyLevel; today: string }) {
+  const pf = money === 'all' || money === 'pf';
+  const po = money === 'all' || money === 'po';
+  const has = (k: keyof CardItemDetail) => rows.some(r => r[k] !== undefined);
+  type Col = { label: string; cell: (r: CardItemDetail) => React.ReactNode; num?: boolean; total?: (rs: CardItemDetail[]) => string };
+  const sumOf = (k: 'pfUsd' | 'pfTl' | 'poUsd' | 'poTl' | 'expensesUsd' | 'paidUsd', cur: string) =>
+    (rs: CardItemDetail[]) => money_(rs.reduce((a, r) => a + (r[k] ?? 0), 0), cur);
+  const cols: Col[] =
+    tab.key === 'po_pf' ? [
+      { label: 'Order type', cell: r => typeLabel(r.orderType) ?? '—' },
+      ...(pf ? [
+        { label: 'Vendor', cell: (r: CardItemDetail) => r.vendor || '—' },
+        { label: 'PF code', cell: (r: CardItemDetail) => r.pfCode || '—' },
+        { label: 'PF signed', cell: (r: CardItemDetail) => typeLabel(r.pfSign ?? null) ?? '—' },
+      ] : []),
+      { label: 'PO signed', cell: r => typeLabel(r.poSign) ?? '—' },
+      ...(pf && has('pfUsd') ? [
+        { label: 'PF $', num: true, cell: (r: CardItemDetail) => money_(r.pfUsd, 'USD'), total: sumOf('pfUsd', 'USD') },
+        { label: 'PF TL', num: true, cell: (r: CardItemDetail) => money_(r.pfTl, 'TL'), total: sumOf('pfTl', 'TL') },
+      ] : []),
+      ...(po ? [
+        { label: 'PO $', num: true, cell: (r: CardItemDetail) => money_(r.poUsd, 'USD'), total: sumOf('poUsd', 'USD') },
+        { label: 'PO TL', num: true, cell: (r: CardItemDetail) => money_(r.poTl, 'TL'), total: sumOf('poTl', 'TL') },
+        { label: 'Invoice', cell: (r: CardItemDetail) => [r.invoiceNo, fmtDate(r.invoiceDate)].filter(Boolean).join(' · ') || '—' },
+      ] : []),
+      ...(money === 'all' ? [
+        { label: 'Paid $', num: true, cell: (r: CardItemDetail) => money_(r.paidUsd, 'USD'), total: sumOf('paidUsd', 'USD') },
+      ] : []),
+    ] : tab.key === 'production' ? [
+      { label: 'Status', cell: r => typeLabel(r.status) ?? '—' },
+      { label: 'Note', cell: r => r.note || '—' },
+      { label: 'STD', cell: r => fmtDate(r.dates.std) ?? '—' },
+      { label: 'ETD', cell: r => fmtDate(r.dates.etd) ?? '—' },
+      { label: 'RTD', cell: r => fmtDate(r.dates.rtd) ?? '—' },
+      { label: 'RDY', cell: r => fmtDate(r.dates.rdy) ?? '—' },
+      { label: 'FTD', cell: r => fmtDate(r.dates.ftd) ?? '—' },
+      { label: 'Target', cell: r => fmtDate(r.dates.target) ?? '—' },
+    ] : [
+      { label: 'Container', cell: r => r.container?.no || '—' },
+      { label: 'Status', cell: r => typeLabel(r.container?.status ?? null) ?? '—' },
+      { label: 'Carrier / vessel', cell: r => [r.container?.carrier, r.container?.vessel].filter(Boolean).join(' · ') || '—' },
+      { label: 'Departure', cell: r => fmtDate(r.container?.departure) ?? '—' },
+      { label: 'ETA', cell: r => fmtDate(r.container?.eta) ?? '—' },
+      { label: 'Arrived', cell: r => fmtDate(r.container?.arrival) ?? (r.container?.departure && r.container.departure.slice(0, 10) <= today ? 'On the way' : '—') },
+      { label: 'To', cell: r => typeLabel(r.container?.destination ?? null) ?? '—' },
+    ];
+  const shown = tab.key === 'shipping' ? rows.filter(r => r.container) : rows;
+  const totals = cols.some(c => c.total);
+  return (
+    <Panel title={tab.title}>
+      <div className="overflow-x-auto rounded-[8px] border border-solid border-ui-divider bg-ui-page-bg">
+        <table className="w-full border-collapse text-left text-[13px]">
+          <thead>
+            <tr className="border-b border-solid border-ui-divider text-[12px] text-ui-text-secondary">
+              <th className="px-4 py-2.5 font-medium">Type</th>
+              {cols.map(c => <th key={c.label} className={`whitespace-nowrap px-4 py-2.5 font-medium ${c.num ? 'text-right' : ''}`}>{c.label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map(r => (
+              <tr key={r.id} className="border-b border-solid border-ui-divider align-top text-ui-body last:border-b-0">
+                <td className="px-4 py-2.5">
+                  <span className="font-semibold">{typeLabel(r.type) ?? r.type}</span>
+                  {r.source && r.source !== 'project' && <span className="ml-1.5 text-[11px] text-ui-text-secondary">({typeLabel(r.source)})</span>}
+                  {r.description && <span className="block max-w-[260px] truncate text-[11px] text-ui-text-secondary" title={r.description}>{r.description}</span>}
+                </td>
+                {cols.map(c => <td key={c.label} className={`px-4 py-2.5 ${c.num ? 'whitespace-nowrap text-right tabular-nums' : ''}`}>{c.cell(r)}</td>)}
+              </tr>
+            ))}
+          </tbody>
+          {totals && (
+            <tfoot>
+              <tr className="border-t border-solid border-ui-divider font-semibold text-ui-body">
+                <td className="px-4 py-2.5">Total</td>
+                {cols.map(c => <td key={c.label} className={`px-4 py-2.5 ${c.num ? 'whitespace-nowrap text-right tabular-nums' : ''}`}>{c.total ? c.total(shown) : ''}</td>)}
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+      <p className="m-0 text-[12px] text-ui-text-secondary">
+        From the production board.{money === 'po' ? ' Prices: PO only.' : money === 'pf' ? ' Prices: PF only.' : ''}
+      </p>
+    </Panel>
+  );
+}
+
+function InstallDetail({ installs }: { installs: CardInstall[] }) {
+  return (
+    <Panel title="Installation">
+      {installs.map((i, n) => (
+        <Section key={n} title={installs.length > 1 ? `#${i.label}` : undefined}>
+          <Fields rows={[
+            ['Planned', [fmtDate(i.start), fmtDate(i.finish)].filter(Boolean).join(' → ') || null], ['Status', i.status],
+            ['Team', [i.team, i.teamSize ? `${i.teamSize} people` : null].filter(Boolean).join(' · ') || null], ['PM', i.pm],
+            ['Scope', i.scope], ['Confidence', i.confidence], ['Blockers', i.blockers], ['Notes', i.notes],
+          ]} />
+        </Section>
+      ))}
+    </Panel>
+  );
+}
+
+function FinanceDetail({ finance: f }: { finance: CardMoney }) {
+  const pair = (usd?: number, tl?: number) => [usd ? money_(usd, 'USD') : null, tl ? money_(tl, 'TL') : null].filter(Boolean).join(' · ') || null;
+  const cur = (r?: Record<string, number>) => (r ? Object.entries(r).filter(([, v]) => v).map(([c, v]) => money_(v, c)).join(' · ') || null : null);
+  const po = f.level === 'all' || f.level === 'po';
+  const pf = f.level === 'all' || f.level === 'pf';
+  return (
+    <Panel title="Finance">
+      {po && (
+        <Section title="Client side (PO)">
+          <Fields rows={[
+            ['PO total', pair(f.poUsd, f.poTl)],
+            ['Deal value', f.dealValue ? money_(f.dealValue, f.currency ?? 'USD') : null],
+            ...(f.level === 'all' ? [['Paid', pair(f.paidUsd, f.paidTl)] as [string, string | null]] : []),
+          ]} />
+        </Section>
+      )}
+      {pf && (
+        <Section title="Supplier side (PF)">
+          <Fields rows={[
+            ['PF total', pair(f.pfUsd, f.pfTl)], ['Production expenses', pair(f.expensesUsd, f.expensesTl)],
+            ['Supplier invoices', cur(f.supplierInvoices)], ['Supplier payments', cur(f.supplierPayments)],
+            ['Supplier balance', cur(f.supplierBalance)], ['Trust expenses', cur(f.trustExpenses)],
+          ]} />
+        </Section>
+      )}
+      {f.level === 'all' && (
+        <Section title="Result">
+          <Fields rows={[
+            ['Margin (PO − PF − expenses, USD)', f.marginUsd != null ? money_(f.marginUsd, 'USD') : null],
+            ['Margin %', f.marginUsd != null && f.poUsd ? `${Math.round((f.marginUsd / f.poUsd) * 1000) / 10}%` : null],
+            ['Margin target', f.marginTarget != null ? `${f.marginTarget}%` : null],
+          ]} />
+        </Section>
+      )}
+    </Panel>
+  );
+}
+
+function Section({ title, children }: { title?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2">
+      {title && <h4 className="m-0 text-[13px] font-semibold uppercase tracking-[0.6px] text-ui-text-secondary">{title}</h4>}
+      {children}
+    </div>
+  );
 }
 
 function ItemsTable({ tab, today }: { tab: Extract<CardTab, { view: 'items' }>; today: string }) {
@@ -331,24 +527,6 @@ function ItemsTable({ tab, today }: { tab: Extract<CardTab, { view: 'items' }>; 
         </table>
       </div>
       <p className="m-0 text-[12px] text-ui-text-secondary">From the Trust System.</p>
-    </Panel>
-  );
-}
-
-function FinanceDetail({ finance }: { finance: ProjectFinance }) {
-  const p = finance.production;
-  const cur = (r: Record<string, number>) => Object.entries(r).filter(([, v]) => v).map(([c, v]) => money(v, c)).join(' · ') || '—';
-  return (
-    <Panel title="Finance">
-      <Fields rows={[
-        ['PF', [p.pfUsd && money(p.pfUsd, 'USD'), p.pfTl && money(p.pfTl, 'TL')].filter(Boolean).join(' · ') || '—'],
-        ['Invoiced', [p.invoiceUsd && money(p.invoiceUsd, 'USD'), p.invoiceTl && money(p.invoiceTl, 'TL')].filter(Boolean).join(' · ') || '—'],
-        ['Production expenses', [p.expensesUsd && money(p.expensesUsd, 'USD'), p.expensesTl && money(p.expensesTl, 'TL')].filter(Boolean).join(' · ') || '—'],
-        ['Supplier invoices', cur(finance.supplierInvoices)],
-        ['Supplier payments', cur(finance.supplierPayments)],
-        ['Supplier balance', cur(finance.supplierBalance)],
-        ['Trust expenses', cur(finance.trustExpenses)],
-      ]} />
     </Panel>
   );
 }
@@ -390,5 +568,7 @@ function fmtDate(d: string | null | undefined): string | null {
   return y && m && day ? `${m}/${day}/${y}` : d;
 }
 
+/** A price, or — when there is none. */
+const money_ = (v: number | null | undefined, cur: string) => (v ? money(v, cur) : '—');
 const money = (v: number, cur: string) =>
   `${cur === 'USD' ? '$' : cur === 'EUR' ? '€' : ''}${Math.round(v).toLocaleString('en-US')}${cur === 'TL' ? ' TL' : ''}`;
