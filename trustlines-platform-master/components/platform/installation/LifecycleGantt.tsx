@@ -122,25 +122,32 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
   const [colorBy, setColorBy] = React.useState<ColorBy>('branch');
   const [monthW, setMonthW] = React.useState(MONTH_W);
   const scrollRef = React.useRef<HTMLDivElement>(null);
-  // The chart ends at the bottom of the window, so its horizontal scrollbar is always in view
-  // without scrolling the page down. Re-measured when the window or the content above it changes.
+  // The chart is as tall as the visible page area: scroll the page down until it fills the screen,
+  // and its horizontal scrollbar sits at the bottom of the screen. Re-measured on resize.
   const [fitH, setFitH] = React.useState<number | null>(null);
   React.useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    // The page's own scroll box (the platform shell's main area), else the window.
+    let scroller: HTMLElement | null = null;
+    for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+      const o = getComputedStyle(p).overflowY;
+      if (o === 'auto' || o === 'scroll') { scroller = p; break; }
+    }
     let raf = 0;
     const measure = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        const top = el.getBoundingClientRect().top + window.scrollY;
-        setFitH(Math.max(320, Math.floor(window.innerHeight - top - 16)));
+        // The window scrolls under the sticky top bar: leave it out.
+        const topBar = scroller ? 0 : document.querySelector('[data-shell="topbar"]')?.getBoundingClientRect().height ?? 0;
+        const visible = (scroller ? scroller.clientHeight : window.innerHeight) - topBar;
+        setFitH(Math.max(320, Math.floor(visible - 16)));
       });
     };
     measure();
     window.addEventListener('resize', measure);
     const ro = new ResizeObserver(measure);
-    if (el.parentElement) ro.observe(el.parentElement);
-    ro.observe(document.body);
+    if (scroller) ro.observe(scroller);
     return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', measure); ro.disconnect(); };
   }, []);
   const hoverRef = React.useRef(false);
