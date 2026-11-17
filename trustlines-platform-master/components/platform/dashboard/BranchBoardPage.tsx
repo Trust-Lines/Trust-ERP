@@ -339,6 +339,7 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
         canCreateTask={false}
         trustError={trust.error}
         users={allUsers ?? []}
+      meId={user.id}
         canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
         layout={layout}
         top={isDashboard
@@ -696,6 +697,7 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
       canCreateTask={SALES_INTAKE_ROLES.includes(userRole)}
       trustError={trust.error}
       users={allUsers ?? []}
+      meId={user.id}
       canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
       // A server element passed as a prop into a client component is checked like a list child in
       // dev (React 19 / Next 16) — the key only silences that false "unique key" warning.

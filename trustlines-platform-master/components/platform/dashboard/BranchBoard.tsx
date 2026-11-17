@@ -912,7 +912,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
   );
 }
 
-export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false, byPm = false, layout = 'board', kpis, companyEdit = 'none', gantt }: {
+export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false, byPm = false, layout = 'board', kpis, companyEdit = 'none', gantt, meId = null }: {
   /** /dashboard only: the "View as Gantt chart" toggle and, while it shows, its data. */
   gantt?: BoardGantt;
   /** 'dashboard' = Figma "General Manager" (767:13745) on /dashboard: General / Dashboard crumbs,
@@ -932,6 +932,8 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   users?: { id: string; full_name: string; role?: string | null }[];
   canAssign?: boolean;
   /** Who may set a card's company in its popup: 'any' always, 'empty' only when it has none. */
+  /** The viewer's id (task lists: an assignee may tick their own task done). */
+  meId?: string | null;
   companyEdit?: 'any' | 'empty' | 'none';
   /** Why the Trust System sections are empty, when it couldn't be read. */
   trustError?: string | null;
@@ -950,6 +952,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   const pmOptions = React.useMemo(() => users.filter(u => u.role === 'tlines_pm').map(u => ({ value: u.id, label: u.full_name })), [users]);
   // Trust Lines tasks go to Trust Lines people (not the T-Lines PMs).
   const trustStaff = React.useMemo(() => users.filter(u => u.role !== 'tlines_pm').map(u => ({ id: u.id, full_name: u.full_name })), [users]);
+  const everyone = React.useMemo(() => users.map(u => ({ id: u.id, full_name: u.full_name })), [users]);
   const assign = React.useCallback(async (item: BoardCardItem, role: AssignRole, userId: string | null) => {
     if (!item.assign) return;
     const key = assignKey(item, role);
@@ -1000,7 +1003,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
         <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} dates={dates} datesInBar={!isDashboard} kpis={kpis} counts={isDashboard} pageScroll={isDashboard} gantt={gantt} />
       )}
       {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} companyEdit={companyEdit}
-        staff={trustStaff} canEditTrustTasks={canAssign} onClose={() => setOpen(null)} />}
+        staff={trustStaff} everyone={everyone} meId={meId} canEditTrustTasks={canAssign} onClose={() => setOpen(null)} />}
     </AssignContext.Provider>
   );
 }
