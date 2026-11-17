@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ModalPanel } from '@/components/ui/modal';
 import { ToneChip } from '@/components/ui/tone-chip';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
+import { BoardTaskPanel } from './BoardTaskPanel';
 import { buildCardTabs, isShipped, type CardDeal, type CardPhase, type CardProject, type CardTab, type ChipTone } from '@/lib/dashboard/cardTabs';
 import type { ProjectFinance } from '@/lib/finance/projectTotals';
 import { typeLabel, type TrustItem } from '@/lib/trust/board';
@@ -21,9 +22,10 @@ import type { BoardCardItem, BoardSection } from './BranchBoard';
 import { useRouter } from 'next/navigation';
 import { SERVICE_LINES, serviceLineLabel } from '@/lib/regions';
 
-// Design: Figma "TRUST-LINES ERP" → "Page content" (node 359:25337) — the popup a dashboard card
-// opens. Left: one tab per stage the project has reached (lib/dashboard/cardTabs); middle: that
-// stage's details. Potential / Opportunity / Project jump to that part of the list.
+// Design: Figma "TRUST-LINES ERP" → "Page content" (node 359:25337, new version 908:25017) — the
+// popup a dashboard card opens. Under the heading: T Lines Tasks and Trust Lines Tasks. Left: one tab
+// per stage the project has reached (lib/dashboard/cardTabs); middle: that stage's details.
+// Potential / Opportunity / Project jump to that part of the list.
 
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const PHASES: { value: CardPhase; label: string; icon: LucideIcon }[] = [
@@ -98,6 +100,16 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Could not save the company'); }
     finally { setSavingCompany(false); }
   }
+  // T Lines tasks live on the deal (lead_tasks): the card's own Opportunity / Potential, or for a
+  // project card its latest Opportunity (else Potential). Same routes the deal quick view uses.
+  const taskDeal = React.useMemo<{ kind: 'opportunity' | 'potential'; id: string } | null>(() => {
+    if (item.kind === 'opportunity') return { kind: item.assign?.kind === 'potential' ? 'potential' : 'opportunity', id: item.id };
+    const deals = data?.deals ?? [];
+    const d = deals.filter(x => x.kind === 'opportunity').at(-1) ?? deals.filter(x => x.kind === 'potential').at(-1);
+    return d ? { kind: d.kind, id: d.id } : null;
+  }, [item, data]);
+  const tasksApi = taskDeal ? `/api/marketing/${taskDeal.kind === 'potential' ? 'potentials' : 'opportunities'}/${taskDeal.id}` : null;
+
   const pick = (phase: CardPhase) => {
     const t = phase === 'project' ? tabs.find(x => x.phase === 'project') : tabs.filter(x => x.phase === phase).at(-1);
     if (t) setSelected(t.key);
@@ -193,6 +205,25 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
               </div>
             </div>
           </div>
+        </div>
+
+        {/* ── Tasks (Figma 908:25017): T-Lines' deal tasks next to Trust Lines' own ─── */}
+        <div className="flex shrink-0 flex-col gap-2.5 lg:flex-row lg:items-start">
+          <BoardTaskPanel
+            title="T Lines Tasks"
+            apiBasePath={tasksApi}
+            assignees={assignees}
+            canEdit={canEdit}
+            unavailable={data || error ? 'No Potential or Opportunity on this card yet — its tasks show here once there is one.' : 'Loading…'}
+          />
+          <BoardTaskPanel
+            title="Trust Lines Tasks"
+            apiBasePath={null}
+            assignees={assignees}
+            canEdit={false}
+            showDueDate
+            unavailable="Not connected yet — Trust Lines tasks show here once they have a data source."
+          />
         </div>
 
         {/* ── Body: stage tabs on the left, the selected stage's details ─── */}
