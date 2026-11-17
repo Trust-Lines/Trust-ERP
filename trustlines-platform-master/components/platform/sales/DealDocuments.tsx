@@ -10,26 +10,26 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { ConfirmModal, Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
+import { Field } from '@/components/ui/field';
 import { CURRENCIES, estimateTotals, formatMoney, lineTotal, type LineItem } from '@/lib/sales/documents';
+import type { SalesContract, SalesEstimate } from '@/types/database';
 
 // Deal panel → "Estimate & Contract": the two Sales steps between Design and Closed Deal.
 // Draft an estimate → send the customer a secure link → they accept it → draft the contract
 // from it → send → they sign it online. Every step is also visible to the salesperson here.
 
-interface Estimate {
-  id: string; number: string; version: number; title: string; currency: string; line_items: LineItem[];
-  discount_pct: number; tax_pct: number; subtotal: number; total: number; notes: string | null; valid_until: string | null;
-  status: string; sent_at: string | null; viewed_at: string | null; decided_at: string | null; decided_by_name: string | null; decision_note: string | null;
-}
-interface Contract {
-  id: string; estimate_id: string | null; number: string; title: string; currency: string; amount: number; terms: string;
-  customer_name: string | null; signer_name: string | null; signer_email: string | null; status: string;
-  sent_at: string | null; viewed_at: string | null; signed_at: string | null; signed_name: string | null; signed_title: string | null; declined_reason: string | null;
-}
+// The columns this panel uses from the documents API.
+type Estimate = Pick<SalesEstimate,
+  | 'id' | 'number' | 'version' | 'title' | 'currency' | 'line_items' | 'discount_pct' | 'tax_pct' | 'subtotal' | 'total'
+  | 'notes' | 'valid_until' | 'status' | 'sent_at' | 'viewed_at' | 'decided_at' | 'decided_by_name' | 'decision_note'>;
+type Contract = Pick<SalesContract,
+  | 'id' | 'estimate_id' | 'number' | 'title' | 'currency' | 'amount' | 'terms' | 'customer_name' | 'signer_name' | 'signer_email'
+  | 'status' | 'sent_at' | 'viewed_at' | 'signed_at' | 'signed_name' | 'signed_title' | 'declined_reason'>;
 
 const DAY = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const when = (iso: string | null) => (iso ? DAY.format(new Date(iso)) : null);
-const field = 'flex flex-col gap-1 text-[12px] font-medium text-ui-body';
+// Controls used to sit inside a font-medium <label> and inherit its weight; keep that.
+const field = 'font-medium';
 
 async function call<T>(url: string, method: string, body?: unknown): Promise<T> {
   const res = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
@@ -237,9 +237,9 @@ function EstimateEditor({ opportunityId, estimate, defaults, onClose, onSaved }:
         footer={<><ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Cancel</ModalClose><Button loading={saving} onClick={save}>Save draft</Button></>}>
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_120px_160px]">
-            <label className={field}>Title<Input value={title} onChange={e => setTitle(e.target.value)} /></label>
-            <div className={field}>Currency<Select aria-label="Currency" value={currency} options={CURRENCIES.map(c => ({ value: c, label: c }))} onValueChange={v => setCurrency(v ?? 'USD')} /></div>
-            <label className={field}>Valid until<Input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} /></label>
+            <Field label="Title" className={field}>{id => <Input id={id} value={title} onChange={e => setTitle(e.target.value)} />}</Field>
+            <Field label="Currency" className={field}><Select aria-label="Currency" value={currency} options={CURRENCIES.map(c => ({ value: c, label: c }))} onValueChange={v => setCurrency(v ?? 'USD')} /></Field>
+            <Field label="Valid until" className={field}>{id => <Input id={id} type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} />}</Field>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] border-collapse text-[12px]">
@@ -260,11 +260,11 @@ function EstimateEditor({ opportunityId, estimate, defaults, onClose, onSaved }:
             <Button size="xs" variant="ghost" className="mt-1" onClick={() => setItems(l => [...l, { description: '', quantity: '1', unit: '', unit_price: '' }])}><Plus /> Add line</Button>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_220px]">
-            <label className={field}>Notes for the customer<Textarea rows={4} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Scope, exclusions, payment terms…" /></label>
+            <Field label="Notes for the customer" className={field}>{id => <Textarea id={id} rows={4} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Scope, exclusions, payment terms…" />}</Field>
             <div className="flex flex-col gap-2 rounded-[8px] bg-ui-hover-bg p-3 text-[12px]">
               <div className="grid grid-cols-2 gap-2">
-                <label className={field}>Discount %<Input type="number" min={0} max={100} value={discount} onChange={e => setDiscount(e.target.value)} /></label>
-                <label className={field}>Tax %<Input type="number" min={0} max={100} value={tax} onChange={e => setTax(e.target.value)} /></label>
+                <Field label="Discount %" className={field}>{id => <Input id={id} type="number" min={0} max={100} value={discount} onChange={e => setDiscount(e.target.value)} />}</Field>
+                <Field label="Tax %" className={field}>{id => <Input id={id} type="number" min={0} max={100} value={tax} onChange={e => setTax(e.target.value)} />}</Field>
               </div>
               <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{formatMoney(totals.subtotal, currency)}</span></div>
               {totals.discount > 0 && <div className="flex justify-between"><span>Discount</span><span className="tabular-nums">−{formatMoney(totals.discount, currency)}</span></div>}
@@ -296,13 +296,13 @@ function ContractEditor({ contract, onClose, onSaved }: { contract: Contract; on
         footer={<><ModalClose render={<Button variant="secondary" className={modalSecondaryButtonClass} />}>Cancel</ModalClose><Button loading={saving} onClick={save}>Save draft</Button></>}>
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className={field}>Title<Input value={f.title} onChange={set('title')} /></label>
-            <label className={field}>Amount ({contract.currency})<Input type="number" min={0} step="any" value={f.amount} onChange={set('amount')} /></label>
-            <label className={field}>Customer (company)<Input value={f.customer_name} onChange={set('customer_name')} /></label>
-            <label className={field}>Signer name<Input value={f.signer_name} onChange={set('signer_name')} /></label>
-            <label className={`${field} sm:col-span-2`}>Signer email<Input type="email" value={f.signer_email} onChange={set('signer_email')} /></label>
+            <Field label="Title" className={field}>{id => <Input id={id} value={f.title} onChange={set('title')} />}</Field>
+            <Field label={`Amount (${contract.currency})`} className={field}>{id => <Input id={id} type="number" min={0} step="any" value={f.amount} onChange={set('amount')} />}</Field>
+            <Field label="Customer (company)" className={field}>{id => <Input id={id} value={f.customer_name} onChange={set('customer_name')} />}</Field>
+            <Field label="Signer name" className={field}>{id => <Input id={id} value={f.signer_name} onChange={set('signer_name')} />}</Field>
+            <Field label="Signer email" className={`${field} sm:col-span-2`}>{id => <Input id={id} type="email" value={f.signer_email} onChange={set('signer_email')} />}</Field>
           </div>
-          <label className={field}>Contract text<Textarea rows={16} className="font-mono text-[12px]" value={f.terms} onChange={set('terms')} /></label>
+          <Field label="Contract text" className={field}>{id => <Textarea id={id} rows={16} className="font-mono text-[12px]" value={f.terms} onChange={set('terms')} />}</Field>
         </div>
       </ModalContent>
     </Modal>
@@ -336,8 +336,8 @@ function SendDialog({ kind, doc, defaultTo, onClose, onSent }: {
             <Checkbox checked={byEmail} onCheckedChange={v => setByEmail(!!v)} /> Email the link now from my mailbox
           </label>
           {byEmail && <>
-            <label className={field}>To<Input type="email" value={to} onChange={e => setTo(e.target.value)} /></label>
-            <label className={field}>Message (optional)<Textarea rows={4} value={message} onChange={e => setMessage(e.target.value)} placeholder="Hello, please find our estimate…" /></label>
+            <Field label="To" className={field}>{id => <Input id={id} type="email" value={to} onChange={e => setTo(e.target.value)} />}</Field>
+            <Field label="Message (optional)" className={field}>{id => <Textarea id={id} rows={4} value={message} onChange={e => setMessage(e.target.value)} placeholder="Hello, please find our estimate…" />}</Field>
           </>}
           {doc.status === 'sent' && <p className="m-0 text-[11px] text-warning-dark">Sending again makes a new link; the one sent before stops working.</p>}
         </div>
