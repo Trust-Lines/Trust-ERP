@@ -17,8 +17,9 @@ import {
   type ItTicketTone,
 } from './ticketStyles';
 
-// Figma "Ticket detail": 828:38141 (awaiting decision), 862:46860 (solved) and 862:47715 (not solved).
-// Same layout; the decision row, the notes label and the submit button follow `resolution`.
+// Figma "Ticket detail": 828:38141 (awaiting decision), 862:46860 (solved) and 862:47715 (not solved);
+// dark mode 862:48358. Same layout; the decision row, the notes field and the submit button follow
+// `resolution`. Rendered inside ItTicketDetailModal, which supplies the panel background and padding.
 
 export type ItTicketResolution = 'open' | 'solved' | 'not_solved';
 
@@ -49,9 +50,16 @@ export interface ItTicketDetailData {
   attachments: ItTicketAttachment[];
 }
 
-const SECTION = 'flex flex-col gap-8 rounded-lg border border-solid border-primary-100 bg-white px-3.5 pb-6 pt-3.5 dark:border-primary-600 dark:bg-primary-800';
+// Light / dark per the Figma tokens: surfaces white / primary-950, borders primary-100 / primary-600,
+// strong text secondary-700 / secondary-50, muted text primary-400 / primary-200.
+const STRONG = 'text-secondary-700 dark:text-secondary-50';
+const MUTED = 'text-primary-400 dark:text-primary-200';
+const SURFACE = 'border border-solid border-primary-100 bg-white dark:border-primary-600 dark:bg-primary-950';
+const SECTION = cn('flex flex-col gap-8 rounded-lg px-3.5 pb-6 pt-3.5', SURFACE);
 const FIELD_LABEL = 'm-0 text-[12px] font-medium leading-4 text-ui-body';
-const FIELD_VALUE = 'm-0 text-[14px] font-semibold leading-[1.5] text-secondary-700 dark:text-primary-50';
+const FIELD_VALUE = cn('m-0 text-[14px] font-semibold leading-[1.5]', STRONG);
+// Navy in light, near-white in dark ("primary-button" token).
+const SOLID_BTN = 'bg-secondary-700 text-white dark:bg-secondary-50 dark:text-primary-950';
 const DISABLED = 'disabled:cursor-not-allowed disabled:opacity-60';
 
 function Placeholder({ children }: { children: ReactNode }) {
@@ -60,21 +68,21 @@ function Placeholder({ children }: { children: ReactNode }) {
 
 function AttachmentCard({ file }: { file: ItTicketAttachment }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-solid border-primary-100 bg-white dark:border-primary-600">
-      <div className="flex h-[153px] items-center justify-center border-b border-solid border-primary-100 bg-primary-50 text-primary-300 dark:border-primary-600 dark:bg-primary-900">
+    <div className={cn('flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg', SURFACE)}>
+      <div className="flex h-[153px] items-center justify-center border-b border-solid border-primary-100 text-primary-300 dark:border-primary-600">
         <FileText className="h-10 w-10" strokeWidth={1.25} aria-hidden="true" />
       </div>
-      <div className="flex items-center justify-between gap-2 border-b border-solid border-primary-100 bg-[var(--color-ui-page-bg,#f0f2f5)] px-3 py-2 dark:border-primary-600">
+      <div className="flex items-center justify-between gap-2 bg-primary-50 px-3 py-2 dark:bg-primary-700">
         <div className="flex min-w-0 flex-col">
-          <p className="m-0 truncate text-[12px] font-semibold text-secondary-700 dark:text-primary-50">{file.name}</p>
-          <p className="m-0 text-[10px] tracking-[0.3px] text-ui-body">{file.errorCode ?? 'No error code'}</p>
+          <p className={cn('m-0 truncate text-[12px] font-semibold', STRONG)}>{file.name}</p>
+          <p className={cn('m-0 text-[10px] tracking-[0.3px]', MUTED)}>{file.errorCode ?? 'No error code'}</p>
         </div>
         <button
           type="button"
           disabled={!file.downloadUrl}
           title={file.downloadUrl ? undefined : NOT_CONNECTED_TITLE}
           aria-label={`Download ${file.name}`}
-          className={cn('flex h-[27px] shrink-0 items-center gap-2 rounded bg-secondary-700 px-2 text-[11px] font-semibold text-white dark:bg-secondary-50 dark:text-primary-950', DISABLED)}
+          className={cn('flex h-[27px] shrink-0 items-center gap-2 rounded px-2 text-[11px] font-semibold', SOLID_BTN, DISABLED)}
         >
           <Download className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
           Download
@@ -84,7 +92,12 @@ function AttachmentCard({ file }: { file: ItTicketAttachment }) {
   );
 }
 
-export function ItTicketDetailView({ ticket }: { ticket: ItTicketDetailData | null }) {
+export function ItTicketDetailView({ ticket, titleId, closeHref = '/it/tickets' }: {
+  ticket: ItTicketDetailData | null;
+  /** Id for the subject heading, so the dialog can point aria-labelledby at it. */
+  titleId?: string;
+  closeHref?: string;
+}) {
   const priorityTone = ticket ? PRIORITY_TONE[ticket.priority] : null;
   const categoryTone = ticket ? CATEGORY_TONE[ticket.categoryTone] : null;
   const CategoryIcon = ticket ? CATEGORY_ICON[ticket.categoryTone] : null;
@@ -92,19 +105,19 @@ export function ItTicketDetailView({ ticket }: { ticket: ItTicketDetailData | nu
   const decided = resolution !== 'open';
 
   return (
-    <div className="flex w-full flex-col gap-6 rounded-[11px] bg-white p-8 font-ui">
+    <div className="flex w-full flex-col gap-6 font-ui">
       {/* Heading: subject, date, chips on the left; close and "Access Computer" on the right. */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-2">
           <div className="flex flex-col leading-normal">
-            <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-secondary-700 dark:text-primary-50">
+            <h1 id={titleId} className={cn('m-0 text-[28px] font-semibold leading-[1.35]', STRONG)}>
               {ticket?.subject ?? <Placeholder>Ticket</Placeholder>}
             </h1>
-            <p className="m-0 text-[16px] text-ui-body">{formatTicketDate(ticket?.createdAt ?? null)}</p>
+            <p className={cn('m-0 text-[16px]', MUTED)}>{formatTicketDate(ticket?.createdAt ?? null)}</p>
           </div>
           <div className="flex flex-wrap items-start gap-2">
             {ticket && categoryTone ? (
-              <span className="flex items-center gap-2 rounded px-2 py-0.5 pl-1.5 text-[16px] font-medium leading-[1.4]" style={{ background: categoryTone.bg, color: categoryTone.fg }}>
+              <span className="flex items-center gap-2 rounded py-0.5 pl-1.5 pr-2 text-[16px] font-medium leading-[1.4]" style={{ background: categoryTone.bg, color: categoryTone.fg }}>
                 {CategoryIcon && <CategoryIcon className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
                 {ticket.categoryLabel}
               </span>
@@ -119,9 +132,9 @@ export function ItTicketDetailView({ ticket }: { ticket: ItTicketDetailData | nu
 
         <div className="flex h-[92px] flex-col items-end justify-between">
           <Link
-            href="/it/tickets"
+            href={closeHref}
             aria-label="Close ticket"
-            className="grid h-8 w-8 place-items-center rounded text-secondary-700 hover:text-primary-500 dark:text-primary-50"
+            className={cn('grid h-8 w-8 place-items-center rounded hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring', STRONG)}
           >
             <X className="h-8 w-8" strokeWidth={1.5} aria-hidden="true" />
           </Link>
@@ -129,7 +142,7 @@ export function ItTicketDetailView({ ticket }: { ticket: ItTicketDetailData | nu
             type="button"
             disabled
             title={NOT_CONNECTED_TITLE}
-            className={cn('flex h-9 items-center gap-2 rounded-md bg-accent-400 pl-3 pr-4 text-[13px] font-semibold text-white', DISABLED)}
+            className={cn('flex h-9 items-center gap-2 rounded-md bg-accent-400 pl-3 pr-4 text-[13px] font-semibold text-white dark:text-primary-950', DISABLED)}
           >
             <MonitorPcIcon className="h-4 w-4" strokeWidth={2} />
             Access Computer
@@ -143,7 +156,7 @@ export function ItTicketDetailView({ ticket }: { ticket: ItTicketDetailData | nu
           <div className="flex flex-col gap-2">
             <div className="rounded-lg bg-[var(--status-t9-bg)] px-4 pb-6 pt-4">
               <p className="m-0 text-[12px] leading-[1.45] text-[var(--status-t9-fg)]">
-                {ticket?.description || <Placeholder>No request message</Placeholder>}
+                {ticket?.description || <span className="opacity-70">No request message</span>}
               </p>
             </div>
             {resolution === 'solved' ? (
@@ -162,7 +175,7 @@ export function ItTicketDetailView({ ticket }: { ticket: ItTicketDetailData | nu
                   type="button"
                   disabled
                   title={NOT_CONNECTED_TITLE}
-                  className={cn('flex h-10 flex-1 items-center justify-center gap-2 rounded bg-[var(--color-error-normal)] px-6 text-[13px] font-medium text-white', DISABLED)}
+                  className={cn('flex h-10 flex-1 items-center justify-center gap-2 rounded bg-[var(--color-error-normal)] px-6 text-[13px] font-medium text-white dark:text-primary-950', DISABLED)}
                 >
                   Mark Not solved
                   <X className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
@@ -171,7 +184,7 @@ export function ItTicketDetailView({ ticket }: { ticket: ItTicketDetailData | nu
                   type="button"
                   disabled
                   title={NOT_CONNECTED_TITLE}
-                  className={cn('flex h-10 flex-1 items-center justify-center gap-2 rounded bg-[var(--color-success-normal)] px-6 text-[13px] font-medium text-white', DISABLED)}
+                  className={cn('flex h-10 flex-1 items-center justify-center gap-2 rounded bg-[var(--color-success-normal)] px-6 text-[13px] font-medium text-white dark:text-primary-950', DISABLED)}
                 >
                   Mark Solved
                   <Check className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
@@ -180,16 +193,24 @@ export function ItTicketDetailView({ ticket }: { ticket: ItTicketDetailData | nu
             )}
           </div>
 
-          <div className="flex flex-col gap-4 rounded-[10px] border border-solid border-primary-100 bg-white p-6 dark:border-primary-600 dark:bg-primary-800">
+          {/* Notes: greyed out until a decision is made (828:38141 / 862:48358), then a normal field. */}
+          <div className={cn('flex flex-col gap-4 rounded-[10px] p-6', SURFACE)}>
             <label className="flex flex-col gap-4">
-              <span className="text-[12px] font-medium leading-4 text-ui-body">
+              <span className={cn('text-[12px] font-medium leading-4', decided ? 'text-ui-body' : 'text-primary-100 dark:text-primary-700')}>
                 {resolution === 'not_solved' ? 'Notes*' : 'Notes'}
               </span>
               <textarea
                 disabled
                 placeholder="type.."
                 rows={8}
-                className="h-[180px] w-full resize-none rounded-md border border-solid border-primary-300 bg-white p-3 text-[13px] text-secondary-700 placeholder:text-primary-300 disabled:cursor-not-allowed dark:border-primary-600 dark:bg-primary-800 dark:text-primary-50"
+                aria-required={resolution === 'not_solved' || undefined}
+                className={cn(
+                  'h-[180px] w-full resize-none rounded-md border border-solid p-3 text-[13px] disabled:cursor-not-allowed',
+                  STRONG,
+                  decided
+                    ? 'border-primary-200 bg-white placeholder:text-primary-300 dark:border-secondary-500 dark:bg-primary-800 dark:placeholder:text-primary-400'
+                    : 'border-primary-100 bg-white placeholder:text-primary-100 dark:border-primary-700 dark:bg-primary-950 dark:placeholder:text-primary-700',
+                )}
               />
             </label>
             <button
@@ -198,7 +219,7 @@ export function ItTicketDetailView({ ticket }: { ticket: ItTicketDetailData | nu
               title={decided ? NOT_CONNECTED_TITLE : undefined}
               className={cn(
                 'flex h-10 items-center justify-center rounded-md px-6 text-[13px] font-medium',
-                decided ? 'bg-secondary-700 text-white dark:bg-secondary-50 dark:text-primary-950' : 'bg-primary-100 text-primary-500 dark:bg-primary-600 dark:text-primary-50',
+                decided ? SOLID_BTN : 'bg-primary-100 text-primary-500 dark:bg-primary-700 dark:text-primary-100',
                 DISABLED,
               )}
             >
@@ -215,13 +236,13 @@ export function ItTicketDetailView({ ticket }: { ticket: ItTicketDetailData | nu
                 {ticket ? (
                   <Avatar name={ticket.requesterName} size="lg" />
                 ) : (
-                  <span className="h-[53px] w-[53px] rounded bg-primary-50 dark:bg-primary-900" aria-hidden="true" />
+                  <span className="h-[53px] w-[53px] rounded bg-primary-50 dark:bg-primary-700" aria-hidden="true" />
                 )}
                 <div className="flex flex-col leading-normal">
-                  <p className="m-0 text-[20px] font-semibold tracking-[-0.44px] text-secondary-700 dark:text-primary-50">
+                  <p className={cn('m-0 text-[20px] font-semibold tracking-[-0.44px]', STRONG)}>
                     {ticket?.requesterName ?? <Placeholder>Requester</Placeholder>}
                   </p>
-                  <p className="m-0 text-[14px] tracking-[-0.3px] text-ui-body">{ticket?.requesterRole ?? '—'}</p>
+                  <p className={cn('m-0 text-[14px] tracking-[-0.3px]', MUTED)}>{ticket?.requesterRole ?? '—'}</p>
                 </div>
               </div>
               <button
@@ -229,7 +250,7 @@ export function ItTicketDetailView({ ticket }: { ticket: ItTicketDetailData | nu
                 disabled
                 aria-label="Open requester profile"
                 title={NOT_CONNECTED_TITLE}
-                className={cn('grid h-8 w-8 shrink-0 place-items-center rounded bg-secondary-700 text-white dark:bg-secondary-50 dark:text-primary-950', DISABLED)}
+                className={cn('grid h-8 w-8 shrink-0 place-items-center rounded', SOLID_BTN, DISABLED)}
               >
                 <ExternalLink className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
               </button>
@@ -245,7 +266,7 @@ export function ItTicketDetailView({ ticket }: { ticket: ItTicketDetailData | nu
           </div>
 
           <div className={SECTION}>
-            <h2 className="m-0 text-[16px] font-semibold leading-normal tracking-[-0.35px] text-secondary-700 dark:text-primary-50">Attached Files</h2>
+            <h2 className={cn('m-0 text-[16px] font-semibold leading-normal tracking-[-0.35px]', STRONG)}>Attached Files</h2>
             {ticket && ticket.attachments.length > 0 ? (
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {ticket.attachments.map(file => (
@@ -253,7 +274,7 @@ export function ItTicketDetailView({ ticket }: { ticket: ItTicketDetailData | nu
                 ))}
               </div>
             ) : (
-              <p className="m-0 rounded-lg border border-dashed border-primary-300 px-4 py-10 text-center text-[13px] text-ui-body">
+              <p className="m-0 rounded-lg border border-dashed border-primary-300 px-4 py-10 text-center text-[13px] text-ui-body dark:border-primary-600">
                 No files attached.
               </p>
             )}
