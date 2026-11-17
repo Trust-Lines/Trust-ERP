@@ -579,9 +579,10 @@ function PersonHeader({ column }: { column: BoardColumn }) {
   );
 }
 
-/** A branch column card. The compact board uses an inner scroll box; the General Manager frame
- * expands every stage down the document and relies on normal page scrolling. */
-function ColumnShell({ column, children, pageScroll = false }: { column: BoardColumn; children: React.ReactNode; pageScroll?: boolean }) {
+/** A branch column card with its own scroll box — on /tlines-pm and on /dashboard alike.
+ * (2026-11-16 the dashboard briefly expanded every stage down the page instead; that made a long
+ * column push everything else off screen, so it scrolls inside the column again.) */
+function ColumnShell({ column, children }: { column: BoardColumn; children: React.ReactNode }) {
   // A column is at most one screen tall (screen minus the 80px top bar and a small gap) — a fixed
   // CSS height, never re-measured while the page scrolls, so the page's own length never changes
   // under the wheel. What doesn't fit scrolls inside the column; at its end the wheel carries on
@@ -589,7 +590,7 @@ function ColumnShell({ column, children, pageScroll = false }: { column: BoardCo
   // overflow-y-scroll: the scrollbar track is always there, so a column looks the same whether
   // its stages overflow or not (no width jump when a stage opens).
   return (
-    <div className={`flex min-h-0 flex-col rounded-[16px] border border-ui-divider bg-ui-surface px-2.5 pb-2.5 ${pageScroll ? 'overflow-hidden' : 'max-h-[calc(100dvh-96px)] overflow-y-scroll overflow-x-hidden [scrollbar-width:thin]'}`}>
+    <div className="flex min-h-0 max-h-[calc(100dvh-96px)] flex-col overflow-x-hidden overflow-y-scroll rounded-[16px] border border-ui-divider bg-ui-surface px-2.5 pb-2.5 [scrollbar-width:thin]">
       {/* Logo header stays pinned at the top of its column; only the stages scroll under it.
           The wrapper's own padding + background cover the cards as they pass beneath. */}
       <div className="sticky top-0 z-10 shrink-0 bg-ui-surface pb-2.5 pt-2.5">
@@ -607,15 +608,14 @@ function ColumnShell({ column, children, pageScroll = false }: { column: BoardCo
   );
 }
 
-function Column({ column, isOpen, onToggle, onOpen, accounts, pageScroll = false }: {
+function Column({ column, isOpen, onToggle, onOpen, accounts }: {
   column: BoardColumn; isOpen: (key: string, index: number) => boolean; onToggle: (key: string, index: number) => void; onOpen: OpenCard;
-  pageScroll?: boolean;
   /** Accounts view: this column's client groups and which ones are folded. */
   accounts?: { groups: AccountGroup[]; expanded: Set<string>; toggle: (key: string) => void } | null;
 }) {
   if (accounts) {
     return (
-      <ColumnShell column={column} pageScroll={pageScroll}>
+      <ColumnShell column={column}>
         {/* One panel, like the Stages view; Figma 818:35912: 8 px between account bars, which run
             edge to edge of the panel (-mx-3 cancels its side padding). */}
         <div className="flex shrink-0 flex-col gap-2 overflow-hidden rounded-[11px] bg-ui-surface-elevated px-3 pb-3.5 pt-2">
@@ -633,7 +633,7 @@ function Column({ column, isOpen, onToggle, onOpen, accounts, pageScroll = false
     );
   }
   return (
-    <ColumnShell column={column} pageScroll={pageScroll}>
+    <ColumnShell column={column}>
       <div className="flex shrink-0 flex-col gap-4 rounded-[11px] bg-ui-surface-elevated px-3 pb-3.5 pt-2">
         {column.sections.map((section, i) => (
           <Section key={section.key} section={section} open={isOpen(`${column.regionCode}:${section.key}`, i)} onToggle={() => onToggle(`${column.regionCode}:${section.key}`, i)} onOpen={onOpen} />
@@ -903,7 +903,6 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
         {visible.map(column => (
           <Column
             key={column.regionCode} column={column} isOpen={isOpen} onToggle={onToggle} onOpen={onOpen}
-            pageScroll={pageScroll}
             accounts={groupsByColumn ? { groups: groupsByColumn.get(column.regionCode) ?? [], expanded, toggle: toggleAccount } : null}
           />
         ))}
