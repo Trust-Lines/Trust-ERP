@@ -13,9 +13,9 @@ import { cn } from '@/lib/utils';
 // (trust_lines_tasks, migrations 153/154; /api/tlines-dashboard/trust-tasks/[anchor]/tasks?side=…),
 // not the deal's sales tasks.
 //
-// Built for typing fast in a meeting: one always-open add row (title, assignee, due date, Enter),
-// rows edited in place (click the title; assignee and date are plain pickers on the row), done
-// tasks drop to the bottom behind "Show done". Assigning someone notifies them (server side).
+// Built for typing fast in a meeting: one always-open add row (title, assignee, Enter), rows edited
+// in place (click the title; the assignee is a plain picker on the row), each row showing the day it
+// was written; done tasks drop to the bottom behind "Show done". Assigning someone notifies them.
 
 interface TaskRow {
   id: string;
@@ -26,7 +26,7 @@ interface TaskRow {
   due_date: string | null;
   created_at?: string;
 }
-type Patch = Partial<Pick<TaskRow, 'title' | 'status' | 'assignee_id' | 'due_date'>>;
+type Patch = Partial<Pick<TaskRow, 'title' | 'status' | 'assignee_id'>>;
 
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-secondary-50';
 const DONE_INK = 'text-[var(--status-t6-fg)]';
@@ -37,10 +37,11 @@ const FIELD = 'h-8 rounded-[6px] border border-solid border-[var(--ui-input-bord
 const ROW_PICK = 'h-7 rounded-[4px] border border-solid border-transparent bg-transparent px-1.5 text-[13px] hover:border-[var(--ui-input-border)] focus-visible:border-[var(--status-info-fg)]';
 
 const initials = (name: string) => name.split(/[\s_]+/).map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
-const todayISO = () => new Date().toISOString().slice(0, 10);
-/** Open tasks: earliest due date first (no date last), then oldest first. */
-const byDue = (a: TaskRow, b: TaskRow) =>
-  (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999') || (a.created_at ?? '').localeCompare(b.created_at ?? '');
+/** In the order they were written. */
+const byWritten = (a: TaskRow, b: TaskRow) => (a.created_at ?? '').localeCompare(b.created_at ?? '');
+/** The day a task was written: "17 Nov 2026". */
+const writtenOn = (iso?: string) =>
+  iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
 export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canEdit, meId = null }: {
   title: string;
@@ -62,7 +63,6 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
   // The add row.
   const [draft, setDraft] = React.useState('');
   const [draftWho, setDraftWho] = React.useState('');
-  const [draftDue, setDraftDue] = React.useState('');
   const [adding, setAdding] = React.useState(false);
   const addRef = React.useRef<HTMLInputElement>(null);
 
@@ -94,12 +94,12 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
     try {
       const res = await fetch(`${apiBasePath}/tasks${query}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: text, assignee_id: draftWho || null, due_date: draftDue || null }),
+        body: JSON.stringify({ title: text, assignee_id: draftWho || null }),
       });
       const body = await res.json().catch(() => null) as { task?: TaskRow; error?: string } | null;
       if (!res.ok || !body?.task) throw new Error(body?.error ?? 'Could not add the task');
       setTasks(ts => [...ts, { ...body.task!, assignee_name: nameOf(body.task!.assignee_id) }]);
-      setDraft(''); setDraftWho(''); setDraftDue('');
+      setDraft(''); setDraftWho('');
       addRef.current?.focus();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not add the task');
@@ -128,7 +128,7 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
     if (!res || !res.ok) { toast.error('Could not delete the task'); void load(); }
   }
 
-  const open = tasks.filter(t => t.status !== 'done').sort(byDue);
+  const open = tasks.filter(t => t.status !== 'done').sort(byWritten);
   const done = tasks.filter(t => t.status === 'done');
   const shown = showDone ? [...open, ...done] : open;
   const ready = state === 'ready';
@@ -152,7 +152,7 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
         )}
       </div>
 
-      {/* Add row: always open — type, pick who and when, Enter. */}
+      {/* Add row: always open — type, pick who, Enter. */}
       {canEdit && ready && (
         <form className="flex flex-wrap items-center gap-2 px-1" onSubmit={e => { e.preventDefault(); void addTask(); }}>
           <input
@@ -162,8 +162,6 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
           />
           <Select aria-label="Assign the new task to" options={[{ value: '', label: 'Assign to…' }, ...assigneeOptions.slice(1)]}
             value={draftWho} onValueChange={v => setDraftWho(v ?? '')} className="h-8 w-[160px] text-[13px]" />
-          <input type="date" value={draftDue} onChange={e => setDraftDue(e.target.value)} aria-label="Due date of the new task"
-            className={cn(FIELD, 'w-[140px]')} />
           <button type="submit" disabled={!draft.trim() || adding}
             className="flex h-8 shrink-0 items-center gap-1 rounded-[6px] bg-ui-btn-accent pl-2 pr-3 text-[13px] font-medium text-ui-btn-accent-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
             {adding ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Plus size={15} aria-hidden />} Add
@@ -183,7 +181,6 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
         ) : shown.map(t => {
           const isDone = t.status === 'done';
           const canTick = canEdit || (!!meId && t.assignee_id === meId);
-          const overdue = !isDone && !!t.due_date && t.due_date < todayISO();
           return (
             <div key={t.id}
               className={cn('group flex min-h-10 items-center gap-2 rounded-[6px] pl-2 pr-1', isDone ? 'bg-[var(--status-t6-bg)]' : 'bg-ui-surface')}>
@@ -235,16 +232,11 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
                 )}
               </div>
 
-              {/* Due date (red once it has passed) */}
-              {canEdit ? (
-                <input type="date" value={t.due_date ?? ''} aria-label={`Due date of ${t.title}`}
-                  onChange={e => void patchTask(t, { due_date: e.target.value || null })}
-                  className={cn(ROW_PICK, 'w-[128px] shrink-0', overdue ? 'font-semibold text-[var(--status-t10-fg)]' : isDone ? DONE_INK : t.due_date ? HEADING : 'text-ui-text-secondary')} />
-              ) : (
-                <span className={cn('w-[90px] shrink-0 text-[13px]', overdue ? 'font-semibold text-[var(--status-t10-fg)]' : isDone ? DONE_INK : HEADING)}>
-                  {t.due_date ? new Date(`${t.due_date}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '—'}
-                </span>
-              )}
+              {/* The day it was written */}
+              <span className={cn('w-[96px] shrink-0 text-right text-[12px] tabular-nums', isDone ? DONE_INK : 'text-ui-text-secondary')}
+                title={t.created_at ? `Written ${new Date(t.created_at).toLocaleString('en-GB')}` : undefined}>
+                {writtenOn(t.created_at)}
+              </span>
 
               {canEdit && (
                 <button type="button" onClick={() => void removeTask(t)} aria-label={`Delete ${t.title}`} title="Delete"
