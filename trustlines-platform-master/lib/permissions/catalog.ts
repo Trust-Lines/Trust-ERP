@@ -241,7 +241,8 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'view.card_po_pf',        label: 'PO + PF', hint: 'PF codes and PF / PO signatures per type' },
       { key: 'view.card_production',   label: 'Production', hint: 'Production status per type' },
       { key: 'view.card_shipping',     label: 'Shipping', hint: 'Containers and shipping dates per type' },
-      { key: 'view.card_finance',      label: 'Finance', hint: 'PF, invoices, expenses and supplier balances' },
+      { key: 'view.card_installation', label: 'Installation', hint: 'The installation plan: dates, team, status, blockers' },
+      { key: 'view.card_finance',      label: 'Finance', hint: 'Totals by role: the general manager sees PF, PO and margin; the T-Lines side only PO; the Trust Lines side only PF' },
     ],
   },
   {
@@ -342,7 +343,7 @@ export const PAGE_LEGACY_ROLES: Record<string, string[]> = {
 /** Keys every role has until an admin switches them off — the popup tabs everyone saw at first. */
 // page.my_workspace: personal pages (My meetings and Notifications were open to every signed-in
 // person before they moved into My Workspace).
-export const PERM_DEFAULT_ON = new Set(['page.my_workspace', 'view.card_deal', 'view.card_finalization', 'view.card_po_pf', 'view.card_production', 'view.card_shipping']);
+export const PERM_DEFAULT_ON = new Set(['page.my_workspace', 'view.card_deal', 'view.card_finalization', 'view.card_po_pf', 'view.card_production', 'view.card_shipping', 'view.card_installation']);
 
 /** Whether `role` (with its effective permission map) may open the page behind `key`. */
 export function pageAllowed(role: string | null | undefined, perms: PermMap | null | undefined, key: string): boolean {
