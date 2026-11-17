@@ -41,6 +41,7 @@ export const PAGE_ROUTES: { key: string; route: string }[] = [
   { key: 'page.leads_trash',     route: '/leads/trash' },
   { key: 'page.production',      route: '/production' },
   { key: 'page.qc',              route: '/qc' },
+  { key: 'page.it',              route: '/it/tickets' },
   { key: 'page.logistics',       route: '/logistics' },
   { key: 'page.management',      route: '/management' },
   { key: 'page.tlines_dashboard', route: '/tlines-dashboard' },
@@ -140,6 +141,12 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'page.logistics',      label: 'Logistics' },
       { key: 'page.management',     label: 'Management workspace', hint: 'Company-wide blockers, workload and project health' },
       { key: 'page.tlines_dashboard', label: 'TLines dashboard', hint: 'Projects progress by region, including key clients’ deals before they are signed' },
+    ],
+  },
+  {
+    category: 'page', title: 'Pages · IT', icon: '🖥️',
+    perms: [
+      { key: 'page.it', label: 'IT Tickets', hint: 'IT requests sent by the team. Defaults to General Manager and Ops Manager until switched on per role.' },
     ],
   },
   {
@@ -316,6 +323,9 @@ export const PAGE_LEGACY_ROLES: Record<string, string[]> = {
   'prod.delete_projects': ['general_manager', 'ops_manager'],
   // ClickUp Review: the people who got the nightly sync's notification.
   'page.clickup_review': ['general_manager'],
+  // IT tickets page is new: until a role is switched on in Roles & permissions, only the two
+  // full-authority operational roles see it.
+  'page.it': ['general_manager', 'ops_manager'],
   'page.sales_web_leads': SALES_INTAKE_ROLES,
   'page.sales_contacts': SALES_INTAKE_ROLES,
   'page.leads': SALES_INTAKE_ROLES,
