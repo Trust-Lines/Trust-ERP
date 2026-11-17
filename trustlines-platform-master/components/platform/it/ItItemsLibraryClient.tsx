@@ -3,11 +3,12 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { ChevronDown, Ellipsis, Link2, ListFilter, MapPin, Plus, Search } from 'lucide-react';
+import { ArrowDownUp, Ellipsis, Link2, MapPin, Plus, Search } from 'lucide-react';
+import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { MonitorPcIcon } from './MonitorPcIcon';
-import { NOT_CONNECTED_TITLE } from './ticketStyles';
+import { NOT_CONNECTED_TITLE, TOOLBAR_SELECT, TOOLBAR_SORT_ICON } from './ticketStyles';
 import { MUTED, OUTLINE_CHIP, SOLID_CHIP, STRONG, formatItemDate, type ItItem, type ItItemCategory } from './itemStyles';
 
 export type { ItItem, ItItemCategory, ItItemStatus } from './itemStyles';
@@ -18,6 +19,11 @@ export type { ItItem, ItItemCategory, ItItemStatus } from './itemStyles';
 
 type Tab = 'all' | ItItemCategory;
 type Sort = 'newest' | 'oldest';
+
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
+];
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -140,7 +146,7 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false }:
 
   return (
     <div className="flex w-full flex-col gap-6 p-7 font-ui">
-      <PageHeading trail="IT / Items Library" title="Items Library" subtitle="PCs, Monitors, TVs, etc." />
+      <PageHeading trail={[{ label: 'IT', href: '/it/tickets' }, { label: 'Items Library', href: '/it/items' }]} title="Items Library" subtitle="PCs, Monitors, TVs, etc." />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2.5">
@@ -155,15 +161,16 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false }:
               className={cn(FIELD, 'w-full pl-9 placeholder:text-primary-400 dark:placeholder:text-primary-200')}
             />
           </label>
-          <label className="relative flex items-center">
-            <ListFilter className={cn('pointer-events-none absolute left-3 h-3.5 w-3.5', STRONG)} strokeWidth={1.5} aria-hidden="true" />
-            <span className="sr-only">Sort items</span>
-            <select value={sort} onChange={e => setSort(e.target.value as Sort)} className={cn(FIELD, 'appearance-none pl-8 pr-8 font-medium')}>
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-            </select>
-            <ChevronDown className={cn('pointer-events-none absolute right-3 h-3.5 w-3.5', STRONG)} strokeWidth={1.5} aria-hidden="true" />
-          </label>
+          <div className="relative">
+            <ArrowDownUp aria-hidden="true" className={TOOLBAR_SORT_ICON} />
+            <Select
+              aria-label="Sort items"
+              className={cn(TOOLBAR_SELECT, 'h-9 pl-[34px] dark:pl-[34px]')}
+              value={sort}
+              onValueChange={v => setSort((v ?? 'newest') as Sort)}
+              options={SORT_OPTIONS}
+            />
+          </div>
         </div>
         <button
           type="button"

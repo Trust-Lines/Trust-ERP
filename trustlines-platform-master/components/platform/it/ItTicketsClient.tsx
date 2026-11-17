@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { ChevronDown, ListFilter, Plus, Search } from 'lucide-react';
+import { ArrowDownUp, Plus, Search } from 'lucide-react';
+import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/platform/shared/Avatar';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
@@ -12,6 +13,8 @@ import {
   NOT_CONNECTED_TITLE,
   PRIORITY_LABEL,
   PRIORITY_TONE,
+  TOOLBAR_SELECT,
+  TOOLBAR_SORT_ICON,
   formatTicketDate,
   type ItTicketPriority,
   type ItTicketStatus,
@@ -37,6 +40,16 @@ export interface ItTicket {
 
 export type ItTicketSort = 'newest' | 'oldest';
 export type ItTicketTab = 'active' | 'history';
+
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
+];
+// "" is the shared Select's "all" value; its label doubles as the trigger text (Figma "Priority").
+const PRIORITY_OPTIONS = [
+  { value: '', label: 'Priority' },
+  ...(Object.keys(PRIORITY_LABEL) as ItTicketPriority[]).map(p => ({ value: p, label: PRIORITY_LABEL[p] })),
+];
 
 // Light / dark per Figma 828:37587 and 880:14096: input border primary-200 / secondary-500,
 // secondary text primary-400 / primary-200, strong text secondary-700 / secondary-50.
@@ -123,7 +136,7 @@ export function ItTicketsClient({ tickets, error = null, canCreate = false }: {
   return (
     <div className="flex w-full flex-col gap-[30px] p-7 font-ui">
       <PageHeading
-        trail="IT / Tickets"
+        trail={[{ label: 'IT', href: '/it/tickets' }, { label: 'Tickets', href: '/it/tickets' }]}
         title="Tickets"
         subtitle="Sent tickets"
         bodyClassName="gap-2"
@@ -166,25 +179,23 @@ export function ItTicketsClient({ tickets, error = null, canCreate = false }: {
             className={cn(FIELD, 'w-full pl-9 placeholder:text-primary-400 dark:placeholder:text-primary-200')}
           />
         </label>
-        <label className="relative flex items-center">
-          <ListFilter className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-secondary-700 dark:text-secondary-50" strokeWidth={1.5} aria-hidden="true" />
-          <span className="sr-only">Sort requests</span>
-          <select value={sort} onChange={e => setSort(e.target.value as ItTicketSort)} className={cn(FIELD, 'appearance-none pl-8 pr-8 font-medium')}>
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-3 h-3.5 w-3.5 text-secondary-700 dark:text-secondary-50" strokeWidth={1.5} aria-hidden="true" />
-        </label>
-        <label className="relative flex items-center">
-          <span className="sr-only">Filter by priority</span>
-          <select value={priority} onChange={e => setPriority(e.target.value as ItTicketPriority | 'all')} className={cn(FIELD, 'appearance-none pl-4 pr-8 font-medium')}>
-            <option value="all">Priority</option>
-            <option value="important">Important</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-3 h-3.5 w-3.5 text-secondary-700 dark:text-secondary-50" strokeWidth={1.5} aria-hidden="true" />
-        </label>
+        <div className="relative">
+          <ArrowDownUp aria-hidden="true" className={TOOLBAR_SORT_ICON} />
+          <Select
+            aria-label="Sort requests"
+            className={cn(TOOLBAR_SELECT, 'pl-[34px] dark:pl-[34px]')}
+            value={sort}
+            onValueChange={v => setSort((v ?? 'newest') as ItTicketSort)}
+            options={SORT_OPTIONS}
+          />
+        </div>
+        <Select
+          aria-label="Filter by priority"
+          className={cn(TOOLBAR_SELECT, 'pl-3 dark:pl-3')}
+          value={priority === 'all' ? '' : priority}
+          onValueChange={v => setPriority((v || 'all') as ItTicketPriority | 'all')}
+          options={PRIORITY_OPTIONS}
+        />
       </div>
 
       {error ? (
