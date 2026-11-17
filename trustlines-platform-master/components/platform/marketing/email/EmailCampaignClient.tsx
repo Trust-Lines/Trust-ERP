@@ -20,7 +20,8 @@ import { ConfirmModal } from '@/components/ui/modal';
 import { MERGE_FIELDS } from '@/lib/marketing/mailTemplates';
 import { pct, type CampaignStats, type EmailCampaignRow } from '@/lib/email/campaigns';
 import type { Audience } from '@/lib/email/sender';
-import { Field, PANEL, TD_CLS, TH_CLS, fmtNumber, sendJson, HEADING_TEXT } from '../pr/shared';
+import { PANEL, TD_CLS, TH_CLS, fmtNumber, sendJson, HEADING_TEXT } from '../pr/shared';
+import { Field } from '@/components/ui/field';
 
 interface Option { value: string; label: string }
 interface Recipient {
