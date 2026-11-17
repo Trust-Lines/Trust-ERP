@@ -31,6 +31,17 @@ export const CATEGORY_ICON: Record<ItTicketTone, LucideIcon | null> = {
   neutral: null,
 };
 
+/**
+ * Toolbar dropdown (Newest / Priority) on the shared `Select` from components/ui — same look as the
+ * HR Requests toolbar, so the open list is the platform dropdown, not the browser's native one.
+ */
+export const TOOLBAR_SELECT =
+  'inline-flex h-10 w-auto cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pr-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:pr-3 dark:text-ui-heading [&_svg]:size-3.5';
+
+/** Arrow icon placed inside a sort `Select`, left of its value. */
+export const TOOLBAR_SORT_ICON =
+  'pointer-events-none absolute left-3 top-1/2 z-[1] size-3.5 -translate-y-1/2 text-[var(--color-secondary-700)] dark:text-ui-heading';
+
 /** Shown on every action that needs an IT tickets endpoint that does not exist yet. */
 export const NOT_CONNECTED_TITLE = 'Not available yet: the IT tickets data source is not connected';
 
