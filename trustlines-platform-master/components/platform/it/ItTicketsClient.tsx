@@ -1,17 +1,25 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ChevronDown, ListFilter, Plus, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/platform/shared/Avatar';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
+import {
+  CATEGORY_ICON,
+  CATEGORY_TONE,
+  NOT_CONNECTED_TITLE,
+  PRIORITY_LABEL,
+  PRIORITY_TONE,
+  formatTicketDate,
+  type ItTicketPriority,
+  type ItTicketStatus,
+  type ItTicketTone,
+} from './ticketStyles';
 
 // Figma "IT Tickets" (828:37587): page heading with count, Active / History tabs, search, sort and
 // priority filters, then a grid of request cards.
-
-export type ItTicketPriority = 'important' | 'medium' | 'low';
-export type ItTicketStatus = 'active' | 'closed';
-export type ItTicketTone = 'success' | 'teal' | 'neutral';
 
 export interface ItTicket {
   id: string;
@@ -30,44 +38,18 @@ export interface ItTicket {
 export type ItTicketSort = 'newest' | 'oldest';
 export type ItTicketTab = 'active' | 'history';
 
-const PRIORITY_LABEL: Record<ItTicketPriority, string> = {
-  important: 'Important',
-  medium: 'Medium',
-  low: 'Low',
-};
-
-// Figma chip tokens: Important = t10 (red), Medium = t7 (amber), Low = t9 (green).
-const PRIORITY_TONE: Record<ItTicketPriority, { bg: string; fg: string }> = {
-  important: { bg: 'var(--status-t10-bg)', fg: 'var(--status-t10-fg)' },
-  medium: { bg: 'var(--status-t7-bg)', fg: 'var(--status-t7-fg)' },
-  low: { bg: 'var(--status-t9-bg)', fg: 'var(--status-t9-fg)' },
-};
-
-const CATEGORY_TONE: Record<ItTicketTone, { bg: string; fg: string }> = {
-  success: { bg: 'var(--status-t9-bg)', fg: 'var(--status-t9-fg)' },
-  teal: { bg: 'var(--status-t5-bg)', fg: 'var(--status-t5-fg)' },
-  neutral: { bg: 'var(--status-t0-bg)', fg: 'var(--status-t0-fg)' },
-};
-
 const FIELD =
   'h-10 rounded-md border border-primary-300 bg-white px-3 text-[13px] font-ui text-primary-500 outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring dark:border-primary-600 dark:bg-primary-800 dark:text-primary-50';
-
-function formatNeededBy(iso: string | null) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d
-    .toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-    .toUpperCase();
-}
 
 function TicketCard({ ticket }: { ticket: ItTicket }) {
   const priority = PRIORITY_TONE[ticket.priority];
   const category = CATEGORY_TONE[ticket.categoryTone];
+  const CategoryIcon = CATEGORY_ICON[ticket.categoryTone];
   return (
-    <article
+    <Link
+      href={`/it/tickets/${encodeURIComponent(ticket.id)}`}
       aria-label={`${ticket.requesterName}, ${PRIORITY_LABEL[ticket.priority]} request`}
-      className="flex flex-col gap-4 rounded-[11px] border border-primary-100 bg-white py-2.5 pl-2.5 pr-3.5 dark:border-primary-600 dark:bg-primary-800"
+      className="flex flex-col gap-4 rounded-[11px] border border-primary-100 bg-white py-2.5 pl-2.5 pr-3.5 no-underline transition-colors hover:border-primary-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring dark:border-primary-600 dark:bg-primary-800"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
@@ -89,14 +71,15 @@ function TicketCard({ ticket }: { ticket: ItTicket }) {
           className="inline-flex items-center gap-2 rounded py-0.5 pl-1.5 pr-2 text-[14px] font-medium leading-[1.4]"
           style={{ background: category.bg, color: category.fg }}
         >
+          {CategoryIcon && <CategoryIcon className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
           {ticket.categoryLabel}
         </span>
         <p className="m-0 flex items-center gap-1 whitespace-nowrap text-[14px] leading-[1.4]">
           <span className="text-ui-body">For:</span>
-          <span className="font-medium text-secondary-700 dark:text-primary-50">{formatNeededBy(ticket.neededBy)}</span>
+          <span className="font-medium text-secondary-700 dark:text-primary-50">{formatTicketDate(ticket.neededBy)}</span>
         </p>
       </div>
-    </article>
+    </Link>
   );
 }
 
@@ -135,25 +118,23 @@ export function ItTicketsClient({ tickets, error = null, canCreate = false }: {
 
   return (
     <div className="flex w-full flex-col gap-[30px] p-7 font-ui">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageHeading
-          trail="IT / Tickets"
-          title="Tickets"
-          subtitle="Sent tickets"
-          bodyClassName="gap-2"
-          actions={
-            <button
-              type="button"
-              disabled={!canCreate}
-              title={canCreate ? undefined : 'Creating IT requests is not available yet'}
-              className="flex h-9 items-center gap-2 rounded-md bg-accent-400 px-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
-              New request
-            </button>
-          }
-        />
-      </div>
+      <PageHeading
+        trail="IT / Tickets"
+        title="Tickets"
+        subtitle="Sent tickets"
+        bodyClassName="gap-2"
+        actions={
+          <button
+            type="button"
+            disabled={!canCreate}
+            title={canCreate ? undefined : NOT_CONNECTED_TITLE}
+            className="flex h-9 items-center gap-2 rounded-md bg-accent-400 px-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+            New request
+          </button>
+        }
+      />
 
       <div role="tablist" aria-label="Ticket views" className="flex h-12 items-stretch gap-8 border-b border-solid border-primary-100 dark:border-primary-600">
         <button role="tab" type="button" aria-selected={tab === 'active'} onClick={() => setTab('active')} className={tabClass(tab === 'active')}>
