@@ -179,12 +179,34 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
   }), [rows, milestonesByNo, undatedByNo, today]);
 
   // The plan's months, widened to every drawn stage (production often starts months earlier).
-  const months = React.useMemo(() => {
+  const dataMonths = React.useMemo(() => {
     const ds = lives.flatMap(l => l.segments.flatMap(s => [s.start, s.end]));
     const lo = [planMonths[0] ? `${planMonths[0]}-01` : null, ...ds].filter((x): x is string => !!x).sort()[0];
     const hi = [planMonths.at(-1) ? `${planMonths.at(-1)}-01` : null, ...ds].filter((x): x is string => !!x).sort().at(-1);
     return lo && hi ? monthsBetween(lo, hi) : planMonths;
   }, [lives, planMonths]);
+
+  // The calendar never stops short of the chart's right edge: zoomed out, later months are added
+  // until the timeline fills the visible width.
+  const [viewW, setViewW] = React.useState(0);
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setViewW(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const months = React.useMemo(() => {
+    const need = Math.ceil((viewW - LEFT_W) / monthW);
+    const first = dataMonths[0];
+    if (!first || dataMonths.length >= need) return dataMonths;
+    const out = [...dataMonths];
+    while (out.length < need) {
+      const [y, m] = out[out.length - 1].split('-').map(Number);
+      out.push(m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`);
+    }
+    return out;
+  }, [dataMonths, viewW, monthW]);
 
   const first = months[0];
   const last = months[months.length - 1];
