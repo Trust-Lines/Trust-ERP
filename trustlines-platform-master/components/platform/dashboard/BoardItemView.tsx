@@ -186,13 +186,7 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
                     </button>
                   );
                 })}
-                <FilterSelect
-                  aria-label="Stage"
-                  options={tabs.map(t => ({ value: t.key, label: t.title }))}
-                  value={active?.key ?? ''}
-                  onValueChange={v => setSelected(v)}
-                  className="h-9 w-[150px] text-[13px]"
-                />
+                {/* No stage dropdown: the stage list on the left picks the stage. */}
               </div>
               <span className="h-9 w-px bg-ui-divider" aria-hidden />
               <div className="flex items-center gap-2">
