@@ -35,6 +35,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { SurveyField } from "./SurveyField";
 import {
   Building2, Check, Clock3, Expand, Fuel, Hammer, HardHat, Loader2,
   MapPin, MessageCircle, MoreHorizontal, Store, UserRound, Wrench, ShoppingBasket, Mail,
@@ -338,17 +339,6 @@ function ErrorSummary({ errors }: { errors: SurveyErrors }) {
   );
 }
 
-function Field({ id, label, hint, optional, error, children }: { id: string; label: string; hint?: string; optional?: boolean; error?: string; children: React.ReactNode }) {
-  return (
-    <div className={`gs-field ${error ? "gs-field-error" : ""}`} data-field={id}>
-      <div className="gs-field-label-row"><label htmlFor={id}>{label}</label><span>{optional ? "Optional" : "Required"}</span></div>
-      {hint && <p className="gs-field-hint">{hint}</p>}
-      {children}
-      {error && <p className="gs-error-text" role="alert">{error}</p>}
-    </div>
-  );
-}
-
 function StoreTypeStep({ data, update, error }: { data: SurveyData; update: (n: FieldName, v: string) => void; error?: string }) {
   return (
     <fieldset className={`gs-choice-fieldset ${error ? "gs-has-error" : ""}`} data-field="storeType">
@@ -377,15 +367,15 @@ const bind = (data: SurveyData, update: StepProps["update"], name: FieldName) =>
 function LeaderStep({ data, update, errors }: StepProps) {
   return (
     <div className="gs-form-grid">
-      <Field id="fullName" label="Full name" error={errors.fullName}>
+      <SurveyField id="fullName" label="Full name" error={errors.fullName}>
         <input id="fullName" autoComplete="name" placeholder="Jane Smith" {...bind(data, update, "fullName")} />
-      </Field>
-      <Field id="phone" label="Phone number" error={errors.phone}>
+      </SurveyField>
+      <SurveyField id="phone" label="Phone number" error={errors.phone}>
         <input id="phone" type="tel" autoComplete="tel" placeholder="(555) 000-0000" {...bind(data, update, "phone")} />
-      </Field>
-      <Field id="email" label="Email address" error={errors.email}>
+      </SurveyField>
+      <SurveyField id="email" label="Email address" error={errors.email}>
         <input id="email" type="email" autoComplete="email" placeholder="name@company.com" {...bind(data, update, "email")} />
-      </Field>
+      </SurveyField>
       <div className={`gs-field ${errors.contactPreference ? "gs-field-error" : ""}`} data-field="contactPreference">
         <div className="gs-field-label-row"><label>How should we reach you?</label><span>Required — pick one or more</span></div>
         <div className="gs-tick-grid">
@@ -407,18 +397,18 @@ function LeaderStep({ data, update, errors }: StepProps) {
 function BusinessStep({ data, update, errors }: StepProps) {
   return (
     <div className="gs-form-grid">
-      <Field id="companyName" label="Company name" optional error={errors.companyName}>
+      <SurveyField id="companyName" label="Company name" optional error={errors.companyName}>
         <input id="companyName" autoComplete="organization" placeholder="Company or trading name" {...bind(data, update, "companyName")} />
-      </Field>
-      <Field id="role" label="Your role in company" optional error={errors.role}>
+      </SurveyField>
+      <SurveyField id="role" label="Your role in company" optional error={errors.role}>
         <input id="role" autoComplete="organization-title" placeholder="Owner, operator, project lead…" {...bind(data, update, "role")} />
-      </Field>
-      <Field id="storeAddress" label="Store address" optional error={errors.storeAddress}>
+      </SurveyField>
+      <SurveyField id="storeAddress" label="Store address" optional error={errors.storeAddress}>
         <textarea id="storeAddress" autoComplete="street-address" rows={3} placeholder="Street, city, state, ZIP" {...bind(data, update, "storeAddress")} />
-      </Field>
-      <Field id="businessPhone" label="Business phone" optional error={errors.businessPhone}>
+      </SurveyField>
+      <SurveyField id="businessPhone" label="Business phone" optional error={errors.businessPhone}>
         <input id="businessPhone" type="tel" autoComplete="tel" placeholder="(555) 000-0000" {...bind(data, update, "businessPhone")} />
-      </Field>
+      </SurveyField>
     </div>
   );
 }
@@ -444,9 +434,9 @@ function VisionAndSendStep({
         {errors.projectType && <p className="gs-error-text" role="alert">{errors.projectType}</p>}
       </fieldset>
 
-      <Field id="challenges" label="Main project challenges" optional hint="What should this project solve or improve?" error={errors.challenges}>
+      <SurveyField id="challenges" label="Main project challenges" optional hint="What should this project solve or improve?" error={errors.challenges}>
         <textarea id="challenges" rows={4} placeholder="Describe the operational, spatial, or customer experience challenge…" {...bind(data, update, "challenges")} />
-      </Field>
+      </SurveyField>
 
       <div className={`gs-field ${errors.storeStatus ? "gs-field-error" : ""}`} data-field="storeStatus">
         <div className="gs-field-label-row"><label>Store status</label><span>Optional</span></div>

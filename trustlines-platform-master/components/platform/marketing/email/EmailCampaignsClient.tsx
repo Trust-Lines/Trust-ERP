@@ -13,7 +13,8 @@ import { ErrorState } from '@/components/ui/feedback-states';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { ConfirmModal, Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { pct, type CampaignStats, type EmailCampaignRow } from '@/lib/email/campaigns';
-import { PANEL, PageHeading, TD_CLS, TH_CLS, fmtNumber, sendJson } from '../pr/shared';
+import { PANEL, TD_CLS, TH_CLS, fmtNumber, sendJson } from '../pr/shared';
+import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { Field } from '@/components/ui/field';
 import { SentEmails } from './SentEmails';
 

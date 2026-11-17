@@ -10,6 +10,7 @@ import {
 import { Select as FilterSelect } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ModalPanel } from '@/components/ui/modal';
+import { ToneChip } from '@/components/ui/tone-chip';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { buildCardTabs, isShipped, type CardDeal, type CardPhase, type CardProject, type CardTab, type ChipTone } from '@/lib/dashboard/cardTabs';
 import type { ProjectFinance } from '@/lib/finance/projectTotals';
@@ -233,13 +234,16 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
 function Chip({ tone, icon, children }: { tone: ChipTone; icon?: LucideIcon; children: React.ReactNode }) {
   const Icon = icon ?? TONE_ICON[tone];
   return (
-    <span className="inline-flex h-[22px] w-fit shrink-0 items-center gap-1 rounded-[4px] py-[3px] pl-2 pr-2.5 text-[12px] font-medium leading-4 whitespace-nowrap" style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}>
-      {Icon === 'in-review'
+    <ToneChip
+      tone={tone}
+      className="h-[22px] w-fit"
+      icon={Icon === 'in-review'
         // Figma's own icon for this tone (Status Chip, In review), tinted with the tone's text colour.
         ? <span aria-hidden className="size-3.5 shrink-0 bg-current" style={{ mask: 'url(/icons/status-in-review.svg) center / contain no-repeat', WebkitMask: 'url(/icons/status-in-review.svg) center / contain no-repeat' }} />
-        : <Icon size={14} aria-hidden />}
+        : Icon}
+    >
       {children}
-    </span>
+    </ToneChip>
   );
 }
 

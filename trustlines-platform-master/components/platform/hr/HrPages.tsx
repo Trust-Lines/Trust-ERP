@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { ChartNoAxesCombined, Package2, Plus } from 'lucide-react';
-import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
+import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import { HrCalendar } from './HrCalendar';
@@ -17,14 +17,11 @@ const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 
 export function HrPageHeader({ title, href, subtitle, actions }: { title: string; href: string; subtitle: string; actions?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-end gap-4">
-      <div className="flex min-w-0 flex-1 flex-col gap-[5px] leading-[1.35]">
-        <PageCrumbs items={[{ label: 'Human Resources', href: '/hr' }, { label: title, href }]} />
-        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>{title}</h1>
-        <p className="m-0 text-[13px] text-ui-body">{subtitle}</p>
-      </div>
-      {actions}
-    </div>
+    <PageHeading
+      trail={[{ label: 'Human Resources', href: '/hr' }, { label: title, href }]}
+      title={title} subtitle={subtitle} actions={actions}
+      bodyClassName="min-w-0 flex-1"
+    />
   );
 }
 

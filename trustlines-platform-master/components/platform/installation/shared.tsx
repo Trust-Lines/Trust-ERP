@@ -71,6 +71,11 @@ export function Section({ title, hint, children, actions }: { title: string; hin
   );
 }
 
+/** Bordered empty-list message. Default 32px padding (Teams); Dashboard passes `py-6`. */
+export function EmptyBox({ className, children }: { className?: string; children: React.ReactNode }) {
+  return <p className={cn('m-0 rounded-[8px] border border-ui-divider bg-ui-page-bg px-4 py-8 text-center text-[13px] text-ui-text-secondary', className)}>{children}</p>;
+}
+
 export function Empty({ children }: { children: React.ReactNode }) {
   return <p className="m-0 rounded-[8px] bg-ui-page-bg px-3 py-4 text-center text-[12px] italic text-ui-text-secondary">{children}</p>;
 }

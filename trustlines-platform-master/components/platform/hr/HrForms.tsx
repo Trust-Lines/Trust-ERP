@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Field } from '@/components/ui/field';
 import type { HrAbsenceReason, HrEventKind, HrOrder, HrUnavailable } from './types';
 import type { HrLocalEvent } from './HrData';
 import { KIND_LABEL, KIND_ORDER, dayKey } from './tones';
@@ -14,17 +15,6 @@ import { KIND_LABEL, KIND_ORDER, dayKey } from './tones';
 // HR backend yet, so the page decides what "save" does (HrData keeps entries in this tab).
 
 const NOT_SAVED = 'Kept on this device until HR saving is connected.';
-
-function Field({ label, children, hint }: { label: string; children: (id: string) => ReactNode; hint?: string }) {
-  const id = useId();
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-[12px] font-medium text-ui-heading">{label}</label>
-      {children(id)}
-      {hint && <p className="m-0 text-[11px] text-ui-text-secondary">{hint}</p>}
-    </div>
-  );
-}
 
 function FormDialog({ open, onOpenChange, title, description, submitLabel, canSubmit, onSubmit, children }: {
   open: boolean; onOpenChange: (open: boolean) => void; title: string; description: string;
@@ -75,16 +65,16 @@ export function CreateEventDialog({ open, onOpenChange, defaultDate, onCreate }:
       canSubmit={!!label.trim() && !!date}
       onSubmit={() => onCreate({ label: label.trim(), kind, date, time: time || null, detail: detail.trim() || null })}
     >
-      <Field label="Title">{id => <Input id={id} value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Team meeting" required autoFocus className="h-10 text-[14px]" />}</Field>
-      <Field label="Type">{id => (
+      <Field variant="form" label="Title">{id => <Input id={id} value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Team meeting" required autoFocus className="h-10 text-[14px]" />}</Field>
+      <Field variant="form" label="Type">{id => (
         <Select id={id} value={kind} onValueChange={v => v && setKind(v as HrEventKind)} className="h-10 text-[14px] [&_svg]:size-5"
           options={KIND_ORDER.map(k => ({ value: k, label: KIND_LABEL[k] }))} />
       )}</Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Date">{id => <Input id={id} type="date" value={date} onChange={e => setDate(e.target.value)} required className="h-10 text-[14px] [&::-webkit-calendar-picker-indicator]:size-4" />}</Field>
-        <Field label="Time" hint="Leave empty for all day.">{id => <Input id={id} type="time" value={time} onChange={e => setTime(e.target.value)} className="h-10 text-[14px] [&::-webkit-calendar-picker-indicator]:size-4" />}</Field>
+        <Field variant="form" label="Date">{id => <Input id={id} type="date" value={date} onChange={e => setDate(e.target.value)} required className="h-10 text-[14px] [&::-webkit-calendar-picker-indicator]:size-4" />}</Field>
+        <Field variant="form" label="Time" hint="Leave empty for all day.">{id => <Input id={id} type="time" value={time} onChange={e => setTime(e.target.value)} className="h-10 text-[14px] [&::-webkit-calendar-picker-indicator]:size-4" />}</Field>
       </div>
-      <Field label="Notes">{id => <Textarea id={id} value={detail} onChange={e => setDetail(e.target.value)} rows={3} />}</Field>
+      <Field variant="form" label="Notes">{id => <Textarea id={id} value={detail} onChange={e => setDetail(e.target.value)} rows={3} />}</Field>
     </FormDialog>
   );
 }
@@ -108,9 +98,9 @@ export function NewOrderDialog({ open, onOpenChange, onCreate }: {
       canSubmit={!!name.trim() && !!dueDate}
       onSubmit={() => onCreate({ name: name.trim(), reference: reference.trim() || null, dueDate })}
     >
-      <Field label="Item name">{id => <Input id={id} value={name} onChange={e => setName(e.target.value)} required autoFocus className="h-11 text-[15px]" />}</Field>
-      <Field label="Reference">{id => <Input id={id} value={reference} onChange={e => setReference(e.target.value)} placeholder="#SE89846" className="h-11 text-[15px]" />}</Field>
-      <Field label="Delivery date">{id => <Input id={id} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} required className="h-11 text-[15px] [&::-webkit-calendar-picker-indicator]:size-4" />}</Field>
+      <Field variant="form" label="Item name">{id => <Input id={id} value={name} onChange={e => setName(e.target.value)} required autoFocus className="h-11 text-[15px]" />}</Field>
+      <Field variant="form" label="Reference">{id => <Input id={id} value={reference} onChange={e => setReference(e.target.value)} placeholder="#SE89846" className="h-11 text-[15px]" />}</Field>
+      <Field variant="form" label="Delivery date">{id => <Input id={id} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} required className="h-11 text-[15px] [&::-webkit-calendar-picker-indicator]:size-4" />}</Field>
     </FormDialog>
   );
 }
@@ -140,13 +130,13 @@ export function AddUnavailableDialog({ open, onOpenChange, defaultDate, onCreate
       canSubmit={!!name.trim() && !!date}
       onSubmit={() => onCreate({ name: name.trim(), role: role.trim() || null, reason, date })}
     >
-      <Field label="Name">{id => <Input id={id} value={name} onChange={e => setName(e.target.value)} required autoFocus />}</Field>
-      <Field label="Role">{id => <Input id={id} value={role} onChange={e => setRole(e.target.value)} placeholder="e.g. General Manager" />}</Field>
+      <Field variant="form" label="Name">{id => <Input id={id} value={name} onChange={e => setName(e.target.value)} required autoFocus />}</Field>
+      <Field variant="form" label="Role">{id => <Input id={id} value={role} onChange={e => setRole(e.target.value)} placeholder="e.g. General Manager" />}</Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Reason">{id => (
+        <Field variant="form" label="Reason">{id => (
           <Select id={id} value={reason} onValueChange={v => v && setReason(v as HrAbsenceReason)} options={REASONS} />
         )}</Field>
-        <Field label="Date">{id => <Input id={id} type="date" value={date} onChange={e => setDate(e.target.value)} required />}</Field>
+        <Field variant="form" label="Date">{id => <Input id={id} type="date" value={date} onChange={e => setDate(e.target.value)} required />}</Field>
       </div>
     </FormDialog>
   );

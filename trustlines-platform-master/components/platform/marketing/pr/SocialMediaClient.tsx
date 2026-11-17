@@ -23,7 +23,8 @@ import {
 } from '@/lib/marketing/prWorkspace';
 import type { CampaignOption, FollowerStatRow, SocialAccountRow, SocialConnectionRow, SocialPostRow } from '@/lib/marketing/prWorkspaceServer';
 import type { ProviderStatus } from '@/lib/social/providers';
-import { PANEL, PageHeading, PlatformMark, TD_CLS, TH_CLS, fmtDay, fmtNumber, localToday, sendJson } from './shared';
+import { PANEL, PlatformMark, TD_CLS, TH_CLS, fmtDay, fmtNumber, localToday, sendJson } from './shared';
+import { PageHeading } from '@/components/platform/shared/PageHeading';
 
 interface SocialData { accounts: SocialAccountRow[]; posts: SocialPostRow[]; stats: FollowerStatRow[]; connections: SocialConnectionRow[] }
 

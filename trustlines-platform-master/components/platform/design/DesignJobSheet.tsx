@@ -10,6 +10,7 @@ import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
 import type { LeadBrief, IntakeFile, DesignFile, ProjectMeta } from '@/app/(platform)/design/page';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select } from '@/components/ui/select';
+import { Field } from '@/components/ui/field';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -252,27 +253,27 @@ export function DesignJobSheet(p: Props) {
             <section className="flex flex-col gap-2 rounded-[8px] border border-ui-divider bg-ui-surface px-3.5 pt-3.5 pb-6">
               <h3 className={cn('m-0 text-[16px] font-semibold leading-[1.45]', HEADING)}>General Info</h3>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                <Field label="Status">
+                <Field variant="loose" label="Status">
                   {sales ? <ReadOnly>{JOB_STATUS_LABEL[job.status] ?? cap(job.status)}</ReadOnly> : (
                     <Select aria-label="Job status" className={INPUT_CLS} value={job.status} options={statusOptions}
                       onValueChange={v => { if (v && v !== job.status) void p.onPatchJob({ status: v }, `Moved to ${JOB_STATUS_LABEL[v] ?? cap(v)}`); }} />
                   )}
                 </Field>
-                <Field label="Designer">
+                <Field variant="loose" label="Designer">
                   {isManager ? (
                     <Select aria-label="Designer" className={INPUT_CLS} value={job.assigned_designer_id ?? ''}
                       options={[{ value: '', label: 'Unassigned' }, ...p.designers.map(d => ({ value: d.id, label: d.full_name }))]}
                       onValueChange={v => void p.onPatchJob({ assigned_designer_id: v || null }, v ? 'Assigned — the designer has been notified' : 'Unassigned')} />
                   ) : <ReadOnly>{designerName ?? 'Unassigned'}</ReadOnly>}
                 </Field>
-                <Field label="Priority">
+                <Field variant="loose" label="Priority">
                   {isManager ? (
                     <Select aria-label="Priority" className={cn(INPUT_CLS, 'uppercase')} value={job.priority}
                       options={[{ value: 'low', label: 'Low' }, { value: 'normal', label: 'Normal' }, { value: 'high', label: 'High' }]}
                       onValueChange={v => { if (v) void p.onPatchJob({ priority: v }); }} />
                   ) : <ReadOnly className="uppercase">{job.priority}</ReadOnly>}
                 </Field>
-                <Field label="Due Date">
+                <Field variant="loose" label="Due Date">
                   {isManager ? (
                     <DatePicker aria-label="Due date" placeholder="No due date"
                       className={cn(INPUT_CLS, 'w-full flex-row-reverse justify-between border-[var(--color-secondary-700)] dark:border-ui-heading [&_svg]:size-4', overdue && 'text-error-normal dark:text-error-normal')}
@@ -532,10 +533,6 @@ const CHIP = 'h-[22px] gap-1 rounded-[4px] pl-2 pr-2.5 text-[12px] leading-4 [&_
 const INPUT_CLS = 'h-[42px] rounded-[6px] border-ui-input-border bg-ui-input-bg px-3 text-[14px] font-semibold tracking-[-0.308px] text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading';
 /** Underline tabs: 48px row, 3px active border. */
 const TAB_CLS = 'h-full min-w-0 shrink-0 border-b-[3px] border-transparent bg-transparent px-0 text-[13px] leading-[1.4] text-ui-text-secondary hover:bg-transparent hover:text-[var(--color-secondary-700)] dark:bg-transparent dark:hover:bg-transparent dark:hover:text-ui-heading data-active:border-[var(--color-secondary-700)] data-active:text-[13px] data-active:font-semibold data-active:text-[var(--color-secondary-700)] dark:data-active:border-ui-heading dark:data-active:text-ui-heading';
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="flex min-w-0 flex-col gap-[7px]"><span className="text-[12px] font-medium leading-4 text-ui-body">{label}</span>{children}</div>;
-}
 
 function ReadOnly({ children, className }: { children: React.ReactNode; className?: string }) {
   return <span className={cn('flex h-[42px] items-center rounded-[6px] border border-ui-input-border bg-ui-input-bg px-3 text-[14px] font-semibold', HEADING, className)}>{children}</span>;

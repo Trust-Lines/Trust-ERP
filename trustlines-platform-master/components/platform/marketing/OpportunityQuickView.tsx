@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   X, Loader2, ExternalLink, Paperclip, SendHorizontal, Image as ImageIcon, Trash2, Link2, FileText, FileSpreadsheet, ChevronDown, Activity,
-  SquareArrowOutUpRight, CloudUpload, CircleCheck, CircleX, CircleDashed, Hash, type LucideIcon,
+  SquareArrowOutUpRight, CloudUpload, CircleCheck, CircleX, CircleDashed, Hash,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TaskList } from '@/components/platform/shared/TaskList';
@@ -28,6 +28,7 @@ import { DealDocuments } from '@/components/platform/sales/DealDocuments';
 import { DealDesign } from '@/components/platform/sales/DealDesign';
 import { ConfirmModal, ModalPanel } from '@/components/ui/modal';
 import { Textarea } from '@/components/ui/textarea';
+import { ToneChip } from '@/components/ui/tone-chip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button, buttonVariants } from '@/components/ui/button';
 
@@ -323,8 +324,8 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
           <div className="flex min-w-0 flex-col gap-[5px]">
             <h2 className={cn('m-0 truncate text-[28px] font-semibold leading-[1.35]', HEADING)}>{title}</h2>
             <div className="flex flex-wrap items-center gap-[5px]">
-              {project?.code && <Chip tone="t0" icon={Hash}>{project.code}</Chip>}
-              {opp && statusLabel && <Chip tone="t0" icon={CircleDashed}>{statusLabel}</Chip>}
+              {project?.code && <ToneChip tone="t0" icon={Hash}>{project.code}</ToneChip>}
+              {opp && statusLabel && <ToneChip tone="t0" icon={CircleDashed}>{statusLabel}</ToneChip>}
               {canEdit ? (
                 <TagMultiSelect
                   variant="chip"
@@ -352,7 +353,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                 Convert to Opportunity
               </Button>
             )}
-            {kind === 'potential' && !!opp?.converted_opportunity_id && <Chip tone="t9" icon={CircleCheck}>Converted — with Sales</Chip>}
+            {kind === 'potential' && !!opp?.converted_opportunity_id && <ToneChip tone="t9" icon={CircleCheck}>Converted — with Sales</ToneChip>}
             {opp?.prospect_id ? (
               <Link
                 href={`/marketing/prospects/${opp.prospect_id}`}
@@ -620,7 +621,7 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
                                   {[f.uploaded_by_name, f.created_at ? new Date(f.created_at).toLocaleDateString('en-US') : null].filter(Boolean).join(' · ')}
                                 </span>
                               </div>
-                              <Chip tone="t9" icon={CircleCheck}>Complete</Chip>
+                              <ToneChip tone="t9" icon={CircleCheck}>Complete</ToneChip>
                               {canEdit && (
                                 <button type="button" onClick={() => setRemovingFile(f)} aria-label={`Remove ${f.file_name}`} title="Remove"
                                   className="flex shrink-0 border-0 bg-transparent p-0 text-ui-text-secondary hover:text-error-normal">
@@ -992,19 +993,6 @@ function Sel({ value, onChange, opts, emphasize }: { value: string; onChange: (v
         </PopoverContent>
       </Popover>
     </div>
-  );
-}
-
-// Figma "Status Chip" (48:500): tone bg/fg, 14px icon, 12px medium label.
-function Chip({ tone, icon: Icon, children }: { tone: string; icon: LucideIcon; children: React.ReactNode }) {
-  return (
-    <span
-      className="inline-flex shrink-0 items-center gap-1 rounded-[4px] py-[3px] pl-2 pr-2.5 text-[12px] font-medium leading-4 whitespace-nowrap"
-      style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}
-    >
-      <Icon size={14} aria-hidden />
-      {children}
-    </span>
   );
 }
 

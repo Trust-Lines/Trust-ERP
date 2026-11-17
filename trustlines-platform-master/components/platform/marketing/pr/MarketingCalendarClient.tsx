@@ -17,7 +17,8 @@ import { ConfirmModal, Modal, ModalClose, ModalContent, modalSecondaryButtonClas
 import { CALENDAR_KINDS, calendarKindLabel, daysBetween, monthGridRange } from '@/lib/marketing/prWorkspace';
 import type { CalendarEntryRow, CampaignOption, SocialPostRow } from '@/lib/marketing/prWorkspaceServer';
 import type { StatusTone } from '@/lib/status/tags';
-import { PANEL, PageHeading, fmtDay, localToday, sendJson } from './shared';
+import { PANEL, fmtDay, localToday, sendJson } from './shared';
+import { PageHeading } from '@/components/platform/shared/PageHeading';
 
 type CalendarPost = Pick<SocialPostRow, 'id' | 'title' | 'status' | 'planned_on' | 'published_on' | 'account_id'>;
 interface CalendarData { from: string; to: string; entries: CalendarEntryRow[]; posts: CalendarPost[]; campaigns: CampaignOption[] }

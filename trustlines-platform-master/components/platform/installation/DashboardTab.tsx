@@ -8,7 +8,7 @@ import {
   BRANCHES, alertOf, countBy, dashboardStats, fmtDate, monthLabel, monthRows, needsAttention,
   startingWithin, statusTable, type AlertTone, type MonthRow, type Branch, type Clash, type InstallStatus, type Installation,
 } from '@/lib/installations/compute';
-import { BRANCH_COLOR, HEADING, ProjectNo } from './shared';
+import { BRANCH_COLOR, EmptyBox, HEADING, ProjectNo } from './shared';
 
 type Drill = 'attention' | 'overdue' | 'clash' | 'update' | 'soon' | 'now';
 
@@ -67,7 +67,7 @@ export function DashboardTab({ rows, today, clashes, months, projectByNo, onDril
       </div>
 
       <Block title="Needs Attention">
-        {attention.length === 0 ? <Empty>Nothing needs attention.</Empty> : (
+        {attention.length === 0 ? <EmptyBox className="py-6">Nothing needs attention.</EmptyBox> : (
           <DTable head={['Project #', 'Project/Store', 'Branch', 'Start', 'Finish', 'Status', 'Alert']}>
             {attention.map(r => {
               const a = alertOf(r, today)!;
@@ -88,7 +88,7 @@ export function DashboardTab({ rows, today, clashes, months, projectByNo, onDril
       </Block>
 
       <Block title="Installer double-booking">
-        {clashRows.length === 0 ? <Empty>No installer is booked on overlapping projects.</Empty> : (
+        {clashRows.length === 0 ? <EmptyBox className="py-6">No installer is booked on overlapping projects.</EmptyBox> : (
           <DTable head={['Project #', 'Project/Store', 'Branch', 'Start', 'Finish', 'Clashes with #', 'Installers on two jobs at once']}>
             {clashRows.map(r => {
               const list = clashes.get(r.id)!;
@@ -109,7 +109,7 @@ export function DashboardTab({ rows, today, clashes, months, projectByNo, onDril
       </Block>
 
       <Block title="Starting in the next 30 Days">
-        {soon.length === 0 ? <Empty>Nothing starts in the next 30 days.</Empty> : (
+        {soon.length === 0 ? <EmptyBox className="py-6">Nothing starts in the next 30 days.</EmptyBox> : (
           <DTable head={['Project #', 'Project/Store', 'Branch', 'Start', 'Finish', 'Assigned PM', 'Confidence', 'Assigned Team']}>
             {soon.map(r => (
               <tr key={r.id}>
@@ -210,10 +210,6 @@ function DTable({ head, center = [], children }: { head: string[]; center?: numb
       </table>
     </div>
   );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="m-0 rounded-[8px] border border-ui-divider bg-ui-page-bg px-4 py-6 text-center text-[13px] text-ui-text-secondary">{children}</p>;
 }
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
