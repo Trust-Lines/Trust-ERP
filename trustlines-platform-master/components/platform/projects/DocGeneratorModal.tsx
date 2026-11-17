@@ -651,9 +651,11 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
                                       const isDescSug   = activeSugg?.id === item.id && activeSugg?.field === 'desc';
                                       return (
                                         <tr key={item.id} style={{ borderBottom: '1px solid var(--border-subtle)', verticalAlign: 'top' }}>
-                                          <td style={{ padding: '4px', textAlign: 'center', verticalAlign: 'middle' }}>
-                                            <button type="button" onClick={() => triggerPhoto(sec.id, cat.id, sub.id, grp.id, item.id)} style={{ width: 28, height: 28, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                                              {photoUploading === item.id ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : item.photoBase64 ? <img src={item.photoBase64} style={{ width: 28, height: 28, objectFit: 'cover' }} alt="" /> : <Camera size={11} color="var(--fg-faint)" />}
+                                          <td style={{ padding: '4px' }}>
+                                            <button type="button" onClick={() => triggerPhoto(sec.id, cat.id, sub.id, grp.id, item.id)}
+                                              aria-label={item.photoBase64 ? 'Change photo' : 'Add photo'} title={item.photoBase64 ? 'Change photo' : 'Add photo'}
+                                              style={{ width: 28, height: 28, margin: '0 auto', padding: 0, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', color: 'var(--fg-subtle)' }}>
+                                              {photoUploading === item.id ? <Loader2 size={14} aria-hidden style={{ animation: 'spin 1s linear infinite' }} /> : item.photoBase64 ? <img src={item.photoBase64} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <Camera size={14} aria-hidden />}
                                             </button>
                                           </td>
 
@@ -708,11 +710,11 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
                                             )}
                                           </td>
 
-                                          <td style={{ padding: '4px 3px', verticalAlign: 'middle' }}>
+                                          <td style={{ padding: '4px 3px' }}>
                                             <input type="number" min={0} value={item.quantity || ''} onChange={e => updItem(sec.id, cat.id, sub.id, grp.id, item.id, { quantity: parseInt(e.target.value) || 0 })} style={{ ...numInp, width: 56 }} />
                                           </td>
 
-                                          <td style={{ padding: '4px 3px', verticalAlign: 'middle' }}>
+                                          <td style={{ padding: '4px 3px' }}>
                                             <input type="number" min={0} step={100}
                                               value={item.unitPrice ?? ''}
                                               onChange={e => showPrices && updItem(sec.id, cat.id, sub.id, grp.id, item.id, { unitPrice: e.target.value ? parseFloat(e.target.value) : null })}
@@ -722,15 +724,15 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
                                               style={{ ...numInp, opacity: showPrices ? 1 : 0.3, cursor: showPrices ? 'text' : 'default', background: showPrices ? undefined : 'transparent', border: showPrices ? undefined : '1px solid transparent' }} />
                                           </td>
 
-                                          <td style={{ padding: '4px 3px', textAlign: 'right', fontSize: 11, color: 'var(--fg-subtle)', verticalAlign: 'middle', whiteSpace: 'nowrap', paddingRight: 8, opacity: showPrices ? 1 : 0.3 }}>
+                                          <td style={{ padding: '4px 3px', textAlign: 'right', fontSize: 11, color: 'var(--fg-subtle)', lineHeight: '26px', whiteSpace: 'nowrap', paddingRight: 8, opacity: showPrices ? 1 : 0.3 }}>
                                             {showPrices && rowTotal > 0 ? fmt(rowTotal) : '—'}
                                           </td>
 
-                                          <td style={{ padding: '4px 3px', verticalAlign: 'middle' }}>
+                                          <td style={{ padding: '4px 3px' }}>
                                             <DropdownInput value={item.taking} onChange={v => updItem(sec.id, cat.id, sub.id, grp.id, item.id, { taking: v })} onBlur={v => { saveOption('taking', v); void saveCatalogItem(item); }} placeholder="Taking" optionsKey="taking" />
                                           </td>
 
-                                          <td style={{ padding: '4px 3px', verticalAlign: 'middle' }}>
+                                          <td style={{ padding: '4px 3px' }}>
                                             <VendorSelect
                                               vendors={vendors}
                                               displayValue={item.vendor}
@@ -742,9 +744,9 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
                                             />
                                           </td>
 
-                                          <td style={{ padding: '4px 3px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                          <td style={{ padding: '4px 3px', textAlign: 'center' }}>
                                             {grp.items.length > 1 && (
-                                              <button type="button" onClick={() => removeItem(sec.id, cat.id, sub.id, grp.id, item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, opacity: 0.5 }}><X size={11} /></button>
+                                              <button type="button" onClick={() => removeItem(sec.id, cat.id, sub.id, grp.id, item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, height: 26, display: 'inline-flex', alignItems: 'center', opacity: 0.5 }}><X size={11} /></button>
                                             )}
                                           </td>
                                         </tr>
@@ -766,7 +768,7 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
                         </div>
                       ))}
 
-                      <div style={{ padding: '4px 10px 8px' }}>
+                      <div style={{ padding: '4px 8px 8px' }}>
                         <button type="button" onClick={() => addSub(sec.id, cat.id)} style={{ fontSize: 11, color: 'var(--fg-subtle)', background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: 4, cursor: 'pointer', padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Plus size={10} /> Add Sub-Category</button>
                       </div>
                     </div>
