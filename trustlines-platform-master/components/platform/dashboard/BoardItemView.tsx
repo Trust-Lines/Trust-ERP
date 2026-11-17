@@ -82,6 +82,9 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
   const [company, setCompany] = React.useState<string | null>(item.company ?? null);
   const [savingCompany, setSavingCompany] = React.useState(false);
   const canSetCompany = companyEdit === 'any' || (companyEdit === 'empty' && !company);
+  // The project number on top: the card's badge, or "#507" when the badge carries no number ("OP").
+  const cardBadge = [item.badgeTop, item.badgeBottom].filter(Boolean).join(' ');
+  const headBadge = item.projectNo && !/d/.test(cardBadge) ? `#${item.projectNo}` : cardBadge;
   const router = useRouter();
   async function saveCompany(value: string) {
     if (!value || value === company) return;
@@ -134,9 +137,9 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
           <div className="flex min-w-0 flex-col gap-4">
             <div className="flex min-w-0 flex-col">
               <div className="flex min-w-0 items-center gap-4">
-                {(item.badgeTop || item.badgeBottom) && (
+                {headBadge && (
                   <span className="flex h-9 shrink-0 items-center rounded-[6px] px-2.5 text-[20px] font-semibold leading-none" style={{ background: section.bg, color: stageInk }}>
-                    {[item.badgeTop, item.badgeBottom].filter(Boolean).join(' ')}
+                    {headBadge}
                   </span>
                 )}
                 <h2 className={`m-0 truncate text-[28px] font-semibold leading-[1.35] ${HEADING}`}>{item.title}</h2>

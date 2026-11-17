@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ArrowUpFromDot, Award, CircleCheck, ClipboardCheck, Cog, DraftingCompass, Hammer, Loader, MessagesSquare, Ship,
   UsersRound, ZoomIn, ZoomOut, type LucideIcon,
@@ -110,11 +111,14 @@ function monthsBetween(a: string, b: string): string[] {
 /** Width a full chip needs (icon + label at 12px); narrower stages show the icon only. */
 const chipWidth = (label: string) => 34 + label.length * 6.4;
 
-export function LifecycleGantt({ rows, months: planMonths, today, clashes, projectByNo, milestonesByNo, undatedByNo = {} }: {
+export function LifecycleGantt({ rows, months: planMonths, today, clashes, projectByNo, milestonesByNo, undatedByNo = {}, onOpen }: {
   rows: Installation[]; months: string[]; today: string; clashes: Map<string, Clash[]>; projectByNo: Record<string, string>;
   milestonesByNo: Record<string, ProjectMilestones>;
   undatedByNo?: Record<string, UndatedStage>;
+  /** A row click opens the board's popup for the project; false = no card, go to the project page. */
+  onOpen?: (projectNo: string) => boolean;
 }) {
+  const router = useRouter();
   const [colorBy, setColorBy] = React.useState<ColorBy>('branch');
   const [monthW, setMonthW] = React.useState(MONTH_W);
   const scrollRef = React.useRef<HTMLDivElement>(null);
@@ -314,13 +318,22 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
             const ink = status?.fg;
             const no = projectNumber(r.project_no);
             const projectId = no ? projectByNo[no] : undefined;
+            const openRow = () => {
+              if (r.project_no && onOpen?.(r.project_no)) return;
+              if (projectId) router.push(`/projects/${projectId}`);
+            };
             return (
-              <div key={r.id} className="flex border-b border-ui-divider" style={{ height: ROW_H }}>
+              <div key={r.id} className={cn('flex border-b border-ui-divider', onOpen && 'cursor-pointer hover:brightness-[0.97]')} style={{ height: ROW_H }}
+                {...(onOpen ? {
+                  role: 'button', tabIndex: 0, 'aria-label': `Open ${r.project_no ?? ''} ${r.project_name ?? ''}`,
+                  onClick: openRow,
+                  onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRow(); } },
+                } : {})}>
                 {/* Figma 818:11615 — the row in its current stage's tint, text in the stage colour */}
                 <div className={cn('sticky left-0 z-[2] flex items-center border-r border-ui-body', !status && 'bg-ui-page-bg')}
                   style={{ width: LEFT_W, background: tint, color: ink }}>
                   <Cell w={LEFT[0].w} className="px-2">
-                    <ProjectChip text={r.project_no || '—'} href={projectId ? `/projects/${projectId}` : null} status={status} />
+                    <ProjectChip text={r.project_no || '—'} href={!onOpen && projectId ? `/projects/${projectId}` : null} status={status} />
                   </Cell>
                   <Cell w={LEFT[1].w} className={cn('pl-0 font-semibold', !status && HEADING)} title={r.project_name ?? undefined}>{r.project_name || '—'}</Cell>
                   <Cell w={LEFT[2].w}>

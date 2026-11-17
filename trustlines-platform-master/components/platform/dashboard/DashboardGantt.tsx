@@ -19,12 +19,14 @@ export interface DashboardGanttData extends GanttStageData {
 // /dashboard → "View as Gantt chart": the installation plan's projects with their whole life
 // (opportunity → production → shipped → installation → completed), the chart that used to be the
 // Gantt tab of /tlines-pm/installation. Follows the board's Branches pick and date range.
-export function DashboardGantt({ data, branches, from, to }: {
+export function DashboardGantt({ data, branches, from, to, onOpen }: {
   data: DashboardGanttData | null;
   /** Branch codes (NE / SE / NW / CVW) picked in the Branches filter; empty = every branch. */
   branches: string[];
   from: string;
   to: string;
+  /** Opens the board's popup for a project number; false when the board has no card for it. */
+  onOpen?: (projectNo: string) => boolean;
 }) {
   const rows = React.useMemo(() => (data ? resolveTeams(data.rows, data.teams) : []), [data]);
   const clashes = React.useMemo(() => doubleBookings(rows), [rows]);
@@ -59,6 +61,6 @@ export function DashboardGantt({ data, branches, from, to }: {
   }
   return (
     <LifecycleGantt rows={visible} months={months} today={data.today} clashes={clashes}
-      projectByNo={data.projectByNo} milestonesByNo={data.milestonesByNo} undatedByNo={data.undatedByNo} />
+      projectByNo={data.projectByNo} milestonesByNo={data.milestonesByNo} undatedByNo={data.undatedByNo} onOpen={onOpen} />
   );
 }
