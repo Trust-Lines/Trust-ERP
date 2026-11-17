@@ -35,7 +35,9 @@ const DONE_INK = 'text-[var(--status-t6-fg)]';
 const CHECKBOX = 'size-4 rounded-[3px] border-[var(--ui-input-border)] bg-ui-input-bg dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg [&>span]:size-full [&>span]:rounded-[2px]';
 const CHECKBOX_DONE = 'data-checked:border-[var(--status-t6-fg)] dark:data-checked:border-[var(--status-t6-fg)] [&>span]:bg-[var(--status-t6-fg)] [&>span]:text-[var(--status-t6-bg)] dark:[&>span]:bg-[var(--status-t6-fg)] dark:[&>span]:text-[var(--status-t6-bg)]';
 const ROW = 'flex min-h-9 items-center rounded-[6px] pr-2';
-const INLINE_EDITOR = 'flex h-[23px] min-w-0 flex-1 items-center gap-1.5 rounded-[3px] border border-solid border-[var(--status-info-fg)] bg-ui-input-bg px-2';
+// Borderless assignee picker on the row being edited: just the name and a 14px chevron.
+const ASSIGNEE_SELECT = 'h-7 w-auto max-w-[180px] gap-2 border-0 bg-transparent px-0 text-[13px] leading-[1.4] hover:border-0 dark:rounded-[4px] dark:border-0 dark:bg-transparent dark:px-0 [&_svg]:size-3.5';
+const INLINE_EDITOR ='flex h-[23px] min-w-0 flex-1 items-center gap-1.5 rounded-[3px] border border-solid border-[var(--status-info-fg)] bg-ui-input-bg px-2';
 
 const initials = (name: string) => name.split(/[\s_]+/).map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
 
@@ -227,13 +229,21 @@ export function BoardTaskPanel({ title, apiBasePath, assignees, canEdit, showDue
                   </div>
                   <div className="flex shrink-0 items-center gap-8">
                     {isEditing && writable ? (
-                      <Select
-                        aria-label={`Assignee for ${t.title}`}
-                        options={assigneeOptions}
-                        value={t.assignee_id ?? ''}
-                        onValueChange={v => void patchTask(t, { assignee_id: v || null })}
-                        className="h-7 w-[170px] border-0 bg-transparent px-1 text-[13px] dark:border-0 dark:bg-transparent"
-                      />
+                      // Figma 908:25017 / 919:27917: avatar + name + chevron, no field box.
+                      <span className="flex min-w-0 items-center gap-2">
+                        {t.assignee_name && (
+                          <span className="flex size-[22px] shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-ui-page-bg text-[9px] font-semibold text-ui-body">
+                            <PersonFace name={t.assignee_name} userId={t.assignee_id} fallback={initials(t.assignee_name)} />
+                          </span>
+                        )}
+                        <Select
+                          aria-label={`Assignee for ${t.title}`}
+                          options={assigneeOptions}
+                          value={t.assignee_id ?? ''}
+                          onValueChange={v => void patchTask(t, { assignee_id: v || null })}
+                          className={cn(ASSIGNEE_SELECT, HEADING)}
+                        />
+                      </span>
                     ) : (
                       <Assignee name={t.assignee_name} userId={t.assignee_id} done={done} />
                     )}
