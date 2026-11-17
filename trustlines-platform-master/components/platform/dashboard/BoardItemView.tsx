@@ -13,6 +13,7 @@ import { ModalPanel } from '@/components/ui/modal';
 import { ToneChip } from '@/components/ui/tone-chip';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
 import { BoardTaskPanel } from './BoardTaskPanel';
+import { projectNumber } from '@/lib/keyClients/match';
 import { buildCardTabs, isShipped, type CardDeal, type CardPhase, type CardProject, type CardTab, type ChipTone } from '@/lib/dashboard/cardTabs';
 import type { ProjectFinance } from '@/lib/finance/projectTotals';
 import { typeLabel, type TrustItem } from '@/lib/trust/board';
@@ -40,13 +41,17 @@ const notYet = () => toast.info('Not connected yet');
 
 interface CardData { project: CardProject | null; deals: CardDeal[]; finance: ProjectFinance | null; allowed: string[] }
 
-export function BoardItemView({ item, section, assignees, canEdit, companyEdit = 'none', onClose }: {
+export function BoardItemView({ item, section, assignees, canEdit, companyEdit = 'none', staff = [], canEditTrustTasks = false, onClose }: {
   item: BoardCardItem;
   section: BoardSection;
   /** Set the card's company here: 'any' always, 'empty' only while it has none. */
   companyEdit?: 'any' | 'empty' | 'none';
   assignees: { id: string; full_name: string }[];
   canEdit: boolean;
+  /** Who a Trust Lines task can be assigned to. */
+  staff?: { id: string; full_name: string }[];
+  /** Add / change Trust Lines tasks (the API checks it too). */
+  canEditTrustTasks?: boolean;
   onClose: () => void;
 }) {
   const [data, setData] = React.useState<CardData | null>(null);
@@ -111,6 +116,10 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
     const d = deals.filter(x => x.kind === 'opportunity').at(-1) ?? deals.filter(x => x.kind === 'potential').at(-1);
     return d ? { kind: d.kind, id: d.id } : null;
   }, [item, data]);
+  // Trust Lines tasks (migration 153) hang on the project number, so every card of the project
+  // shares them; a card without one keeps its own list (lib/board/trustTasks).
+  const cardNo = item.projectNo ?? projectNumber(item.badgeTop);
+  const trustTasksApi = `/api/tlines-dashboard/trust-tasks/${cardNo ? `no-${cardNo}` : `${item.kind}-${item.id}`}`;
   const tasksApi = taskDeal ? `/api/marketing/${taskDeal.kind === 'potential' ? 'potentials' : 'opportunities'}/${taskDeal.id}` : null;
 
   const pick = (phase: CardPhase) => {
@@ -215,11 +224,11 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
           />
           <BoardTaskPanel
             title="Trust Lines Tasks"
-            apiBasePath={null}
-            assignees={assignees}
-            canEdit={false}
+            apiBasePath={trustTasksApi}
+            assignees={staff}
+            canEdit={canEditTrustTasks}
             showDueDate
-            unavailable="Not connected yet — Trust Lines tasks show here once they have a data source."
+            unavailable="Loading…"
           />
         </div>
 

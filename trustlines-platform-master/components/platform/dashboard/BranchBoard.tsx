@@ -948,6 +948,8 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   const [assigned, setAssigned] = React.useState<Record<string, string | null>>({});
   const assignOptions = React.useMemo(() => users.map(u => ({ value: u.id, label: u.full_name })), [users]);
   const pmOptions = React.useMemo(() => users.filter(u => u.role === 'tlines_pm').map(u => ({ value: u.id, label: u.full_name })), [users]);
+  // Trust Lines tasks go to Trust Lines people (not the T-Lines PMs).
+  const trustStaff = React.useMemo(() => users.filter(u => u.role !== 'tlines_pm').map(u => ({ id: u.id, full_name: u.full_name })), [users]);
   const assign = React.useCallback(async (item: BoardCardItem, role: AssignRole, userId: string | null) => {
     if (!item.assign) return;
     const key = assignKey(item, role);
@@ -997,7 +999,8 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
       ) : (
         <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} dates={dates} datesInBar={!isDashboard} kpis={kpis} counts={isDashboard} pageScroll={isDashboard} gantt={gantt} />
       )}
-      {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} companyEdit={companyEdit} onClose={() => setOpen(null)} />}
+      {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} companyEdit={companyEdit}
+        staff={trustStaff} canEditTrustTasks={canAssign} onClose={() => setOpen(null)} />}
     </AssignContext.Provider>
   );
 }
