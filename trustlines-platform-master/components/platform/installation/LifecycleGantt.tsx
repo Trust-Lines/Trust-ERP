@@ -122,34 +122,6 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
   const [colorBy, setColorBy] = React.useState<ColorBy>('branch');
   const [monthW, setMonthW] = React.useState(MONTH_W);
   const scrollRef = React.useRef<HTMLDivElement>(null);
-  // The chart is as tall as the visible page area: scroll the page down until it fills the screen,
-  // and its horizontal scrollbar sits at the bottom of the screen. Re-measured on resize.
-  const [fitH, setFitH] = React.useState<number | null>(null);
-  React.useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    // The page's own scroll box (the platform shell's main area), else the window.
-    let scroller: HTMLElement | null = null;
-    for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
-      const o = getComputedStyle(p).overflowY;
-      if (o === 'auto' || o === 'scroll') { scroller = p; break; }
-    }
-    let raf = 0;
-    const measure = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        // The window scrolls under the sticky top bar: leave it out.
-        const topBar = scroller ? 0 : document.querySelector('[data-shell="topbar"]')?.getBoundingClientRect().height ?? 0;
-        const visible = (scroller ? scroller.clientHeight : window.innerHeight) - topBar;
-        setFitH(Math.max(320, Math.floor(visible - 16)));
-      });
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    const ro = new ResizeObserver(measure);
-    if (scroller) ro.observe(scroller);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', measure); ro.disconnect(); };
-  }, []);
   const hoverRef = React.useRef(false);
 
   /** Zoom the timeline by `factor`, keeping the date under `clientX` (else the middle) in place. */
@@ -173,7 +145,19 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
     const el = scrollRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
+      if (!e.ctrlKey && !e.metaKey) {
+        // Scrolling down over the chart first brings it up to the top bar (full screen, its
+        // horizontal scrollbar at the screen bottom); only then does the chart itself scroll.
+        if (e.deltaY > 0 && !e.shiftKey) {
+          const topBar = document.querySelector('[data-shell="topbar"]')?.getBoundingClientRect().bottom ?? 0;
+          const gap = el.getBoundingClientRect().top - topBar;
+          if (gap > 1) {
+            e.preventDefault();
+            window.scrollBy({ top: Math.min(gap, e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY) });
+          }
+        }
+        return;
+      }
       e.preventDefault();
       zoom(Math.exp(-e.deltaY * 0.002), e.clientX);
     };
@@ -307,8 +291,8 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
       </div>
 
       <div ref={scrollRef} onMouseEnter={() => { hoverRef.current = true; }} onMouseLeave={() => { hoverRef.current = false; }}
-        style={{ maxHeight: fitH ?? undefined }}
-        className={cn('overflow-auto rounded-[8px] border border-ui-divider bg-ui-page-bg', fitH === null && 'max-h-[calc(100dvh-280px)]')}>
+        // As tall as the page under the top bar (80px): scrolled up to it, the chart fills the screen.
+        className="max-h-[calc(100dvh-96px)] min-h-[320px] overflow-auto rounded-[8px] border border-ui-divider bg-ui-page-bg">
         <div style={{ width: LEFT_W + timelineW }}>
           {/* header */}
           <div className="sticky top-0 z-[3] flex h-[46px] border-b border-ui-divider bg-ui-surface">
