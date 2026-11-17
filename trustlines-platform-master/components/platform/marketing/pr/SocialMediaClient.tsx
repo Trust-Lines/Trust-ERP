@@ -9,6 +9,8 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
+import { Field } from '@/components/ui/field';
+import { InlineNotice } from '@/components/ui/inline-notice';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -21,7 +23,7 @@ import {
 } from '@/lib/marketing/prWorkspace';
 import type { CampaignOption, FollowerStatRow, SocialAccountRow, SocialConnectionRow, SocialPostRow } from '@/lib/marketing/prWorkspaceServer';
 import type { ProviderStatus } from '@/lib/social/providers';
-import { Field, PANEL, PageHeading, PlatformMark, TD_CLS, TH_CLS, fmtDay, fmtNumber, localToday, sendJson } from './shared';
+import { PANEL, PageHeading, PlatformMark, TD_CLS, TH_CLS, fmtDay, fmtNumber, localToday, sendJson } from './shared';
 
 interface SocialData { accounts: SocialAccountRow[]; posts: SocialPostRow[]; stats: FollowerStatRow[]; connections: SocialConnectionRow[] }
 
@@ -540,9 +542,9 @@ export function SocialMediaClient({ initial, campaigns, providers, canEdit, isMa
                       : 'Manual · no follower count recorded yet'}
                 </div>
                 {a.connection_id && a.sync_error && (
-                  <div role="alert" className="flex items-start gap-1.5 rounded-[6px] bg-error-light px-2.5 py-2 text-[11px] text-error-dark">
-                    <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden /> <span className="min-w-0 break-words">{a.sync_error}</span>
-                  </div>
+                  <InlineNotice tone="error" role="alert" className="gap-1.5 px-2.5 text-[11px]" icon={<CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden />}>
+                    <span className="min-w-0 break-words">{a.sync_error}</span>
+                  </InlineNotice>
                 )}
                 {canEdit && (
                   <div className="flex flex-wrap gap-2">
@@ -685,20 +687,19 @@ function PostFields({ form, row, account, disabled, accountOptions, campaignOpti
   const hint = live ? null : publishHint(account, form);
   const autoPublish = form.status === 'scheduled' && !!hint?.ok;
   return (
-    <fieldset disabled={disabled} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0">
+    <fieldset disabled={disabled} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0 [&_label]:text-[14px] [&_input]:text-[14px] [&_textarea]:text-[14px] [&_button]:text-[14px] [&_span.text-\[11px\]]:text-[13px]">
       {row?.status === 'publishing' && (
-        <div role="status" className="rounded-[6px] bg-info-light px-3 py-2 text-[12px] text-info-dark">This post is being published right now.</div>
+        <InlineNotice tone="info" role="status">This post is being published right now.</InlineNotice>
       )}
       {row?.status === 'failed' && row.publish_error && (
-        <div role="alert" className="flex items-start gap-2 rounded-[6px] bg-error-light px-3 py-2 text-[12px] text-error-dark">
-          <CircleAlert className="mt-px size-4 shrink-0" aria-hidden />
+        <InlineNotice tone="error" role="alert" icon={<CircleAlert className="mt-px size-4 shrink-0" aria-hidden />}>
           <span>Publishing failed: {row.publish_error}. Fix it and save to retry at the chosen time, or use “Publish now”.</span>
-        </div>
+        </InlineNotice>
       )}
       {live && (
-        <div role="note" className="rounded-[6px] bg-success-light px-3 py-2 text-[12px] text-success-dark">
+        <InlineNotice tone="success" role="note">
           This post is live on the platform{row?.source === 'synced' ? ' (imported from it)' : ''}. Its results update automatically every night.
-        </div>
+        </InlineNotice>
       )}
       <Field label="Title" htmlFor="post-title">
         <Input id="post-title" placeholder="e.g. NACS booth recap" value={form.title} onChange={e => onChange({ title: e.target.value })} />
@@ -725,8 +726,8 @@ function PostFields({ form, row, account, disabled, accountOptions, campaignOpti
         <div className="flex flex-col gap-3 rounded-[8px] border border-ui-divider p-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <div className="text-[13px] font-semibold text-ui-heading">Media</div>
-              <div className="text-[11px] text-ui-text-secondary">What gets posted with the caption.</div>
+              <div className="text-[15px] font-semibold text-ui-heading">Media</div>
+              <div className="text-[13px] text-ui-text-secondary">What gets posted with the caption.</div>
             </div>
             <Select className="w-[140px]" aria-label="Media type" value={form.media_type} options={MEDIA_OPTIONS} onValueChange={v => onChange({ media_type: v ?? 'image' })} disabled={disabled} />
           </div>
@@ -749,7 +750,7 @@ function PostFields({ form, row, account, disabled, accountOptions, campaignOpti
               min={today ? `${today}T00:00` : undefined} disabled={disabled || !hint?.ok}
               onChange={e => onChange({ scheduled_at: e.target.value, planned_on: e.target.value.slice(0, 10) })} />
           </Field>
-          {hint && <p className={cn('m-0 text-[11px]', hint.ok ? 'text-success-dark' : 'text-ui-text-secondary')}>{hint.text}</p>}
+          {hint && <p className={cn('m-0 text-[13px]', hint.ok ? 'text-success-dark' : 'text-ui-text-secondary')}>{hint.text}</p>}
         </div>
       )}
 
@@ -764,8 +765,8 @@ function PostFields({ form, row, account, disabled, accountOptions, campaignOpti
       {showResults && (
         <div className="flex flex-col gap-3 rounded-[8px] border border-ui-divider p-4">
           <div>
-            <div className="text-[13px] font-semibold text-ui-heading">Results</div>
-            <div className="text-[11px] text-ui-text-secondary">Copy these from the platform’s insights. Leave a box empty if the number isn’t available.</div>
+            <div className="text-[15px] font-semibold text-ui-heading">Results</div>
+            <div className="text-[13px] text-ui-text-secondary">Copy these from the platform’s insights. Leave a box empty if the number isn’t available.</div>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {POST_METRICS.map(m => (

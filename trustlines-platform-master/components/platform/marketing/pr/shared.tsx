@@ -26,17 +26,6 @@ export function PageHeading({ trail, title, subtitle, actions }: { trail: string
   );
 }
 
-/** Label + control + optional hint, the form row used in every PR workspace dialog. */
-export function Field({ label, htmlFor, hint, className, children }: { label: string; htmlFor?: string; hint?: string; className?: string; children: ReactNode }) {
-  return (
-    <div className={cn('flex flex-col gap-1', className)}>
-      <label htmlFor={htmlFor} className="text-[12px] font-medium text-ui-body">{label}</label>
-      {children}
-      {hint && <span className="text-[11px] text-ui-text-secondary">{hint}</span>}
-    </div>
-  );
-}
-
 // No brand logos in the installed lucide-react (1.x removed them), so each platform gets a
 // short mark in its brand colour.
 const PLATFORM_MARK: Record<string, { text: string; bg: string }> = {
