@@ -122,6 +122,27 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
   const [colorBy, setColorBy] = React.useState<ColorBy>('branch');
   const [monthW, setMonthW] = React.useState(MONTH_W);
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  // The chart ends at the bottom of the window, so its horizontal scrollbar is always in view
+  // without scrolling the page down. Re-measured when the window or the content above it changes.
+  const [fitH, setFitH] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let raf = 0;
+    const measure = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const top = el.getBoundingClientRect().top + window.scrollY;
+        setFitH(Math.max(320, Math.floor(window.innerHeight - top - 16)));
+      });
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    const ro = new ResizeObserver(measure);
+    if (el.parentElement) ro.observe(el.parentElement);
+    ro.observe(document.body);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', measure); ro.disconnect(); };
+  }, []);
   const hoverRef = React.useRef(false);
 
   /** Zoom the timeline by `factor`, keeping the date under `clientX` (else the middle) in place. */
@@ -279,7 +300,8 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
       </div>
 
       <div ref={scrollRef} onMouseEnter={() => { hoverRef.current = true; }} onMouseLeave={() => { hoverRef.current = false; }}
-        className="max-h-[calc(100dvh-280px)] overflow-auto rounded-[8px] border border-ui-divider bg-ui-page-bg">
+        style={{ maxHeight: fitH ?? undefined }}
+        className={cn('overflow-auto rounded-[8px] border border-ui-divider bg-ui-page-bg', fitH === null && 'max-h-[calc(100dvh-280px)]')}>
         <div style={{ width: LEFT_W + timelineW }}>
           {/* header */}
           <div className="sticky top-0 z-[3] flex h-[46px] border-b border-ui-divider bg-ui-surface">
