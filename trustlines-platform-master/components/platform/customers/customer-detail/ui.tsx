@@ -61,7 +61,7 @@ export function MiniChip({ tone, icon: Icon, star, children }: { tone: string; i
   return (
     <ToneChip
       tone={tone}
-      className="h-[18px] py-0 text-[11px]"
+      className="h-[18px] py-0 text-[11px] leading-4"
       icon={(star || Icon) && (
         <>
           {star && <Star size={10} fill="currentColor" strokeWidth={0} aria-hidden />}

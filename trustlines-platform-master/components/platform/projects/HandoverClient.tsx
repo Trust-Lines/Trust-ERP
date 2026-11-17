@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { CircleCheck, Contact, Hourglass, X, Plus, Users, type LucideIcon } from 'lucide-react';
+import { CircleCheck, Contact, Hourglass, X, Plus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import type { HandoverChecklistItem, ProjectHandover, ProjectStage } from '@/types/database';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ToneChip } from '@/components/ui/tone-chip';
 import { cn } from '@/lib/utils';
 import { ProjectSubpageHeader } from './ProjectSubpageHeader';
 
@@ -35,20 +36,8 @@ interface Props {
   initialAvailable: AvailContact[];
 }
 
-/** Status-chip look (same tone tokens + icon + label as <StatusBadge>) for states with no status group. */
-function ToneChip({ tone, icon: Icon, size = 'md', children }: { tone: string; icon: LucideIcon; size?: 'sm' | 'md'; children: React.ReactNode }) {
-  return (
-    <span
-      className={size === 'sm'
-        ? 'ml-0.5 inline-flex h-5 shrink-0 items-center gap-1 rounded-tag px-2 text-[10px] font-medium leading-[1.5] whitespace-nowrap [&_svg]:size-3'
-        : 'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-tag px-3 text-[12px] font-medium leading-[1.5] whitespace-nowrap [&_svg]:size-3.5'}
-      style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}
-    >
-      <Icon aria-hidden />
-      {children}
-    </span>
-  );
-}
+// Small (20px) checklist-progress chip, same size as <StatusBadge size="sm">.
+const SMALL_CHIP = 'ml-0.5 h-5 rounded-tag px-2 py-0 text-[10px] leading-[1.5]';
 
 export function HandoverClient(props: Props) {
   const { projectId, projectCode, projectName, stage, canEdit, summary, template, derived, autoKeys, customer, contactMap } = props;
@@ -134,8 +123,8 @@ export function HandoverClient(props: Props) {
               <div className="flex items-center gap-3">
                 <h2 id="handover-checklist" className={cn('m-0 text-[20px] font-semibold leading-[1.35]', HEADING)}>Handover Checklist</h2>
                 {complete
-                  ? <ToneChip tone="t9" icon={CircleCheck} size="sm">Complete</ToneChip>
-                  : <ToneChip tone="t2" icon={Hourglass} size="sm">{doneCount}/{checklist.length}</ToneChip>}
+                  ? <ToneChip tone="t9" icon={CircleCheck} iconSize={12} className={SMALL_CHIP}>Complete</ToneChip>
+                  : <ToneChip tone="t2" icon={Hourglass} iconSize={12} className={SMALL_CHIP}>{doneCount}/{checklist.length}</ToneChip>}
               </div>
               <div className="flex flex-wrap items-center justify-end gap-4">
                 <label className="flex items-center gap-2">

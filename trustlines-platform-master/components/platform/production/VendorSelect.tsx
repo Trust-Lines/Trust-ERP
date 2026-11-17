@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import type { Vendor } from './AddVendorModal';
 
 export function VendorSelect({
-  vendors, displayValue, onPick, onClear, onAddNew, onDeleted, width = 170, placeholder = '— none —',
+  vendors, displayValue, onPick, onClear, onAddNew, onDeleted, width = 170, placeholder = '— none —', size = 'sm',
 }: {
   vendors: Vendor[];
   displayValue: string;
@@ -20,7 +20,10 @@ export function VendorSelect({
   onDeleted?: (vendorId: string) => void;
   width?: number;
   placeholder?: string;
+  /** `sm` (default): compact 11px trigger used on the Production boards. `md`: 32px tall, 14px text. */
+  size?: 'sm' | 'md';
 }) {
+  const md = size === 'md';
   const [open, setOpen]   = useState(false);
   const [query, setQuery] = useState('');
   const [rect, setRect]   = useState<DOMRect | null>(null);
@@ -79,13 +82,14 @@ export function VendorSelect({
         onClick={() => setOpen(o => !o)}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
-          width: '100%', maxWidth: width, fontSize: 11, padding: '4px 6px', borderRadius: 4,
+          width: '100%', maxWidth: width, borderRadius: 4,
+          ...(md ? { height: 32, fontSize: 14, padding: '0 8px' } : { fontSize: 11, padding: '4px 6px' }),
           border: '1px solid var(--border-default)', background: 'var(--bg-surface)', cursor: 'pointer',
           color: hasValue ? 'var(--fg-default)' : 'var(--fg-faint)',
         }}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{hasValue ? displayValue : placeholder}</span>
-        <ChevronDown size={12} style={{ flexShrink: 0, color: 'var(--fg-faint)' }} />
+        <ChevronDown size={md ? 14 : 12} style={{ flexShrink: 0, color: 'var(--fg-faint)' }} />
       </button>
 
       {open && rect && createPortal(

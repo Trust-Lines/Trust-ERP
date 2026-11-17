@@ -881,10 +881,11 @@ function StillToFillIn({ missing, stage }: { missing: string[]; stage: string })
     );
   }
   return (
-    <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, padding: '8px 12px', borderRadius: 10, background: 'var(--status-warning-bg)', color: 'var(--status-warning-fg)' }}>
-      <span style={{ fontSize: 12.5, fontWeight: 700 }}>Still to fill in:</span>
+    // Light amber tint + amber outline (warning tokens). A solid warning fill read as brown in dark mode.
+    <div role="note" className="mb-2.5 flex flex-wrap items-center gap-1.5 rounded-[10px] border border-warning-normal/40 bg-warning-normal/10 px-3 py-2 text-warning-dark dark:text-warning-normal">
+      <span className="text-[12.5px] font-bold">Still to fill in:</span>
       {missing.map(m => (
-        <span key={m} style={{ fontSize: 12, fontWeight: 700, padding: '2px 9px', borderRadius: 999, background: 'rgba(255,255,255,.65)' }}>{m}</span>
+        <span key={m} className="rounded-full border border-warning-normal/60 bg-warning-normal/10 px-2.5 py-px text-[12px] font-semibold">{m}</span>
       ))}
     </div>
   );

@@ -30,7 +30,7 @@ const buttonVariantsBase = cva(
           "bg-transparent text-error-normal hover:bg-error-light disabled:text-grey-200 dark:hover:bg-error-dark/30",
         // The page's one main call-to-action (New Task, New request, Convert…) — brand accent fill.
         accent:
-          "bg-ui-btn-accent text-ui-btn-accent-fg hover:opacity-90 disabled:bg-grey-100 disabled:text-grey-200",
+          "bg-ui-btn-accent text-ui-btn-accent-fg hover:opacity-90 disabled:bg-grey-100 disabled:text-grey-200 dark:disabled:bg-white/5 dark:disabled:text-primary-500",
         // Call-to-action inside a warning notice (e.g. "Set up now" on the signature banner).
         warning:
           "bg-warning-dark text-white hover:bg-warning-dark/90 disabled:bg-grey-100 disabled:text-grey-200",

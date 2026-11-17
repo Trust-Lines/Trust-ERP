@@ -454,7 +454,7 @@ export function SocialMediaClient({ initial, campaigns, providers, canEdit, isMa
               const conn = data.connections.find(c => c.provider === p.id);
               const linked = data.accounts.filter(a => a.connection_id && a.connection_id === conn?.id);
               return (
-                <div key={p.id} className="flex flex-col gap-3 rounded-[8px] border border-ui-divider p-4">
+                <div key={p.id} className={SUB_BOX}>
                   <div className="flex items-center gap-2">
                     {PROVIDER_PLATFORMS[p.id].map(pl => <PlatformMark key={pl} platform={pl} size={22} />)}
                     <span className="text-[13px] font-semibold text-ui-heading">{p.label}</span>
@@ -677,6 +677,24 @@ export function SocialMediaClient({ initial, campaigns, providers, canEdit, isMa
   );
 }
 
+// Bordered sub-section inside a dialog (Media, schedule, Results, platform connections).
+const SUB_BOX = 'flex flex-col gap-3 rounded-[8px] border border-ui-divider p-4';
+
+function SubSection({ title, subtitle, action, children }: { title: string; subtitle: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className={SUB_BOX}>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="text-[15px] font-semibold text-ui-heading">{title}</div>
+          <div className="text-[13px] text-ui-text-secondary">{subtitle}</div>
+        </div>
+        {action}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function PostFields({ form, row, account, disabled, accountOptions, campaignOptions, today, onChange }: {
   form: PostForm; row: SocialPostRow | null; account: SocialAccountRow | undefined; disabled: boolean;
   accountOptions: { value: string; label: string }[]; campaignOptions: { value: string; label: string }[];
@@ -724,14 +742,8 @@ function PostFields({ form, row, account, disabled, accountOptions, campaignOpti
       </Field>
 
       {!live && (
-        <div className="flex flex-col gap-3 rounded-[8px] border border-ui-divider p-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <div className="text-[15px] font-semibold text-ui-heading">Media</div>
-              <div className="text-[13px] text-ui-text-secondary">What gets posted with the caption.</div>
-            </div>
-            <Select className="w-[140px]" aria-label="Media type" value={form.media_type} options={MEDIA_OPTIONS} onValueChange={v => onChange({ media_type: v ?? 'image' })} disabled={disabled} />
-          </div>
+        <SubSection title="Media" subtitle="What gets posted with the caption."
+          action={<Select className="w-[140px]" aria-label="Media type" value={form.media_type} options={MEDIA_OPTIONS} onValueChange={v => onChange({ media_type: v ?? 'image' })} disabled={disabled} />}>
           {form.media_type === 'image' && (
             <ImageField value={form.media_url} onChange={u => onChange({ media_url: u })} folder="/social/posts" disabled={disabled} height={200} label="Post image" />
           )}
@@ -740,11 +752,11 @@ function PostFields({ form, row, account, disabled, accountOptions, campaignOpti
               <Input id="post-video" type="url" placeholder="https://…/video.mp4" value={form.media_url} onChange={e => onChange({ media_url: e.target.value })} />
             </Field>
           )}
-        </div>
+        </SubSection>
       )}
 
       {!live && form.status === 'scheduled' && (
-        <div className="flex flex-col gap-2 rounded-[8px] border border-ui-divider p-4">
+        <div className={cn(SUB_BOX, 'gap-2')}>
           <Field label="Publish automatically at" htmlFor="post-when"
             hint={autoPublish ? 'Your local time. The post goes out within 15 minutes of this time.' : undefined}>
             <Input id="post-when" type="datetime-local" className="max-w-[260px]" value={form.scheduled_at}
@@ -764,11 +776,7 @@ function PostFields({ form, row, account, disabled, accountOptions, campaignOpti
         </Field>
       </div>
       {showResults && (
-        <div className="flex flex-col gap-3 rounded-[8px] border border-ui-divider p-4">
-          <div>
-            <div className="text-[15px] font-semibold text-ui-heading">Results</div>
-            <div className="text-[13px] text-ui-text-secondary">Copy these from the platform’s insights. Leave a box empty if the number isn’t available.</div>
-          </div>
+        <SubSection title="Results" subtitle="Copy these from the platform’s insights. Leave a box empty if the number isn’t available.">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {POST_METRICS.map(m => (
               <Field key={m} label={METRIC_LABEL[m]} htmlFor={`post-${m}`}>
@@ -776,7 +784,7 @@ function PostFields({ form, row, account, disabled, accountOptions, campaignOpti
               </Field>
             ))}
           </div>
-        </div>
+        </SubSection>
       )}
       <Field label="Notes" htmlFor="post-notes">
         <Textarea id="post-notes" rows={3} value={form.notes} onChange={e => onChange({ notes: e.target.value })} />
