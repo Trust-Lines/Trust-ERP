@@ -84,6 +84,15 @@ const daysIn = (key: string) => new Date(Date.UTC(+key.slice(0, 4), +key.slice(5
 const monthHead = (key: string) =>
   new Date(Date.UTC(+key.slice(0, 4), +key.slice(5, 7) - 1, 1))
     .toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' }).toUpperCase();
+/** "AUG" */
+const monthShort = (key: string) =>
+  new Date(Date.UTC(+key.slice(0, 4), +key.slice(5, 7) - 1, 1))
+    .toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase();
+type ScaleLevel = 'months' | 'quarters' | 'days';
+interface Tick { key: string; label: string; title?: string; x: number; w: number; today?: boolean }
+/** Faint day lines inside a month column (one every `w` px), drawn in the column's text colour. */
+const dayLines = (w: number) =>
+  `repeating-linear-gradient(to right, transparent 0 ${w - 1}px, color-mix(in srgb, currentColor 35%, transparent) ${w - 1}px ${w}px)`;
 /** "10 AUG" */
 const dayMonth = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).toUpperCase();
@@ -177,6 +186,41 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
     return i * monthW + ((+iso.slice(8, 10) - 1) / daysIn(key)) * monthW;
   };
   const todayX = today >= start && today <= end ? dayX(today) : null;
+
+  // The header's intervals follow the zoom: zoomed out → years over months; normal → months over
+  // quarters of a month ("1–8", "9–15" …); zoomed in → months over single days.
+  const scale = React.useMemo(() => {
+    const level: ScaleLevel = monthW < 120 ? 'months' : monthW < 450 ? 'quarters' : 'days';
+    const top: Tick[] = [];
+    const bottom: Tick[] = [];
+    months.forEach((m, i) => {
+      const x0 = i * monthW;
+      const days = daysIn(m);
+      if (level === 'months') {
+        const y = m.slice(0, 4);
+        const last = top.at(-1);
+        if (last?.key === y) last.w += monthW;
+        else top.push({ key: y, label: y, x: x0, w: monthW });
+        const short = monthShort(m);
+        bottom.push({ key: m, label: monthW >= 40 ? short : short[0], title: monthHead(m), x: x0, w: monthW, today: today.slice(0, 7) === m });
+        return;
+      }
+      top.push({ key: m, label: monthHead(m), x: x0, w: monthW });
+      if (level === 'quarters') {
+        for (let q = 0; q < 4; q++) {
+          const a = Math.round((q * days) / 4) + 1, b = Math.round(((q + 1) * days) / 4);
+          const inIt = today.slice(0, 7) === m && +today.slice(8, 10) >= a && +today.slice(8, 10) <= b;
+          bottom.push({ key: `${m}-${q}`, label: monthW >= 200 ? `${a}–${b}` : String(a), title: `${a}–${b} ${monthHead(m)}`, x: x0 + (q * monthW) / 4, w: monthW / 4, today: inIt });
+        }
+      } else {
+        for (let d = 1; d <= days; d++) {
+          const iso = `${m}-${String(d).padStart(2, '0')}`;
+          bottom.push({ key: iso, label: String(d), title: dayMonth(iso), x: x0 + ((d - 1) * monthW) / days, w: monthW / days, today: iso === today });
+        }
+      }
+    });
+    return { level, top, bottom };
+  }, [months, monthW, today]);
   const installColor = (r: Installation) =>
     colorBy === 'branch' ? (r.branch ? LEGEND_COLOR[r.branch] : '#8A94A3') : (SCOPE_COLOR[(r.scope ?? '').toUpperCase()] ?? '#8A94A3');
 
@@ -242,11 +286,22 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
                 </div>
               ))}
             </div>
-            {months.map(m => (
-              <div key={m} className={cn('flex shrink-0 items-center justify-center border-r border-ui-divider text-[16px] font-semibold leading-[1.4]', HEADING, monthW < 90 && 'text-[12px]')} style={{ width: monthW }}>
-                {monthHead(m)}
+            {/* Two rows that follow the zoom: years / months, months / quarters of a month, months / days */}
+            <div className="relative shrink-0" style={{ width: timelineW }}>
+              <div className="absolute inset-x-0 top-0 h-[25px]">
+                {scale.top.map(t => (
+                  <div key={t.key} className={cn('absolute top-0 flex h-full items-center justify-center overflow-hidden whitespace-nowrap border-r border-ui-divider text-[14px] font-semibold leading-none', HEADING)}
+                    style={{ left: t.x, width: t.w }}>{t.label}</div>
+                ))}
               </div>
-            ))}
+              <div className="absolute inset-x-0 bottom-0 h-5 border-t border-ui-divider">
+                {scale.bottom.map(t => (
+                  <div key={t.key} title={t.title} className={cn('absolute top-0 flex h-full items-center justify-center overflow-hidden whitespace-nowrap border-r border-ui-divider text-[11px] font-medium leading-none',
+                    t.today ? 'bg-[var(--color-accent-500,#E63700)] text-white' : 'text-ui-body')}
+                    style={{ left: t.x, width: t.w }}>{t.label}</div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* rows */}
@@ -288,9 +343,9 @@ export function LifecycleGantt({ rows, months: planMonths, today, clashes, proje
                   {/* month columns, dashed weeks */}
                   <div className="absolute inset-0 flex" aria-hidden>
                     {months.map(m => (
-                      <div key={m} className="flex h-full shrink-0 border-r border-ui-text-secondary" style={{ width: monthW }}>
-                        {/* week lines only while there is room for them */}
-                        {monthW >= 120 && [0, 1, 2, 3].map(q => <div key={q} className={cn('h-full flex-1', q < 3 && 'border-r border-dashed border-ui-text-secondary')} />)}
+                      <div key={m} className="flex h-full shrink-0 border-r border-ui-text-secondary text-ui-text-secondary" style={{ width: monthW, backgroundImage: scale.level === 'days' ? dayLines(monthW / daysIn(m)) : undefined }}>
+                        {/* the same split as the header's lower row */}
+                        {scale.level === 'quarters' && [0, 1, 2, 3].map(q => <div key={q} className={cn('h-full flex-1', q < 3 && 'border-r border-dashed border-ui-text-secondary')} />)}
                       </div>
                     ))}
                   </div>
