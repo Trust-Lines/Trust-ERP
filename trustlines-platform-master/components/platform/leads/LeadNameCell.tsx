@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ChevronDown, ChevronRight, Plus, ExternalLink, Trash2, Clock, ListChecks } from 'lucide-react';
-import { readableTextColor } from '@/lib/marketing/pillColor';
+import { ChevronDown, ChevronRight, Plus, ExternalLink, Trash2, ListChecks } from 'lucide-react';
 import type { Lead } from './types';
 import { cn } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -23,9 +22,8 @@ function apiBasePathFor(lead: Lead): string {
   return `/api/leads/${lead.id}`;
 }
 
-export function LeadNameCell({ lead, today, assignees, onOpen }: {
+export function LeadNameCell({ lead, assignees, onOpen }: {
   lead: Lead;
-  today: string;
   assignees: { id: string; full_name: string }[];
   onOpen: () => void;
 }) {
@@ -96,28 +94,9 @@ export function LeadNameCell({ lead, today, assignees, onOpen }: {
           ) : <span style={{ width: 13, flexShrink: 0 }} />}
 
           <button type="button" onClick={onOpen} className="min-w-0 flex-1 rounded-[2px] text-left outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring">
+            {/* Tags and the follow-up chip have their own columns (LeadsTable). */}
             <span style={{ fontWeight: 600, color: 'var(--brand-teal-600)', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{lead.name}</span>
-              {(lead.tag_pills ?? []).map(t => (
-                <span key={t.name} style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 4, background: t.color || 'var(--bg-subtle)', color: readableTextColor(t.color || '#888888') }}>
-                  {t.name}
-                </span>
-              ))}
-              {(() => {
-                if (!lead.follow_up_date) return null;
-                const overdue = lead.follow_up_date < today;
-                const dueToday = lead.follow_up_date === today;
-                if (!overdue && !dueToday) return null;
-                return (
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 'var(--radius-pill)',
-                    fontSize: 10, fontWeight: 700, flexShrink: 0,
-                    background: overdue ? 'var(--status-danger-bg)' : 'var(--status-warning-bg)', color: overdue ? 'var(--status-danger)' : 'var(--status-warning)',
-                  }}>
-                    <Clock size={9} /> {overdue ? 'Overdue' : 'Due today'}
-                  </span>
-                );
-              })()}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} title={lead.name}>{lead.name}</span>
             </span>
             <span style={{ fontSize: 13, color: 'var(--fg-faint)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', overflow: 'hidden' }}>
               <span>{lead.project_no ?? 'Open →'}</span>

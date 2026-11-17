@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock } from 'lucide-react';
+import { readableTextColor } from '@/lib/marketing/pillColor';
 import { Avatar } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { StickyBottomScrollbar } from '@/components/platform/shared/StickyBottomScrollbar';
@@ -23,9 +24,17 @@ const STATUS_TAG_COLORS: Record<string, string> = Object.fromEntries(
   STATUS_OP_OPTIONS.map(([key, label]) => [label, TONE_HEX[opportunityTagTone(key)].bg]),
 );
 const STATUS_KEY_BY_LABEL: Record<string, string> = Object.fromEntries(STATUS_OP_OPTIONS.map(([key, label]) => [label, key]));
+// One chip size for the whole table: 24px tall, 13px text, 4px radius — the ColorSelect pills'
+// size (13.5px text, 3px padding, 18px line), so editable pills and read-only chips line up.
+const CHIP_CLS = 'h-6 px-2.5 text-[13px] leading-[18px] [&_svg]:size-3.5';
+const CHIP: React.CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', gap: 4, height: 24, padding: '0 10px', borderRadius: 4,
+  fontSize: 13, fontWeight: 500, lineHeight: '18px', whiteSpace: 'nowrap', flexShrink: 0,
+};
+
 function renderStatusPill(label: string) {
   const key = STATUS_KEY_BY_LABEL[label];
-  return <StatusBadge group="lead_stage" status={(key && OPPORTUNITY_STATUS_TAG[key]) || label} label={label} size="sm" className="h-7 px-2.5 text-[13px] [&_svg]:size-4" />;
+  return <StatusBadge group="lead_stage" status={(key && OPPORTUNITY_STATUS_TAG[key]) || label} label={label} size="sm" className={CHIP_CLS} />;
 }
 
 function formatDate(iso: string | null | undefined): string {
@@ -37,8 +46,9 @@ function formatDate(iso: string | null | undefined): string {
 
 // Order + labels follow Figma "CRM Board" (node 280:25017); the extra ClickUp-era columns come
 // after and start hidden (the Columns menu turns them back on).
+// Tags and Follow-up used to sit inside the Name cell; they are their own columns now.
 export const LEAD_COLUMNS = [
-  'Name', 'Project#', 'Brand', 'Assignee', 'Priority', 'Industry', 'Project Type', 'Status op',
+  'Name', 'Tags', 'Follow-up', 'Project#', 'Brand', 'Assignee', 'Priority', 'Industry', 'Project Type', 'Status op',
   'Requests', 'Due Date', '11-Location', 'Date Created',
   'Contact', '01-State', 'To Do', 'Source', 'Deal Size', 'Deposit', 'Payment', 'Date Done', 'Targeted',
 ];
@@ -50,9 +60,16 @@ const ROW_PAGE = 60;
 
 export const DEFAULT_HIDDEN_COLUMNS = ['Contact', '01-State', 'To Do', 'Source', 'Deal Size', 'Deposit', 'Payment', 'Date Done', 'Targeted'];
 
+// Each column is minmax(COLUMN_MIN, width): the width is the default (or the user's dragged width,
+// never below the minimum). Name has no fixed width — it is minmax(width, 1fr) and takes any spare
+// room, because the table's min-width is the sum of the visible minimums.
 const COLUMN_WIDTHS = [
-  280, 100, 100, 170, 140, 170, 170, 180, 150, 120, 170, 110,
+  280, 170, 130, 100, 100, 170, 140, 170, 170, 180, 150, 120, 170, 110,
   150, 80, 140, 120, 110, 100, 110, 110, 90,
+];
+const COLUMN_MIN = [
+  220, 110, 120, 80, 80, 140, 110, 130, 120, 160, 110, 100, 110, 100,
+  110, 64, 110, 100, 100, 90, 100, 100, 80,
 ];
 
 const cell: React.CSSProperties = {
@@ -72,12 +89,19 @@ const resizeHandle: React.CSSProperties = {
 };
 
 function TextPill({ children }: { children: React.ReactNode }) {
+  return <span style={{ ...CHIP, background: 'var(--bg-sunken)', color: 'var(--fg-muted)' }}>{children}</span>;
+}
+
+/** Follow-up chip: overdue / due today stand out; a later date shows as plain text. */
+function FollowUp({ date, today }: { date: string | null | undefined; today: string }) {
+  if (!date) return <>—</>;
+  const overdue = date < today;
+  if (!overdue && date !== today) return <>{formatDate(date)}</>;
   return (
-    <span style={{
-      display: 'inline-block', padding: '2px 8px', borderRadius: 'var(--radius-pill)',
-      fontSize: 11, fontWeight: 600, background: 'var(--bg-sunken)', color: 'var(--fg-muted)',
-      whiteSpace: 'nowrap',
-    }}>{children}</span>
+    // Status tones (T10 red, T7 amber) have readable light *and* dark pairs, like the other chips.
+    <span style={{ ...CHIP, background: `var(--status-${overdue ? 't10' : 't7'}-bg)`, color: `var(--status-${overdue ? 't10' : 't7'}-fg)` }}>
+      <Clock size={14} aria-hidden /> {overdue ? 'Overdue' : 'Due today'}
+    </span>
   );
 }
 
@@ -180,13 +204,18 @@ export function LeadsTable({
   const visibleCount = visibleIdx.length;
   // Hide by CSS nth-child so the row markup stays one flat list of cells.
   const hideCss = COLUMNS.map((c, i) => (hidden.has(c) && i > 0 ? `.leads-tbl th:nth-child(${i + 1}),.leads-tbl tr.lead-row > td:nth-child(${i + 1}){display:none}` : '')).join('');
+  // minmax(min, width) per column; Name (index 0) is minmax(width, 1fr) — see COLUMN_MIN.
+  const colWidth = (i: number) => Math.max(COLUMN_MIN[i], widths[i]);
+  const tableMinWidth = visibleIdx.reduce((sum, i) => sum + colWidth(i), 0);
+  // Phones: unfreeze Name so the other columns get the full width while scrolling sideways.
+  const responsiveCss = '@media (max-width:639px){.leads-tbl .sticky-col{position:static}.leads-tbl th:first-child{left:auto!important;z-index:3!important}}';
   return (
     <div style={{ overflow: 'hidden', border: '1px solid var(--ui-divider)', borderRadius: 8, background: 'var(--ui-page-bg)' }}>
-      <style>{hideCss}</style>
+      <style>{hideCss + responsiveCss}</style>
       <div ref={scrollRef} className="scroll-x-hidden" style={{ overflow: 'auto', height: boxHeight ?? 'calc(100vh - 300px)' }}>
-        <table className="leads-tbl" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1200, tableLayout: 'fixed' }}>
+        <table className="leads-tbl" style={{ width: '100%', borderCollapse: 'collapse', minWidth: tableMinWidth, tableLayout: 'fixed' }}>
           <colgroup>
-            {visibleIdx.map(i => <col key={COLUMNS[i]} style={{ width: widths[i] }} />)}
+            {visibleIdx.map(i => <col key={COLUMNS[i]} style={i === 0 ? undefined : { width: colWidth(i) }} />)}
           </colgroup>
           <thead>
             <tr>
@@ -272,8 +301,23 @@ export function LeadsTable({
                   >
                     {/* Cell order must match LEAD_COLUMNS. */}
                     <td className="sticky-col" style={{ ...cell, fontSize: 14, fontWeight: 500, whiteSpace: 'normal', overflow: 'visible' }}>
-                      <LeadNameCell lead={l} today={today} assignees={l.origin === 'opportunity' || l.origin === 'potential' ? marketingAssignees : assignees}
+                      <LeadNameCell lead={l} assignees={l.origin === 'opportunity' || l.origin === 'potential' ? marketingAssignees : assignees}
                         onOpen={() => onOpen?.(l.id)} />
+                    </td>
+
+                    <td style={{ ...cell, padding: '6px 8px', whiteSpace: 'normal', overflow: 'visible' }}>
+                      {(l.tag_pills ?? []).length ? (
+                        // Every tag as a whole chip; extra tags wrap to the next line (the row grows if needed).
+                        <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
+                          {(l.tag_pills ?? []).map(t => (
+                            <span key={t.name} style={{ ...CHIP, background: t.color || 'var(--bg-subtle)', color: readableTextColor(t.color || '#888888') }}>{t.name}</span>
+                          ))}
+                        </span>
+                      ) : '—'}
+                    </td>
+
+                    <td style={{ ...cell, fontSize: 13 }}>
+                      <FollowUp date={l.follow_up_date} today={today} />
                     </td>
 
                     <td style={cell}>{l.project_no ?? '—'}</td>
@@ -338,7 +382,7 @@ export function LeadsTable({
                           allowCreate={false} searchable={false} clearable={false}
                           onChange={label => { const key = STATUS_OP_OPTIONS.find(([, lb]) => lb === label)?.[0]; if (key) onStatusChange(l.id, key); }}
                         />
-                      ) : <StatusBadge group="lead_stage" status={OPPORTUNITY_STATUS_TAG[meta.key] ?? meta.key} label={l.external_stage_label ?? meta.label} size="sm" />}
+                      ) : <StatusBadge group="lead_stage" status={OPPORTUNITY_STATUS_TAG[meta.key] ?? meta.key} label={l.external_stage_label ?? meta.label} size="sm" className={CHIP_CLS} />}
                     </td>
 
                     <td style={cell}>

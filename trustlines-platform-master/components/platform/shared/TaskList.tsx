@@ -79,21 +79,25 @@ export function TaskList({ apiBasePath, assignees }: {
         ) : tasks.length === 0 ? (
           <p className="m-0 text-[13px] text-ui-text-secondary">No subtasks.</p>
         ) : (
-          <ul className="m-0 flex list-none flex-col p-0">
+          // Narrow panels (deal quick view): title on its own line, controls under it. From 32rem of
+          // panel width (container query) everything fits on one line again.
+          <ul className="@container m-0 flex list-none flex-col p-0">
             {tasks.map(t => {
               const done = t.status === 'done';
               return (
-                <li key={t.id} className="flex flex-wrap items-center gap-2 border-b border-ui-divider py-2 last:border-b-0">
+                <li key={t.id} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1.5 border-b border-ui-divider py-2 last:border-b-0 @lg:grid-cols-[auto_minmax(0,1fr)_auto]">
                   <Checkbox checked={done} aria-label={done ? `Re-open ${t.title}` : `Mark ${t.title} done`}
                     onCheckedChange={() => patchTask(t, { status: done ? 'todo' : 'done' })} />
-                  <span className={cn('min-w-0 flex-1 truncate text-[13px]', done ? 'text-ui-text-secondary line-through' : HEADING)}>{t.title}</span>
-                  <Select aria-label={`Assignee for ${t.title}`} options={assigneeOptions} value={t.assignee_id ?? ''}
-                    onValueChange={v => patchTask(t, { assignee_id: v || null })} className={cn(SMALL_FIELD, 'w-[150px]')} />
-                  <DatePicker aria-label={`Due date for ${t.title}`} placeholder="Due date" iconEnd className={cn(SMALL_FIELD, 'w-[130px] justify-between')}
-                    value={parseISODate(t.due_date)} onValueChange={d => patchTask(t, { due_date: toISODate(d) })} />
-                  <Button variant="ghost" size="icon-sm" className="text-ui-text-secondary hover:text-error-normal" onClick={() => removeTask(t)} aria-label={`Delete ${t.title}`}>
-                    <Trash2 aria-hidden />
-                  </Button>
+                  <span className={cn('min-w-0 break-words text-[13px]', done ? 'text-ui-text-secondary line-through' : HEADING)}>{t.title}</span>
+                  <div className="col-start-2 flex min-w-0 flex-wrap items-center gap-2 @lg:col-start-3 @lg:flex-nowrap">
+                    <Select aria-label={`Assignee for ${t.title}`} options={assigneeOptions} value={t.assignee_id ?? ''}
+                      onValueChange={v => patchTask(t, { assignee_id: v || null })} className={cn(SMALL_FIELD, 'min-w-[120px] flex-1 @lg:w-[150px] @lg:flex-none')} />
+                    <DatePicker aria-label={`Due date for ${t.title}`} placeholder="Due date" iconEnd className={cn(SMALL_FIELD, 'w-[130px] shrink-0 justify-between')}
+                      value={parseISODate(t.due_date)} onValueChange={d => patchTask(t, { due_date: toISODate(d) })} />
+                    <Button variant="ghost" size="icon-sm" className="shrink-0 text-ui-text-secondary hover:text-error-normal" onClick={() => removeTask(t)} aria-label={`Delete ${t.title}`}>
+                      <Trash2 aria-hidden />
+                    </Button>
+                  </div>
                 </li>
               );
             })}

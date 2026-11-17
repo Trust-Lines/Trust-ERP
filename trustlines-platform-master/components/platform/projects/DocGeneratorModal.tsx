@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Loader2, Camera, ChevronDown, ClipboardList, FileText, Pencil, Check, Download } from 'lucide-react';
+import { X, Plus, Loader2, Camera, ClipboardList, FileText, Pencil, Check, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { VendorSelect } from '../production/VendorSelect';
 import { AddVendorModal, type Vendor } from '../production/AddVendorModal';
 import { Select } from '@/components/platform/shared/Select';
 import { Button } from '@/components/ui/button';
+import { DropdownInput, saveOption } from './DropdownInput';
 
 interface DocItem {
   id:               string;
@@ -26,6 +27,10 @@ interface DocGroup      { id: string; label: string; items: DocItem[] }
 interface DocSubCategory{ id: string; segmentNames: string[]; groups: DocGroup[] }
 interface DocCategory   { id: string; name: string; subCategories: DocSubCategory[]; collapsed: boolean }
 interface DocSection    { id: string; typeLabel: string; categories: DocCategory[] }
+
+/** Where a group / item sits in the section → category → sub-category tree. */
+type GroupPath = { secId: string; catId: string; subId: string; grpId: string };
+type ItemPath  = GroupPath & { itemId: string };
 
 interface CatalogItem {
   id:               string;
@@ -65,23 +70,6 @@ function fmt(n: number) {
   return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function loadOptions(key: string): string[] {
-  try { return JSON.parse(localStorage.getItem(`docgen_${key}`) ?? '[]') as string[]; }
-  catch { return []; }
-}
-function saveOption(key: string, value: string) {
-  if (!value.trim()) return;
-  const opts = loadOptions(key);
-  if (!opts.includes(value)) {
-    opts.unshift(value);
-    localStorage.setItem(`docgen_${key}`, JSON.stringify(opts.slice(0, 20)));
-  }
-}
-function deleteOption(key: string, value: string) {
-  const opts = loadOptions(key).filter(o => o !== value);
-  localStorage.setItem(`docgen_${key}`, JSON.stringify(opts));
-}
-
 interface CachedProduct { itemCode: string; description: string; descriptionNote: string; unitPrice: number | null; taking: string; vendor: string; photoBase64: string | null }
 type CacheInput = { itemCode: string; description: string; descriptionNote: string; unitPrice: number | null; taking: string; vendor: string; photoBase64?: string | null }
 
@@ -104,84 +92,23 @@ function searchCachedProducts(code: string): CachedProduct[] {
   return loadCachedProducts().filter(p => p.itemCode.toLowerCase().includes(code.toLowerCase())).slice(0, 10);
 }
 
-function DropdownInput({ value, onChange, onBlur, placeholder, optionsKey, style, dark, bold, onSelectOption }: {
-  value: string; onChange: (v: string) => void; onBlur?: (v: string) => void;
-  placeholder?: string; optionsKey: string; style?: React.CSSProperties; dark?: boolean; bold?: boolean;
-  onSelectOption?: (v: string) => void;
+/** Catalog suggestions under the Code / Description input: a portal pinned below the input. */
+function SuggestPopup({ popRef, rect, minWidth, maxHeight, items, onPick, itemStyle, renderItem }: {
+  popRef: React.RefObject<HTMLDivElement | null>; rect: DOMRect; minWidth: number; maxHeight: number;
+  items: CatalogItem[]; onPick: (sg: CatalogItem) => void;
+  itemStyle: React.CSSProperties; renderItem: (sg: CatalogItem) => React.ReactNode;
 }) {
-  const [open, setOpen]     = useState(false);
-  const [opts, setOpts]     = useState<string[]>([]);
-  const [rect, setRect]     = useState<DOMRect | null>(null);
-  const wrapRef             = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { setOpts(loadOptions(optionsKey)); }, [optionsKey]);
-  useEffect(() => {
-    function close(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, []);
-
-  function openDropdown() {
-    setOpts(loadOptions(optionsKey));
-    if (wrapRef.current) setRect(wrapRef.current.getBoundingClientRect());
-    setOpen(true);
-  }
-
-  function removeOpt(o: string) {
-    deleteOption(optionsKey, o);
-    setOpts(prev => prev.filter(x => x !== o));
-  }
-
-  const filtered = opts.filter(o => o.toLowerCase().includes(value.toLowerCase()) && o !== value);
-
-  const portal = open && filtered.length > 0 && rect && typeof document !== 'undefined'
-    ? createPortal(
-        <div style={{
-          position: 'fixed', top: rect.bottom + 2, left: rect.left, width: Math.max(rect.width, 240), maxWidth: 360,
-          zIndex: 99999, background: 'var(--il-pop-bg, #fff)', border: '1px solid var(--il-pop-border, #d0d0d0)',
-          borderRadius: 5, boxShadow: '0 6px 18px rgba(0,0,0,.22)', maxHeight: 240, overflowY: 'auto',
-        }}>
-          {filtered.map(o => (
-            <div key={o} style={{ display: 'flex', alignItems: 'flex-start', background: 'none' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--il-pop-hover, #f0f4ff)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
-              <button type="button" onMouseDown={() => { if (onSelectOption) { onSelectOption(o); } else { onChange(o); if (onBlur) onBlur(o); } setOpen(false); }}
-                style={{ flex: 1, minWidth: 0, textAlign: 'left', padding: '6px 10px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, color: 'var(--il-pop-fg, #111)', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.35 }}>
-                {o}
-              </button>
-              <button type="button" title="Delete saved entry"
-                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); removeOpt(o); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', color: '#dc2626', flexShrink: 0 }}>
-                <X size={12} />
-              </button>
-            </div>
-          ))}
-        </div>,
-        document.body,
-      )
-    : null;
-
-  const borderCol = dark ? 'rgba(255,255,255,0.25)' : 'var(--border-subtle)';
-  const bgCol     = dark ? 'rgba(255,255,255,0.12)' : 'var(--bg-surface)';
-  const textCol   = dark ? '#fff' : 'var(--fg-default)';
-
-  return (
-    <div ref={wrapRef} style={{ position: 'relative', flex: 1, ...style }}>
-      <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${borderCol}`, borderRadius: 4, background: bgCol }}>
-        <input value={value} onChange={e => onChange(e.target.value)} onFocus={openDropdown}
-          onBlur={() => { setTimeout(() => setOpen(false), 150); if (onBlur) onBlur(value); }}
-          placeholder={placeholder}
-          style={{ flex: 1, minWidth: 0, padding: '4px 6px', border: 'none', background: 'transparent', fontSize: dark ? 11 : 12, fontWeight: bold ? 700 : 400, outline: 'none', color: textCol }} />
-        {opts.length > 0 && (
-          <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => { openDropdown(); setOpen(o => !o); }} style={{ background: 'none', border: 'none', padding: '0 4px', cursor: 'pointer' }}>
-            <ChevronDown size={11} color={dark ? '#ddd' : 'var(--fg-faint)'} />
-          </button>
-        )}
-      </div>
-      {portal}
-    </div>
+  return createPortal(
+    <div ref={popRef} style={{ position: 'fixed', top: rect.bottom + 2, left: rect.left, minWidth: Math.max(rect.width, minWidth), zIndex: 99999, background: 'var(--il-pop-bg, #fff)', border: '1px solid var(--il-pop-border, #d0d0d0)', borderRadius: 5, boxShadow: '0 6px 20px rgba(0,0,0,.22)', maxHeight, overflowY: 'auto' }}>
+      {items.map(sg => (
+        <button key={sg.id} type="button" onMouseDown={() => onPick(sg)}
+          style={{ width: '100%', textAlign: 'left', border: 'none', borderBottom: '1px solid var(--il-pop-divider, #f0f0f0)', background: 'none', cursor: 'pointer', ...itemStyle }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--il-pop-hover, #f0f4ff)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+          {renderItem(sg)}
+        </button>
+      ))}
+    </div>,
+    document.body,
   );
 }
 
@@ -262,11 +189,11 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
   const sugRef                      = useRef<HTMLDivElement>(null);
   const debRef                      = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef                = useRef<HTMLInputElement>(null);
-  const pendingPhotoRef             = useRef<{ secId: string; catId: string; subId: string; grpId: string; itemId: string } | null>(null);
+  const pendingPhotoRef             = useRef<ItemPath | null>(null);
   const [photoUploading, setPhotoUploading] = useState<string | null>(null);
 
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [addVendor, setAddVendor] = useState<{ path: { secId: string; catId: string; subId: string; grpId: string; itemId: string }; name: string } | null>(null);
+  const [addVendor, setAddVendor] = useState<{ path: ItemPath; name: string } | null>(null);
 
   useEffect(() => {
     fetch('/api/production/vendors')
@@ -347,51 +274,58 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
   function removeSub(secId: string, catId: string, subId: string) {
     updSectionCats(secId, cats => cats.map(c => c.id === catId ? { ...c, subCategories: c.subCategories.filter(s => s.id !== subId) } : c));
   }
+  /** Replaces one sub-category; every deeper update goes through here. */
+  function updSub(secId: string, catId: string, subId: string, fn: (s: DocSubCategory) => DocSubCategory) {
+    updSectionCats(secId, cats => cats.map(c => c.id === catId ? { ...c, subCategories: c.subCategories.map(s => s.id === subId ? fn(s) : s) } : c));
+  }
   function addSegName(secId: string, catId: string, subId: string) {
-    updSectionCats(secId, cats => cats.map(c => c.id === catId ? { ...c, subCategories: c.subCategories.map(s => s.id === subId ? { ...s, segmentNames: [...(s.segmentNames ?? ['']), ''] } : s) } : c));
+    updSub(secId, catId, subId, s => ({ ...s, segmentNames: [...(s.segmentNames ?? ['']), ''] }));
   }
   function removeSegName(secId: string, catId: string, subId: string, idx: number) {
-    updSectionCats(secId, cats => cats.map(c => c.id === catId ? { ...c, subCategories: c.subCategories.map(s => s.id === subId ? { ...s, segmentNames: (s.segmentNames ?? ['']).filter((_, i) => i !== idx) } : s) } : c));
+    updSub(secId, catId, subId, s => ({ ...s, segmentNames: (s.segmentNames ?? ['']).filter((_, i) => i !== idx) }));
   }
   function updSegName(secId: string, catId: string, subId: string, idx: number, value: string) {
-    updSectionCats(secId, cats => cats.map(c => c.id === catId ? { ...c, subCategories: c.subCategories.map(s => s.id === subId ? { ...s, segmentNames: (s.segmentNames ?? ['']).map((n, i) => i === idx ? value : n) } : s) } : c));
+    updSub(secId, catId, subId, s => ({ ...s, segmentNames: (s.segmentNames ?? ['']).map((n, i) => i === idx ? value : n) }));
   }
   function setSegmentsFromString(secId: string, catId: string, subId: string, full: string) {
     const parts = full.split('/').map(p => p.trim()).filter(Boolean);
     const segs = parts.length ? parts : [''];
     if (parts.length) saveOption('segName_0', parts.join(' / '));
-    updSectionCats(secId, cats => cats.map(c => c.id === catId ? { ...c, subCategories: c.subCategories.map(s => s.id === subId ? { ...s, segmentNames: segs } : s) } : c));
+    updSub(secId, catId, subId, s => ({ ...s, segmentNames: segs }));
   }
 
   function addGroup(secId: string, catId: string, subId: string) {
-    updSectionCats(secId, cats => cats.map(c => c.id === catId ? { ...c, subCategories: c.subCategories.map(s => s.id === subId ? { ...s, groups: [...s.groups, newGroup()] } : s) } : c));
+    updSub(secId, catId, subId, s => ({ ...s, groups: [...s.groups, newGroup()] }));
   }
-  function removeGroup(secId: string, catId: string, subId: string, grpId: string) {
-    updSectionCats(secId, cats => cats.map(c => c.id === catId ? { ...c, subCategories: c.subCategories.map(s => s.id === subId ? { ...s, groups: s.groups.filter(g => g.id !== grpId) } : s) } : c));
+  function updGrp(p: GroupPath, fn: (g: DocGroup) => DocGroup) {
+    updSub(p.secId, p.catId, p.subId, s => ({ ...s, groups: s.groups.map(g => g.id === p.grpId ? fn(g) : g) }));
   }
-  function updGroup(secId: string, catId: string, subId: string, grpId: string, patch: Partial<DocGroup>) {
-    updSectionCats(secId, cats => cats.map(c => c.id === catId ? { ...c, subCategories: c.subCategories.map(s => s.id === subId ? { ...s, groups: s.groups.map(g => g.id === grpId ? { ...g, ...patch } : g) } : s) } : c));
+  function removeGroup(p: GroupPath) {
+    updSub(p.secId, p.catId, p.subId, s => ({ ...s, groups: s.groups.filter(g => g.id !== p.grpId) }));
   }
-
-  function addItemToGroup(secId: string, catId: string, subId: string, grpId: string) {
-    updSectionCats(secId, cats => cats.map(c => c.id === catId ? { ...c, subCategories: c.subCategories.map(s => s.id === subId ? { ...s, groups: s.groups.map(g => g.id === grpId ? { ...g, items: [...g.items, newItem()] } : g) } : s) } : c));
-  }
-  function removeItem(secId: string, catId: string, subId: string, grpId: string, itemId: string) {
-    updSectionCats(secId, cats => cats.map(c => c.id === catId ? { ...c, subCategories: c.subCategories.map(s => s.id === subId ? { ...s, groups: s.groups.map(g => g.id === grpId ? { ...g, items: g.items.filter(i => i.id !== itemId) } : g) } : s) } : c));
-  }
-  function updItem(secId: string, catId: string, subId: string, grpId: string, itemId: string, patch: Partial<DocItem>) {
-    updSectionCats(secId, cats => cats.map(c => c.id === catId ? { ...c, subCategories: c.subCategories.map(s => s.id === subId ? { ...s, groups: s.groups.map(g => g.id === grpId ? { ...g, items: g.items.map(i => i.id === itemId ? { ...i, ...patch } : i) } : g) } : s) } : c));
+  function updGroup(p: GroupPath, patch: Partial<DocGroup>) {
+    updGrp(p, g => ({ ...g, ...patch }));
   }
 
-  function applySugg(secId: string, catId: string, subId: string, grpId: string, itemId: string, sug: CatalogItem) {
+  function addItemToGroup(p: GroupPath) {
+    updGrp(p, g => ({ ...g, items: [...g.items, newItem()] }));
+  }
+  function removeItem(p: ItemPath) {
+    updGrp(p, g => ({ ...g, items: g.items.filter(i => i.id !== p.itemId) }));
+  }
+  function updItem(p: ItemPath, patch: Partial<DocItem>) {
+    updGrp(p, g => ({ ...g, items: g.items.map(i => i.id === p.itemId ? { ...i, ...patch } : i) }));
+  }
+
+  function applySugg(p: ItemPath, sug: CatalogItem) {
     const patch = { itemCode: sug.item_code ?? '', description: sug.description, descriptionNote: sug.description_note ?? '', unitPrice: sug.unit_price, taking: sug.taking ?? '', vendor: sug.vendor ?? '', ...(sug.photo_base64 ? { photoBase64: sug.photo_base64 } : {}) };
-    updItem(secId, catId, subId, grpId, itemId, patch);
+    updItem(p, patch);
     if (sug.item_code) writeCachedProduct({ itemCode: sug.item_code, description: sug.description, descriptionNote: sug.description_note ?? '', unitPrice: sug.unit_price, taking: sug.taking ?? '', vendor: sug.vendor ?? '', photoBase64: sug.photo_base64 ?? null });
     setSuggs([]); setActiveSugg(null);
   }
 
-  function triggerPhoto(secId: string, catId: string, subId: string, grpId: string, itemId: string) {
-    pendingPhotoRef.current = { secId, catId, subId, grpId, itemId };
+  function triggerPhoto(p: ItemPath) {
+    pendingPhotoRef.current = p;
     fileInputRef.current?.click();
   }
 
@@ -404,11 +338,11 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
     reader.onload = async (ev) => {
       const base64 = ev.target?.result as string;
       setPhotoUploading(ctx.itemId);
-      updItem(ctx.secId, ctx.catId, ctx.subId, ctx.grpId, ctx.itemId, { photoBase64: base64 });
+      updItem(ctx, { photoBase64: base64 });
       try {
         const res  = await fetch('/api/products/upload-photo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ base64, filename: file.name }) });
         const json = await res.json() as { dropboxPath?: string };
-        if (json.dropboxPath) updItem(ctx.secId, ctx.catId, ctx.subId, ctx.grpId, ctx.itemId, { photoDropboxPath: json.dropboxPath });
+        if (json.dropboxPath) updItem(ctx, { photoDropboxPath: json.dropboxPath });
       } catch { }
       finally { setPhotoUploading(null); }
     };
@@ -510,16 +444,18 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
     } finally { setGenerating(false); }
   }
 
-  const inp: React.CSSProperties    = { padding: '3px 6px', fontSize: 12, border: '1px solid var(--border-subtle)', borderRadius: 4, background: 'var(--bg-surface)', color: 'var(--fg-default)', outline: 'none', width: '100%' };
-  const numInp: React.CSSProperties = { ...inp, textAlign: 'right', width: 70 };
-  const thCell: React.CSSProperties = { padding: '5px 6px', fontSize: 10, fontWeight: 700, color: 'var(--fg-subtle)', textAlign: 'center', whiteSpace: 'nowrap' };
+  const inp: React.CSSProperties    = { height: 32, padding: '5px 8px', fontSize: 14, border: '1px solid var(--border-subtle)', borderRadius: 4, background: 'var(--bg-surface)', color: 'var(--fg-default)', outline: 'none', width: '100%' };
+  const numInp: React.CSSProperties = { ...inp, textAlign: 'right', width: 80 };
+  const thCell: React.CSSProperties = { padding: '5px 6px', fontSize: 12, fontWeight: 700, color: 'var(--fg-subtle)', textAlign: 'center', whiteSpace: 'nowrap' };
+  // Dashed "+ Item / + Group / + Add Sub-Category" buttons; each sets its own colour, fill, radius and padding.
+  const addBtn: React.CSSProperties = { fontSize: 13, border: '1px dashed var(--border-subtle)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 };
 
   return (
     <div style={{ background: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoFile} />
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', borderRadius: '8px 8px 0 0' }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           {editDocumentId ? <Pencil size={15} aria-hidden /> : showPrices ? <FileText size={15} aria-hidden /> : <ClipboardList size={15} aria-hidden />}
           {editDocumentId ? 'Edit & Resubmit' : (showPrices ? 'Price List' : 'Item List')} — {catLabel}
         </h2>
@@ -530,26 +466,26 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
 
         {showPrices && ilVersions.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginBottom: 12, background: 'var(--il-load-bg, #f0f4ff)', border: '1px solid var(--il-load-border, #c5d3ff)', borderRadius: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-accent, #2255aa)', whiteSpace: 'nowrap' }}>Load from Item List:</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--il-accent, #2255aa)', whiteSpace: 'nowrap' }}>Load from Item List:</span>
             <Select value={selectedILVer} onChange={e => setSelectedILVer(e.target.value)}
-              style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid var(--il-load-border, #c5d3ff)', borderRadius: 4, background: 'var(--il-pop-bg, #fff)', color: 'var(--il-pop-fg, #111)', outline: 'none' }}>
+              style={{ flex: 1, padding: '4px 8px', fontSize: 14, border: '1px solid var(--il-load-border, #c5d3ff)', borderRadius: 4, background: 'var(--il-pop-bg, #fff)', color: 'var(--il-pop-fg, #111)', outline: 'none' }}>
               <option value="">— select a saved version —</option>
               {ilVersions.map(v => (
                 <option key={v.id} value={v.id}>V{v.version} — {v.file_name.replace(/\.pdf$/i, '')}</option>
               ))}
             </Select>
             <button type="button" onClick={loadItemListVersion} disabled={!selectedILVer || loadingVersion}
-              style={{ padding: '4px 14px', fontSize: 12, fontWeight: 700, background: 'var(--il-accent-btn, #2255aa)', color: '#fff', border: 'none', borderRadius: 4, cursor: selectedILVer ? 'pointer' : 'not-allowed', opacity: selectedILVer ? 1 : 0.5 }}>
+              style={{ padding: '4px 14px', fontSize: 14, fontWeight: 700, background: 'var(--il-accent-btn, #2255aa)', color: '#fff', border: 'none', borderRadius: 4, cursor: selectedILVer ? 'pointer' : 'not-allowed', opacity: selectedILVer ? 1 : 0.5 }}>
               {loadingVersion ? 'Loading…' : 'Load'}
             </button>
           </div>
         )}
 
-        {sections.map((sec, secIdx) => (
+        {sections.map((sec) => (
           <div key={sec.id} style={{ marginBottom: 16, border: '1px solid var(--border-subtle)', borderRadius: 6, overflow: 'hidden' }}>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--il-type-bg, #cc0000)' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', minWidth: 36 }}>TYPE:</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', minWidth: 36 }}>TYPE:</span>
               <DropdownInput
                 value={sec.typeLabel}
                 onChange={v => updSectionType(sec.id, v)}
@@ -558,7 +494,7 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
                 optionsKey="typeLabel"
               />
               {sections.length > 1 && (
-                <button type="button" onClick={() => removeSection(sec.id)} style={{ background: 'none', border: 'none', color: '#ffcccc', cursor: 'pointer', padding: '2px 6px', fontSize: 13 }}>×</button>
+                <button type="button" onClick={() => removeSection(sec.id)} style={{ background: 'none', border: 'none', color: '#ffcccc', cursor: 'pointer', padding: '2px 6px', fontSize: 15 }}>×</button>
               )}
             </div>
 
@@ -566,7 +502,7 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
               {sec.categories.map((cat) => (
                 <div key={cat.id} style={{ marginBottom: 10, border: '1px solid var(--border-subtle)', borderRadius: 5, overflow: 'hidden' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: 'var(--il-cat-bg, #2d3748)', color: 'var(--il-cat-fg, #fff)' }}>
-                    <button type="button" onClick={() => updCat(sec.id, cat.id, { collapsed: !cat.collapsed })} style={{ background: 'none', border: 'none', color: 'var(--il-cat-fg, #fff)', cursor: 'pointer', padding: 0, fontSize: 12 }}>▼</button>
+                    <button type="button" onClick={() => updCat(sec.id, cat.id, { collapsed: !cat.collapsed })} style={{ background: 'none', border: 'none', color: 'var(--il-cat-fg, #fff)', cursor: 'pointer', padding: 0, fontSize: 14 }}>▼</button>
                     <DropdownInput
                       dark bold
                       value={cat.name}
@@ -586,7 +522,7 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
                           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, padding: '5px 10px', background: 'var(--il-seg-bg, #555)', color: '#fff' }}>
                             {(sub.segmentNames ?? ['']).map((name, idx) => (
                               <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                {idx > 0 && <span style={{ color: '#ccc', fontSize: 13, margin: '0 4px', userSelect: 'none' }}>/</span>}
+                                {idx > 0 && <span style={{ color: '#ccc', fontSize: 15, margin: '0 4px', userSelect: 'none' }}>/</span>}
                                 <DropdownInput
                                   dark
                                   value={name}
@@ -607,24 +543,26 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
                                   style={{ flex: '0 0 auto', minWidth: idx === 0 ? 200 : 130, width: idx === 0 ? 220 : 150 }}
                                 />
                                 {(sub.segmentNames ?? ['']).length > 1 && (
-                                  <button type="button" onClick={() => removeSegName(sec.id, cat.id, sub.id, idx)} style={{ background: 'none', border: 'none', color: '#ffaaaa', cursor: 'pointer', padding: '2px 5px', lineHeight: 1, fontSize: 14 }}>×</button>
+                                  <button type="button" onClick={() => removeSegName(sec.id, cat.id, sub.id, idx)} style={{ background: 'none', border: 'none', color: '#ffaaaa', cursor: 'pointer', padding: '2px 5px', lineHeight: 1, fontSize: 16 }}>×</button>
                                 )}
                               </div>
                             ))}
-                            <button type="button" onClick={() => addSegName(sec.id, cat.id, sub.id)} style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.5)', borderRadius: 3, color: '#fff', cursor: 'pointer', padding: '2px 8px', fontSize: 11, whiteSpace: 'nowrap', marginLeft: 4 }}>+ Segment</button>
+                            <button type="button" onClick={() => addSegName(sec.id, cat.id, sub.id)} style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.5)', borderRadius: 3, color: '#fff', cursor: 'pointer', padding: '2px 8px', fontSize: 13, whiteSpace: 'nowrap', marginLeft: 4 }}>+ Segment</button>
                             {cat.subCategories.length > 1 && (
-                              <button type="button" onClick={() => removeSub(sec.id, cat.id, sub.id)} style={{ background: 'none', border: '1px solid #ff6b6b', borderRadius: 3, color: '#ff6b6b', cursor: 'pointer', padding: '2px 7px', fontSize: 11, whiteSpace: 'nowrap', marginLeft: 'auto' }}>✕ Remove</button>
+                              <button type="button" onClick={() => removeSub(sec.id, cat.id, sub.id)} style={{ background: 'none', border: '1px solid #ff6b6b', borderRadius: 3, color: '#ff6b6b', cursor: 'pointer', padding: '2px 7px', fontSize: 13, whiteSpace: 'nowrap', marginLeft: 'auto' }}>✕ Remove</button>
                             )}
                           </div>
 
-                          {sub.groups.map((grp) => (
+                          {sub.groups.map((grp) => {
+                            const gp: GroupPath = { secId: sec.id, catId: cat.id, subId: sub.id, grpId: grp.id };
+                            return (
                             <div key={grp.id} style={{ border: '1px solid var(--border-subtle)', borderRadius: 4, margin: '5px 8px', overflow: 'hidden' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
-                                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--fg-subtle)', whiteSpace: 'nowrap' }}>GROUP:</span>
-                                <DropdownInput value={grp.label} onChange={v => updGroup(sec.id, cat.id, sub.id, grp.id, { label: v })} onBlur={v => saveOption('groupLabel', v)} placeholder="Group label (e.g. F.C)" optionsKey="groupLabel" style={{ flex: 1, maxWidth: 220 }} />
+                                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--fg-subtle)', whiteSpace: 'nowrap' }}>GROUP:</span>
+                                <DropdownInput value={grp.label} onChange={v => updGroup(gp, { label: v })} onBlur={v => saveOption('groupLabel', v)} placeholder="Group label (e.g. F.C)" optionsKey="groupLabel" style={{ flex: 1, maxWidth: 220 }} />
                                 {sub.groups.length > 1 && (
-                                  <button type="button" onClick={() => removeGroup(sec.id, cat.id, sub.id, grp.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e53e3e', fontSize: 11, display: 'flex', alignItems: 'center', gap: 3 }}>
-                                    <X size={11} /> Remove Group
+                                  <button type="button" onClick={() => removeGroup(gp)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e53e3e', fontSize: 13, display: 'flex', alignItems: 'center', gap: 3 }}>
+                                    <X size={13} /> Remove Group
                                   </button>
                                 )}
                               </div>
@@ -633,120 +571,116 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                   <thead>
                                     <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
-                                      <th style={{ ...thCell, width: 38 }}>Photo</th>
-                                      <th style={{ ...thCell, width: 88 }}>Item Code</th>
+                                      <th style={{ ...thCell, width: 44 }}>Photo</th>
+                                      <th style={{ ...thCell, width: 104 }}>Item Code</th>
                                       <th style={{ ...thCell }}>Description</th>
-                                      <th style={{ ...thCell, width: 60 }}>QTY</th>
-                                      <th style={{ ...thCell, width: 90, opacity: showPrices ? 1 : 0.35 }}>Amount</th>
-                                      <th style={{ ...thCell, width: 80, opacity: showPrices ? 1 : 0.35 }}>Total</th>
-                                      <th style={{ ...thCell, width: 100 }}>Taking</th>
-                                      <th style={{ ...thCell, width: 100 }}>Vendor</th>
+                                      <th style={{ ...thCell, width: 72 }}>QTY</th>
+                                      <th style={{ ...thCell, width: 100, opacity: showPrices ? 1 : 0.35 }}>Amount</th>
+                                      <th style={{ ...thCell, width: 90, opacity: showPrices ? 1 : 0.35 }}>Total</th>
+                                      <th style={{ ...thCell, width: 120 }}>Taking</th>
+                                      <th style={{ ...thCell, width: 150 }}>Vendor</th>
                                       <th style={{ width: 24 }} />
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {grp.items.map((item) => {
+                                      const ip: ItemPath = { ...gp, itemId: item.id };
                                       const rowTotal    = (item.quantity || 0) * (item.unitPrice ?? 0);
                                       const isCodeSug   = activeSugg?.id === item.id && activeSugg?.field === 'code';
                                       const isDescSug   = activeSugg?.id === item.id && activeSugg?.field === 'desc';
                                       return (
                                         <tr key={item.id} style={{ borderBottom: '1px solid var(--border-subtle)', verticalAlign: 'top' }}>
                                           <td style={{ padding: '4px' }}>
-                                            <button type="button" onClick={() => triggerPhoto(sec.id, cat.id, sub.id, grp.id, item.id)}
+                                            <button type="button" onClick={() => triggerPhoto(ip)}
                                               aria-label={item.photoBase64 ? 'Change photo' : 'Add photo'} title={item.photoBase64 ? 'Change photo' : 'Add photo'}
-                                              style={{ width: 28, height: 28, margin: '0 auto', padding: 0, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', color: 'var(--fg-subtle)' }}>
-                                              {photoUploading === item.id ? <Loader2 size={14} aria-hidden style={{ animation: 'spin 1s linear infinite' }} /> : item.photoBase64 ? <img src={item.photoBase64} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <Camera size={14} aria-hidden />}
+                                              style={{ width: 32, height: 32, margin: '0 auto', padding: 0, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', color: 'var(--fg-subtle)' }}>
+                                              {photoUploading === item.id ? <Loader2 size={16} aria-hidden style={{ animation: 'spin 1s linear infinite' }} /> : item.photoBase64 ? <img src={item.photoBase64} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <Camera size={16} aria-hidden />}
                                             </button>
                                           </td>
 
                                           <td style={{ padding: '4px 3px' }}>
                                             <input value={item.itemCode}
-                                              onChange={e => { updItem(sec.id, cat.id, sub.id, grp.id, item.id, { itemCode: e.target.value }); searchCatalogByCode(e.target.value, item.id); setSuggRect((e.target as HTMLInputElement).getBoundingClientRect()); }}
+                                              onChange={e => { updItem(ip, { itemCode: e.target.value }); searchCatalogByCode(e.target.value, item.id); setSuggRect((e.target as HTMLInputElement).getBoundingClientRect()); }}
                                               onFocus={e => { setSuggRect((e.target as HTMLInputElement).getBoundingClientRect()); if (item.itemCode.length >= 1) searchCatalogByCode(item.itemCode, item.id); }}
                                               onBlur={() => { setTimeout(() => { setSuggs([]); setActiveSugg(null); }, 150); void saveCatalogItem(item); }}
-                                              placeholder="Code" style={{ ...inp, textTransform: 'uppercase', fontSize: 11 }} />
-                                            {isCodeSug && suggs.length > 0 && suggRect && createPortal(
-                                              <div ref={sugRef} style={{ position: 'fixed', top: suggRect.bottom + 2, left: suggRect.left, minWidth: Math.max(suggRect.width, 320), zIndex: 99999, background: 'var(--il-pop-bg, #fff)', border: '1px solid var(--il-pop-border, #d0d0d0)', borderRadius: 5, boxShadow: '0 6px 20px rgba(0,0,0,.22)', maxHeight: 260, overflowY: 'auto' }}>
-                                                {suggs.map(sg => (
-                                                  <button key={sg.id} type="button" onMouseDown={() => applySugg(sec.id, cat.id, sub.id, grp.id, item.id, sg)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '6px 10px', border: 'none', borderBottom: '1px solid var(--il-pop-divider, #f0f0f0)', background: 'none', cursor: 'pointer' }} onMouseEnter={e => (e.currentTarget.style.background = 'var(--il-pop-hover, #f0f4ff)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                                              placeholder="Code" style={{ ...inp, textTransform: 'uppercase', fontSize: 13 }} />
+                                            {isCodeSug && suggs.length > 0 && suggRect && (
+                                              <SuggestPopup popRef={sugRef} rect={suggRect} minWidth={320} maxHeight={260} items={suggs} onPick={sg => applySugg(ip, sg)}
+                                                itemStyle={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px' }}
+                                                renderItem={sg => <>
                                                     {sg.photo_base64
                                                       ? <img src={sg.photo_base64} style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: 3, border: '1px solid var(--il-pop-border, #ddd)', flexShrink: 0 }} alt="" />
                                                       : <div style={{ width: 34, height: 34, background: 'var(--il-thumb-bg, #f0f0f0)', borderRadius: 3, border: '1px solid var(--il-pop-border, #ddd)', flexShrink: 0 }} />
                                                     }
                                                     <div style={{ flex: 1, minWidth: 0 }}>
                                                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                                                        <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'monospace', textTransform: 'uppercase', color: 'var(--il-pop-fg, #111)' }}>{sg.item_code}</span>
-                                                        {showPrices && sg.unit_price != null && <span style={{ fontSize: 10, color: 'var(--il-accent, #2255aa)', fontWeight: 600 }}>${sg.unit_price.toLocaleString()}</span>}
+                                                        <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'monospace', textTransform: 'uppercase', color: 'var(--il-pop-fg, #111)' }}>{sg.item_code}</span>
+                                                        {showPrices && sg.unit_price != null && <span style={{ fontSize: 12, color: 'var(--il-accent, #2255aa)', fontWeight: 600 }}>${sg.unit_price.toLocaleString()}</span>}
                                                       </div>
-                                                      <div style={{ fontSize: 10, color: 'var(--il-desc, #cc0000)', fontStyle: 'italic', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sg.description}</div>
+                                                      <div style={{ fontSize: 12, color: 'var(--il-desc, #cc0000)', fontStyle: 'italic', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sg.description}</div>
                                                     </div>
-                                                  </button>
-                                                ))}
-                                              </div>,
-                                              document.body,
+                                                </>} />
                                             )}
                                           </td>
 
                                           <td style={{ padding: '4px 3px', minWidth: 200 }}>
                                             <input value={item.description}
-                                              onChange={e => { updItem(sec.id, cat.id, sub.id, grp.id, item.id, { description: e.target.value }); searchCatalog(e.target.value, item.id); setSuggRect((e.target as HTMLInputElement).getBoundingClientRect()); }}
+                                              onChange={e => { updItem(ip, { description: e.target.value }); searchCatalog(e.target.value, item.id); setSuggRect((e.target as HTMLInputElement).getBoundingClientRect()); }}
                                               onFocus={e => { setSuggRect((e.target as HTMLInputElement).getBoundingClientRect()); if (item.description.length >= 2) searchCatalog(item.description, item.id); }}
                                               onBlur={() => { setTimeout(() => { setSuggs([]); setActiveSugg(null); }, 150); void saveCatalogItem(item); }}
                                               placeholder="Description (main) *" style={{ ...inp, color: 'var(--il-desc, #cc0000)', fontStyle: 'italic', marginBottom: 3 }} />
-                                            <input value={item.descriptionNote} onChange={e => updItem(sec.id, cat.id, sub.id, grp.id, item.id, { descriptionNote: e.target.value })} placeholder="Notes (optional)" style={{ ...inp, fontSize: 10, color: 'var(--fg-subtle)' }} />
-                                            {isDescSug && suggs.length > 0 && suggRect && createPortal(
-                                              <div ref={sugRef} style={{ position: 'fixed', top: suggRect.bottom + 2, left: suggRect.left, minWidth: Math.max(suggRect.width, 280), zIndex: 99999, background: 'var(--il-pop-bg, #fff)', border: '1px solid var(--il-pop-border, #d0d0d0)', borderRadius: 5, boxShadow: '0 6px 20px rgba(0,0,0,.22)', maxHeight: 200, overflowY: 'auto' }}>
-                                                {suggs.map(sg => (
-                                                  <button key={sg.id} type="button" onMouseDown={() => applySugg(sec.id, cat.id, sub.id, grp.id, item.id, sg)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', border: 'none', borderBottom: '1px solid var(--il-pop-divider, #f0f0f0)', background: 'none', cursor: 'pointer' }} onMouseEnter={e => (e.currentTarget.style.background = 'var(--il-pop-hover, #f0f4ff)')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
-                                                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--il-desc, #cc0000)', fontStyle: 'italic' }}>{sg.description}</div>
+                                            <input value={item.descriptionNote} onChange={e => updItem(ip, { descriptionNote: e.target.value })} placeholder="Notes (optional)" style={{ ...inp, fontSize: 12, color: 'var(--fg-subtle)' }} />
+                                            {isDescSug && suggs.length > 0 && suggRect && (
+                                              <SuggestPopup popRef={sugRef} rect={suggRect} minWidth={280} maxHeight={200} items={suggs} onPick={sg => applySugg(ip, sg)}
+                                                itemStyle={{ display: 'block', padding: '7px 10px' }}
+                                                renderItem={sg => <>
+                                                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--il-desc, #cc0000)', fontStyle: 'italic' }}>{sg.description}</div>
                                                     <div style={{ display: 'flex', gap: 10, marginTop: 2 }}>
-                                                      {sg.item_code && <span style={{ fontSize: 10, color: 'var(--il-pop-muted, #555)', fontFamily: 'monospace' }}>{sg.item_code}</span>}
-                                                      {showPrices && sg.unit_price != null && <span style={{ fontSize: 10, color: 'var(--il-accent, #2255aa)', fontWeight: 600 }}>${sg.unit_price.toLocaleString()}</span>}
+                                                      {sg.item_code && <span style={{ fontSize: 12, color: 'var(--il-pop-muted, #555)', fontFamily: 'monospace' }}>{sg.item_code}</span>}
+                                                      {showPrices && sg.unit_price != null && <span style={{ fontSize: 12, color: 'var(--il-accent, #2255aa)', fontWeight: 600 }}>${sg.unit_price.toLocaleString()}</span>}
                                                     </div>
-                                                  </button>
-                                                ))}
-                                              </div>,
-                                              document.body,
+                                                </>} />
                                             )}
                                           </td>
 
                                           <td style={{ padding: '4px 3px' }}>
-                                            <input type="number" min={0} value={item.quantity || ''} onChange={e => updItem(sec.id, cat.id, sub.id, grp.id, item.id, { quantity: parseInt(e.target.value) || 0 })} style={{ ...numInp, width: 56 }} />
+                                            <input type="number" min={0} value={item.quantity || ''} onChange={e => updItem(ip, { quantity: parseInt(e.target.value) || 0 })} style={{ ...numInp, width: 64 }} />
                                           </td>
 
                                           <td style={{ padding: '4px 3px' }}>
                                             <input type="number" min={0} step={100}
                                               value={item.unitPrice ?? ''}
-                                              onChange={e => showPrices && updItem(sec.id, cat.id, sub.id, grp.id, item.id, { unitPrice: e.target.value ? parseFloat(e.target.value) : null })}
+                                              onChange={e => showPrices && updItem(ip, { unitPrice: e.target.value ? parseFloat(e.target.value) : null })}
                                               onBlur={() => showPrices && void saveCatalogItem(item)}
                                               placeholder={showPrices ? '0.00' : '—'}
                                               disabled={!showPrices}
                                               style={{ ...numInp, opacity: showPrices ? 1 : 0.3, cursor: showPrices ? 'text' : 'default', background: showPrices ? undefined : 'transparent', border: showPrices ? undefined : '1px solid transparent' }} />
                                           </td>
 
-                                          <td style={{ padding: '4px 3px', textAlign: 'right', fontSize: 11, color: 'var(--fg-subtle)', lineHeight: '26px', whiteSpace: 'nowrap', paddingRight: 8, opacity: showPrices ? 1 : 0.3 }}>
+                                          <td style={{ padding: '4px 3px', textAlign: 'right', fontSize: 13, color: 'var(--fg-subtle)', lineHeight: '32px', whiteSpace: 'nowrap', paddingRight: 8, opacity: showPrices ? 1 : 0.3 }}>
                                             {showPrices && rowTotal > 0 ? fmt(rowTotal) : '—'}
                                           </td>
 
                                           <td style={{ padding: '4px 3px' }}>
-                                            <DropdownInput value={item.taking} onChange={v => updItem(sec.id, cat.id, sub.id, grp.id, item.id, { taking: v })} onBlur={v => { saveOption('taking', v); void saveCatalogItem(item); }} placeholder="Taking" optionsKey="taking" />
+                                            <DropdownInput value={item.taking} onChange={v => updItem(ip, { taking: v })} onBlur={v => { saveOption('taking', v); void saveCatalogItem(item); }} placeholder="Taking" optionsKey="taking" />
                                           </td>
 
                                           <td style={{ padding: '4px 3px' }}>
                                             <VendorSelect
                                               vendors={vendors}
                                               displayValue={item.vendor}
-                                              width={130}
-                                              onPick={v => updItem(sec.id, cat.id, sub.id, grp.id, item.id, { vendor: `${v.code} - ${v.name}` })}
-                                              onClear={() => updItem(sec.id, cat.id, sub.id, grp.id, item.id, { vendor: '' })}
-                                              onAddNew={name => setAddVendor({ path: { secId: sec.id, catId: cat.id, subId: sub.id, grpId: grp.id, itemId: item.id }, name })}
+                                              width={150}
+                                              size="md"
+                                              onPick={v => updItem(ip, { vendor: `${v.code} - ${v.name}` })}
+                                              onClear={() => updItem(ip, { vendor: '' })}
+                                              onAddNew={name => setAddVendor({ path: ip, name })}
                                               onDeleted={vid => setVendors(prev => prev.filter(v => v.id !== vid))}
                                             />
                                           </td>
 
                                           <td style={{ padding: '4px 3px', textAlign: 'center' }}>
                                             {grp.items.length > 1 && (
-                                              <button type="button" onClick={() => removeItem(sec.id, cat.id, sub.id, grp.id, item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, height: 26, display: 'inline-flex', alignItems: 'center', opacity: 0.5 }}><X size={11} /></button>
+                                              <button type="button" onClick={() => removeItem(ip)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, height: 32, display: 'inline-flex', alignItems: 'center', opacity: 0.5 }}><X size={13} /></button>
                                             )}
                                           </td>
                                         </tr>
@@ -757,46 +691,47 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
                               </div>
 
                               <div style={{ padding: '5px 10px' }}>
-                                <button type="button" onClick={() => addItemToGroup(sec.id, cat.id, sub.id, grp.id)} style={{ fontSize: 11, color: 'var(--brand-teal)', background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: 3, cursor: 'pointer', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Plus size={10} /> Item</button>
+                                <button type="button" onClick={() => addItemToGroup(gp)} style={{ ...addBtn, color: 'var(--brand-teal)', background: 'none', borderRadius: 3, padding: '2px 8px' }}><Plus size={12} /> Item</button>
                               </div>
                             </div>
-                          ))}
+                          );
+                          })}
 
                           <div style={{ padding: '4px 8px 6px' }}>
-                            <button type="button" onClick={() => addGroup(sec.id, cat.id, sub.id)} style={{ fontSize: 11, color: 'var(--fg-subtle)', background: 'var(--bg-subtle)', border: '1px dashed var(--border-subtle)', borderRadius: 3, cursor: 'pointer', padding: '3px 10px', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Plus size={10} /> Group</button>
+                            <button type="button" onClick={() => addGroup(sec.id, cat.id, sub.id)} style={{ ...addBtn, color: 'var(--fg-subtle)', background: 'var(--bg-subtle)', borderRadius: 3, padding: '3px 10px' }}><Plus size={12} /> Group</button>
                           </div>
                         </div>
                       ))}
 
                       <div style={{ padding: '4px 8px 8px' }}>
-                        <button type="button" onClick={() => addSub(sec.id, cat.id)} style={{ fontSize: 11, color: 'var(--fg-subtle)', background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: 4, cursor: 'pointer', padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Plus size={10} /> Add Sub-Category</button>
+                        <button type="button" onClick={() => addSub(sec.id, cat.id)} style={{ ...addBtn, color: 'var(--fg-subtle)', background: 'none', borderRadius: 4, padding: '4px 12px' }}><Plus size={12} /> Add Sub-Category</button>
                       </div>
                     </div>
                   )}
                 </div>
               ))}
 
-              <button type="button" onClick={() => addCat(sec.id)} style={{ width: '100%', fontSize: 12, color: 'var(--fg-subtle)', background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: 5, cursor: 'pointer', padding: '6px', textAlign: 'center' as const }}>+ Add Category</button>
+              <button type="button" onClick={() => addCat(sec.id)} style={{ width: '100%', fontSize: 14, color: 'var(--fg-subtle)', background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: 5, cursor: 'pointer', padding: '6px', textAlign: 'center' as const }}>+ Add Category</button>
             </div>
           </div>
         ))}
 
         <div style={{ marginBottom: 14 }}>
-          <button type="button" onClick={addSection} style={{ width: '100%', fontSize: 12, color: 'var(--il-add-type, #cc0000)', background: 'none', border: '2px dashed var(--il-add-type-border, #cc000040)', borderRadius: 5, cursor: 'pointer', padding: '8px', textAlign: 'center' as const, fontWeight: 600 }}>+ Add TYPE Section</button>
+          <button type="button" onClick={addSection} style={{ width: '100%', fontSize: 14, color: 'var(--il-add-type, #cc0000)', background: 'none', border: '2px dashed var(--il-add-type-border, #cc000040)', borderRadius: 5, cursor: 'pointer', padding: '8px', textAlign: 'center' as const, fontWeight: 600 }}>+ Add TYPE Section</button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--il-total-bg, #f5c518)', color: 'var(--il-total-fg, inherit)', borderRadius: 4, padding: '8px 14px', fontWeight: 700, fontSize: 13, marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--il-total-bg, #f5c518)', color: 'var(--il-total-fg, inherit)', borderRadius: 4, padding: '8px 14px', fontWeight: 700, fontSize: 15, marginBottom: 14 }}>
           <span style={{ flex: 1 }}>TOTAL</span>
           <span style={{ marginRight: 24 }}>{totalQty} units</span>
           {showPrices && totalPrice > 0 && <span>{fmt(totalPrice)}</span>}
         </div>
 
         <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Signatures &amp; Approvals</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Signatures &amp; Approvals</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 8 }}>
             {['Production Manager', 'Trust PM', 'Client PM'].map(label => (
               <div key={label} style={{ border: '1px solid var(--il-sign-border, #2255aa)', borderRadius: 6, padding: '10px', textAlign: 'center' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--il-sign-fg, #2255aa)', textTransform: 'uppercase', marginBottom: 24 }}>{label}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--il-sign-fg, #2255aa)', textTransform: 'uppercase', marginBottom: 24 }}>{label}</div>
                 <div style={{ borderBottom: '1px solid var(--il-sign-line, #ccc)', marginBottom: 6 }} />
               </div>
             ))}
@@ -805,7 +740,7 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', borderRadius: '0 0 8px 8px' }}>
-        <div style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>
+        <div style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>
           {allItems.filter(i => i.description).length} items · {totalQty} units
           {showPrices && totalPrice > 0 && <span> · <strong style={{ color: 'var(--fg-default)' }}>{fmt(totalPrice)}</strong></span>}
         </div>
@@ -813,8 +748,8 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
           <Button variant="secondary" size="md" onClick={onClose} disabled={generating}>Cancel</Button>
           <Button size="md" onClick={handleGenerate} disabled={generating}>
             {generating
-              ? <><Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> {editDocumentId ? 'Saving Revision…' : 'Generating…'}</>
-              : editDocumentId ? <><Check size={13} aria-hidden /> Update & Resubmit</> : <><Download size={13} aria-hidden /> Generate PDF</>
+              ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> {editDocumentId ? 'Saving Revision…' : 'Generating…'}</>
+              : editDocumentId ? <><Check size={15} aria-hidden /> Update & Resubmit</> : <><Download size={15} aria-hidden /> Generate PDF</>
             }
           </Button>
         </div>
@@ -826,8 +761,7 @@ export default function DocGeneratorModal({ projectId, catGroup, docType, initia
           onClose={() => setAddVendor(null)}
           onCreated={vendor => {
             setVendors(prev => [...prev, vendor].sort((a, b) => (a.code ?? '').localeCompare(b.code ?? '')));
-            const { secId, catId, subId, grpId, itemId } = addVendor.path;
-            updItem(secId, catId, subId, grpId, itemId, { vendor: `${vendor.code} - ${vendor.name}` });
+            updItem(addVendor.path, { vendor: `${vendor.code} - ${vendor.name}` });
             setAddVendor(null);
           }}
         />

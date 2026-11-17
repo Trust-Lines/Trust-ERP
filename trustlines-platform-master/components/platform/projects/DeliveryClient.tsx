@@ -71,10 +71,14 @@ export function DeliveryClient({
   }
 
   async function addPunch(title: string, description: string) {
-    const res = await fetch(`/api/projects/${projectId}/punch-list`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, description }) });
-    const b = await res.json().catch(() => ({}));
-    if (!res.ok) { toast.error(b.error ?? 'Failed'); return; }
-    setPunch(p => [b.item, ...p]); setAdding(false); toast.success('Punch item added');
+    try {
+      const res = await fetch(`/api/projects/${projectId}/punch-list`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, description }) });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok || !b.item) { toast.error(b.error ?? 'Could not add the punch item'); return; }
+      setPunch(p => [b.item, ...p]); setAdding(false); toast.success('Punch item added');
+    } catch {
+      toast.error('Could not add the punch item — check your connection and try again.');
+    }
   }
   async function togglePunch(item: PunchListItem) {
     const res = await fetch(`/api/projects/${projectId}/punch-list/${item.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: item.status === 'done' ? 'open' : 'done' }) });
@@ -255,11 +259,18 @@ export function DeliveryClient({
   );
 }
 
-function PunchForm({ onSave, onCancel }: { onSave: (title: string, description: string) => void; onCancel: () => void }) {
+function PunchForm({ onSave, onCancel }: { onSave: (title: string, description: string) => Promise<void>; onCancel: () => void }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim() || saving) return;
+    setSaving(true);
+    try { await onSave(title.trim(), description.trim()); } finally { setSaving(false); }
+  }
   return (
-    <div className="flex flex-col gap-3 rounded-[6px] border border-ui-divider bg-ui-surface p-3.5">
+    <form onSubmit={submit} className="flex flex-col gap-3 rounded-[6px] border border-ui-divider bg-ui-surface p-3.5">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_2fr]">
         <label className="flex flex-col gap-1.5"><span className={LABEL}>Title *</span>
           <input className={FIELD} value={title} onChange={e => setTitle(e.target.value)} autoFocus /></label>
@@ -267,9 +278,9 @@ function PunchForm({ onSave, onCancel }: { onSave: (title: string, description: 
           <input className={FIELD} value={description} onChange={e => setDescription(e.target.value)} /></label>
       </div>
       <div className="flex gap-2">
-        <Button variant="accent" size="toolbar" disabled={!title.trim()} onClick={() => onSave(title.trim(), description.trim())}>Add</Button>
-        <Button variant="outline" size="toolbar" onClick={onCancel}>Cancel</Button>
+        <Button type="submit" variant="accent" size="toolbar" disabled={!title.trim()} loading={saving}>Add</Button>
+        <Button type="button" variant="outline" size="toolbar" onClick={onCancel} disabled={saving}>Cancel</Button>
       </div>
-    </div>
+    </form>
   );
 }
