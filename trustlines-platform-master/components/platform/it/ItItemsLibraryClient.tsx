@@ -1,36 +1,20 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ChevronDown, Ellipsis, Link2, ListFilter, MapPin, Plus, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { MonitorPcIcon } from './MonitorPcIcon';
 import { NOT_CONNECTED_TITLE } from './ticketStyles';
+import { MUTED, OUTLINE_CHIP, SOLID_CHIP, STRONG, formatItemDate, type ItItem, type ItItemCategory } from './itemStyles';
+
+export type { ItItem, ItItemCategory, ItItemStatus } from './itemStyles';
 
 // Figma "Items Library" (843:41158): IT equipment — search, sort and "Add Item", category tabs with
 // counts, then a grid of item cards. A card's border and pill follow the item's status: Available
 // (green border + solid green pill), Repair (red pill) or assigned (outlined pill with the person).
-
-export type ItItemCategory = 'full_set' | 'pc' | 'monitor' | 'tv' | 'keyboard_set' | 'phone' | 'laptop' | 'printer';
-export type ItItemStatus = 'available' | 'repair' | 'assigned';
-
-export interface ItItem {
-  id: string;
-  name: string;
-  /** Short spec line shown before the date ("High Performance"). */
-  model: string | null;
-  category: ItItemCategory;
-  /** ISO date the item was added ("7/9/2026"). */
-  addedAt: string;
-  /** Set the item belongs to ("PC 1"), if any. */
-  setLabel: string | null;
-  location: string | null;
-  status: ItItemStatus;
-  /** Person holding the item when `status` is `assigned`. */
-  assigneeName: string | null;
-  imageUrl: string | null;
-}
 
 type Tab = 'all' | ItItemCategory;
 type Sort = 'newest' | 'oldest';
@@ -47,18 +31,8 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'printer', label: 'Printers' },
 ];
 
-// Light / dark: strong text secondary-700 / secondary-50, muted primary-400 / primary-200, and the
-// navy "primary-button" chips flip to near-white with dark text.
-const STRONG = 'text-secondary-700 dark:text-secondary-50';
-const MUTED = 'text-primary-400 dark:text-primary-200';
-const SOLID_CHIP = 'bg-secondary-700 text-white dark:bg-secondary-50 dark:text-primary-950';
 const FIELD =
   'h-9 rounded-md border border-primary-200 bg-white px-3 text-[13px] font-ui text-secondary-700 outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring dark:border-secondary-500 dark:bg-primary-800 dark:text-secondary-50';
-
-function formatAdded(iso: string) {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-US');
-}
 
 function StatusPill({ item }: { item: ItItem }) {
   const base = 'flex h-7 shrink-0 items-center justify-center rounded-md px-6 text-[13px] font-semibold whitespace-nowrap';
@@ -69,7 +43,7 @@ function StatusPill({ item }: { item: ItItem }) {
     return <span className={base} style={{ background: 'var(--status-t10-fg)', color: 'var(--status-t10-bg)' }}>Repair</span>;
   }
   return (
-    <span className={cn(base, 'max-w-[160px] border border-solid border-secondary-700 px-4 dark:border-secondary-50', STRONG)}>
+    <span className={cn(base, 'max-w-[160px] px-4', OUTLINE_CHIP)}>
       <span className="truncate">{item.assigneeName ?? 'Assigned'}</span>
     </span>
   );
@@ -81,7 +55,7 @@ function ItemCard({ item }: { item: ItItem }) {
     <article
       aria-label={item.name}
       className={cn(
-        'flex flex-col overflow-hidden rounded-lg border-solid bg-white dark:bg-primary-950',
+        'relative flex flex-col overflow-hidden rounded-lg border-solid bg-white transition-shadow focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ui-focus-ring hover:shadow-04 dark:bg-primary-950',
         available ? 'border-2 border-[var(--status-t9-fg)]' : 'border border-primary-100 dark:border-primary-600',
       )}
     >
@@ -95,9 +69,15 @@ function ItemCard({ item }: { item: ItItem }) {
       <div className="flex flex-col gap-4 bg-primary-50 p-4 dark:bg-primary-700">
         <div className="flex items-start gap-4">
           <div className="flex min-w-0 flex-1 flex-col leading-normal">
-            <p className={cn('m-0 truncate text-[20px] font-semibold', STRONG)}>{item.name}</p>
+            {/* Stretched link: the whole card opens the item; the menu button sits above it. */}
+            <Link
+              href={`/it/items/${encodeURIComponent(item.id)}`}
+              className={cn('truncate text-[20px] font-semibold no-underline outline-none after:absolute after:inset-0 after:content-[""]', STRONG)}
+            >
+              {item.name}
+            </Link>
             <p className={cn('m-0 truncate text-[16px] tracking-[0.48px]', MUTED)}>
-              {[item.model, formatAdded(item.addedAt)].filter(Boolean).join(' · ')}
+              {[item.model, formatItemDate(item.addedAt)].filter(Boolean).join(' · ')}
             </p>
           </div>
           <button
@@ -105,7 +85,7 @@ function ItemCard({ item }: { item: ItItem }) {
             disabled
             aria-label={`More actions for ${item.name}`}
             title={NOT_CONNECTED_TITLE}
-            className={cn('grid h-6 w-6 shrink-0 place-items-center rounded disabled:cursor-not-allowed', STRONG)}
+            className={cn('relative z-10 grid h-6 w-6 shrink-0 place-items-center rounded disabled:cursor-not-allowed', STRONG)}
           >
             <Ellipsis className="h-[23px] w-[23px]" strokeWidth={2} aria-hidden="true" />
           </button>

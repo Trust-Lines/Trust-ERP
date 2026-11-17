@@ -1,0 +1,402 @@
+'use client';
+
+import Image from 'next/image';
+import Link from 'next/link';
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import QRCode from 'qrcode';
+import { toast } from 'sonner';
+import {
+  ArrowLeft,
+  CalendarClock,
+  CalendarPlus,
+  Copy,
+  Cpu,
+  Ellipsis,
+  Gpu,
+  HardDrive,
+  Link2,
+  MapPin,
+  MemoryStick,
+  Pencil,
+  Plus,
+  Printer,
+  QrCode,
+  Trash2,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { MonitorPcIcon } from './MonitorPcIcon';
+import { NOT_CONNECTED_TITLE, formatTicketDate } from './ticketStyles';
+import {
+  CATEGORY_CHIP,
+  CATEGORY_LABEL,
+  MUTED,
+  OUTLINE_CHIP,
+  SOLID_CHIP,
+  STRONG,
+  formatItemDate,
+  type ItItem,
+} from './itemStyles';
+
+// Figma "Item detail" (880:14431): Back, title with its set chip, Delete / Edit Info; Basic Info,
+// Specifications and the items it is grouped with on the left; who holds it and its QR label on the
+// right. The QR code and Print work in the browser; editing, deleting and grouping need an endpoint.
+
+export type ItItemSpecKey = 'cpu' | 'gpu' | 'ram' | 'storage';
+
+export interface ItItemDetailData extends ItItem {
+  /** ISO date of the last change ("Last Update"). */
+  updatedAt: string | null;
+  notes: string | null;
+  specs: { key: ItItemSpecKey | string; label: string; value: string }[];
+  assignee: { name: string; role: string | null; acquiredAt: string | null } | null;
+  /** Other items in the same set ("Grouped With"). */
+  groupedWith: ItItem[];
+}
+
+type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
+
+const SPEC_ICON: Record<ItItemSpecKey, IconType> = { cpu: Cpu, gpu: Gpu, ram: MemoryStick, storage: HardDrive };
+
+// Panels: primary-50 / primary-700 ("main surfaces"); value boxes white / secondary-800 ("elevated").
+const PANEL = 'rounded-lg border border-solid border-primary-100 bg-primary-50 dark:border-primary-600 dark:bg-primary-700';
+const PANEL_TITLE = cn('m-0 text-[18px] font-semibold leading-normal', STRONG);
+const BOX = cn(
+  'flex min-h-[42px] min-w-0 items-center gap-1.5 rounded-md border border-solid border-primary-100 bg-white p-3 text-[14px] leading-[1.4] dark:border-transparent dark:bg-secondary-800',
+  STRONG,
+);
+const DISABLED = 'disabled:cursor-not-allowed disabled:opacity-60';
+
+function Placeholder({ children }: { children: ReactNode }) {
+  return <span className="text-primary-300 dark:text-primary-400">{children}</span>;
+}
+
+function Field({ label, icon: Icon, children, action }: { label: string; icon?: IconType; children: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-[7px]">
+      <span className="text-[12px] font-medium leading-4 text-ui-body">{label}</span>
+      <div className={BOX}>
+        {Icon && <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />}
+        <span className="min-w-0 flex-1 truncate">{children}</span>
+        {action}
+      </div>
+    </div>
+  );
+}
+
+function ItemImage({ src, iconSize }: { src: string | null; iconSize: string }) {
+  return src ? (
+    <Image src={src} alt="" fill unoptimized sizes="240px" className="object-contain p-3" />
+  ) : (
+    <MonitorPcIcon className={cn(iconSize, 'text-primary-300')} strokeWidth={1.25} />
+  );
+}
+
+function GroupedCard({ item }: { item: ItItem }) {
+  return (
+    <article className="relative flex flex-col overflow-hidden rounded-lg border border-solid border-primary-100 bg-white focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ui-focus-ring dark:border-primary-600 dark:bg-primary-950">
+      <div className="relative flex h-[151px] items-center justify-center bg-white">
+        <ItemImage src={item.imageUrl} iconSize="h-10 w-10" />
+      </div>
+      <div className="flex min-h-[84px] flex-col justify-between gap-2 border-t border-solid border-primary-100 bg-primary-50 px-2.5 py-2 dark:border-primary-600 dark:bg-primary-700">
+        <div className="flex items-start gap-4">
+          <div className="flex min-w-0 flex-1 flex-col leading-normal">
+            <Link
+              href={`/it/items/${encodeURIComponent(item.id)}`}
+              className={cn('truncate text-[16px] font-semibold no-underline outline-none after:absolute after:inset-0 after:content-[""]', STRONG)}
+            >
+              {item.name}
+            </Link>
+            <span className={cn('text-[13px] tracking-[0.39px]', MUTED)}>{formatItemDate(item.addedAt)}</span>
+          </div>
+          <button
+            type="button"
+            disabled
+            aria-label={`More actions for ${item.name}`}
+            title={NOT_CONNECTED_TITLE}
+            className={cn('relative z-10 grid h-[18px] w-[18px] shrink-0 place-items-center disabled:cursor-not-allowed', STRONG)}
+          >
+            <Ellipsis className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden="true" />
+          </button>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1">
+            {item.setLabel && (
+              <span className={cn('flex h-[23px] items-center gap-1 rounded pl-[13px] pr-2 text-[10px] font-semibold whitespace-nowrap', SOLID_CHIP)}>
+                {item.setLabel}
+                <Link2 className="h-[9px] w-[9px]" strokeWidth={2.5} aria-hidden="true" />
+              </span>
+            )}
+            <span className={cn('flex h-[23px] items-center rounded px-2 text-[10px] font-semibold whitespace-nowrap', SOLID_CHIP)}>
+              {CATEGORY_CHIP[item.category]}
+            </span>
+          </div>
+          {item.status === 'assigned' && item.assigneeName ? (
+            <span className={cn('flex h-[23px] max-w-[120px] items-center rounded px-3 text-[10px] font-semibold', OUTLINE_CHIP)}>
+              <span className="truncate">{item.assigneeName}</span>
+            </span>
+          ) : (
+            <span
+              className="flex h-[23px] items-center rounded px-3 text-[10px] font-semibold"
+              style={item.status === 'repair'
+                ? { background: 'var(--status-t10-fg)', color: 'var(--status-t10-bg)' }
+                : { background: 'var(--status-t9-fg)', color: 'var(--status-t9-bg)' }}
+            >
+              {item.status === 'repair' ? 'Repair' : 'Available'}
+            </span>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/** Opens a small window with just the QR label and prints it. */
+function printLabel(name: string, url: string, qr: string) {
+  const w = window.open('', '_blank', 'width=420,height=560');
+  if (!w) {
+    toast.error('Allow pop-ups for this site to print the label');
+    return;
+  }
+  const d = w.document;
+  d.title = `QR · ${name}`;
+  const style = d.createElement('style');
+  style.textContent = 'body{font-family:system-ui,sans-serif;text-align:center;margin:24px}h1{font-size:18px;margin:0 0 12px}img{width:260px;height:260px}p{font-size:12px;margin:12px 0 0;word-break:break-all}';
+  d.head.appendChild(style);
+  const h = d.createElement('h1');
+  h.textContent = name;
+  const img = d.createElement('img');
+  img.alt = '';
+  const p = d.createElement('p');
+  p.textContent = url;
+  d.body.append(h, img, p);
+  img.onload = () => {
+    w.focus();
+    w.print();
+  };
+  img.src = qr;
+}
+
+export function ItItemDetailClient({ item }: { item: ItItemDetailData | null }) {
+  const [itemUrl, setItemUrl] = useState<string | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
+
+  // The label points at this item's page; built in the browser from the current origin.
+  useEffect(() => {
+    if (!item) return;
+    const url = `${window.location.origin}/it/items/${encodeURIComponent(item.id)}`;
+    let alive = true;
+    setItemUrl(url);
+    QRCode.toDataURL(url, { margin: 1, width: 446, errorCorrectionLevel: 'M' })
+      .then(data => { if (alive) setQr(data); })
+      .catch(() => { if (alive) setQr(null); });
+    return () => { alive = false; };
+  }, [item]);
+
+  function copyId() {
+    if (!item) return;
+    navigator.clipboard?.writeText(item.id)
+      .then(() => toast.success('Item ID copied'))
+      .catch(() => toast.error('Could not copy the item ID'));
+  }
+
+  return (
+    <div className="flex w-full flex-col gap-6 p-7 font-ui lg:px-12 lg:py-10">
+      {/* Heading */}
+      <div className="flex flex-col gap-4">
+        <Link
+          href="/it/items"
+          className={cn('flex h-[26px] items-center gap-1.5 self-start rounded-md px-3 text-[13px] font-semibold no-underline hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring', OUTLINE_CHIP)}
+        >
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+          Back
+        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-[5px]">
+            <div className="flex flex-wrap items-center gap-4">
+              <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', STRONG)}>
+                {item?.name ?? <Placeholder>Item</Placeholder>}
+              </h1>
+              {item?.setLabel && (
+                <span className={cn('flex h-7 items-center gap-1 rounded-md pl-[13px] pr-2 text-[13px] font-semibold whitespace-nowrap', SOLID_CHIP)}>
+                  {item.setLabel}
+                  <Link2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+                </span>
+              )}
+            </div>
+            <p className="m-0 text-[13px] leading-[1.35] text-ui-body">
+              {item ? [item.model, formatItemDate(item.addedAt)].filter(Boolean).join(' · ') : '—'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled
+              title={NOT_CONNECTED_TITLE}
+              className={cn('flex h-10 items-center gap-2 rounded-md border border-solid pl-3.5 pr-5 text-[13px] font-medium', DISABLED)}
+              style={{ background: 'var(--status-t10-bg)', borderColor: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' }}
+            >
+              <Trash2 className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+              Delete
+            </button>
+            <button
+              type="button"
+              disabled
+              title={NOT_CONNECTED_TITLE}
+              className={cn('flex h-10 items-center gap-2 rounded-md pl-3.5 pr-5 text-[13px] font-medium', SOLID_CHIP, DISABLED)}
+            >
+              <Pencil className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+              Edit Info
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          {/* Basic Info */}
+          <section aria-labelledby="it-item-basic" className={cn('flex flex-col gap-4 px-5 pb-8 pt-4', PANEL)}>
+            <h2 id="it-item-basic" className={PANEL_TITLE}>Basic Info</h2>
+            <div className="flex flex-col gap-4 md:flex-row">
+              <div className="relative flex h-[233px] w-full shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-solid border-primary-100 bg-white md:w-[233px] dark:border-primary-600">
+                <ItemImage src={item?.imageUrl ?? null} iconSize="h-14 w-14" />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-[182px_minmax(0,1fr)_86px_168px]">
+                  <Field label="Item Name">{item?.name ?? <Placeholder>—</Placeholder>}</Field>
+                  <Field
+                    label="Item ID"
+                    action={
+                      <button
+                        type="button"
+                        onClick={copyId}
+                        disabled={!item}
+                        aria-label="Copy item ID"
+                        className={cn('grid h-[23px] w-[23px] shrink-0 place-items-center rounded hover:opacity-80 focus-visible:outline-2 focus-visible:outline-ui-focus-ring', DISABLED)}
+                      >
+                        <Copy className="h-[19px] w-[19px]" strokeWidth={1.75} aria-hidden="true" />
+                      </button>
+                    }
+                  >
+                    {item?.id ?? <Placeholder>—</Placeholder>}
+                  </Field>
+                  <Field label="Category">{item ? CATEGORY_LABEL[item.category] : <Placeholder>—</Placeholder>}</Field>
+                  <Field label="Type">{item?.model ?? <Placeholder>—</Placeholder>}</Field>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <Field label="Location" icon={MapPin}>{item?.location ?? <Placeholder>—</Placeholder>}</Field>
+                  <Field label="Added Date" icon={CalendarPlus}>{formatTicketDate(item?.addedAt ?? null)}</Field>
+                  <Field label="Last Update" icon={CalendarClock}>{formatTicketDate(item?.updatedAt ?? null)}</Field>
+                </div>
+                <Field label="Notes">{item?.notes || <Placeholder>No notes</Placeholder>}</Field>
+              </div>
+            </div>
+          </section>
+
+          {/* Specifications */}
+          <section aria-labelledby="it-item-specs" className={cn('flex flex-col gap-4 px-5 pb-8 pt-4', PANEL)}>
+            <h2 id="it-item-specs" className={PANEL_TITLE}>Specifications</h2>
+            {item && item.specs.length > 0 ? (
+              <dl className="m-0 flex flex-wrap gap-4">
+                {item.specs.map(spec => {
+                  const Icon = SPEC_ICON[spec.key as ItItemSpecKey] ?? Cpu;
+                  return (
+                    <div
+                      key={spec.key}
+                      className="flex h-16 w-[252px] max-w-full items-end gap-2.5 rounded-lg border border-solid border-primary-100 bg-white py-3.5 pl-3.5 pr-4 dark:border-primary-600 dark:bg-secondary-800"
+                    >
+                      <Icon className="h-[31px] w-[31px] shrink-0 text-accent-400" strokeWidth={1.5} />
+                      <div className="flex min-w-0 flex-col gap-0.5 pl-0.5">
+                        <dt className={cn('text-[12px] font-medium uppercase leading-4 tracking-[-0.26px]', MUTED)}>{spec.label}</dt>
+                        <dd className={cn('m-0 truncate text-[20px] font-semibold leading-4 tracking-[0.4px]', STRONG)}>{spec.value}</dd>
+                      </div>
+                    </div>
+                  );
+                })}
+              </dl>
+            ) : (
+              <p className="m-0 text-[13px] text-ui-body">No specifications recorded.</p>
+            )}
+          </section>
+
+          {/* Grouped With */}
+          <section aria-labelledby="it-item-group" className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-4">
+              <h2 id="it-item-group" className={PANEL_TITLE}>Grouped With</h2>
+              <button
+                type="button"
+                disabled
+                title={NOT_CONNECTED_TITLE}
+                className={cn('flex items-center gap-1 rounded-md bg-accent-400 py-1.5 pl-2.5 pr-3.5 text-[13px] font-semibold text-white dark:text-primary-950', DISABLED)}
+              >
+                <Plus className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+                Add to Set
+              </button>
+            </div>
+            {item && item.groupedWith.length > 0 ? (
+              <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 2xl:grid-cols-3">
+                {item.groupedWith.map(g => (
+                  <li key={g.id}>
+                    <GroupedCard item={g} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="m-0 rounded-lg border border-dashed border-primary-300 px-4 py-10 text-center text-[13px] text-ui-body dark:border-primary-600">
+                Not grouped with other items.
+              </p>
+            )}
+          </section>
+        </div>
+
+        {/* Right column: who holds it, QR label */}
+        <aside className="flex w-full shrink-0 flex-col gap-6 xl:w-[366px]">
+          <div
+            className="flex items-center gap-2 rounded-[10px] border border-solid border-primary-600 p-3 text-secondary-50"
+            style={{ backgroundImage: 'radial-gradient(circle at 22% 54%, rgba(31,37,45,0.2) 0%, rgba(120,136,161,0.2) 60%, transparent 61%), linear-gradient(90deg, #2b3d55 0%, #2b3d55 100%)' }}
+          >
+            <span className="grid size-[78px] shrink-0 place-items-center rounded-lg bg-primary-950 text-[24px] font-semibold" aria-hidden="true">
+              {(item?.assignee?.name ?? '?').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 self-stretch p-1">
+              <div className="flex flex-col">
+                <p className="m-0 truncate text-[24px] font-semibold leading-normal">
+                  {item?.assignee?.name ?? (item?.status === 'repair' ? 'In repair' : 'Not assigned')}
+                </p>
+                <p className="m-0 text-[12px] font-medium leading-[1.35]">{item?.assignee?.role ?? (item ? 'Available' : '—')}</p>
+              </div>
+              {item?.assignee && (
+                <p className="m-0 text-[11px] leading-[1.35]">
+                  Acquired at: <span className="font-medium">{formatTicketDate(item.assignee.acquiredAt)}</span>
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className={cn('flex flex-col items-center justify-between gap-6 px-5 py-8', PANEL)}>
+            <div className="grid place-items-center rounded-[11px] bg-white p-2.5 dark:bg-secondary-800">
+              {qr ? (
+                <Image src={qr} alt={item ? `QR code for ${item.name}` : ''} width={223} height={223} unoptimized className="size-[223px]" />
+              ) : (
+                <div className="grid size-[223px] place-items-center text-primary-300">
+                  <QrCode className="h-16 w-16" strokeWidth={1.25} aria-hidden="true" />
+                </div>
+              )}
+            </div>
+            <div className={cn(BOX, 'w-full break-all')}>
+              <span className="min-w-0">{itemUrl ?? <Placeholder>The item link appears once the item loads</Placeholder>}</span>
+            </div>
+            <button
+              type="button"
+              disabled={!item || !qr || !itemUrl}
+              onClick={() => item && qr && itemUrl && printLabel(item.name, itemUrl, qr)}
+              className={cn('flex items-center gap-[7px] rounded-md py-2.5 pl-6 pr-8 text-[13px] font-medium hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring', SOLID_CHIP, DISABLED)}
+            >
+              <Printer className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+              Print
+            </button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
