@@ -41,7 +41,7 @@ const notYet = () => toast.info('Not connected yet');
 
 interface CardData { project: CardProject | null; deals: CardDeal[]; finance: ProjectFinance | null; allowed: string[] }
 
-export function BoardItemView({ item, section, assignees, canEdit, companyEdit = 'none', staff = [], canEditTrustTasks = false, onClose }: {
+export function BoardItemView({ item, section, assignees, canEdit, companyEdit = 'none', staff = [], everyone = [], meId = null, canEditTrustTasks = false, onClose }: {
   item: BoardCardItem;
   section: BoardSection;
   /** Set the card's company here: 'any' always, 'empty' only while it has none. */
@@ -50,7 +50,11 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
   canEdit: boolean;
   /** Who a Trust Lines task can be assigned to. */
   staff?: { id: string; full_name: string }[];
-  /** Add / change Trust Lines tasks (the API checks it too). */
+  /** Who a T Lines task can be assigned to. */
+  everyone?: { id: string; full_name: string }[];
+  /** The viewer (an assignee may tick their own task done). */
+  meId?: string | null;
+  /** Add / change the meeting tasks (the API checks it too). */
   canEditTrustTasks?: boolean;
   onClose: () => void;
 }) {
@@ -108,19 +112,10 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Could not save the company'); }
     finally { setSavingCompany(false); }
   }
-  // T Lines tasks live on the deal (lead_tasks): the card's own Opportunity / Potential, or for a
-  // project card its latest Opportunity (else Potential). Same routes the deal quick view uses.
-  const taskDeal = React.useMemo<{ kind: 'opportunity' | 'potential'; id: string } | null>(() => {
-    if (item.kind === 'opportunity') return { kind: item.assign?.kind === 'potential' ? 'potential' : 'opportunity', id: item.id };
-    const deals = data?.deals ?? [];
-    const d = deals.filter(x => x.kind === 'opportunity').at(-1) ?? deals.filter(x => x.kind === 'potential').at(-1);
-    return d ? { kind: d.kind, id: d.id } : null;
-  }, [item, data]);
-  // Trust Lines tasks (migration 153) hang on the project number, so every card of the project
-  // shares them; a card without one keeps its own list (lib/board/trustTasks).
+  // The meeting task lists (T Lines / Trust Lines, migrations 153-154) hang on the project number,
+  // so every card of the project shares them; a card without one keeps its own lists.
   const cardNo = item.projectNo ?? projectNumber(item.badgeTop);
-  const trustTasksApi = `/api/tlines-dashboard/trust-tasks/${cardNo ? `no-${cardNo}` : `${item.kind}-${item.id}`}`;
-  const tasksApi = taskDeal ? `/api/marketing/${taskDeal.kind === 'potential' ? 'potentials' : 'opportunities'}/${taskDeal.id}` : null;
+  const boardTasksApi = `/api/tlines-dashboard/trust-tasks/${cardNo ? `no-${cardNo}` : `${item.kind}-${item.id}`}`;
 
   const pick = (phase: CardPhase) => {
     const t = phase === 'project' ? tabs.find(x => x.phase === 'project') : tabs.filter(x => x.phase === phase).at(-1);
@@ -213,23 +208,12 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
           </div>
         </div>
 
-        {/* ── Tasks (Figma 908:25017): T-Lines' deal tasks next to Trust Lines' own ─── */}
-        <div className="flex shrink-0 flex-col gap-2.5 lg:flex-row lg:items-start">
-          <BoardTaskPanel
-            title="T Lines Tasks"
-            apiBasePath={tasksApi}
-            assignees={assignees}
-            canEdit={canEdit}
-            unavailable={data || error ? 'No Potential or Opportunity on this card yet — its tasks show here once there is one.' : 'Loading…'}
-          />
-          <BoardTaskPanel
-            title="Trust Lines Tasks"
-            apiBasePath={trustTasksApi}
-            assignees={staff}
-            canEdit={canEditTrustTasks}
-            showDueDate
-            unavailable="Loading…"
-          />
+        {/* ── Tasks (Figma 908:25017): the project's meeting to-dos, T Lines' and Trust Lines' ─── */}
+        <div className="flex shrink-0 flex-col gap-2.5 xl:flex-row xl:items-start">
+          <BoardTaskPanel title="T Lines Tasks" apiBasePath={boardTasksApi} query="?side=tlines"
+            assignees={everyone} canEdit={canEditTrustTasks} meId={meId} />
+          <BoardTaskPanel title="Trust Lines Tasks" apiBasePath={boardTasksApi} query="?side=trust"
+            assignees={staff} canEdit={canEditTrustTasks} meId={meId} />
         </div>
 
         {/* ── Body: stage tabs on the left, the selected stage's details ─── */}
