@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { FIELD, HEADING, PANEL, PANEL_HEAD, PANEL_TITLE } from './panelStyles';
 
-const SMALL_FIELD = 'h-8 rounded-[6px] border-ui-input-border bg-ui-input-bg px-2 text-[12px] text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-ui-input-border dark:bg-ui-input-bg dark:px-2 dark:text-ui-heading [&_svg]:size-3.5';
+const SMALL_FIELD = 'h-8 rounded-[6px] border-ui-input-border bg-ui-input-bg px-2 text-[13px]text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-ui-input-border dark:bg-ui-input-bg dark:px-2 dark:text-ui-heading [&_svg]:size-3.5';
 const toISODate = (d: Date | null) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : null;
 const parseISODate = (s: string | null) => { if (!s) return null; const [y, m, d] = s.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
 
