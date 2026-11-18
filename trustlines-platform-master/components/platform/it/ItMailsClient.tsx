@@ -96,7 +96,7 @@ function MailCard({ account, showInfo, onRevealPassword }: {
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <h3 className={cn('m-0 truncate text-[20px] font-semibold leading-5', STRONG)}>{account.ownerName}</h3>
-          <p className="m-0 truncate text-[14px] font-medium leading-4 tracking-[0.42px] text-ui-body">{account.email}</p>
+          <p className="m-0 truncate text-[14px] font-medium leading-4 tracking-[0.42px] text-ui-body dark:text-primary-50">{account.email}</p>
         </div>
         <Menu>
           <MenuTrigger render={<Button variant="ghost" size="icon-sm" className={cn('self-start', STRONG)} aria-label={`Actions for ${account.email}`} />}>
