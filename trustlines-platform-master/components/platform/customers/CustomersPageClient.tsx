@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Modal, ModalContent } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 export interface CustomerRow {
   id: string;
@@ -31,7 +32,6 @@ interface Props {
 }
 
 // Figma "Customers" (node 299:15806): same list language as Sales Team.
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
 const STATUS_TONE: Record<string, string> = { active: 't9', prospect: 't2', inactive: 't0' };
 

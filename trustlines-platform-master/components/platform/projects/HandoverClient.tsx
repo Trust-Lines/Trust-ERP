@@ -11,8 +11,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ToneChip } from '@/components/ui/tone-chip';
 import { cn } from '@/lib/utils';
 import { ProjectSubpageHeader } from './ProjectSubpageHeader';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD = 'flex flex-col rounded-[8px] border border-ui-divider bg-ui-page-bg';
 
 interface Summary {

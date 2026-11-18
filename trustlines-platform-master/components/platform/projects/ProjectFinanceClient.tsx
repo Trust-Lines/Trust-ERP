@@ -7,6 +7,7 @@ import type { ProjectStage } from '@/types/database';
 import { ProjectSubpageHeader, type ProjectSubpage } from './ProjectSubpageHeader';
 import type { ProjectFinance } from '@/lib/finance/projectTotals';
 import { EXPENSE_CATEGORY_LABELS } from '@/lib/expenses/config';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 interface Inv { id: string; supplier_id: string | null; invoice_number: string | null; invoice_date: string | null; currency: string; amount: number; status: string }
 interface Pay { id: string; supplier_id: string | null; currency: string; amount: number; paid_at: string | null; method: string }
@@ -37,7 +38,6 @@ interface Props {
   approvedCRs?: ApprovedCR[];
 }
 
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const SYMBOL: Record<string, string> = { USD: '$', TL: '₺', TRY: '₺', EUR: '€' };
 const sym = (cur: string | null | undefined) => SYMBOL[(cur ?? 'USD').toUpperCase()] ?? `${cur} `;
 /** '$ 25,000' / '₺ 1,250.50' like the frame; zero reads '$ -' on the PF tiles. */

@@ -2,16 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Folder, File as FileIcon, Loader2, ChevronRight } from 'lucide-react';
+import { formatFileSize } from '@/lib/formatters';
 
 interface FolderEntry { name: string; path: string }
 interface FileEntry { name: string; path: string; size?: number }
-
-function formatSize(bytes?: number): string {
-  if (bytes === undefined) return '';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export function DropboxFileList({ rootPath, rootLabel }: { rootPath: string; rootLabel: string }) {
   const [path, setPath] = useState(rootPath);
@@ -83,7 +77,7 @@ export function DropboxFileList({ rootPath, rootLabel }: { rootPath: string; roo
               <li key={f.path} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', fontSize: 12.5, color: 'var(--fg-subtle)' }}>
                 <FileIcon size={14} color="var(--fg-faint)" />
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-                {f.size !== undefined && <span style={{ fontSize: 11, color: 'var(--fg-faint)', flexShrink: 0 }}>{formatSize(f.size)}</span>}
+                {f.size !== undefined && <span style={{ fontSize: 11, color: 'var(--fg-faint)', flexShrink: 0 }}>{formatFileSize(f.size)}</span>}
               </li>
             ))}
           </ul>

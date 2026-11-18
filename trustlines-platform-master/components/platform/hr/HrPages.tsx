@@ -10,10 +10,9 @@ import { HrActionButton, HrAgendaCard } from './HrCards';
 import { byDate, localAgenda, useHrContainers, useHrLocal } from './HrData';
 import { CreateEventDialog, NewOrderDialog } from './HrForms';
 import { KIND_TONE, daysLeftLabel, daysUntil, parseDay } from './tones';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // The HR group's other pages (sidebar "Human Resources (HR)"). Same page heading as the board.
-
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 
 export function HrPageHeader({ title, href, subtitle, actions }: { title: string; href: string; subtitle: string; actions?: ReactNode }) {
   return (

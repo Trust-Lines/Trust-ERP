@@ -8,10 +8,10 @@ import { cn } from '@/lib/utils';
 import type { HrAction, HrAgendaItem, HrBirthday, HrContainer, HrOrder, HrPerson, HrUnavailable } from './types';
 import { KIND_TONE, dayKey, daysLeftLabel, daysUntil, parseDay } from './tones';
 import { holidaysOn, specialDaysOn } from './holidays';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Side and bottom cards of the HR board (Figma nodes 555:35712, 555:37098, 560:10777, 560:763, 560:810).
 
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 /** Rows within this many days get the filled "days left" badge. */
 const SOON_DAYS = 7;
 

@@ -10,6 +10,7 @@ import type { ProfileSnippet, NoteRow, StageTransitionRow } from './ProjectDetai
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 interface FullProject {
   id: string;
@@ -44,7 +45,6 @@ interface Props {
 
 // Figma "Project Detail" (node 445:7500): Team / Time Line / Internal Notes / Integration as a
 // row of bordered cards under Finance.
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const ROW = 'border-b border-ui-divider py-2.5 first:pt-0 last:border-b-0 last:pb-0';
 
 function RailCard({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {

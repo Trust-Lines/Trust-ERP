@@ -11,8 +11,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ProjectSubpageHeader } from './ProjectSubpageHeader';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD = 'flex min-w-0 flex-col rounded-[8px] border border-ui-divider bg-ui-page-bg px-5 pb-5 pt-4';
 const TITLE = cn('m-0 text-[20px] font-semibold leading-[1.45]', HEADING);
 const LABEL = 'text-[12px] font-medium leading-4 text-ui-body';

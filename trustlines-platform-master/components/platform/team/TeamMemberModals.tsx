@@ -1,0 +1,510 @@
+'use client';
+
+// Team page modals: invite a member, edit a member, delete a member.
+
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { Building2, Handshake, Megaphone, X, type LucideIcon } from 'lucide-react';
+import { Select as FilterSelect } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
+import {
+  COMPANY_SIDES, OFFICES, DEPARTMENTS, SKILLS, COMPANY_SIDE_LABELS, OFFICE_LABELS, DEPARTMENT_LABELS, SKILL_LABELS, defaultCompanySideForRole, defaultDepartmentForRole,
+} from '@/lib/profile/metadata';
+import { REGIONS } from '@/lib/regions';
+import type { UserRole } from '@/types/database';
+import { Select } from '@/components/platform/shared/Select';
+import { Button } from '@/components/ui/button';
+import { Modal, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
+import { HEADING } from '@/components/platform/shared/panelStyles';
+import {
+  SALES_ROLES, type ProfileRow, type ClientRow, type ServiceLineRow, type FranchiseRow, type RoleOption,
+} from './teamShared';
+
+// Invite type tabs: Lucide icons (same set as the sidebar) instead of emoji.
+const INVITE_TYPES: { key: 'internal' | 'client_pm' | 'sales'; label: string; icon: LucideIcon }[] = [
+  { key: 'internal',  label: 'Internal',  icon: Building2 },
+  { key: 'client_pm', label: 'Client PM', icon: Handshake },
+  { key: 'sales',     label: 'Sales',     icon: Megaphone },
+];
+
+export function InviteModal({
+  clients,
+  franchises,
+  roleDefinitions,
+  onClose,
+  onSuccess,
+}: {
+  clients: ClientRow[];
+  franchises: FranchiseRow[];
+  roleDefinitions: RoleOption[];
+  onClose: () => void;
+  onSuccess: (p: ProfileRow) => void;
+}) {
+  const internalRoles = roleDefinitions.filter(r => r.name !== 'tlines_pm' && !SALES_ROLES.includes(r.name));
+  const salesRoles    = roleDefinitions.filter(r => SALES_ROLES.includes(r.name));
+  const defaultInternalRole = internalRoles.find(r => r.name === 'trustlines_pm')?.name ?? internalRoles[0]?.name ?? 'trustlines_pm';
+  const defaultSalesRole    = salesRoles.find(r => r.name === 'sales_marketing_manager')?.name ?? salesRoles[0]?.name ?? 'sales_rep';
+
+  const [type, setType]                   = useState<'internal' | 'client_pm' | 'sales'>('internal');
+  const [fullName, setFullName]           = useState('');
+  const [email, setEmail]                 = useState('');
+  const [role, setRole]                   = useState<string>(defaultInternalRole);
+  const [selectedClientId, setSelectedClientId]     = useState('');
+  const [isGeneralPm, setIsGeneralPm]               = useState(false);
+  const [sending, setSending]             = useState(false);
+
+  function handleClientChange(clientId: string) {
+    setSelectedClientId(clientId);
+  }
+
+  async function handleSend() {
+    if (!fullName.trim() || !email.trim()) return;
+    setSending(true);
+
+    const res = await fetch('/api/team/invite', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email:        email.trim(),
+        full_name:    fullName.trim(),
+        role:             type === 'client_pm' ? 'tlines_pm' : role,
+        pm_client_id:     type === 'client_pm' && !isGeneralPm && selectedClientId ? selectedClientId : null,
+        is_pm_supervisor: type === 'client_pm' && isGeneralPm,
+      }),
+    });
+
+    const json = await res.json() as { success?: boolean; error?: string; userId?: string; alreadyExisted?: boolean };
+    setSending(false);
+
+    if (!res.ok) {
+      toast.error(json.error ?? 'Failed to send invite');
+      return;
+    }
+
+    const finalRole: string = type === 'client_pm' ? 'tlines_pm' : role;
+    toast.success(json.alreadyExisted
+      ? `${fullName} already exists — profile updated`
+      : `Invite sent to ${email}`);
+
+    onSuccess({
+      id:         json.userId ?? '',
+      full_name:  fullName.trim(),
+      email:      email.trim(),
+      role:       finalRole,
+      is_active:  true,
+      created_at: new Date().toISOString(),
+    });
+    onClose();
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+
+        <div className="modal-head">
+          <span style={{ fontSize: 15, fontWeight: 600 }}>Invite team member</span>
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close"><X /></Button>
+        </div>
+
+        <div className="modal-body">
+          <div role="group" aria-label="Member type" className="mb-5 flex gap-2">
+            {INVITE_TYPES.map(({ key: t, label, icon: Icon }) => (
+              <button
+                key={t} type="button" aria-pressed={type === t}
+                onClick={() => { setType(t); setRole(t === 'sales' ? defaultSalesRole : defaultInternalRole); setSelectedClientId(''); setIsGeneralPm(false); }}
+                className={cn(
+                  'flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-[6px] border px-2.5 py-2.5 text-[13px] font-semibold transition-colors [&_svg]:size-4',
+                  type === t
+                    ? 'border-[var(--color-secondary-500)] bg-ui-selected-bg text-[var(--color-secondary-700)] dark:text-ui-heading'
+                    : 'border-ui-divider bg-ui-input-bg text-ui-body hover:bg-ui-hover-bg',
+                )}
+              >
+                <Icon aria-hidden /> {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label required">Full name</label>
+            <input
+              className="form-input"
+              placeholder="e.g. Sara Johnson"
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label required">Email address</label>
+            <input
+              className="form-input"
+              type="email"
+              placeholder="name@company.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+            />
+          </div>
+
+          {(type === 'internal' || type === 'sales') && (
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label required">Role</label>
+              <Select
+                className="form-input form-select"
+                value={role}
+                onChange={e => setRole(e.target.value)}
+              >
+                {(type === 'sales' ? salesRoles : internalRoles).map(r => (
+                  <option key={r.name} value={r.name}>{r.label}</option>
+                ))}
+              </Select>
+              {type === 'sales' && salesRoles.length === 0 && (
+                <div className="form-hint">No Sales roles found — run migration 026 to seed them.</div>
+              )}
+            </div>
+          )}
+
+          {type === 'client_pm' && (
+            <>
+              <div style={{ padding: '10px 14px', borderRadius: 6, marginBottom: 14, background: 'var(--brand-teal-100)', border: '1px solid var(--brand-teal)', fontSize: 12, color: 'var(--brand-teal-600)' }}>
+                <strong>T-Lines PM</strong> — choose the region this PM manages, or make them the global <strong>Project Management Supervisor</strong> who oversees every region.
+              </div>
+
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', border: `1px solid ${isGeneralPm ? 'var(--brand-teal)' : 'var(--border-subtle)'}`, borderRadius: 8, marginBottom: 12, cursor: 'pointer', background: isGeneralPm ? 'var(--brand-teal-100)' : 'var(--bg-surface)' }}>
+                <Checkbox className="mt-0.5" checked={isGeneralPm} onCheckedChange={c => { setIsGeneralPm(!!c); if (c) setSelectedClientId(''); }} />
+                <span style={{ fontSize: 12.5 }}>
+                  <b>General PM — Project Management Supervisor</b>
+                  <div style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 1 }}>Sees all regions; signs the PO Project Management Supervisor box. Only one person.</div>
+                </span>
+              </label>
+
+              {!isGeneralPm && (
+                <div className="form-group">
+                  <label className="form-label">Region this PM manages</label>
+                  <Select className="form-input form-select" value={selectedClientId} onChange={e => handleClientChange(e.target.value)}>
+                    <option value="">Select region…</option>
+                    {clients.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>
+                    ))}
+                  </Select>
+                  {clients.length === 0 && (
+                    <div className="form-hint">No regions yet. <a href="/clients" style={{ color: 'var(--brand-teal)' }}>Add one in Clients →</a></div>
+                  )}
+                  <div className="form-hint">This PM is auto-assigned to new projects in this region.</div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="modal-foot">
+          <Button variant="secondary" size="md" onClick={onClose} disabled={sending}>Cancel</Button>
+          <Button size="md" disabled={!fullName.trim() || !email.trim()} loading={sending} onClick={handleSend}>
+            Send invite
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Same field language as New Customer / New lead: 12px label, 42px input, outlined Cancel + dark primary.
+const FORM_LABEL = 'mb-[7px] block text-[12px] font-medium leading-4 text-ui-body';
+const FORM_FIELD = 'min-h-[42px] w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-disabled focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
+const FORM_SELECT = 'h-[42px] min-h-[42px] w-full rounded-[6px] border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading';
+const SECTION_TITLE = 'm-0 text-[11px] font-semibold uppercase tracking-[0.04em] text-ui-text-secondary';
+
+function ToggleChip({ on, onToggle, children }: { on: boolean; onToggle: () => void; children: React.ReactNode }) {
+  return (
+    <label
+      className={cn(
+        'inline-flex cursor-pointer items-center gap-1.5 rounded-[6px] border border-solid px-2.5 py-1.5 text-[12px] font-medium transition-colors',
+        on
+          ? 'border-[var(--color-secondary-500)] bg-ui-selected-bg text-[var(--color-secondary-700)] dark:text-ui-heading'
+          : 'border-ui-divider bg-ui-input-bg text-ui-body hover:bg-ui-hover-bg',
+      )}
+    >
+      <Checkbox checked={on} onCheckedChange={() => onToggle()} />
+      {children}
+    </label>
+  );
+}
+
+export function EditModal({
+  profile, roleDefinitions, clients, serviceLines, allProfiles, metadataReady, onClose, onSaved,
+}: {
+  profile: ProfileRow;
+  roleDefinitions: RoleOption[];
+  clients: ClientRow[];
+  serviceLines: ServiceLineRow[];
+  allProfiles: ProfileRow[];
+  metadataReady: boolean;
+  onClose: () => void;
+  onSaved: (updated: Partial<ProfileRow>) => void;
+}) {
+  const [fullName, setFullName]   = useState(profile.full_name);
+  const [role, setRole]           = useState<string>(profile.role);
+  const [isActive, setIsActive]   = useState(profile.is_active);
+  const [pmClientId, setPmClientId]       = useState<string>(profile.pm_client_id ?? '');
+  const [isGeneralPm, setIsGeneralPm]     = useState<boolean>(!!profile.is_pm_supervisor);
+  const [saving, setSaving]       = useState(false);
+  const isClientPm = role === 'tlines_pm';
+
+  const [companySide, setCompanySide] = useState<string>(profile.company_side ?? defaultCompanySideForRole(profile.role) ?? '');
+  const [office, setOffice]           = useState<string>(profile.office ?? '');
+  const [department, setDepartment]   = useState<string>(profile.department ?? defaultDepartmentForRole(profile.role) ?? '');
+  const [skills, setSkills]           = useState<string[]>(profile.skills ?? []);
+  const [managerId, setManagerId]     = useState<string>(profile.manager_id ?? '');
+  const [regionIds, setRegionIds]     = useState<string[]>(profile.region_ids ?? []);
+  const [serviceIds, setServiceIds]   = useState<string[]>(profile.service_line_ids ?? []);
+  const [assignedRegions, setAssignedRegions] = useState<string[]>(profile.assigned_regions ?? []);
+
+  const toggle = (list: string[], set: (v: string[]) => void, value: string) =>
+    set(list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
+
+  const managerOptions = allProfiles.filter(p => p.id !== profile.id && p.is_active);
+
+  async function handleSave() {
+    setSaving(true);
+    const meta = metadataReady ? {
+      company_side: companySide || null,
+      office: office || null,
+      department: department || null,
+      skills,
+      manager_id: managerId || null,
+      region_ids: regionIds,
+      service_line_ids: serviceIds,
+      assigned_regions: assignedRegions,
+    } : {};
+    const res = await fetch(`/api/team/${profile.id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        full_name: fullName, role, is_active: isActive,
+        pm_client_id:     isClientPm && !isGeneralPm ? (pmClientId || null) : null,
+        is_pm_supervisor: isClientPm && isGeneralPm,
+        ...meta,
+      }),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      const e = await res.json() as { error?: string };
+      toast.error(e.error ?? 'Failed to update');
+      return;
+    }
+    toast.success('Member updated');
+    onSaved({
+      full_name: fullName, role, is_active: isActive,
+      pm_client_id: isClientPm && !isGeneralPm ? (pmClientId || null) : null,
+      is_pm_supervisor: isClientPm && isGeneralPm,
+      ...meta,
+    });
+    onClose();
+  }
+
+  const allRoles = roleDefinitions;
+  const dash = { value: '', label: '—' };
+
+  return (
+    <Modal open onOpenChange={o => { if (!o && !saving) onClose(); }}>
+      <ModalContent
+        size="lg"
+        title="Edit member"
+        description={profile.email}
+        footer={<>
+          <Button variant="secondary" size="md" className={modalSecondaryButtonClass} onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button size="md" onClick={handleSave} disabled={!fullName.trim()} loading={saving}>Save changes</Button>
+        </>}
+      >
+        <div className="flex flex-col gap-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="edit-full-name" className={FORM_LABEL}>Full name<span className="text-error-normal" aria-hidden>*</span></label>
+              <input id="edit-full-name" className={FORM_FIELD} value={fullName} onChange={e => setFullName(e.target.value)} autoFocus />
+            </div>
+            <div>
+              <label htmlFor="edit-role" className={FORM_LABEL}>Role<span className="text-error-normal" aria-hidden>*</span></label>
+              <FilterSelect
+                id="edit-role" className={FORM_SELECT}
+                value={role} onValueChange={v => setRole((v ?? role) as UserRole)}
+                options={allRoles.map(r => ({ value: r.name, label: r.label }))}
+              />
+            </div>
+          </div>
+
+          {metadataReady && (
+            <>
+              <div className="border-t border-ui-divider pt-4">
+                <p className={SECTION_TITLE}>Organisation</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="edit-company-side" className={FORM_LABEL}>Company side</label>
+                  <FilterSelect
+                    id="edit-company-side" className={FORM_SELECT}
+                    value={companySide} onValueChange={v => setCompanySide(v ?? '')}
+                    options={[dash, ...COMPANY_SIDES.map(s => ({ value: s, label: COMPANY_SIDE_LABELS[s] }))]}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="edit-office" className={FORM_LABEL}>Office</label>
+                  <FilterSelect
+                    id="edit-office" className={FORM_SELECT}
+                    value={office} onValueChange={v => setOffice(v ?? '')}
+                    options={[dash, ...OFFICES.map(o => ({ value: o, label: OFFICE_LABELS[o] }))]}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="edit-department" className={FORM_LABEL}>Department</label>
+                  <FilterSelect
+                    id="edit-department" className={FORM_SELECT}
+                    value={department} onValueChange={v => setDepartment(v ?? '')}
+                    options={[dash, ...DEPARTMENTS.map(d => ({ value: d, label: DEPARTMENT_LABELS[d] }))]}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="edit-manager" className={FORM_LABEL}>Manager</label>
+                  <FilterSelect
+                    id="edit-manager" className={FORM_SELECT}
+                    value={managerId} onValueChange={v => setManagerId(v ?? '')}
+                    options={[dash, ...managerOptions.map(p => ({ value: p.id, label: p.full_name }))]}
+                  />
+                </div>
+              </div>
+
+              <fieldset className="m-0 border-0 p-0">
+                <legend className={cn(FORM_LABEL, 'p-0')}>Skills</legend>
+                <div className="flex flex-wrap gap-1.5">
+                  {SKILLS.map(s => (
+                    <ToggleChip key={s} on={skills.includes(s)} onToggle={() => toggle(skills, setSkills, s)}>{SKILL_LABELS[s]}</ToggleChip>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset className="m-0 border-0 p-0">
+                <legend className={cn(FORM_LABEL, 'p-0')}>Client Regions (accounts)</legend>
+                <div className="flex flex-wrap gap-1.5">
+                  {clients.map(c => (
+                    <ToggleChip key={c.id} on={regionIds.includes(c.id)} onToggle={() => toggle(regionIds, setRegionIds, c.id)}>{c.name}</ToggleChip>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset className="m-0 border-0 p-0">
+                <legend className={cn(FORM_LABEL, 'p-0')}>T-Lines Regions (CRM visibility)</legend>
+                <div className="flex flex-wrap gap-1.5">
+                  {REGIONS.map(r => (
+                    <ToggleChip key={r.code} on={assignedRegions.includes(r.code)} onToggle={() => toggle(assignedRegions, setAssignedRegions, r.code)}>{r.label}</ToggleChip>
+                  ))}
+                </div>
+                {assignedRegions.length === 0 && (
+                  <p className="m-0 mt-1.5 text-[12px] text-ui-text-secondary">
+                    No region assigned yet — this person still sees only their own leads/opportunities (fallback).
+                  </p>
+                )}
+              </fieldset>
+
+              {serviceLines.length > 0 && (
+                <fieldset className="m-0 border-0 p-0">
+                  <legend className={cn(FORM_LABEL, 'p-0')}>Service lines</legend>
+                  <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
+                    {serviceLines.map(s => {
+                      const region = clients.find(c => c.id === s.client_id);
+                      return (
+                        <ToggleChip key={s.id} on={serviceIds.includes(s.id)} onToggle={() => toggle(serviceIds, setServiceIds, s.id)}>
+                          {s.name}{region?.code ? ` · ${region.code}` : ''}
+                        </ToggleChip>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              )}
+            </>
+          )}
+
+          {isClientPm && (
+            <div className="flex flex-col gap-3">
+              <label
+                className={cn(
+                  'flex cursor-pointer items-start gap-2 rounded-[8px] border border-solid px-3 py-2.5',
+                  isGeneralPm ? 'border-[var(--color-secondary-500)] bg-ui-selected-bg' : 'border-ui-divider bg-ui-input-bg',
+                )}
+              >
+                <Checkbox
+                  className="mt-0.5" checked={isGeneralPm}
+                  onCheckedChange={c => { setIsGeneralPm(!!c); if (c) setPmClientId(''); }}
+                />
+                <span className="text-[13px] text-ui-body">
+                  <b className={HEADING}>General PM — Project Management Supervisor</b>
+                  <span className="mt-0.5 block text-[12px] text-ui-text-secondary">Oversees all regions; signs the PO supervisor box.</span>
+                </span>
+              </label>
+              {!isGeneralPm && (
+                <div>
+                  <label htmlFor="edit-pm-region" className={FORM_LABEL}>Region this PM manages</label>
+                  <FilterSelect
+                    id="edit-pm-region" className={FORM_SELECT}
+                    value={pmClientId} onValueChange={v => setPmClientId(v ?? '')}
+                    options={[{ value: '', label: 'No region' }, ...clients.map(c => ({ value: c.id, label: `${c.name}${c.code ? ` (${c.code})` : ''}` }))]}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <label className="flex cursor-pointer items-center gap-2 text-[13px] font-medium text-ui-body">
+            <Checkbox checked={isActive} onCheckedChange={c => setIsActive(!!c)} />
+            Active account
+          </label>
+        </div>
+      </ModalContent>
+    </Modal>
+  );
+}
+
+export function DeleteConfirm({
+  profile, onClose, onDeleted,
+}: {
+  profile: ProfileRow;
+  onClose: () => void;
+  onDeleted: (id: string) => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    setDeleting(true);
+    const res = await fetch(`/api/team/${profile.id}`, { method: 'DELETE' });
+    setDeleting(false);
+    if (!res.ok) {
+      const e = await res.json() as { error?: string };
+      toast.error(e.error ?? 'Failed to deactivate');
+      return;
+    }
+    toast.success(`${profile.full_name} deleted`);
+    onDeleted(profile.id);
+    onClose();
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <span style={{ fontSize: 15, fontWeight: 600 }}>Delete member</span>
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close"><X /></Button>
+        </div>
+        <div className="modal-body">
+          <p style={{ fontSize: 13, color: 'var(--fg-default)', margin: 0 }}>
+            Are you sure you want to permanently delete <strong>{profile.full_name}</strong>?
+            This will remove their account and cannot be undone.
+          </p>
+        </div>
+        <div className="modal-foot">
+          <Button variant="secondary" size="md" onClick={onClose} disabled={deleting}>Cancel</Button>
+          <Button variant="destructive" size="md" loading={deleting} onClick={handleDelete}>Delete</Button>
+        </div>
+      </div>
+    </div>
+  );
+}

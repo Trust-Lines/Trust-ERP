@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Modal, ModalClose, ModalContent, modalSecondaryButtonClass } from '@/components/ui/modal';
 import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 export interface SalesRepRow {
   id: string;
@@ -38,7 +39,6 @@ interface Props {
 type SortKey = 'newest' | 'oldest' | 'name';
 
 // Figma "Sales team" (node 299:12046).
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
 // Dropdowns: dark: overrides beat the shared field style's dark padding, border and fill.
 const ROW_SELECT = 'inline-flex h-9 w-[233px] max-w-full cursor-pointer items-center gap-4 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-4 pr-2.5 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:pl-4 dark:pr-2.5 dark:text-ui-heading [&_svg]:size-3.5';

@@ -39,11 +39,11 @@ import { ConfirmModal } from '@/components/ui/modal';
 import { Textarea } from '@/components/ui/textarea';
 import { StatCard } from '@/components/platform/shared/StatCard';
 import { cn } from '@/lib/utils';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 type ViewMode = 'list' | 'board' | 'calendar';
 
 // Figma "CRM Board" (node 280:25017).
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 // 36px filter control: input border, white field, 13px medium label.
 const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-3 pr-2 text-[13px] font-medium leading-normal text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading [&_svg]:size-3.5';
 const VIEW_TABS: { key: ViewMode; label: string; icon: LucideIcon }[] = [

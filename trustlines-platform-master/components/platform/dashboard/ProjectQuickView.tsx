@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { FileText, ExternalLink, Loader2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { EmptyState } from '@/components/ui/empty-state';
+import { isoDateToUS } from '@/lib/formatters';
 
 // Same stage → label/progress mapping the old company-wide dashboard used for its project list
 // (now removed) — kept identical so the same stage always shows the same wording and bar fill
@@ -34,11 +35,7 @@ interface DocumentRow {
   uploader: { full_name: string | null } | null;
 }
 
-function fmtDate(d: string | null): string {
-  if (!d) return '—';
-  const [y, m, day] = d.split('-');
-  return y && m && day ? `${m}/${day}/${y}` : d;
-}
+const fmtDate = (d: string | null): string => isoDateToUS(d) ?? '—';
 
 export function ProjectQuickView({ projectId, onClose }: { projectId: string | null; onClose: () => void }) {
   const [project, setProject] = React.useState<ProjectSummary | null>(null);

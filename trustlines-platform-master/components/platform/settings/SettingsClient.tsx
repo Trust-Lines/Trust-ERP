@@ -16,11 +16,12 @@ import { AVATARS_CHANGED_EVENT } from '@/components/ui/avatar-directory';
 import { MailSettingsCard } from './MailSettingsCard';
 import { GoogleAccountCard } from './GoogleAccountCard';
 import { LeadMailSettingsCard } from './LeadMailSettingsCard';
+import { HEADING } from '@/components/platform/shared/panelStyles';
+import { initialsOrEmail } from '@/lib/formatters';
 
 const MIN_PASSWORD = 8;
 
 // Figma "Settings_Profile" (node 348:23559).
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD = 'rounded-[8px] border border-ui-divider bg-ui-page-bg px-5 pb-8 pt-5';
 const FIELD_LABEL = 'text-[12px] font-medium leading-4 text-ui-body';
 const TEXT_INPUT = 'min-h-[42px] w-full rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg p-3 text-[14px] font-semibold leading-[1.5] tracking-[-0.242px] text-[var(--color-secondary-700)] outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring dark:text-ui-heading';
@@ -41,12 +42,6 @@ const STRENGTH = [
   { label: 'Good password', color: 'var(--color-success-normal)' },
   { label: 'Strong password', color: 'var(--color-success-normal)' },
 ];
-
-function initialsOf(name: string, email: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length) return parts.slice(0, 2).map(p => p[0]).join('').toUpperCase();
-  return email.slice(0, 2).toUpperCase();
-}
 
 function splitName(full: string): [string, string] {
   const parts = full.trim().split(/\s+/).filter(Boolean);
@@ -123,7 +118,7 @@ function ProfileBanner({ fullName, role, email, avatarUrl: initialAvatar }: { fu
           {avatar
             // eslint-disable-next-line @next/next/no-img-element
             ? <img src={avatar} alt="Your profile photo" className="size-full object-cover" onError={() => setAvatar(null)} />
-            : <span aria-hidden className="text-[40px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">{initialsOf(fullName, email)}</span>}
+            : <span aria-hidden className="text-[40px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">{initialsOrEmail(fullName, email)}</span>}
           <button
             type="button" onClick={() => photoInput.current?.click()} disabled={photoBusy}
             aria-label={avatar ? 'Change profile photo' : 'Upload profile photo'} title={avatar ? 'Change photo' : 'Upload photo'}

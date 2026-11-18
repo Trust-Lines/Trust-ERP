@@ -33,6 +33,7 @@ import {
   BriefcaseBusiness, ClipboardPenLine, DraftingCompass, Factory, Hammer, PackageOpen, Pause, PenLine, Ship,
   type LucideIcon,
 } from 'lucide-react';
+import { isoDateToUS as fmtDate } from '@/lib/formatters';
 
 // Shared by /tlines-pm (layout "board", the branch board as it always was) and /dashboard
 // (layout "dashboard", Figma TRUST-LINES ERP → "General Manager" node 767:13745): same data,
@@ -108,12 +109,6 @@ const ACCOUNT_ALT_COLORS: Record<string, string> = {
 
 function categoryLabel(values: string[] | null | undefined): string | null {
   return values?.map(v => v.replace(/_/g, ' ')).join(', ') || null;
-}
-
-function fmtDate(d: string | null | undefined): string | null {
-  if (!d) return null;
-  const [y, m, day] = d.split('-');
-  return y && m && day ? `${m}/${day}/${y}` : d;
 }
 
 function projectBadge(code: string): [string, string] {

@@ -21,6 +21,7 @@ import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuTrigger } from '@/compon
 import { PersonFace } from '@/components/ui/avatar-directory';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { TaskQuickFilter } from '@/lib/sales/taskFilters';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 export interface TaskRow {
   id: string;
@@ -50,7 +51,6 @@ const STATUS_META: Record<TaskRow['status'], { label: string; tone: string }> = 
 };
 const STATUS_ORDER: TaskRow['status'][] = ['todo', 'in_progress', 'done'];
 
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-3 pr-2 text-[13px] font-medium leading-normal text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading [&_svg]:size-3.5';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
 

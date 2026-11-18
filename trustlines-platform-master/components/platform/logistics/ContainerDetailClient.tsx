@@ -14,6 +14,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { PRODUCTION_ITEM_STATUS_TAG, statusLabel } from '@/lib/status/tags';
 import { cn } from '@/lib/utils';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 interface Container {
   id: string; container_no: string | null; booking_no: string | null; carrier: string | null; vessel_name: string | null;
@@ -39,7 +40,6 @@ const DOC_TYPES = ['bill_of_lading', 'packing_list', 'customs', 'invoice', 'othe
 // Figma "Container detail" (node 427:3360). Fields save on blur/change, so there is no "Save changes"
 // button; Delete soft-deletes via DELETE /api/containers/:id. The file upload drop zone + queue and
 // the "Remaining" count have no backing feature yet: documents are still attached as links.
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD = 'rounded-[8px] border border-ui-divider bg-ui-page-bg';
 const SURFACE = 'rounded-[8px] border border-ui-divider p-6';
 const LABEL = 'text-[12px] font-medium leading-4 text-ui-body';

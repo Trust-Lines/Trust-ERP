@@ -9,12 +9,12 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import type { HrRequest, HrRequestFile, HrRequestStatus } from './types';
 import { PRIORITY, REASON, STATUS, initials, longDay, requestDays, shortDay } from './requestStyles';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Figma "Requests" → request detail (node 565:17594): the request on the left with Reject /
 // Approve and a decision note, the person and their leave numbers on the right, then the files
 // that came with it. Deciding needs a choice first, then the note is saved with it.
 
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const NO_DATA = '—';
 
 export interface HrRequestDetailProps {

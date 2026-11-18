@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { formatFileSize } from '@/lib/formatters';
 
 export interface DropboxProjectSelection {
   dropboxPath:        string;
@@ -117,13 +118,6 @@ async function detectCategories(projectPath: string): Promise<string[]> {
     console.error('[detectCategories] error', err);
     return [];
   }
-}
-
-function formatSize(bytes?: number): string {
-  if (bytes === undefined) return '';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function DropboxProjectBrowser({ onSelect, onCancel }: Props) {
@@ -407,7 +401,7 @@ export function DropboxProjectBrowser({ onSelect, onCancel }: Props) {
                   </span>
                   {file.size !== undefined && (
                     <span style={{ fontSize: 11, color: 'var(--fg-faint)', flexShrink: 0 }}>
-                      {formatSize(file.size)}
+                      {formatFileSize(file.size)}
                     </span>
                   )}
                 </div>

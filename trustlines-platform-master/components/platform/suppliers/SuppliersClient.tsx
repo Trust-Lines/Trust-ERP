@@ -12,6 +12,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { cn } from '@/lib/utils';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 export interface SupplierRow {
   id: string;
@@ -34,7 +35,6 @@ interface Props {
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // Figma "Suppliers" (node 427:15814). The frame's "Country" filter has no backing feature here.
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
 const ACCENT_BTN = 'gap-2 bg-ui-btn-accent px-8 text-[13px] font-medium text-ui-btn-accent-fg hover:bg-ui-btn-accent hover:opacity-90 dark:bg-ui-btn-accent dark:text-ui-btn-accent-fg dark:hover:bg-ui-btn-accent';
 // Figma table chip: 36px, 1px tone border, 32px side padding, uppercase label.

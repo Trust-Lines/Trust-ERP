@@ -17,6 +17,7 @@ import { newId, useHrLocal } from './HrData';
 import { HrRequestDetail } from './HrRequestDetail';
 import { PRIORITY, PRIORITY_RANK, REASON, STATUS, forLabel, initials, requestDays } from './requestStyles';
 import { dayKey } from './tones';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Figma "Requests" (node 565:15743) + detail (565:17594): leave requests as cards; a card opens
 // the request to approve or reject it. No HR backend yet: requests live in this tab (HrData).
@@ -32,7 +33,6 @@ export interface HrRequestPerson {
 type Tab = 'active' | 'history';
 type SortKey = 'newest' | 'oldest' | 'date';
 
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 // Dialog dropdowns: 40px tall, 14px text, 16px chevron (the shared Select draws a 12px one by default).
 const DIALOG_SELECT = 'h-10 w-full px-3 text-[14px] rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg text-ui-heading [&_.ui-select-chevron]:size-4';
 const TOOLBAR_SELECT ='inline-flex h-10 w-auto cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pr-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:pr-3 dark:text-ui-heading [&_svg]:size-3.5';

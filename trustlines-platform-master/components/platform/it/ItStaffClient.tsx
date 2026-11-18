@@ -15,6 +15,7 @@ import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { SOLID_CHIP, formatItemDate } from './itemStyles';
 import { TOOLBAR_SELECT, TOOLBAR_SORT_ICON } from './ticketStyles';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Figma "IT / Staff Members" (879:13180): the team with the IT equipment each person holds. Name,
 // email, role and joined date are real (profiles, same read as HR → Staff Members). Location and
@@ -34,7 +35,6 @@ export interface ItStaffRow extends HrStaffRow {
 
 type SortKey = 'newest' | 'oldest' | 'name';
 
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
 const TD = 'px-2 text-[14px] whitespace-nowrap text-ui-body';
 const NO_DATA = '—';

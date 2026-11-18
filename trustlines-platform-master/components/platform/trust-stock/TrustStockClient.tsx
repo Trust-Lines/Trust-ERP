@@ -12,14 +12,13 @@ import { NewStockDialog } from './TrustStockForms';
 import { StockOverview } from './StockOverview';
 import { StockGrid } from './StockGrid';
 import { PfPdfImportDialog, type ImportedResult } from './PfPdfImportDialog';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Figma "Trust Stock" (node 598:22796): the stock lines (PF, vendor, dates, PF/INV amounts) and the
 // accounting for the same lines (payments, remaining, not ordered, invoice) as Excel-like sheets
 // (StockGrid). The Projects / Accounting buttons pick which show; both on → side by side, rows
 // lined up. Cells edit in place. Frontend only: no Trust Stock backend yet.
 // Internal only — PF and vendor prices must never reach tlines_pm (the page enforces it).
-
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 
 /** A PF from "Upload PF PDF" → this page's row + its products (not yet received). */
 function onImported({ stockCode, data, vendor, result, localOnly }: ImportedResult) {

@@ -12,6 +12,7 @@ import type { MyDayItem, MyDaySection } from '@/lib/dashboard/myDay';
 import { createClient } from '@/lib/supabase/client';
 import { OpportunityQuickView } from './OpportunityQuickView';
 import { StatCard } from '@/components/platform/shared/StatCard';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 const PAGE_SIZE = 20;
 
@@ -67,8 +68,6 @@ const TONE_CHIP: Record<NonNullable<MyDayItem['tone']>, { tone: string; icon: Lu
   good:    { tone: 't9',  icon: CircleCheck },
   default: { tone: 't0',  icon: CircleCheck },
 };
-
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 
 function sectionLabel(title: string): string {
   return title.replace(/\s*\(\d+\)$/, '');

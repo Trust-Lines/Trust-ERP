@@ -7,6 +7,7 @@ import { PHASE_LABELS, TYPE_SUB_PHASE_LABELS, type LifecyclePhase, type TypeSubP
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import { ProjectTabContext } from './projectTabContext';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 interface RailStage { phase: LifecyclePhase; label: string; state: 'done' | 'active' | 'upcoming' }
 interface Blocker { code: string; message: string; count?: number }
@@ -55,7 +56,6 @@ const SUBPHASE_TONE: Record<TypeSubPhase, 't2' | 't7' | 't0'> = {
 
 // Figma "Project Detail" (node 445:7500, was 245:28820): one grey panel above the tabs — the
 // lifecycle strip, then counts | Next actions | Types side by side on white tiles.
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD_TITLE = cn('m-0 text-[20px] font-semibold tracking-[0.4px]', HEADING);
 const CARD = 'flex min-w-0 flex-col gap-[22px] rounded-[8px] bg-ui-page-bg pb-5 pl-4 pr-[18px] pt-3.5';
 const COCKPIT_PREF = 'project-cockpit-open';

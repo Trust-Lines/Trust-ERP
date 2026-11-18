@@ -1,6 +1,5 @@
 import { cn } from '@/lib/utils';
-
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 /** Filter tabs with counts, shared by the Website hub's Projects, Blog and Web Leads lists. */
 export function CategoryViews({ options, value, onChange, label = 'Category', className }: {
