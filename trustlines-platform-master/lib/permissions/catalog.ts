@@ -179,6 +179,7 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'edit.team',      label: 'Invite / edit / remove members' },
       { key: 'edit.roles',     label: 'Manage roles & permissions' },
       { key: 'edit.production', label: 'Change production board / statuses' },
+      { key: 'edit.payments', label: 'Edit payments', hint: 'Finance → Payments: paid amounts and dates, transaction / invoice numbers, QuickBook. GM and accounting until set separately.' },
       { key: 'edit.installation', label: 'Edit the installation plan & teams', hint: 'Off → can open T-Lines PM → Installation but not change it. GM, ops manager and PMs until set separately.' },
     ],
   },
@@ -318,6 +319,8 @@ export const PAGE_PARENT: Record<string, string> = {
 
 /** Sales pages were guarded by these lists in code (app/(platform)/leads, sales-*); they stay the default. */
 export const PAGE_LEGACY_ROLES: Record<string, string[]> = {
+  // Payments (the accounting sheet) is filled in by accounting; the GM can change it too.
+  'edit.payments': ['general_manager', 'accountant', 'accounting'],
   // Who could edit the installation plan before it had its own switch (lib/installations/access).
   'edit.installation': ['general_manager', 'ops_manager', 'tlines_pm', 'trustlines_pm'],
   // Deleting a whole project from the Production Board was these roles only.

@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   DEFAULT_VISIBLE_COLUMNS, COLUMN_LABELS,
@@ -19,7 +19,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ProjectMenu } from './ProjectMenu';
 import type { ProductionAccess } from '@/lib/production/access';
 import type { PfGroup } from './ProductionFlags';
-import { rowAccounting, type RowAccounting } from '@/lib/production/paymentsAccounting';
+import { remainderFor, rowAccounting, type RowAccounting } from '@/lib/production/paymentsAccounting';
+import type { PayField } from '@/lib/production/paymentFields';
 import { EditItemPanel, OrderTypePicker, RowMenu, VendorPicker, useBoardLists, type PanelItem } from './BoardEditors';
 import {
   PF_SIGN_OPTIONS, PO_SIGN_OPTIONS, STATUS_OPTIONS, currentFirst, normalizeSign, normalizeStatus, poRollup,
@@ -227,10 +228,11 @@ function headAddress(p: { projectName?: string }): string {
 // Receipt (dark grey). They are one table, so every row lines up across the cards; the gaps are
 // empty columns. Each card has a title bar (52px) and its column headings (46px); a project's
 // band carries white labels (1st / 2nd / Remaining …) in the project's colour, its TOTAL row white
-// amount chips. Read only: payments are entered through the payment approval, not here.
+// amount chips. Roles with "Edit payments" type into the paid / date / invoice cells (saved on
+// blur through /api/payments/items/:id); everything else is computed (lib/production/paymentsAccounting).
 type PayGroup = 'acc' | 'tl' | 'inv';
 type PayKind = 'usd' | 'tl' | 'date' | 'text' | 'qb';
-interface PayCol { key: string; group: PayGroup; label: string; kind: PayKind; w: number; get: (it: PItem, a: RowAccounting) => number | string | null | undefined }
+interface PayCol { key: string; group: PayGroup; label: string; kind: PayKind; w: number; get: (it: PItem, a: RowAccounting) => number | string | null | undefined; field?: PayField }
 interface CardTone { title: React.CSSProperties; head: React.CSSProperties }
 const cardTone = (t: string, titleBg?: string): CardTone => ({
   title: { background: titleBg ?? `var(--status-${t}-fg)`, color: `var(--status-${t}-bg)` },
@@ -246,29 +248,30 @@ const PAY_GROUPS: { group: PayGroup; title: string; total: string; tone: CardTon
     pills: [['Invoices & Receipts', 4]] },
 ];
 const PAY_COLS: PayCol[] = [
-  { key: 'paidUsd1', group: 'acc', label: 'Paid/USD', kind: 'usd', w: 104, get: (_, a) => a.paidUsd1 },
-  { key: 'paidUsd1Date', group: 'acc', label: 'Date', kind: 'date', w: 96, get: it => it.paidUsd1Date },
-  { key: 'paidUsd2', group: 'acc', label: 'Paid/USD', kind: 'usd', w: 104, get: (_, a) => a.paidUsd2 },
-  { key: 'paidUsd2Date', group: 'acc', label: 'Date', kind: 'date', w: 96, get: it => it.paidUsd2Date },
-  { key: 'paidTl1', group: 'acc', label: 'Paid/TL', kind: 'tl', w: 104, get: (_, a) => a.paidTl1 },
-  { key: 'paidTl1Date', group: 'acc', label: 'Date', kind: 'date', w: 96, get: it => it.paidTl1Date },
-  { key: 'paidTl2', group: 'acc', label: 'Paid/TL', kind: 'tl', w: 104, get: (_, a) => a.paidTl2 },
-  { key: 'paidTl2Date', group: 'acc', label: 'Date', kind: 'date', w: 96, get: it => it.paidTl2Date },
+  { key: 'paidUsd1', group: 'acc', label: 'Paid/USD', kind: 'usd', w: 112, get: (_, a) => a.paidUsd1, field: 'paid_usd1' },
+  { key: 'paidUsd1Date', group: 'acc', label: 'Date', kind: 'date', w: 132, get: it => it.paidUsd1Date, field: 'paid_usd1_date' },
+  { key: 'paidUsd2', group: 'acc', label: 'Paid/USD', kind: 'usd', w: 112, get: (_, a) => a.paidUsd2, field: 'paid_usd2' },
+  { key: 'paidUsd2Date', group: 'acc', label: 'Date', kind: 'date', w: 132, get: it => it.paidUsd2Date, field: 'paid_usd2_date' },
+  { key: 'paidTl1', group: 'acc', label: 'Paid/TL', kind: 'tl', w: 112, get: (_, a) => a.paidTl1, field: 'paid_tl1' },
+  { key: 'paidTl1Date', group: 'acc', label: 'Date', kind: 'date', w: 132, get: it => it.paidTl1Date, field: 'paid_tl1_date' },
+  { key: 'paidTl2', group: 'acc', label: 'Paid/TL', kind: 'tl', w: 112, get: (_, a) => a.paidTl2, field: 'paid_tl2' },
+  { key: 'paidTl2Date', group: 'acc', label: 'Date', kind: 'date', w: 132, get: it => it.paidTl2Date, field: 'paid_tl2_date' },
   { key: 'remUsd', group: 'acc', label: 'USD', kind: 'usd', w: 104, get: (_, a) => a.remainingUsd },
   { key: 'remTl', group: 'acc', label: 'TL', kind: 'tl', w: 104, get: (_, a) => a.remainingTl },
   { key: 'noUsd', group: 'acc', label: 'USD', kind: 'usd', w: 104, get: (_, a) => a.notOrderedUsd },
   { key: 'noTl', group: 'acc', label: 'TL', kind: 'tl', w: 104, get: (_, a) => a.notOrderedTl },
-  // Due Payment: the rule is still to be confirmed by the user, so it stays empty for now.
-  { key: 'dueUsd', group: 'tl', label: 'USD', kind: 'usd', w: 104, get: () => null },
-  { key: 'dueTl', group: 'tl', label: 'TL', kind: 'tl', w: 104, get: () => null },
-  { key: 'pay1Usd', group: 'tl', label: 'USD', kind: 'usd', w: 104, get: (_, a) => a.paidUsd1 },
-  { key: 'pay1Tl', group: 'tl', label: 'TL', kind: 'tl', w: 104, get: (_, a) => a.paidTl1 },
-  { key: 'pay2Usd', group: 'tl', label: 'USD', kind: 'usd', w: 104, get: (_, a) => a.paidUsd2 },
-  { key: 'pay2Tl', group: 'tl', label: 'TL', kind: 'tl', w: 104, get: (_, a) => a.paidTl2 },
-  { key: 'txNo', group: 'inv', label: 'Transaction #', kind: 'text', w: 128, get: it => it.invoiceTransactionNo },
-  { key: 'invNo', group: 'inv', label: 'Invoice #', kind: 'text', w: 150, get: it => it.invoiceNumber },
-  { key: 'qb', group: 'inv', label: 'Quickbook', kind: 'qb', w: 120, get: it => it.quickBook },
-  { key: 'invDate', group: 'inv', label: 'Date', kind: 'date', w: 110, get: it => it.invoiceDate },
+  // Due Payment (computed): the advance by the payment rule while WAITING_PAYMENT, all of it once
+  // the goods are ready / received / sent. Payments 1 / 2 are Paid 1 / 2 again (the same fields).
+  { key: 'dueUsd', group: 'tl', label: 'USD', kind: 'usd', w: 104, get: (_, a) => a.dueUsd },
+  { key: 'dueTl', group: 'tl', label: 'TL', kind: 'tl', w: 104, get: (_, a) => a.dueTl },
+  { key: 'pay1Usd', group: 'tl', label: 'USD', kind: 'usd', w: 112, get: (_, a) => a.paidUsd1, field: 'paid_usd1' },
+  { key: 'pay1Tl', group: 'tl', label: 'TL', kind: 'tl', w: 112, get: (_, a) => a.paidTl1, field: 'paid_tl1' },
+  { key: 'pay2Usd', group: 'tl', label: 'USD', kind: 'usd', w: 112, get: (_, a) => a.paidUsd2, field: 'paid_usd2' },
+  { key: 'pay2Tl', group: 'tl', label: 'TL', kind: 'tl', w: 112, get: (_, a) => a.paidTl2, field: 'paid_tl2' },
+  { key: 'txNo', group: 'inv', label: 'Transaction #', kind: 'text', w: 140, get: it => it.invoiceTransactionNo, field: 'invoice_transaction_no' },
+  { key: 'invNo', group: 'inv', label: 'Invoice #', kind: 'text', w: 160, get: it => it.invoiceNumber, field: 'invoice_number' },
+  { key: 'qb', group: 'inv', label: 'Quickbook', kind: 'qb', w: 120, get: it => it.quickBook, field: 'quick_book' },
+  { key: 'invDate', group: 'inv', label: 'Date', kind: 'date', w: 132, get: it => it.invoiceDate, field: 'invoice_date' },
 ];
 const TITLE_H = 52;
 const GAP_W = 32;
@@ -302,20 +305,107 @@ function WhiteChip({ children, color, big }: { children: React.ReactNode; color?
     </span>
   );
 }
-function PayCells({ item }: { item: PItem }) {
+const CELL = 'overflow-hidden text-ellipsis whitespace-nowrap border-b border-b-ui-divider bg-ui-page-bg px-3 py-2.5 align-middle text-[14px] font-medium';
+const INPUT = 'w-full min-w-0 rounded-[4px] border border-transparent bg-transparent px-1 py-0.5 text-[14px] font-medium outline-none hover:border-ui-input-border focus:border-ui-focus-ring focus:bg-ui-input-bg';
+const rawDate = (v: unknown) => (v ? String(v).slice(0, 10) : '');
+const plain = (n: number) => (Math.round(n * 100) / 100).toString();
+
+async function savePayment(id: string, field: PayField, value: string | number | null): Promise<boolean> {
+  const res = await fetch(`/api/payments/items/${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [field]: value }),
+  }).catch(() => null);
+  if (res?.ok) return true;
+  const b = await res?.json().catch(() => null);
+  toast.error(b?.error ?? 'Could not save the payment');
+  return false;
+}
+
+/** One typed cell of the accounting sheet: amount, date, text or the QuickBook toggle. */
+function PayInput({ item, col, a, onSaved }: { item: PItem; col: PayCol; a: RowAccounting; onSaved: () => void }) {
+  const field = col.field!;
+  const original = col.kind === 'date' ? rawDate(col.get(item, a)) : isMoney(col.kind)
+    ? (() => { const v = (item as Record<string, unknown>)[{ paid_usd1: 'paidUsd1', paid_usd2: 'paidUsd2', paid_tl1: 'paidTl1', paid_tl2: 'paidTl2' }[field as 'paid_usd1'] ?? '']; return v == null || v === '' ? '' : plain(toNumber(v as number)); })()
+    : String(col.get(item, a) ?? '');
+  // What is shown: the saved value until the reloaded board brings the new one.
+  const [shown, setShown] = useState(original);
+  const [draft, setDraft] = useState<string | null>(null);
+  useEffect(() => { setShown(original); }, [original]);
+
+  async function commit(next: string) {
+    setDraft(null);
+    if (next === shown) return;
+    const prev = shown;
+    setShown(next);
+    const value = next === '' ? null : isMoney(col.kind) ? Number(next) : next;
+    if (await savePayment(item.id!, field, value)) onSaved(); else setShown(prev);
+  }
+
+  if (col.kind === 'qb') {
+    const done = shown === 'Done';
+    return (
+      <button type="button" aria-pressed={done} aria-label={done ? 'QuickBook done — click to clear' : 'Mark QuickBook done'}
+        onClick={() => void commit(done ? '' : 'Done')}
+        className="inline-flex w-[81px] cursor-pointer items-center justify-center rounded-[4px] border-0 py-2 pl-2.5 pr-2 text-[12px] font-medium uppercase leading-4 focus-visible:outline-2 focus-visible:outline-ui-focus-ring"
+        style={done ? { background: 'var(--status-t9-bg)', color: 'var(--status-t9-fg)' } : { background: 'transparent', color: 'var(--ui-text-secondary)' }}>
+        {done ? 'Done' : '—'}
+      </button>
+    );
+  }
+  if (col.kind === 'date') {
+    return (
+      <input type="date" aria-label={`${col.label} (${col.field})`} value={draft ?? shown} className={cn(INPUT, 'text-ui-text-secondary')}
+        onChange={e => setDraft(e.target.value)} onBlur={e => void commit(e.target.value)} />
+    );
+  }
+  if (col.kind === 'text') {
+    return (
+      <input type="text" aria-label={col.label} maxLength={120} value={draft ?? shown} title={shown || undefined}
+        className={cn(INPUT, 'text-[var(--color-secondary-700)] dark:text-ui-heading')}
+        onChange={e => setDraft(e.target.value)} onBlur={e => void commit(e.target.value.trim())}
+        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') { setDraft(null); e.currentTarget.blur(); } }} />
+    );
+  }
+  // Amounts: digits and one point, 2 decimals; the raw number while typing, formatted otherwise.
+  const editing = draft !== null;
+  const rem = remainderFor(a, field as 'paid_usd1');
+  return (
+    <span className="relative block">
+      <input type="text" inputMode="decimal" aria-label={`${col.label} ${field}`}
+        value={editing ? draft : shown === '' ? '' : payMoney(col.kind, Number(shown))}
+        placeholder={payMoney(col.kind, 0)}
+        className={INPUT} style={{ color: moneyFg(col.kind) }}
+        onFocus={() => setDraft(shown)}
+        onChange={e => { const v = e.target.value.replace(/[^\d.]/g, ''); if (/^\d*(\.\d{0,2})?$/.test(v)) setDraft(v); }}
+        onBlur={e => void commit(e.target.value.replace(/\.$/, ''))}
+        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') { setDraft(null); e.currentTarget.blur(); } }} />
+      {/* "Rem:" — what is left of the invoice after the other payment; one click writes it. */}
+      {editing && rem > 0 && (
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => void commit(plain(rem))}
+          className="absolute left-0 top-full z-30 mt-1 cursor-pointer whitespace-nowrap rounded-[4px] border border-ui-divider bg-ui-surface-elevated px-2 py-1 text-[12px] font-medium text-ui-body shadow-sm hover:bg-ui-hover-bg">
+          Rem: {payMoney(col.kind, rem)}
+        </button>
+      )}
+    </span>
+  );
+}
+
+function PayCells({ item, edit, onSaved }: { item: PItem; edit: boolean; onSaved: () => void }) {
   const a = rowAccounting(item);
   return (
     <>
       {PAY_COLS.map((c, i) => {
         const v = c.get(item, a);
         const n = isMoney(c.kind) ? toNumber(v as number) : 0;
-        const warn = a.notSigned && (c.key === 'remUsd' || c.key === 'remTl') && n > 0;
+        const typed = edit && !!c.field && !!item.id;
         return (
           <Fragment key={c.key}>
             {startsGroup(i) && <Gap />}
-            <td className={cn('overflow-hidden text-ellipsis whitespace-nowrap border-b border-b-ui-divider bg-ui-page-bg px-3 py-2.5 align-middle text-[14px] font-medium', edge(i))}
-              title={warn ? 'PF not signed yet' : undefined}>
-              {isMoney(c.kind) ? <span style={{ color: warn ? 'var(--status-t7-fg)' : moneyFg(c.kind) }}>{payMoney(c.kind, n)}</span>
+            <td className={cn(CELL, edge(i), typed && 'overflow-visible px-2 py-1.5')}>
+              {typed ? <PayInput item={item} col={c} a={a} onSaved={onSaved} />
+                // PF not signed: Remaining says so in red; its TL cell stays empty.
+                : c.key === 'remUsd' && a.notSigned ? <span className="text-[12px] font-semibold uppercase" style={{ color: 'var(--status-t10-fg)' }}>Not signed</span>
+                : c.key === 'remTl' && a.notSigned ? null
+                : isMoney(c.kind) ? <span style={{ color: moneyFg(c.kind) }}>{payMoney(c.kind, n)}</span>
                 : c.kind === 'date' ? <span className="text-ui-text-secondary">{shortDate(v)}</span>
                 : c.kind === 'qb' ? (v ? <span className="inline-flex w-[81px] items-center justify-center rounded-[4px] py-2 pl-2.5 pr-2 text-[12px] font-medium uppercase leading-4"
                     style={{ background: 'var(--status-t9-bg)', color: 'var(--status-t9-fg)' }}>{String(v)}</span> : null)
@@ -387,8 +477,10 @@ function MoneyChip({ col, value }: { col: ColumnKey; value: number }) {
   );
 }
 
-export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], onGroupsChanged, onSaved, groupRanks, selection, payments = false }: {
+export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], onGroupsChanged, onSaved, groupRanks, selection, payments = false, payEdit = false }: {
   sections: PSection[];
+  /** Payments: this role may type into the paid / date / invoice cells ("Edit payments"). */
+  payEdit?: boolean;
   /** Payments page: the Accounting / Payments T Lines / Invoice & Receipt tables to the right. */
   payments?: boolean;
   /** Roles page → Production Board switches. */
@@ -503,6 +595,10 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
   const moneyStart = COLS.indexOf('pfUsd');
   const afterMoney = COLS.length - COLS.indexOf('invoiceTl') - 1;
   const payCols = payments ? PAY_COLS : [];
+  // The latest onSaved for the payment cells, without rebuilding the body when it changes.
+  const savedRef = useRef(onSaved);
+  useEffect(() => { savedRef.current = onSaved; }, [onSaved]);
+  const reload = useCallback(() => savedRef.current?.(), []);
   // Payments: the cards' title bar sits over the column headings, so the region bands stick lower.
   const headH = payments ? HEAD_H + TITLE_H : HEAD_H;
 
@@ -640,7 +736,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
                             </td>
                           );
                         })}
-                        {payments && <PayCells item={item} />}
+                        {payments && <PayCells item={item} edit={payEdit} onSaved={reload} />}
                       </tr>
                     );
                   });
@@ -733,7 +829,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
           </tbody>
     );
     return { body, groupsByKey };
-  }, [sections, pending, collapsed, colWidthKey, typeLeft, access, selection, groupRanks, payments]);
+  }, [sections, pending, collapsed, colWidthKey, typeLeft, access, selection, groupRanks, payments, payEdit, reload]);
 
   if (!nonEmpty.length) {
     return (
