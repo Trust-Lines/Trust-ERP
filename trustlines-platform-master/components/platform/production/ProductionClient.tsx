@@ -16,6 +16,7 @@ import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
 import { cn } from '@/lib/utils';
 import type { ProductionAccess } from '@/lib/production/access';
 import { STATUS_OPTIONS, normalizeStatus } from '@/lib/production/statuses';
+import { paymentState } from '@/lib/production/paymentsAccounting';
 import {
   DEFAULT_VISIBLE_COLUMNS, TYPE_ORDER, buildSectionsFromProjects, exportBoardSheet, exportProjectsWorkbook,
   type PItem, type PProject, type PSection,
@@ -32,9 +33,13 @@ const EMPTY: BoardData = { 'Projects': [], 'Direct Orders': [], 'Missing Extra':
 
 // Trust System filter bar: every filter is row based and they combine with AND; picks inside one
 // filter are OR. Half is per project. A project with no rows left is hidden. Nothing is saved.
-type FilterKey = 'vendor' | 'type' | 'status' | 'container' | 'half';
-const FILTER_LABEL: Record<FilterKey, string> = { vendor: 'Vendor', type: 'Type', status: 'Status', container: 'Container', half: 'Half' };
-const noFilters = (): Record<FilterKey, Set<string>> => ({ vendor: new Set(), type: new Set(), status: new Set(), container: new Set(), half: new Set() });
+// Payments adds QuickBook (done / not done) and Payment (USD paid against PF/USD).
+type FilterKey = 'vendor' | 'type' | 'status' | 'container' | 'quickbook' | 'payment' | 'half';
+const FILTER_LABEL: Record<FilterKey, string> = { vendor: 'Vendor', type: 'Type', status: 'Status', container: 'Container', quickbook: 'QuickBook', payment: 'Payment', half: 'Half' };
+const PAY_ONLY: FilterKey[] = ['quickbook', 'payment'];
+const QB_OPTS = [{ value: 'done', label: 'Done' }, { value: 'not_done', label: 'Not done' }];
+const PAYMENT_OPTS = [{ value: 'not_paid', label: 'Not paid' }, { value: 'partially_paid', label: 'Partially paid' }, { value: 'fully_paid', label: 'Fully paid' }];
+const noFilters = (): Record<FilterKey, Set<string>> => ({ vendor: new Set(), type: new Set(), status: new Set(), container: new Set(), quickbook: new Set(), payment: new Set(), half: new Set() });
 // Quick chips that exist on the Projects tab only.
 const PROJECTS_ONLY: QuickToken[] = ['TODO', 'FOLLOWUP', 'GROUPS'];
 
@@ -43,8 +48,10 @@ const halfLabel = (t: string) => (t === 'UNASSIGNED' ? 'Unassigned' : `${t.split
 const containerKey = (s: string | null | undefined) => String(s ?? '').trim().toLowerCase();
 const statusLabel = new Map(STATUS_OPTIONS.map(o => [o.value, o.label]));
 
-export function ProductionClient({ access, canAddProject = false, mode = 'production' }: {
+export function ProductionClient({ access, canAddProject = false, mode = 'production', canEditPayments = false }: {
   access: ProductionAccess; canAddProject?: boolean;
+  /** Payments: may type into the accounting cells (Roles page → "Edit payments"). */
+  canEditPayments?: boolean;
   /** 'payments': the Payments page — the same board, read only, with the accounting tables. */
   mode?: 'production' | 'payments';
 }) {
@@ -154,6 +161,8 @@ export function ProductionClient({ access, canAddProject = false, mode = 'produc
       status: STATUS_OPTIONS.map(o => ({ value: o.value, label: o.label })),
       container: containerOpts,
       half: halves.map(t => ({ value: t, label: halfLabel(t) })),
+      quickbook: QB_OPTS,
+      payment: PAYMENT_OPTS,
     };
   }, [tabItems, tabSections, vendors]);
 
@@ -171,6 +180,8 @@ export function ProductionClient({ access, canAddProject = false, mode = 'produc
         && (!sel.type.size || sel.type.has(i.type ?? ''))
         && (!sel.status.size || sel.status.has(normalizeStatus(i.status)))
         && (!sel.container.size || sel.container.has(containerKey(i.containerNo)))
+        && (!sel.quickbook.size || sel.quickbook.has(i.quickBook ? 'done' : 'not_done'))
+        && (!sel.payment.size || sel.payment.has(paymentState(i)))
         && quickOk(i)
       );
       out = out.map(s => ({
@@ -225,7 +236,8 @@ export function ProductionClient({ access, canAddProject = false, mode = 'produc
     ...(Object.keys(sel) as FilterKey[]).flatMap(k => [...sel[k]].map(v => ({
       id: `${k}:${v}`,
       label: k === 'vendor' ? (vendors.find(x => x.id === v)?.code ?? 'Vendor') : k === 'status' ? (statusLabel.get(v) ?? v)
-        : k === 'half' ? halfLabel(v) : k === 'container' ? (options.container.find(o => o.value === v)?.label ?? v) : v,
+        : k === 'half' ? halfLabel(v) : k === 'quickbook' ? (QB_OPTS.find(o => o.value === v)?.label ?? v)
+        : k === 'payment' ? (PAYMENT_OPTS.find(o => o.value === v)?.label ?? v) : k === 'container' ? (options.container.find(o => o.value === v)?.label ?? v) : v,
       clear: () => setSel(prev => { const n = new Set(prev[k]); n.delete(v); return { ...prev, [k]: n }; }),
     }))),
     ...[...activeQuick].map(t => ({ id: `q:${t}`, label: QUICK_LABEL[t], clear: () => toggleQuick(t) })),
@@ -306,7 +318,7 @@ export function ProductionClient({ access, canAddProject = false, mode = 'produc
             />
           </label>
           <span className="inline-flex items-center gap-1 px-1 text-[13px] font-medium text-ui-text-secondary"><Filter size={14} aria-hidden /> Filters</span>
-          {(Object.keys(FILTER_LABEL) as FilterKey[]).map(k => (
+          {(Object.keys(FILTER_LABEL) as FilterKey[]).filter(k => payMode || !PAY_ONLY.includes(k)).map(k => (
             <MultiFilter key={k} label={FILTER_LABEL[k]} options={options[k]} selected={sel[k]}
               onChange={next => setSel(prev => ({ ...prev, [k]: next }))} />
           ))}
@@ -377,6 +389,7 @@ export function ProductionClient({ access, canAddProject = false, mode = 'produc
             groups={pf.groups} onGroupsChanged={() => void pf.reload()} onSaved={() => void load()}
             groupRanks={grouped ? groupRanks : undefined}
             payments={payMode}
+            payEdit={payMode && canEditPayments}
             selection={access.half ? {
               selected: picked, visible: selecting,
               toggle: id => { setSelecting(true); setPicked(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; }); },

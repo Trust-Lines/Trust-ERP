@@ -1622,9 +1622,10 @@ then close its API; build nothing new on it). No exchange-rate table: the rate a
 the payment approval.
 
 --- A. Money chain ---
-[~] A1 /payments = the "green table": Production Board design + data, read only, with Accounting /
-       Payments T Lines / Invoice & Receipt to the right (2026-11-18). OPEN: the Due Payment rule
-       (ask the user), Export Excel with the payment columns, QuickBook / Payment filters.
+[x] A1 /payments = the accounting sheet (Figma 935:22284, 2026-11-18): four cards, Trust System supplier
+       rules (Remaining / Not Ordered / Due Payment), editable paid / date / invoice / QuickBook cells
+       (edit.payments: GM + accounting by default), QuickBook + Payment filters. OPEN: Excel export
+       with the payment columns.
 [ ] A2 Payment approval: only accounting creates a request (supplier PF payment / Trust Lines
        expense / general non-project expense) with the TL amount, that day's rate, and the USD
        drawn from the bank. GM notified on the payment day; when approved it lands in /payments.
