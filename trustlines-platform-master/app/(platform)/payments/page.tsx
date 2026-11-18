@@ -4,21 +4,26 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getRolePermissions } from '@/lib/permissions/server';
 import { pageAllowed } from '@/lib/permissions/catalog';
-import { NO_PF_ROLES } from '@/lib/production/access';
+import { NO_PF_ROLES, productionAccess } from '@/lib/production/access';
 import { ProductionClient } from '@/components/platform/production/ProductionClient';
 import type { ProductionAccess } from '@/lib/production/access';
 
 export const dynamic = 'force-dynamic';
 
-// Finance / Payments: the accounting sheet (Figma 935:22284) — the Production Board's rows, read
-// only on the board side, with the Accounting / Payments / Invoice & Receipt cards to the right.
-// The board API sends the payment columns only to roles with page.payments; typing into them needs
-// "Edit payments" too (checked again by /api/payments/items/:id).
-const PAYMENTS_ACCESS: ProductionAccess = {
-  tabProjects: true, tabMissingExtra: true, tabDirectOrders: true, viewMoney: true, viewPf: true,
-  export: false, editStatus: false, editRows: false, deleteRows: false, editProjects: false, deleteProjects: false,
-  todo: false, groups: false, half: false,
-};
+// Finance / Payments: the accounting sheet (Figma 935:22284) — the Production Board's rows with
+// the Accounting / Payments / Invoice & Receipt cards to the right. The Project card is edited with
+// the role's own Production Board switches (statuses, rows, projects, half — the same API checks
+// them again); the payment cards need "Edit payments" (checked again by /api/payments/items/:id).
+// All three tabs and the money columns are shown here; PF never to tlines_pm.
+function paymentsAccess(role: string | null, perms: Parameters<typeof productionAccess>[1]): ProductionAccess {
+  const prod = productionAccess(role, perms);
+  return {
+    ...prod,
+    tabProjects: true, tabMissingExtra: true, tabDirectOrders: true, viewMoney: true,
+    viewPf: !NO_PF_ROLES.has(role ?? ''),
+    export: false, todo: false, groups: false,
+  };
+}
 
 export default async function PaymentsPage() {
   await requirePage('page.payments');
@@ -30,5 +35,5 @@ export default async function PaymentsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const perms = await getRolePermissions(createAdminClient() as any, role);
   const canEdit = !!role && !NO_PF_ROLES.has(role) && pageAllowed(role, perms, 'edit.payments');
-  return <ProductionClient access={PAYMENTS_ACCESS} mode="payments" canEditPayments={canEdit} />;
+  return <ProductionClient access={paymentsAccess(role, perms)} mode="payments" canEditPayments={canEdit} />;
 }
