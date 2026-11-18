@@ -144,6 +144,8 @@ const IT_NAV: NavItem[] = [
   { label: 'Staff Members', href: '/it/staff', icon: Users, perm: 'page.it' },
   // Figma "IT / Mails" (879:12933): company mailboxes.
   { label: 'Mails', href: '/it/mails', icon: Mail, perm: 'page.it' },
+  // Figma "IT / Subscriptions" (908:22728): company software subscriptions.
+  { label: 'Subscriptions', href: '/it/subscriptions', icon: CreditCard, perm: 'page.it' },
 ];
 
 const CUSTOMERS_ITEM: NavItem ={ label: 'Customers', href: '/customers', icon: Contact, perm: 'page.customers' };
