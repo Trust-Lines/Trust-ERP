@@ -12,7 +12,7 @@ import { MUTED, OUTLINE_CHIP, SOLID_CHIP, STRONG } from './itemStyles';
 import { copyText, initials } from './itCardParts';
 
 // Figma "Phone Numbers detail" (966:40115): Back, the number as the title, Delete / Edit Info; Basic
-// Info (number, firm, mail, password, PIN, IMEI, account number, location, added date, notes) on the
+// Info (number, firm, mail, password, PIN, IMEI, start date, account number, location, added date, notes) on the
 // left; who holds the line and the device it runs on on the right.
 //
 // Secrets (password, PIN, account number) are never part of the line: they are fetched one at a
@@ -29,6 +29,8 @@ export interface ItPhoneDetail {
   email: string | null;
   imei: string | null;
   location: string | null;
+  /** ISO date the line (contract) started. */
+  startDate: string | null;
   /** ISO date. */
   addedAt: string | null;
   notes: string | null;
@@ -179,9 +181,10 @@ export function ItPhoneDetailClient({ line, onRevealSecret }: {
             </Field>
             <SecretField label="Password" icon={Lock} kind="password" lineId={line?.id ?? null} onReveal={onRevealSecret} />
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[213px_minmax(0,1fr)]">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[213px_minmax(0,1fr)_minmax(0,1fr)]">
             <SecretField label="PIN" kind="pin" lineId={line?.id ?? null} onReveal={onRevealSecret} />
             <Field label="IMEI" action={<CopyButton value={line?.imei} what="IMEI" />}>{line?.imei ?? <Placeholder>—</Placeholder>}</Field>
+            <Field label="Start Date" icon={CalendarPlus}>{formatTicketDate(line?.startDate ?? null)}</Field>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <SecretField label="Account Number" kind="accountNumber" lineId={line?.id ?? null} onReveal={onRevealSecret} />
@@ -194,7 +197,7 @@ export function ItPhoneDetailClient({ line, onRevealSecret }: {
         {/* Right column: who holds the line, the device it runs on */}
         <aside className="flex w-full shrink-0 flex-col gap-4 xl:w-[366px]">
           <div
-            className="flex items-center gap-2 rounded-[10px] border border-solid border-primary-600 p-3 text-secondary-50"
+            className="flex items-center gap-2 rounded-[10px] border border-solid border-primary-100 p-3 text-secondary-50 dark:border-primary-600"
             style={{ backgroundImage: 'radial-gradient(circle at 22% 54%, rgba(31,37,45,0.2) 0%, rgba(120,136,161,0.2) 60%, transparent 61%), linear-gradient(90deg, #2b3d55 0%, #2b3d55 100%)' }}
           >
             <span className="grid size-[78px] shrink-0 place-items-center overflow-hidden rounded-lg bg-primary-950 text-[24px] font-semibold" aria-hidden="true">

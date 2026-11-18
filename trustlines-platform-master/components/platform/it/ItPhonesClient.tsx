@@ -8,6 +8,7 @@ import { PersonFace } from '@/components/ui/avatar-directory';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { TOOLBAR_SELECT, TOOLBAR_SORT_ICON } from './ticketStyles';
+import { SOLID_CHIP } from './itemStyles';
 import { FIELD, MUTED, SORT_OPTIONS, STRONG, copyText, initials, tabClass } from './itCardParts';
 
 // Figma "IT / Phone Numbers" (966:39447): company phone lines, one card each — holder photo, name
@@ -43,7 +44,7 @@ type Assignment = '' | 'assigned' | 'available';
 
 const NOT_CONNECTED = 'Not available yet: the phone numbers data source is not connected';
 const CHIP = 'inline-flex items-center rounded-[4px] px-2 py-[3px] text-[13px] font-semibold leading-normal';
-const CHIP_FILLED = cn(CHIP, 'bg-secondary-700 text-white dark:bg-primary-50 dark:text-primary-950');
+const CHIP_FILLED = cn(CHIP, SOLID_CHIP);
 const CHIP_OUTLINE = cn(CHIP, 'border border-secondary-700 py-[2px] dark:border-secondary-50', STRONG);
 const CHIP_FREE = cn(CHIP, 'bg-[var(--status-t9-fg)] text-[var(--status-t9-bg)]');
 
@@ -109,7 +110,7 @@ function PhoneCard({ line }: { line: ItPhoneLine }) {
           onClick={() => void copyText(line.number, 'Number')}
           aria-label={`Copy number ${line.number}`}
           title="Copy number"
-          className="relative z-10 grid size-[26px] shrink-0 place-items-center rounded-[4px] bg-secondary-700 text-white transition-opacity hover:opacity-90 dark:bg-primary-50 dark:text-primary-950"
+          className={cn('relative z-10 grid size-[26px] shrink-0 place-items-center rounded-[4px] transition-opacity hover:opacity-90', SOLID_CHIP)}
         >
           <Copy size={14} aria-hidden />
         </button>
