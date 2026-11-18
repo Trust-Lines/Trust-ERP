@@ -1,6 +1,7 @@
 'use client';
 
-import { ArrowLeft, ArrowRight, Check, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Plus, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { FormState, SetForm } from './types';
 import { FOOTER_PRIMARY, FOOTER_SECONDARY } from './StepFooter';
 import { cn } from '@/lib/utils';
@@ -51,19 +52,11 @@ export function Step7Checklist({ form, setForm, newChecklistText, setNewChecklis
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {form.checklist.map((item, idx) => (
             <li key={item.id || idx} className="flex items-center gap-2 rounded-[6px] border border-ui-divider bg-ui-input-bg px-3 py-2.5">
-              <button
-                type="button" role="checkbox" aria-checked={item.done}
+              <Checkbox
+                checked={item.done}
                 aria-label={item.done ? `Mark not done: ${item.text}` : `Mark done: ${item.text}`}
-                onClick={() => setForm(f => ({ ...f, checklist: f.checklist.map((c, i) => (i === idx ? { ...c, done: !c.done } : c)) }))}
-                className={cn(
-                  'grid size-[29px] shrink-0 place-items-center rounded-[4px] border transition-colors',
-                  item.done
-                    ? 'border-[var(--color-secondary-700)] bg-[var(--color-secondary-700)] text-white dark:border-primary-50 dark:bg-primary-50 dark:text-primary-950'
-                    : 'border-ui-divider bg-ui-input-bg hover:border-[var(--ui-input-border)]',
-                )}
-              >
-                {item.done && <Check size={16} strokeWidth={2.5} aria-hidden />}
-              </button>
+                onCheckedChange={() => setForm(f => ({ ...f, checklist: f.checklist.map((c, i) => (i === idx ? { ...c, done: !c.done } : c)) }))}
+              />
               <span className={cn('min-w-0 flex-1 break-words text-[14px] leading-[1.4]', item.done ? 'text-ui-text-disabled line-through' : 'text-ui-body')}>
                 {item.text}
               </span>
