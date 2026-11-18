@@ -15,8 +15,12 @@ import { Step4ScopeOfWork } from './intake/Step4ScopeOfWork';
 import { Step6DimensionsMedia } from './intake/Step6DimensionsMedia';
 import { Step7Checklist } from './intake/Step7Checklist';
 import { LeadSummary } from './intake/LeadSummary';
+import { StepOverview } from './intake/StepOverview';
+import type { Quantities } from './intake/standards';
 
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+/** Review screen after Checklist — not a tab in the step nav. */
+const OVERVIEW_STEP = 7;
 
 interface Props {
   intakeId: string;
@@ -35,6 +39,8 @@ export function IntakeForm({ intakeId, assignees, leadName }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [newChecklistText, setNewChecklistText] = useState('');
+  // Standard-item quantities from Scope of work; shown again on the Overview. Not saved yet (no backend).
+  const [qty, setQty] = useState<Quantities>({});
 
   // Load intake data if exists
   useEffect(() => {
@@ -254,6 +260,20 @@ export function IntakeForm({ intakeId, assignees, leadName }: Props) {
         <StepNav activeStep={activeStep} onSelect={goTo} isStepDone={isStepDone} />
       </div>
 
+      {activeStep === OVERVIEW_STEP ? (
+        // Figma "New lead · Overview" (node 930:2073): full-width grey review card, no Lead Preview.
+        <div className="flex flex-col rounded-[8px] border border-ui-divider bg-ui-surface p-5">
+          <StepOverview
+            form={form}
+            projectCode={form.region ? generatedProjectCode : null}
+            assigneeName={assignees.find(a => a.id === form.assignee_id)?.full_name ?? null}
+            qty={qty}
+            saving={saving}
+            onBack={() => setActiveStep(6)}
+            onFinish={finish}
+          />
+        </div>
+      ) : (
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[1027fr_365fr]">
         {/* Same height as the Lead Preview at least, so the step footer sits at the card's bottom. */}
         <div className="flex min-h-[502px] flex-col rounded-[8px] border border-ui-divider bg-ui-page-bg p-5">
@@ -269,7 +289,7 @@ export function IntakeForm({ intakeId, assignees, leadName }: Props) {
           )}
           {activeStep === 2 && <Step2Customer {...stepProps(2)} />}
           {activeStep === 3 && <Step3LeadDetails {...stepProps(3)} assignees={assignees} />}
-          {activeStep === 4 && <Step4ScopeOfWork {...stepProps(4)} />}
+          {activeStep === 4 && <Step4ScopeOfWork {...stepProps(4)} qty={qty} setQty={setQty} />}
           {activeStep === 5 && <Step6DimensionsMedia {...stepProps(5)} documents={documents} uploading={uploading} onUpload={uploadDocs} />}
           {activeStep === 6 && (
             <Step7Checklist
@@ -278,13 +298,14 @@ export function IntakeForm({ intakeId, assignees, leadName }: Props) {
               newChecklistText={newChecklistText}
               setNewChecklistText={setNewChecklistText}
               onBack={() => setActiveStep(5)}
-              onFinish={finish}
+              onFinish={() => continueTo(OVERVIEW_STEP)}
             />
           )}
         </div>
 
         <LeadSummary projectCode={form.region ? generatedProjectCode : null} rows={previewRows} missing={missing} />
       </div>
+      )}
     </div>
   );
 }

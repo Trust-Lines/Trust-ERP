@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Check, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Plus, Trash2 } from 'lucide-react';
 import type { FormState, SetForm } from './types';
 import { FOOTER_PRIMARY, FOOTER_SECONDARY } from './StepFooter';
 import { cn } from '@/lib/utils';
@@ -87,8 +87,9 @@ export function Step7Checklist({ form, setForm, newChecklistText, setNewChecklis
         <button type="button" onClick={onBack} className={FOOTER_SECONDARY}>
           <ArrowLeft size={16} aria-hidden /> Back
         </button>
+        {/* Moves on to the Overview, where "Save and Exit" lives (Figma 930:2073). */}
         <button type="button" onClick={onFinish} className={FOOTER_PRIMARY}>
-          Save and Exit
+          Next <ArrowRight size={14} aria-hidden />
         </button>
       </div>
     </div>

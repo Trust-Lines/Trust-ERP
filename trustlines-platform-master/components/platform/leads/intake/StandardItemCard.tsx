@@ -14,12 +14,13 @@ export interface StandardItem {
 
 // Figma "New lead · Scope of work" card (node 919:28310): photo tile, name, color / style / price rows,
 // and a +/qty/− stepper. A card with quantity > 0 turns green (status t9).
+// Without onChange (Overview, node 930:2073) it is read-only: white card, quantity in a navy box.
 export function StandardItemCard({ item, qty, onChange }: {
   item: StandardItem;
   qty: number;
-  onChange: (qty: number) => void;
+  onChange?: (qty: number) => void;
 }) {
-  const on = qty > 0;
+  const on = !!onChange && qty > 0;
   // Selected stepper: dark green with white icon; in dark mode the t9 pair flips (light green bg),
   // so the icon takes the dark green to stay visible.
   const onBtn = 'bg-[var(--status-t9-fg)] text-white dark:text-[var(--status-t9-bg)]';
@@ -57,6 +58,14 @@ export function StandardItemCard({ item, qty, onChange }: {
         </div>
       </div>
 
+      {!onChange ? (
+        <div
+          aria-label={`${item.name} quantity`}
+          className="flex w-[53px] shrink-0 items-center justify-center self-stretch rounded-[4px] border border-[var(--ui-input-border)] bg-[var(--color-secondary-700)] px-1 text-[20px] font-semibold leading-[1.5] tracking-[-0.44px] text-white dark:bg-primary-50 dark:text-primary-950"
+        >
+          {qty}
+        </div>
+      ) : (
       <div className="flex w-[53px] shrink-0 flex-col gap-1 self-stretch">
         <button
           type="button"
@@ -87,6 +96,7 @@ export function StandardItemCard({ item, qty, onChange }: {
           <Minus size={12} aria-hidden />
         </button>
       </div>
+      )}
     </div>
   );
 }
