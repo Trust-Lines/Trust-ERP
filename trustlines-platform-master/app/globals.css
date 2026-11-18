@@ -214,6 +214,20 @@
 
 
 :root {
+  /* ── PAYMENTS "GREEN TABLE" (accounting sheet): Accounting gold, Payments T Lines green,
+        Invoice & Receipt grey. head = group title, sub = column header / TOTAL, cell = rows. ── */
+  --pay-acc-head-bg: #B8860B; --pay-acc-head-fg: #FFFFFF;
+  --pay-acc-sub-bg: #D4AF37;  --pay-acc-sub-fg: #111111;
+  --pay-acc-cell-bg: #FFF8DC; --pay-acc-cell-fg: #3D3D43;
+  --pay-tl-head-bg: #2F4A2F;  --pay-tl-head-fg: #FFFFFF;
+  --pay-tl-sub-bg: #3E5F3E;   --pay-tl-sub-fg: #FFFFFF;
+  --pay-tl-cell-bg: #E8F5E9;  --pay-tl-cell-fg: #2B3A2B;
+  --pay-inv-head-bg: #6B6B6B; --pay-inv-head-fg: #FFFFFF;
+  --pay-inv-sub-bg: #8A8A8A;  --pay-inv-sub-fg: #FFFFFF;
+  --pay-inv-cell-bg: #F5F5F5; --pay-inv-cell-fg: #3D3D43;
+  --pay-done-bg: #D1FAE5;     --pay-done-fg: #065F46;
+  --pay-warn-fg: #B45309;
+
   /* ── SEMANTIC UI COLOURS — LIGHT (Figma "Basic UI Colors", Light Mode) ── */
   --ui-page-bg: #FFFFFF;
   --ui-surface: var(--color-primary-50);
@@ -498,6 +512,19 @@
 }
 
 .dark {
+  /* ── PAYMENTS "GREEN TABLE" — DARK ── */
+  --pay-acc-head-bg: #7A5A0A; --pay-acc-head-fg: #FFF4D6;
+  --pay-acc-sub-bg: #5C4A16;  --pay-acc-sub-fg: #F6E7B8;
+  --pay-acc-cell-bg: #231E12; --pay-acc-cell-fg: #EDE3C6;
+  --pay-tl-head-bg: #1B2E1C;  --pay-tl-head-fg: #DDF0DF;
+  --pay-tl-sub-bg: #284329;   --pay-tl-sub-fg: #DDF0DF;
+  --pay-tl-cell-bg: #142017;  --pay-tl-cell-fg: #CFE5D2;
+  --pay-inv-head-bg: #3A3A40; --pay-inv-head-fg: #EEEEEE;
+  --pay-inv-sub-bg: #4A4A52;  --pay-inv-sub-fg: #EEEEEE;
+  --pay-inv-cell-bg: #1C1C20; --pay-inv-cell-fg: #DDDDDD;
+  --pay-done-bg: #064E3B;     --pay-done-fg: #A7F3D0;
+  --pay-warn-fg: #FBBF24;
+
   /* ── SEMANTIC UI COLOURS — DARK (Figma "Basic UI Colors", Dark Mode) ── */
   --ui-page-bg: var(--color-primary-950);
   --ui-surface: var(--color-primary-700);

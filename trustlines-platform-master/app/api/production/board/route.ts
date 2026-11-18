@@ -17,9 +17,16 @@ interface DbItem {
   pf_usd: number | null; pf_tl: number | null; invoice: number | null; invoice_tl: number | null;
   payment_rule: string | null; container_no: string | null; container_date: string | null; sort_index: number | null;
   trust_id?: string | null; case_id?: string | null; custom_type_code?: string | null;
+  paid_usd1?: number | null; paid_usd2?: number | null; paid_tl1?: number | null; paid_tl2?: number | null;
+  paid_usd1_date?: string | null; paid_usd2_date?: string | null; paid_tl1_date?: string | null; paid_tl2_date?: string | null;
+  invoice_number?: string | null; invoice_transaction_no?: string | null; invoice_date?: string | null;
+  quick_book?: string | null; due_paid?: boolean | null;
 }
 
-export async function GET() {
+// The accounting "green table" columns: sent only to roles with the Payments page that ask for them.
+const PAY_COLS = ', paid_usd1, paid_usd2, paid_tl1, paid_tl2, paid_usd1_date, paid_usd2_date, paid_tl1_date, paid_tl2_date, invoice_number, invoice_transaction_no, invoice_date, quick_book, due_paid';
+
+export async function GET(req: Request) {
   const { user, unauth } = await requireUser();
   if (!user) return unauth;
 
@@ -35,6 +42,8 @@ export async function GET() {
   const acc = productionAccess(role, perms);
   if (!pageAllowed(role, perms, 'page.production') && !payments) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const showMoney = acc.viewMoney || payments;
+  const withPay = payments && new URL(req.url).searchParams.get('payments') === '1';
+  const pay = withPay ? PAY_COLS : '';
   const tabs = payments ? { projects: true, directOrders: true, missingExtra: true }
     : { projects: acc.tabProjects, directOrders: acc.tabDirectOrders, missingExtra: acc.tabMissingExtra };
 
@@ -58,7 +67,7 @@ export async function GET() {
 
   const { data: items } = await admin
     .from('production_items')
-    .select('id, project_id, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index, trust_id, custom_type_code')
+    .select(`id, project_id, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index, trust_id, custom_type_code${pay}`)
     .in('project_id', projectIds)
     .eq('source', 'project')
     .is('deleted_at', null) as { data: DbItem[] | null };
@@ -98,7 +107,7 @@ export async function GET() {
   const caseIds = (cases ?? []).map(c => c.id);
   const { data: extraItems } = caseIds.length ? await admin
     .from('production_items')
-    .select('id, project_id, case_id, source, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index, trust_id, custom_type_code')
+    .select(`id, project_id, case_id, source, type, vendor_id, pf_code, order_type, po_sign_status, pf_sign_status, status, std, etd, rtd, rtr, rdy, ftd, snd, pf_usd, pf_tl, invoice, invoice_tl, payment_rule, container_no, container_date, sort_index, trust_id, custom_type_code${pay}`)
     .in('case_id', caseIds)
     .is('deleted_at', null) as { data: DbItem[] | null } : { data: [] as DbItem[] };
 
@@ -129,6 +138,12 @@ export async function GET() {
     pfUsd: showMoney ? it.pf_usd ?? 0 : 0, pfTl: showMoney ? it.pf_tl ?? 0 : 0,
     invoice: showMoney ? it.invoice ?? 0 : 0, invoiceTl: showMoney ? it.invoice_tl ?? 0 : 0,
     paymentRule: it.payment_rule, containerNo: it.container_no, containerDate: it.container_date,
+    ...(withPay ? {
+      paidUsd1: it.paid_usd1 ?? null, paidUsd2: it.paid_usd2 ?? null, paidTl1: it.paid_tl1 ?? null, paidTl2: it.paid_tl2 ?? null,
+      paidUsd1Date: it.paid_usd1_date ?? null, paidUsd2Date: it.paid_usd2_date ?? null, paidTl1Date: it.paid_tl1_date ?? null, paidTl2Date: it.paid_tl2_date ?? null,
+      invoiceNumber: it.invoice_number ?? null, invoiceTransactionNo: it.invoice_transaction_no ?? null, invoiceDate: it.invoice_date ?? null,
+      quickBook: it.quick_book ?? null, duePaid: it.due_paid ?? null,
+    } : {}),
   });
 
   const boardProjects: PProject[] = projects.map(p => {

@@ -43,7 +43,12 @@ const halfLabel = (t: string) => (t === 'UNASSIGNED' ? 'Unassigned' : `${t.split
 const containerKey = (s: string | null | undefined) => String(s ?? '').trim().toLowerCase();
 const statusLabel = new Map(STATUS_OPTIONS.map(o => [o.value, o.label]));
 
-export function ProductionClient({ access, canAddProject = false }: { access: ProductionAccess; canAddProject?: boolean }) {
+export function ProductionClient({ access, canAddProject = false, mode = 'production' }: {
+  access: ProductionAccess; canAddProject?: boolean;
+  /** 'payments': the Payments page — the same board, read only, with the accounting tables. */
+  mode?: 'production' | 'payments';
+}) {
+  const payMode = mode === 'payments';
   // Tabs the role may open (Roles page → Production Board).
   const tabs = TABS.filter(t => (t === 'Projects' ? access.tabProjects : t === 'Missing Extra' ? access.tabMissingExtra : access.tabDirectOrders));
   const [activeTab, setActiveTab] = useState<Tab>(tabs[0] ?? 'Projects');
@@ -67,7 +72,8 @@ export function ProductionClient({ access, canAddProject = false }: { access: Pr
 
   const load = useCallback(async () => {
     try {
-      const res  = await fetch('/api/production/board', { cache: 'no-store' });
+      const res  = await fetch(payMode ? '/api/production/board?payments=1' : '/api/production/board', { cache: 'no-store' });
+      if (!res.ok) throw new Error('board');
       const json = await res.json() as { projects?: PProject[]; directOrders?: PProject[]; missingExtra?: PProject[] };
       setData({
         'Projects':      json.projects     ?? [],
@@ -77,7 +83,7 @@ export function ProductionClient({ access, canAddProject = false }: { access: Pr
     } catch {
       setData(EMPTY);
     }
-  }, []);
+  }, [payMode]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
@@ -249,8 +255,10 @@ export function ProductionClient({ access, canAddProject = false }: { access: Pr
     <div className="full-bleed-page flex w-full flex-col gap-[30px]" style={{ padding: '28px', boxSizing: 'border-box' }}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-[5px] leading-[1.35]">
-          <PageCrumbs items={[{ label: 'Operations', href: '/production' }, { label: 'Production Board', href: '/production' }]} />
-          <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">Production Board</h1>
+          <PageCrumbs items={payMode
+            ? [{ label: 'Finance', href: '/payments' }, { label: 'Payments', href: '/payments' }]
+            : [{ label: 'Operations', href: '/production' }, { label: 'Production Board', href: '/production' }]} />
+          <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">{payMode ? 'Payments' : 'Production Board'}</h1>
           <p className="m-0 text-[13px] text-ui-body">
             {activeTab} · {projectCount} project{projectCount === 1 ? '' : 's'} across {regionCount} {grouped ? 'group' : 'region'}{regionCount === 1 ? '' : 's'}
           </p>
@@ -263,7 +271,7 @@ export function ProductionClient({ access, canAddProject = false }: { access: Pr
             {exporting ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <FolderOutput size={16} aria-hidden />}
             Export Excel
           </button>}
-          {canAddProject && (
+          {canAddProject && !payMode && (
             <Link href="/projects/new" className="inline-flex h-9 items-center gap-2 rounded-[6px] bg-ui-btn-accent px-6 text-[13px] font-medium text-ui-btn-accent-fg no-underline hover:brightness-95">
               <Plus size={16} aria-hidden /> Add Project
             </Link>
@@ -302,7 +310,7 @@ export function ProductionClient({ access, canAddProject = false }: { access: Pr
             <MultiFilter key={k} label={FILTER_LABEL[k]} options={options[k]} selected={sel[k]}
               onChange={next => setSel(prev => ({ ...prev, [k]: next }))} />
           ))}
-          {projectsTab && (
+          {projectsTab && !payMode && (
             <Menu>
               <MenuTrigger render={<Button size="toolbar" />}>
                 <Pencil size={14} aria-hidden /> Edit
@@ -313,7 +321,7 @@ export function ProductionClient({ access, canAddProject = false }: { access: Pr
               </MenuContent>
             </Menu>
           )}
-          <QuickChips tokens={quick} onToggle={toggleQuick} flags={pf.flags} groups={pf.groups} projectsTab={projectsTab} showPf={access.viewPf} />
+          {!payMode && <QuickChips tokens={quick} onToggle={toggleQuick} flags={pf.flags} groups={pf.groups} projectsTab={projectsTab} showPf={access.viewPf} />}
         </div>
 
         {chips.length > 0 && (
@@ -368,6 +376,7 @@ export function ProductionClient({ access, canAddProject = false }: { access: Pr
           <OperationalBoard sections={sections} access={access}
             groups={pf.groups} onGroupsChanged={() => void pf.reload()} onSaved={() => void load()}
             groupRanks={grouped ? groupRanks : undefined}
+            payments={payMode}
             selection={access.half ? {
               selected: picked, visible: selecting,
               toggle: id => { setSelecting(true); setPicked(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; }); },

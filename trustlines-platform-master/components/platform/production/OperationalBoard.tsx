@@ -19,6 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ProjectMenu } from './ProjectMenu';
 import type { ProductionAccess } from '@/lib/production/access';
 import type { PfGroup } from './ProductionFlags';
+import { rowAccounting, type RowAccounting } from '@/lib/production/paymentsAccounting';
 import { EditItemPanel, OrderTypePicker, RowMenu, VendorPicker, useBoardLists, type PanelItem } from './BoardEditors';
 import {
   PF_SIGN_OPTIONS, PO_SIGN_OPTIONS, STATUS_OPTIONS, currentFirst, normalizeSign, normalizeStatus, poRollup,
@@ -221,6 +222,101 @@ function headAddress(p: { projectName?: string }): string {
   return parts.slice(1).join(' - ').trim();
 }
 
+// ── Payments page (the accounting "green table"): three tables to the right of the board's
+// columns — Accounting (gold), Payments T Lines (green), Invoice & Receipt (grey) — coloured by
+// the --pay-* tokens (globals.css, light + dark). Read only: payments are entered through the
+// payment approval, not here.
+type PayGroup = 'acc' | 'tl' | 'inv';
+type PayKind = 'usd' | 'tl' | 'date' | 'text' | 'qb';
+interface PayCol { key: string; group: PayGroup; label: string; kind: PayKind; w: number; get: (it: PItem, a: RowAccounting) => number | string | null | undefined }
+const PAY_GROUPS: { group: PayGroup; title: string }[] = [
+  { group: 'acc', title: 'Accounting' }, { group: 'tl', title: 'Payments T Lines' }, { group: 'inv', title: 'Invoice & Receipt' },
+];
+const PAY_COLS: PayCol[] = [
+  { key: 'paidUsd1', group: 'acc', label: '1st Paid/USD', kind: 'usd', w: 108, get: (_, a) => a.paidUsd1 },
+  { key: 'paidUsd1Date', group: 'acc', label: '1st Date', kind: 'date', w: 96, get: it => it.paidUsd1Date },
+  { key: 'paidUsd2', group: 'acc', label: '2nd Paid/USD', kind: 'usd', w: 108, get: (_, a) => a.paidUsd2 },
+  { key: 'paidUsd2Date', group: 'acc', label: '2nd Date', kind: 'date', w: 96, get: it => it.paidUsd2Date },
+  { key: 'paidTl1', group: 'acc', label: '1st Paid/TL', kind: 'tl', w: 108, get: (_, a) => a.paidTl1 },
+  { key: 'paidTl1Date', group: 'acc', label: '1st Date', kind: 'date', w: 96, get: it => it.paidTl1Date },
+  { key: 'paidTl2', group: 'acc', label: '2nd Paid/TL', kind: 'tl', w: 108, get: (_, a) => a.paidTl2 },
+  { key: 'paidTl2Date', group: 'acc', label: '2nd Date', kind: 'date', w: 96, get: it => it.paidTl2Date },
+  { key: 'remUsd', group: 'acc', label: 'Remaining USD', kind: 'usd', w: 116, get: (_, a) => a.remainingUsd },
+  { key: 'remTl', group: 'acc', label: 'Remaining TL', kind: 'tl', w: 116, get: (_, a) => a.remainingTl },
+  { key: 'noUsd', group: 'acc', label: 'Not Ordered USD', kind: 'usd', w: 124, get: (_, a) => a.notOrderedUsd },
+  { key: 'noTl', group: 'acc', label: 'Not Ordered TL', kind: 'tl', w: 124, get: (_, a) => a.notOrderedTl },
+  // Due Payment: the rule is still to be confirmed by the user, so it stays empty for now.
+  { key: 'dueUsd', group: 'tl', label: 'Due USD', kind: 'usd', w: 100, get: () => null },
+  { key: 'dueTl', group: 'tl', label: 'Due TL', kind: 'tl', w: 100, get: () => null },
+  { key: 'pay1Usd', group: 'tl', label: 'Payments 1 USD', kind: 'usd', w: 120, get: (_, a) => a.paidUsd1 },
+  { key: 'pay1Tl', group: 'tl', label: 'Payments 1 TL', kind: 'tl', w: 120, get: (_, a) => a.paidTl1 },
+  { key: 'pay2Usd', group: 'tl', label: 'Payments 2 USD', kind: 'usd', w: 120, get: (_, a) => a.paidUsd2 },
+  { key: 'pay2Tl', group: 'tl', label: 'Payments 2 TL', kind: 'tl', w: 120, get: (_, a) => a.paidTl2 },
+  { key: 'txNo', group: 'inv', label: 'Transaction No', kind: 'text', w: 130, get: it => it.invoiceTransactionNo },
+  { key: 'invNo', group: 'inv', label: 'Invoice Number', kind: 'text', w: 170, get: it => it.invoiceNumber },
+  { key: 'qb', group: 'inv', label: 'QuickBook', kind: 'qb', w: 100, get: it => it.quickBook },
+  { key: 'invDate', group: 'inv', label: 'Date', kind: 'date', w: 100, get: it => it.invoiceDate },
+];
+const GROUP_H = 32;
+// A gap before each table, so the board and the three tables stand apart (rows stay aligned:
+// they are the same table rows).
+const GAP_W = 20;
+const startsGroup = (i: number) => i === 0 || PAY_COLS[i - 1].group !== PAY_COLS[i].group;
+function Gap({ head }: { head?: boolean }) {
+  return head
+    ? <th rowSpan={2} aria-hidden className="sticky top-0 z-20 border-0 bg-ui-page-bg p-0" />
+    : <td aria-hidden className="border-0 bg-ui-page-bg p-0" />;
+}
+const payVar = (g: PayGroup, part: 'head' | 'sub' | 'cell') => ({ background: `var(--pay-${g}-${part}-bg)`, color: `var(--pay-${g}-${part}-fg)` });
+const payMoney = (kind: PayKind, n: number) => `${kind === 'usd' ? '$' : '₺'} ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function payText(c: PayCol, v: number | string | null | undefined): string {
+  if (c.kind === 'usd' || c.kind === 'tl') { const n = toNumber(v as number); return n ? payMoney(c.kind, n) : ''; }
+  if (c.kind === 'date') return shortDate(v);
+  return v == null ? '' : String(v);
+}
+/** The totals of the money columns over some rows. */
+function payTotals(items: PItem[]): Record<string, number> {
+  const t: Record<string, number> = {};
+  for (const it of items) {
+    const a = rowAccounting(it);
+    for (const c of PAY_COLS) if (c.kind === 'usd' || c.kind === 'tl') t[c.key] = (t[c.key] ?? 0) + toNumber(c.get(it, a) as number);
+  }
+  return t;
+}
+function PayCells({ item }: { item: PItem }) {
+  const a = rowAccounting(item);
+  return (
+    <>
+      {PAY_COLS.map((c, i) => {
+        const v = c.get(item, a);
+        const warn = a.notSigned && (c.key === 'remUsd' || c.key === 'remTl') && toNumber(v as number) > 0;
+        return (
+          <Fragment key={c.key}>{startsGroup(i) && <Gap />}<td className={cn(TD, (c.kind === 'usd' || c.kind === 'tl') && 'text-right')} style={payVar(c.group, 'cell')}
+            title={warn ? 'PF not signed yet' : undefined}>
+            {c.kind === 'qb' && v ? (
+              <span className="inline-flex items-center rounded-[4px] px-2 py-0.5 text-[12px] font-medium" style={{ background: 'var(--pay-done-bg)', color: 'var(--pay-done-fg)' }}>{String(v)}</span>
+            ) : warn ? <span style={{ color: 'var(--pay-warn-fg)' }}>{payText(c, v)}</span> : payText(c, v)}
+          </td></Fragment>
+        );
+      })}
+    </>
+  );
+}
+function PayTotalCells({ totals }: { totals: Record<string, number> }) {
+  return (
+    <>
+      {PAY_COLS.map((c, i) => (
+        <Fragment key={c.key}>
+          {startsGroup(i) && <Gap />}
+          <td className="border-y border-r border-ui-divider px-2 py-2.5 text-right text-[12px] font-semibold whitespace-nowrap" style={payVar(c.group, 'sub')}>
+            {c.kind === 'usd' || c.kind === 'tl' ? payMoney(c.kind, totals[c.key] ?? 0) : ''}
+          </td>
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
 function MoneyChip({ col, value }: { col: ColumnKey; value: number }) {
   return (
     <span className="inline-flex min-w-[70px] items-center justify-center whitespace-nowrap rounded-[4px] bg-ui-page-bg py-1 pl-2.5 pr-2 text-[12px] font-medium leading-4 text-[var(--color-secondary-700)] dark:text-ui-heading">
@@ -229,8 +325,10 @@ function MoneyChip({ col, value }: { col: ColumnKey; value: number }) {
   );
 }
 
-export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], onGroupsChanged, onSaved, groupRanks, selection }: {
+export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], onGroupsChanged, onSaved, groupRanks, selection, payments = false }: {
   sections: PSection[];
+  /** Payments page: the Accounting / Payments T Lines / Invoice & Receipt tables to the right. */
+  payments?: boolean;
   /** Roles page → Production Board switches. */
   access?: ProductionAccess;
   groups?: PfGroup[]; onGroupsChanged?: () => void; onSaved?: () => void;
@@ -266,7 +364,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
   const [projMenu, setProjMenu] = useState<{ project: PProject; headKey: string } | null>(null);
   const [projToDelete, setProjToDelete] = useState<PProject | null>(null);
   const openProjMenu = (e: React.MouseEvent, project: PProject, headKey: string) => {
-    if (!project.id) return;
+    if (!project.id || payments) return; // Payments is read only: no project menu
     e.preventDefault();
     e.stopPropagation();
     setProjMenu(m => (m?.headKey === headKey ? null : { project, headKey }));
@@ -342,6 +440,10 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
 
   const moneyStart = COLS.indexOf('pfUsd');
   const afterMoney = COLS.length - COLS.indexOf('invoiceTl') - 1;
+  const payCols = payments ? PAY_COLS : [];
+  const span = cols.length + payCols.length + (payments ? PAY_GROUPS.length : 0);
+  // Payments: a group-title row sits over the column header, so the region bands stick lower.
+  const headH = payments ? HEAD_H + GROUP_H : HEAD_H;
 
   // The table body is the expensive part of this board (profiled: ~80 ms for 400 rows, ~310 ms for
   // 1,600). It depends only on the data, pending edits, collapsed groups, column widths and access /
@@ -477,6 +579,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
                             </td>
                           );
                         })}
+                        {payments && <PayCells item={item} />}
                       </tr>
                     );
                   });
@@ -485,7 +588,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
                 return (
                   <Fragment key={`proj-${pi}`}>
                     <tr data-project-head={key} onContextMenu={e => openProjMenu(e, project, key)}>
-                      <td colSpan={cols.length} className="border-y border-ui-divider p-2" style={barStyle}>
+                      <td colSpan={span} className="border-y border-ui-divider p-2" style={barStyle}>
                         <button
                           type="button" onClick={() => toggle(key)} aria-expanded={!isCollapsed}
                           aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} project ${project.projectNo}`}
@@ -509,6 +612,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
                           <td key={col} className="border-y border-ui-divider px-2 py-2.5" style={barStyle}><MoneyChip col={col} value={totals[col] ?? 0} /></td>
                         ))}
                         <td colSpan={afterMoney} className="border-y border-ui-divider" style={barStyle} />
+                        {payments && <PayTotalCells totals={payTotals(project.items || [])} />}
                       </tr>
                     )}
                   </Fragment>
@@ -522,8 +626,8 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
               return (
                 <Fragment key={`sec-${si}`}>
                   <tr>
-                    <td colSpan={cols.length} className="sticky z-[15] border-y border-ui-divider p-2 text-[#EEF2F6]"
-                      style={{ top: HEAD_H, background: section.group != null ? 'linear-gradient(90deg, #b91c1c, #ef4444)' : regionBg(section.label) }}>
+                    <td colSpan={span} className="sticky z-[15] border-y border-ui-divider p-2 text-[#EEF2F6]"
+                      style={{ top: headH, background: section.group != null ? 'linear-gradient(90deg, #b91c1c, #ef4444)' : regionBg(section.label) }}>
                       <button
                         type="button" onClick={() => toggle(regionKey)} aria-expanded={!regionClosed}
                         aria-label={`${regionClosed ? 'Expand' : 'Collapse'} ${regionTitle(section.label)}`}
@@ -543,6 +647,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
                       <td key={col} className="px-2 py-2.5" style={{ background: BOARD_CSS.sectionTotal.bg }}><MoneyChip col={col} value={secTotals[col] ?? 0} /></td>
                     ))}
                     <td colSpan={afterMoney} style={{ background: BOARD_CSS.sectionTotal.bg }} />
+                    {payments && <PayTotalCells totals={payTotals(section.projects.flatMap(p => p.items || []))} />}
                   </tr>}
                 </Fragment>
               );
@@ -550,7 +655,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
           </tbody>
     );
     return { body, groupsByKey };
-  }, [sections, pending, collapsed, colWidthKey, typeLeft, access, selection, groupRanks]);
+  }, [sections, pending, collapsed, colWidthKey, typeLeft, access, selection, groupRanks, payments]);
 
   if (!nonEmpty.length) {
     return (
@@ -564,20 +669,38 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
 
   return (
     <div className="overflow-auto rounded-[8px] border border-ui-divider" style={{ maxHeight: 'calc(100dvh - 220px)' }}>
-      <table className="table-fixed border-separate border-spacing-0" style={{ width: `max(${cols.reduce((t, c) => t + width(c), 0)}px, 100%)` }}>
+      <table className="table-fixed border-separate border-spacing-0" style={{ width: `max(${cols.reduce((t, c) => t + width(c), 0) + payCols.reduce((t, c) => t + c.w, 0) + (payments ? PAY_GROUPS.length * GAP_W : 0)}px, 100%)` }}>
         <colgroup>
           {cols.map(c => <col key={c} style={{ width: width(c) }} />)}
+          {payCols.map((c, i) => <Fragment key={c.key}>{startsGroup(i) && <col style={{ width: GAP_W }} />}<col style={{ width: c.w }} /></Fragment>)}
         </colgroup>
         <thead>
           <tr>
             {cols.map(col => (
-              <th key={col} className={cn('sticky top-0 z-20 whitespace-nowrap border-b border-r border-ui-divider bg-ui-surface px-2 text-left text-[12px] font-semibold leading-[1.4] text-ui-body', col === 'projectNo' && 'left-0 z-30', col === 'type' && 'z-30')}
-                style={{ height: HEAD_H, ...(col === 'type' ? { left: typeLeft } : {}) }}>
+              <th key={col} rowSpan={payments ? 2 : undefined} className={cn('sticky top-0 z-20 whitespace-nowrap border-b border-r border-ui-divider bg-ui-surface px-2 text-left text-[12px] font-semibold leading-[1.4] text-ui-body', col === 'projectNo' && 'left-0 z-30', col === 'type' && 'z-30')}
+                style={{ height: headH, ...(col === 'type' ? { left: typeLeft } : {}) }}>
                 <ColumnResizer label={LABELS[col] ?? COLUMN_LABELS[col]} onResize={e => startResize(col, e)} onFit={() => fit(col)} />
                 {LABELS[col] ?? COLUMN_LABELS[col]}
               </th>
             ))}
+            {payments && PAY_GROUPS.map(g => (
+              <Fragment key={g.group}><Gap head /><th colSpan={PAY_COLS.filter(c => c.group === g.group).length}
+                className="sticky top-0 z-20 whitespace-nowrap border-b border-r border-ui-divider px-2 text-center text-[13px] font-bold uppercase tracking-[0.6px]"
+                style={{ height: GROUP_H, ...payVar(g.group, 'head') }}>
+                {g.title}
+              </th></Fragment>
+            ))}
           </tr>
+          {payments && (
+            <tr>
+              {PAY_COLS.map(c => (
+                <th key={c.key} className="sticky z-20 whitespace-nowrap border-b border-r border-ui-divider px-2 text-left text-[12px] font-semibold leading-[1.4]"
+                  style={{ top: GROUP_H, height: HEAD_H, ...payVar(c.group, 'sub') }}>
+                  {c.label}
+                </th>
+              ))}
+            </tr>
+          )}
         </thead>
         {body}
       </table>
