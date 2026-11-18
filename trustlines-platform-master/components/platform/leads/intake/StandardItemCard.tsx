@@ -20,6 +20,9 @@ export function StandardItemCard({ item, qty, onChange }: {
   onChange: (qty: number) => void;
 }) {
   const on = qty > 0;
+  // Selected stepper: dark green with white icon; in dark mode the t9 pair flips (light green bg),
+  // so the icon takes the dark green to stay visible.
+  const onBtn = 'bg-[var(--status-t9-fg)] text-white dark:text-[var(--status-t9-bg)]';
   const fg = on ? 'text-[var(--status-t9-fg)]' : 'text-[var(--color-secondary-700)] dark:text-ui-heading';
   const stepBtn = 'flex flex-1 items-center justify-center rounded-[4px] px-3 py-1 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-secondary-700)] disabled:cursor-not-allowed';
   const meta = [
@@ -59,7 +62,7 @@ export function StandardItemCard({ item, qty, onChange }: {
           type="button"
           aria-label={`Add one ${item.name}`}
           onClick={() => onChange(qty + 1)}
-          className={`${stepBtn} text-white ${on ? 'bg-[var(--status-t9-fg)]' : 'bg-[var(--color-secondary-700)] dark:bg-primary-50 dark:text-primary-950'}`}
+          className={`${stepBtn} ${on ? onBtn : 'bg-[var(--color-secondary-700)] text-white dark:bg-primary-50 dark:text-primary-950'}`}
         >
           <Plus size={12} aria-hidden />
         </button>
@@ -79,7 +82,7 @@ export function StandardItemCard({ item, qty, onChange }: {
           aria-label={`Remove one ${item.name}`}
           disabled={!on}
           onClick={() => onChange(qty - 1)}
-          className={`${stepBtn} ${on ? 'bg-[var(--status-t9-fg)] text-white' : 'bg-[var(--status-t0-bg)] text-[var(--status-t0-fg)]'}`}
+          className={`${stepBtn} ${on ? onBtn : 'bg-[var(--status-t0-bg)] text-[var(--status-t0-fg)]'}`}
         >
           <Minus size={12} aria-hidden />
         </button>
