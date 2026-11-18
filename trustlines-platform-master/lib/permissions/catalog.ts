@@ -41,7 +41,8 @@ export const PAGE_ROUTES: { key: string; route: string }[] = [
   { key: 'page.leads_trash',     route: '/leads/trash' },
   { key: 'page.production',      route: '/production' },
   { key: 'page.qc',              route: '/qc' },
-  { key: 'page.it',              route: '/it/tickets' },
+  { key: 'page.it_requests',     route: '/it/tickets' },
+  { key: 'page.it',              route: '/it/items' },
   { key: 'page.logistics',       route: '/logistics' },
   { key: 'page.management',      route: '/management' },
   { key: 'page.tlines_dashboard', route: '/tlines-dashboard' },
@@ -146,7 +147,8 @@ export const PERMISSION_GROUPS: PermGroup[] = [
   {
     category: 'page', title: 'Pages · IT', icon: '🖥️',
     perms: [
-      { key: 'page.it', label: 'IT Tickets', hint: 'IT requests sent by the team. Defaults to General Manager and Ops Manager until switched on per role.' },
+      { key: 'page.it_requests', label: 'Send IT requests', hint: 'IT → Tickets: send a request to IT and follow your own. On for every role until switched off.' },
+      { key: 'page.it', label: 'IT management', hint: 'Every ticket, the Items Library and IT → Staff Members. Defaults to General Manager and Ops Manager until switched on per role.' },
     ],
   },
   {
@@ -179,6 +181,7 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'edit.team',      label: 'Invite / edit / remove members' },
       { key: 'edit.roles',     label: 'Manage roles & permissions' },
       { key: 'edit.production', label: 'Change production board / statuses' },
+      { key: 'edit.it', label: 'Handle IT tickets & equipment', hint: 'Close tickets as solved / not solved, Access Computer, and add / edit / delete IT items. GM and Ops Manager until set separately.' },
       { key: 'edit.payments', label: 'Edit payments', hint: 'Finance → Payments: paid amounts and dates, transaction / invoice numbers, QuickBook. GM and accounting until set separately.' },
       { key: 'edit.installation', label: 'Edit the installation plan & teams', hint: 'Off → can open T-Lines PM → Installation but not change it. GM, ops manager and PMs until set separately.' },
     ],
@@ -321,6 +324,8 @@ export const PAGE_PARENT: Record<string, string> = {
 export const PAGE_LEGACY_ROLES: Record<string, string[]> = {
   // Payments (the accounting sheet) is filled in by accounting; the GM can change it too.
   'edit.payments': ['general_manager', 'accountant', 'accounting'],
+  // IT: who closes tickets and keeps the equipment list — the same two roles that saw the IT page.
+  'edit.it': ['general_manager', 'ops_manager'],
   // Who could edit the installation plan before it had its own switch (lib/installations/access).
   'edit.installation': ['general_manager', 'ops_manager', 'tlines_pm', 'trustlines_pm'],
   // Deleting a whole project from the Production Board was these roles only.
@@ -346,7 +351,7 @@ export const PAGE_LEGACY_ROLES: Record<string, string[]> = {
 /** Keys every role has until an admin switches them off — the popup tabs everyone saw at first. */
 // page.my_workspace: personal pages (My meetings and Notifications were open to every signed-in
 // person before they moved into My Workspace).
-export const PERM_DEFAULT_ON = new Set(['page.my_workspace', 'view.card_deal', 'view.card_finalization', 'view.card_po_pf', 'view.card_production', 'view.card_shipping', 'view.card_installation']);
+export const PERM_DEFAULT_ON = new Set(['page.my_workspace', 'page.it_requests', 'view.card_deal', 'view.card_finalization', 'view.card_po_pf', 'view.card_production', 'view.card_shipping', 'view.card_installation']);
 
 /** Whether `role` (with its effective permission map) may open the page behind `key`. */
 export function pageAllowed(role: string | null | undefined, perms: PermMap | null | undefined, key: string): boolean {

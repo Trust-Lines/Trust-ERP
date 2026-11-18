@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
 import { toast } from 'sonner';
 import {
@@ -24,8 +25,10 @@ import {
   Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ConfirmModal } from '@/components/ui/modal';
 import { MonitorPcIcon } from './MonitorPcIcon';
-import { NOT_CONNECTED_TITLE, formatTicketDate } from './ticketStyles';
+import { formatTicketDate } from './ticketStyles';
+import { ItItemFormDialog, type ItItemFormValues } from './ItItemFormDialog';
 import {
   CATEGORY_CHIP,
   CATEGORY_LABEL,
@@ -51,6 +54,8 @@ export interface ItItemDetailData extends ItItem {
   assignee: { name: string; role: string | null; acquiredAt: string | null } | null;
   /** Other items in the same set ("Grouped With"). */
   groupedWith: ItItem[];
+  /** Raw values for the Edit form. */
+  form: { assigneeId: string | null; remoteAddress: string | null; specs: Record<string, string> };
 }
 
 type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -108,15 +113,7 @@ function GroupedCard({ item }: { item: ItItem }) {
             </Link>
             <span className={cn('text-[13px] tracking-[0.39px]', MUTED)}>{formatItemDate(item.addedAt)}</span>
           </div>
-          <button
-            type="button"
-            disabled
-            aria-label={`More actions for ${item.name}`}
-            title={NOT_CONNECTED_TITLE}
-            className={cn('relative z-10 grid h-[18px] w-[18px] shrink-0 place-items-center disabled:cursor-not-allowed', STRONG)}
-          >
-            <Ellipsis className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden="true" />
-          </button>
+          <Ellipsis className={cn('h-[18px] w-[18px] shrink-0', STRONG)} strokeWidth={2} aria-hidden="true" />
         </div>
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-1">
@@ -176,9 +173,38 @@ function printLabel(name: string, url: string, qr: string) {
   img.src = qr;
 }
 
-export function ItItemDetailClient({ item }: { item: ItItemDetailData | null }) {
+export function ItItemDetailClient({ item, canEdit = false, assignees = [], startEditing = false }: {
+  item: ItItemDetailData | null;
+  /** edit.it: Delete, Edit Info, Add to Set, Access Computer. */
+  canEdit?: boolean;
+  assignees?: { id: string; name: string }[];
+  /** Opened from a card's "Edit Info" (?edit=1). */
+  startEditing?: boolean;
+}) {
+  const router = useRouter();
   const [itemUrl, setItemUrl] = useState<string | null>(null);
   const [qr, setQr] = useState<string | null>(null);
+  const [editing, setEditing] = useState(startEditing && canEdit && !!item);
+  const [deleting, setDeleting] = useState(false);
+
+  const formValues: ItItemFormValues | null = item ? {
+    id: item.id, name: item.name, model: item.model ?? '', category: item.category, location: item.location ?? '',
+    status: item.status, assigneeId: item.form.assigneeId ?? '', setLabel: item.setLabel ?? '', notes: item.notes ?? '',
+    specs: item.form.specs, remoteAddress: item.form.remoteAddress ?? '',
+  } : null;
+
+  async function remove() {
+    if (!item) return;
+    const res = await fetch(`/api/it/items/${item.id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const j = await res.json().catch(() => null) as { error?: string } | null;
+      toast.error(j?.error ?? 'Could not delete the item');
+      throw new Error('delete failed');
+    }
+    toast.success(`${item.name} deleted`);
+    router.push('/it/items');
+    router.refresh();
+  }
 
   // The label points at this item's page; built in the browser from the current origin.
   useEffect(() => {
@@ -227,11 +253,23 @@ export function ItItemDetailClient({ item }: { item: ItItemDetailData | null }) 
               {item ? [item.model, formatItemDate(item.addedAt)].filter(Boolean).join(' · ') : '—'}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {canEdit && item?.form.remoteAddress && (
+              <a
+                href={`/api/it/items/${item.id}/rdp`}
+                download
+                title={`Remote Desktop to ${item.form.remoteAddress}`}
+                className="flex h-10 items-center gap-2 rounded-md bg-accent-400 pl-3.5 pr-5 text-[13px] font-semibold text-white no-underline hover:opacity-90 dark:text-primary-950"
+              >
+                <MonitorPcIcon className="h-4 w-4" strokeWidth={2} />
+                Access Computer
+              </a>
+            )}
             <button
               type="button"
-              disabled
-              title={NOT_CONNECTED_TITLE}
+              disabled={!canEdit || !item}
+              onClick={() => setDeleting(true)}
+              title={canEdit ? undefined : 'Your role cannot change IT items'}
               className={cn('flex h-10 items-center gap-2 rounded-md border border-solid pl-3.5 pr-5 text-[13px] font-medium', DISABLED)}
               style={{ background: 'var(--status-t10-bg)', borderColor: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' }}
             >
@@ -240,8 +278,9 @@ export function ItItemDetailClient({ item }: { item: ItItemDetailData | null }) 
             </button>
             <button
               type="button"
-              disabled
-              title={NOT_CONNECTED_TITLE}
+              disabled={!canEdit || !item}
+              onClick={() => setEditing(true)}
+              title={canEdit ? undefined : 'Your role cannot change IT items'}
               className={cn('flex h-10 items-center gap-2 rounded-md pl-3.5 pr-5 text-[13px] font-medium', SOLID_CHIP, DISABLED)}
             >
               <Pencil className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
@@ -287,6 +326,7 @@ export function ItItemDetailClient({ item }: { item: ItItemDetailData | null }) 
                   <Field label="Added Date" icon={CalendarPlus}>{formatTicketDate(item?.addedAt ?? null)}</Field>
                   <Field label="Last Update" icon={CalendarClock}>{formatTicketDate(item?.updatedAt ?? null)}</Field>
                 </div>
+                {item?.form.remoteAddress && <Field label="Remote address" icon={MonitorPcIcon}>{item.form.remoteAddress}</Field>}
                 <Field label="Notes">{item?.notes || <Placeholder>No notes</Placeholder>}</Field>
               </div>
             </div>
@@ -324,8 +364,9 @@ export function ItItemDetailClient({ item }: { item: ItItemDetailData | null }) 
               <h2 id="it-item-group" className={PANEL_TITLE}>Grouped With</h2>
               <button
                 type="button"
-                disabled
-                title={NOT_CONNECTED_TITLE}
+                disabled={!canEdit || !item}
+                onClick={() => setEditing(true)}
+                title={canEdit ? 'Give this item a set name; items with the same set are grouped' : 'Your role cannot change IT items'}
                 className={cn('flex items-center gap-1 rounded-md bg-accent-400 py-1.5 pl-2.5 pr-3.5 text-[13px] font-semibold text-white dark:text-primary-950', DISABLED)}
               >
                 <Plus className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
@@ -397,6 +438,24 @@ export function ItItemDetailClient({ item }: { item: ItItemDetailData | null }) 
           </div>
         </aside>
       </div>
+
+      {editing && formValues && (
+        <ItItemFormDialog
+          initial={formValues}
+          assignees={assignees}
+          onClose={() => setEditing(false)}
+          onSaved={() => { setEditing(false); router.replace(`/it/items/${item!.id}`); router.refresh(); }}
+        />
+      )}
+      <ConfirmModal
+        open={deleting}
+        onOpenChange={setDeleting}
+        title="Delete item?"
+        description={item ? `${item.name} is removed from the Items Library.` : undefined}
+        confirmLabel="Delete"
+        tone="destructive"
+        onConfirm={remove}
+      />
     </div>
   );
 }

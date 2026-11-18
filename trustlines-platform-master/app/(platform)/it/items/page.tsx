@@ -1,10 +1,14 @@
-import { requirePage } from '@/lib/permissions/requirePage';
+import { redirect } from 'next/navigation';
 import { ItItemsLibraryClient } from '@/components/platform/it/ItItemsLibraryClient';
+import { itContext, loadAssignees, loadItems } from '@/lib/it/server';
 
-// IT Items Library (Figma 843:41158). Same page switch as IT Tickets. There is no IT equipment
-// endpoint yet, so the list is passed in empty and no sample items are shown.
+// IT Items Library (Figma 843:41158): IT management (page.it) sees it; edit.it adds / edits /
+// deletes. Data: it_items (migration 155) via lib/it/server.
 export default async function ItItemsLibraryPage() {
-  await requirePage('page.it');
+  const ctx = await itContext();
+  if (!ctx) redirect('/login');
+  if (!ctx.canManage) redirect('/dashboard');
+  const [{ items, error }, assignees] = await Promise.all([loadItems(ctx), ctx.canEdit ? loadAssignees(ctx) : []]);
 
-  return <ItItemsLibraryClient items={[]} canCreate={false} />;
+  return <ItItemsLibraryClient items={items} error={error} canCreate={ctx.canEdit} assignees={assignees} />;
 }

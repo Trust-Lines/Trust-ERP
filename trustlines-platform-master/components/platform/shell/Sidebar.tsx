@@ -138,7 +138,7 @@ const MY_WORKSPACE_NAV: NavItem[] = [
 ];
 // IT (Figma "IT Tickets", 828:37587): one-page group, so the rail icon opens the tickets page.
 const IT_NAV: NavItem[] = [
-  { label: 'Tickets', href: '/it/tickets', icon: MonitorPcIcon, perm: 'page.it' },
+  { label: 'Tickets', href: '/it/tickets', icon: MonitorPcIcon, perm: 'page.it_requests' },
   // Figma "Items Library" (843:41158): the IT equipment list, same page switch as Tickets.
   { label: 'Items Library', href: '/it/items', icon: HardDrive, perm: 'page.it' },
   // Figma "IT / Staff Members" (879:13180): who holds which IT equipment.

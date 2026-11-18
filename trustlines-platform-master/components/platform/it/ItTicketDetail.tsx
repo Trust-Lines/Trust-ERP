@@ -1,20 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Check, Download, ExternalLink, FileText, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/platform/shared/Avatar';
+import { roleLabel } from '@/components/platform/shell/Sidebar';
+import type { TicketDetail } from '@/lib/it/server';
 import { MonitorPcIcon } from './MonitorPcIcon';
 import {
   CATEGORY_ICON,
   CATEGORY_TONE,
-  NOT_CONNECTED_TITLE,
   PRIORITY_LABEL,
   PRIORITY_TONE,
   formatTicketDate,
-  type ItTicketPriority,
-  type ItTicketTone,
 } from './ticketStyles';
 
 // Figma "Ticket detail": 828:38141 (awaiting decision), 862:46860 (solved) and 862:47715 (not solved);
@@ -27,28 +28,11 @@ export interface ItTicketAttachment {
   id: string;
   name: string;
   errorCode: string | null;
-  /** Only set once the file endpoint exists; the button stays disabled without it. */
   downloadUrl: string | null;
 }
 
-export interface ItTicketDetailData {
-  id: string;
-  subject: string;
-  /** ISO date the request was sent ("19 AUG 2026" under the subject). */
-  createdAt: string;
-  priority: ItTicketPriority;
-  categoryLabel: string;
-  categoryTone: ItTicketTone;
-  requesterName: string;
-  requesterRole: string;
-  /** The request message shown in the tinted panel. */
-  description: string;
-  /** Requester contact and dates, shown in a 3-column grid. */
-  details: { label: string; value: string | null }[];
-  /** `open` until someone marks the request solved or not solved. */
-  resolution: ItTicketResolution;
-  attachments: ItTicketAttachment[];
-}
+/** Built by loadTicketDetail (lib/it/server). */
+export type ItTicketDetailData = TicketDetail;
 
 // Light / dark per the Figma tokens: surfaces white / primary-950, borders primary-100 / primary-600,
 // strong text secondary-700 / secondary-50, muted text primary-400 / primary-200.
@@ -80,7 +64,7 @@ function AttachmentCard({ file }: { file: ItTicketAttachment }) {
         <button
           type="button"
           disabled={!file.downloadUrl}
-          title={file.downloadUrl ? undefined : NOT_CONNECTED_TITLE}
+          onClick={() => file.downloadUrl && window.open(file.downloadUrl, '_blank', 'noopener')}
           aria-label={`Download ${file.name}`}
           className={cn('flex h-[27px] shrink-0 items-center gap-2 rounded px-2 text-[11px] font-semibold', SOLID_BTN, DISABLED)}
         >
@@ -92,17 +76,51 @@ function AttachmentCard({ file }: { file: ItTicketAttachment }) {
   );
 }
 
-export function ItTicketDetailView({ ticket, titleId, closeHref = '/it/tickets' }: {
+export function ItTicketDetailView({ ticket, titleId, closeHref = '/it/tickets', canResolve = false }: {
   ticket: ItTicketDetailData | null;
   /** Id for the subject heading, so the dialog can point aria-labelledby at it. */
   titleId?: string;
   closeHref?: string;
+  /** edit.it: mark solved / not solved, sign and submit, Access Computer. */
+  canResolve?: boolean;
 }) {
+  const router = useRouter();
+  const [choice, setChoice] = useState<'solved' | 'not_solved' | null>(null);
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
   const priorityTone = ticket ? PRIORITY_TONE[ticket.priority] : null;
   const categoryTone = ticket ? CATEGORY_TONE[ticket.categoryTone] : null;
   const CategoryIcon = ticket ? CATEGORY_ICON[ticket.categoryTone] : null;
-  const resolution: ItTicketResolution = ticket?.resolution ?? 'open';
+  const closed: ItTicketResolution = ticket?.resolution ?? 'open';
+  // While open, the decision is the one being made here; once closed it's the stored one.
+  const resolution: ItTicketResolution = closed !== 'open' ? closed : choice ?? 'open';
   const decided = resolution !== 'open';
+  const editable = canResolve && closed === 'open';
+  const noteRequired = resolution === 'not_solved';
+
+  async function submit() {
+    if (!ticket || !choice) return;
+    if (choice === 'not_solved' && !note.trim()) {
+      toast.error('Write a note saying why it was not solved');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/it/tickets/${ticket.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: choice, note }),
+      });
+      const j = await res.json().catch(() => null) as { error?: string } | null;
+      if (!res.ok) throw new Error(j?.error ?? `Request failed (${res.status})`);
+      toast.success(choice === 'solved' ? 'Ticket closed as solved' : 'Ticket closed as not solved');
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not close the ticket');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="flex w-full flex-col gap-6 font-ui">
@@ -138,15 +156,27 @@ export function ItTicketDetailView({ ticket, titleId, closeHref = '/it/tickets' 
           >
             <X className="h-8 w-8" strokeWidth={1.5} aria-hidden="true" />
           </Link>
-          <button
-            type="button"
-            disabled
-            title={NOT_CONNECTED_TITLE}
-            className={cn('flex h-9 items-center gap-2 rounded-md bg-accent-400 pl-3 pr-4 text-[13px] font-semibold text-white dark:text-primary-950', DISABLED)}
-          >
-            <MonitorPcIcon className="h-4 w-4" strokeWidth={2} />
-            Access Computer
-          </button>
+          {canResolve && ticket?.remote ? (
+            <a
+              href={`/api/it/items/${ticket.remote.itemId}/rdp`}
+              download
+              title={`Remote Desktop to ${ticket.remote.name}`}
+              className="flex h-9 items-center gap-2 rounded-md bg-accent-400 pl-3 pr-4 text-[13px] font-semibold text-white no-underline hover:opacity-90 dark:text-primary-950"
+            >
+              <MonitorPcIcon className="h-4 w-4" strokeWidth={2} />
+              Access Computer
+            </a>
+          ) : canResolve ? (
+            <button
+              type="button"
+              disabled
+              title="No computer with a remote address is assigned to this person (Items Library → Edit Info)"
+              className={cn('flex h-9 items-center gap-2 rounded-md bg-accent-400 pl-3 pr-4 text-[13px] font-semibold text-white dark:text-primary-950', DISABLED)}
+            >
+              <MonitorPcIcon className="h-4 w-4" strokeWidth={2} />
+              Access Computer
+            </button>
+          ) : <span aria-hidden="true" />}
         </div>
       </div>
 
@@ -159,12 +189,16 @@ export function ItTicketDetailView({ ticket, titleId, closeHref = '/it/tickets' 
                 {ticket?.description || <span className="opacity-70">No request message</span>}
               </p>
             </div>
-            {resolution === 'solved' ? (
+            {!editable && closed === 'open' ? (
+              <div className="flex items-center justify-center rounded-md bg-primary-50 px-6 py-2.5 text-[13px] font-medium text-ui-body dark:bg-primary-700">
+                Waiting for IT
+              </div>
+            ) : closed !== 'open' && resolution === 'solved' ? (
               <div className="flex items-center justify-center gap-2 rounded-md bg-[var(--status-t9-bg)] px-6 py-2.5 text-[13px] font-medium text-[var(--status-t9-fg)]">
                 Solved
                 <Check className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
               </div>
-            ) : resolution === 'not_solved' ? (
+            ) : closed !== 'open' && resolution === 'not_solved' ? (
               <div className="flex items-center justify-center gap-2 rounded-md bg-[var(--status-t10-bg)] px-6 py-2.5 text-[13px] font-medium text-[var(--status-t10-fg)]">
                 Not Solved
                 <X className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
@@ -173,18 +207,18 @@ export function ItTicketDetailView({ ticket, titleId, closeHref = '/it/tickets' 
               <div className="flex gap-2">
                 <button
                   type="button"
-                  disabled
-                  title={NOT_CONNECTED_TITLE}
-                  className={cn('flex h-10 flex-1 items-center justify-center gap-2 rounded bg-[var(--color-error-normal)] px-6 text-[13px] font-medium text-white dark:text-primary-950', DISABLED)}
+                  aria-pressed={choice === 'not_solved'}
+                  onClick={() => setChoice('not_solved')}
+                  className={cn('flex h-10 flex-1 items-center justify-center gap-2 rounded bg-[var(--color-error-normal)] px-6 text-[13px] font-medium text-white transition-opacity dark:text-primary-950', choice === 'solved' && 'opacity-40', choice === 'not_solved' && 'ring-2 ring-[var(--color-error-normal)] ring-offset-2')}
                 >
                   Mark Not solved
                   <X className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
                 </button>
                 <button
                   type="button"
-                  disabled
-                  title={NOT_CONNECTED_TITLE}
-                  className={cn('flex h-10 flex-1 items-center justify-center gap-2 rounded bg-[var(--color-success-normal)] px-6 text-[13px] font-medium text-white dark:text-primary-950', DISABLED)}
+                  aria-pressed={choice === 'solved'}
+                  onClick={() => setChoice('solved')}
+                  className={cn('flex h-10 flex-1 items-center justify-center gap-2 rounded bg-[var(--color-success-normal)] px-6 text-[13px] font-medium text-white transition-opacity dark:text-primary-950', choice === 'not_solved' && 'opacity-40', choice === 'solved' && 'ring-2 ring-[var(--color-success-normal)] ring-offset-2')}
                 >
                   Mark Solved
                   <Check className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
@@ -197,13 +231,17 @@ export function ItTicketDetailView({ ticket, titleId, closeHref = '/it/tickets' 
           <div className={cn('flex flex-col gap-4 rounded-[10px] p-6', SURFACE)}>
             <label className="flex flex-col gap-4">
               <span className={cn('text-[12px] font-medium leading-4', decided ? 'text-ui-body' : 'text-primary-100 dark:text-primary-700')}>
-                {resolution === 'not_solved' ? 'Notes*' : 'Notes'}
+                {noteRequired && editable ? 'Notes*' : 'Notes'}
               </span>
               <textarea
-                disabled
-                placeholder="type.."
+                disabled={!editable || !decided || saving}
+                readOnly={closed !== 'open'}
+                value={closed !== 'open' ? (ticket?.resolutionNote ?? '') : note}
+                onChange={e => setNote(e.target.value)}
+                maxLength={4000}
+                placeholder={closed !== 'open' ? 'No notes' : 'type..'}
                 rows={8}
-                aria-required={resolution === 'not_solved' || undefined}
+                aria-required={(noteRequired && editable) || undefined}
                 className={cn(
                   'h-[180px] w-full resize-none rounded-md border border-solid p-3 text-[13px] disabled:cursor-not-allowed',
                   STRONG,
@@ -213,18 +251,24 @@ export function ItTicketDetailView({ ticket, titleId, closeHref = '/it/tickets' 
                 )}
               />
             </label>
-            <button
-              type="button"
-              disabled
-              title={decided ? NOT_CONNECTED_TITLE : undefined}
-              className={cn(
-                'flex h-10 items-center justify-center rounded-md px-6 text-[13px] font-medium',
-                decided ? SOLID_BTN : 'bg-primary-100 text-primary-500 dark:bg-primary-700 dark:text-primary-100',
-                DISABLED,
-              )}
-            >
-              {decided ? 'Sign and Submit' : 'Reject or approve first'}
-            </button>
+            {closed !== 'open' ? (
+              <p className="m-0 text-[12px] text-ui-body">
+                Closed by <span className="font-semibold">{ticket?.resolvedByName ?? '—'}</span> · {formatTicketDate(ticket?.resolvedAt ?? null)}
+              </p>
+            ) : editable ? (
+              <button
+                type="button"
+                disabled={!decided || saving || (noteRequired && !note.trim())}
+                onClick={() => void submit()}
+                className={cn(
+                  'flex h-10 items-center justify-center rounded-md px-6 text-[13px] font-medium',
+                  decided ? SOLID_BTN : 'bg-primary-100 text-primary-500 dark:bg-primary-700 dark:text-primary-100',
+                  DISABLED,
+                )}
+              >
+                {saving ? 'Submitting…' : decided ? 'Sign and Submit' : 'Reject or approve first'}
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -242,18 +286,18 @@ export function ItTicketDetailView({ ticket, titleId, closeHref = '/it/tickets' 
                   <p className={cn('m-0 text-[20px] font-semibold tracking-[-0.44px]', STRONG)}>
                     {ticket?.requesterName ?? <Placeholder>Requester</Placeholder>}
                   </p>
-                  <p className={cn('m-0 text-[14px] tracking-[-0.3px]', MUTED)}>{ticket?.requesterRole ?? '—'}</p>
+                  <p className={cn('m-0 text-[14px] tracking-[-0.3px]', MUTED)}>{ticket?.requesterRole ? roleLabel(ticket.requesterRole) : '—'}</p>
                 </div>
               </div>
-              <button
-                type="button"
-                disabled
-                aria-label="Open requester profile"
-                title={NOT_CONNECTED_TITLE}
-                className={cn('grid h-8 w-8 shrink-0 place-items-center rounded', SOLID_BTN, DISABLED)}
-              >
-                <ExternalLink className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
-              </button>
+              {canResolve && ticket?.requesterId ? (
+                <Link
+                  href={`/team/${ticket.requesterId}`}
+                  aria-label="Open requester profile"
+                  className={cn('grid h-8 w-8 shrink-0 place-items-center rounded hover:opacity-90', SOLID_BTN)}
+                >
+                  <ExternalLink className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+                </Link>
+              ) : null}
             </div>
             <dl className="m-0 grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-3">
               {(ticket?.details ?? []).map(d => (
