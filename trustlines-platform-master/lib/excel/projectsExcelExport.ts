@@ -172,6 +172,12 @@ export interface PItem {
   paymentRule?: string | null;
   containerNo?: string | null;
   containerDate?: string | null;
+  /** Payments page only (/api/production/board?payments=1): the accounting "green table". */
+  paidUsd1?: number | string | null; paidUsd2?: number | string | null;
+  paidTl1?: number | string | null;  paidTl2?: number | string | null;
+  paidUsd1Date?: string | null; paidUsd2Date?: string | null; paidTl1Date?: string | null; paidTl2Date?: string | null;
+  invoiceNumber?: string | null; invoiceTransactionNo?: string | null; invoiceDate?: string | null;
+  quickBook?: string | null; duePaid?: boolean | null;
 }
 
 export interface PProject {
