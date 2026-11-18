@@ -248,30 +248,30 @@ const PAY_GROUPS: { group: PayGroup; title: string; total: string; tone: CardTon
     pills: [['Invoices & Receipts', 4]] },
 ];
 const PAY_COLS: PayCol[] = [
-  { key: 'paidUsd1', group: 'acc', label: 'Paid/USD', kind: 'usd', w: 112, get: (_, a) => a.paidUsd1, field: 'paid_usd1' },
-  { key: 'paidUsd1Date', group: 'acc', label: 'Date', kind: 'date', w: 132, get: it => it.paidUsd1Date, field: 'paid_usd1_date' },
-  { key: 'paidUsd2', group: 'acc', label: 'Paid/USD', kind: 'usd', w: 112, get: (_, a) => a.paidUsd2, field: 'paid_usd2' },
-  { key: 'paidUsd2Date', group: 'acc', label: 'Date', kind: 'date', w: 132, get: it => it.paidUsd2Date, field: 'paid_usd2_date' },
-  { key: 'paidTl1', group: 'acc', label: 'Paid/TL', kind: 'tl', w: 112, get: (_, a) => a.paidTl1, field: 'paid_tl1' },
-  { key: 'paidTl1Date', group: 'acc', label: 'Date', kind: 'date', w: 132, get: it => it.paidTl1Date, field: 'paid_tl1_date' },
-  { key: 'paidTl2', group: 'acc', label: 'Paid/TL', kind: 'tl', w: 112, get: (_, a) => a.paidTl2, field: 'paid_tl2' },
-  { key: 'paidTl2Date', group: 'acc', label: 'Date', kind: 'date', w: 132, get: it => it.paidTl2Date, field: 'paid_tl2_date' },
-  { key: 'remUsd', group: 'acc', label: 'USD', kind: 'usd', w: 104, get: (_, a) => a.remainingUsd },
-  { key: 'remTl', group: 'acc', label: 'TL', kind: 'tl', w: 104, get: (_, a) => a.remainingTl },
-  { key: 'noUsd', group: 'acc', label: 'USD', kind: 'usd', w: 104, get: (_, a) => a.notOrderedUsd },
-  { key: 'noTl', group: 'acc', label: 'TL', kind: 'tl', w: 104, get: (_, a) => a.notOrderedTl },
+  { key: 'paidUsd1', group: 'acc', label: 'Paid/USD', kind: 'usd', w: 140, get: (_, a) => a.paidUsd1, field: 'paid_usd1' },
+  { key: 'paidUsd1Date', group: 'acc', label: 'Date', kind: 'date', w: 156, get: it => it.paidUsd1Date, field: 'paid_usd1_date' },
+  { key: 'paidUsd2', group: 'acc', label: 'Paid/USD', kind: 'usd', w: 140, get: (_, a) => a.paidUsd2, field: 'paid_usd2' },
+  { key: 'paidUsd2Date', group: 'acc', label: 'Date', kind: 'date', w: 156, get: it => it.paidUsd2Date, field: 'paid_usd2_date' },
+  { key: 'paidTl1', group: 'acc', label: 'Paid/TL', kind: 'tl', w: 140, get: (_, a) => a.paidTl1, field: 'paid_tl1' },
+  { key: 'paidTl1Date', group: 'acc', label: 'Date', kind: 'date', w: 156, get: it => it.paidTl1Date, field: 'paid_tl1_date' },
+  { key: 'paidTl2', group: 'acc', label: 'Paid/TL', kind: 'tl', w: 140, get: (_, a) => a.paidTl2, field: 'paid_tl2' },
+  { key: 'paidTl2Date', group: 'acc', label: 'Date', kind: 'date', w: 156, get: it => it.paidTl2Date, field: 'paid_tl2_date' },
+  { key: 'remUsd', group: 'acc', label: 'USD', kind: 'usd', w: 132, get: (_, a) => a.remainingUsd },
+  { key: 'remTl', group: 'acc', label: 'TL', kind: 'tl', w: 132, get: (_, a) => a.remainingTl },
+  { key: 'noUsd', group: 'acc', label: 'USD', kind: 'usd', w: 132, get: (_, a) => a.notOrderedUsd },
+  { key: 'noTl', group: 'acc', label: 'TL', kind: 'tl', w: 132, get: (_, a) => a.notOrderedTl },
   // Due Payment (computed): the advance by the payment rule while WAITING_PAYMENT, all of it once
   // the goods are ready / received / sent. Payments 1 / 2 are Paid 1 / 2 again (the same fields).
-  { key: 'dueUsd', group: 'tl', label: 'USD', kind: 'usd', w: 104, get: (_, a) => a.dueUsd },
-  { key: 'dueTl', group: 'tl', label: 'TL', kind: 'tl', w: 104, get: (_, a) => a.dueTl },
-  { key: 'pay1Usd', group: 'tl', label: 'USD', kind: 'usd', w: 112, get: (_, a) => a.paidUsd1, field: 'paid_usd1' },
-  { key: 'pay1Tl', group: 'tl', label: 'TL', kind: 'tl', w: 112, get: (_, a) => a.paidTl1, field: 'paid_tl1' },
-  { key: 'pay2Usd', group: 'tl', label: 'USD', kind: 'usd', w: 112, get: (_, a) => a.paidUsd2, field: 'paid_usd2' },
-  { key: 'pay2Tl', group: 'tl', label: 'TL', kind: 'tl', w: 112, get: (_, a) => a.paidTl2, field: 'paid_tl2' },
-  { key: 'txNo', group: 'inv', label: 'Transaction #', kind: 'text', w: 140, get: it => it.invoiceTransactionNo, field: 'invoice_transaction_no' },
-  { key: 'invNo', group: 'inv', label: 'Invoice #', kind: 'text', w: 160, get: it => it.invoiceNumber, field: 'invoice_number' },
-  { key: 'qb', group: 'inv', label: 'Quickbook', kind: 'qb', w: 120, get: it => it.quickBook, field: 'quick_book' },
-  { key: 'invDate', group: 'inv', label: 'Date', kind: 'date', w: 132, get: it => it.invoiceDate, field: 'invoice_date' },
+  { key: 'dueUsd', group: 'tl', label: 'USD', kind: 'usd', w: 132, get: (_, a) => a.dueUsd },
+  { key: 'dueTl', group: 'tl', label: 'TL', kind: 'tl', w: 132, get: (_, a) => a.dueTl },
+  { key: 'pay1Usd', group: 'tl', label: 'USD', kind: 'usd', w: 140, get: (_, a) => a.paidUsd1, field: 'paid_usd1' },
+  { key: 'pay1Tl', group: 'tl', label: 'TL', kind: 'tl', w: 140, get: (_, a) => a.paidTl1, field: 'paid_tl1' },
+  { key: 'pay2Usd', group: 'tl', label: 'USD', kind: 'usd', w: 140, get: (_, a) => a.paidUsd2, field: 'paid_usd2' },
+  { key: 'pay2Tl', group: 'tl', label: 'TL', kind: 'tl', w: 140, get: (_, a) => a.paidTl2, field: 'paid_tl2' },
+  { key: 'txNo', group: 'inv', label: 'Transaction #', kind: 'text', w: 170, get: it => it.invoiceTransactionNo, field: 'invoice_transaction_no' },
+  { key: 'invNo', group: 'inv', label: 'Invoice #', kind: 'text', w: 200, get: it => it.invoiceNumber, field: 'invoice_number' },
+  { key: 'qb', group: 'inv', label: 'Quickbook', kind: 'qb', w: 132, get: it => it.quickBook, field: 'quick_book' },
+  { key: 'invDate', group: 'inv', label: 'Date', kind: 'date', w: 156, get: it => it.invoiceDate, field: 'invoice_date' },
 ];
 const TITLE_H = 52;
 const GAP_W = 32;
@@ -831,6 +831,28 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
     return { body, groupsByKey };
   }, [sections, pending, collapsed, colWidthKey, typeLeft, access, selection, groupRanks, payments, payEdit, reload]);
 
+  // The board's own horizontal scrollbar sits at its bottom, often below the window. A second one
+  // stays pinned to the bottom of the window (sticky) and scrolls the board with it.
+  const boxRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const syncing = useRef(false);
+  const [bar, setBar] = useState({ scroll: 0, client: 0 });
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    const measure = () => setBar(b => (b.scroll === box.scrollWidth && b.client === box.clientWidth ? b : { scroll: box.scrollWidth, client: box.clientWidth }));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(box);
+    if (box.firstElementChild) ro.observe(box.firstElementChild);
+    return () => ro.disconnect();
+  }, [nonEmpty.length]);
+  const follow = (from: HTMLDivElement | null, to: HTMLDivElement | null) => {
+    if (!from || !to) return;
+    if (syncing.current) { syncing.current = false; return; }
+    if (to.scrollLeft !== from.scrollLeft) { syncing.current = true; to.scrollLeft = from.scrollLeft; }
+  };
+
   if (!nonEmpty.length) {
     return (
       <EmptyState
@@ -842,7 +864,9 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
   }
 
   return (
-    <div className={cn('overflow-auto', !payments && 'rounded-[8px] border border-ui-divider')} style={{ maxHeight: 'calc(100dvh - 220px)' }}>
+    <div className="relative">
+    <div ref={boxRef} onScroll={() => follow(boxRef.current, barRef.current)}
+      className={cn('overflow-auto', !payments && 'rounded-[8px] border border-ui-divider')} style={{ maxHeight: 'calc(100dvh - 220px)' }}>
       <table className="table-fixed border-separate border-spacing-0" style={{ width: `max(${cols.reduce((t, c) => t + width(c), 0) + payCols.reduce((t, c) => t + c.w, 0) + (payments ? PAY_GROUPS.length * GAP_W : 0)}px, 100%)` }}>
         <colgroup>
           {cols.map(c => <col key={c} style={{ width: width(c) }} />)}
@@ -853,7 +877,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
             <tr>
               <th colSpan={cols.length} className="sticky top-0 z-30 rounded-tl-[8px] rounded-tr-[8px] border border-ui-divider p-2 text-center text-[20px] font-semibold"
                 style={{ height: TITLE_H, ...PROJECT_CARD.title }}>
-                <span className="sticky left-1/2">Project</span>
+                Project
               </th>
               {PAY_GROUPS.map(g => (
                 <Fragment key={g.group}>
@@ -932,6 +956,13 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
         warning={toDelete && (toDelete.pfCode || toDelete.vendorId) ? 'This row has a vendor or PF code. It goes to the trash and can be restored from there.' : undefined}
         onConfirm={async () => { if (toDelete) await deleteItem(toDelete); setToDelete(null); }}
       />
+    </div>
+      {bar.scroll > bar.client + 1 && (
+        <div ref={barRef} aria-hidden onScroll={() => follow(barRef.current, boxRef.current)}
+          className="sticky bottom-0 z-40 overflow-x-auto overflow-y-hidden border-t border-ui-divider bg-ui-page-bg" style={{ height: 16 }}>
+          <div style={{ width: bar.scroll, height: 1 }} />
+        </div>
+      )}
     </div>
   );
 }
