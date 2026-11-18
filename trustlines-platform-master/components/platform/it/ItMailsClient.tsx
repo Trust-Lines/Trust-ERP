@@ -1,15 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
-import { ArrowDownUp, Copy, Ellipsis, Eye, EyeOff, Lock, Mail, Plus, Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowDownUp, Eye, EyeOff, Mail, Plus, Search } from 'lucide-react';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { PersonFace } from '@/components/ui/avatar-directory';
-import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
 import { Select } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { TOOLBAR_SELECT, TOOLBAR_SORT_ICON } from './ticketStyles';
+import { CARD, CardHead, FIELD, MUTED, SORT_OPTIONS, SecretField, initials, tabClass } from './itCardParts';
 
 // Figma "IT / Mails" (879:12933): company mailboxes, one card each — owner photo, name, address,
 // and the mailbox password (masked, copy button). Active / History tabs, search, sort, user filter,
@@ -34,96 +32,20 @@ type Tab = 'active' | 'history';
 type Sort = 'newest' | 'oldest' | 'name';
 
 const NOT_CONNECTED = 'Not available yet: the mailbox data source is not connected';
-const SORT_OPTIONS = [
-  { value: 'newest', label: 'Newest' },
-  { value: 'oldest', label: 'Oldest' },
-  { value: 'name', label: 'Name A–Z' },
-];
-const FIELD =
-  'h-10 rounded-md border border-primary-200 bg-white px-3 text-[13px] font-ui text-secondary-700 outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring dark:border-secondary-500 dark:bg-primary-800 dark:text-secondary-50';
-const MUTED = 'text-primary-400 dark:text-primary-200';
-const STRONG = 'text-secondary-700 dark:text-secondary-50';
-const MASK = '••••••••••••••••';
-
-const initials = (name: string) => name.split(/\s+/).map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
-
-async function copyText(text: string, what: string) {
-  try { await navigator.clipboard.writeText(text); toast.success(`${what} copied`); }
-  catch { toast.error('Could not copy'); }
-}
 
 function MailCard({ account, showInfo, onRevealPassword }: {
   account: ItMailAccount;
   showInfo: boolean;
   onRevealPassword?: (id: string) => Promise<string>;
 }) {
-  const [password, setPassword] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function fetchPassword() {
-    if (!onRevealPassword) return null;
-    if (password) return password;
-    setLoading(true);
-    try { const p = await onRevealPassword(account.id); setPassword(p); return p; }
-    catch { toast.error('Could not load the password'); return null; }
-    finally { setLoading(false); }
-  }
-
-  async function copyPassword() {
-    const p = await fetchPassword();
-    if (p) await copyText(p, 'Password');
-  }
-
-  // "Show Info" on: load this mailbox's password once (on demand, never part of the list).
-  useEffect(() => {
-    if (!showInfo || !onRevealPassword || password) return;
-    let live = true;
-    setLoading(true);
-    onRevealPassword(account.id)
-      .then(p => { if (live) setPassword(p); })
-      .catch(() => { if (live) toast.error('Could not load the password'); })
-      .finally(() => { if (live) setLoading(false); });
-    return () => { live = false; };
-  }, [showInfo, onRevealPassword, password, account.id]);
-
-  const shown = showInfo && password ? password : MASK;
-
   return (
-    <article className="flex min-w-0 flex-col gap-4 rounded-[8px] border border-ui-divider bg-ui-surface p-4">
-      <div className="flex min-w-0 items-center gap-2">
-        <div className="grid size-[45px] shrink-0 place-items-center overflow-hidden rounded-[6px] bg-primary-100 text-[14px] font-semibold text-secondary-700 dark:bg-primary-700 dark:text-secondary-50">
-          <PersonFace name={account.ownerName} userId={account.ownerId} fallback={initials(account.ownerName) || <Mail size={18} aria-hidden />} />
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <h3 className={cn('m-0 truncate text-[20px] font-semibold leading-5', STRONG)}>{account.ownerName}</h3>
-          <p className="m-0 truncate text-[14px] font-medium leading-4 tracking-[0.42px] text-ui-body">{account.email}</p>
-        </div>
-        <Menu>
-          <MenuTrigger render={<Button variant="ghost" size="icon-sm" className={cn('self-start', STRONG)} aria-label={`Actions for ${account.email}`} />}>
-            <Ellipsis aria-hidden />
-          </MenuTrigger>
-          <MenuContent>
-            <MenuItem onClick={() => void copyText(account.email, 'Email')}>Copy email</MenuItem>
-          </MenuContent>
-        </Menu>
-      </div>
-
-      <div className="flex items-center gap-1 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg py-1.5 pl-2 pr-[5px]">
-        <Lock size={16} aria-hidden className={cn('shrink-0', STRONG)} />
-        <span className={cn('min-w-0 flex-1 truncate text-[14px] leading-[1.4]', STRONG)}>
-          <span className="sr-only">Password: </span>{loading ? 'Loading…' : shown}
-        </span>
-        <button
-          type="button"
-          onClick={copyPassword}
-          disabled={!onRevealPassword || loading}
-          aria-label={`Copy password for ${account.email}`}
-          title={onRevealPassword ? 'Copy password' : NOT_CONNECTED}
-          className="grid size-[26px] shrink-0 place-items-center rounded-[4px] bg-secondary-700 text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-50 dark:text-primary-950"
-        >
-          <Copy size={14} aria-hidden />
-        </button>
-      </div>
+    <article className={CARD}>
+      <CardHead
+        title={account.ownerName}
+        email={account.email}
+        picture={<PersonFace name={account.ownerName} userId={account.ownerId} fallback={initials(account.ownerName) || <Mail size={18} aria-hidden />} />}
+      />
+      <SecretField id={account.id} label={account.email} showInfo={showInfo} onReveal={onRevealPassword} notConnectedTitle={NOT_CONNECTED} />
     </article>
   );
 }
@@ -158,14 +80,6 @@ export function ItMailsClient({ accounts, error = null, canCreate = false, onRev
         return sort === 'newest' ? -diff : diff;
       });
   }, [accounts, tab, owner, query, sort]);
-
-  const tabClass = (on: boolean) =>
-    cn(
-      'flex h-full items-center border-b-[3px] border-solid text-[13px] transition-colors',
-      on
-        ? 'border-secondary-700 font-semibold text-secondary-700 dark:border-secondary-50 dark:text-secondary-50'
-        : cn('border-transparent hover:text-secondary-700 dark:hover:text-secondary-50', MUTED),
-    );
 
   return (
     <div className="flex w-full flex-col gap-[30px] p-7 font-ui">
