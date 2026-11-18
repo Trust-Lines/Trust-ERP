@@ -592,8 +592,12 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
     setCollapsed(prev => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; });
   }
 
-  const moneyStart = COLS.indexOf('pfUsd');
-  const afterMoney = COLS.length - COLS.indexOf('invoiceTl') - 1;
+  const moneyStart = cols.indexOf('pfUsd');
+  const afterMoney = cols.length - cols.indexOf('invoiceTl') - 1;
+  // The frozen left block: Project # and Type. Every full-width row (region band, project band,
+  // TOTAL) is split so its left part stays there too, and the rest of the table runs beside it.
+  const FROZEN = 2;
+  const FROZEN_TD = 'sticky left-0 z-10 overflow-hidden';
   const payCols = payments ? PAY_COLS : [];
   // The latest onSaved for the payment cells, without rebuilding the body when it changes.
   const savedRef = useRef(onSaved);
@@ -745,27 +749,30 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
                 return (
                   <Fragment key={`proj-${pi}`}>
                     <tr data-project-head={key} onContextMenu={e => openProjMenu(e, project, key)}>
-                      <td colSpan={cols.length} className="border-y border-ui-divider p-2" style={barStyle}>
+                      <td colSpan={FROZEN} className={cn(FROZEN_TD, 'border-y border-ui-divider p-2')} style={barStyle}>
                         <button
                           type="button" onClick={() => toggle(key)} aria-expanded={!isCollapsed}
                           aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} project ${project.projectNo}`}
-                          className="sticky left-2 flex cursor-pointer items-center border-0 bg-transparent p-0 text-left text-inherit"
+                          title={project.projectName || String(project.projectNo)}
+                          className="flex w-full min-w-0 cursor-pointer items-center border-0 bg-transparent p-0 text-left text-inherit"
                         >
                           <Chevron size={24} aria-hidden className="shrink-0" />
                           {/* Name over address, as in the design ("STNE 440" / "Cherry Hill, 1849 …"). */}
-                          <span className="flex min-w-0 flex-col pl-4 pr-2 leading-normal">
-                            <span className="truncate text-[16px] font-medium">{headName(project)}</span>
-                            {headAddress(project) && <span className="truncate text-[12px] font-normal">{headAddress(project)}</span>}
+                          <span className="flex min-w-0 flex-col pl-2 pr-1 leading-normal">
+                            <span className="truncate text-[15px] font-medium">{headName(project)}</span>
+                            {headAddress(project) && <span className="truncate text-[11px] font-normal">{headAddress(project)}</span>}
                           </span>
                         </button>
                       </td>
+                      <td colSpan={cols.length - FROZEN} className="border-y border-ui-divider" style={barStyle} />
                       {payments && <PayHeadBand style={barStyle} />}
                     </tr>
                     {!isCollapsed && bodyRows}
                     {!isCollapsed && access.viewMoney && (
                       <tr>
                         {/* TOTAL runs the full width from the left edge, under the Project # box (Figma 741:16403). */}
-                        <td colSpan={moneyStart} className="border-y border-ui-divider px-4 py-2.5 text-[14px] font-semibold" style={barStyle}><span className="sticky left-4">TOTAL</span></td>
+                        <td colSpan={FROZEN} className={cn(FROZEN_TD, 'border-y border-ui-divider px-4 py-2.5 text-[14px] font-semibold')} style={barStyle}>TOTAL</td>
+                        <td colSpan={moneyStart - FROZEN} className="border-y border-ui-divider" style={barStyle} />
                         {MONEY_COLS.map(col => (
                           <td key={col} className="border-y border-ui-divider px-2 py-2.5" style={barStyle}><MoneyChip col={col} value={totals[col] ?? 0} /></td>
                         ))}
@@ -784,24 +791,28 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
               return (
                 <Fragment key={`sec-${si}`}>
                   <tr>
-                    <td colSpan={cols.length} className="sticky z-[15] border-y border-ui-divider p-2 text-[#EEF2F6]"
+                    <td colSpan={FROZEN} className="sticky left-0 z-[16] overflow-hidden border-y border-ui-divider p-2 text-[#EEF2F6]"
                       style={{ top: headH, background: section.group != null ? 'linear-gradient(90deg, #b91c1c, #ef4444)' : regionBg(section.label) }}>
                       <button
                         type="button" onClick={() => toggle(regionKey)} aria-expanded={!regionClosed}
                         aria-label={`${regionClosed ? 'Expand' : 'Collapse'} ${regionTitle(section.label)}`}
-                        className="sticky left-2 flex cursor-pointer items-center border-0 bg-transparent p-0 text-left text-inherit"
+                        className="flex w-full min-w-0 cursor-pointer items-center whitespace-nowrap border-0 bg-transparent p-0 text-left text-inherit"
                       >
                         {regionClosed ? <ChevronRight size={24} aria-hidden className="shrink-0" /> : <ChevronDown size={24} aria-hidden className="shrink-0" />}
-                        <span className={cn('pl-4 pr-2 leading-normal', section.group != null ? 'text-[22px] font-bold text-white' : 'text-[16px] font-medium')}>{regionTitle(section.label)}</span>
+                        <span className={cn('truncate pl-2 pr-1 leading-normal', section.group != null ? 'text-[22px] font-bold text-white' : 'text-[16px] font-medium')}>{regionTitle(section.label)}</span>
                       </button>
                     </td>
+                    <td colSpan={cols.length - FROZEN} className="sticky z-[15] border-y border-ui-divider"
+                      style={{ top: headH, background: section.group != null ? 'linear-gradient(90deg, #b91c1c, #ef4444)' : regionBg(section.label) }} />
                     {payments && <PayBand top={headH} background={section.group != null ? 'linear-gradient(90deg, #b91c1c, #ef4444)' : regionBg(section.label)} />}
                   </tr>
                   {!regionClosed && projectRows}
                   {access.viewMoney && !payments && <tr>
-                    <td colSpan={moneyStart} className="px-4 py-2.5 text-[14px] font-semibold" style={{ background: BOARD_CSS.sectionTotal.bg, color: BOARD_CSS.sectionTotal.fg }}>
+                    <td colSpan={FROZEN} className={cn(FROZEN_TD, 'whitespace-nowrap px-4 py-2.5 text-[14px] font-semibold')} title={`${section.label.toUpperCase()} TOTALS`}
+                      style={{ background: BOARD_CSS.sectionTotal.bg, color: BOARD_CSS.sectionTotal.fg }}>
                       {section.label.toUpperCase()} TOTALS
                     </td>
+                    <td colSpan={moneyStart - FROZEN} style={{ background: BOARD_CSS.sectionTotal.bg }} />
                     {MONEY_COLS.map(col => (
                       <td key={col} className="px-2 py-2.5" style={{ background: BOARD_CSS.sectionTotal.bg }}><MoneyChip col={col} value={secTotals[col] ?? 0} /></td>
                     ))}
@@ -817,7 +828,8 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
               const pink = PROJECT_CARD.head;
               return (
                 <tr>
-                  <td colSpan={moneyStart} className="border-y border-l border-ui-divider px-4 py-2.5 text-[14px] font-semibold" style={pink}><span className="sticky left-4">Project&apos;s Total</span></td>
+                  <td colSpan={FROZEN} className={cn(FROZEN_TD, 'whitespace-nowrap border-y border-l border-ui-divider px-4 py-2.5 text-[14px] font-semibold')} style={pink}>Project&apos;s Total</td>
+                  <td colSpan={moneyStart - FROZEN} className="border-y border-ui-divider" style={pink} />
                   {MONEY_COLS.map(col => (
                     <td key={col} className="border-y border-ui-divider px-2 py-2.5" style={pink}><MoneyChip col={col} value={grand[col] ?? 0} /></td>
                   ))}
@@ -829,7 +841,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
           </tbody>
     );
     return { body, groupsByKey };
-  }, [sections, pending, collapsed, colWidthKey, typeLeft, access, selection, groupRanks, payments, payEdit, reload]);
+  }, [sections, pending, collapsed, colWidthKey, typeLeft, access, selection, groupRanks, payments, payEdit, reload, moneyStart, afterMoney]);
 
   // The board's own horizontal scrollbar sits at its bottom, often below the window. A second one
   // stays pinned to the bottom of the window (sticky) and scrolls the board with it.
@@ -875,7 +887,9 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
         <thead>
           {payments && (
             <tr>
-              <th colSpan={cols.length} className="sticky top-0 z-30 rounded-tl-[8px] rounded-tr-[8px] border border-ui-divider p-2 text-center text-[20px] font-semibold"
+              <th colSpan={FROZEN} aria-hidden className="sticky left-0 top-0 z-40 rounded-tl-[8px] border-y border-l border-ui-divider p-0"
+                style={{ height: TITLE_H, ...PROJECT_CARD.title }} />
+              <th colSpan={cols.length - FROZEN} className="sticky top-0 z-30 rounded-tr-[8px] border-y border-r border-ui-divider p-2 text-center text-[20px] font-semibold"
                 style={{ height: TITLE_H, ...PROJECT_CARD.title }}>
                 Project
               </th>
