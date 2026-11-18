@@ -1,26 +1,18 @@
 'use client';
 
-import { Check, Hammer, LampCeiling, Palette, ShelvingUnit, type LucideIcon } from 'lucide-react';
-import { useState } from 'react';
+import { Check } from 'lucide-react';
+import type { Dispatch, SetStateAction } from 'react';
 import { StepFooter } from './StepFooter';
-import { StandardItemCard, type StandardItem } from './StandardItemCard';
+import { StandardItemCard } from './StandardItemCard';
+import { STANDARDS, TRADES, type Quantities } from './standards';
 import type { Scope, StepProps } from './types';
 
 // Figma "New lead · Scope of work" (node 919:28149): "Scope" label, then one toggle button per trade.
 // Selected = navy fill, white text and a trailing check; unselected = white input with navy text.
-const TRADES: { key: keyof Scope; label: string; Icon: LucideIcon }[] = [
-  { key: 'millwork', label: 'Millwork', Icon: Hammer },
-  { key: 'shelving', label: 'Shelving', Icon: ShelvingUnit },
-  { key: 'ceiling', label: 'Ceiling', Icon: LampCeiling },
-  { key: 'image', label: 'Image', Icon: Palette },
-];
-
-// Standard items per trade. Empty until the backend standards catalog exists — no sample data.
-// TODO: load from the standards endpoint and persist quantities on the intake once available.
-const STANDARDS: Record<keyof Scope, StandardItem[]> = { millwork: [], shelving: [], ceiling: [], image: [] };
-
-export function Step4ScopeOfWork({ form, setForm, onBack, onNext, onSaveDraft }: StepProps) {
-  const [qty, setQty] = useState<Record<string, number>>({});
+export function Step4ScopeOfWork({ form, setForm, onBack, onNext, onSaveDraft, qty, setQty }: StepProps & {
+  qty: Quantities;
+  setQty: Dispatch<SetStateAction<Quantities>>;
+}) {
   const toggle = (key: keyof Scope) =>
     setForm(f => ({ ...f, scope_of_work: { ...f.scope_of_work, [key]: !f.scope_of_work[key] } }));
 
