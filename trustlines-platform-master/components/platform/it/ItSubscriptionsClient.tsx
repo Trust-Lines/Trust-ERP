@@ -59,12 +59,8 @@ function isDueSoon(iso: string | null) {
 function ServiceLogo({ sub }: { sub: ItSubscription }) {
   const [failed, setFailed] = useState(false);
   if (!sub.logoUrl || failed) return <>{initials(sub.service)}</>;
-  return (
-    <span className="grid size-full place-items-center bg-white p-1">
-      {/* eslint-disable-next-line @next/next/no-img-element -- service logos come from arbitrary hosts */}
-      <img src={sub.logoUrl} alt="" onError={() => setFailed(true)} className="max-h-full max-w-full object-contain" />
-    </span>
-  );
+  // eslint-disable-next-line @next/next/no-img-element -- service logos come from arbitrary hosts
+  return <img src={sub.logoUrl} alt="" onError={() => setFailed(true)} className="max-h-full max-w-full object-contain" />;
 }
 
 function SubscriptionCard({ sub, showInfo, onRevealPassword }: {
@@ -79,6 +75,8 @@ function SubscriptionCard({ sub, showInfo, onRevealPassword }: {
         title={sub.service}
         titleStyle={sub.brandColor ? { color: sub.brandColor } : undefined}
         email={sub.loginEmail}
+        // Figma 908:24358: white "elevated surface" logo tile, 4px radius and padding.
+        pictureClassName="rounded-[4px] bg-white p-1 dark:bg-white dark:text-secondary-700"
         picture={<ServiceLogo sub={sub} />}
       />
       <SecretField id={sub.id} label={sub.service} showInfo={showInfo} onReveal={onRevealPassword} notConnectedTitle={NOT_CONNECTED} />
