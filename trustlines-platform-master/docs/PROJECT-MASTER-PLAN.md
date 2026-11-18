@@ -1615,6 +1615,50 @@ Project architecture:
 > Claude `devam et` komutunda ilk tamamlanmamış görevden başlamalıdır.
 
 ```text
+=== ERP GAP LIST (full system scan 2026-11-18, approved by the user) — work top to bottom ===
+Rule: one entry flows everywhere. Ask the user before deciding any money / business rule.
+Decisions: DO NOT touch clients vs customers. Trust System is being retired (copy its data once,
+then close its API; build nothing new on it). No exchange-rate table: the rate and USD come from
+the payment approval.
+
+--- A. Money chain ---
+[ ] A1 /payments = the "green table": same data, new frontend (design from the user). ← NOW
+[ ] A2 Payment approval: only accounting creates a request (supplier PF payment / Trust Lines
+       expense / general non-project expense) with the TL amount, that day's rate, and the USD
+       drawn from the bank. GM notified on the payment day; when approved it lands in /payments.
+[ ] A3 Margin = PO (PO documents) − approved payments in USD; expected margin (unpaid lines at PF)
+       on its own row (confirm with the user).
+[ ] A4 Contract signed → project deal value set automatically (sales_contracts → projects.deal_value).
+[ ] A5 PO approved → line prices flow to the production rows (no manual Invoice entry).
+[ ] A6 Invoices page (bill T-Lines) + collection tracking (receivables, overdue).
+[ ] A7 Budgets page: project budget vs actual.
+[ ] A8 Cash flow (upcoming payments / collections) and reports (monthly revenue, margin, suppliers).
+[ ] A9 Production rows' Paid 1/2 come from approved payments, not typed by hand.
+
+--- B. Link records instead of matching text ---
+[ ] B1 Installations → project_id and people (today: project_no / pm_name / team as plain text).
+[ ] B2 Dashboard key-client cards → linked to the project (today matched by number; #466, #480,
+       #407, #516, #1003, #EX-5 do not match).
+[ ] B3 Project people: one home (projects.*_id fields vs project_assignments).
+[ ] B4 Containers are the only source of a row's container no / date.
+
+--- C. Merge duplicates ---
+[ ] C1 One sales pipeline (leads / lead_intake vs marketing prospects / potentials / opportunities).
+[ ] C2 One "My tasks" over lead_tasks, trust_lines_tasks, project_steps, customer_follow_ups,
+       hr_requests.
+[ ] C3 Trust System: final copy of its data, then switch off its API routes and sync cron.
+
+--- D. Empty pages ---
+[ ] D1 IT items / tickets (no table or API yet).
+[ ] D2 Warehouse desktop page (warehouse_locations + mobile API exist).
+[ ] D3 T-Lines PM Gantt (waiting for the user's design).
+[ ] D4 Open plan items: project communication timeline, PM follow-up reminder, sales files → project.
+
+--- E. Platform ---
+[ ] E1 Slack / WhatsApp notifications.
+[ ] E2 Migration runner (today every migration is run by hand in the SQL Editor).
+[ ] E3 QuickBooks link (field exists, not connected).
+
 [x] Frontend refactor pass 1: shared formatters + HEADING, split Approvals / Team / Opportunity quick view / Branch board. (2026-11-18)
 [ ] Frontend refactor pass 2: split the next large screens (ContactImportClient, ProspectsPageClient, NewProjectForm, PfTab, DocGeneratorModal).
 [ ] Approvals list: decide whether to remove the SAMPLE_REQUESTS fallback rows (shown when the user has no real approvals; AGENTS.md §8 says no mock data).
