@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { MessageSquare, Loader2, Send, Activity } from 'lucide-react';
 import { Avatar } from '@/components/platform/shared/Avatar';
-import { formatDate } from '@/lib/formatDate';
+import { timeAgo } from '@/lib/formatters';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { FIELD, HEADING, PANEL, PANEL_HEAD, PANEL_TITLE } from './panelStyles';
@@ -16,16 +16,6 @@ interface ActivityRow {
   kind: 'comment' | 'change';
   body: string | null;
   created_at: string;
-}
-
-function timeAgo(iso: string): string {
-  const d = new Date(iso).getTime();
-  if (Number.isNaN(d)) return '';
-  const s = Math.floor((Date.now() - d) / 1000);
-  if (s < 60) return 'just now';
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return formatDate(iso);
 }
 
 export function ActivityFeed({ apiBasePath }: { apiBasePath: string }) {

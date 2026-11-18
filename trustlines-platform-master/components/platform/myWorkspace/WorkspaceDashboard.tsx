@@ -19,6 +19,7 @@ import type { MyApproval } from '@/lib/approvals/mine';
 import type { Installation } from '@/lib/installations/compute';
 import { cn } from '@/lib/utils';
 import { StatTile as Kpi } from '@/components/platform/dashboard/StatTile';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // My Workspace → Overview, Figma "General Manager_Dashboard" (node 714:35213).
 // Every number comes from data the person can already open; a panel whose source this role
@@ -48,7 +49,6 @@ const REGIONS = [
 type RegionKey = (typeof REGIONS)[number]['key'];
 const regionOf = (code: string | null) => REGIONS.find(r => r.code === code || r.key === code)?.key ?? null;
 
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD = 'rounded-[16px] border border-ui-divider bg-ui-surface-elevated';
 const MON = new Intl.DateTimeFormat('en-GB', { month: 'short' });
 const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -84,7 +84,6 @@ const monthKey = (s: string) => { const d = parseDay(s); return `${d.getFullYear
 const inRange = (s: string | null, from: Date, to: Date) => { if (!s) return false; const d = parseDay(s); return d >= from && d <= to; };
 const startOf = (p: DashProject) => p.est_production_start ?? p.created_at;
 const fileSize = (b: number | null) => (b == null ? '' : b >= 1048576 ? `${(b / 1048576).toFixed(b >= 10485760 ? 0 : 1)} mb` : `${Math.max(1, Math.round(b / 1024))} kb`);
-
 
 async function getList<T>(url: string, pick: (b: Record<string, unknown>) => T[]): Promise<Loaded<T>> {
   const res = await fetch(url).catch(() => null);

@@ -26,6 +26,7 @@ import { TagMultiSelect } from './TagMultiSelect';
 import { Select } from '@/components/platform/shared/Select';
 import { exportContactsWorkbook, type ContactExportRow } from '@/lib/excel/contactsExcelExport';
 import { PersonFace } from '@/components/ui/avatar-directory';
+import { initialsOf } from '@/lib/formatters';
 
 export interface ProspectRow {
   id: string;
@@ -152,14 +153,10 @@ function CompletenessBar({ percent }: { percent: number }) {
   );
 }
 
-function initials(name: string): string {
-  return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
-}
-
 function OwnerAvatar({ name }: { name: string | null }) {
   return (
     <span aria-hidden className="grid size-[26px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold leading-[1.4] text-ui-body">
-      {name ? <PersonFace name={name} fallback={initials(name)} /> : '—'}
+      {name ? <PersonFace name={name} fallback={initialsOf(name)} /> : '—'}
     </span>
   );
 }

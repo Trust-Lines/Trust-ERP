@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/menu';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { cn } from '@/lib/utils';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 async function auditLog(action: string, resource: string, newValue?: unknown) {
   await fetch('/api/audit', {
@@ -45,7 +46,6 @@ interface Props {
 
 // Figma "Clients (T-Lines regions)" (node 442:1088): one bordered card per client, a grey
 // header row (chevron, name, state, service count, Add Service, "…") and 64px service rows.
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const FIELD = 'h-10 w-full min-w-0 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
 const FORM_LABEL = 'flex min-w-0 flex-col gap-1 text-[12px] font-medium text-ui-body';
 const ACCENT_BTN = 'gap-2 bg-ui-btn-accent px-8 text-[13px] font-medium text-ui-btn-accent-fg hover:bg-ui-btn-accent hover:opacity-90 dark:bg-ui-btn-accent dark:text-ui-btn-accent-fg dark:hover:bg-ui-btn-accent';

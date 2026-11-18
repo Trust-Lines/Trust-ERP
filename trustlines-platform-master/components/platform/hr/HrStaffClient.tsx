@@ -15,6 +15,7 @@ import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuTrigger } from '@/compon
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Figma "Staff Members" (node 565:13166, dark 570:23992): HR's list of everyone on the team. Name, email, role
 // and joined date are real (profiles). Birth date, vacation days and extra work hours have no
@@ -31,7 +32,6 @@ export interface HrStaffRow {
 
 type SortKey = 'newest' | 'oldest' | 'name';
 
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
 const TD = 'px-2.5 text-[13px] whitespace-nowrap text-ui-body';
 const TOOLBAR_SELECT = 'inline-flex h-10 w-auto cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pr-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:pr-3 dark:text-ui-heading [&_svg]:size-3.5';
@@ -72,7 +72,6 @@ export function HrStaffClient({ staff, canInvite }: { staff: HrStaffRow[]; canIn
     try { await navigator.clipboard.writeText(email); toast.success('Email copied'); }
     catch { toast.error('Could not copy'); }
   }
-
 
   return (
     <div className="flex flex-col gap-[30px]">

@@ -7,10 +7,10 @@ import { ProfileForm } from './ProfileForm';
 import { NEED_CLASSIFICATION_LABEL, type Contact, type Need, type OpportunityRow, type Prospect, type ProspectLocation } from './types';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Figma "Lead Profile" overview (336:22028): Profile card (4-column fields, pencil to edit) and
 // Project Needs card (needs list with stage chips, "View All" opens the Needs tab).
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD = 'flex flex-col gap-4 rounded-[8px] border border-ui-divider bg-ui-page-bg p-3.5';
 const CARD_TITLE = cn('m-0 text-[16px] font-semibold leading-[1.45]', HEADING);
 // Primary navy button (near-white in dark), as the frame's pencil and "View All".

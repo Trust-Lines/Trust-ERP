@@ -26,9 +26,9 @@ import type { StepRecord } from '@/lib/workflow/steps';
 import { cn } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { PROJECT_FINANCE_READ_ROLES } from '@/lib/finance/projectTotals';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Figma "Project Detail" (node 245:28820).
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 // Header links look like outline buttons (shared Button styles).
 const BTN_OUTLINE = cn(buttonVariants({ variant: 'outline', size: 'md' }), 'no-underline');
 

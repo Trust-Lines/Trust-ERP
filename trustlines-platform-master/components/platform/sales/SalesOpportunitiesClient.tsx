@@ -17,6 +17,7 @@ import { OpportunityQuickView } from '@/components/platform/marketing/Opportunit
 import { feedback } from '@/components/ui/feedback-toast';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 export interface SalesOpportunityRow {
   id: string;
@@ -75,7 +76,6 @@ function OpportunityStagePill({ stage }: { stage: OpportunityStage }) {
 }
 
 // Figma "Opportunity handoffs" (node 299:8256).
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-3 pr-2 text-[13px] font-medium leading-normal text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading [&_svg]:size-3.5';
 // 40px row action. Tones follow the Figma Close Lost (T10) / Close Won (T9) buttons; disabled = T0.
 const ACTION_BASE = 'inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-[6px] border px-8 text-[13px] font-medium no-underline transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:border-[var(--status-t0-fg)] disabled:bg-[var(--status-t0-bg)] disabled:text-[var(--status-t0-fg)] disabled:opacity-100';

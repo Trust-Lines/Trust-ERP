@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bot, X, SendHorizontal, Paperclip, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 interface Msg { role: 'user' | 'assistant'; content: string }
 
@@ -76,8 +77,6 @@ const I18N: Record<Lang, {
 export const OPEN_AI_EVENT = 'tl:open-ai';
 /** Fired by the panel with `detail: boolean` whenever it opens or closes, so the top bar can show its active state. */
 export const AI_STATE_EVENT = 'tl:ai-state';
-
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 
 // Figma "Trust Lines AI panel" (node 334:13694): docked right under the 80px top bar,
 // full height, 383px wide — dark header, surface body, composer pinned to the bottom.

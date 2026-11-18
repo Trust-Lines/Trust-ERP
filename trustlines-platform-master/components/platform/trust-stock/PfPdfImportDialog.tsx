@@ -13,6 +13,7 @@ import {
   MAX_PDF_BYTES, PF_TYPES, catalogText, cleanProducts, currencySymbol, getStockCatalog, getVendors, importPfPdf, previewPfPdf, round2,
   type Currency, type ImportedPf, type ParsedStockProduct, type PfImportData, type PfPdfPreview, type PfType, type StockCatalogItem, type Vendor,
 } from './pfImport';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Trust Stock → "Upload PF PDF". Pick a PF PDF → the Trust System reads it (preview, saves nothing)
 // while the pages show a scan line → the rows it found light up on the PDF one by one and fill the
@@ -23,7 +24,6 @@ type Phase = 'pick' | 'reading' | 'reveal' | 'edit';
 const MIN_SCAN_MS = 1000;
 const STEP_MS = 150;
 
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const LABEL = 'text-[12px] font-medium text-ui-heading';
 const typeLabel = (t: string) => t.charAt(0) + t.slice(1).toLowerCase();
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));

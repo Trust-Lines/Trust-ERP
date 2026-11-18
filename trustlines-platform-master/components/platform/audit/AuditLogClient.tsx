@@ -6,6 +6,7 @@ import { Search, ChevronDown, ChevronRight, Shield } from 'lucide-react';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 export interface AuditEntry {
   id: string;
@@ -22,7 +23,6 @@ export interface AuditEntry {
 }
 
 // Figma "Audit Log" (node 352:4679).
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
 const FILTER = 'inline-flex h-10 w-auto cursor-pointer items-center gap-2 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-5 pr-3 text-[13px] font-medium text-[var(--color-secondary-700)] dark:rounded-[6px] dark:pl-5 dark:pr-3 dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading [&_svg]:size-3.5';
 

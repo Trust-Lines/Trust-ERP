@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmModal } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 import type { VendorWork } from '@/lib/suppliers/trustWork';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 interface Props {
   supplier: Supplier;
@@ -32,7 +33,6 @@ interface Props {
 // Figma "Supplier detail" (node 427:16507). Delete (soft T10) and Deactivate / Reactivate sit in
 // the heading; each invoice / payment row has delete + edit (edit uses the existing PATCH routes,
 // app/api/suppliers/[id]/invoices|payments/[…]). The Trust System work history (PR #70) sits under the profile.
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CARD = 'flex flex-col gap-5 rounded-[8px] border border-ui-divider px-5 pb-5 pt-4';
 const CARD_TITLE = cn('m-0 text-[20px] font-semibold leading-[1.35]', HEADING);
 const FIELD = 'h-10 w-full min-w-0 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';

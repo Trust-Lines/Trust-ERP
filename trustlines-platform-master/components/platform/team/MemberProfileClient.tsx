@@ -13,6 +13,8 @@ import { roleLabel as fallbackRoleLabel } from '@/components/platform/shell/Side
 import { COMPANY_SIDE_LABELS, DEPARTMENT_LABELS, officeLabel, type CompanySide, type Department } from '@/lib/profile/metadata';
 import { REGIONS } from '@/lib/regions';
 import { cn } from '@/lib/utils';
+import { HEADING } from '@/components/platform/shared/panelStyles';
+import { initialsOrEmail } from '@/lib/formatters';
 
 export interface MemberProfile {
   id: string;
@@ -39,15 +41,8 @@ export interface MemberActivity {
 }
 
 // Same banner as Settings → Profile (components/platform/settings/SettingsClient.tsx).
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const BANNER_BG = 'radial-gradient(398px 241px at 168px 95px, rgba(31,37,45,.2) 0%, rgba(53,62,74,.2) 15%, rgba(76,87,103,.2) 30%, rgba(98,111,132,.2) 46%, rgba(120,136,161,.2) 61%), var(--color-secondary-700)';
 const FILTER = 'h-10 w-full max-w-[320px] rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-9 pr-3 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-disabled focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
-
-function initialsOf(name: string, email: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length) return parts.slice(0, 2).map(p => p[0]).join('').toUpperCase();
-  return email.slice(0, 2).toUpperCase();
-}
 
 const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString('en-US') : null);
 const fmtTime = (d: string) => new Date(d).toLocaleString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -137,7 +132,7 @@ function Banner({ profile, name, role, canEditPhoto }: { profile: MemberProfile;
           {avatar
             // eslint-disable-next-line @next/next/no-img-element
             ? <img src={avatar} alt={`${name}’s profile photo`} className="size-full object-cover" onError={() => setAvatar(null)} />
-            : <span aria-hidden className={cn('text-[40px] font-semibold', HEADING)}>{initialsOf(profile.fullName, profile.email)}</span>}
+            : <span aria-hidden className={cn('text-[40px] font-semibold', HEADING)}>{initialsOrEmail(profile.fullName, profile.email)}</span>}
           {canEditPhoto && (
             <>
               <button

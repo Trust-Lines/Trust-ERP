@@ -6,6 +6,7 @@ import type { AuditRow } from './ProjectDetailClient';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import { PersonFace } from '@/components/ui/avatar-directory';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 interface Props {
   events: AuditRow[];
@@ -57,7 +58,6 @@ function relativeTime(d: string): string {
 }
 
 // Figma "Project Detail" › Activity (node 245:28820).
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 
 export function AuditTrail({ events, userRole, className }: Props) {
   const [showAll, setShowAll] = useState(false);

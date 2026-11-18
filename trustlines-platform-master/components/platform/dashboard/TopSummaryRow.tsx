@@ -5,6 +5,7 @@ import { BriefcaseBusiness, CalendarDays, CircleCheck, DraftingCompass, Factory,
 import { roleLabel } from '@/components/platform/shell/Sidebar';
 import { cn } from '@/lib/utils';
 import { MyDayCard } from './MyDayCard';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Top of the dashboard, Figma "ops_manager" (node 376:31510): greeting + My Tasks, then the KPI row.
 
@@ -29,7 +30,6 @@ const KPI_ICON: Record<KpiItem['key'], LucideIcon> = {
   active: BriefcaseBusiness, design: DraftingCompass, production: Factory, finalizing: Hammer, approvals: CircleCheck,
   to_sign: PenLine, to_order: PackageOpen, on_hold: Pause, shipped: Ship,
 };
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 
 function greeting(now: Date): string {
   const h = now.getHours();

@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { PageCrumbs, type CrumbItem } from './PageCrumbs';
-
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+import { HEADING } from './panelStyles';
 
 /**
  * Page heading: crumbs, 28px title, subtitle, actions on the right.

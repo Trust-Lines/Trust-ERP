@@ -6,7 +6,7 @@ import { MessageSquare, Loader2, Send, Activity } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { formatDate } from '@/lib/formatDate';
+import { timeAgo } from '@/lib/formatters';
 import { EmptyState } from '@/components/ui/empty-state';
 
 interface ActivityRow {
@@ -16,16 +16,6 @@ interface ActivityRow {
   kind: 'comment' | 'change';
   body: string | null;
   created_at: string;
-}
-
-function timeAgo(iso: string): string {
-  const d = new Date(iso).getTime();
-  if (Number.isNaN(d)) return '';
-  const s = Math.floor((Date.now() - d) / 1000);
-  if (s < 60) return 'just now';
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return formatDate(iso);
 }
 
 export function LeadActivity({ intakeId }: { intakeId: string }) {

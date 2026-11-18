@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { feedback } from '@/components/ui/feedback-toast';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Figma "Approvals" request pop-up (481:23498 scrim + 481:23499): heading with chips and close, then
 // [file card with Reject / Approve] + [Notes with the confirm button] on the left, File Preview on the right.
@@ -35,7 +36,6 @@ interface Props {
   onClose: () => void;
 }
 
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const SURFACE = 'flex flex-col rounded-[10px] border border-ui-divider bg-ui-page-bg p-6';
 const kind = (name: string): 'pdf' | 'image' | 'sheet' | 'other' => {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';

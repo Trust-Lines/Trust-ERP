@@ -6,13 +6,12 @@ import { cn } from '@/lib/utils';
 import type { HrAction, HrAgendaItem, HrBirthday, HrCalendarEvent, HrContainer, HrOrder, HrUnavailable } from './types';
 import { HrCalendar } from './HrCalendar';
 import { HrAgendaCard, HrBirthdaysCard, HrContainersCard, HrOrdersCard, HrUnavailableCard } from './HrCards';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Figma "TRUST-LINES-ERP" → "HR board" (node 555:34497, revised 585:3113; dark mode 565:11504 — same tokens, the
 // status/surface variables swap under .dark in globals.css), the "Dashboard content" area only —
 // the app shell (sidebar, top bar) already exists. UI only: every list comes in through props,
 // an empty list shows its empty state, and a header button shows only when it is wired.
-
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 
 export interface HrBoardProps {
   /** Defaults to now; pass it to keep server and client on the same day. */

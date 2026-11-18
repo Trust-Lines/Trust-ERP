@@ -5,6 +5,7 @@ import { CheckCircle2, CircleSlash, ExternalLink, FolderSearch, Link2, Loader2, 
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Admin "Dropbox Matching": every project, the folder it points to, and the folders on the
 // connected Dropbox that could be it (scored by lib/dropbox/match). A person decides; only the
@@ -25,7 +26,6 @@ type Filter = 'todo' | 'sure' | 'linked' | 'decided' | 'all';
 
 const STATUS_LABEL: Record<Status, string> = { linked: 'Folder found', sure: 'Sure match', ambiguous: 'Several candidates', none: 'Not found' };
 const STATUS_TONE: Record<Status, string> = { linked: 't9', sure: 't3', ambiguous: 't7', none: 't10' };
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const dropboxUrl = (p: string) => `https://www.dropbox.com/home${encodeURI(p)}`;
 
 export function DropboxMatchingClient() {

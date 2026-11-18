@@ -17,6 +17,7 @@ import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmModal } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 interface Proj { id: string; code: string; name: string }
 interface Sup { id: string; code: string | null; name: string }
@@ -32,7 +33,6 @@ interface Props {
 
 // Figma "Expenses" (node 427:18378). The frame has no "New expense" action; the existing
 // one stays (orange, like the other list pages). Row "…" holds the existing actions.
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
 const CELL_STRONG = cn('text-[15px] font-semibold', HEADING);
 const FIELD = 'h-10 w-full min-w-0 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-secondary focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';

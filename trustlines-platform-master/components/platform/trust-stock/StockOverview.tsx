@@ -17,13 +17,13 @@ import type { PartStatus, StockPart, TrustStock, TrustStockItem } from './types'
 import {
   available, dimsFromText, fmtDay, newId, onHand, partStatus, remainingPct, reorderPcs, stockTile, toOrder, used, useStockParts,
 } from './store';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Figma "Stock Overview" (node 601:27426): quantities of every item received under the Trust
 // Stock lines — KPI cards, status tabs, and one block per stock order (the line's stock, order#,
 // vendor and date). Received, target and reorder % are edited in place. Frontend only: items
 // live in this tab (store.ts) until a Trust Stock backend exists.
 
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const GROUP_BAR = 'bg-[#848484]';
 
 const STATUS: Record<PartStatus, { label: string; bg: string; fg: string }> = {

@@ -21,6 +21,7 @@ import { Checkbox as UiCheckbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TRUST_STAGE_LABEL, TRUST_STAGE_ORDER } from '@/lib/projects/listInfo';
 import type { TrustStage } from '@/lib/trust/board';
+import { initialsOf } from '@/lib/formatters';
 
 interface Props {
   projects: ProjectRow[];
@@ -69,10 +70,6 @@ function openChipSelect(e: React.MouseEvent<HTMLDivElement>) {
 const TH_CLS = 'h-[46px] whitespace-nowrap px-2.5 text-left text-[12px] font-semibold leading-[1.4] text-ui-body';
 const TD_CLS = 'px-2.5 text-[13px] text-ui-body';
 const PAGE_BTN = 'inline-flex h-[34px] items-center justify-center rounded-[6px] border border-ui-input-border bg-ui-input-bg px-[14px] text-[13px] font-semibold text-[var(--color-secondary-700)] disabled:opacity-50 dark:text-ui-heading';
-
-function initials(name: string): string {
-  return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
-}
 
 function formatDate(iso: string): string {
   return new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -503,7 +500,7 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                         {p.owner ? (
                           <span className="flex items-center gap-2 whitespace-nowrap">
                             <span aria-hidden className="grid size-[26px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold leading-[1.4] text-ui-body">
-                              <PersonFace name={p.owner.full_name} fallback={initials(p.owner.full_name)} />
+                              <PersonFace name={p.owner.full_name} fallback={initialsOf(p.owner.full_name)} />
                             </span>
                             <span className="flex flex-col leading-tight">
                               {p.owner.full_name}

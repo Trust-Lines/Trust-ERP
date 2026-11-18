@@ -5,37 +5,11 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import {
-  ChevronDown,
-  Download,
-  Plus,
-  Search,
-  X,
-  Rows3,
-  LayoutGrid,
-  ChevronRight,
-  ChevronLeft,
-  Archive,
-  UserRound,
-  CornerDownLeft,
-  ListFilter,
-  CircleCheck,
-  Settings2,
-  Eye,
-  List,
-  ChevronsUp,
-  ChevronsDown,
-  Equal,
-  MoreHorizontal,
-  Pencil,
-  ArrowUpDown,
-  ArrowDown,
-  ArrowUp,
-  Check,
+  ChevronDown, Download, Plus, Search, X, Rows3, LayoutGrid, ChevronRight, ChevronLeft, Archive, UserRound, CornerDownLeft, ListFilter, Settings2, Eye, List, MoreHorizontal, Pencil, ArrowUpDown, ArrowDown, ArrowUp, Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ApprovalReviewDialog } from './ApprovalReviewDialog';
 import { DOC_LABELS } from './docLabels';
-import { StatusBadge } from '@/components/ui/status-badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { feedback } from '@/components/ui/feedback-toast';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -44,91 +18,13 @@ import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
 import { modalSecondaryButtonClass } from '@/components/ui/modal';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
-
-
-export interface MyApproval {
-  approvalId:   string;
-  projectId:    string;
-  projectName:  string;
-  projectCode:  string;
-  documentId:   string;
-  fileName:     string;
-  docType:      string;
-  catGroup:     string | null;
-  version:      number;
-  versionNum:   number | null;
-  stage:        number;
-  totalStages:  number;
-  isFinalStage: boolean;
-  stageLabel:   string;
-  createdAt:    string;
-}
+import type { MyApproval } from '@/lib/approvals/mine';
+import {
+  type TabKey, type PriorityLevel, type StatusType, type Density, type UnifiedRequestRow, type RowOverride, type FilterField, type FilterCondition, SAVED_VIEWS, rowsForTab, FILTER_FIELD_LABEL, FILTER_FIELD_VALUE, DENSITY_ROW_HEIGHT, DEFAULT_VISIBLE_COLUMNS, STATUS_OPTIONS, SAMPLE_REQUESTS, mapDocTypeToStatus, formatRelativeTime,
+} from './approvalsModel';
+import { ApprovalStatusPill, PriorityChip, PriorityLabel } from './ApprovalChips';
 
 const SignaturePad = dynamic(() => import('../SignaturePad').then(m => ({ default: m.SignaturePad })), { ssr: false });
-
-type TabKey = 'open' | 'assigned' | 'needs_approval';
-type PriorityLevel = 'High' | 'Medium' | 'Low';
-type StatusType = 'Design' | 'Planning' | 'Production' | 'Quality Control' | 'Installation' | 'Completed';
-type Density = 'compact' | 'normal' | 'comfortable';
-
-interface UnifiedRequestRow {
-  id: string;
-  isRealApproval: boolean;
-  approvalData?: MyApproval;
-  title: string;
-  code: string;
-  ownerName: string;
-  ownerInitials: string;
-  status: StatusType;
-  priority: PriorityLevel;
-  amount: number;
-  updatedLabel: string;
-  rawDate: number;
-}
-
-type RowOverride = Partial<Pick<UnifiedRequestRow, 'title' | 'status' | 'ownerName' | 'ownerInitials'>>;
-
-// Saved views = the three tabs. Each keeps its own row rule (rowsForTab).
-const SAVED_VIEWS: { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { key: 'open',           label: 'Open requests',  icon: ListFilter },
-  { key: 'assigned',       label: 'Assigned to me', icon: UserRound },
-  { key: 'needs_approval', label: 'Needs approval', icon: CircleCheck },
-];
-
-function rowsForTab(rows: UnifiedRequestRow[], tab: TabKey): UnifiedRequestRow[] {
-  // In sample or real data, show non-completed or open items
-  if (tab === 'open') return rows.filter(r => r.status !== 'Completed');
-  if (tab === 'assigned') return rows.filter(r => r.ownerInitials === 'MC' || r.isRealApproval);
-  return rows.filter(r => r.priority === 'High' || r.isRealApproval);
-}
-
-type FilterField = 'priority' | 'status' | 'owner';
-interface FilterCondition { field: FilterField; values: string[] }
-
-const FILTER_FIELD_LABEL: Record<FilterField, string> = { priority: 'Priority', status: 'Status', owner: 'Owner' };
-const FILTER_FIELD_VALUE: Record<FilterField, (r: UnifiedRequestRow) => string> = {
-  priority: r => r.priority,
-  status:   r => r.status,
-  owner:    r => r.ownerName,
-};
-
-const DENSITY_ROW_HEIGHT: Record<Density, { px: number; className: string }> = {
-  compact:     { px: 36, className: 'h-9' },
-  normal:      { px: 64, className: 'h-16' },
-  comfortable: { px: 72, className: 'h-[72px]' },
-};
-
-// "request" is locked on in the Columns menu.
-const DEFAULT_VISIBLE_COLUMNS = {
-  request: true,
-  owner: true,
-  status: true,
-  priority: true,
-  amount: true,
-  updated: true,
-};
-
-const STATUS_OPTIONS: StatusType[] = ['Planning', 'Design', 'Production', 'Quality Control', 'Installation', 'Completed'];
 
 // Platform <Select> drawn like this page's outlined controls (overrides fieldBase's own light/dark look).
 const CHIP_SELECT =
@@ -141,151 +37,6 @@ const MOBILE_BTN =
 // Figma 481:23048 applied-filter chip: 36px, surface fill, navy outline (light) / soft outline (dark), × to remove.
 const FILTER_CHIP = 'inline-flex h-9 items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] bg-ui-surface px-3 font-[family-name:var(--font-ui)] text-[13px] font-semibold leading-[1.4] text-ui-body dark:border-ui-text-secondary dark:text-ui-heading';
 const FILTER_CHIP_X = 'grid place-items-center rounded-[2px] text-current opacity-80 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring';
-
-// Sample fallback items matching the reference specification exactly
-const SAMPLE_REQUESTS: UnifiedRequestRow[] = [
-  {
-    id: 'req-1048',
-    isRealApproval: false,
-    title: 'Workspace access — new hires',
-    code: 'REQ-1048',
-    ownerName: 'Maya Chen',
-    ownerInitials: 'MC',
-    status: 'Design',
-    priority: 'High',
-    amount: 2400.0,
-    updatedLabel: 'Today, 09:42',
-    rawDate: Date.now() - 1000 * 60 * 35,
-  },
-  {
-    id: 'req-1047',
-    isRealApproval: false,
-    title: 'Figma Enterprise renewal',
-    code: 'REQ-1047',
-    ownerName: 'Alex Morgan',
-    ownerInitials: 'AM',
-    status: 'Planning',
-    priority: 'Medium',
-    amount: 18000.0,
-    updatedLabel: 'Today, 09:28',
-    rawDate: Date.now() - 1000 * 60 * 50,
-  },
-  {
-    id: 'req-1046',
-    isRealApproval: false,
-    title: 'London office equipment',
-    code: 'REQ-1046',
-    ownerName: 'Priya Shah',
-    ownerInitials: 'PS',
-    status: 'Production',
-    priority: 'High',
-    amount: 6850.0,
-    updatedLabel: 'Today, 08:56',
-    rawDate: Date.now() - 1000 * 60 * 85,
-  },
-  {
-    id: 'req-1045',
-    isRealApproval: false,
-    title: 'Q4 customer research incentives',
-    code: 'REQ-1045',
-    ownerName: 'Noah Williams',
-    ownerInitials: 'NW',
-    status: 'Quality Control',
-    priority: 'Medium',
-    amount: 3200.0,
-    updatedLabel: 'Yesterday, 16:30',
-    rawDate: Date.now() - 1000 * 60 * 60 * 20,
-  },
-  {
-    id: 'req-1044',
-    isRealApproval: false,
-    title: 'Security audit — vendor review',
-    code: 'REQ-1044',
-    ownerName: 'Maya Chen',
-    ownerInitials: 'MC',
-    status: 'Planning',
-    priority: 'High',
-    amount: 12500.0,
-    updatedLabel: 'Yesterday, 15:12',
-    rawDate: Date.now() - 1000 * 60 * 60 * 22,
-  },
-  {
-    id: 'req-1043',
-    isRealApproval: false,
-    title: 'Offsite travel arrangements',
-    code: 'REQ-1043',
-    ownerName: 'Sofia Garcia',
-    ownerInitials: 'SG',
-    status: 'Installation',
-    priority: 'Low',
-    amount: 8640.0,
-    updatedLabel: 'Yesterday, 14:05',
-    rawDate: Date.now() - 1000 * 60 * 60 * 24,
-  },
-  {
-    id: 'req-1042',
-    isRealApproval: false,
-    title: 'Analytics platform upgrade',
-    code: 'REQ-1042',
-    ownerName: 'Alex Morgan',
-    ownerInitials: 'AM',
-    status: 'Completed',
-    priority: 'Medium',
-    amount: 4800.0,
-    updatedLabel: 'Oct 14, 11:20',
-    rawDate: Date.now() - 1000 * 60 * 60 * 48,
-  },
-  {
-    id: 'req-1041',
-    isRealApproval: false,
-    title: 'Brand asset localization',
-    code: 'REQ-1041',
-    ownerName: 'Priya Shah',
-    ownerInitials: 'PS',
-    status: 'Completed',
-    priority: 'Low',
-    amount: 1950.0,
-    updatedLabel: 'Oct 14, 10:08',
-    rawDate: Date.now() - 1000 * 60 * 60 * 50,
-  },
-];
-
-function mapDocTypeToStatus(docType: string): StatusType {
-  switch (docType) {
-    case 'plan_layout':
-    case 'proposal':
-      return 'Design';
-    case 'construction_drawings':
-    case 'shop_drawing':
-      return 'Planning';
-    case 'po_bo':
-    case 'pf':
-      return 'Production';
-    case 'book':
-    case 'qc':
-      return 'Quality Control';
-    case 'item_plan':
-    case 'item_list':
-      return 'Installation';
-    default:
-      return 'Planning';
-  }
-}
-
-function formatRelativeTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return 'Recently';
-  const now = new Date();
-  const isToday = d.toDateString() === now.toDateString();
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  const isYesterday = d.toDateString() === yesterday.toDateString();
-
-  const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-  if (isToday) return `Today, ${timeStr}`;
-  if (isYesterday) return `Yesterday, ${timeStr}`;
-  return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${timeStr}`;
-}
 
 export function ApprovalsPageClient() {
   const router = useRouter();
@@ -599,17 +350,6 @@ export function ApprovalsPageClient() {
     toast.success('Export downloaded successfully');
   }
 
-  function renderStatusPill(status: StatusType) {
-    // Tone + icon from lib/status/tags.ts (project_stage); chip spacing per design: 3px 10px 3px 8px, gap 4px.
-    return (
-      <StatusBadge
-        group="project_stage"
-        status={status}
-        className="h-auto gap-1 rounded-[4px] py-[3px] pl-2 pr-[10px] text-xs leading-4 [&_svg]:size-3.5"
-      />
-    );
-  }
-
   // Card text per Figma 481:23066. Real approvals: project / document type / stage / project code;
   // sample rows (shown only when there are no real approvals): amount / title / request code.
   function cardFields(row: UnifiedRequestRow): { kicker: string; headline: string; ref: string; code: string | null } {
@@ -621,45 +361,6 @@ export function ApprovalsPageClient() {
     return { kicker: formatAmount(row.amount), headline: row.title, ref: row.code, code: null };
   }
 
-  // Figma card priority: filled chip, chevrons + label (High t10, Medium t7, Low t0).
-  function renderPriorityChip(priority: PriorityLevel, small = false) {
-    const tone = priority === 'High' ? 't10' : priority === 'Medium' ? 't7' : 't0';
-    const Icon = priority === 'High' ? ChevronsUp : priority === 'Medium' ? Equal : ChevronsDown;
-    return (
-      <span
-        className={small ? 'inline-flex shrink-0 items-center gap-1 rounded-[4px] py-[3px] pl-2.5 pr-4 text-[12px] font-medium leading-4' : 'inline-flex h-[33px] shrink-0 items-center gap-1 rounded-[4px] pl-2 pr-2.5 text-[16px] leading-[1.4]'}
-        style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone}-fg)` }}
-      >
-        <Icon className={small ? 'size-3.5' : 'size-[17px]'} aria-hidden />{priority}
-      </span>
-    );
-  }
-
-  function renderPriority(priority: PriorityLevel) {
-    if (priority === 'High') {
-      return (
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-[#dc2626] dark:text-error-light">
-          <ChevronsUp className="w-3.5 h-3.5" />
-          High
-        </span>
-      );
-    }
-    if (priority === 'Medium') {
-      return (
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-[#475569] dark:text-ui-body">
-          <Equal className="w-3.5 h-3.5" />
-          Medium
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 text-xs font-medium text-[#64748b] dark:text-ui-text-secondary">
-        <ChevronsDown className="w-3.5 h-3.5" />
-        Low
-      </span>
-    );
-  }
-
   // Row height is fixed per density (compact 36px / normal 64px / comfortable 72px);
   // compact drops the request code and owner avatar so a row fits on one line.
   const isCompact = density === 'compact';
@@ -668,7 +369,6 @@ export function ApprovalsPageClient() {
 
   const proxyUrl = (a: MyApproval) =>
     `/api/files/proxy/${encodeURIComponent(a.fileName)}?documentId=${a.documentId}${cacheBust[a.approvalId] ? `&t=${cacheBust[a.approvalId]}` : ''}`;
-
 
   // Shared by the desktop table and the mobile card list.
   const noMatchState = loadError ? (
@@ -779,7 +479,7 @@ export function ApprovalsPageClient() {
           <MenuContent className="w-48">
             {STATUS_OPTIONS.map(s => (
               <MenuItem key={s} onClick={() => bulkChangeStatus(s)}>
-                {renderStatusPill(s)}
+                <ApprovalStatusPill status={s} />
               </MenuItem>
             ))}
           </MenuContent>
@@ -828,7 +528,7 @@ export function ApprovalsPageClient() {
         key={row.id}
         subtitle={a ? `${a.projectName} - ${c.ref}` : `${c.kicker} - ${row.code}`}
         title={c.code ? `${c.headline} - ${c.code}` : c.headline}
-        chips={<>{renderStatusPill(row.status)}{renderPriorityChip(row.priority, true)}</>}
+        chips={<><ApprovalStatusPill status={row.status} /><PriorityChip priority={row.priority} small /></>}
         approval={a ? {
           approvalId: a.approvalId, projectId: a.projectId, fileName: a.fileName, isFinalStage: a.isFinalStage,
           versionNum: a.versionNum, version: a.version, stage: a.stage, totalStages: a.totalStages, stageLabel: a.stageLabel,
@@ -925,7 +625,6 @@ export function ApprovalsPageClient() {
           {mobileView === 'cards' ? <Rows3 className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
         </button>
       </div>
-
 
       {/* ── 3. CONTROLS: SEARCH, FILTERS & VIEW OPTIONS ───────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -1353,14 +1052,14 @@ export function ApprovalsPageClient() {
                         {/* Status */}
                         {visibleColumns.status && (
                           <td className={`px-4 ${paddingClass} whitespace-nowrap`}>
-                            {renderStatusPill(row.status)}
+                            <ApprovalStatusPill status={row.status} />
                           </td>
                         )}
 
                         {/* Priority */}
                         {visibleColumns.priority && (
                           <td className={`px-4 ${paddingClass} whitespace-nowrap`}>
-                            {renderPriority(row.priority)}
+                            <PriorityLabel priority={row.priority} />
                           </td>
                         )}
 
@@ -1460,7 +1159,7 @@ export function ApprovalsPageClient() {
                             aria-label={`Select request ${row.code}`}
                           />
                           <span className="truncate text-[16px] font-medium tracking-[0.64px] text-[var(--color-secondary-700)] dark:text-ui-heading">{c.kicker}</span>
-                          <span className="shrink-0">{renderStatusPill(row.status)}</span>
+                          <span className="shrink-0"><ApprovalStatusPill status={row.status} /></span>
                         </div>
                         <span className="shrink-0 rounded-[4px] bg-ui-surface-elevated px-2.5 py-0.5 text-[14px] font-medium leading-[1.5] tracking-[0.56px] text-[var(--color-secondary-700)] dark:text-ui-heading">{c.ref}</span>
                       </div>
@@ -1475,7 +1174,7 @@ export function ApprovalsPageClient() {
                           <span className="text-[12px] tracking-[0.48px] text-ui-text-secondary">Waiting on:</span>
                           <span className="truncate text-[16px] font-medium tracking-[0.64px] text-[var(--color-secondary-700)] dark:text-ui-heading">{row.ownerName}</span>
                         </div>
-                        {renderPriorityChip(row.priority)}
+                        <PriorityChip priority={row.priority} />
                       </div>
                     </div>
                   </React.Fragment>

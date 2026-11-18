@@ -2,8 +2,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
+import { HEADING } from './panelStyles';
 
 /** Figma KPI card (Marketing Home 244:17297, CRM Board 280:25017): 165px tile, icon square, label, big value, optional chip. */
 export function StatCard({ icon: Icon, label, value, chip, href, onClick, active }: {

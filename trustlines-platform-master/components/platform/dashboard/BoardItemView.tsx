@@ -24,13 +24,14 @@ import type { ProjectStage } from '@/types/database';
 import type { BoardCardItem, BoardSection } from './BranchBoard';
 import { useRouter } from 'next/navigation';
 import { SERVICE_LINES, serviceLineLabel } from '@/lib/regions';
+import { HEADING } from '@/components/platform/shared/panelStyles';
+import { isoDateToUS as fmtDate } from '@/lib/formatters';
 
 // Design: Figma "TRUST-LINES ERP" → "Page content" (node 359:25337, new version 908:25017) — the
 // popup a dashboard card opens. Under the heading: T Lines Tasks and Trust Lines Tasks. Left: one tab
 // per stage the project has reached (lib/dashboard/cardTabs); middle: that stage's details.
 // Potential / Opportunity / Project jump to that part of the list.
 
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const PHASES: { value: CardPhase; label: string; icon: LucideIcon }[] = [
   { value: 'potential', label: 'Potential', icon: Clock },
   { value: 'opportunity', label: 'Opportunity', icon: Gem },
@@ -564,12 +565,6 @@ const ActionButton = ({ onClick, children }: { onClick: () => void; children: Re
   <button type="button" onClick={onClick} className={ACTION}>{children}</button>;
 const ActionLink = ({ href, children }: { href: string; children: React.ReactNode }) =>
   <Link href={href} className={ACTION}>{children}</Link>;
-
-function fmtDate(d: string | null | undefined): string | null {
-  if (!d) return null;
-  const [y, m, day] = d.slice(0, 10).split('-');
-  return y && m && day ? `${m}/${day}/${y}` : d;
-}
 
 /** A price, or — when there is none. */
 const money_ = (v: number | null | undefined, cur: string) => (v ? money(v, cur) : '—');

@@ -1321,6 +1321,10 @@ Eksik küçük detaylarda mevcut mimariye ve bu dosyaya uygun en güvenli karar 
 
 ```text
 Project architecture:
+- Frontend refactor (2026-11-18): shared display helpers in lib/formatters.ts (initialsOf, initialsOrEmail, timeAgo,
+  formatFileSize, isoDateToUS); the HEADING class comes from components/platform/shared/panelStyles.ts everywhere.
+  Large screens split into parts: approvals (approvalsModel.ts, ApprovalChips.tsx), team (teamShared.ts,
+  TeamMemberModals.tsx), opportunity quick view (marketing/opportunity-quick-view/), branch board (BranchBoardControls.tsx).
 - Gantt (2026-11-16): the lifecycle Gantt (every stage of a plan project) is on /dashboard → "View as Gantt chart"
   (page.installation roles only). /tlines-pm/installation's Gantt tab is the simpler installation-only chart (Figma
   651:31965). T-Lines PM Gantt rework is a later task.
@@ -1611,6 +1615,9 @@ Project architecture:
 > Claude `devam et` komutunda ilk tamamlanmamış görevden başlamalıdır.
 
 ```text
+[x] Frontend refactor pass 1: shared formatters + HEADING, split Approvals / Team / Opportunity quick view / Branch board. (2026-11-18)
+[ ] Frontend refactor pass 2: split the next large screens (ContactImportClient, ProspectsPageClient, NewProjectForm, PfTab, DocGeneratorModal).
+[ ] Approvals list: decide whether to remove the SAMPLE_REQUESTS fallback rows (shown when the user has no real approvals; AGENTS.md §8 says no mock data).
 [x] Lifecycle Gantt moved to /dashboard ("View as Gantt chart"); Installation Gantt tab rebuilt from Figma 651:31965. (2026-11-16)
 [ ] T-Lines PM Gantt rework (design pending from the user).
 [x] Requests redesign polish: 32px/600 heading, 13px/600 breadcrumb label, and T4 Design chip styling. (2026-10-19)
@@ -2185,6 +2192,21 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-11-18 (Frontend refactor pass 1) — no migration, no API change, no UI change
+- lib/formatters.ts: one copy of initialsOf, initialsOrEmail, timeAgo, formatFileSize, isoDateToUS (were pasted into
+  ProspectsPageClient, ProjectsTableClient, SettingsClient, MemberProfileClient, ActivityFeed, LeadActivity,
+  DropboxFileList, DropboxProjectBrowser, BoardItemView, BranchBoardPage, ProjectQuickView). Same output as before.
+- 45 components dropped their own copy of the HEADING class and import it from shared/panelStyles.ts.
+- ApprovalsPageClient 1545 → 1244 lines: row types / saved views / filters / sample rows / mapping helpers →
+  approvals/approvalsModel.ts; status + priority chips → approvals/ApprovalChips.tsx; the duplicate MyApproval
+  interface removed (type comes from lib/approvals/mine).
+- TeamPageClient 919 → 354 lines: InviteModal / EditModal / DeleteConfirm → team/TeamMemberModals.tsx; row types and
+  role labels → team/teamShared.ts.
+- OpportunityQuickView 1013 → 794 lines: form card, fields, inputs, docs list, file row bits →
+  marketing/opportunity-quick-view/parts.tsx; data shapes → opportunity-quick-view/types.ts.
+- BranchBoard 1009 → 864 lines: date presets / filters, view / Gantt / columns toggles, pmColumns →
+  dashboard/BranchBoardControls.tsx (BoardGantt still exported from BranchBoard).
+- Checks: tsc clean; npm test 802 passed; lint 0 new errors (4 pre-existing in untracked _probe078b.mjs).
 2026-11-16 (Lifecycle Gantt → /dashboard; Installation Gantt tab from Figma 651:31965) — no migration, no new API
 - /dashboard: new "View as Gantt chart" toggle in the board's filter bar (in place, URL ?gantt=1; "View as board"
   goes back). It shows the lifecycle Gantt that was the Installation Plan's Gantt tab (Figma 784:18261, now

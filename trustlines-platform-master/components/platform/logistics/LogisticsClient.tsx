@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { cn } from '@/lib/utils';
 import { CONTAINER_STATUS_TAG, statusLabel } from '@/lib/status/tags';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 export interface ContainerRow {
   id: string; container_no: string | null; booking_no: string | null; carrier: string | null;
@@ -34,7 +35,6 @@ export function ContainerStatusBadge({ status, outlined }: { status: string; out
 
 // Figma "Logistics — containers" (node 394:74525). The frame's search box and "Newest" sort
 // have no backing feature here — the list is already newest first (page.tsx orders by created_at).
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
 
 /** "2026-08-10" → "8/10/2026" without a timezone shifting the day. */

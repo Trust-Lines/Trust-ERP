@@ -13,6 +13,7 @@ import { WebLeadsClient, type WebLeadRow } from './WebLeadsClient';
 import { CategoryViews } from './CategoryViews';
 import { WorkTypesClient } from './WorkTypesClient';
 import type { WorkTypeRow } from '@/lib/web-cms/workTypes';
+import { HEADING } from '@/components/platform/shared/panelStyles';
 
 export interface WebProjectRow {
   id: string; slug: string; title: string; category: string; location: string;
@@ -53,7 +54,6 @@ const usDate = (iso: string) => {
 };
 
 // Figma "Website (Store Maker) hub" (node 316:16157).
-const HEADING = 'text-[var(--color-secondary-700)] dark:text-ui-heading';
 const BTN_PRIMARY = 'bg-[var(--color-secondary-700)] text-white dark:bg-primary-50 dark:text-primary-950';
 const BTN_OUTLINE = 'inline-flex h-10 items-center justify-center rounded-[6px] border border-[var(--color-secondary-700)] bg-transparent px-3.5 text-[var(--color-secondary-700)] no-underline transition-colors hover:bg-ui-hover-bg dark:border-ui-heading dark:text-ui-heading';
 // Status chip tones: Published = t9, Scheduled = t7 (amber), Draft = t0. Design uses the
