@@ -130,11 +130,12 @@ export function Field({ label, span = 2, focus = false, children }: { label: str
   );
 }
 
-// Figma "Input": 42px min height, input border, 11px semibold value.
+// Figma "Input": 42px min height, input border, semibold value. 13px (was 11px) so values read at the
+// same size as the rest of the platform's inputs.
 export const fieldBox: React.CSSProperties = {
   width: '100%', minHeight: 42, padding: '0 12px', border: '1px solid var(--ui-input-border)', borderRadius: 6,
-  background: 'var(--ui-input-bg)', color: 'var(--qv-value)', fontSize: 11, fontWeight: 600, lineHeight: 1.5,
-  letterSpacing: '-0.242px', textAlign: 'left',
+  background: 'var(--ui-input-bg)', color: 'var(--qv-value)', fontSize: 13, fontWeight: 600, lineHeight: 1.5,
+  letterSpacing: '-0.286px', textAlign: 'left',
 };
 
 export function ReadOnly({ children }: { children: React.ReactNode }) {
