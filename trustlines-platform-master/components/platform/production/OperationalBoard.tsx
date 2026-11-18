@@ -274,7 +274,6 @@ const TITLE_H = 52;
 const GAP_W = 32;
 const groupCols = (g: PayGroup) => PAY_COLS.filter(c => c.group === g);
 const startsGroup = (i: number) => i === 0 || PAY_COLS[i - 1].group !== PAY_COLS[i].group;
-const endsGroup = (i: number) => i === PAY_COLS.length - 1 || PAY_COLS[i + 1].group !== PAY_COLS[i].group;
 // Dollars in the T6 green, lira in the orange of the design (--pay-usd-fg / --pay-tl-fg).
 const moneyFg = (k: PayKind) => (k === 'usd' ? 'var(--pay-usd-fg)' : 'var(--pay-tl-fg)');
 const payMoney = (kind: PayKind, n: number) => `${kind === 'usd' ? '$' : '₺'} ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -292,8 +291,9 @@ function payTotals(items: PItem[]): Record<string, number> {
 function Gap({ th }: { th?: boolean }) {
   return th ? <th aria-hidden className="sticky top-0 z-20 border-0 bg-ui-page-bg p-0" /> : <td aria-hidden className="border-0 bg-ui-page-bg p-0" />;
 }
-// A card's side borders: the first column draws the left edge, the last the right.
-const edge = (i: number) => cn(startsGroup(i) && 'border-l border-l-ui-divider', 'border-r', endsGroup(i) ? 'border-r-ui-divider' : 'border-r-transparent');
+// Spreadsheet lines like the Project card: every column has a right border, the card's first
+// column also its left edge.
+const edge = (i: number) => cn(startsGroup(i) && 'border-l border-l-ui-divider', 'border-r border-r-ui-divider');
 function WhiteChip({ children, color, big }: { children: React.ReactNode; color?: string; big?: boolean }) {
   return (
     <span className={cn('inline-flex items-center justify-center whitespace-nowrap rounded-[4px] bg-ui-page-bg font-medium', big ? 'w-full px-2 py-1 text-[16px] text-[var(--color-secondary-700)] dark:text-ui-heading' : 'min-w-[70px] py-1 pl-2.5 pr-2 text-[12px] leading-4')}
@@ -335,7 +335,7 @@ function PayHeadBand({ style }: { style: React.CSSProperties }) {
         <Fragment key={g.group}>
           <Gap />
           {g.pills.map(([label, n], pi) => (
-            <td key={pi} colSpan={n} className={cn('border-y border-ui-divider px-4 py-2', pi === 0 && 'border-l', pi === g.pills.length - 1 && 'border-r')} style={style}>
+            <td key={pi} colSpan={n} className={cn('border-y border-r border-ui-divider px-4 py-2', pi === 0 && 'border-l')} style={style}>
               <WhiteChip big>{label}</WhiteChip>
             </td>
           ))}
@@ -366,9 +366,9 @@ function PayTotalCells({ totals, styleOf, labels }: { totals: Record<string, num
         return (
           <Fragment key={g.group}>
             <Gap />
-            {labels && g.total && <td colSpan={2} className="border-y border-l border-ui-divider px-4 py-2.5 text-[14px] font-semibold whitespace-nowrap" style={styleOf(g.group)}>{g.total}</td>}
-            {(labels && g.total ? cs.slice(2) : cs).map((c, i, arr) => (
-              <td key={c.key} className={cn('border-y border-ui-divider px-2 py-2', i === 0 && !(labels && g.total) && 'border-l', i === arr.length - 1 && 'border-r')} style={styleOf(g.group)}>
+            {labels && g.total && <td colSpan={2} className="border-y border-x border-ui-divider px-4 py-2.5 text-[14px] font-semibold whitespace-nowrap" style={styleOf(g.group)}>{g.total}</td>}
+            {(labels && g.total ? cs.slice(2) : cs).map((c, i) => (
+              <td key={c.key} className={cn('border-y border-r border-ui-divider px-2 py-2', i === 0 && !(labels && g.total) && 'border-l')} style={styleOf(g.group)}>
                 {isMoney(c.kind) && <WhiteChip color={moneyFg(c.kind)}>{payMoney(c.kind, totals[c.key] ?? 0)}</WhiteChip>}
               </td>
             ))}
