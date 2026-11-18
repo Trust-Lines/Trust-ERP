@@ -46,6 +46,7 @@ import {
   Wrench,
   Landmark,
   CreditCard,
+  Phone,
   PieChart,
   Wallet,
   Share2,
@@ -146,6 +147,8 @@ const IT_NAV: NavItem[] = [
   { label: 'Mails', href: '/it/mails', icon: Mail, perm: 'page.it' },
   // Figma "IT / Subscriptions" (908:22728): company software subscriptions.
   { label: 'Subscriptions', href: '/it/subscriptions', icon: CreditCard, perm: 'page.it' },
+  // Figma "IT / Phone Numbers" (966:39447): company phone lines and who holds them.
+  { label: 'Phone Numbers', href: '/it/phones', icon: Phone, perm: 'page.it' },
 ];
 
 const CUSTOMERS_ITEM: NavItem ={ label: 'Customers', href: '/customers', icon: Contact, perm: 'page.customers' };
