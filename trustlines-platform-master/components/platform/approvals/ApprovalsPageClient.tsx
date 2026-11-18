@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import {
-  ChevronDown, Download, Plus, Search, X, Rows3, LayoutGrid, ChevronRight, ChevronLeft, Archive, UserRound, CornerDownLeft, ListFilter, Settings2, Eye, List, MoreHorizontal, Pencil, ArrowUpDown, ArrowDown, ArrowUp, Check,
+  ChevronDown, CircleCheck, Loader2, Download, Plus, Search, X, Rows3, LayoutGrid, ChevronRight, ChevronLeft, Archive, UserRound, CornerDownLeft, ListFilter, Settings2, Eye, List, MoreHorizontal, Pencil, ArrowUpDown, ArrowDown, ArrowUp, Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ApprovalReviewDialog } from './ApprovalReviewDialog';
@@ -20,7 +20,7 @@ import { Select as FilterSelect } from '@/components/ui/select';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import type { MyApproval } from '@/lib/approvals/mine';
 import {
-  type TabKey, type PriorityLevel, type StatusType, type Density, type UnifiedRequestRow, type RowOverride, type FilterField, type FilterCondition, SAVED_VIEWS, rowsForTab, FILTER_FIELD_LABEL, FILTER_FIELD_VALUE, DENSITY_ROW_HEIGHT, DEFAULT_VISIBLE_COLUMNS, STATUS_OPTIONS, SAMPLE_REQUESTS, mapDocTypeToStatus, formatRelativeTime,
+  type TabKey, type PriorityLevel, type StatusType, type Density, type UnifiedRequestRow, type RowOverride, type FilterField, type FilterCondition, SAVED_VIEWS, rowsForTab, FILTER_FIELD_LABEL, FILTER_FIELD_VALUE, DENSITY_ROW_HEIGHT, DEFAULT_VISIBLE_COLUMNS, STATUS_OPTIONS, mapDocTypeToStatus, formatRelativeTime,
 } from './approvalsModel';
 import { ApprovalStatusPill, PriorityChip, PriorityLabel } from './ApprovalChips';
 
@@ -145,10 +145,9 @@ export function ApprovalsPageClient() {
     });
   }, [items]);
 
-  // Combined dataset: Real approvals take precedence; if empty, display sample dataset matching the spec
+  // Only real approvals; with none waiting the list shows its empty state.
   const allRows = useMemo<UnifiedRequestRow[]>(() => {
-    const base = mappedRealApprovals.length > 0 ? mappedRealApprovals : SAMPLE_REQUESTS;
-    return base
+    return mappedRealApprovals
       .filter(r => !archivedIds[r.id])
       .map(r => (rowOverrides[r.id] ? { ...r, ...rowOverrides[r.id] } : r));
   }, [mappedRealApprovals, archivedIds, rowOverrides]);
@@ -350,8 +349,8 @@ export function ApprovalsPageClient() {
     toast.success('Export downloaded successfully');
   }
 
-  // Card text per Figma 481:23066. Real approvals: project / document type / stage / project code;
-  // sample rows (shown only when there are no real approvals): amount / title / request code.
+  // Card text per Figma 481:23066: project / document type / stage / project code
+  // (amount / title / request code if a row ever has no approval attached).
   function cardFields(row: UnifiedRequestRow): { kicker: string; headline: string; ref: string; code: string | null } {
     const a = row.approvalData;
     if (a) {
@@ -371,6 +370,7 @@ export function ApprovalsPageClient() {
     `/api/files/proxy/${encodeURIComponent(a.fileName)}?documentId=${a.documentId}${cacheBust[a.approvalId] ? `&t=${cacheBust[a.approvalId]}` : ''}`;
 
   // Shared by the desktop table and the mobile card list.
+  const hasFilters = !!searchQuery || conditions.length > 0 || statusFilterOpen;
   const noMatchState = loadError ? (
     <EmptyState
       icon={<X />}
@@ -382,12 +382,20 @@ export function ApprovalsPageClient() {
         </Button>
       }
     />
+  ) : items === null ? (
+    <EmptyState icon={<Loader2 className="animate-spin" />} title="Loading approvals…" />
+  ) : allRows.length === 0 ? (
+    <EmptyState
+      icon={<CircleCheck />}
+      title="Nothing to approve"
+      description="Documents waiting for your review or signature show up here."
+    />
   ) : (
     <EmptyState
       icon={<ListFilter />}
       title="No requests match"
       description="Nothing in this view matches the current search and filters."
-      action={(searchQuery || conditions.length > 0 || statusFilterOpen) && (
+      action={hasFilters && (
         <Button
           variant="secondary"
           className={modalSecondaryButtonClass}

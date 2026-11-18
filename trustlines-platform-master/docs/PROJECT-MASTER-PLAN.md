@@ -1617,7 +1617,7 @@ Project architecture:
 ```text
 [x] Frontend refactor pass 1: shared formatters + HEADING, split Approvals / Team / Opportunity quick view / Branch board. (2026-11-18)
 [ ] Frontend refactor pass 2: split the next large screens (ContactImportClient, ProspectsPageClient, NewProjectForm, PfTab, DocGeneratorModal).
-[ ] Approvals list: decide whether to remove the SAMPLE_REQUESTS fallback rows (shown when the user has no real approvals; AGENTS.md §8 says no mock data).
+[x] Approvals list: SAMPLE_REQUESTS fake rows removed; loading + "Nothing to approve" empty states added. (2026-11-18)
 [x] Lifecycle Gantt moved to /dashboard ("View as Gantt chart"); Installation Gantt tab rebuilt from Figma 651:31965. (2026-11-16)
 [ ] T-Lines PM Gantt rework (design pending from the user).
 [x] Requests redesign polish: 32px/600 heading, 13px/600 breadcrumb label, and T4 Design chip styling. (2026-10-19)
@@ -2192,6 +2192,12 @@ Project architecture:
 > Her geliştirme sonunda tarih, yapılan iş ve değişen dosyalar yazılmalıdır.
 
 ```text
+2026-11-18 (Approvals: fake sample rows removed) — no migration, no API change
+- /approvals showed 6 hard-coded fake requests (SAMPLE_REQUESTS: Maya Chen, "Figma Enterprise renewal" …) whenever the
+  user had no real approvals, and they went into the CSV export too (AGENTS.md §8: no mock production data). Removed.
+- "Assigned to me" no longer filters on the sample owner initials 'MC'; both approval tabs show the real approvals.
+- New states in components/platform/approvals/ApprovalsPageClient.tsx: "Loading approvals…" before the first answer
+  (there was none — the sample rows covered it) and "Nothing to approve" when the list is empty without filters.
 2026-11-18 (Frontend refactor pass 1) — no migration, no API change, no UI change
 - lib/formatters.ts: one copy of initialsOf, initialsOrEmail, timeAgo, formatFileSize, isoDateToUS (were pasted into
   ProspectsPageClient, ProjectsTableClient, SettingsClient, MemberProfileClient, ActivityFeed, LeadActivity,
