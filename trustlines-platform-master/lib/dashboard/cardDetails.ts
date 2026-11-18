@@ -4,13 +4,18 @@
 //   all  general_manager (or a role with every permission): PF, PO, expenses, payments, margin
 //   po   the T-Lines side (tlines_pm, sales, marketing): PO prices only — never PF, vendor, cost
 //   pf   the Trust Lines side (everyone else): PF, vendor, expenses — not the PO / invoice prices
+//
+// The PO price is the project's PO document (documents, doc_type 'po_bo', one per type): the sum
+// of quantity × unit price, the same total its PDF prints — the approved one, else the latest
+// draft. Margin = PO − PF − production expenses, in USD only; TL amounts are shown apart and stay
+// out of it until accounting turns them into dollars.
 import { loadProjectFinance } from '@/lib/finance/projectTotals';
 import { projectNumber } from '@/lib/keyClients/match';
 import { NO_PF_ROLES } from '@/lib/production/access';
 import { SALES_DELIVER_ROLES } from '@/lib/sales/roles';
 import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import type {
-  CardDetails, CardInstall, CardItemDetail, CardMoney, CardProjectExtra, MoneyLevel,
+  CardDetails, CardInstall, CardItemDetail, CardMoney, CardPoDoc, CardProjectExtra, MoneyLevel,
 } from './cardTabs';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -39,7 +44,7 @@ export async function loadCardDetails(admin: any, p: {
   // PF prices per row follow the Finance tab switch for the Trust Lines side.
   const pfMoney = level === 'all' || (level === 'pf' && p.financeTab);
 
-  const [projRes, itemsRes, instRes] = await Promise.all([
+  const [projRes, itemsRes, instRes, poRes] = await Promise.all([
     projectId
       ? admin.from('projects').select(
         'region, service_line, created_at, categories, scope_summary, est_finalization_date, est_production_start, est_delivery_date, actual_delivery_date, hard_deadline, deal_value, currency, payment_terms, margin_target_pct, ops_manager_id, trustlines_pm_id, tlines_pm_id, prod_pm_ms_id, prod_pm_ci_id, qc_inspector_id, client_id',
@@ -54,6 +59,12 @@ export async function loadCardDetails(admin: any, p: {
       ? admin.from('installations').select('project_no, planned_start, planned_finish, team, team_size, scope, pm_name, status, confidence, blockers, notes')
         .ilike('project_no', `%${no}%`).limit(20)
       : { data: [] },
+    // The PO documents: only this project, only 'po_bo' rows (indexed by project_id); form_data is
+    // read for the totals and never leaves the server (its items carry vendor names).
+    p.projectId && level !== 'none'
+      ? admin.from('documents').select('cat_group, status, version, dropbox_version, form_data')
+        .eq('project_id', p.projectId).eq('doc_type', 'po_bo').limit(50)
+      : Promise.resolve({ data: [] }),
   ]);
   const proj = projRes.data as any;
   const rows = (itemsRes.error ? [] : itemsRes.data ?? []) as any[];
@@ -124,11 +135,18 @@ export async function loadCardDetails(admin: any, p: {
       blockers: i.blockers, notes: i.notes,
     }));
 
+  // The PO price: per type, the approved PO document, else the latest one not replaced.
+  const poDocs = pickPoDocs((poRes?.error ? [] : poRes?.data ?? []) as any[]);
+  const poUsd = poDocs.reduce((a, d) => a + d.usd, 0);
+
   // Finance totals, cut to the level.
   let finance: CardMoney | null = null;
   if (projectId && (p.financeTab || level === 'po')) {
     if (level === 'po') {
-      finance = { level, poUsd: sum(rows, 'invoice'), poTl: sum(rows, 'invoice_tl'), dealValue: proj?.deal_value ?? null, currency: proj?.currency ?? null };
+      finance = {
+        level, poUsd, poDocs, invoicedUsd: sum(rows, 'invoice'), invoicedTl: sum(rows, 'invoice_tl'),
+        dealValue: proj?.deal_value ?? null, currency: proj?.currency ?? null,
+      };
     } else if (p.financeTab) {
       const f = await loadProjectFinance(admin, projectId);
       const pr = f.production;
@@ -138,13 +156,45 @@ export async function loadCardDetails(admin: any, p: {
       };
       if (level === 'all') {
         Object.assign(finance, {
-          poUsd: pr.invoiceUsd, poTl: pr.invoiceTl, paidUsd: sum(rows, 'paid_usd1') + sum(rows, 'paid_usd2'), paidTl: sum(rows, 'paid_tl1') + sum(rows, 'paid_tl2'),
+          poUsd, poDocs, invoicedUsd: pr.invoiceUsd, invoicedTl: pr.invoiceTl, paidUsd: sum(rows, 'paid_usd1') + sum(rows, 'paid_usd2'), paidTl: sum(rows, 'paid_tl1') + sum(rows, 'paid_tl2'),
           dealValue: proj?.deal_value ?? null, currency: proj?.currency ?? null, marginTarget: proj?.margin_target_pct ?? null,
-          marginUsd: pr.invoiceUsd ? pr.invoiceUsd - pr.pfUsd - pr.expensesUsd : null,
+          marginUsd: poUsd ? poUsd - pr.pfUsd - pr.expensesUsd : null,
         });
       }
     }
   }
 
   return { money: level, extra, items, installs, finance };
+}
+
+/** The sum a PO document prints (lib/pdf/PurchaseOrderPdf): quantity × unit price over every item. */
+export function poTotal(formData: unknown): number {
+  let t = 0;
+  for (const sec of Array.isArray(formData) ? formData : [])
+    for (const cat of sec?.categories ?? [])
+      for (const sub of cat?.subCategories ?? [])
+        for (const g of sub?.groups ?? [])
+          for (const it of g?.items ?? []) t += num(it?.quantity) * num(it?.unitPrice);
+  return Math.round(t * 100) / 100;
+}
+
+const DEAD = new Set(['superseded', 'rejected', 'cancelled']);
+
+/** Per type (cat_group): the approved PO document, else the newest one still standing. */
+export function pickPoDocs(docs: { cat_group: string | null; status: string | null; version: number | null; dropbox_version: number | null; form_data: unknown }[]): CardPoDoc[] {
+  const byType = new Map<string, typeof docs[number]>();
+  const ver = (d: typeof docs[number]) => d.dropbox_version ?? d.version ?? 0;
+  for (const d of docs) {
+    if (DEAD.has(String(d.status ?? ''))) continue;
+    const k = d.cat_group ?? '';
+    const cur = byType.get(k);
+    const better = !cur
+      || (d.status === 'approved' && cur.status !== 'approved')
+      || ((d.status === 'approved') === (cur.status === 'approved') && ver(d) > ver(cur));
+    if (better) byType.set(k, d);
+  }
+  return [...byType.values()].map(d => ({
+    type: d.cat_group ? d.cat_group.charAt(0).toUpperCase() + d.cat_group.slice(1) : 'PO',
+    status: d.status ?? 'draft', version: ver(d), usd: poTotal(d.form_data),
+  })).sort((a, b) => a.type.localeCompare(b.type));
 }

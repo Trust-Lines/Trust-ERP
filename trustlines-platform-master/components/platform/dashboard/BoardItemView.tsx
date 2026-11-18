@@ -364,8 +364,8 @@ function RowsTable({ tab, rows, money, today }: { tab: Extract<CardTab, { view: 
         { label: 'PF TL', num: true, cell: (r: CardItemDetail) => money_(r.pfTl, 'TL'), total: sumOf('pfTl', 'TL') },
       ] : []),
       ...(po ? [
-        { label: 'PO $', num: true, cell: (r: CardItemDetail) => money_(r.poUsd, 'USD'), total: sumOf('poUsd', 'USD') },
-        { label: 'PO TL', num: true, cell: (r: CardItemDetail) => money_(r.poTl, 'TL'), total: sumOf('poTl', 'TL') },
+        { label: 'Invoice $', num: true, cell: (r: CardItemDetail) => money_(r.poUsd, 'USD'), total: sumOf('poUsd', 'USD') },
+        { label: 'Invoice TL', num: true, cell: (r: CardItemDetail) => money_(r.poTl, 'TL'), total: sumOf('poTl', 'TL') },
         { label: 'Invoice', cell: (r: CardItemDetail) => [r.invoiceNo, fmtDate(r.invoiceDate)].filter(Boolean).join(' · ') || '—' },
       ] : []),
       ...(money === 'all' ? [
@@ -456,7 +456,9 @@ function FinanceDetail({ finance: f }: { finance: CardMoney }) {
       {po && (
         <Section title="Client side (PO)">
           <Fields rows={[
-            ['PO total', pair(f.poUsd, f.poTl)],
+            ['PO total (PO documents)', f.poUsd ? money_(f.poUsd, 'USD') : (f.poDocs?.length ? '$0' : 'No PO document yet')],
+            ...(f.poDocs ?? []).map(d => [`  ${d.type} PO v${d.version} · ${d.status}`, money_(d.usd, 'USD')] as [string, string | null]),
+            ['Invoiced (production rows)', pair(f.invoicedUsd, f.invoicedTl)],
             ['Deal value', f.dealValue ? money_(f.dealValue, f.currency ?? 'USD') : null],
             ...(f.level === 'all' ? [['Paid', pair(f.paidUsd, f.paidTl)] as [string, string | null]] : []),
           ]} />
@@ -476,6 +478,7 @@ function FinanceDetail({ finance: f }: { finance: CardMoney }) {
           <Fields rows={[
             ['Margin (PO − PF − expenses, USD)', f.marginUsd != null ? money_(f.marginUsd, 'USD') : null],
             ['Margin %', f.marginUsd != null && f.poUsd ? `${Math.round((f.marginUsd / f.poUsd) * 1000) / 10}%` : null],
+            ['TL costs (not in the margin yet)', (f.pfTl || 0) + (f.expensesTl || 0) ? money_((f.pfTl || 0) + (f.expensesTl || 0), 'TL') : null],
             ['Margin target', f.marginTarget != null ? `${f.marginTarget}%` : null],
           ]} />
         </Section>

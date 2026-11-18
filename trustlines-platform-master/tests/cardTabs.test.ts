@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildCardTabs, type CardDeal, type CardDetails, type CardItemDetail } from '@/lib/dashboard/cardTabs';
-import { moneyLevel } from '@/lib/dashboard/cardDetails';
+import { moneyLevel, pickPoDocs, poTotal } from '@/lib/dashboard/cardDetails';
 import type { TrustItem } from '@/lib/trust/board';
 
 const deal = (kind: CardDeal['kind'], createdAt: string): CardDeal => ({
@@ -74,5 +74,27 @@ describe('moneyLevel', () => {
     expect(moneyLevel('ops_manager', false)).toBe('pf');
     expect(moneyLevel('trustlines_pm', false)).toBe('pf');
     expect(moneyLevel('anyone', true)).toBe('all');
+  });
+});
+
+describe('PO price from the PO document', () => {
+  const form = (...lines: [number, number | null][]) => [{ typeLabel: 'Millwork', categories: [{ name: 'A', subCategories: [{ segmentName: 'S', groups: [{ label: 'G', items: lines.map(([quantity, unitPrice]) => ({ quantity, unitPrice })) }] }] }] }];
+
+  it('sums quantity × unit price like the PDF', () => {
+    expect(poTotal(form([2, 100], [3, 50.5], [1, null]))).toBe(351.5);
+    expect(poTotal(null)).toBe(0);
+  });
+
+  it('takes the approved PO per type, else the newest, never a superseded one', () => {
+    const docs = pickPoDocs([
+      { cat_group: 'millwork', status: 'approved', version: 1, dropbox_version: 1, form_data: form([1, 1000]) },
+      { cat_group: 'millwork', status: 'draft', version: 2, dropbox_version: 2, form_data: form([1, 1200]) },
+      { cat_group: 'image', status: 'superseded', version: 3, dropbox_version: 3, form_data: form([1, 900]) },
+      { cat_group: 'image', status: 'draft', version: 4, dropbox_version: 4, form_data: form([1, 500]) },
+    ]);
+    expect(docs).toEqual([
+      { type: 'Image', status: 'draft', version: 4, usd: 500 },
+      { type: 'Millwork', status: 'approved', version: 1, usd: 1000 },
+    ]);
   });
 });
