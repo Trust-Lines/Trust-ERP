@@ -258,6 +258,15 @@ const PAY_COLS: PayCol[] = [
   { key: 'invDate', group: 'inv', label: 'Date', kind: 'date', w: 100, get: it => it.invoiceDate },
 ];
 const GROUP_H = 32;
+// A gap before each table, so the board and the three tables stand apart (rows stay aligned:
+// they are the same table rows).
+const GAP_W = 20;
+const startsGroup = (i: number) => i === 0 || PAY_COLS[i - 1].group !== PAY_COLS[i].group;
+function Gap({ head }: { head?: boolean }) {
+  return head
+    ? <th rowSpan={2} aria-hidden className="sticky top-0 z-20 border-0 bg-ui-page-bg p-0" />
+    : <td aria-hidden className="border-0 bg-ui-page-bg p-0" />;
+}
 const payVar = (g: PayGroup, part: 'head' | 'sub' | 'cell') => ({ background: `var(--pay-${g}-${part}-bg)`, color: `var(--pay-${g}-${part}-fg)` });
 const payMoney = (kind: PayKind, n: number) => `${kind === 'usd' ? '$' : '₺'} ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 function payText(c: PayCol, v: number | string | null | undefined): string {
@@ -278,16 +287,16 @@ function PayCells({ item }: { item: PItem }) {
   const a = rowAccounting(item);
   return (
     <>
-      {PAY_COLS.map(c => {
+      {PAY_COLS.map((c, i) => {
         const v = c.get(item, a);
         const warn = a.notSigned && (c.key === 'remUsd' || c.key === 'remTl') && toNumber(v as number) > 0;
         return (
-          <td key={c.key} className={cn(TD, (c.kind === 'usd' || c.kind === 'tl') && 'text-right')} style={payVar(c.group, 'cell')}
+          <Fragment key={c.key}>{startsGroup(i) && <Gap />}<td className={cn(TD, (c.kind === 'usd' || c.kind === 'tl') && 'text-right')} style={payVar(c.group, 'cell')}
             title={warn ? 'PF not signed yet' : undefined}>
             {c.kind === 'qb' && v ? (
               <span className="inline-flex items-center rounded-[4px] px-2 py-0.5 text-[12px] font-medium" style={{ background: 'var(--pay-done-bg)', color: 'var(--pay-done-fg)' }}>{String(v)}</span>
             ) : warn ? <span style={{ color: 'var(--pay-warn-fg)' }}>{payText(c, v)}</span> : payText(c, v)}
-          </td>
+          </td></Fragment>
         );
       })}
     </>
@@ -296,10 +305,13 @@ function PayCells({ item }: { item: PItem }) {
 function PayTotalCells({ totals }: { totals: Record<string, number> }) {
   return (
     <>
-      {PAY_COLS.map(c => (
-        <td key={c.key} className="border-y border-r border-ui-divider px-2 py-2.5 text-right text-[12px] font-semibold whitespace-nowrap" style={payVar(c.group, 'sub')}>
-          {c.kind === 'usd' || c.kind === 'tl' ? payMoney(c.kind, totals[c.key] ?? 0) : ''}
-        </td>
+      {PAY_COLS.map((c, i) => (
+        <Fragment key={c.key}>
+          {startsGroup(i) && <Gap />}
+          <td className="border-y border-r border-ui-divider px-2 py-2.5 text-right text-[12px] font-semibold whitespace-nowrap" style={payVar(c.group, 'sub')}>
+            {c.kind === 'usd' || c.kind === 'tl' ? payMoney(c.kind, totals[c.key] ?? 0) : ''}
+          </td>
+        </Fragment>
       ))}
     </>
   );
@@ -429,7 +441,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
   const moneyStart = COLS.indexOf('pfUsd');
   const afterMoney = COLS.length - COLS.indexOf('invoiceTl') - 1;
   const payCols = payments ? PAY_COLS : [];
-  const span = cols.length + payCols.length;
+  const span = cols.length + payCols.length + (payments ? PAY_GROUPS.length : 0);
   // Payments: a group-title row sits over the column header, so the region bands stick lower.
   const headH = payments ? HEAD_H + GROUP_H : HEAD_H;
 
@@ -657,10 +669,10 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
 
   return (
     <div className="overflow-auto rounded-[8px] border border-ui-divider" style={{ maxHeight: 'calc(100dvh - 220px)' }}>
-      <table className="table-fixed border-separate border-spacing-0" style={{ width: `max(${cols.reduce((t, c) => t + width(c), 0) + payCols.reduce((t, c) => t + c.w, 0)}px, 100%)` }}>
+      <table className="table-fixed border-separate border-spacing-0" style={{ width: `max(${cols.reduce((t, c) => t + width(c), 0) + payCols.reduce((t, c) => t + c.w, 0) + (payments ? PAY_GROUPS.length * GAP_W : 0)}px, 100%)` }}>
         <colgroup>
           {cols.map(c => <col key={c} style={{ width: width(c) }} />)}
-          {payCols.map(c => <col key={c.key} style={{ width: c.w }} />)}
+          {payCols.map((c, i) => <Fragment key={c.key}>{startsGroup(i) && <col style={{ width: GAP_W }} />}<col style={{ width: c.w }} /></Fragment>)}
         </colgroup>
         <thead>
           <tr>
@@ -672,11 +684,11 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
               </th>
             ))}
             {payments && PAY_GROUPS.map(g => (
-              <th key={g.group} colSpan={PAY_COLS.filter(c => c.group === g.group).length}
+              <Fragment key={g.group}><Gap head /><th colSpan={PAY_COLS.filter(c => c.group === g.group).length}
                 className="sticky top-0 z-20 whitespace-nowrap border-b border-r border-ui-divider px-2 text-center text-[13px] font-bold uppercase tracking-[0.6px]"
                 style={{ height: GROUP_H, ...payVar(g.group, 'head') }}>
                 {g.title}
-              </th>
+              </th></Fragment>
             ))}
           </tr>
           {payments && (
