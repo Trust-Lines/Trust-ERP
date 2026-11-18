@@ -518,7 +518,7 @@ export function OperationalBoard({ sections, access = NO_ACCESS, groups = [], on
   const [projMenu, setProjMenu] = useState<{ project: PProject; headKey: string } | null>(null);
   const [projToDelete, setProjToDelete] = useState<PProject | null>(null);
   const openProjMenu = (e: React.MouseEvent, project: PProject, headKey: string) => {
-    if (!project.id || payments) return; // Payments is read only: no project menu
+    if (!project.id) return;
     e.preventDefault();
     e.stopPropagation();
     setProjMenu(m => (m?.headKey === headKey ? null : { project, headKey }));
