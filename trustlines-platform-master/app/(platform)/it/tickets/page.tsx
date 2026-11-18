@@ -1,10 +1,14 @@
-import { requirePage } from '@/lib/permissions/requirePage';
+import { redirect } from 'next/navigation';
 import { ItTicketsClient } from '@/components/platform/it/ItTicketsClient';
+import { itContext, loadTickets } from '@/lib/it/server';
 
-// IT Tickets (Figma 828:37587). There is no IT tickets endpoint in the codebase yet, so the list is
-// passed in empty and no sample rows are shown. Wire the real source here once it exists.
+// IT Tickets (Figma 828:37587). Everyone with "Send IT requests" sees and sends their own; IT
+// management (page.it) sees every ticket. Data: it_tickets (migration 155) via lib/it/server.
 export default async function ItTicketsPage() {
-  await requirePage('page.it');
+  const ctx = await itContext();
+  if (!ctx) redirect('/login');
+  if (!ctx.canRequest && !ctx.canManage) redirect('/dashboard');
+  const { tickets, error } = await loadTickets(ctx);
 
-  return <ItTicketsClient tickets={[]} canCreate={false} />;
+  return <ItTicketsClient tickets={tickets} error={error} canCreate={ctx.canRequest} allTickets={ctx.canManage} />;
 }

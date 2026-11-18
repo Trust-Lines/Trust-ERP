@@ -2,10 +2,11 @@ import { redirect } from 'next/navigation';
 import { requirePage } from '@/lib/permissions/requirePage';
 import { createClient } from '@/lib/supabase/server';
 import { ItStaffClient, type ItStaffRow } from '@/components/platform/it/ItStaffClient';
+import { itContext, loadStaffItems } from '@/lib/it/server';
 
 // IT → Staff Members (Figma 879:13180). Same profiles read as HR → Staff Members, through the
-// user's own session (RLS), gated by the IT page switch. Location and the IT items each person holds
-// have no data source yet, so they are not loaded here.
+// user's own session (RLS), gated by the IT page switch. Location and items come from the IT items
+// each person holds (it_items, migration 155).
 export default async function ItStaffPage() {
   await requirePage('page.it');
   const supabase = await createClient();
@@ -20,10 +21,13 @@ export default async function ItStaffPage() {
       .limit(1000),
   ]);
   const myRole = (me as { role: string | null } | null)?.role ?? '';
+  const ctx = await itContext();
+  const held = ctx ? await loadStaffItems(ctx) : new Map<string, { location: string | null; items: { id: string; label: string; isSet: boolean }[] }>();
+  const staff = ((rows ?? []) as ItStaffRow[]).map(r => ({ ...r, location: held.get(r.id)?.location ?? null, items: held.get(r.id)?.items ?? [] }));
 
   return (
     <ItStaffClient
-      staff={(rows ?? []) as ItStaffRow[]}
+      staff={staff}
       // POST /api/team/invite only accepts ops_manager / general_manager for any role.
       canInvite={myRole === 'ops_manager' || myRole === 'general_manager'}
     />

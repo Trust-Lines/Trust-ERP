@@ -3,12 +3,17 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { ArrowDownUp, Ellipsis, Link2, MapPin, Plus, Search } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { ArrowDownUp, Ellipsis, ExternalLink, Link2, MapPin, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
+import { ConfirmModal } from '@/components/ui/modal';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { MonitorPcIcon } from './MonitorPcIcon';
-import { NOT_CONNECTED_TITLE, TOOLBAR_SELECT, TOOLBAR_SORT_ICON } from './ticketStyles';
+import { TOOLBAR_SELECT, TOOLBAR_SORT_ICON } from './ticketStyles';
+import { EMPTY_ITEM, ItItemFormDialog } from './ItItemFormDialog';
 import { MUTED, OUTLINE_CHIP, SOLID_CHIP, STRONG, formatItemDate, type ItItem, type ItItemCategory } from './itemStyles';
 
 export type { ItItem, ItItemCategory, ItItemStatus } from './itemStyles';
@@ -55,7 +60,7 @@ function StatusPill({ item }: { item: ItItem }) {
   );
 }
 
-function ItemCard({ item }: { item: ItItem }) {
+function ItemCard({ item, canEdit, onDelete }: { item: ItItem; canEdit: boolean; onDelete: (item: ItItem) => void }) {
   const available = item.status === 'available';
   return (
     <article
@@ -86,15 +91,26 @@ function ItemCard({ item }: { item: ItItem }) {
               {[item.model, formatItemDate(item.addedAt)].filter(Boolean).join(' · ')}
             </p>
           </div>
-          <button
-            type="button"
-            disabled
-            aria-label={`More actions for ${item.name}`}
-            title={NOT_CONNECTED_TITLE}
-            className={cn('relative z-10 grid h-6 w-6 shrink-0 place-items-center rounded disabled:cursor-not-allowed', STRONG)}
-          >
-            <Ellipsis className="h-[23px] w-[23px]" strokeWidth={2} aria-hidden="true" />
-          </button>
+          <Menu>
+            <MenuTrigger
+              render={<button type="button" aria-label={`More actions for ${item.name}`} className={cn('relative z-10 grid h-6 w-6 shrink-0 cursor-pointer place-items-center rounded border-0 bg-transparent p-0 hover:opacity-80', STRONG)} />}
+            >
+              <Ellipsis className="h-[23px] w-[23px]" strokeWidth={2} aria-hidden="true" />
+            </MenuTrigger>
+            <MenuContent>
+              <MenuLinkItem render={<Link href={`/it/items/${encodeURIComponent(item.id)}`} />}>
+                <ExternalLink aria-hidden /> Open
+              </MenuLinkItem>
+              {canEdit && <>
+                <MenuLinkItem render={<Link href={`/it/items/${encodeURIComponent(item.id)}?edit=1`} />}>
+                  <Pencil aria-hidden /> Edit Info
+                </MenuLinkItem>
+                <MenuItem onClick={() => onDelete(item)}>
+                  <Trash2 aria-hidden /> Delete
+                </MenuItem>
+              </>}
+            </MenuContent>
+          </Menu>
         </div>
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-1">
@@ -118,11 +134,27 @@ function ItemCard({ item }: { item: ItItem }) {
   );
 }
 
-export function ItItemsLibraryClient({ items, error = null, canCreate = false }: {
+export function ItItemsLibraryClient({ items, error = null, canCreate = false, assignees = [] }: {
   items: ItItem[];
   error?: string | null;
+  /** edit.it: Add Item, Edit Info and Delete. */
   canCreate?: boolean;
+  assignees?: { id: string; name: string }[];
 }) {
+  const router = useRouter();
+  const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState<ItItem | null>(null);
+
+  async function remove(item: ItItem) {
+    const res = await fetch(`/api/it/items/${item.id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const j = await res.json().catch(() => null) as { error?: string } | null;
+      toast.error(j?.error ?? 'Could not delete the item');
+      throw new Error('delete failed');
+    }
+    toast.success(`${item.name} deleted`);
+    router.refresh();
+  }
   const [tab, setTab] = useState<Tab>('all');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('newest');
@@ -175,7 +207,8 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false }:
         <button
           type="button"
           disabled={!canCreate}
-          title={canCreate ? undefined : NOT_CONNECTED_TITLE}
+          onClick={() => setAdding(true)}
+          title={canCreate ? undefined : 'Your role cannot add IT items'}
           className="flex h-10 items-center gap-3 rounded-md bg-accent-400 pl-[30px] pr-[41px] text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:text-primary-950"
         >
           <Plus className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
@@ -221,11 +254,29 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false }:
         <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visible.map(i => (
             <li key={i.id}>
-              <ItemCard item={i} />
+              <ItemCard item={i} canEdit={canCreate} onDelete={setDeleting} />
             </li>
           ))}
         </ul>
       )}
+
+      {adding && (
+        <ItItemFormDialog
+          initial={EMPTY_ITEM}
+          assignees={assignees}
+          onClose={() => setAdding(false)}
+          onSaved={id => { setAdding(false); router.push(`/it/items/${id}`); router.refresh(); }}
+        />
+      )}
+      <ConfirmModal
+        open={!!deleting}
+        onOpenChange={o => { if (!o) setDeleting(null); }}
+        title="Delete item?"
+        description={deleting ? `${deleting.name} is removed from the Items Library.` : undefined}
+        confirmLabel="Delete"
+        tone="destructive"
+        onConfirm={async () => { if (deleting) await remove(deleting); setDeleting(null); }}
+      />
     </div>
   );
 }

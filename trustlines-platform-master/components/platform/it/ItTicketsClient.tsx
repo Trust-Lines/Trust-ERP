@@ -7,10 +7,11 @@ import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/platform/shared/Avatar';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
+import { roleLabel } from '@/components/platform/shell/Sidebar';
+import { ItNewTicketDialog } from './ItNewTicketDialog';
 import {
   CATEGORY_ICON,
   CATEGORY_TONE,
-  NOT_CONNECTED_TITLE,
   PRIORITY_LABEL,
   PRIORITY_TONE,
   TOOLBAR_SELECT,
@@ -26,7 +27,9 @@ import {
 
 export interface ItTicket {
   id: string;
+  subject: string;
   requesterName: string;
+  /** Role key ("ops_manager"); shown through roleLabel. */
   requesterRole: string;
   priority: ItTicketPriority;
   status: ItTicketStatus;
@@ -65,7 +68,7 @@ function TicketCard({ ticket }: { ticket: ItTicket }) {
   return (
     <Link
       href={`/it/tickets/${encodeURIComponent(ticket.id)}`}
-      aria-label={`${ticket.requesterName}, ${PRIORITY_LABEL[ticket.priority]} request`}
+      aria-label={`${ticket.subject}: ${ticket.requesterName}, ${PRIORITY_LABEL[ticket.priority]} request`}
       className="flex flex-col gap-4 rounded-[11px] border border-primary-100 bg-white py-2.5 pl-2.5 pr-3.5 no-underline transition-colors hover:border-primary-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring dark:border-primary-600 dark:bg-secondary-800 dark:hover:border-secondary-500"
     >
       <div className="flex items-start justify-between gap-3">
@@ -73,7 +76,7 @@ function TicketCard({ ticket }: { ticket: ItTicket }) {
           <Avatar name={ticket.requesterName} size="lg" />
           <div className="flex flex-col leading-[1.35]">
             <p className={cn('m-0 text-[16px] font-semibold tracking-[-0.44px]', STRONG)}>{ticket.requesterName}</p>
-            <p className={cn('m-0 text-[13px] tracking-[-0.3px]', MUTED)}>{ticket.requesterRole}</p>
+            <p className={cn('m-0 text-[13px] tracking-[-0.3px]', MUTED)}>{ticket.requesterRole ? roleLabel(ticket.requesterRole) : '—'}</p>
           </div>
         </div>
         <span
@@ -83,6 +86,7 @@ function TicketCard({ ticket }: { ticket: ItTicket }) {
           {PRIORITY_LABEL[ticket.priority]}
         </span>
       </div>
+      <p className={cn('m-0 truncate text-[14px] font-medium', STRONG)} title={ticket.subject}>{ticket.subject}</p>
       <div className="flex items-center justify-between gap-3">
         <span
           className="inline-flex items-center gap-2 rounded py-0.5 pl-1.5 pr-2 text-[14px] font-medium leading-[1.4]"
@@ -100,11 +104,14 @@ function TicketCard({ ticket }: { ticket: ItTicket }) {
   );
 }
 
-export function ItTicketsClient({ tickets, error = null, canCreate = false }: {
+export function ItTicketsClient({ tickets, error = null, canCreate = false, allTickets = false }: {
   tickets: ItTicket[];
   error?: string | null;
   canCreate?: boolean;
+  /** IT sees everyone's tickets; everybody else only their own. */
+  allTickets?: boolean;
 }) {
+  const [creating, setCreating] = useState(false);
   const [tab, setTab] = useState<ItTicketTab>('active');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<ItTicketSort>('newest');
@@ -118,7 +125,7 @@ export function ItTicketsClient({ tickets, error = null, canCreate = false }: {
     return tickets
       .filter(t => t.status === wanted)
       .filter(t => priority === 'all' || t.priority === priority)
-      .filter(t => !q || t.requesterName.toLowerCase().includes(q) || t.categoryLabel.toLowerCase().includes(q) || t.requesterRole.toLowerCase().includes(q))
+      .filter(t => !q || t.subject.toLowerCase().includes(q) || t.requesterName.toLowerCase().includes(q) || t.categoryLabel.toLowerCase().includes(q) || t.requesterRole.toLowerCase().includes(q))
       .sort((a, b) => {
         const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         return sort === 'newest' ? -diff : diff;
@@ -138,7 +145,7 @@ export function ItTicketsClient({ tickets, error = null, canCreate = false }: {
       <PageHeading
         trail={[{ label: 'IT', href: '/it/tickets' }, { label: 'Tickets', href: '/it/tickets' }]}
         title="Tickets"
-        subtitle="Sent tickets"
+        subtitle={allTickets ? 'Requests sent to IT' : 'Your requests to IT'}
         bodyClassName="gap-2"
         titleAdornment={
           <span className="rounded-full bg-primary-50 px-[9px] py-[3px] text-[12px] font-semibold leading-[1.4] text-secondary-700 dark:bg-primary-700 dark:text-secondary-50">
@@ -149,7 +156,8 @@ export function ItTicketsClient({ tickets, error = null, canCreate = false }: {
           <button
             type="button"
             disabled={!canCreate}
-            title={canCreate ? undefined : NOT_CONNECTED_TITLE}
+            onClick={() => setCreating(true)}
+            title={canCreate ? undefined : 'Your role cannot send IT requests'}
             className="flex h-9 items-center gap-2 rounded-md bg-accent-400 px-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:text-primary-950"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
@@ -208,7 +216,7 @@ export function ItTicketsClient({ tickets, error = null, canCreate = false }: {
             {tab === 'active' ? 'No active tickets' : 'No closed tickets'}
           </p>
           <p className="m-0 text-[13px] text-ui-body">
-            {tickets.length === 0 ? 'IT requests you send will show up here.' : 'Nothing matches these filters.'}
+            {tickets.length === 0 ? (allTickets ? 'IT requests from the team will show up here.' : 'IT requests you send will show up here.') : 'Nothing matches these filters.'}
           </p>
         </div>
       ) : (
@@ -220,6 +228,7 @@ export function ItTicketsClient({ tickets, error = null, canCreate = false }: {
           ))}
         </ul>
       )}
+      {creating && <ItNewTicketDialog onClose={() => setCreating(false)} />}
     </div>
   );
 }

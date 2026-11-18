@@ -19,7 +19,7 @@ import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Figma "IT / Staff Members" (879:13180): the team with the IT equipment each person holds. Name,
 // email, role and joined date are real (profiles, same read as HR → Staff Members). Location and
-// Items have no data source yet, so those cells show "—" until IT equipment records exist.
+// Items come from the IT items each person holds (Items Library).
 
 export interface ItStaffItem {
   id: string;
