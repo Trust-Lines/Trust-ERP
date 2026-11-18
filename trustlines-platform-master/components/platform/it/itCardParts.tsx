@@ -41,8 +41,10 @@ export const tabClass = (on: boolean) =>
   );
 
 /** Card header: 45px picture, 20px title, address under it, and a "…" menu with "Copy email". */
-export function CardHead({ picture, title, titleStyle, email }: {
+export function CardHead({ picture, pictureClassName, title, titleStyle, email }: {
   picture: ReactNode;
+  /** Overrides the picture frame (subscriptions: white logo tile). */
+  pictureClassName?: string;
   title: string;
   /** Brand colour for the title (subscriptions); defaults to the heading colour. */
   titleStyle?: React.CSSProperties;
@@ -50,7 +52,7 @@ export function CardHead({ picture, title, titleStyle, email }: {
 }) {
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <div className="grid size-[45px] shrink-0 place-items-center overflow-hidden rounded-[6px] bg-primary-100 text-[14px] font-semibold text-secondary-700 dark:bg-primary-700 dark:text-secondary-50">
+      <div className={cn('grid size-[45px] shrink-0 place-items-center overflow-hidden rounded-[6px] bg-primary-100 text-[14px] font-semibold text-secondary-700 dark:bg-primary-700 dark:text-secondary-50', pictureClassName)}>
         {picture}
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
