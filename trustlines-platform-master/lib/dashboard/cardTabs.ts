@@ -82,12 +82,16 @@ export interface CardInstall {
   pm: string | null; status: string | null; confidence: string | null; blockers: string | null; notes: string | null;
 }
 
-/** Finance totals, cut to the level: only the keys the viewer may see are present. */
+/** One PO document's total (lib/dashboard/cardDetails pickPoDocs): per type, USD. */
+export interface CardPoDoc { type: string; status: string; version: number; usd: number }
+
+/** Finance totals, cut to the level: only the keys the viewer may see are present. PO = the PO
+ *  documents (USD); invoiced = the production rows' invoice columns. */
 export interface CardMoney {
   level: MoneyLevel;
   pfUsd?: number; pfTl?: number; expensesUsd?: number; expensesTl?: number;
   supplierInvoices?: ByCur; supplierPayments?: ByCur; supplierBalance?: ByCur; trustExpenses?: ByCur;
-  poUsd?: number; poTl?: number; paidUsd?: number; paidTl?: number;
+  poUsd?: number; poDocs?: CardPoDoc[]; invoicedUsd?: number; invoicedTl?: number; paidUsd?: number; paidTl?: number;
   dealValue?: number | null; currency?: string | null; marginTarget?: number | null; marginUsd?: number | null;
 }
 
