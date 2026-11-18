@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ArrowDownUp, Copy, Phone, Plus, Search, UserRound } from 'lucide-react';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
@@ -63,7 +64,7 @@ function PhoneCard({ line }: { line: ItPhoneLine }) {
   return (
     <article
       className={cn(
-        'flex min-w-0 flex-col gap-4 rounded-[8px] bg-ui-surface p-4',
+        'relative flex min-w-0 flex-col gap-4 rounded-[8px] bg-ui-surface p-4 transition-colors hover:bg-ui-hover-bg focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ui-focus-ring',
         free ? 'border-2 border-[var(--status-t9-fg)]' : 'border border-ui-divider',
       )}
     >
@@ -84,7 +85,13 @@ function PhoneCard({ line }: { line: ItPhoneLine }) {
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <h3 className={cn('m-0 truncate text-[16px] font-semibold leading-5', free ? 'text-[var(--status-t9-fg)]' : STRONG)}>
-            {free ? 'Available' : line.holderName}
+            <Link
+              href={`/it/phones/${encodeURIComponent(line.id)}`}
+              aria-label={`${line.number}${free ? ', available' : `, ${line.holderName}`}`}
+              className="text-inherit no-underline outline-none after:absolute after:inset-0 after:rounded-[8px] after:content-['']"
+            >
+              {free ? 'Available' : line.holderName}
+            </Link>
           </h3>
           <p className="m-0 truncate text-[12px] font-medium leading-4 tracking-[0.36px] text-ui-body dark:text-primary-50">
             {free ? '-' : line.holderRole || '-'}
@@ -102,7 +109,7 @@ function PhoneCard({ line }: { line: ItPhoneLine }) {
           onClick={() => void copyText(line.number, 'Number')}
           aria-label={`Copy number ${line.number}`}
           title="Copy number"
-          className="grid size-[26px] shrink-0 place-items-center rounded-[4px] bg-secondary-700 text-white transition-opacity hover:opacity-90 dark:bg-primary-50 dark:text-primary-950"
+          className="relative z-10 grid size-[26px] shrink-0 place-items-center rounded-[4px] bg-secondary-700 text-white transition-opacity hover:opacity-90 dark:bg-primary-50 dark:text-primary-950"
         >
           <Copy size={14} aria-hidden />
         </button>
