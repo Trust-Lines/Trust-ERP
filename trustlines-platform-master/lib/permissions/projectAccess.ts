@@ -3,11 +3,12 @@ import type { User } from '@supabase/supabase-js';
 import { createClient, requireUser } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { roleCan } from './server';
+import { ownProjectsOnly } from '@/lib/permissions/ownProjects';
 
 // Mirrors the visibility rules of /projects/[id]/page.tsx so an API route never
 // exposes a project the user could not open in the UI:
 //   1. the project must be readable through the user's own RLS session, and
-//   2. a tlines_pm only sees projects they are assigned to.
+//   2. a tlines_pm only sees projects they are assigned to (unless sees_all_projects, 156).
 // Fails closed: any lookup error counts as "no access".
 export async function canAccessProject(projectId: string, userId: string, role: string | null): Promise<boolean> {
   if (!role) return false;
@@ -19,7 +20,7 @@ export async function canAccessProject(projectId: string, userId: string, role: 
       error: { message: string } | null;
     };
   if (error || !data) return false;
-  if (role === 'tlines_pm' && data.tlines_pm_id !== userId) return false;
+  if (data.tlines_pm_id !== userId && await ownProjectsOnly(role, userId)) return false;
   return true;
 }
 

@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { ownProjectsOnly } from '@/lib/permissions/ownProjects';
 import { FinalizationClient } from '@/components/platform/projects/FinalizationClient';
 import { FINALIZATION_READ_ROLES, FINALIZATION_WRITE_ROLES, defaultSiteChecklist } from '@/lib/finalization/config';
 import { runPmFollowupReminders } from '@/lib/pm/followupReminders';
@@ -21,7 +22,7 @@ export default async function ProjectFinalizationPage({ params }: { params: Prom
   const { data: project } = await admin.from('projects')
     .select('id, code, name, current_stage, customer_id, tlines_pm_id').eq('id', id).maybeSingle();
   if (!project) notFound();
-  if (role === 'tlines_pm' && project.tlines_pm_id !== user.id) redirect('/projects');
+  if (project.tlines_pm_id !== user.id && await ownProjectsOnly(role, user.id)) redirect('/projects');
 
   await runPmFollowupReminders(admin, user.id);
 

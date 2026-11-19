@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
 import { DELIVERY_READ_ROLES } from '@/lib/delivery/config';
+import { ownProjectsOnly } from '@/lib/permissions/ownProjects';
 
 // Mobile calendars (087 sevkiyat takvimi / 088 takvimim / 089): delivery plans and installations
 // falling in [from, to]. A tlines_pm sees only their projects.
@@ -21,13 +22,14 @@ export async function GET(req: NextRequest) {
   ]);
   const ids = [...new Set(((plans.data ?? []) as { project_id: string }[]).map(p => p.project_id))];
   let pq = ids.length ? admin.from('projects').select('id, code, name, tlines_pm_id').in('id', ids).is('deleted_at', null) : null;
-  if (pq && role === 'tlines_pm') pq = pq.eq('tlines_pm_id', user.id);
+  const ownOnly = await ownProjectsOnly(role, user.id);
+  if (pq && ownOnly) pq = pq.eq('tlines_pm_id', user.id);
   const { data: projs } = pq ? await pq : { data: [] };
   const proj = Object.fromEntries(((projs ?? []) as { id: string; code: string; name: string }[]).map(p => [p.id, p]));
 
   return NextResponse.json({
     deliveries: ((plans.data ?? []) as { project_id: string }[]).filter(p => proj[p.project_id])
       .map(p => ({ ...p, project_code: proj[p.project_id].code, project_name: proj[p.project_id].name })),
-    installations: role === 'tlines_pm' ? [] : installs.data ?? [],
+    installations: ownOnly ? [] : installs.data ?? [],
   });
 }
