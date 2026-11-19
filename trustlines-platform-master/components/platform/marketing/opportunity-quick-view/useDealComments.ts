@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
 import { toast } from 'sonner';
 import { compressImage, MAX_UPLOAD_BYTES } from '@/lib/client/compressImage';
 import { uploadImageDirect } from '@/lib/client/directDropboxUpload';
+import { ApiError, errorText, fetchJson } from '@/lib/client/fetchJson';
 import type { NeedNote } from './types';
 
 /**
@@ -22,11 +23,11 @@ export function useDealComments(apiBase: string, notes: NeedNote[], setNotes: Di
     const missing = notes.filter(n => n.image_path && !imageLinks[n.image_path]);
     if (!missing.length) return;
     (async () => {
-      const entries = await Promise.all(missing.map(async n => {
-        const res = await fetch(`${apiBase}/dropbox-link?path=${encodeURIComponent(n.image_path!)}`);
-        const body = await res.json().catch(() => ({}));
-        return res.ok && body.link ? [n.image_path as string, body.link as string] as const : null;
-      }));
+      // A link that can't be fetched just leaves that image as a placeholder.
+      const entries = await Promise.all(missing.map(n =>
+        fetchJson<{ link?: string }>(`${apiBase}/dropbox-link?path=${encodeURIComponent(n.image_path!)}`)
+          .then(b => (b.link ? [n.image_path as string, b.link] as const : null))
+          .catch(() => null)));
       const found = Object.fromEntries(entries.filter((e): e is readonly [string, string] => e !== null));
       if (Object.keys(found).length) setImageLinks(prev => ({ ...prev, ...found }));
     })();
@@ -46,42 +47,37 @@ export function useDealComments(apiBase: string, notes: NeedNote[], setNotes: Di
   async function postComment() {
     if (!draft.trim() && !draftImage) return;
     setPosting(true);
+    const url = `${apiBase}/notes`;
     try {
-      let res: Response;
       // Preferred: original photo straight to Dropbox. Any failure falls back to the classic upload.
-      const directPath = draftImage ? await uploadImageDirect(`${apiBase}/notes`, originalImageRef.current ?? draftImage) : null;
-      let direct: Response | null = null;
+      const directPath = draftImage ? await uploadImageDirect(url, originalImageRef.current ?? draftImage) : null;
+      let saved: { note: NeedNote } | null = null;
       if (directPath) {
-        direct = await fetch(`${apiBase}/notes`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: draft.trim(), imagePath: directPath }),
-        });
+        saved = await fetchJson<{ note: NeedNote }>(url, { method: 'POST', body: { body: draft.trim(), imagePath: directPath } }).catch(() => null);
       }
-      if (direct?.ok) {
-        res = direct;
-      } else if (draftImage) {
+      if (!saved && draftImage) {
         // Direct upload unavailable, or the note could not be saved from it: classic upload of the compressed copy.
         if (draftImage.size > MAX_UPLOAD_BYTES) { toast.error('This photo is too large to upload (max 4 MB). Try a smaller one.'); return; }
         const form = new FormData();
         form.set('body', draft.trim());
         form.set('image', draftImage);
-        res = await fetch(`${apiBase}/notes`, { method: 'POST', body: form });
-      } else {
-        res = await fetch(`${apiBase}/notes`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: draft.trim() }),
-        });
+        saved = await fetchJson<{ note: NeedNote }>(url, { method: 'POST', body: form, errorMessage: 'Could not post' });
+      } else if (!saved) {
+        saved = await fetchJson<{ note: NeedNote }>(url, { method: 'POST', body: { body: draft.trim() }, errorMessage: 'Could not post' });
       }
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(res.status === 413 ? 'The photo is too large to upload (max 4 MB).' : (body.error ?? 'Could not post')); return; }
-      setNotes(prev => [...prev, body.note]);
+      setNotes(prev => [...prev, saved.note]);
       setDraft('');
       clearImage();
+    } catch (e) {
+      toast.error(e instanceof ApiError && e.status === 413 ? 'The photo is too large to upload (max 4 MB).' : errorText(e, 'Could not post'));
     } finally { setPosting(false); }
   }
 
   // Called from the confirm popup; throwing keeps the popup open so the user can retry.
   async function deleteNote(n: NeedNote) {
-    const res = await fetch(`${apiBase}/notes/${n.id}`, { method: 'DELETE' });
-    if (!res.ok) { const body = await res.json().catch(() => ({})); toast.error(body.error ?? 'Could not delete'); throw new Error('delete failed'); }
+    try {
+      await fetchJson(`${apiBase}/notes/${n.id}`, { method: 'DELETE', errorMessage: 'Could not delete' });
+    } catch (e) { toast.error(errorText(e, 'Could not delete')); throw new Error('delete failed'); }
     setNotes(prev => prev.filter(x => x.id !== n.id));
   }
 

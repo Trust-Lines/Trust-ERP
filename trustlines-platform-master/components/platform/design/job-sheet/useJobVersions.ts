@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { errorText, fetchJson } from '@/lib/client/fetchJson';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
 import type { DesignFile } from '@/app/(platform)/design/page';
 import { DESIGN_VERSION_BASE } from '@/lib/sales/designPaths';
@@ -31,13 +32,12 @@ export function useJobVersions({ jobId, onVersions, onVersion, onDesignFiles, on
   const [busy, setBusy] = useState(false);
 
   async function reloadVersions() {
-    const res = await fetch(`/api/design-jobs/${jobId}/versions`).catch(() => null);
-    if (!res?.ok) return;
-    const b = await res.json();
+    let b: { versions?: SalesDesignVersion[]; files?: DesignFile[] };
+    try { b = await fetchJson(`/api/design-jobs/${jobId}/versions`); } catch { return; }
     onVersions(b.versions ?? []);
     const byVersion: Record<string, DesignFile[]> = {};
-    for (const f of (b.files ?? []) as DesignFile[]) (byVersion[f.version_id] ??= []).push(f);
-    for (const v of (b.versions ?? []) as SalesDesignVersion[]) onDesignFiles(v.id, byVersion[v.id] ?? []);
+    for (const f of b.files ?? []) (byVersion[f.version_id] ??= []).push(f);
+    for (const v of b.versions ?? []) onDesignFiles(v.id, byVersion[v.id] ?? []);
   }
 
   // Live: the Dropbox webhook adds versions / files as soon as they land in the design folder.
@@ -57,9 +57,9 @@ export function useJobVersions({ jobId, onVersions, onVersion, onDesignFiles, on
   async function syncVersions(quiet = false) {
     setBusy(true);
     try {
-      const res = await fetch(`/api/design-jobs/${jobId}/sync-dropbox`, { method: 'POST' });
-      const b = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(b.error ?? 'Sync failed'); return; }
+      const b = await fetchJson<{ jobStatus?: SalesDesignJob['status']; syncedVersions?: number; syncedFiles?: number }>(
+        `/api/design-jobs/${jobId}/sync-dropbox`, { method: 'POST', errorMessage: 'Sync failed' },
+      );
       if (b.jobStatus) onJobLocal({ status: b.jobStatus });
       await reloadVersions();
       if (!quiet || b.syncedVersions || b.syncedFiles) {
@@ -67,30 +67,37 @@ export function useJobVersions({ jobId, onVersions, onVersion, onDesignFiles, on
           ? `Synced — ${b.syncedVersions} new version${b.syncedVersions === 1 ? '' : 's'}, ${b.syncedFiles} file${b.syncedFiles === 1 ? '' : 's'}`
           : 'Versions are up to date');
       }
+    } catch (e) {
+      toast.error(errorText(e, 'Sync failed'));
     } finally { setBusy(false); }
   }
 
   async function newVersion() {
     setBusy(true);
     try {
-      const res = await fetch(`/api/design-jobs/${jobId}/files`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'new-version' }) });
-      const b = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(b.error ?? 'Could not create the version folder'); return; }
+      const b = await fetchJson<{ versionNo: number; path?: string }>(
+        `/api/design-jobs/${jobId}/files`, { method: 'POST', body: { action: 'new-version' }, errorMessage: 'Could not create the version folder' },
+      );
       toast.success(`V${b.versionNo} folder ready — upload the design into it`);
       onVersionFolder(b.path ?? `${DESIGN_VERSION_BASE}/V${b.versionNo}`);
+    } catch (e) {
+      toast.error(errorText(e, 'Could not create the version folder'));
     } finally { setBusy(false); }
   }
 
   async function patchVersion(v: SalesDesignVersion, patch: Record<string, unknown>, ok: string) {
     setBusy(true);
     try {
-      const res = await fetch(`/api/design-jobs/${jobId}/versions/${v.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
-      const b = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(b.error ?? 'Could not update the version'); return false; }
+      const b = await fetchJson<{ version: SalesDesignVersion }>(
+        `/api/design-jobs/${jobId}/versions/${v.id}`, { method: 'PATCH', body: patch, errorMessage: 'Could not update the version' },
+      );
       onVersion(b.version);
       if (typeof patch.status === 'string' && JOB_STATUS_FOR_VERSION[patch.status]) onJobLocal({ status: JOB_STATUS_FOR_VERSION[patch.status] });
       toast.success(ok);
       return true;
+    } catch (e) {
+      toast.error(errorText(e, 'Could not update the version'));
+      return false;
     } finally { setBusy(false); }
   }
 
@@ -103,13 +110,16 @@ export function useJobVersions({ jobId, onVersions, onVersion, onDesignFiles, on
   async function sendToCustomer(v: SalesDesignVersion) {
     setBusy(true);
     try {
-      const res = await fetch(`/api/design-jobs/${jobId}/versions/${v.id}/review-link`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
-      const b = await res.json().catch(() => ({}));
-      if (!res.ok || !b.url) { toast.error(b.error ?? 'Could not create the customer link'); return; }
+      const b = await fetchJson<{ url?: string }>(
+        `/api/design-jobs/${jobId}/versions/${v.id}/review-link`, { method: 'POST', body: {}, errorMessage: 'Could not create the customer link' },
+      );
+      if (!b.url) { toast.error('Could not create the customer link'); return; }
       try { await navigator.clipboard.writeText(b.url); toast.success('Customer review link copied — send it to the customer'); }
       catch { toast.success(`Customer review link: ${b.url}`); }
       onVersion({ ...v, status: 'presented' });
       onJobLocal({ status: 'presented_to_customer' });
+    } catch (e) {
+      toast.error(errorText(e, 'Could not create the customer link'));
     } finally { setBusy(false); }
   }
 
@@ -117,11 +127,12 @@ export function useJobVersions({ jobId, onVersions, onVersion, onDesignFiles, on
     if (!files.length) return;
     setBusy(true);
     try {
-      const ens = await fetch(`/api/design-jobs/${jobId}/files`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'ensure' }) });
-      const eb = await ens.json().catch(() => ({}));
-      if (!ens.ok) { toast.error(eb.error ?? 'Design folder not ready'); return; }
+      let root: string;
+      try {
+        ({ root } = await fetchJson<{ root: string }>(`/api/design-jobs/${jobId}/files`, { method: 'POST', body: { action: 'ensure' }, errorMessage: 'Design folder not ready' }));
+      } catch (e) { toast.error(errorText(e, 'Design folder not ready')); return; }
       for (const f of files) {
-        try { await uploadToDesignFolder(jobId, eb.root, `${DESIGN_VERSION_BASE}/V${v.version_no}`, f); }
+        try { await uploadToDesignFolder(jobId, root, `${DESIGN_VERSION_BASE}/V${v.version_no}`, f); }
         catch (e) { toast.error(e instanceof Error ? e.message : `Could not upload ${f.name}`); }
       }
     } finally { setBusy(false); }
@@ -131,10 +142,12 @@ export function useJobVersions({ jobId, onVersions, onVersion, onDesignFiles, on
   /** Opens a Dropbox temporary link in a new tab (opened first so pop-up blockers allow it). */
   async function openFile(fileId: string, source: FileSource) {
     const win = window.open('', '_blank');
-    const res = await fetch(`/api/design-jobs/${jobId}/file-link`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source, id: fileId }) }).catch(() => null);
-    const b = res ? await res.json().catch(() => ({})) : {};
-    if (!res?.ok || !b.link) { win?.close(); toast.error(b.error ?? 'Could not open the file'); return; }
-    if (win) win.location.href = b.link; else window.open(b.link, '_blank', 'noopener,noreferrer');
+    let link: string | undefined;
+    try {
+      ({ link } = await fetchJson<{ link?: string }>(`/api/design-jobs/${jobId}/file-link`, { method: 'POST', body: { source, id: fileId }, errorMessage: 'Could not open the file' }));
+    } catch (e) { win?.close(); toast.error(errorText(e, 'Could not open the file')); return; }
+    if (!link) { win?.close(); toast.error('Could not open the file'); return; }
+    if (win) win.location.href = link; else window.open(link, '_blank', 'noopener,noreferrer');
   }
 
   return { busy, syncVersions, newVersion, patchVersion, requestRevision, sendToCustomer, uploadToVersion, openFile };

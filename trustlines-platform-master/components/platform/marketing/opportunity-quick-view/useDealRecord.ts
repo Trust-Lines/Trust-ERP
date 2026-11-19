@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { errorText, fetchJson } from '@/lib/client/fetchJson';
 import type { DealProgress } from '@/lib/sales/dealProgress';
 import type { ContactOption, Deal, NeedFile, NeedInfo, NeedNote, ProjectInfo, ProspectInfo } from './types';
 
@@ -66,14 +67,9 @@ export function useDealRecord({ apiBase, kind, opportunityId, onChanged }: {
     setOpp(prev => (prev ? { ...prev, [name]: value, ...extra } : prev));
     setSaving(true);
     try {
-      const res = await fetch(apiBase, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [name]: value, ...extra }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(body.error ?? 'Could not save'); load(); return; }
+      await fetchJson(apiBase, { method: 'PATCH', body: { [name]: value, ...extra }, errorMessage: 'Could not save' });
       onChanged?.({ [name]: value, ...extra });
-    } catch { toast.error('Could not save'); load(); }
+    } catch (e) { toast.error(errorText(e, 'Could not save')); load(); }
     finally { setSaving(false); }
   }
 
@@ -82,9 +78,10 @@ export function useDealRecord({ apiBase, kind, opportunityId, onChanged }: {
   async function convert() {
     setConverting(true);
     try {
-      const res = await fetch(`/api/marketing/potentials/${opportunityId}/convert`, { method: 'POST' }).catch(() => null);
-      const body = res ? await res.json().catch(() => ({})) : {};
-      if (!res?.ok) { toast.error(body.error ?? 'Could not convert'); throw new Error('convert failed'); }
+      let body: { opportunity?: { id?: string }; alreadyConverted?: boolean };
+      try {
+        body = await fetchJson(`/api/marketing/potentials/${opportunityId}/convert`, { method: 'POST', errorMessage: 'Could not convert' });
+      } catch (e) { toast.error(errorText(e, 'Could not convert')); throw new Error('convert failed'); }
       setOpp(prev => (prev ? { ...prev, status: 'converted', converted_opportunity_id: body.opportunity?.id } : prev));
       onChanged?.({ status: 'converted', converted_opportunity_id: body.opportunity?.id });
       toast.success(body.alreadyConverted ? 'Already converted' : 'Converted — it is now with Sales');
