@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import type { PItem, PProject, PSection } from '@/lib/excel/projectsExcelExport';
+import type { PItem, PProject, PSection } from '@/lib/production/boardModel';
 import { FIELD, ITEM_KEY, type EditKind, type OpenMenu } from './StatusCells';
 
 export interface TypeGroupRef { type: string; projectId: string | null; caseId: string | null; customTypeCode: string | null }

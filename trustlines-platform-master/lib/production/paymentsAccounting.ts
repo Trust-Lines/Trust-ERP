@@ -13,7 +13,7 @@
 //                    anything else → 0
 //               Payments 1 / 2 are the same fields as Paid 1 / 2.
 import { normalizeSign, normalizeStatus } from './statuses';
-import { toNumber, type PItem } from '@/lib/excel/projectsExcelExport';
+import { toNumber, type PItem } from '@/lib/production/boardModel';
 
 export const DUE_ALL_STATUSES = new Set(['READY_TO_RECEIVE', 'RECEIVED', 'READY', 'SENT_TO_TLINES', 'PARTIAL_SENT', 'SENT']);
 

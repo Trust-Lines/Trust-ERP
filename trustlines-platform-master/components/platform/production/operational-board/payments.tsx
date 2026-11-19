@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { toNumber, type PItem } from '@/lib/excel/projectsExcelExport';
+import { toNumber, type PItem } from '@/lib/production/boardModel';
 import { remainderFor, rowAccounting, type RowAccounting } from '@/lib/production/paymentsAccounting';
 import type { PayField } from '@/lib/production/paymentFields';
 import { shortDate } from './boardStyles';

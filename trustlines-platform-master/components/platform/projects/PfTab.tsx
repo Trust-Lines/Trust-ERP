@@ -10,7 +10,7 @@ import type { PdfSection, PdfItem } from '@/lib/pdf/PriceListPdf';
 import type { DocumentRow } from './ProjectDetailClient';
 import { DocumentApprovalRail } from '../approvals/DocumentApprovalRail';
 import { AssemblyModal } from './AssemblyModal';
-import { statusCellCss } from '@/lib/excel/projectsExcelExport';
+import { statusCellCss } from '@/lib/production/boardColors';
 
 const PF_STATUSES: { value: string; label: string; desc: string }[] = [
   { value: 'HOLD_PM',          label: 'HOLD / PM',        desc: 'Hold — Project Management' },

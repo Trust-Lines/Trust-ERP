@@ -18,9 +18,9 @@ import type { ProductionAccess } from '@/lib/production/access';
 import { STATUS_OPTIONS, normalizeStatus } from '@/lib/production/statuses';
 import { paymentState } from '@/lib/production/paymentsAccounting';
 import {
-  DEFAULT_VISIBLE_COLUMNS, TYPE_ORDER, buildSectionsFromProjects, exportBoardSheet, exportProjectsWorkbook,
+  DEFAULT_VISIBLE_COLUMNS, TYPE_ORDER, buildSectionsFromProjects,
   type PItem, type PProject, type PSection,
-} from '@/lib/excel/projectsExcelExport';
+} from '@/lib/production/boardModel';
 
 const TABS = ['Projects', 'Missing Extra', 'Direct Orders'] as const;
 type Tab = typeof TABS[number];
@@ -116,6 +116,8 @@ export function ProductionClient({ access, canAddProject = false, mode = 'produc
     const visibleColumns = access.viewMoney && access.viewPf ? undefined : DEFAULT_VISIBLE_COLUMNS.filter(c =>
       (access.viewMoney || !['pfUsd', 'pfTl', 'invoice', 'invoiceTl'].includes(c)) && (access.viewPf || (c !== 'pfCode' && c !== 'pfSignStatus')));
     try {
+      // exceljs is large — load it only when someone actually exports.
+      const { exportBoardSheet, exportProjectsWorkbook } = await import('@/lib/excel/projectsExcelExport');
       if (activeTab === 'Projects') {
         await exportProjectsWorkbook({
           projects:     sectionsByTab['Projects'],

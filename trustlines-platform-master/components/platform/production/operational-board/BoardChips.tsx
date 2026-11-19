@@ -1,4 +1,4 @@
-import type { ColumnKey } from '@/lib/excel/projectsExcelExport';
+import type { ColumnKey } from '@/lib/production/boardModel';
 import { money } from './boardStyles';
 
 // Figma's red chips are pure red with white text; everything else keeps the Excel fill.

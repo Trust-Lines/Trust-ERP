@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import {
   COLUMN_LABELS, computeProjectColor, groupItemsByType, groupAllSent, vendorText, effUsd, effTl, toNumber, isMoneyColumn,
   type PSection, type PItem, type PProject, type ColumnKey,
-} from '@/lib/excel/projectsExcelExport';
+} from '@/lib/production/boardModel';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Factory } from 'lucide-react';
 import { cn } from '@/lib/utils';

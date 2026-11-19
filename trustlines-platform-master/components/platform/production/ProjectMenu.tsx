@@ -9,7 +9,7 @@ import { Popover, PopoverContent } from '@/components/ui/popover';
 import { Select } from '@/components/platform/shared/Select';
 import { Modal, ModalContent } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
-import { BUCKET_LABELS, TYPE_ORDER, type PProject } from '@/lib/excel/projectsExcelExport';
+import { BUCKET_LABELS, TYPE_ORDER, type PProject } from '@/lib/production/boardModel';
 import type { PfGroup } from './ProductionFlags';
 import type { ProductionAccess } from '@/lib/production/access';
 

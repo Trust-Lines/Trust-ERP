@@ -5,7 +5,7 @@ import { pageAllowed } from '@/lib/permissions/catalog';
 import { productionAccess } from '@/lib/production/access';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { bucketFromPath, typesForCategories } from '@/lib/production/board';
-import type { PProject, PItem } from '@/lib/excel/projectsExcelExport';
+import type { PProject, PItem } from '@/lib/production/boardModel';
 
 export const dynamic = 'force-dynamic';
 
