@@ -15,6 +15,9 @@ import {
   type ItemStatus,
 } from '@/lib/it/constants';
 import { CATEGORY_LABEL } from './itemStyles';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 // Items Library → Add Item and Item → Edit Info: one form for the whole item (PATCH sends it all
 // back). Specs and the remote address only show for computers (Full Set, PC, Laptop).
@@ -39,14 +42,17 @@ export const EMPTY_ITEM: ItItemFormValues = {
 };
 
 export const LABEL = 'mb-[7px] block text-[12px] font-medium leading-4 text-ui-body';
-export const FIELD =
-  'min-h-[40px] w-full rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[13px] text-ui-heading outline-none placeholder:text-ui-text-disabled focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring';
+// Platform Input / Select at the dialog's 40px field height.
+const FIELD = 'h-10 w-full';
 export const PRIMARY_BTN =
   'inline-flex h-10 items-center justify-center rounded-md bg-secondary-700 px-6 text-[13px] font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-secondary-50 dark:text-primary-950';
 export const SECONDARY_BTN =
   'inline-flex h-10 items-center justify-center rounded-md border border-[var(--ui-input-border)] bg-transparent px-6 text-[13px] font-medium text-ui-heading hover:bg-ui-hover-bg';
 
 const STATUS_LABEL: Record<ItemStatus, string> = { available: 'Available', repair: 'Repair', assigned: 'Assigned to a person' };
+const CATEGORY_OPTIONS = ITEM_CATEGORIES.map(c => ({ value: c, label: CATEGORY_LABEL[c] }));
+const LOCATION_OPTIONS = [{ value: '', label: '—' }, ...IT_LOCATIONS.map(l => ({ value: l, label: l }))];
+const STATUS_OPTIONS = (Object.keys(STATUS_LABEL) as ItemStatus[]).map(s => ({ value: s, label: STATUS_LABEL[s] }));
 
 async function errorOf(res: Response) {
   const j = await res.json().catch(() => null) as { error?: string } | null;
@@ -68,6 +74,11 @@ export function ItItemFormDialog({ initial, assignees, onClose, onSaved }: {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    // The platform Select has no native `required`, so check the holder here.
+    if (f.status === 'assigned' && !f.assigneeId) {
+      toast.error('Choose who holds this item');
+      return;
+    }
     if (photo && (!IT_IMAGE_TYPES[photo.type] || photo.size > IT_FILE_MAX_BYTES)) {
       toast.error('The photo must be a JPG, PNG or WebP under 4 MB');
       return;
@@ -103,48 +114,43 @@ export function ItItemFormDialog({ initial, assignees, onClose, onSaved }: {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="iti-name" className={LABEL}>Item name<span className="text-error-normal" aria-hidden>*</span></label>
-              <input id="iti-name" required maxLength={120} autoFocus className={FIELD} value={f.name} onChange={e => set('name', e.target.value)} placeholder="PC 1 Tower" />
+              <Input id="iti-name" required maxLength={120} autoFocus className={FIELD} value={f.name} onChange={e => set('name', e.target.value)} placeholder="PC 1 Tower" />
             </div>
             <div>
               <label htmlFor="iti-cat" className={LABEL}>Category<span className="text-error-normal" aria-hidden>*</span></label>
-              <select id="iti-cat" className={FIELD} value={f.category} onChange={e => set('category', e.target.value as ItemCategory)}>
-                {ITEM_CATEGORIES.map(c => <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>)}
-              </select>
+              <Select id="iti-cat" className={FIELD} value={f.category} options={CATEGORY_OPTIONS}
+                onValueChange={v => { if (v) set('category', v as ItemCategory); }} />
             </div>
             <div>
               <label htmlFor="iti-model" className={LABEL}>Type / model</label>
-              <input id="iti-model" maxLength={120} className={FIELD} value={f.model} onChange={e => set('model', e.target.value)} placeholder="High Performance" />
+              <Input id="iti-model" maxLength={120} className={FIELD} value={f.model} onChange={e => set('model', e.target.value)} placeholder="High Performance" />
             </div>
             <div>
               <label htmlFor="iti-loc" className={LABEL}>Location</label>
-              <select id="iti-loc" className={FIELD} value={f.location} onChange={e => set('location', e.target.value)}>
-                <option value="">—</option>
-                {IT_LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
+              <Select id="iti-loc" className={FIELD} value={f.location} options={LOCATION_OPTIONS}
+                onValueChange={v => set('location', v ?? '')} />
             </div>
             <div>
               <label htmlFor="iti-status" className={LABEL}>Status</label>
-              <select id="iti-status" className={FIELD} value={f.status} onChange={e => set('status', e.target.value as ItemStatus)}>
-                {(Object.keys(STATUS_LABEL) as ItemStatus[]).map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-              </select>
+              <Select id="iti-status" className={FIELD} value={f.status} options={STATUS_OPTIONS}
+                onValueChange={v => { if (v) set('status', v as ItemStatus); }} />
             </div>
             {f.status === 'assigned' ? (
               <div>
                 <label htmlFor="iti-holder" className={LABEL}>Held by<span className="text-error-normal" aria-hidden>*</span></label>
-                <select id="iti-holder" required className={FIELD} value={f.assigneeId} onChange={e => set('assigneeId', e.target.value)}>
-                  <option value="">Choose a person…</option>
-                  {assignees.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
+                <Select id="iti-holder" className={FIELD} value={f.assigneeId} placeholder="Choose a person…"
+                  options={assignees.map(a => ({ value: a.id, label: a.name }))}
+                  onValueChange={v => set('assigneeId', v ?? '')} />
               </div>
             ) : <div className="hidden sm:block" />}
             <div>
               <label htmlFor="iti-set" className={LABEL}>Set</label>
-              <input id="iti-set" maxLength={40} className={FIELD} value={f.setLabel} onChange={e => set('setLabel', e.target.value)} placeholder="PC 1" />
+              <Input id="iti-set" maxLength={40} className={FIELD} value={f.setLabel} onChange={e => set('setLabel', e.target.value)} placeholder="PC 1" />
               <span className="mt-1 block text-[11px] text-ui-text-secondary">Items with the same set name are grouped together.</span>
             </div>
             <div>
               <label htmlFor="iti-photo" className={LABEL}>Photo</label>
-              <input id="iti-photo" type="file" accept="image/jpeg,image/png,image/webp" className={`${FIELD} py-2 text-[12px]`} onChange={e => setPhoto(e.target.files?.[0] ?? null)} />
+              <Input id="iti-photo" type="file" accept="image/jpeg,image/png,image/webp" className={`${FIELD} py-1.5 text-[12px]`} onChange={e => setPhoto(e.target.files?.[0] ?? null)} />
             </div>
           </div>
 
@@ -155,14 +161,14 @@ export function ItItemFormDialog({ initial, assignees, onClose, onSaved }: {
                 {SPEC_KEYS.map(k => (
                   <div key={k}>
                     <label htmlFor={`iti-${k}`} className={LABEL}>{SPEC_LABEL[k]}</label>
-                    <input id={`iti-${k}`} maxLength={120} className={FIELD} value={f.specs[k] ?? ''}
+                    <Input id={`iti-${k}`} maxLength={120} className={FIELD} value={f.specs[k] ?? ''}
                       onChange={e => set('specs', { ...f.specs, [k]: e.target.value })} />
                   </div>
                 ))}
               </div>
               <div>
                 <label htmlFor="iti-remote" className={LABEL}>Remote address</label>
-                <input id="iti-remote" maxLength={253} className={FIELD} value={f.remoteAddress} onChange={e => set('remoteAddress', e.target.value)}
+                <Input id="iti-remote" maxLength={253} className={FIELD} value={f.remoteAddress} onChange={e => set('remoteAddress', e.target.value)}
                   placeholder="pc-ahmet or 100.64.0.12" spellCheck={false} autoCapitalize="off" />
                 <span className="mt-1 block text-[11px] text-ui-text-secondary">
                   Computer name or IP for Remote Desktop: the LAN name in Istanbul, the Tailscale name / IP for the other offices.
@@ -173,7 +179,7 @@ export function ItItemFormDialog({ initial, assignees, onClose, onSaved }: {
 
           <div>
             <label htmlFor="iti-notes" className={LABEL}>Notes</label>
-            <textarea id="iti-notes" maxLength={2000} rows={3} className={`${FIELD} py-2`} value={f.notes} onChange={e => set('notes', e.target.value)} />
+            <Textarea id="iti-notes" maxLength={2000} rows={3} className="min-h-0 w-full" value={f.notes} onChange={e => set('notes', e.target.value)} />
           </div>
 
           <div className="flex justify-end gap-2 border-t border-ui-divider pt-4">
