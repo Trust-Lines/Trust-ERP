@@ -1,48 +1,30 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import {
-  X, Loader2, Paperclip, SendHorizontal, Image as ImageIcon, Trash2, Link2, FileText, Activity,
-  SquareArrowOutUpRight, CloudUpload, CircleCheck, CircleX, CircleDashed, Hash,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
 import { TaskList } from '@/components/platform/shared/TaskList';
 import { DealProgressPanel } from '@/components/platform/shared/DealProgressPanel';
-import type { DealProgress } from '@/lib/sales/dealProgress';
-import { DropboxFileList } from '@/components/platform/shared/DropboxFileList';
-import { TagMultiSelect } from './TagMultiSelect';
-import { compressImage, MAX_UPLOAD_BYTES } from '@/lib/client/compressImage';
-import { uploadImageDirect } from '@/lib/client/directDropboxUpload';
-import { ContactSearchSelect } from './ContactSearchSelect';
-import { EmptyState } from '@/components/ui/empty-state';
-import { hashColor } from '@/lib/marketing/pillColor';
-import { normalizeIndustry, INDUSTRY_COLOR } from '@/lib/marketing/industry';
-import { OPPORTUNITY_STAGE_LABEL, TIMING_LABEL } from '@/lib/marketing/classification';
-import { REGIONS } from '@/lib/regions';
+import { OPPORTUNITY_STAGE_LABEL } from '@/lib/marketing/classification';
 import type { OpportunityStage, PotentialStatus } from '@/types/database';
-import { feedback } from '@/components/ui/feedback-toast';
 import { DealDocuments } from '@/components/platform/sales/DealDocuments';
 import { DealDesign } from '@/components/platform/sales/DealDesign';
-import { ConfirmModal, ModalPanel } from '@/components/ui/modal';
-import { Textarea } from '@/components/ui/textarea';
-import { ToneChip } from '@/components/ui/tone-chip';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { HEADING } from '@/components/platform/shared/panelStyles';
-import { readableOn, DocumentsList, missingForDeal, StillToFillIn, Card, Fields, Field, ReadOnly, Inp, Sel, fieldBox, FileRowShell, FileIcon, formatBytes } from './opportunity-quick-view/parts';
-import type { Deal, ProspectInfo, ContactOption, ProjectInfo, NeedInfo, NeedNote, NeedFile, Tag, UploadItem } from './opportunity-quick-view/types';
+import { ModalPanel } from '@/components/ui/modal';
+import { Card, DocumentsList, StillToFillIn, missingForDeal } from './opportunity-quick-view/parts';
+import type { NeedFile, NeedNote, Tag } from './opportunity-quick-view/types';
+import { dealApiBase, useDealRecord, type DealKind } from './opportunity-quick-view/useDealRecord';
+import { useDealComments } from './opportunity-quick-view/useDealComments';
+import { useDealFiles } from './opportunity-quick-view/useDealFiles';
+import { QuickViewHeader } from './opportunity-quick-view/QuickViewHeader';
+import { DealFieldCards, POTENTIAL_STATUS_LABEL } from './opportunity-quick-view/DealFieldCards';
+import { FilesCard } from './opportunity-quick-view/FilesCard';
+import { ActivityPanel, ImageLightbox } from './opportunity-quick-view/ActivityPanel';
+import { QuickViewConfirms } from './opportunity-quick-view/QuickViewConfirms';
 
-const STAGE_OPTS: [string, string][] = Object.entries(OPPORTUNITY_STAGE_LABEL);
-const POTENTIAL_STATUS_LABEL: Record<PotentialStatus, string> = {
-  identified: 'Identified', nurture: 'Nurture', waiting_timing: 'Waiting Timing',
-  contact_due: 'Contact Due', converted: 'Converted', lost: 'Lost', cancelled: 'Cancelled',
-};
-const POTENTIAL_STATUS_OPTS: [string, string][] = Object.entries(POTENTIAL_STATUS_LABEL);
-
+/** Opportunity / Potential detail pop-up (Figma "Lead detail", node 305:10279): fields + files on the left, Activity on the right. */
 export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assignees, onClose, onChanged, canEdit = true, focusFields = [] }: {
   opportunityId: string;
-  kind?: 'opportunity' | 'potential';
+  kind?: DealKind;
   assignees: { id: string; full_name: string }[];
   onClose: () => void;
   onChanged?: (patch: Record<string, unknown>) => void;
@@ -51,64 +33,20 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
    *  "needs region/state" notification. Highlighted until filled; the panel scrolls to the first. */
   focusFields?: string[];
 }) {
-  const apiBase = `/api/marketing/${kind === 'potential' ? 'potentials' : 'opportunities'}/${opportunityId}`;
-  const [opp, setOpp] = useState<Deal | null>(null);
-  const [prospect, setProspect] = useState<ProspectInfo | null>(null);
-  const [contacts, setContacts] = useState<ContactOption[]>([]);
-  // Separate from `contacts` (that list is scoped to THIS record's own prospect) — once the
-  // Contact field is re-linked via search to a contact belonging to a different Contact
-  // entirely, its name has to be tracked independently to still render correctly.
-  const [contactLabel, setContactLabel] = useState('');
-  const [project, setProject] = useState<ProjectInfo | null>(null);
-  const [need, setNeed] = useState<NeedInfo | null>(null);
-  const [progress, setProgress] = useState<DealProgress | null>(null);
-  const [notes, setNotes] = useState<NeedNote[]>([]);
-  const [files, setFiles] = useState<NeedFile[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [saving, setSaving] = useState(false);
-  // Stage change waiting for its reason, and the Convert question — both asked in platform popups.
+  const apiBase = dealApiBase(kind, opportunityId);
+  const rec = useDealRecord({ apiBase, kind, opportunityId, onChanged });
+  const comments = useDealComments(apiBase, rec.notes, rec.setNotes);
+  const dealFiles = useDealFiles(apiBase, rec.setFiles);
+  const { opp, saveField } = rec;
+
+  // Stage change waiting for its reason, the Convert question, and the two removals — all asked in platform popups.
   const [pendingStage, setPendingStage] = useState<string | null>(null);
   const [stageReason, setStageReason] = useState('');
   const [askConvert, setAskConvert] = useState(false);
   const [deletingNote, setDeletingNote] = useState<NeedNote | null>(null);
   const [removingFile, setRemovingFile] = useState<NeedFile | null>(null);
-  const popupOpen = pendingStage !== null || askConvert || !!deletingNote || !!removingFile;
-  const [imageLinks, setImageLinks] = useState<Record<string, string>>({});
   const [lightbox, setLightbox] = useState<string | null>(null);
-  const [draft, setDraft] = useState('');
-  const [draftImage, setDraftImage] = useState<File | null>(null);
-  const originalImageRef = useRef<File | null>(null);
-  const [posting, setPosting] = useState(false);
-  const [uploads, setUploads] = useState<UploadItem[]>([]);
-  const [dragOver, setDragOver] = useState(false);
-  const [tagOptions, setTagOptions] = useState<string[]>([]);
-  const noteFileInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    fetch('/api/marketing/opportunities/tag-options').then(r => r.json()).then(b => setTagOptions(b.options ?? [])).catch(() => {});
-  }, []);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch(apiBase);
-      const body = await res.json();
-      const dealRow = (kind === 'potential' ? body.potential : body.opportunity) ?? null;
-      setOpp(dealRow);
-      setProspect(body.prospect ?? null);
-      const contactList = body.contacts ?? [];
-      setContacts(contactList);
-      setContactLabel((contactList as ContactOption[]).find(c => c.id === dealRow?.primary_contact_id)?.name ?? '');
-      setProject(body.project ?? null);
-      setNeed(body.need ?? null);
-      setProgress(body.progress ?? null);
-      setNotes(body.notes ?? []);
-      setFiles(body.files ?? []);
-    } catch { }
-    finally { setLoaded(true); }
-  }, [apiBase, kind]);
-
-  useEffect(() => { load(); }, [load]);
+  const popupOpen = pendingStage !== null || askConvert || !!deletingNote || !!removingFile;
 
   // Opened to fill something in: bring the first highlighted field into view once the data is here.
   const scrolledToFocus = useRef(false);
@@ -118,50 +56,6 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
     scrolledToFocus.current = true;
     requestAnimationFrame(() => document.querySelector('[data-focus-field="true"]')?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
   }, [focusKey, opp]);
-
-  useEffect(() => {
-    const missing = notes.filter(n => n.image_path && !imageLinks[n.image_path]);
-    if (!missing.length) return;
-    (async () => {
-      const entries = await Promise.all(missing.map(async n => {
-        const res = await fetch(`${apiBase}/dropbox-link?path=${encodeURIComponent(n.image_path!)}`);
-        const body = await res.json().catch(() => ({}));
-        return res.ok && body.link ? [n.image_path as string, body.link as string] as const : null;
-      }));
-      const found = Object.fromEntries(entries.filter((e): e is readonly [string, string] => e !== null));
-      if (Object.keys(found).length) setImageLinks(prev => ({ ...prev, ...found }));
-    })();
-  }, [notes, apiBase]);
-
-  async function saveField(name: string, value: unknown, extra?: Record<string, unknown>) {
-    setOpp(prev => (prev ? { ...prev, [name]: value, ...extra } : prev));
-    setSaving(true);
-    try {
-      const res = await fetch(apiBase, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [name]: value, ...extra }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(body.error ?? 'Could not save'); load(); return; }
-      onChanged?.({ [name]: value, ...extra });
-    } catch { toast.error('Could not save'); load(); }
-    finally { setSaving(false); }
-  }
-
-  // Potential → Opportunity, handed to Sales (app/api/marketing/potentials/[id]/convert).
-  const [converting, setConverting] = useState(false);
-  // Called from the Convert popup; throwing keeps the popup open so the user can retry.
-  async function convert() {
-    setConverting(true);
-    try {
-      const res = await fetch(`/api/marketing/potentials/${opportunityId}/convert`, { method: 'POST' }).catch(() => null);
-      const body = res ? await res.json().catch(() => ({})) : {};
-      if (!res?.ok) { toast.error(body.error ?? 'Could not convert'); throw new Error('convert failed'); }
-      setOpp(prev => (prev ? { ...prev, status: 'converted', converted_opportunity_id: body.opportunity?.id } : prev));
-      onChanged?.({ status: 'converted', converted_opportunity_id: body.opportunity?.id });
-      toast.success(body.alreadyConverted ? 'Already converted' : 'Converted — it is now with Sales');
-    } finally { setConverting(false); }
-  }
 
   function changeStage(next: string) {
     if (next === opp?.stage) return;
@@ -176,110 +70,16 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
     await saveField('stage', pendingStage, { admin_correction_reason: stageReason.trim() });
   }
 
-  async function postComment() {
-    if (!draft.trim() && !draftImage) return;
-    setPosting(true);
-    try {
-      let res: Response;
-      // Preferred: original photo straight to Dropbox. Any failure falls back to the classic upload.
-      const directPath = draftImage ? await uploadImageDirect(`${apiBase}/notes`, originalImageRef.current ?? draftImage) : null;
-      let direct: Response | null = null;
-      if (directPath) {
-        direct = await fetch(`${apiBase}/notes`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: draft.trim(), imagePath: directPath }),
-        });
-      }
-      if (direct?.ok) {
-        res = direct;
-      } else if (draftImage) {
-        // Direct upload unavailable, or the note could not be saved from it: classic upload of the compressed copy.
-        if (draftImage.size > MAX_UPLOAD_BYTES) { toast.error('This photo is too large to upload (max 4 MB). Try a smaller one.'); return; }
-        const form = new FormData();
-        form.set('body', draft.trim());
-        form.set('image', draftImage);
-        res = await fetch(`${apiBase}/notes`, { method: 'POST', body: form });
-      } else {
-        res = await fetch(`${apiBase}/notes`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: draft.trim() }),
-        });
-      }
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) { toast.error(res.status === 413 ? 'The photo is too large to upload (max 4 MB).' : (body.error ?? 'Could not post')); return; }
-      setNotes(prev => [...prev, body.note]);
-      setDraft('');
-      setDraftImage(null);
-      originalImageRef.current = null;
-      if (noteFileInputRef.current) noteFileInputRef.current.value = '';
-    } finally { setPosting(false); }
-  }
-
-  // Called from the confirm popup; throwing keeps the popup open so the user can retry.
-  async function deleteNote(n: NeedNote) {
-    const res = await fetch(`${apiBase}/notes/${n.id}`, { method: 'DELETE' });
-    if (!res.ok) { const body = await res.json().catch(() => ({})); toast.error(body.error ?? 'Could not delete'); throw new Error('delete failed'); }
-    setNotes(prev => prev.filter(x => x.id !== n.id));
-  }
-
-  async function uploadFile(f: File) {
-    const key = `${f.name}-${f.size}-${Date.now()}`;
-    // A retry replaces the failed row for the same file.
-    setUploads(prev => [...prev.filter(u => !(u.error && u.name === f.name)), { key, name: f.name, size: f.size }]);
-    const fail = (msg: string) => {
-      setUploads(prev => prev.map(u => (u.key === key ? { ...u, error: msg } : u)));
-      feedback.error('Upload interrupted', {
-        description: `${f.name} could not be uploaded. ${msg}`,
-        action: { label: 'Retry upload', onClick: () => void uploadFile(f) },
-      });
-    };
-    try {
-      const form = new FormData();
-      form.set('file', f);
-      const res = await fetch(`${apiBase}/files`, { method: 'POST', body: form });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) { fail(body.error ?? (res.status === 413 ? 'File is too large' : 'Upload failed')); return; }
-      setFiles(prev => [body.file, ...prev]);
-      setUploads(prev => prev.filter(u => u.key !== key));
-    } catch { fail('Network error'); }
-  }
-
-  function uploadMany(list: FileList | null) {
-    if (!list) return;
-    for (const f of Array.from(list)) void uploadFile(f);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }
-
-  // Called from the confirm popup; throwing keeps the popup open so the user can retry.
-  async function deleteFile(f: NeedFile) {
-    const res = await fetch(`${apiBase}/files/${f.id}`, { method: 'DELETE' });
-    if (!res.ok) { const body = await res.json().catch(() => ({})); toast.error(body.error ?? 'Could not remove'); throw new Error('remove failed'); }
-    setFiles(prev => prev.filter(x => x.id !== f.id));
-  }
-
-  async function viewFile(f: NeedFile) {
-    const res = await fetch(`${apiBase}/dropbox-link?path=${encodeURIComponent(f.dropbox_path)}`);
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok || !body.link) { toast.error(body.error ?? 'Could not open file'); return; }
-    window.open(body.link, '_blank', 'noopener,noreferrer');
-  }
-
   // Imported ClickUp Docs live in their own section; everything else is the comment thread.
-  const docNotes = notes.filter(n => n.external_source === 'clickup_doc');
-  const activityNotes = notes.filter(n => n.external_source !== 'clickup_doc');
+  const docNotes = rec.notes.filter(n => n.external_source === 'clickup_doc');
+  const activityNotes = rec.notes.filter(n => n.external_source !== 'clickup_doc');
 
-  const v = (k: string) => (opp?.[k] as string | number | null) ?? '';
   const tags = (opp?.tags as Tag[] | null) ?? [];
-  const businessTypes = (opp?.business_types as string[] | null) ?? [];
-  const title = (opp?.title as string) || prospect?.display_name || (kind === 'potential' ? 'Potential' : 'Opportunity');
-
+  const title = (opp?.title as string) || rec.prospect?.display_name || (kind === 'potential' ? 'Potential' : 'Opportunity');
   const statusLabel = kind === 'opportunity'
-    ? OPPORTUNITY_STAGE_LABEL[String(v('stage')) as OpportunityStage]
-    : POTENTIAL_STATUS_LABEL[(String(v('status') || 'identified')) as PotentialStatus];
-  const assigneeOpts: [string, string][] = [['', 'Unassigned'], ...assignees.map(a => [a.id, a.full_name] as [string, string])];
-  const failedCount = uploads.filter(u => u.error).length;
-  const inProgress = uploads.length - failedCount;
-  const fileRows = uploads.length + files.length;
+    ? OPPORTUNITY_STAGE_LABEL[String(opp?.stage ?? '') as OpportunityStage]
+    : POTENTIAL_STATUS_LABEL[(String(opp?.status || 'identified')) as PotentialStatus];
 
-  // Figma "Lead detail" (node 305:10279): header, 2×2 field cards + Files, Activity on the right.
   return (
     // Escape / dimmed-area click: an open confirm closes itself first, then an open image, then the panel.
     <ModalPanel
@@ -303,489 +103,77 @@ export function OpportunityQuickView({ opportunityId, kind = 'opportunity', assi
           @keyframes qv-slide{0%{left:-40%}100%{left:100%}}
         `}</style>
 
-        {/* ── Header ─────────────────────────────────────────────── */}
-        <div className="flex shrink-0 items-center justify-between gap-6">
-          <div className="flex min-w-0 flex-col gap-[5px]">
-            <h2 className={cn('m-0 truncate text-[28px] font-semibold leading-[1.35]', HEADING)}>{title}</h2>
-            <div className="flex flex-wrap items-center gap-[5px]">
-              {project?.code && <ToneChip tone="t0" icon={Hash}>{project.code}</ToneChip>}
-              {opp && statusLabel && <ToneChip tone="t0" icon={CircleDashed}>{statusLabel}</ToneChip>}
-              {canEdit ? (
-                <TagMultiSelect
-                  variant="chip"
-                  values={tags.map(t => t.name)}
-                  options={tagOptions}
-                  placeholder="Add tag"
-                  onChange={next => {
-                    const nextTags = next.map(name => tags.find(t => t.name === name) ?? { name, color: hashColor(name) });
-                    saveField('tags', nextTags);
-                  }}
-                />
-              ) : tags.map(t => (
-                <span key={t.name} style={{ fontSize: 12, fontWeight: 500, padding: '3px 10px', borderRadius: 4, background: t.color || 'var(--status-t0-bg)', color: readableOn(t.color) }}>
-                  {t.name}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2.5">
-            {saving && <Loader2 size={16} className="qv-spin text-ui-text-secondary" aria-label="Saving" />}
-            {/* Marketing → Sales: the Potential becomes an Opportunity on Sales → Handoffs. */}
-            {kind === 'potential' && canEdit && opp && !opp.converted_opportunity_id && !['lost', 'cancelled'].includes(String(opp.status)) && (
-              <Button variant="accent" size="md" onClick={() => setAskConvert(true)} loading={converting}>
-                <SendHorizontal className="size-4" aria-hidden />
-                Convert to Opportunity
-              </Button>
-            )}
-            {kind === 'potential' && !!opp?.converted_opportunity_id && <ToneChip tone="t9" icon={CircleCheck}>Converted — with Sales</ToneChip>}
-            {opp?.prospect_id ? (
-              <Link
-                href={`/marketing/prospects/${opp.prospect_id}`}
-                title="Contacts, locations & other Needs for this Lead"
-                className={cn(buttonVariants({ variant: 'outline', size: 'md' }), 'no-underline')}
-              >
-                <SquareArrowOutUpRight className="size-4" aria-hidden />
-                Lead Profile
-              </Link>
-            ) : null}
-            <Button variant="outline" size="icon-md" onClick={onClose} aria-label="Close">
-              <X />
-            </Button>
-          </div>
-        </div>
+        <QuickViewHeader
+          title={title} kind={kind} opp={opp} project={rec.project} statusLabel={statusLabel}
+          tags={tags} tagOptions={rec.tagOptions} canEdit={canEdit} saving={rec.saving} converting={rec.converting}
+          onTagsChange={next => saveField('tags', next)} onConvert={() => setAskConvert(true)} onClose={onClose}
+        />
 
-        {/* ── Body ───────────────────────────────────────────────── */}
         <div className="flex min-h-0 flex-1 gap-4">
           <div className="min-w-0 flex-1 overflow-y-auto pr-1">
-            {!loaded ? (
+            {!rec.loaded ? (
               <div className="flex items-center justify-center gap-2 p-12 text-[13px] text-ui-body"><Loader2 size={18} className="qv-spin" /> Loading…</div>
             ) : !opp ? (
               <div className="p-12 text-center text-[13px] text-ui-body">Couldn&apos;t load this {kind === 'potential' ? 'Potential' : 'Opportunity'}.</div>
             ) : (
               <div className="flex flex-col gap-4">
                 {kind === 'opportunity' && (
-                  <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
-                    <Card title="Start here">
-                      <StillToFillIn missing={missingForDeal(opp)} stage={String(opp.stage)} />
-                      <TaskList apiBasePath={apiBase} assignees={assignees} />
+                  <>
+                    <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+                      <Card title="Start here">
+                        <StillToFillIn missing={missingForDeal(opp)} stage={String(opp.stage)} />
+                        <TaskList apiBasePath={apiBase} assignees={assignees} />
+                      </Card>
+                      <Card title="Progress">
+                        <DealProgressPanel stage={String(opp.stage) as OpportunityStage} progress={rec.progress} />
+                      </Card>
+                    </div>
+                    {/* System drawing: Design → Estimate → Contract → Closed Deal (migration 131). */}
+                    <Card title="Design">
+                      <DealDesign opportunityId={opportunityId} />
                     </Card>
-                    <Card title="Progress">
-                      <DealProgressPanel stage={String(opp.stage) as OpportunityStage} progress={progress} />
+                    <Card title="Estimate & Contract">
+                      <DealDocuments opportunityId={opportunityId} dealTitle={title} defaultCurrency={(opp.currency as string | null) ?? null} canEdit={canEdit} />
                     </Card>
-                  </div>
-                )}
-                {/* System drawing: Design → Estimate → Contract → Closed Deal (migration 131). */}
-                {kind === 'opportunity' && (
-                  <Card title="Design">
-                    <DealDesign opportunityId={opportunityId} />
-                  </Card>
-                )}
-                {kind === 'opportunity' && (
-                  <Card title="Estimate & Contract">
-                    <DealDocuments opportunityId={opportunityId} dealTitle={title} defaultCurrency={(opp.currency as string | null) ?? null} canEdit={canEdit} />
-                  </Card>
+                  </>
                 )}
 
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                  <Card title="Status & Ownership">
-                    <Fields>
-                      {kind === 'opportunity' ? (
-                        <Field label="Stage" span={2}><Sel value={String(v('stage'))} onChange={changeStage} opts={STAGE_OPTS} /></Field>
-                      ) : (
-                        <Field label="Status" span={2}>
-                          <Sel value={String(v('status') || 'identified')} onChange={x => saveField('status', x)} opts={POTENTIAL_STATUS_OPTS} />
-                        </Field>
-                      )}
-                      <Field label="Priority" span={2}>
-                        <Sel value={String(v('priority') || 'medium')} onChange={x => saveField('priority', x)}
-                          opts={[['high', 'High'], ['medium', 'Medium'], ['low', 'Low']]} />
-                      </Field>
-                      {kind === 'opportunity' ? (
-                        <>
-                          <Field label="Marketing Owner" span={2}>
-                            <Sel value={String(v('marketing_owner_id'))} onChange={x => saveField('marketing_owner_id', x || null)} opts={assigneeOpts} />
-                          </Field>
-                          <Field label="Sales Owner" span={2}>
-                            <Sel value={String(v('sales_owner_id'))} onChange={x => saveField('sales_owner_id', x || null)} opts={assigneeOpts} />
-                          </Field>
-                        </>
-                      ) : (
-                        <Field label="Assignee" span={2}>
-                          <Sel value={String(v('assigned_to'))} onChange={x => saveField('assigned_to', x || null)} opts={assigneeOpts} />
-                        </Field>
-                      )}
-                      <Field label="Contact" span={kind === 'opportunity' ? 4 : 6} focus={focusFields.includes('contact') && !v('primary_contact_id') && !v('direct_contact_raw')}>
-                        <ContactSearchSelect
-                          value={String(v('primary_contact_id'))}
-                          valueLabel={contactLabel || contacts.find(c => c.id === v('primary_contact_id'))?.name || ''}
-                          disabled={!canEdit}
-                          placeholder="Search contacts…"
-                          buttonStyle={{ ...fieldBox, cursor: canEdit ? 'pointer' : 'default' }}
-                          placeholderStyle={{ color: 'var(--ui-text-disabled)', fontWeight: 500 }}
-                          onChange={(id, name) => {
-                            setContactLabel(name ?? '');
-                            saveField('primary_contact_id', id);
-                          }}
-                        />
-                      </Field>
-                      {need?.timing && (
-                        <Field label="Timing" span={3}><ReadOnly>{TIMING_LABEL[need.timing]}</ReadOnly></Field>
-                      )}
-                      {Array.isArray(opp.classification_reasons) && (opp.classification_reasons as string[]).length > 0 && (
-                        <Field label="Why this stage" span={need?.timing ? 3 : 6}>
-                          <ReadOnly>{(opp.classification_reasons as string[]).join(' · ')}</ReadOnly>
-                        </Field>
-                      )}
-                    </Fields>
-                  </Card>
-
-                  <Card title="Value & Timeline">
-                    <Fields>
-                      <Field label="Deal Size" span={3}><Inp type="number" value={v('estimated_value')} ph="e.g 250000" onSave={x => saveField('estimated_value', x === '' ? null : Number(x))} /></Field>
-                      <Field label="Deposit" span={3}><Inp type="number" value={v('deposit')} ph="e.g 5000" onSave={x => saveField('deposit', x === '' ? null : Number(x))} /></Field>
-                      <Field label="Payment" span={4}><Inp value={v('payment_raw')} ph="Payment terms.." onSave={x => saveField('payment_raw', x)} /></Field>
-                      <Field label="Targeted" span={2}>
-                        <Sel value={String(!!opp.targeted)} onChange={x => saveField('targeted', x === 'true')} opts={[['false', 'No'], ['true', 'Yes']]} />
-                      </Field>
-                      {kind === 'opportunity' ? (
-                        <>
-                          <Field label="Due Date" span={2}><Inp type="date" value={v('deadline')} onSave={x => saveField('deadline', x || null)} /></Field>
-                          <Field label="Expected Close" span={2}><Inp type="date" value={v('expected_close_date')} onSave={x => saveField('expected_close_date', x || null)} /></Field>
-                          <Field label="Date done" span={2}><Inp type="date" value={v('closed_at') ? String(v('closed_at')).slice(0, 10) : ''} onSave={x => saveField('closed_at', x || null)} /></Field>
-                          <Field label="Next Action" span={3}><Inp value={v('next_action')} ph="e.g Send estimate" onSave={x => saveField('next_action', x)} /></Field>
-                          <Field label="Next Action Date" span={3}><Inp type="date" value={v('next_action_date')} onSave={x => saveField('next_action_date', x || null)} /></Field>
-                        </>
-                      ) : (
-                        <>
-                          <Field label="Due Date" span={2}><Inp type="date" value={v('due_date')} onSave={x => saveField('due_date', x || null)} /></Field>
-                          <Field label="Targeted contact date" span={2}><Inp type="date" value={v('target_contact_date')} onSave={x => saveField('target_contact_date', x || null)} /></Field>
-                          <Field label="Date done" span={2}><Inp type="date" value={v('date_done')} onSave={x => saveField('date_done', x || null)} /></Field>
-                        </>
-                      )}
-                      <Field label="Source" span={3}><Inp value={v('source_raw_label') || v('source_label')} ph="type.." onSave={x => saveField('source_raw_label', x)} /></Field>
-                      <Field label="Notes" span={3}>
-                        <Inp value={v(kind === 'opportunity' ? 'description' : 'notes')} ph="type.." onSave={x => saveField(kind === 'opportunity' ? 'description' : 'notes', x)} />
-                      </Field>
-                    </Fields>
-                  </Card>
-
-                  <Card title="Location & Business" className="self-start">
-                    <Fields>
-                      <Field label="01-State" span={2} focus={focusFields.includes('state') && !v('state')}><Inp value={v('state')} ph="e.g TX" onSave={x => saveField('state', x)} /></Field>
-                      <Field label="11-Location" span={2}><Inp value={v('formatted_address')} ph="address.." onSave={x => saveField('formatted_address', x)} /></Field>
-                      <Field label="Brand" span={2}><Inp value={v('brand')} ph="brand.." onSave={x => saveField('brand', x)} /></Field>
-                      <Field label="Industry" span={2}>
-                        {(() => {
-                          const industry = normalizeIndustry(v('industry_raw') as string);
-                          const bg = industry ? INDUSTRY_COLOR[industry] : null;
-                          return (
-                            <div className="flex w-full items-center gap-1.5">
-                              {bg && (
-                                <span style={{ fontWeight: 500, fontSize: 12, lineHeight: '16px', padding: '3px 8px', borderRadius: 4, background: bg, color: readableOn(bg), flexShrink: 0 }}>
-                                  {industry}
-                                </span>
-                              )}
-                              <Inp value={v('industry_raw')} ph="industry.." onSave={x => saveField('industry_raw', x)} />
-                            </div>
-                          );
-                        })()}
-                      </Field>
-                      <Field label="Project Type" span={2}><Inp value={v('project_type_raw')} ph="project type.." onSave={x => saveField('project_type_raw', x)} /></Field>
-                      <Field label="Business Type" span={2}>
-                        <Inp value={businessTypes.join(', ')} ph="comma separated.." onSave={x => saveField('business_types', x.split(',').map(s => s.trim()).filter(Boolean))} />
-                      </Field>
-                      <Field label="Region" span={2} focus={focusFields.includes('region') && !v('region')}>
-                        <Sel value={String(v('region'))} onChange={x => saveField('region', x || null)}
-                          opts={[['', '—'], ...REGIONS.map(r => [r.code, r.label] as [string, string])]}
-                          emphasize={!v('region')} />
-                        {!v('region') && <div className="text-[12px] text-[var(--status-warning-fg)]">Set a region so your team can see this</div>}
-                      </Field>
-                    </Fields>
-                  </Card>
-
-                  <Card title="Clickup Reference" muted className="self-start">
-                    <Fields>
-                      <Field label="Direct Contact" span={3} focus={focusFields.includes('contact') && !v('primary_contact_id') && !v('direct_contact_raw')}><Inp muted value={v('direct_contact_raw')} ph="Name, phone, email.." onSave={x => saveField('direct_contact_raw', x)} /></Field>
-                      <Field label="Status OP" span={3}><Inp muted value={v('external_stage_label')} ph="status OP.." onSave={x => saveField('external_stage_label', x)} /></Field>
-                      <Field label="Requests" span={3}><Inp muted value={v('request_raw')} ph="Requests.." onSave={x => saveField('request_raw', x)} /></Field>
-                      <Field label="To do" span={3}><Inp muted value={v('to_do_raw')} ph="To do.." onSave={x => saveField('to_do_raw', x)} /></Field>
-                    </Fields>
-                  </Card>
-                </div>
+                <DealFieldCards
+                  kind={kind} opp={opp} need={rec.need} contacts={rec.contacts} contactLabel={rec.contactLabel}
+                  assignees={assignees} canEdit={canEdit} focusFields={focusFields}
+                  saveField={saveField} onStageChange={changeStage}
+                  onContactChange={(id, name) => { rec.setContactLabel(name ?? ''); saveField('primary_contact_id', id); }}
+                />
 
                 {docNotes.length > 0 && (
                   <Card title="Documents"><DocumentsList docs={docNotes} /></Card>
                 )}
-                {!!v('source_description_raw') && (
+                {!!opp.source_description_raw && (
                   <Card title="Description">
-                    <div className="whitespace-pre-wrap text-[13px] leading-[1.6] text-ui-body">{String(v('source_description_raw'))}</div>
+                    <div className="whitespace-pre-wrap text-[13px] leading-[1.6] text-ui-body">{String(opp.source_description_raw)}</div>
                   </Card>
                 )}
 
-                {/* ── Files ── */}
-                <Card title="Files">
-                  <div className="flex flex-col gap-7 lg:flex-row">
-                    <div className="flex shrink-0 flex-col self-stretch rounded-[10px] border border-ui-divider bg-ui-page-bg p-6 lg:w-[280px]">
-                      <div
-                        onDragOver={e => { if (!canEdit) return; e.preventDefault(); setDragOver(true); }}
-                        onDragLeave={() => setDragOver(false)}
-                        onDrop={e => { if (!canEdit) return; e.preventDefault(); setDragOver(false); uploadMany(e.dataTransfer.files); }}
-                        className={cn(
-                          'flex min-h-[220px] flex-1 flex-col items-center justify-center gap-3 rounded-[8px] border border-dashed p-6 text-center transition-colors',
-                          dragOver ? 'border-[var(--color-secondary-700)] bg-ui-selected-bg' : 'border-[var(--ui-input-border)] bg-ui-input-bg',
-                        )}
-                      >
-                        <CloudUpload size={32} strokeWidth={1.5} className="text-ui-body" aria-hidden />
-                        <p className="m-0 text-[14px] font-semibold leading-[1.45] text-ui-body">
-                          {canEdit ? 'Drag files here to upload' : 'Read-only'}
-                        </p>
-                        {canEdit && (
-                          <>
-                            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={e => uploadMany(e.target.files)} />
-                            <Button variant="outline" size="md" onClick={() => fileInputRef.current?.click()}>
-                              Browse files
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex h-[356px] min-w-0 flex-1 flex-col gap-5 overflow-hidden rounded-[10px] border border-ui-divider bg-ui-page-bg p-6">
-                      <div className="flex items-start justify-between gap-3 leading-[1.45]">
-                        <p className="m-0 text-[13px] font-semibold text-ui-body">Uploads · {fileRows} file{fileRows === 1 ? '' : 's'}</p>
-                        {inProgress > 0 && <p className="m-0 text-[12px] text-ui-text-secondary">{inProgress} in progress</p>}
-                      </div>
-                      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-                        {fileRows === 0 && (
-                          <EmptyState size="sm" icon={<FileText />} title="No files here yet." />
-                        )}
-                        {uploads.map(u => (
-                          <FileRowShell key={u.key}>
-                            {u.error ? (
-                              <div className="flex items-center gap-3">
-                                <CircleX size={22} strokeWidth={1.5} className="shrink-0 text-error-normal" aria-hidden />
-                                <div className="flex min-w-0 flex-1 flex-col gap-1 leading-[1.45]">
-                                  <span className="truncate text-[13px] font-medium text-ui-body">{u.name}</span>
-                                  <span className="text-[12px] text-error-normal">{formatBytes(u.size)} · {u.error}</span>
-                                </div>
-                                <Button
-                                  variant="outline-destructive"
-                                  onClick={() => setUploads(prev => prev.filter(x => x.key !== u.key))}
-                                >
-                                  Remove
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col gap-2.5">
-                                <div className="flex items-start gap-3">
-                                  <FileIcon name={u.name} />
-                                  <div className="flex min-w-0 flex-1 flex-col gap-[3px] leading-[1.45]">
-                                    <span className="truncate text-[13px] font-medium text-ui-body">{u.name}</span>
-                                    <span className="text-[12px] text-ui-text-secondary">{formatBytes(u.size)}</span>
-                                  </div>
-                                </div>
-                                <div className="relative h-1.5 w-full overflow-hidden rounded-[3px] bg-ui-hover-bg">
-                                  <div className="qv-indeterminate absolute top-0 h-1.5 w-[40%] rounded-[3px] bg-[var(--color-secondary-700)] dark:bg-ui-heading" />
-                                </div>
-                                <span className="text-[12px] leading-[1.45] text-ui-text-secondary">Uploading…</span>
-                              </div>
-                            )}
-                          </FileRowShell>
-                        ))}
-                        {files.map(f => (
-                          <FileRowShell key={f.id}>
-                            <div className="flex items-center gap-3">
-                              <FileIcon name={f.file_name} />
-                              <div className="flex min-w-0 flex-1 flex-col gap-1 leading-[1.45]">
-                                <button type="button" onClick={() => viewFile(f)} title="Open file"
-                                  className="truncate border-0 bg-transparent p-0 text-left text-[13px] font-medium text-ui-body hover:underline">
-                                  {f.file_name}
-                                </button>
-                                <span className="text-[12px] text-ui-text-secondary">
-                                  {[f.uploaded_by_name, f.created_at ? new Date(f.created_at).toLocaleDateString('en-US') : null].filter(Boolean).join(' · ')}
-                                </span>
-                              </div>
-                              <ToneChip tone="t9" icon={CircleCheck}>Complete</ToneChip>
-                              {canEdit && (
-                                <button type="button" onClick={() => setRemovingFile(f)} aria-label={`Remove ${f.file_name}`} title="Remove"
-                                  className="flex shrink-0 border-0 bg-transparent p-0 text-ui-text-secondary hover:text-error-normal">
-                                  <Trash2 size={14} />
-                                </button>
-                              )}
-                            </div>
-                          </FileRowShell>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  {project?.dropbox_root_path && (
-                    <div className="mt-4">
-                      <DropboxFileList rootPath={project.dropbox_root_path} rootLabel={project.code} />
-                    </div>
-                  )}
-                </Card>
+                <FilesCard files={rec.files} project={rec.project} canEdit={canEdit} dealFiles={dealFiles} onRemove={setRemovingFile} />
               </div>
             )}
           </div>
 
-          {/* ── Activity ─────────────────────────────────────────── */}
-          <div className="flex w-[383px] shrink-0 flex-col overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg">
-            <div className="flex h-16 shrink-0 items-center gap-2 border-b border-ui-divider px-4">
-              <span aria-hidden className="size-1.5 rounded-full bg-[var(--color-secondary-700)] dark:bg-ui-heading" />
-              <p className={cn('m-0 flex-1 text-[16px] font-semibold leading-[1.45]', HEADING)}>Activity</p>
-              {activityNotes.length > 0 && <span className="text-[12px] font-semibold text-ui-text-secondary">{activityNotes.length}</span>}
-            </div>
-            <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto border-b border-ui-divider bg-ui-surface p-2">
-              {activityNotes.length === 0 && loaded && (
-                <EmptyState size="sm" className="mt-6 justify-center" icon={<Activity />} title="No activity yet." />
-              )}
-              {activityNotes.map(n => (
-                <div key={n.id} className="rounded-[8px] border border-ui-divider bg-ui-page-bg px-3 py-2.5">
-                  <div className="mb-1.5 flex justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="grid size-[22px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold text-ui-body">
-                        {(n.author_name || '?').charAt(0).toUpperCase()}
-                      </span>
-                      <span className={cn('truncate text-[13px] font-semibold', HEADING)}>{n.author_name || 'Unknown'}</span>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <span className="text-[11.5px] text-ui-text-secondary">
-                        {n.source_created_at ? new Date(n.source_created_at).toLocaleDateString('en-US') : ''}
-                      </span>
-                      {canEdit && (
-                        <button type="button" onClick={() => setDeletingNote(n)} title="Delete" aria-label="Delete comment"
-                          className="flex border-0 bg-transparent p-0 text-ui-text-secondary hover:text-error-normal">
-                          <Trash2 size={12} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {n.body && n.body !== n.link_url && <div className="whitespace-pre-wrap pl-[30px] text-[13px] leading-[1.5] text-ui-body">{n.body}</div>}
-                  {n.link_url && (
-                    <a href={n.link_url} target="_blank" rel="noopener noreferrer"
-                      className="mt-1.5 flex items-center gap-2 rounded-[6px] border border-ui-divider bg-ui-surface px-2.5 py-2 no-underline">
-                      {n.link_thumbnail_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={n.link_thumbnail_url} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
-                      ) : (
-                        <span className="grid size-10 shrink-0 place-items-center rounded-[6px] bg-ui-page-bg text-ui-text-secondary"><Link2 size={16} /></span>
-                      )}
-                      <span className="min-w-0">
-                        <span className="block truncate text-[12px] font-semibold text-ui-body">{n.link_title || n.link_url}</span>
-                        <span className="block truncate text-[11.5px] text-ui-text-secondary">{n.link_url}</span>
-                      </span>
-                    </a>
-                  )}
-                  {n.image_path && (
-                    imageLinks[n.image_path] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={imageLinks[n.image_path]}
-                        alt=""
-                        onClick={() => setLightbox(imageLinks[n.image_path!])}
-                        style={{ marginTop: 6, maxWidth: 140, maxHeight: 140, borderRadius: 6, cursor: 'zoom-in', display: 'block', border: '1px solid var(--ui-divider)' }}
-                      />
-                    ) : (
-                      <div className="mt-1.5 grid h-[90px] w-[140px] place-items-center rounded-[6px] bg-ui-surface text-ui-text-secondary">
-                        <ImageIcon size={16} />
-                      </div>
-                    )
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {canEdit && (
-              <div className="shrink-0 py-3 pl-4 pr-2">
-                {draftImage && (
-                  <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] text-ui-body">
-                    <ImageIcon size={12} /> <span className="truncate">{draftImage.name}</span>
-                    <button type="button" aria-label="Remove image" onClick={() => { setDraftImage(null); originalImageRef.current = null; if (noteFileInputRef.current) noteFileInputRef.current.value = ''; }}
-                      className="flex border-0 bg-transparent p-0 text-ui-text-secondary">
-                      <X size={12} />
-                    </button>
-                  </div>
-                )}
-                <div className="flex items-stretch gap-2">
-                  <textarea
-                    aria-label="Write a comment"
-                    placeholder="Type here.."
-                    value={draft}
-                    onChange={e => setDraft(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void postComment(); } }}
-                    className="qv-input h-20 min-w-0 flex-1 resize-none rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg p-3 text-[14px] leading-[1.4] text-ui-body outline-none"
-                  />
-                  <div className="flex w-[89px] shrink-0 flex-col justify-center gap-2">
-                    <input ref={noteFileInputRef} type="file" accept="image/*" className="hidden"
-                      onChange={async e => {
-                        const picked = e.target.files?.[0];
-                        originalImageRef.current = picked ?? null; // full-quality original for the direct Dropbox upload
-                        setDraftImage(picked ? await compressImage(picked) : null); // small copy = fallback upload
-                      }} />
-                    <Button variant="outline" size="md" className="w-full px-0" onClick={() => noteFileInputRef.current?.click()} title="Attach image" aria-label="Attach image">
-                      <Paperclip className="size-4" />
-                    </Button>
-                    <Button size="md" className="w-full px-0" onClick={postComment} loading={posting} disabled={!draft.trim() && !draftImage} title="Post" aria-label="Post comment">
-                      <SendHorizontal className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <ActivityPanel
+            notes={activityNotes} loaded={rec.loaded} canEdit={canEdit} comments={comments}
+            onDeleteNote={setDeletingNote} onOpenImage={setLightbox}
+          />
         </div>
       </div>
 
-      {lightbox && (
-        <div
-          onClick={() => setLightbox(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.8)', zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}
-        >
-          <button onClick={() => setLightbox(null)} style={{ position: 'absolute', top: 20, right: 24, background: 'none', border: 'none', cursor: 'pointer', color: '#fff' }} aria-label="Close image">
-            <X size={26} />
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={lightbox} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 8 }} onClick={e => e.stopPropagation()} />
-        </div>
-      )}
+      {lightbox && <ImageLightbox src={lightbox} onClose={() => setLightbox(null)} />}
 
-      {/* Above the quick view's own z-index 10000. */}
-      <ConfirmModal
-        open={pendingStage !== null} onOpenChange={o => { if (!o) setPendingStage(null); }}
-        layerClassName="z-[10002]"
-        title={pendingStage ? `Move to "${OPPORTUNITY_STAGE_LABEL[pendingStage as OpportunityStage]}"?` : 'Change stage?'}
-        description="The reason is saved with the stage change."
-        confirmLabel="Change stage"
-        onConfirm={confirmStage}
-      >
-        <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-ui-heading">
-          Reason (required)
-          <Textarea rows={3} className="min-h-0" value={stageReason} onChange={e => setStageReason(e.target.value)} placeholder="Why is the stage changing?" autoFocus />
-        </label>
-      </ConfirmModal>
-      <ConfirmModal
-        open={askConvert} onOpenChange={setAskConvert}
-        layerClassName="z-[10002]"
-        title="Convert this Potential to an Opportunity?"
-        description="It goes to Sales → Handoffs to be accepted."
-        confirmLabel="Convert"
-        onConfirm={convert}
-      />
-      <ConfirmModal
-        open={!!deletingNote} onOpenChange={o => { if (!o) setDeletingNote(null); }} tone="destructive"
-        layerClassName="z-[10002]"
-        title="Delete this comment?"
-        description="It is removed permanently. This can't be undone."
-        confirmLabel="Delete"
-        onConfirm={async () => { if (deletingNote) await deleteNote(deletingNote); }}
-      />
-      <ConfirmModal
-        open={!!removingFile} onOpenChange={o => { if (!o) setRemovingFile(null); }} tone="destructive"
-        layerClassName="z-[10002]"
-        title={removingFile ? `Remove "${removingFile.file_name}"?` : 'Remove this file?'}
-        description={`It is taken off this ${kind === 'potential' ? 'Potential' : 'Opportunity'}. The file itself stays in Dropbox.`}
-        confirmLabel="Remove"
-        onConfirm={async () => { if (removingFile) await deleteFile(removingFile); }}
+      <QuickViewConfirms
+        kind={kind}
+        pendingStage={pendingStage} onCloseStage={() => setPendingStage(null)} stageReason={stageReason} onReasonChange={setStageReason} onConfirmStage={confirmStage}
+        askConvert={askConvert} onAskConvertChange={setAskConvert} onConvert={rec.convert}
+        deletingNote={deletingNote} onCloseNote={() => setDeletingNote(null)} onDeleteNote={comments.deleteNote}
+        removingFile={removingFile} onCloseFile={() => setRemovingFile(null)} onRemoveFile={dealFiles.deleteFile}
       />
     </ModalPanel>
   );
