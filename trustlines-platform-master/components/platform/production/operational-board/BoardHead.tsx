@@ -3,7 +3,7 @@
 import { Fragment } from 'react';
 import { cn } from '@/lib/utils';
 import { ColumnResizer } from '@/components/ui/column-resize';
-import { COLUMN_LABELS, type ColumnKey } from '@/lib/excel/projectsExcelExport';
+import { COLUMN_LABELS, type ColumnKey } from '@/lib/production/boardModel';
 import { FROZEN, HEAD_H, LABELS } from './boardStyles';
 import { GAP_W, Gap, PAY_COLS, PAY_GROUPS, PROJECT_CARD, TITLE_H, edge, groupCols, startsGroup } from './payments';
 

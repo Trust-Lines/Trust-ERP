@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react';
 import { CheckCheck, CircleCheck, CircleOff, Drill, Hourglass, Loader, Package, Pause, Send, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent } from '@/components/ui/popover';
-import type { PItem } from '@/lib/excel/projectsExcelExport';
+import type { PItem } from '@/lib/production/boardModel';
 import {
   PF_SIGN_OPTIONS, PO_SIGN_OPTIONS, STATUS_OPTIONS, currentFirst, type StatusIconName, type StatusOption,
 } from '@/lib/production/statuses';

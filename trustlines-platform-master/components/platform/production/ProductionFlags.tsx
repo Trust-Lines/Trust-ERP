@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmModal, Modal, ModalContent } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 import { normalizeSign, normalizeStatus, statusStyle } from '@/lib/production/statuses';
-import { TYPE_ORDER, vendorText, type PItem, type PProject } from '@/lib/excel/projectsExcelExport';
+import { TYPE_ORDER, vendorText, type PItem, type PProject } from '@/lib/production/boardModel';
 
 // Production tracker quick filters and their windows (Trust System FilterBar): ToDo / Receive
 // Follow Up (flags), the sign / status chips, Groups (PF groups), the ToDo window and Manage

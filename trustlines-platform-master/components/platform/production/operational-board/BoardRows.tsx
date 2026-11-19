@@ -3,7 +3,8 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
-import { BOARD_CSS, toNumber, type ColumnKey, type PItem, type PProject, type PSection } from '@/lib/excel/projectsExcelExport';
+import { toNumber, type ColumnKey, type PItem, type PProject, type PSection } from '@/lib/production/boardModel';
+import { BOARD_CSS } from '@/lib/production/boardColors';
 import { MoneyChip } from './BoardChips';
 import { FROZEN, FROZEN_TD, MONEY_COLS, TD, TYPE_TEXT, bandBg, headAddress, headName, regionTitle } from './boardStyles';
 import { PAY_GROUPS, PROJECT_CARD, PayBand, PayHeadBand, PayTotalCells, payTotals } from './payments';

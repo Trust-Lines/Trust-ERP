@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeQuickMatcher, type PfFlag, type PfGroup, type QuickToken } from '@/components/platform/production/ProductionFlags';
-import type { PItem } from '@/lib/excel/projectsExcelExport';
+import type { PItem } from '@/lib/production/boardModel';
 
 const row = (p: Partial<PItem>): PItem => ({ id: 'i1', projectId: 'p1', type: 'Millwork', status: 'NOT_ORDERED', pfSignStatus: 'NOT_SIGNED', poSignStatus: 'NOT_SIGNED', ...p });
 const flag = (p: Partial<PfFlag>): PfFlag => ({ id: 'f', kind: 'PF', projectId: 'p1', projectCode: 'STNE 440', projectName: '', type: 'Millwork', itemId: null, completedAt: null, createdAt: '2026-11-01', ...p });

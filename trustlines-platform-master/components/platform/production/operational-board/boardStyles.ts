@@ -1,8 +1,9 @@
 import {
   DEFAULT_VISIBLE_COLUMNS,
-  computeProjectColor, vendorText, toNumber, fmtDateCss, isDateColumn, isMoneyColumn,
+  computeProjectColor, vendorText, toNumber, isDateColumn, isMoneyColumn,
   type PItem, type ColumnKey,
-} from '@/lib/excel/projectsExcelExport';
+} from '@/lib/production/boardModel';
+import { fmtDateCss } from '@/lib/production/boardColors';
 import type { ProductionAccess } from '@/lib/production/access';
 
 // Figma "Production Board" (node 384:51717) orders RTR before RTD; the Excel export keeps its own order.
