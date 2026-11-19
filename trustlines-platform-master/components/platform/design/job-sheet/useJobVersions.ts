@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { errorText, fetchJson } from '@/lib/client/fetchJson';
+import { openLinkInNewTab } from '@/lib/client/openLink';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
 import type { DesignFile } from '@/app/(platform)/design/page';
 import { DESIGN_VERSION_BASE } from '@/lib/sales/designPaths';
@@ -139,15 +140,11 @@ export function useJobVersions({ jobId, onVersions, onVersion, onDesignFiles, on
     await syncVersions(true);
   }
 
-  /** Opens a Dropbox temporary link in a new tab (opened first so pop-up blockers allow it). */
+  /** Opens a design or intake file from Dropbox in a new tab. */
   async function openFile(fileId: string, source: FileSource) {
-    const win = window.open('', '_blank');
-    let link: string | undefined;
     try {
-      ({ link } = await fetchJson<{ link?: string }>(`/api/design-jobs/${jobId}/file-link`, { method: 'POST', body: { source, id: fileId }, errorMessage: 'Could not open the file' }));
-    } catch (e) { win?.close(); toast.error(errorText(e, 'Could not open the file')); return; }
-    if (!link) { win?.close(); toast.error('Could not open the file'); return; }
-    if (win) win.location.href = link; else window.open(link, '_blank', 'noopener,noreferrer');
+      await openLinkInNewTab({ url: `/api/design-jobs/${jobId}/file-link`, method: 'POST', body: { source, id: fileId } }, 'Could not open the file');
+    } catch (e) { toast.error(errorText(e, 'Could not open the file')); }
   }
 
   return { busy, syncVersions, newVersion, patchVersion, requestRevision, sendToCustomer, uploadToVersion, openFile };

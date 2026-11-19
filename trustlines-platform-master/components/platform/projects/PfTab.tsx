@@ -11,6 +11,8 @@ import type { DocumentRow } from './ProjectDetailClient';
 import { DocumentApprovalRail } from '../approvals/DocumentApprovalRail';
 import { AssemblyModal } from './AssemblyModal';
 import { statusCellCss } from '@/lib/production/boardColors';
+import { errorText } from '@/lib/client/fetchJson';
+import { openLinkInNewTab } from '@/lib/client/openLink';
 
 const PF_STATUSES: { value: string; label: string; desc: string }[] = [
   { value: 'HOLD_PM',          label: 'HOLD / PM',        desc: 'Hold — Project Management' },
@@ -401,11 +403,8 @@ export function PfTab({ projectId, userId, userRole, userPerms, catGroup, catego
 
   async function openInDropbox() {
     if (!selectedDoc) return;
-    try {
-      const res = await fetch(`/api/files/view?documentId=${selectedDoc.id}`);
-      const data = await res.json() as { link?: string };
-      if (data.link) window.open(data.link, '_blank');
-    } catch { }
+    try { await openLinkInNewTab(`/api/files/view?documentId=${selectedDoc.id}`, 'Could not open the file in Dropbox'); }
+    catch (e) { toast.error(errorText(e, 'Could not open the file in Dropbox')); } // used to fail silently
   }
 
   async function generate() {

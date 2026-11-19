@@ -17,6 +17,9 @@ import { Select } from '@/components/platform/shared/Select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { feedback } from '@/components/ui/feedback-toast';
 import { Button } from '@/components/ui/button';
+import { useDropboxLink } from '@/hooks/use-dropbox-link';
+import { errorText } from '@/lib/client/fetchJson';
+import { openLinkInNewTab } from '@/lib/client/openLink';
 
 export interface DocSummary {
   id: string;
@@ -43,20 +46,10 @@ interface WorkflowProps {
 }
 
 function ViewBtn({ documentId, dropboxVersion }: { documentId: string; dropboxVersion: number | null }) {
-  const [loading, setLoading] = useState(false);
-  async function open() {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/files/view?documentId=${documentId}`);
-      if (!res.ok) throw new Error('Cannot open');
-      const { link } = await res.json() as { link: string };
-      window.open(link, '_blank');
-    } catch { toast.error('Could not open file from Dropbox'); }
-    finally { setLoading(false); }
-  }
+  const { open, opening } = useDropboxLink();
   return (
-    <Button variant="secondary" size="xs" onClick={open} disabled={loading}>
-      {loading ? <Loader2 className="animate-spin" /> : <ExternalLink />}
+    <Button variant="secondary" size="xs" onClick={() => void open(`/api/files/view?documentId=${documentId}`, { errorMessage: 'Could not open file from Dropbox' })} disabled={opening}>
+      {opening ? <Loader2 className="animate-spin" /> : <ExternalLink />}
       View V{dropboxVersion ?? 0}
     </Button>
   );
@@ -198,12 +191,11 @@ export function DropboxSyncBtn({
     } finally { setSyncing(null); }
   }
 
+  // Used to fail silently; now says so.
   async function openInDropbox(path: string) {
     try {
-      const res  = await fetch(`/api/files/view-by-path?path=${encodeURIComponent(path)}&projectId=${encodeURIComponent(projectId)}`);
-      const data = await res.json() as { link?: string };
-      if (data.link) window.open(data.link, '_blank');
-    } catch { }
+      await openLinkInNewTab(`/api/files/view-by-path?path=${encodeURIComponent(path)}&projectId=${encodeURIComponent(projectId)}`, 'Could not open file from Dropbox');
+    } catch (e) { toast.error(errorText(e, 'Could not open file from Dropbox')); }
   }
 
   const totalFiles = results ? results.reduce((s, g) => s + g.files.length, 0) : 0;

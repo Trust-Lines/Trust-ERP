@@ -23,6 +23,8 @@ import { ActivitiesTab } from './prospect-detail/ActivitiesTab';
 import { FilesTab } from './prospect-detail/FilesTab';
 import { HistoryTab } from './prospect-detail/HistoryTab';
 import { feedback } from '@/components/ui/feedback-toast';
+import { errorText } from '@/lib/client/fetchJson';
+import { openLinkInNewTab } from '@/lib/client/openLink';
 import { cn } from '@/lib/utils';
 
 const ADD_BUTTON = 'inline-flex h-9 items-center justify-center gap-2 rounded-[6px] border border-ui-divider bg-ui-surface-elevated pl-4 pr-[22px] text-[13px] font-semibold leading-[1.4] text-ui-body';
@@ -301,10 +303,8 @@ export function ProspectDetailClient({
   }
 
   async function viewFile(dropboxPath: string) {
-    const res = await fetch(`/api/marketing/prospects/${prospect.id}/dropbox-link?path=${encodeURIComponent(dropboxPath)}`);
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok || !body.link) { toast.error(body.error ?? 'Could not open file'); return; }
-    window.open(body.link, '_blank', 'noopener,noreferrer');
+    try { await openLinkInNewTab(`/api/marketing/prospects/${prospect.id}/dropbox-link?path=${encodeURIComponent(dropboxPath)}`, 'Could not open file'); }
+    catch (e) { toast.error(errorText(e, 'Could not open file')); }
   }
 
   async function deleteFile(fileId: string) {

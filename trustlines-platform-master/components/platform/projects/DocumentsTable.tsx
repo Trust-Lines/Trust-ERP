@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
 import { ExternalLink, Loader2, Download } from 'lucide-react';
 import type { DocType, DocStatus } from '@/types/database';
 import { StatusBadge as TagBadge } from '@/components/ui/status-badge';
 import { DOC_STATUS_TAG } from '@/lib/status/tags';
 import { FilesEmptyState } from '@/components/platform/shared/FilesEmptyState';
 import { feedback } from '@/components/ui/feedback-toast';
+import { useDropboxLink } from '@/hooks/use-dropbox-link';
 
 export interface DocumentRow {
   id: string;
@@ -67,23 +67,13 @@ function StatusPill({ status }: { status: DocStatus }) {
 }
 
 function ActionBtn({ documentId }: { documentId: string }) {
-  const [loading, setLoading] = useState(false);
-
-  async function handleView() {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/files/view?documentId=${documentId}`);
-      if (!res.ok) throw new Error('Cannot open');
-      const { link } = await res.json() as { link: string };
-      window.open(link, '_blank');
-    } catch {
-      feedback.error('Could not open file', {
-        description: 'The Dropbox link could not be created.',
-        action: { label: 'Try again', onClick: () => void handleView() },
-      });
-    }
-    finally { setLoading(false); }
-  }
+  const { open, opening: loading } = useDropboxLink();
+  const handleView = () => void open(`/api/files/view?documentId=${documentId}`, {
+    onError: () => feedback.error('Could not open file', {
+      description: 'The Dropbox link could not be created.',
+      action: { label: 'Try again', onClick: handleView },
+    }),
+  });
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

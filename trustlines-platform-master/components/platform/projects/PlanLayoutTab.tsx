@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
+import { errorText } from '@/lib/client/fetchJson';
+import { openLinkInNewTab } from '@/lib/client/openLink';
 import type { DocumentRow, AuditRow } from './ProjectDetailClient';
 import { approvalStagesFor } from '@/lib/approvals/stageConfig';
 import type { PermMap } from '@/lib/permissions/catalog';
@@ -316,9 +318,8 @@ export function PlanLayoutTab({
 
   async function handleOpenNew() {
     if (!selectedId) return;
-    const res  = await fetch(`/api/files/view?documentId=${selectedId}`);
-    const data = await res.json() as { link?: string };
-    if (data.link) window.open(data.link, '_blank');
+    try { await openLinkInNewTab(`/api/files/view?documentId=${selectedId}`, 'Could not open the file'); }
+    catch (e) { toast.error(errorText(e, 'Could not open the file')); } // used to fail silently
   }
 
   if (showGenerator && isGeneratable) {
