@@ -34,7 +34,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { isoDateToUS as fmtDate } from '@/lib/formatters';
-import { ownProjectsOnly } from '@/lib/permissions/ownProjects';
+import { ownProjectsOnly, seesAllProjects } from '@/lib/permissions/ownProjects';
 
 // Shared by /tlines-pm (layout "board", the branch board as it always was) and /dashboard
 // (layout "dashboard", Figma TRUST-LINES ERP → "General Manager" node 767:13745): same data,
@@ -157,7 +157,8 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
     nextRedirect('/marketing');
   }
 
-  const assignedRegions = await getAssignedRegions(admin, user.id);
+  // A Coordinator (profiles.sees_all_projects) sees every region too, not only their assigned ones.
+  const assignedRegions = (await seesAllProjects(user.id)) ? [] : await getAssignedRegions(admin, user.id);
   const visibleRegions = REGIONS.filter(r => regionAllows(assignedRegions, r.code));
   const regionCodes = visibleRegions.map(r => r.code);
 

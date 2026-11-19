@@ -452,8 +452,8 @@ export function EditModal({
               >
                 <Checkbox className="mt-0.5" checked={seesAll} onCheckedChange={c => setSeesAll(!!c)} />
                 <span className="text-[13px] text-ui-body">
-                  <b className={HEADING}>Sees every T-Lines project</b>
-                  <span className="mt-0.5 block text-[12px] text-ui-text-secondary">Off: only the projects they are the T-Lines PM of. On: every project on the dashboard and in Projects. PF, purchase prices and margin stay hidden.</span>
+                  <b className={HEADING}>Coordinator — sees every project, assigns tasks</b>
+                  <span className="mt-0.5 block text-[12px] text-ui-text-secondary">On: every project and region on the dashboard and in Projects, and can write dashboard card tasks for anyone. Off: only their own projects; tasks for themselves. PF, purchase prices and margin stay hidden.</span>
                 </span>
               </label>
               {!isGeneralPm && (

@@ -6,6 +6,7 @@ import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { CUSTOMER_COMMS_WRITE_ROLES } from '@/lib/customers/roles';
 import { pageAllowed, type PermMap } from '@/lib/permissions/catalog';
 import type { MyTask, MyTaskStatus } from './taskTypes';
+import { anchorLabel, sideLabel, type TaskSide } from '@/lib/board/trustTasks';
 
 export type { MyTask } from './taskTypes';
 
@@ -15,6 +16,7 @@ export type { MyTask } from './taskTypes';
 // already exist — nothing is copied or created here.
 //   lead_tasks           Sales / Marketing tasks on a deal (Opportunity, Potential or old lead intake)
 //   customer_follow_ups  T-Lines PM follow-ups on a customer / project
+//   trust_lines_tasks    dashboard card tasks (T Lines / Trust Lines Tasks, migrations 153-154)
 // Each row keeps the access rule of the page and API that own it: a task shows only when the
 // person could open its record there, and is editable only when that record's task API would
 // accept the change. Status changes go to those same APIs (see statusApi).
@@ -29,7 +31,7 @@ const name = (...parts: (string | null | undefined)[]) => parts.map(p => p?.trim
 
 export async function loadMyTasks(admin: any, userId: string, role: string, perms: PermMap | null): Promise<MyTask[]> {
   const doneSince = new Date(Date.now() - DONE_DAYS * 86_400_000).toISOString();
-  const [leadRes, fuRes] = await Promise.all([
+  const [leadRes, fuRes, boardRes] = await Promise.all([
     admin.from('lead_tasks')
       .select('id, lead_intake_id, opportunity_id, potential_id, title, status, due_date, completed_at')
       .eq('assignee_id', userId)
@@ -41,6 +43,12 @@ export async function loadMyTasks(admin: any, userId: string, role: string, perm
       .eq('assignee_id', userId).is('deleted_at', null)
       .or(`status.eq.open,and(status.eq.done,completed_at.gte."${doneSince}")`)
       .order('due_date', { ascending: true })
+      .limit(MAX_ROWS),
+    admin.from('trust_lines_tasks')
+      .select('id, anchor, side, title, status, due_date, completed_at')
+      .eq('assignee_id', userId)
+      .or(`status.neq.done,completed_at.gte."${doneSince}"`)
+      .order('created_at', { ascending: true })
       .limit(MAX_ROWS),
   ]);
   if (leadRes.error) throw new Error(`lead_tasks: ${leadRes.error.message}`);
@@ -56,6 +64,22 @@ export async function loadMyTasks(admin: any, userId: string, role: string, perm
   }[];
 
   const tasks: MyTask[] = [];
+
+  // ── Dashboard card tasks ── the assignee may always tick their own (trust-tasks API ownTick).
+  // A missing table (153 / 154 not applied) just means none.
+  if (boardRes.error) console.error('[my-workspace/tasks] trust_lines_tasks:', boardRes.error.message);
+  for (const t of (boardRes.error ? [] : boardRes.data ?? []) as {
+    id: string; anchor: string; side: TaskSide; title: string; status: MyTaskStatus; due_date: string | null; completed_at: string | null;
+  }[]) {
+    const code = t.anchor.startsWith('no-') ? t.anchor.slice(3) : null;
+    tasks.push({
+      id: t.id, source: 'dashboard', title: t.title, status: t.status,
+      dueDate: t.due_date, completedAt: t.completed_at,
+      record: { label: `${sideLabel(t.side)} · ${code ? anchorLabel(t.anchor) : 'Dashboard card'}`, href: '/dashboard' },
+      project: null,
+      statusApi: { kind: 'lead', url: `/api/tlines-dashboard/trust-tasks/${encodeURIComponent(t.anchor)}/tasks/${t.id}` },
+    });
+  }
   const isSales = SALES_HANDOFF_ROLES.includes(role);
   const oppRole = OPP_TASK_ROLES.includes(role);
 
