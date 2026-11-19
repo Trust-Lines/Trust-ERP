@@ -10,6 +10,7 @@ import { StatusBadge as TagBadge } from '@/components/ui/status-badge';
 import { DOC_STATUS_TAG } from '@/lib/status/tags';
 import { FilesEmptyState } from '@/components/platform/shared/FilesEmptyState';
 import { feedback } from '@/components/ui/feedback-toast';
+import { useDropboxLink } from '@/hooks/use-dropbox-link';
 
 interface Props {
   documents:       DocumentRow[];
@@ -71,26 +72,17 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function ViewBtn({ docId }: { docId: string }) {
-  const [loading, setLoading] = useState(false);
-  async function open() {
-    setLoading(true);
-    try {
-      const res  = await fetch(`/api/files/view?documentId=${docId}`);
-      if (!res.ok) throw new Error();
-      const { link } = await res.json() as { link: string };
-      window.open(link, '_blank');
-    } catch {
-      feedback.error('Could not open file', {
-        description: 'The Dropbox link could not be created.',
-        action: { label: 'Try again', onClick: () => void open() },
-      });
-    }
-    finally { setLoading(false); }
-  }
+  const { open: openLink, opening } = useDropboxLink();
+  const open = () => void openLink(`/api/files/view?documentId=${docId}`, {
+    onError: () => feedback.error('Could not open file', {
+      description: 'The Dropbox link could not be created.',
+      action: { label: 'Try again', onClick: open },
+    }),
+  });
   return (
-    <button onClick={open} disabled={loading} title="View in Dropbox"
+    <button onClick={open} disabled={opening} title="View in Dropbox"
       style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', color: 'var(--fg-subtle)', display: 'flex', alignItems: 'center', lineHeight: 0 }}>
-      {loading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <ExternalLink size={13} />}
+      {opening ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <ExternalLink size={13} />}
     </button>
   );
 }

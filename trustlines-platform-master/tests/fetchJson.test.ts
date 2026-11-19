@@ -52,6 +52,21 @@ describe('fetchJson', () => {
     expect(isAccessDenied(err)).toBe(true);
   });
 
+  it("prefers the server's message over errorMessage (same as `b.error ?? 'fallback'`)", async () => {
+    mockFetch(() => json({ error: 'Note is too long' }, 400));
+    await expect(fetchJson('/api/x', { errorMessage: 'Could not post the note' })).rejects.toThrow('Note is too long');
+    // …and errorText at the call site passes it through rather than replacing it with its fallback.
+    const err = await fetchJson('/api/x', { errorMessage: 'Could not post the note' }).catch(e => e);
+    expect(errorText(err, 'Could not post the note')).toBe('Note is too long');
+  });
+
+  it('uses errorMessage when the server error is empty or not a string', async () => {
+    mockFetch(() => json({ error: '' }, 400));
+    await expect(fetchJson('/api/x', { errorMessage: 'Could not save' })).rejects.toThrow('Could not save');
+    mockFetch(() => json({ error: { code: 'X' } }, 400));
+    await expect(fetchJson('/api/x', { errorMessage: 'Could not save' })).rejects.toThrow('Could not save');
+  });
+
   it('falls back to errorMessage, then a default, when the server gives no message', async () => {
     mockFetch(() => new Response('<html>boom</html>', { status: 500 }));
     await expect(fetchJson('/api/x', { errorMessage: 'Could not delete' })).rejects.toThrow('Could not delete');

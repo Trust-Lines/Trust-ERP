@@ -4,6 +4,7 @@ import { useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { toast } from 'sonner';
 import { feedback } from '@/components/ui/feedback-toast';
 import { ApiError, errorText, fetchJson } from '@/lib/client/fetchJson';
+import { openLinkInNewTab } from '@/lib/client/openLink';
 import type { NeedFile, UploadItem } from './types';
 
 /** Deal files: parallel uploads with per-file progress and retry, remove (link only — the file stays in Dropbox), open. */
@@ -51,14 +52,10 @@ export function useDealFiles(apiBase: string, setFiles: Dispatch<SetStateAction<
     setFiles(prev => prev.filter(x => x.id !== f.id));
   }
 
-  // Opens the tab only after the link arrives — Safari can block that as a pop-up (fixed by useDropboxLink, next).
   async function viewFile(f: NeedFile) {
-    let link: string | undefined;
     try {
-      ({ link } = await fetchJson<{ link?: string }>(`${apiBase}/dropbox-link?path=${encodeURIComponent(f.dropbox_path)}`, { errorMessage: 'Could not open file' }));
-    } catch (e) { toast.error(errorText(e, 'Could not open file')); return; }
-    if (!link) { toast.error('Could not open file'); return; }
-    window.open(link, '_blank', 'noopener,noreferrer');
+      await openLinkInNewTab(`${apiBase}/dropbox-link?path=${encodeURIComponent(f.dropbox_path)}`, 'Could not open file');
+    } catch (e) { toast.error(errorText(e, 'Could not open file')); }
   }
 
   return { uploads, uploadMany, dismissUpload, deleteFile, viewFile, fileInputRef };

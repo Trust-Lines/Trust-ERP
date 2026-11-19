@@ -4,6 +4,8 @@ import { useId, useMemo, useState } from 'react';
 import { Palette, Plus, ChevronDown, ExternalLink, UserPlus, Mail, FileText, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SalesDesignJob, SalesDesignVersion } from '@/types/database';
+import { errorText } from '@/lib/client/fetchJson';
+import { openLinkInNewTab } from '@/lib/client/openLink';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -123,13 +125,9 @@ export function SalesDesignCard({ initialJobs, initialVersions, designers: initi
   async function openDesignFile(jobId: string, fileId: string) {
     setBusy(true);
     try {
-      const res = await fetch(`/api/design-jobs/${jobId}/file-link`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'design', id: fileId }),
-      });
-      const b = await res.json().catch(() => ({}));
-      if (!res.ok || !b.link) { toast.error(b.error ?? 'Could not open file'); return; }
-      window.open(b.link, '_blank', 'noopener,noreferrer');
-    } finally { setBusy(false); }
+      await openLinkInNewTab({ url: `/api/design-jobs/${jobId}/file-link`, method: 'POST', body: { source: 'design', id: fileId } }, 'Could not open file');
+    } catch (e) { toast.error(errorText(e, 'Could not open file')); }
+    finally { setBusy(false); }
   }
 
   async function patchVersion(jobId: string, versionId: string, patch: Record<string, unknown>) {

@@ -10,6 +10,8 @@ import { approvalStagesFor } from '@/lib/approvals/stageConfig';
 import { ConfirmModal } from '@/components/ui/modal';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { errorText } from '@/lib/client/fetchJson';
+import { openLinkInNewTab } from '@/lib/client/openLink';
 
 const SignaturePad = dynamic(() => import('../SignaturePad').then(m => ({ default: m.SignaturePad })), { ssr: false });
 
@@ -133,7 +135,8 @@ export function PoTab({ projectId, userId, userRole, userPerms, catGroup, catego
 
   async function openInDropbox() {
     if (!selectedDoc) return;
-    try { const res = await fetch(`/api/files/view?documentId=${selectedDoc.id}`); const d = await res.json() as { link?: string }; if (d.link) window.open(d.link, '_blank'); } catch { }
+    try { await openLinkInNewTab(`/api/files/view?documentId=${selectedDoc.id}`, 'Could not open the file in Dropbox'); }
+    catch (e) { toast.error(errorText(e, 'Could not open the file in Dropbox')); } // used to fail silently
   }
 
   return (
