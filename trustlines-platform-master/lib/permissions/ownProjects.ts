@@ -5,7 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 // "Sees every T-Lines project" on them (profiles.sees_all_projects, migration 156; the RLS
 // policies there follow the same flag). PF / cost / margin stay hidden by role either way.
 
-const seesAllProjects = cache(async (userId: string): Promise<boolean> => {
+/** profiles.sees_all_projects — the "coordinator" switch (Team → Edit). Any role; false if unset. */
+export const seesAllProjects = cache(async (userId: string): Promise<boolean> => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
   const { data, error } = await admin.from('profiles').select('sees_all_projects').eq('id', userId).maybeSingle();

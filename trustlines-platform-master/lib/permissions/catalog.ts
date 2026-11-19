@@ -181,6 +181,7 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'edit.team',      label: 'Invite / edit / remove members' },
       { key: 'edit.roles',     label: 'Manage roles & permissions' },
       { key: 'edit.production', label: 'Change production board / statuses' },
+      { key: 'edit.board_tasks', label: 'Assign dashboard card tasks', hint: 'Dashboard card → T Lines / Trust Lines Tasks: add tasks for anyone, reassign, rename and delete. Off → people can still add tasks for themselves and tick their own. GM, ops and sales & marketing manager until set separately; a person marked "Coordinator" on Team gets it too.' },
       { key: 'edit.it', label: 'Handle IT tickets & equipment', hint: 'Close tickets as solved / not solved, Access Computer, and add / edit / delete IT items. GM and Ops Manager until set separately.' },
       { key: 'edit.payments', label: 'Edit payments', hint: 'Finance → Payments: paid amounts and dates, transaction / invoice numbers, QuickBook. GM and accounting until set separately.' },
       { key: 'edit.installation', label: 'Edit the installation plan & teams', hint: 'Off → can open T-Lines PM → Installation but not change it. GM, ops manager and PMs until set separately.' },
@@ -326,6 +327,8 @@ export const PAGE_LEGACY_ROLES: Record<string, string[]> = {
   'edit.payments': ['general_manager', 'accountant', 'accounting'],
   // IT: who closes tickets and keeps the equipment list — the same two roles that saw the IT page.
   'edit.it': ['general_manager', 'ops_manager'],
+  // Dashboard card tasks were managed by the key-client admins (lib/keyClients/roles).
+  'edit.board_tasks': ['general_manager', 'ops_manager', 'sales_marketing_manager'],
   // Who could edit the installation plan before it had its own switch (lib/installations/access).
   'edit.installation': ['general_manager', 'ops_manager', 'tlines_pm', 'trustlines_pm'],
   // Deleting a whole project from the Production Board was these roles only.
