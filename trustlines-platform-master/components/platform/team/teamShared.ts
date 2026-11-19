@@ -11,6 +11,8 @@ export interface ProfileRow {
   created_at: string;
   pm_client_id?: string | null;
   is_pm_supervisor?: boolean;
+  /** tlines_pm only: sees every project, not only their own (migration 156). */
+  sees_all_projects?: boolean;
   company_side?: string | null;
   office?: string | null;
   department?: string | null;

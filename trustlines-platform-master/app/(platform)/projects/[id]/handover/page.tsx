@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { ownProjectsOnly } from '@/lib/permissions/ownProjects';
 import { HandoverClient } from '@/components/platform/projects/HandoverClient';
 import { defaultChecklist, deriveHandover, AUTO_HANDOVER_KEYS, HANDOVER_READ_ROLES, HANDOVER_WRITE_ROLES } from '@/lib/handover/checklist';
 
@@ -21,7 +22,7 @@ export default async function ProjectHandoverPage({ params }: { params: Promise<
     .select('id, code, name, dropbox_root_path, customer_id, closed_deal_date, deal_value, currency, scope_summary, current_stage, tlines_pm_id, trustlines_pm_id, ops_manager_id, pm_supervisor_id')
     .eq('id', id).maybeSingle();
   if (!project) notFound();
-  if (role === 'tlines_pm' && project.tlines_pm_id !== user.id) redirect('/projects');
+  if (project.tlines_pm_id !== user.id && await ownProjectsOnly(role, user.id)) redirect('/projects');
 
   const ids = [project.tlines_pm_id, project.trustlines_pm_id, project.ops_manager_id, project.pm_supervisor_id].filter(Boolean);
   const { data: profs } = ids.length

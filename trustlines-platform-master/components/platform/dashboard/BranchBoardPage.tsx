@@ -34,6 +34,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { isoDateToUS as fmtDate } from '@/lib/formatters';
+import { ownProjectsOnly } from '@/lib/permissions/ownProjects';
 
 // Shared by /tlines-pm (layout "board", the branch board as it always was) and /dashboard
 // (layout "dashboard", Figma TRUST-LINES ERP → "General Manager" node 767:13745): same data,
@@ -170,7 +171,9 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
     .is('deleted_at', null)
     .neq('is_archived', true)
     .eq('is_draft', false);
-  if (userRole === 'tlines_pm') projectQuery = projectQuery.eq('tlines_pm_id', user.id);
+  // "Sees every T-Lines project" (profiles.sees_all_projects, 156) lifts the own-only rule.
+  const ownOnly = await ownProjectsOnly(userRole, user.id);
+  if (ownOnly) projectQuery = projectQuery.eq('tlines_pm_id', user.id);
 
   // "Clients Opportunity" is not every deal: only the open Opportunities/Potentials of our key
   // clients (key_clients, migration 134 — lib/keyClients/server.ts). Trust follows those before
@@ -558,7 +561,7 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
 
   // A T-Lines PM sees only the cards they are the T-Lines PM of — every stage, installation and
   // completed included (they own the job end to end). Done here, on the server, not in the browser.
-  const columns = userRole !== 'tlines_pm' ? allColumns : allColumns.map(c => ({
+  const columns = !ownOnly ? allColumns : allColumns.map(c => ({
     ...c,
     sections: c.sections.map(s => ({ ...s, items: s.items.filter(i => (i.assign?.tlinesUserId ?? i.tlinesPmId ?? null) === user.id) })),
   }));
