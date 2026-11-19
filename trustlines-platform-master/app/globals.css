@@ -341,6 +341,11 @@
   --process-a1-fg: #995599; --process-a1-bg: #FFECFF;
   --process-a2-fg: #615599; --process-a2-bg: #EFECFF;
   --process-a3-fg: #558299; --process-a3-bg: #ECF9FF;
+  /* Figma "Process" C2–C5: tinted KPI cards (Email Campaigns 990:15405) */
+  --process-c2-fg: #330B33; --process-c2-bg: #D099D0;
+  --process-c3-fg: #0B2633; --process-c3-bg: #99BED0;
+  --process-c4-fg: #332C0B; --process-c4-bg: #D0C799;
+  --process-c5-fg: #0B331F; --process-c5-bg: #99D0B5;
 
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -620,6 +625,10 @@
   --process-a1-fg: #FFECFF; --process-a1-bg: #995599;
   --process-a2-fg: #EFECFF; --process-a2-bg: #615599;
   --process-a3-fg: #ECF9FF; --process-a3-bg: #558299;
+  --process-c2-fg: #D099D0; --process-c2-bg: #330B33;
+  --process-c3-fg: #99BED0; --process-c3-bg: #0B2633;
+  --process-c4-fg: #D0C799; --process-c4-bg: #332C0B;
+  --process-c5-fg: #99D0B5; --process-c5-bg: #0B331F;
 
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
