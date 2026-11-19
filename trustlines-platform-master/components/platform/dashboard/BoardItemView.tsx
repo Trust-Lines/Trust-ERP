@@ -37,6 +37,7 @@ const PHASES: { value: CardPhase; label: string; icon: LucideIcon }[] = [
   { value: 'opportunity', label: 'Opportunity', icon: Gem },
   { value: 'project', label: 'Project', icon: BriefcaseBusiness },
 ];
+
 // Status Chip icons by tone (Figma Status Language): idle, in progress, waiting, done, lost.
 const TONE_ICON: Record<ChipTone, LucideIcon | 'in-review'> = { t0: CircleDashed, t2: CircleDotDashed, t7: 'in-review', t9: CircleCheck, t10: CircleX };
 

@@ -14,8 +14,20 @@ import {
   type TicketCategory,
   type TicketPriority,
 } from '@/lib/it/constants';
-import { FIELD, LABEL, PRIMARY_BTN, SECONDARY_BTN } from './ItItemFormDialog';
+import { LABEL, PRIMARY_BTN, SECONDARY_BTN } from './ItItemFormDialog';
 import { PRIORITY_LABEL } from './ticketStyles';
+import { Select } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { DatePicker } from '@/components/ui/date-picker';
+
+// The API takes "YYYY-MM-DD"; read and write it in local time so the picked day never shifts.
+const toDate = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return iso ? new Date(y, m - 1, d) : null; };
+const toIso = (d: Date | null) =>
+  d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '';
+
+const CATEGORY_OPTIONS = TICKET_CATEGORIES.map(c => ({ value: c, label: TICKET_CATEGORY_LABEL[c] }));
+const PRIORITY_OPTIONS = TICKET_PRIORITIES.map(p => ({ value: p, label: PRIORITY_LABEL[p] }));
 
 // IT → Tickets → New request: subject, category, priority, needed-by date, message and up to six
 // files (screenshots, error logs). The ticket is created first, then each file goes up on its own.
@@ -78,30 +90,28 @@ export function ItNewTicketDialog({ onClose }: { onClose: () => void }) {
         <form onSubmit={submit} className="flex flex-col gap-5">
           <div>
             <label htmlFor="itt-subject" className={LABEL}>Subject<span className="text-error-normal" aria-hidden>*</span></label>
-            <input id="itt-subject" required maxLength={160} autoFocus className={FIELD} value={subject} onChange={e => setSubject(e.target.value)}
+            <Input id="itt-subject" required maxLength={160} autoFocus className="h-10 w-full" value={subject} onChange={e => setSubject(e.target.value)}
               placeholder="Outlook does not open" />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <label htmlFor="itt-cat" className={LABEL}>Category</label>
-              <select id="itt-cat" className={FIELD} value={category} onChange={e => setCategory(e.target.value as TicketCategory)}>
-                {TICKET_CATEGORIES.map(c => <option key={c} value={c}>{TICKET_CATEGORY_LABEL[c]}</option>)}
-              </select>
+              <Select id="itt-cat" className="h-10 w-full" value={category} options={CATEGORY_OPTIONS}
+                onValueChange={v => { if (v) setCategory(v as TicketCategory); }} />
             </div>
             <div>
               <label htmlFor="itt-prio" className={LABEL}>Priority</label>
-              <select id="itt-prio" className={FIELD} value={priority} onChange={e => setPriority(e.target.value as TicketPriority)}>
-                {TICKET_PRIORITIES.map(p => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
-              </select>
+              <Select id="itt-prio" className="h-10 w-full" value={priority} options={PRIORITY_OPTIONS}
+                onValueChange={v => { if (v) setPriority(v as TicketPriority); }} />
             </div>
             <div>
               <label htmlFor="itt-needed" className={LABEL}>Needed by</label>
-              <input id="itt-needed" type="date" className={FIELD} value={neededBy} onChange={e => setNeededBy(e.target.value)} />
+              <DatePicker id="itt-needed" className="h-10 w-full" value={toDate(neededBy)} onValueChange={d => setNeededBy(toIso(d))} />
             </div>
           </div>
           <div>
             <label htmlFor="itt-desc" className={LABEL}>What happened?</label>
-            <textarea id="itt-desc" maxLength={4000} rows={5} className={`${FIELD} py-2`} value={description} onChange={e => setDescription(e.target.value)}
+            <Textarea id="itt-desc" maxLength={4000} rows={5} className="w-full" value={description} onChange={e => setDescription(e.target.value)}
               placeholder="What you were doing, what you see, any error code…" />
           </div>
           <div className="flex flex-col gap-2">
