@@ -49,14 +49,5 @@ export function localToday(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** Sends JSON to a PR workspace route and returns the body, throwing the server's message on failure. */
-export async function sendJson<T>(url: string, method: string, body?: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method,
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Something went wrong — please try again.');
-  return data as T;
-}
+/** Now shared app-wide — see lib/client/fetchJson.ts. Re-exported so existing imports keep working. */
+export { sendJson } from '@/lib/client/fetchJson';
