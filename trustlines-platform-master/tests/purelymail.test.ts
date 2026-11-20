@@ -171,3 +171,63 @@ describe('POST create / password routes', () => {
     expect(change).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('POST /api/it/mails/purelymail/op', () => {
+  afterEach(() => { vi.resetModules(); vi.doUnmock('@/lib/it/server'); vi.doUnmock('@/lib/it/purelymail'); vi.doUnmock('@/lib/audit/log'); });
+
+  async function setup(allowedFor: ('manage' | 'edit')[], result: unknown = { ok: true, result: {} }) {
+    const callMock = vi.fn().mockResolvedValue(result);
+    const audit = vi.fn();
+    const itApi = vi.fn(async (need: 'manage' | 'edit') => (allowedFor.includes(need)
+      ? { ctx: { userId: 'u1' }, deny: null }
+      : { ctx: null, deny: new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 }) }));
+    vi.doMock('@/lib/it/server', () => ({ itApi }));
+    vi.doMock('@/lib/audit/log', () => ({ logAudit: audit }));
+    vi.doMock('@/lib/it/purelymail', async () => ({ ...(await vi.importActual<object>('@/lib/it/purelymail')), call: callMock }));
+    const { POST } = await import('@/app/api/it/mails/purelymail/op/route');
+    const send = (op: string, params: unknown = {}) => POST(new Request('http://x', { method: 'POST', body: JSON.stringify({ op, params }) }) as never);
+    return { send, callMock, audit, itApi };
+  }
+
+  it('a viewer (page.it only) can read but not delete — and Purelymail is never called for the refused one', async () => {
+    const { send, callMock, itApi } = await setup(['manage'], { ok: true, result: { rules: [] } });
+    expect((await send('listRoutingRules')).status).toBe(200);
+    const res = await send('deleteUser', { userName: 'ali@trust.com' });
+    expect(res.status).toBe(403);
+    expect(itApi).toHaveBeenLastCalledWith('edit');
+    expect(callMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects unknown operations and bad input before calling Purelymail', async () => {
+    const { send, callMock } = await setup(['manage', 'edit']);
+    expect((await send('deleteEverything')).status).toBe(400);
+    expect((await send('__proto__')).status).toBe(400);
+    expect((await send('deleteUser', { userName: 'not-an-address' })).status).toBe(400);
+    expect((await send('createRoutingRule', { domainName: 'trust.com', matchUser: 'info', targetAddresses: [] })).status).toBe(400);
+    expect(callMock).not.toHaveBeenCalled();
+  });
+
+  it('deletes a mailbox and audits it', async () => {
+    const { send, callMock, audit } = await setup(['manage', 'edit']);
+    const res = await send('deleteUser', { userName: ' Ali@Trust.com ' });
+    expect(res.status).toBe(200);
+    expect(callMock).toHaveBeenCalledWith('deleteUser', { userName: 'ali@trust.com' });
+    expect(audit.mock.calls[0][0]).toMatchObject({ action: 'it.mailbox_deleted', resource: 'purelymail:ali@trust.com' });
+  });
+
+  it('hands a new app password to the browser once, never to the audit log', async () => {
+    const { send, audit } = await setup(['manage', 'edit'], { ok: true, result: { appPassword: 'app-secret-xyz' } });
+    const res = await send('createAppPassword', { userHandle: 'ali@trust.com', name: 'iPhone' });
+    expect(await res.json()).toEqual({ result: { appPassword: 'app-secret-xyz' } });
+    expect(JSON.stringify(audit.mock.calls)).not.toContain('app-secret-xyz');
+    const revoke = await send('deleteAppPassword', { userName: 'ali@trust.com', appPassword: 'app-secret-xyz' });
+    expect(revoke.status).toBe(200);
+    expect(JSON.stringify(audit.mock.calls)).not.toContain('app-secret-xyz');
+  });
+
+  it('builds a routing rule in Purelymail’s shape', async () => {
+    const { send, callMock } = await setup(['manage', 'edit']);
+    await send('createRoutingRule', { domainName: 'trust.com', matchUser: 'Info', prefix: false, targetAddresses: ['a@trust.com', 'a@trust.com', 'b@x.com'] });
+    expect(callMock).toHaveBeenCalledWith('createRoutingRule', { domainName: 'trust.com', matchUser: 'info', prefix: false, catchall: false, targetAddresses: ['a@trust.com', 'b@x.com'] });
+  });
+});
