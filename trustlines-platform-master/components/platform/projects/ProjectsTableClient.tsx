@@ -260,7 +260,7 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                 {fresh > 0 && (
                   <span
                     className="inline-flex h-[18px] shrink-0 items-center rounded-[4px] px-2 text-[10px] font-medium leading-[1.5] tracking-[0.4px]"
-                    style={{ background: tone.fg, color: tone.bg }}
+                    style={{ background: tone.fg, color: 'var(--ui-surface-elevated)' }}
                   >
                     +{fresh} New
                   </span>
@@ -516,7 +516,7 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                               <span
                                 key={t.type}
                                 title={t.status ? `${t.type} · ${t.status}` : t.type}
-                                className="inline-flex h-[21px] items-center whitespace-nowrap rounded-[2px] bg-ui-btn-primary px-2 text-[11px] font-medium leading-4 text-ui-btn-primary-fg"
+                                className="inline-flex h-[21px] items-center whitespace-nowrap rounded-[2px] bg-ui-btn-primary px-2 text-[11px] font-medium leading-4 text-ui-btn-primary-fg dark:bg-primary-50 dark:text-primary-950"
                               >
                                 {t.type}
                               </span>
