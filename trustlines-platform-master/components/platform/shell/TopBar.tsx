@@ -3,14 +3,15 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, Bot } from 'lucide-react';
+import { Bell, Sparkles } from 'lucide-react';
 import type { UserRole } from '@/types/database';
 import { AI_STATE_EVENT, OPEN_AI_EVENT } from '@/components/platform/ai/TrustLinesAI';
 import { UserMenu } from './UserMenu';
 import { PageSearch } from './PageSearch';
 import { buildNavSections, roleLabel } from './Sidebar';
 
-// Design: Figma "TRUST-LINES ERP" → "Shell (Task 11)" → "Global top bar" (101:12543), light + dark.
+// Design: Figma "TRUST-LINES ERP" → "Shell (Task 11)" → "Global top bar" (101:12543), light + dark;
+// dark frame re-checked against 1039:31756 (sparkles icon on Trust Lines AI).
 interface BreadcrumbItem {
   label: string;
   href?: string;
@@ -152,7 +153,7 @@ export function TopBar({
               : 'flex h-9 cursor-pointer items-center gap-2 rounded-md border border-transparent bg-secondary-700 px-3 text-[13px] font-semibold text-white transition-colors hover:bg-secondary-700/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary-700 dark:bg-secondary-50 dark:text-primary-950 dark:hover:bg-secondary-50/90 dark:focus-visible:outline-primary-50'
           }
         >
-          <Bot className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+          <Sparkles className="size-[15px]" strokeWidth={1.75} aria-hidden="true" />
           Trust Lines AI
         </button>
 
