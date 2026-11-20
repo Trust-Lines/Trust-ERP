@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
+import { getRolePermissions } from '@/lib/permissions/server';
+import { pageAllowed } from '@/lib/permissions/catalog';
+import { seesAllProjects } from '@/lib/permissions/ownProjects';
 
 // Dashboard card popup → "T Lines Tasks" / "Trust Lines Tasks": the project's meeting to-dos
 // (trust_lines_tasks, migrations 153-154; `side` tells the two lists apart). A task hangs on an
 // anchor: the card's project number ("no-507", so every card of the project shares the list), else
 // the card itself ("opportunity-<uuid>").
 
-export const TASK_COLUMNS = 'id, title, status, assignee_id, due_date, created_at';
+export const TASK_COLUMNS = 'id, title, status, assignee_id, due_date, created_at, created_by';
 export const TASK_STATUSES = new Set(['todo', 'in_progress', 'done']);
 export type TaskSide = 'tlines' | 'trust';
 const ANCHOR = /^(no|opportunity|potential|project|trust)-[A-Za-z0-9-]{1,64}$/;
@@ -22,6 +25,24 @@ export function parseSide(req: Request): TaskSide | null {
   const s = new URL(req.url).searchParams.get('side') ?? 'trust';
   return s === 'tlines' || s === 'trust' ? s : null;
 }
+
+/**
+ * 'assign' — add tasks for anyone, reassign, rename, delete: dashboard managers, roles with
+ * edit.board_tasks (Roles page), or a person marked Coordinator (profiles.sees_all_projects).
+ * 'self'   — everyone else on the dashboard: add tasks for themselves, edit / delete those, and
+ * tick a task assigned to them.
+ */
+export type TaskAccess = 'assign' | 'self';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function boardTaskAccess(admin: any, userId: string, role: string, canManage: boolean): Promise<TaskAccess> {
+  if (canManage) return 'assign';
+  if (pageAllowed(role, await getRolePermissions(admin, role), 'edit.board_tasks')) return 'assign';
+  return (await seesAllProjects(userId)) ? 'assign' : 'self';
+}
+
+/** A task someone wrote for themselves — they may change or delete it without 'assign'. */
+export const ownSelfTask = (t: { created_by?: string | null; assignee_id: string | null }, userId: string) =>
+  t.created_by === userId && t.assignee_id === userId;
 
 export const sideLabel = (side: TaskSide) => (side === 'tlines' ? 'T Lines' : 'Trust Lines');
 

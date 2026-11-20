@@ -16,3 +16,13 @@ describe('Dashboard project popup switches', () => {
     expect(pageAllowed('tlines_pm', saved, 'view.card_deal')).toBe(true);
   });
 });
+
+describe('General Manager', () => {
+  it('has every permission, whatever the Roles page saved for the role', () => {
+    const saved = { 'edit.it': false, 'page.it': false };
+    const gm = effectivePermissions('general_manager', saved);
+    expect(gm).toEqual({ all: true });
+    expect(pageAllowed('general_manager', saved, 'edit.it')).toBe(true);
+    expect(pageAllowed('ops_manager', saved, 'edit.it')).toBe(false);
+  });
+});

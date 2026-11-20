@@ -53,6 +53,13 @@ export default async function TeamPage() {
     const pmMap = new Map((pmRes.data as { id: string; pm_client_id: string | null; is_pm_supervisor: boolean }[]).map(p => [p.id, p]));
     profiles = profiles.map(p => ({ ...p, ...(pmMap.get(p.id as string) ?? {}) }));
   }
+  // sees_all_projects (migration 156) — read on its own so a missing column doesn't hide the rest.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const seeRes = await (adm as any).from('profiles').select('id, sees_all_projects').eq('sees_all_projects', true);
+  if (!seeRes.error && seeRes.data) {
+    const seeAll = new Set((seeRes.data as { id: string }[]).map(p => p.id));
+    profiles = profiles.map(p => ({ ...p, sees_all_projects: seeAll.has(p.id as string) }));
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const metaRes = await (adm as any).from('profiles')

@@ -1,16 +1,14 @@
 'use client';
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { ChartNoAxesCombined, Package2, Plus } from 'lucide-react';
+import { Package2, Plus } from 'lucide-react';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { EmptyState } from '@/components/ui/empty-state';
-import { cn } from '@/lib/utils';
 import { HrCalendar } from './HrCalendar';
 import { HrActionButton, HrAgendaCard } from './HrCards';
 import { byDate, localAgenda, useHrContainers, useHrLocal } from './HrData';
 import { CreateEventDialog, NewOrderDialog } from './HrForms';
 import { KIND_TONE, daysLeftLabel, daysUntil, parseDay } from './tones';
-import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // The HR group's other pages (sidebar "Human Resources (HR)"). Same page heading as the board.
 
@@ -115,30 +113,3 @@ export function HrOrdersPage() {
 }
 
 // Messages moved to My Workspace (components/platform/messages/TeamMessages.tsx).
-
-// ── Reports ────────────────────────────────────────────────────────────────────────────────
-const REPORTS = [
-  { title: 'Attendance', description: 'Days present, absent and late per person.' },
-  { title: 'Leave', description: 'Sick days and vacation taken and remaining.' },
-  { title: 'Headcount', description: 'Staff by team and role over time.' },
-];
-
-export function HrReportsPage() {
-  return (
-    <Page>
-      <HrPageHeader title="Reports" href="/hr/reports" subtitle="Attendance, leave and headcount at a glance." />
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {REPORTS.map(r => (
-          <section key={r.title} aria-label={r.title} className="flex flex-col gap-4 rounded-[8px] border border-ui-divider bg-ui-surface-elevated p-5">
-            <header className={cn('flex items-center gap-2', HEADING)}>
-              <ChartNoAxesCombined size={22} strokeWidth={1.5} aria-hidden />
-              <h2 className="m-0 text-[18px] font-semibold">{r.title}</h2>
-            </header>
-            <p className="m-0 text-[13px] text-ui-body">{r.description}</p>
-            <EmptyState size="sm" title="No data yet." description="Shows once HR records are connected." />
-          </section>
-        ))}
-      </div>
-    </Page>
-  );
-}

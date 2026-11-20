@@ -9,6 +9,7 @@ import { deriveTeam, type TeamCandidate } from '@/lib/team/derive';
 import { getNextStage, STAGE_PHASE } from '@/lib/workflow/machine';
 import { getRolePermissions } from '@/lib/permissions/server';
 import type { ProjectStage } from '@/types/database';
+import { ownProjectsOnly } from '@/lib/permissions/ownProjects';
 
 export default async function ProjectDetailPage({
   params,
@@ -320,7 +321,7 @@ export default async function ProjectDetailPage({
   const userRole: string = profileData?.role ?? 'ops_manager';
   const userPerms = await getRolePermissions(createAdminClient() as never, userRole);
 
-  if (userRole === 'tlines_pm' && project.tlines_pm_id !== user.id) {
+  if (project.tlines_pm_id !== user.id && await ownProjectsOnly(userRole, user.id)) {
     redirect('/projects');
   }
 

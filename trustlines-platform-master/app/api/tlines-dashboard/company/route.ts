@@ -12,8 +12,8 @@ export const dynamic = 'force-dynamic';
 //   PUT { kind: 'opportunity'|'potential'|'project'|'trust', id, no, serviceLine }
 // Stored where the board reads it: a deal card → the deal's Industry (industry_raw); a project /
 // Trust / installation card → our project(s) with that number (service_line), else the deals with
-// that number. General / Ops managers may always set it; a T-Lines PM only on their own card and
-// only while it has no company. Audit-logged.
+// that number. Set once, only while the card has no company: General / Ops managers on
+// any card, a T-Lines PM on their own. Changing an existing company is done on the project. Audit-logged.
 const MANAGERS = ['general_manager', 'ops_manager'];
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -74,9 +74,10 @@ export async function PUT(req: Request) {
   }
 
   const current = [...projects.map(projectCompany), ...deals.map(dealCompany)].find(Boolean) ?? null;
+  // Set once from the dashboard: an existing company is changed on the project itself.
+  if (current) return NextResponse.json({ error: 'This card already has a company — change it on the project' }, { status: 409 });
   if (!manager) {
-    // A T-Lines PM: only their own card, and only while it has no company.
-    if (current) return NextResponse.json({ error: 'This card already has a company; ask a manager to change it' }, { status: 409 });
+    // A T-Lines PM: only their own card.
     const ownProject = projects.some(p => p.tlines_pm_id === user.id);
     let own = ownProject;
     if (!own) {

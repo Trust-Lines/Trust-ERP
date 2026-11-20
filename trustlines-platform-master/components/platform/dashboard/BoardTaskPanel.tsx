@@ -22,6 +22,7 @@ interface TaskRow {
   title: string;
   status: 'todo' | 'in_progress' | 'done';
   assignee_id: string | null;
+  created_by?: string | null;
   assignee_name: string | null;
   due_date: string | null;
   created_at?: string;
@@ -50,12 +51,14 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
   /** Appended to every call, e.g. "?side=tlines". */
   query?: string;
   assignees: { id: string; full_name: string }[];
-  /** Add, rename, assign, date and delete (the API checks it too). */
+  /** Add for anyone, rename, assign and delete (the API checks it too). The task list's GET also
+   *  says so (access: 'assign'); without it a person adds tasks for themselves only. */
   canEdit: boolean;
   /** The viewer: an assignee may tick their own task done. */
   meId?: string | null;
 }) {
   const [tasks, setTasks] = React.useState<TaskRow[]>([]);
+  const [access, setAccess] = React.useState<'assign' | 'self' | null>(null);
   const [state, setState] = React.useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = React.useState<string | null>(null);
   const [showDone, setShowDone] = React.useState(false);
@@ -70,9 +73,10 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
     setState('loading');
     try {
       const res = await fetch(`${apiBasePath}/tasks${query}`);
-      const body = await res.json().catch(() => ({})) as { tasks?: TaskRow[]; error?: string };
+      const body = await res.json().catch(() => ({})) as { tasks?: TaskRow[]; access?: 'assign' | 'self'; error?: string };
       if (!res.ok) throw new Error(res.status === 403 ? 'You don’t have access to these tasks.' : (body.error ?? 'Could not load tasks'));
       setTasks(body.tasks ?? []);
+      setAccess(body.access ?? null);
       setState('ready');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load tasks');
@@ -80,6 +84,10 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
     }
   }, [apiBasePath, query]);
   React.useEffect(() => { void load(); }, [load]);
+
+  // canEdit from the page, or the list's own answer (Roles: edit.board_tasks, Team: Coordinator).
+  const canAssign = canEdit || access === 'assign';
+  const ownTask = (t: TaskRow) => !!meId && t.created_by === meId && t.assignee_id === meId;
 
   const nameOf = React.useCallback((id: string | null) => (id ? assignees.find(a => a.id === id)?.full_name ?? null : null), [assignees]);
   const assigneeOptions = React.useMemo(
@@ -94,7 +102,7 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
     try {
       const res = await fetch(`${apiBasePath}/tasks${query}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: text, assignee_id: draftWho || null }),
+        body: JSON.stringify({ title: text, assignee_id: canAssign ? draftWho || null : meId }),
       });
       const body = await res.json().catch(() => null) as { task?: TaskRow; error?: string } | null;
       if (!res.ok || !body?.task) throw new Error(body?.error ?? 'Could not add the task');
@@ -153,15 +161,17 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
       </div>
 
       {/* Add row: always open — type, pick who, Enter. */}
-      {canEdit && ready && (
+      {ready && (canAssign || !!meId) && (
         <form className="flex flex-wrap items-center gap-2 px-1" onSubmit={e => { e.preventDefault(); void addTask(); }}>
           <input
             ref={addRef} value={draft} onChange={e => setDraft(e.target.value)} maxLength={500}
-            placeholder="Add a task and press Enter…" aria-label={`New ${title} item`}
+            placeholder={canAssign ? 'Add a task and press Enter…' : 'Add a task for yourself and press Enter…'} aria-label={`New ${title} item`}
             className={cn(FIELD, 'min-w-[180px] flex-1')}
           />
-          <Select aria-label="Assign the new task to" options={[{ value: '', label: 'Assign to…' }, ...assigneeOptions.slice(1)]}
-            value={draftWho} onValueChange={v => setDraftWho(v ?? '')} className="h-8 w-[160px] text-[13px]" />
+          {canAssign && (
+            <Select aria-label="Assign the new task to" options={[{ value: '', label: 'Assign to…' }, ...assigneeOptions.slice(1)]}
+              value={draftWho} onValueChange={v => setDraftWho(v ?? '')} className="h-8 w-[160px] text-[13px]" />
+          )}
           <button type="submit" disabled={!draft.trim() || adding}
             className="flex h-8 shrink-0 items-center gap-1 rounded-[6px] bg-ui-btn-accent pl-2 pr-3 text-[13px] font-medium text-ui-btn-accent-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
             {adding ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Plus size={15} aria-hidden />} Add
@@ -176,11 +186,12 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
           <p className="m-0 px-2 py-2 text-[13px] font-medium" style={{ color: 'var(--status-t10-fg)' }}>{error}</p>
         ) : shown.length === 0 ? (
           <p className="m-0 px-2 py-2 text-[13px] text-ui-text-secondary">
-            {done.length ? 'Everything is done.' : canEdit ? 'No tasks yet — add the first one above.' : 'No tasks yet.'}
+            {done.length ? 'Everything is done.' : 'No tasks yet — add the first one above.'}
           </p>
         ) : shown.map(t => {
           const isDone = t.status === 'done';
-          const canTick = canEdit || (!!meId && t.assignee_id === meId);
+          const rowEdit = canAssign || ownTask(t);
+          const canTick = rowEdit || (!!meId && t.assignee_id === meId);
           return (
             <div key={t.id}
               className={cn('group flex min-h-10 items-center gap-2 rounded-[6px] pl-2 pr-1', isDone ? 'bg-[var(--status-t6-bg)]' : 'bg-ui-surface')}>
@@ -205,7 +216,7 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
                       if (v && v !== t.title) void patchTask(t, { title: v });
                     }}
                   />
-                ) : canEdit ? (
+                ) : rowEdit ? (
                   <button type="button" onClick={() => setEditing(t.id)} title="Click to rename"
                     className={cn('block w-full truncate rounded-[4px] px-1 py-1 text-left text-[13px] font-medium leading-[1.4] hover:bg-ui-hover-bg',
                       isDone ? cn(DONE_INK, 'line-through') : HEADING)}>
@@ -223,7 +234,7 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
                     <PersonFace name={t.assignee_name} userId={t.assignee_id} fallback={initials(t.assignee_name)} />
                   </span>
                 )}
-                {canEdit ? (
+                {canAssign ? (
                   <Select aria-label={`Assignee for ${t.title}`} options={assigneeOptions} value={t.assignee_id ?? ''}
                     onValueChange={v => void patchTask(t, { assignee_id: v || null })}
                     className={cn(ROW_PICK, 'w-auto min-w-0 flex-1 gap-1 [&_svg]:size-3.5', isDone ? DONE_INK : t.assignee_id ? HEADING : 'text-ui-text-secondary')} />
@@ -238,7 +249,7 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
                 {writtenOn(t.created_at)}
               </span>
 
-              {canEdit && (
+              {rowEdit && (
                 <button type="button" onClick={() => void removeTask(t)} aria-label={`Delete ${t.title}`} title="Delete"
                   className="flex size-7 shrink-0 items-center justify-center rounded-[4px] text-ui-text-secondary opacity-0 hover:bg-ui-hover-bg hover:text-[var(--status-t10-fg)] focus-visible:opacity-100 group-hover:opacity-100">
                   <Trash2 size={15} aria-hidden />

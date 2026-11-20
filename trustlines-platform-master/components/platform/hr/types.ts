@@ -100,3 +100,20 @@ export interface HrRequest extends HrPerson {
   /** ISO timestamp the request was made. */
   createdAt: string;
 }
+
+/** Every request type in hr_requests (migration 145): leave by reason, or a clock-punch correction. */
+export type HrRequestReason = HrAbsenceReason | 'personal' | 'correction';
+export type HrPunchKind = 'in' | 'break_start' | 'break_end' | 'out';
+
+/** A saved request (HR → Requests, /api/hr/requests). */
+export interface HrSavedRequest extends Omit<HrRequest, 'reason' | 'status'> {
+  reason: HrRequestReason;
+  status: HrRequestStatus | 'cancelled';
+  /** For a correction: the punch asked for. date / endDate are its local day. */
+  correction: { kind: HrPunchKind; at: string } | null;
+  decidedByName: string | null;
+  /** Mine — I can cancel it while pending. */
+  mine: boolean;
+  /** I manage the requester (manager, ops / GM) and it isn't mine. */
+  canDecide: boolean;
+}
