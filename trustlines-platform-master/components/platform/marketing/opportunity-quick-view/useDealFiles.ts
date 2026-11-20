@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { feedback } from '@/components/ui/feedback-toast';
 import { ApiError, errorText, fetchJson } from '@/lib/client/fetchJson';
 import { openLinkInNewTab } from '@/lib/client/openLink';
+import { uploadImageDirect } from '@/lib/client/directDropboxUpload';
+import { MAX_UPLOAD_BYTES } from '@/lib/client/compressImage';
 import type { NeedFile, UploadItem } from './types';
 
 /** Deal files: parallel uploads with per-file progress and retry, remove (link only — the file stays in Dropbox), open. */
@@ -23,10 +25,21 @@ export function useDealFiles(apiBase: string, setFiles: Dispatch<SetStateAction<
         action: { label: 'Retry upload', onClick: () => void uploadFile(f) },
       });
     };
-    const form = new FormData();
-    form.set('file', f);
     try {
-      const body = await fetchJson<{ file: NeedFile }>(`${apiBase}/files`, { method: 'POST', body: form });
+      // Straight to Dropbox first (no ~4.5 MB serverless cap — big PDFs / drawings failed before);
+      // only when that isn't possible, the classic upload through our API.
+      const direct = await uploadImageDirect(`${apiBase}/files`, f);
+      let body: { file: NeedFile };
+      if (direct) {
+        body = await fetchJson<{ file: NeedFile }>(`${apiBase}/files`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filePath: direct }),
+        });
+      } else {
+        if (f.size > MAX_UPLOAD_BYTES) { fail('Dropbox could not take it directly and it is over 4 MB — try again in a minute'); return; }
+        const form = new FormData();
+        form.set('file', f);
+        body = await fetchJson<{ file: NeedFile }>(`${apiBase}/files`, { method: 'POST', body: form });
+      }
       setFiles(prev => [body.file, ...prev]);
       setUploads(prev => prev.filter(u => u.key !== key));
     } catch (e) {
