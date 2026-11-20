@@ -120,7 +120,11 @@ function ChangePasswordDialog({ address, onOpenChange }: { address: string | nul
   );
 }
 
-export function PurelymailMailboxes({ canEdit = false }: { canEdit?: boolean }) {
+export function PurelymailMailboxes({ canEdit = false, openNew = 0 }: {
+  canEdit?: boolean;
+  /** Bumped by the page's 'New Email' button: open New mailbox. */
+  openNew?: number;
+}) {
   const [state, setState] = useState<ListState>({ kind: 'loading' });
   const [domains, setDomains] = useState<PmDomain[] | null>(null);
   const [domainError, setDomainError] = useState<string | null>(null);
@@ -158,6 +162,11 @@ export function PurelymailMailboxes({ canEdit = false }: { canEdit?: boolean }) 
     pmOp<{ credit: string | null }>('checkAccountCredit').then(r => setCredit(r.credit)).catch(() => setCredit(null));
   }, [loadList, loadDomains]);
   useEffect(() => { void loadAll(); }, [loadAll]);
+  useEffect(() => {
+    if (!openNew || !canEdit) return;
+    if (state.kind === 'ok') { setTab('mailboxes'); setCreating(true); }
+    else if (state.kind === 'not_configured') toast.error(ERROR_TEXT.not_configured);
+  }, [openNew]);
 
   const ownDomains = useMemo(() => (domains ?? []).filter(d => !d.isShared).map(d => d.name), [domains]);
   const addresses = useMemo(() => (state.kind === 'ok' ? state.addresses : []), [state]);

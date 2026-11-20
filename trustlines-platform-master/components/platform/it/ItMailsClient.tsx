@@ -64,6 +64,8 @@ export function ItMailsClient({ accounts, error = null, canCreate = false, canEd
   const [sort, setSort] = useState<Sort>('newest');
   const [owner, setOwner] = useState('');
   const [showInfo, setShowInfo] = useState(false);
+  // 'New Email' opens Purelymail's New mailbox (below) — bumping this asks it to.
+  const [newMailbox, setNewMailbox] = useState(0);
 
   const activeCount = useMemo(() => accounts.filter(a => a.active).length, [accounts]);
   const ownerOptions = useMemo(() => {
@@ -99,8 +101,12 @@ export function ItMailsClient({ accounts, error = null, canCreate = false, canEd
         actions={
           <button
             type="button"
-            disabled={!canCreate}
-            title={canCreate ? undefined : NOT_CONNECTED}
+            disabled={!canCreate && !canEditMailboxes}
+            onClick={() => {
+              setNewMailbox(n => n + 1);
+              document.getElementById('purelymail-heading')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            title={canCreate || canEditMailboxes ? undefined : 'Opening mailboxes needs IT edit rights'}
             className="flex h-9 items-center gap-2 rounded-md bg-accent-400 px-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:text-primary-950"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
@@ -186,7 +192,7 @@ export function ItMailsClient({ accounts, error = null, canCreate = false, canEd
       )}
 
       {/* Purelymail (step 1): the mail host's own mailbox list, live, beside the records above. */}
-      <PurelymailMailboxes canEdit={canEditMailboxes} />
+      <PurelymailMailboxes canEdit={canEditMailboxes} openNew={newMailbox} />
     </div>
   );
 }

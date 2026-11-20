@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { ArrowDownUp, Copy, Phone, Plus, Search, UserRound } from 'lucide-react';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
@@ -10,14 +11,15 @@ import { cn } from '@/lib/utils';
 import { TOOLBAR_SELECT, TOOLBAR_SORT_ICON } from './ticketStyles';
 import { SOLID_CHIP } from './itemStyles';
 import { FIELD, MUTED, SORT_OPTIONS, STRONG, copyText, initials, tabClass } from './itCardParts';
+import { roleLabel } from '@/components/platform/shell/Sidebar';
+import { EMPTY_PHONE, ItPhoneFormDialog } from './ItPhoneFormDialog';
 
 // Figma "IT / Phone Numbers" (966:39447): company phone lines, one card each — holder photo, name
 // and role, the number with a copy button, the carrier, and the device it runs on (company phone,
 // personal phone, or none). Unassigned lines are "Available" and drawn in green. Active / History
 // tabs, search, sort, user / assignment / firm filters.
 //
-// There is no phone-line data source yet, so the page passes an empty list and "New Number" is
-// disabled until one exists.
+// Data: it_phone_lines (migration 158) via lib/it/phones. "New Number" (edit.it) opens the form.
 
 export interface ItPhoneLine {
   id: string;
@@ -42,7 +44,7 @@ type Tab = 'active' | 'history';
 type Sort = 'newest' | 'oldest' | 'name';
 type Assignment = '' | 'assigned' | 'available';
 
-const NOT_CONNECTED = 'Not available yet: the phone numbers data source is not connected';
+const NO_EDIT = 'Adding numbers needs IT edit rights';
 const CHIP = 'inline-flex items-center rounded-[4px] px-2 py-[3px] text-[13px] font-semibold leading-normal';
 const CHIP_FILLED = cn(CHIP, SOLID_CHIP);
 const CHIP_OUTLINE = cn(CHIP, 'border border-secondary-700 py-[2px] dark:border-secondary-50', STRONG);
@@ -95,7 +97,7 @@ function PhoneCard({ line }: { line: ItPhoneLine }) {
             </Link>
           </h3>
           <p className="m-0 truncate text-[12px] font-medium leading-4 tracking-[0.36px] text-ui-body dark:text-primary-50">
-            {free ? '-' : line.holderRole || '-'}
+            {free ? '-' : line.holderRole ? roleLabel(line.holderRole) : '-'}
           </p>
         </div>
       </div>
@@ -124,11 +126,15 @@ function PhoneCard({ line }: { line: ItPhoneLine }) {
   );
 }
 
-export function ItPhonesClient({ lines, error = null, canCreate = false }: {
+export function ItPhonesClient({ lines, error = null, canCreate = false, people = [] }: {
   lines: ItPhoneLine[];
   error?: string | null;
   canCreate?: boolean;
+  /** Who can hold a line (edit.it only). */
+  people?: { id: string; name: string }[];
 }) {
+  const router = useRouter();
+  const [adding, setAdding] = useState(false);
   const [tab, setTab] = useState<Tab>('active');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('newest');
@@ -177,7 +183,8 @@ export function ItPhonesClient({ lines, error = null, canCreate = false }: {
           <button
             type="button"
             disabled={!canCreate}
-            title={canCreate ? undefined : NOT_CONNECTED}
+            onClick={() => setAdding(true)}
+            title={canCreate ? undefined : NO_EDIT}
             className="flex h-9 items-center gap-2 rounded-md bg-accent-400 px-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:text-primary-950"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
@@ -261,6 +268,11 @@ export function ItPhonesClient({ lines, error = null, canCreate = false }: {
             </li>
           ))}
         </ul>
+      )}
+
+      {adding && (
+        <ItPhoneFormDialog initial={EMPTY_PHONE} people={people} onClose={() => setAdding(false)}
+          onSaved={() => { setAdding(false); router.refresh(); }} />
       )}
     </div>
   );
