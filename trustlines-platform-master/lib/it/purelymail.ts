@@ -26,7 +26,8 @@ export function purelymailKey(): string | null {
   return k ? k : null;
 }
 
-async function call(op: string, payload: Record<string, unknown>, fetchImpl: typeof fetch): Promise<{ ok: true; result: Record<string, unknown> } | PurelymailFailure> {
+/** One Purelymail API call. Exported for the allow-listed operations in ./purelymailOps. */
+export async function call(op: string, payload: Record<string, unknown>, fetchImpl: typeof fetch = fetch): Promise<{ ok: true; result: Record<string, unknown> } | PurelymailFailure> {
   const key = purelymailKey();
   if (!key) return { ok: false, reason: 'not_configured' };
 
