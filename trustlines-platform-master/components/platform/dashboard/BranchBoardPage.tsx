@@ -35,6 +35,8 @@ import {
 } from 'lucide-react';
 import { isoDateToUS as fmtDate } from '@/lib/formatters';
 import { ownProjectsOnly, seesAllProjects } from '@/lib/permissions/ownProjects';
+import { isInstalling as installingOn, loadStageSpells } from '@/lib/board/stageHistory';
+import type { StageSpell } from '@/lib/board/stageSpell';
 
 // Shared by /tlines-pm (layout "board", the branch board as it always was) and /dashboard
 // (layout "dashboard", Figma TRUST-LINES ERP → "General Manager" node 767:13745): same data,
@@ -396,9 +398,8 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
       if (a.stage.endsWith(':tlines_pm')) tlinesAnyStage.set(`${a.item_kind}:${a.item_id}`, a.user_id);
     }
   }
-  const INSTALLING = ['In Progress', 'Delayed', 'On Hold'];
-  const isInstalling = (i: InstallRow) => i.status !== 'Completed'
-    && (INSTALLING.includes(i.status ?? '') || (!!i.planned_start && i.planned_start <= trustToday));
+  // Same rule the daily stage history uses (lib/board/stageHistory).
+  const isInstalling = (i: InstallRow) => installingOn(i, trustToday);
   const COMPLETED_PER_COLUMN = 50;
 
   const pmIds = [...new Set([
@@ -567,6 +568,15 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
     sections: c.sections.map(s => ({ ...s, items: s.items.filter(i => (i.assign?.tlinesUserId ?? i.tlinesPmId ?? null) === user.id) })),
   }));
 
+  // Which step each card was in on past days (board_stage_spells, 157) — for the step + From / To
+  // filter. Only the cards on this viewer's board go to the browser.
+  const allSpells = await loadStageSpells(admin);
+  const stageSpells: Record<string, StageSpell[]> = {};
+  for (const c of columns) for (const sec of c.sections) for (const i of sec.items) {
+    const k = `${i.kind}:${i.id}`;
+    if (allSpells[k]) stageSpells[k] = allSpells[k];
+  }
+
   const { data: marketingAssignees } = await admin.from('profiles')
     .select('id, full_name')
     .in('role', ['marketing_pr', 'marketing_manager', 'sales_rep', 'sales_marketing_manager', 'ops_manager', 'general_manager'])
@@ -689,6 +699,7 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
       layout={layout}
       kpis={dashboardKpis}
       columns={columns}
+      stageSpells={stageSpells}
       assignees={marketingAssignees ?? []}
       canEdit={canEditOpportunities}
       // A card's company: managers can always set it; a T-Lines PM only when it has none.

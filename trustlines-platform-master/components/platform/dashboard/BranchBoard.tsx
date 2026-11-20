@@ -19,8 +19,9 @@ import { BranchLogo } from './BranchLogo';
 import type { TrustItem } from '@/lib/trust/board';
 import { SERVICE_LINES } from '@/lib/regions';
 import { projectNumber } from '@/lib/keyClients/match';
+import { wasInStage, type StageSpell } from '@/lib/board/stageSpell';
 import {
-  type BoardGantt, type BoardView, COLUMNS_BY_KEY, type ColumnsBy, ColumnsByToggle, DateFilters, GanttToggle, type Preset, VIEW_KEY, ViewToggle, pmColumns, presetRange, NOBODY,
+  type BoardGantt, type BoardView, COLUMNS_BY_KEY, type ColumnsBy, ColumnsByToggle, DateFilters, GanttToggle, VIEW_KEY, ViewToggle, pmColumns, NOBODY,
 } from './BranchBoardControls';
 export type { BoardGantt } from './BranchBoardControls';
 
@@ -504,16 +505,11 @@ const SHOWN_COLS_KEY = 'dashboard.shownColumns.v1';
 
 /** The board's date filter state — owned by BranchBoard so the dashboard layout can show it in
  *  the page heading while the board still filters by it. */
-function useDateRange() {
+function useDateRange(stageOptions: { value: string; label: string }[]) {
   const [from, setFrom] = React.useState('');
   const [to, setTo] = React.useState('');
-  const [preset, setPreset] = React.useState<Preset>('');
-  return {
-    from, to, preset,
-    onPreset: (p: Preset) => { const [f, t] = presetRange(p); setPreset(p); setFrom(f); setTo(t); },
-    onFrom: (v: string) => { setFrom(v); setPreset(''); },
-    onTo: (v: string) => { setTo(v); setPreset(''); },
-  };
+  const [stage, setStage] = React.useState('');
+  return { from, to, stage, stageOptions, onFrom: setFrom, onTo: setTo, onStage: setStage };
 }
 type DateRange = ReturnType<typeof useDateRange>;
 
@@ -526,8 +522,10 @@ const COUNT_TILES: { label: string; keys: string[]; icon: React.ReactNode; color
   { label: 'Completed', keys: ['completed'], icon: <CircleCheck strokeWidth={1.5} />, color: 'var(--color-success-normal)', onColor: 'var(--color-success-light)' },
 ];
 
-function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates, datesInBar, kpis, counts = false, pageScroll = false, gantt }: {
+function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates, datesInBar, kpis, counts = false, pageScroll = false, gantt, stageSpells }: {
   columns: BoardColumn[]; onOpen: OpenCard;
+  /** Daily stage history by card ("kind:id"), for the step filter. */
+  stageSpells: Record<string, StageSpell[]>;
   /** Dashboard: the "View as Gantt chart" toggle (absent = not offered). */
   gantt?: BoardGantt;
   /** Offer the "Accounts" view. */
@@ -565,7 +563,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
       return true;
     };
   }, [regionColumns, onOpen]);
-  const { from: dateFrom, to: dateTo } = dates;
+  const { from: dateFrom, to: dateTo, stage: pickedStage } = dates;
 
   // Which of our companies to show ('' = All Companies, the default).
   const [company, setCompany] = React.useState('');
@@ -656,13 +654,29 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
       inRange(i.dateISO) && (!company || (company === NO_COMPANY ? !i.company : i.company === company))
       && byPerson(i, 'trust_pm', trustPm) && byPerson(i, 'tlines_pm', tlinesPm);
     const shown = columns.filter(c => picked.has(c.regionCode));
+    const today = new Date().toISOString().slice(0, 10);
+    const rangeHasToday = (!dateFrom || dateFrom <= today) && (!dateTo || dateTo >= today);
+    // A step picked: that step only, as a timeline — its cards now (when the range reaches today,
+    // or their own date is in it) plus every card of the column that was in it during the range.
+    const stageItems = (column: BoardColumn, s: BoardSection) => {
+      const now = s.items.filter(i => rangeHasToday || inRange(i.dateISO) || wasInStage(stageSpells[`${i.kind}:${i.id}`], s.key, dateFrom, dateTo));
+      if (!dateFrom && !dateTo) return now;
+      const ids = new Set(now.map(i => `${i.kind}:${i.id}`));
+      const before = column.sections.filter(o => o.key !== s.key).flatMap(o => o.items)
+        .filter(i => { const k = `${i.kind}:${i.id}`; if (ids.has(k) || !wasInStage(stageSpells[k], s.key, dateFrom, dateTo)) return false; ids.add(k); return true; });
+      return [...now, ...before];
+    };
+    const keepPeople = (i: BoardCardItem) => (!company || (company === NO_COMPANY ? !i.company : i.company === company))
+      && byPerson(i, 'trust_pm', trustPm) && byPerson(i, 'tlines_pm', tlinesPm);
     return (shown.length ? shown : columns).map(column => ({
       ...column,
-      sections: column.sections.filter(s => showLeads || s.key !== 'leads').map(s => ({ ...s, items: s.items.filter(keep) })),
+      sections: pickedStage
+        ? column.sections.filter(s => s.key === pickedStage).map(s => ({ ...s, items: stageItems(column, s).filter(keepPeople) }))
+        : column.sections.filter(s => showLeads || s.key !== 'leads').map(s => ({ ...s, items: s.items.filter(keep) })),
     }))
       // The by-PM "Unassigned" column only shows while the filters leave it a card.
       .filter(c => c.regionCode !== `pm:${NOBODY}` || c.sections.some(s => s.items.length > 0));
-  }, [columns, picked, dateFrom, dateTo, company, showLeads, trustPm, tlinesPm, personOf]);
+  }, [columns, picked, dateFrom, dateTo, pickedStage, stageSpells, company, showLeads, trustPm, tlinesPm, personOf]);
 
   // Stages / Accounts, remembered per browser. Every account starts open; a click folds it.
   const [view, setView] = React.useState<BoardView>('stages');
@@ -767,7 +781,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
   );
 }
 
-export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false, byPm = false, layout = 'board', kpis, companyEdit = 'none', gantt, meId = null }: {
+export function BranchBoard({ columns, stageSpells = {}, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false, byPm = false, layout = 'board', kpis, companyEdit = 'none', gantt, meId = null }: {
   /** /dashboard only: the "View as Gantt chart" toggle and, while it shows, its data. */
   gantt?: BoardGantt;
   /** 'dashboard' = Figma "General Manager" (767:13745) on /dashboard: General / Dashboard crumbs,
@@ -783,6 +797,8 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   heading?: string;
   subheading?: string;
   columns: BoardColumn[];
+  /** Daily stage history by card ("kind:id", migration 157) — the step + From / To filter. */
+  stageSpells?: Record<string, StageSpell[]>;
   /** Everyone who can be picked in a Trust card's "Assign to", and whether this viewer may. */
   users?: { id: string; full_name: string; role?: string | null }[];
   canAssign?: boolean;
@@ -828,7 +844,12 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   }, [assigned]);
   const assignCtx = React.useMemo(() => ({ options: assignOptions, pmOptions, canAssign, assigned, assign }), [assignOptions, pmOptions, canAssign, assigned, assign]);
   const handleOpen: OpenCard = (item, section) => setOpen({ item, section });
-  const dates = useDateRange();
+  // The step filter offers the board's own steps, in board order.
+  const stageOptions = React.useMemo(() => [
+    { value: '', label: 'All stages' },
+    ...(columns[0]?.sections ?? []).map(s => ({ value: s.key, label: s.label })),
+  ], [columns]);
+  const dates = useDateRange(stageOptions);
   const isDashboard = layout === 'dashboard';
 
   return (
@@ -855,7 +876,7 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
         />
         </>
       ) : (
-        <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} dates={dates} datesInBar={!isDashboard} kpis={kpis} counts={isDashboard} pageScroll={isDashboard} gantt={gantt} />
+        <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} dates={dates} datesInBar={!isDashboard} kpis={kpis} counts={isDashboard} pageScroll={isDashboard} gantt={gantt} stageSpells={stageSpells} />
       )}
       {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} companyEdit={companyEdit}
         staff={trustStaff} everyone={everyone} meId={meId} canEditTrustTasks={canAssign} onClose={() => setOpen(null)} />}
