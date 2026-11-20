@@ -659,7 +659,9 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
     return (shown.length ? shown : columns).map(column => ({
       ...column,
       sections: column.sections.filter(s => showLeads || s.key !== 'leads').map(s => ({ ...s, items: s.items.filter(keep) })),
-    }));
+    }))
+      // The by-PM "Unassigned" column only shows while the filters leave it a card.
+      .filter(c => c.regionCode !== `pm:${NOBODY}` || c.sections.some(s => s.items.length > 0));
   }, [columns, picked, dateFrom, dateTo, company, showLeads, trustPm, tlinesPm, personOf]);
 
   // Stages / Accounts, remembered per browser. Every account starts open; a click folds it.
