@@ -358,6 +358,7 @@ export const PERM_DEFAULT_ON = new Set(['page.my_workspace', 'page.it_requests',
 
 /** Whether `role` (with its effective permission map) may open the page behind `key`. */
 export function pageAllowed(role: string | null | undefined, perms: PermMap | null | undefined, key: string): boolean {
+  if (role === 'general_manager') return true;   // full system-wide authority
   if (!perms) return false;
   if (perms.all === true) return true;
   if (key in perms) return perms[key] === true;
@@ -470,6 +471,8 @@ export const DEFAULT_PERMISSIONS: Record<string, PermMap> = {
 };
 
 export function effectivePermissions(roleName: string, stored: PermMap | null | undefined): PermMap {
+  // General Manager = full system-wide authority (CLAUDE.md): never narrowed by a saved Roles row.
+  if (roleName === 'general_manager') return { all: true };
   if (stored && Object.keys(stored).length) return stored;
   return DEFAULT_PERMISSIONS[roleName] ?? {};
 }
