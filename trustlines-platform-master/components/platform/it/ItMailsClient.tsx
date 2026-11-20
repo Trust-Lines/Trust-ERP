@@ -51,8 +51,10 @@ function MailCard({ account, showInfo, onRevealPassword }: {
   );
 }
 
-export function ItMailsClient({ accounts, error = null, canCreate = false, onRevealPassword }: {
+export function ItMailsClient({ accounts, error = null, canCreate = false, canEditMailboxes = false, onRevealPassword }: {
   accounts: ItMailAccount[];
+  /** edit.it: open Purelymail mailboxes and change their passwords. */
+  canEditMailboxes?: boolean;
   error?: string | null;
   canCreate?: boolean;
   onRevealPassword?: (id: string) => Promise<string>;
@@ -184,7 +186,7 @@ export function ItMailsClient({ accounts, error = null, canCreate = false, onRev
       )}
 
       {/* Purelymail (step 1): the mail host's own mailbox list, live, beside the records above. */}
-      <PurelymailMailboxes />
+      <PurelymailMailboxes canEdit={canEditMailboxes} />
     </div>
   );
 }
