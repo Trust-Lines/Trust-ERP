@@ -7,6 +7,7 @@ import { PersonFace } from '@/components/ui/avatar-directory';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { TOOLBAR_SELECT, TOOLBAR_SORT_ICON } from './ticketStyles';
+import { PurelymailMailboxes } from './PurelymailMailboxes';
 import { CARD, CardHead, FIELD, MUTED, SORT_OPTIONS, SecretField, initials, tabClass } from './itCardParts';
 
 // Figma "IT / Mails" (879:12933): company mailboxes, one card each — owner photo, name, address,
@@ -181,6 +182,9 @@ export function ItMailsClient({ accounts, error = null, canCreate = false, onRev
           ))}
         </ul>
       )}
+
+      {/* Purelymail (step 1): the mail host's own mailbox list, live, beside the records above. */}
+      <PurelymailMailboxes />
     </div>
   );
 }
