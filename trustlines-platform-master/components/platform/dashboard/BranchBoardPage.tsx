@@ -22,8 +22,6 @@ import { tableMissing } from '@/lib/installations/access';
 import type { InstallTeam, Installation } from '@/lib/installations/compute';
 import { DailyOverview, TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
 import { StatTile } from '@/components/platform/dashboard/StatTile';
-import { PaymentsTile } from '@/components/platform/dashboard/PaymentsTile';
-import { SUPPLIER_READ_ROLES } from '@/lib/suppliers/config';
 import { getRolePermissions } from '@/lib/permissions/server';
 import { pageAllowed } from '@/lib/permissions/catalog';
 import { defaultCompanySideForRole } from '@/lib/profile/metadata';
@@ -248,8 +246,13 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
   const [assignRows, { data: allUsers }] = await Promise.all([
     fetchInChunks(boardIds, chunk => admin.from('board_assignees').select('item_kind, item_id, stage, user_id').in('item_id', chunk))
       .catch(() => []),   // table not there yet (migration 137)
-    admin.from('profiles').select('id, full_name, role').eq('is_active', true).not('full_name', 'is', null).order('full_name', { ascending: true }),
-  ]) as [{ item_kind: string; item_id: string; stage: string; user_id: string }[], { data: { id: string; full_name: string; role: string | null }[] | null }];
+    admin.from('profiles').select('id, full_name, role, company_side').eq('is_active', true).not('full_name', 'is', null).order('full_name', { ascending: true }),
+  ]) as [{ item_kind: string; item_id: string; stage: string; user_id: string }[], { data: { id: string; full_name: string; role: string | null; company_side: string | null }[] | null }];
+  // Card task pick lists split by company side (Team → company side, else the role's default).
+  const boardUsers = (allUsers ?? []).map(u => ({
+    id: u.id, full_name: u.full_name, role: u.role,
+    side: ((u.company_side === 't_lines' || u.company_side === 'trust_lines') ? u.company_side : defaultCompanySideForRole(u.role)) as 't_lines' | 'trust_lines' | null,
+  }));
   const assigneeOf = new Map(assignRows.map(a => [`${a.item_kind}:${a.item_id}:${a.stage}`, a.user_id]));
   // The T-Lines PM looks after the card's account, not one stage: when the card has none set for
   // the stage it is in now, the one set in another stage stays, else our project's T-Lines PM
@@ -297,6 +300,12 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
     const c = p.service_line && SERVICE_LINE_VALUES.includes(p.service_line) ? p.service_line : serviceLineFromCode(p.code);
     if (no && c) companyByNo.set(no, c);
   }
+  // "Deal Closed" filter: the date our project's deal closed, for every card of that number.
+  const closedByNo = new Map<string, string>();
+  for (const pr of (projectRows ?? []) as { code: string; closed_deal_date: string | null }[]) {
+    const no = projectNumber(pr.code);
+    if (no && pr.closed_deal_date && !closedByNo.has(no)) closedByNo.set(no, pr.closed_deal_date.slice(0, 10));
+  }
   const trustToday = new Date().toISOString().slice(0, 10);
   const allTrustCards = trustProjects.map(p => {
     const e = classifyTrustProject(p, trustToday);
@@ -320,6 +329,7 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
       statuses: typeStatuses(p),
       projectNo: p.projectNo,
       trustItems: cardItems(p.items),
+      closedISO: closedByNo.get(projectNumber(p.projectNo) ?? '') ?? null,
     };
     return { region: p.bucket, stage: e.stage, item, createdAt: p.createdAt };
   });
@@ -339,7 +349,7 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
         canEdit={false}
         canCreateTask={false}
         trustError={trust.error}
-        users={allUsers ?? []}
+        users={boardUsers}
       meId={user.id}
         canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
         layout={layout}
@@ -456,6 +466,7 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
         statuses: o.stageLabel ? [o.stageLabel] : [],
         projectNo: o.projectNo,
         trustItems: o.projectNo ? trustByNo.get(o.projectNo) ?? null : null,
+        closedISO: closedByNo.get(projectNumber(o.projectNo) ?? '') ?? null,
       };
     };
     const opportunityItems = regionOpportunities.filter(o => o.isClient).map(toDealCard);
@@ -483,6 +494,7 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
         dateISO: date,
         dateLabel: fmtDate(date),
         href: `/projects/${p.id}`,
+        closedISO: p.closed_deal_date?.slice(0, 10) ?? null,
       };
     };
 
@@ -519,6 +531,7 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
         statuses: i.status ? [i.status] : [],
         projectNo: no,
         trustItems: trustByNo.get(no) ?? null,
+        closedISO: closedByNo.get(no) ?? null,
       };
     };
 
@@ -653,13 +666,10 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
 
   // ── Dashboard layout: the project counts are counted in the board from the cards its filters
   // leave (BranchBoard COUNT_TILES). Only the one tile that isn't a card count comes from here:
-  // supplier payments for roles that may read vendor cost (SUPPLIER_READ_ROLES, as /api/suppliers),
-  // Pending Approvals for everyone else.
+  // Pending Approvals. No money on the dashboard, for anyone (payments live on /payments).
   let dashboardKpis: ReactNode;
   if (isDashboard) {
-    dashboardKpis = (SUPPLIER_READ_ROLES as readonly string[]).includes(userRole)
-      ? <PaymentsTile key="payments" compact {...TILE_TONES[4]} />
-      : <StatTile key="approvals" compact label="Pending Approvals" value={approvals.length} icon={<ClipboardPenLine strokeWidth={1.5} />} href="/approvals"
+    dashboardKpis = <StatTile key="approvals" compact label="Pending Approvals" value={approvals.length} icon={<ClipboardPenLine strokeWidth={1.5} />} href="/approvals"
           sub={isApprovalsAdmin ? 'Waiting for a decision' : 'Waiting for you'} {...TILE_TONES[4]} />;
   }
 
@@ -700,13 +710,14 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
       kpis={dashboardKpis}
       columns={columns}
       stageSpells={stageSpells}
+      salesView={['sales_rep', 'sales_marketing_manager'].includes(userRole)}
       assignees={marketingAssignees ?? []}
       canEdit={canEditOpportunities}
-      // A card's company: managers can always set it; a T-Lines PM only when it has none.
-      companyEdit={['general_manager', 'ops_manager'].includes(userRole) ? 'any' : userRole === 'tlines_pm' ? 'empty' : 'none'}
+      // A card's company is set once from here (only while it has none); changing it is done on the project.
+      companyEdit={['general_manager', 'ops_manager', 'tlines_pm'].includes(userRole) ? 'empty' : 'none'}
       canCreateTask={SALES_INTAKE_ROLES.includes(userRole)}
       trustError={trust.error}
-      users={allUsers ?? []}
+      users={boardUsers}
       meId={user.id}
       canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
       // A server element passed as a prop into a client component is checked like a list child in

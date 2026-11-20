@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/permissions/requireApi';
-import { logAudit } from '@/lib/audit/log';
 import { MARKETING_ROLES } from '@/lib/marketing/roles';
 import { SALES_HANDOFF_ROLES } from '@/lib/sales/roles';
 import { assertOpportunityAccess } from '@/lib/marketing/opportunityAccess';
-import { getDropboxClient } from '@/lib/dropbox/client';
-import { buildNeedFilesPath } from '@/lib/marketing/needFiles';
-import { sanitizeFileName } from '@/lib/marketing/prospectFiles';
+import { handleNeedFileUpload } from '@/lib/marketing/needFileUpload';
 
 const ALLOWED_ROLES = [...SALES_HANDOFF_ROLES, ...MARKETING_ROLES];
 
@@ -53,29 +50,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   const opp = await resolveNeed(admin, id);
   if (!opp?.need_id) return NextResponse.json({ error: 'Opportunity has no linked Need' }, { status: 409 });
 
-  const form = await req.formData();
-  const file = form.get('file') as File | null;
-  if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 });
-
-  const safeName = sanitizeFileName(file.name);
-  const path = `${buildNeedFilesPath(opp.region, opp.title, opp.need_id)}/${safeName}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-
-  let dropboxPath: string;
-  try {
-    const res = await getDropboxClient().filesUpload({ path, contents: buffer, mode: { '.tag': 'add' }, autorename: true });
-    dropboxPath = res.result.path_lower ?? path;
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Dropbox upload failed';
-    console.error('[opportunities/files POST]', msg);
-    return NextResponse.json({ error: msg }, { status: 502 });
-  }
-
-  const { data: fileRow, error } = await admin.from('need_files').insert({
-    need_id: opp.need_id, dropbox_path: dropboxPath, file_name: safeName, uploaded_by: user.id,
-  }).select('id, need_id, dropbox_path, file_name, uploaded_by, created_at').single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  await logAudit({ actorId: user.id, action: 'opportunity_file.uploaded', resource: `need_files:${fileRow.id}`, newValue: { opportunity_id: id, file_name: safeName } });
-  return NextResponse.json({ file: { ...fileRow, uploaded_by_name: null } }, { status: 201 });
+  // Direct-to-Dropbox first, multipart fallback (lib/marketing/needFileUpload).
+  return handleNeedFileUpload(req, admin, {
+    need: { need_id: opp.need_id, title: opp.title, region: opp.region }, userId: user.id,
+    auditAction: 'opportunity_file.uploaded', auditRef: { opportunity_id: id }, logTag: '[opportunities/files POST]',
+  });
 }
