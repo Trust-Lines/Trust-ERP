@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowDown, ArrowDownUp, Copy, Ellipsis, Link2, Mail, MapPin, Search, UserRound, UserRoundPlus } from 'lucide-react';
+import { ArrowDown, ArrowDownUp, Copy, Ellipsis, Link2, Mail, MapPin, MonitorSmartphone, Search, UserRound, UserRoundPlus } from 'lucide-react';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { roleLabel } from '@/components/platform/shell/Sidebar';
 import { InviteDialog, type HrStaffRow } from '@/components/platform/hr/HrStaffClient';
@@ -19,7 +19,8 @@ import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Figma "IT / Staff Members" (879:13180): the team with the IT equipment each person holds. Name,
 // email, role and joined date are real (profiles, same read as HR → Staff Members). Location and
-// Items come from the IT items each person holds (Items Library).
+// Items come from the IT items each person holds (Items Library). The name opens IT → Staff member
+// (/it/staff/[id]): everything IT has on the person.
 
 export interface ItStaffItem {
   id: string;
@@ -163,7 +164,7 @@ export function ItStaffClient({ staff, canInvite }: { staff: ItStaffRow[]; canIn
                             <PersonFace name={s.full_name} userId={s.id} fallback={initials(name)} />
                           </span>
                           <span className="flex min-w-0 flex-col gap-0.5 leading-normal">
-                            <Link href={`/team/${s.id}`} className={cn('truncate text-[16px] font-semibold no-underline hover:underline', HEADING)} title={name}>{name}</Link>
+                            <Link href={`/it/staff/${s.id}`} className={cn('truncate text-[16px] font-semibold no-underline hover:underline', HEADING)} title={name}>{name}</Link>
                             {s.email && <span className="truncate text-[12px] text-ui-body" title={s.email}>{s.email}</span>}
                           </span>
                         </div>
@@ -204,6 +205,9 @@ export function ItStaffClient({ staff, canInvite }: { staff: ItStaffRow[]; canIn
                             <Ellipsis />
                           </MenuTrigger>
                           <MenuContent>
+                            <MenuLinkItem render={<Link href={`/it/staff/${s.id}`} />}>
+                              <MonitorSmartphone aria-hidden /> View IT assets
+                            </MenuLinkItem>
                             <MenuLinkItem render={<Link href={`/team/${s.id}`} />}>
                               <UserRound aria-hidden /> View profile
                             </MenuLinkItem>
