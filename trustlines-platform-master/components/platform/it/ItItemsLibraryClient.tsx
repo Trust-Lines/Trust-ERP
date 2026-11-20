@@ -60,7 +60,8 @@ function StatusPill({ item }: { item: ItItem }) {
   );
 }
 
-function ItemCard({ item, canEdit, onDelete }: { item: ItItem; canEdit: boolean; onDelete: (item: ItItem) => void }) {
+/** One item card (also used on IT → Staff member). Delete shows only when `onDelete` is given. */
+export function ItemCard({ item, canEdit, onDelete }: { item: ItItem; canEdit: boolean; onDelete?: (item: ItItem) => void }) {
   const available = item.status === 'available';
   return (
     <article
@@ -105,9 +106,11 @@ function ItemCard({ item, canEdit, onDelete }: { item: ItItem; canEdit: boolean;
                 <MenuLinkItem render={<Link href={`/it/items/${encodeURIComponent(item.id)}?edit=1`} />}>
                   <Pencil aria-hidden /> Edit Info
                 </MenuLinkItem>
-                <MenuItem onClick={() => onDelete(item)}>
-                  <Trash2 aria-hidden /> Delete
-                </MenuItem>
+                {onDelete && (
+                  <MenuItem onClick={() => onDelete(item)}>
+                    <Trash2 aria-hidden /> Delete
+                  </MenuItem>
+                )}
               </>}
             </MenuContent>
           </Menu>

@@ -115,3 +115,13 @@ export function cleanPhoneInput(raw: unknown, partial: boolean): { value: Record
 export function auditFields(value: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, k.endsWith('_enc') ? (v ? 'set' : 'cleared') : v]));
 }
+
+/** IT → Staff member: the active lines one person holds. */
+export async function loadPhoneLinesFor(ctx: ItContext, holderId: string): Promise<PhoneLineData[]> {
+  const { data } = await ctx.admin.from('it_phone_lines').select(PHONE_COLS).eq('holder_id', holderId)
+    .is('deleted_at', null).is('retired_at', null).order('created_at', { ascending: false }).limit(50);
+  const rows = (data ?? []) as Row[];
+  if (!rows.length) return [];
+  const who = await holders(ctx.admin, [holderId]);
+  return rows.map(r => toData(r, who));
+}

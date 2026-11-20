@@ -360,3 +360,25 @@ export async function assigneeError(admin: any, input: ItemInput): Promise<strin
   const { data } = await admin.from('profiles').select('id').eq('id', input.assignee_id).eq('is_active', true).maybeSingle();
   return data ? null : 'That person was not found or is not active';
 }
+
+/** IT → Staff member: the items one person holds (newest first). */
+export async function loadPersonItems(ctx: ItContext, personId: string): Promise<ItemCard[]> {
+  const { data } = await ctx.admin.from('it_items').select(ITEM_COLS).eq('assignee_id', personId)
+    .eq('status', 'assigned').is('deleted_at', null).order('assigned_at', { ascending: false, nullsFirst: false }).limit(200);
+  const rows = (data ?? []) as ItemRow[];
+  const who = await people(ctx.admin, [personId]);
+  return rows.map(r => toCard(r, who));
+}
+
+/** IT → Staff member: tickets the person sent (newest first, at most 50). */
+export async function loadPersonTickets(ctx: ItContext, personId: string): Promise<{ id: string; subject: string; priority: TicketPriority; status: 'active' | 'closed'; categoryLabel: string; categoryTone: 'success' | 'teal' | 'neutral'; createdAt: string }[]> {
+  const { data } = await ctx.admin.from('it_tickets').select('id, subject, category, priority, status, created_at')
+    .eq('requester_id', personId).order('created_at', { ascending: false }).limit(50);
+  return ((data ?? []) as Pick<TicketRow, 'id' | 'subject' | 'category' | 'priority' | 'status' | 'created_at'>[]).map(r => ({
+    id: r.id, subject: r.subject, priority: r.priority,
+    status: r.status === 'open' ? 'active' as const : 'closed' as const,
+    categoryLabel: TICKET_CATEGORY_LABEL[r.category] ?? r.category,
+    categoryTone: ticketCategoryTone(r.category),
+    createdAt: r.created_at,
+  }));
+}
