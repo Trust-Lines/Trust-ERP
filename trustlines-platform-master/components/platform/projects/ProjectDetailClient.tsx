@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, Copy, FolderInput, Trash } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Copy, FolderInput, Trash } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -442,6 +442,15 @@ export function ProjectDetailClient({
           <Link href={`/projects/${project.id}`} aria-current="page" className="text-ui-body no-underline hover:underline">#{project.code}</Link>
         </nav>
 
+        {/* Figma 1029:29266: small outlined Back above the heading, in the heading's colour. */}
+        <Link
+          href="/projects"
+          className="inline-flex h-7 w-fit items-center gap-1 rounded-[4px] border border-solid pl-[13px] pr-4 text-[13px] font-semibold no-underline hover:opacity-80"
+          style={{ borderColor: 'var(--status-t4-fg)', color: 'var(--status-t4-fg)' }}
+        >
+          <ArrowLeft aria-hidden className="size-3.5" /> Back
+        </Link>
+
         {!hidePhaseRail && <PhaseRail currentPhase={project.current_phase} />}
 
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -474,7 +483,6 @@ export function ProjectDetailClient({
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-2.5">
-            <Link href="/projects" className={BTN_OUTLINE}>← Back</Link>
             <Link href={`/projects/${project.id}/handover`} className={BTN_OUTLINE}>Handover</Link>
             <Link href={`/projects/${project.id}/finalization`} className={BTN_OUTLINE}>Finalization</Link>
             <Link href={`/projects/${project.id}/delivery`} className={BTN_OUTLINE}>Delivery</Link>

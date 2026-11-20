@@ -344,6 +344,8 @@
   /* Figma Process A0 W / A0 L (1025:13854): won project rows, overdue due-date box */
   --process-a0w-fg: #559977; --process-a0w-bg: #ECFFF6;
   --process-a0l-fg: #995561; --process-a0l-bg: #FFECEF;
+  /* Figma Process C4 (1029:28628): Phase 4 Delivery bar */
+  --process-c4-fg: #332C0B; --process-c4-bg: #D0C799;
 
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -625,6 +627,7 @@
   --process-a3-fg: #ECF9FF; --process-a3-bg: #558299;
   --process-a0w-fg: #ECFFF6; --process-a0w-bg: #559977;
   --process-a0l-fg: #FFECEF; --process-a0l-bg: #995561;
+  --process-c4-fg: #D0C799; --process-c4-bg: #332C0B;
 
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
