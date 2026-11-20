@@ -12,7 +12,11 @@ import type { BoardCardItem, BoardColumn, BoardSection } from './BranchBoard';
 /** People-filter value for cards with nobody assigned. */
 export const NOBODY = '__nobody';
 
-export const DATE_INPUT = 'h-9 w-[148px] rounded-[6px] border border-ui-divider bg-ui-input-bg py-0 pl-9 pr-2 text-[13px] font-medium text-ui-body outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring [&::-webkit-calendar-picker-indicator]:opacity-0';
+export const DATE_INPUT = 'h-9 w-[148px] cursor-pointer rounded-[6px] border border-ui-divider bg-ui-input-bg py-0 pl-9 pr-2 text-[13px] font-medium text-ui-body outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring [&::-webkit-calendar-picker-indicator]:opacity-0';
+/** The browser's own calendar button is hidden (DATE_INPUT): a click anywhere on the field opens it. */
+export function openPicker(e: React.MouseEvent<HTMLInputElement>) {
+  try { e.currentTarget.showPicker?.(); } catch { /* not allowed here (e.g. cross-origin frame) — typing still works */ }
+}
 export const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 // Figma "Page heading" (node 376:31511).
@@ -142,14 +146,14 @@ export function DateFilters({ from, to, stage, stageOptions, onFrom, onTo, onSta
         From
         <span className="relative">
           <CalendarDays size={16} strokeWidth={1.5} aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-ui-body" />
-          <input type="date" value={from} onChange={e => onFrom(e.target.value)} className={DATE_INPUT} />
+          <input type="date" value={from} onChange={e => onFrom(e.target.value)} onClick={openPicker} className={DATE_INPUT} />
         </span>
       </label>
       <label className={labelCls}>
         To
         <span className="relative">
           <CalendarDays size={16} strokeWidth={1.5} aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-ui-body" />
-          <input type="date" value={to} onChange={e => onTo(e.target.value)} className={DATE_INPUT} />
+          <input type="date" value={to} onChange={e => onTo(e.target.value)} onClick={openPicker} className={DATE_INPUT} />
         </span>
       </label>
       <FilterSelect
