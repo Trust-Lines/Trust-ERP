@@ -341,6 +341,9 @@
   --process-a1-fg: #995599; --process-a1-bg: #FFECFF;
   --process-a2-fg: #615599; --process-a2-bg: #EFECFF;
   --process-a3-fg: #558299; --process-a3-bg: #ECF9FF;
+  /* Figma Process A0 W / A0 L (1025:13854): won project rows, overdue due-date box */
+  --process-a0w-fg: #559977; --process-a0w-bg: #ECFFF6;
+  --process-a0l-fg: #995561; --process-a0l-bg: #FFECEF;
   /* Figma "Process" C2–C5: tinted KPI cards (Email Campaigns 990:15405) */
   --process-c2-fg: #330B33; --process-c2-bg: #D099D0;
   --process-c3-fg: #0B2633; --process-c3-bg: #99BED0;
@@ -625,6 +628,8 @@
   --process-a1-fg: #FFECFF; --process-a1-bg: #995599;
   --process-a2-fg: #EFECFF; --process-a2-bg: #615599;
   --process-a3-fg: #ECF9FF; --process-a3-bg: #558299;
+  --process-a0w-fg: #ECFFF6; --process-a0w-bg: #559977;
+  --process-a0l-fg: #FFECEF; --process-a0l-bg: #995561;
   --process-c2-fg: #D099D0; --process-c2-bg: #330B33;
   --process-c3-fg: #99BED0; --process-c3-bg: #0B2633;
   --process-c4-fg: #D0C799; --process-c4-bg: #332C0B;
