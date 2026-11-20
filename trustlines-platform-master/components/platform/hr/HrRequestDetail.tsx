@@ -7,25 +7,28 @@ import { CalendarDays, Check, Download, ExternalLink, FileText, Paperclip, X } f
 import { PersonFace } from '@/components/ui/avatar-directory';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
-import type { HrRequest, HrRequestFile, HrRequestStatus } from './types';
-import { PRIORITY, REASON, STATUS, initials, longDay, requestDays, shortDay } from './requestStyles';
+import type { HrRequestFile, HrRequestStatus, HrSavedRequest } from './types';
+import { PRIORITY, PUNCH_LABEL, REASON, STATUS, initials, longDay, requestDays, shortDay } from './requestStyles';
 import { HEADING } from '@/components/platform/shared/panelStyles';
 
 // Figma "Requests" → request detail (node 565:17594): the request on the left with Reject /
 // Approve and a decision note, the person and their leave numbers on the right, then the files
-// that came with it. Deciding needs a choice first, then the note is saved with it.
+// that came with it. Deciding needs a choice first, then the note is saved with it. Only someone
+// who manages the requester decides; the requester can cancel while it's pending.
 
 const NO_DATA = '—';
 
 export interface HrRequestDetailProps {
-  request: HrRequest | null;
+  request: HrSavedRequest | null;
   onOpenChange: (open: boolean) => void;
-  /** Approved vacation days of this person among the known requests. */
+  /** Approved vacation days of this person this year, among the loaded requests. */
   vacationDaysUsed: number;
-  onDecide: (id: string, status: Exclude<HrRequestStatus, 'pending'>, note: string | null) => void;
+  /** Resolves true when saved. */
+  onDecide: (id: string, status: Exclude<HrRequestStatus, 'pending'>, note: string | null) => Promise<boolean>;
+  onCancel: (id: string) => Promise<boolean>;
 }
 
-export function HrRequestDetail({ request, onOpenChange, vacationDaysUsed, onDecide }: HrRequestDetailProps) {
+export function HrRequestDetail({ request, onOpenChange, vacationDaysUsed, onDecide, onCancel }: HrRequestDetailProps) {
   return (
     <DialogPrimitive.Root open={!!request} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
@@ -33,25 +36,31 @@ export function HrRequestDetail({ request, onOpenChange, vacationDaysUsed, onDec
         <DialogPrimitive.Popup
           className="fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[1268px] -translate-x-1/2 -translate-y-1/2 flex-col gap-6 overflow-y-auto rounded-[11px] bg-ui-page-bg p-5 font-ui text-ui-body shadow-04 outline-none transition-[scale,opacity] duration-150 data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0 sm:p-8"
         >
-          {request && <Body key={request.id} request={request} vacationDaysUsed={vacationDaysUsed} onDecide={onDecide} />}
+          {request && <Body key={request.id + request.status} request={request} vacationDaysUsed={vacationDaysUsed} onDecide={onDecide} onCancel={onCancel} />}
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   );
 }
 
-function Body({ request: r, vacationDaysUsed, onDecide }: { request: HrRequest; vacationDaysUsed: number; onDecide: HrRequestDetailProps['onDecide'] }) {
+function Body({ request: r, vacationDaysUsed, onDecide, onCancel }: {
+  request: HrSavedRequest; vacationDaysUsed: number; onDecide: HrRequestDetailProps['onDecide']; onCancel: HrRequestDetailProps['onCancel'];
+}) {
   const reason = REASON[r.reason];
   const priority = PRIORITY[r.priority];
   const ReasonIcon = reason.icon;
   const days = requestDays(r);
   const decided = r.status !== 'pending';
-  const [choice, setChoice] = useState<Exclude<HrRequestStatus, 'pending'> | null>(decided ? r.status as Exclude<HrRequestStatus, 'pending'> : null);
+  const outcome = r.status === 'approved' || r.status === 'rejected' ? r.status : null;
+  const [choice, setChoice] = useState<Exclude<HrRequestStatus, 'pending'> | null>(outcome);
   const [note, setNote] = useState(r.decisionNote ?? '');
+  const [busy, setBusy] = useState(false);
+  const deciding = r.canDecide && !decided;
+  const run = async (f: () => Promise<boolean>) => { setBusy(true); const ok = await f(); if (!ok) setBusy(false); };
   const noteId = useId();
   // Figma 570:19513: a rejection needs a reason ("Notes*"); an approval note is optional.
   const noteRequired = choice === 'rejected' && !decided;
-  const canSubmit = !!choice && !decided && (!noteRequired || note.trim().length > 0);
+  const canSubmit = deciding && !busy && !!choice && (!noteRequired || note.trim().length > 0);
 
   return (
     <>
@@ -67,9 +76,9 @@ function Body({ request: r, vacationDaysUsed, onDecide }: { request: HrRequest; 
               <ReasonIcon size={16} aria-hidden /> {reason.label}
             </span>
             <span className="rounded-[4px] px-2.5 py-0.5 text-[16px] font-medium leading-[1.4]" style={{ background: priority.bg, color: priority.fg }}>{priority.label}</span>
-            {decided && (
-              <span className="rounded-[4px] px-2.5 py-0.5 text-[16px] font-medium leading-[1.4]" style={{ background: STATUS[r.status as 'approved'].bg, color: STATUS[r.status as 'approved'].fg }}>
-                {STATUS[r.status as 'approved' | 'rejected'].label}
+            {r.status !== 'pending' && (
+              <span className="rounded-[4px] px-2.5 py-0.5 text-[16px] font-medium leading-[1.4]" style={{ background: STATUS[r.status].bg, color: STATUS[r.status].fg }}>
+                {STATUS[r.status].label}
               </span>
             )}
           </div>
@@ -88,13 +97,34 @@ function Body({ request: r, vacationDaysUsed, onDecide }: { request: HrRequest; 
               <DayBox label="To:" iso={r.endDate} />
             </div>
             <div className="flex flex-col gap-2 rounded-[8px] px-4 py-6 leading-[1.45]" style={{ background: reason.bg, color: reason.fg }}>
-              <div className="flex flex-col gap-1 font-semibold">
-                <p className="m-0 text-[16px]">{reason.label} ({days} Day{days === 1 ? '' : 's'})</p>
-                <p className="m-0 text-[13px]">{days === 1 ? `On ${longDay(r.date)}` : `From ${longDay(r.date)} - ${longDay(r.endDate)}`}</p>
-              </div>
+              {r.correction ? (
+                <div className="flex flex-col gap-1 font-semibold">
+                  <p className="m-0 text-[16px]">{PUNCH_LABEL[r.correction.kind]}</p>
+                  <p className="m-0 text-[13px]">{new Date(r.correction.at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1 font-semibold">
+                  <p className="m-0 text-[16px]">{reason.label} ({days} Day{days === 1 ? '' : 's'})</p>
+                  <p className="m-0 text-[13px]">{days === 1 ? `On ${longDay(r.date)}` : `From ${longDay(r.date)} - ${longDay(r.endDate)}`}</p>
+                </div>
+              )}
               {r.description && <p className="m-0 whitespace-pre-line text-[12px]">{r.description}</p>}
             </div>
-            {choice ? (
+            {!deciding && !outcome ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex h-10 items-center justify-center rounded-[6px] bg-ui-surface text-[13px] font-medium text-ui-body">
+                  {r.status === 'cancelled' ? 'Cancelled by the requester' : 'Waiting for a decision'}
+                </div>
+                {r.mine && r.status === 'pending' && (
+                  <button
+                    type="button" disabled={busy} onClick={() => void run(() => onCancel(r.id))}
+                    className="h-10 w-full cursor-pointer rounded-[6px] border border-ui-divider bg-transparent text-[13px] font-medium text-ui-heading hover:bg-ui-hover-bg disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {busy ? 'Cancelling…' : 'Cancel request'}
+                  </button>
+                )}
+              </div>
+            ) : choice ? (
               // Figma 570:18241: once chosen, the two actions become the outcome bar. Before the
               // decision is signed, clicking it goes back to Reject / Approve.
               <button
@@ -114,8 +144,8 @@ function Body({ request: r, vacationDaysUsed, onDecide }: { request: HrRequest; 
             )}
           </div>
 
-          <form
-            onSubmit={e => { e.preventDefault(); if (canSubmit && choice) onDecide(r.id, choice, note.trim() || null); }}
+          {(deciding || outcome) && <form
+            onSubmit={e => { e.preventDefault(); if (canSubmit && choice) void run(() => onDecide(r.id, choice, note.trim() || null)); }}
             className="flex flex-col gap-4 rounded-[10px] border border-ui-divider bg-ui-page-bg p-6"
           >
             <label htmlFor={noteId} className={cn('text-[12px] font-medium leading-4', choice ? 'text-ui-body' : 'text-[var(--status-t0-bg)] dark:text-grey-700')}>
@@ -123,24 +153,24 @@ function Body({ request: r, vacationDaysUsed, onDecide }: { request: HrRequest; 
             </label>
             <textarea
               id={noteId} value={note} onChange={e => setNote(e.target.value)}
-              disabled={!choice || decided} required={noteRequired} aria-required={noteRequired || undefined}
-              placeholder={noteRequired ? 'Why is it rejected?' : 'type..'}
+              disabled={!choice || decided || busy} required={noteRequired} aria-required={noteRequired || undefined}
+              placeholder={decided ? 'No notes' : noteRequired ? 'Why is it rejected?' : 'type..'}
               className="h-[180px] w-full resize-none rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg p-3 text-[13px] leading-[1.5] text-ui-heading outline-none placeholder:text-primary-300 dark:placeholder:text-primary-400 disabled:placeholder:text-[var(--status-t0-bg)] dark:disabled:placeholder:text-grey-700 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring disabled:cursor-not-allowed disabled:border-[var(--status-t0-bg)] disabled:bg-ui-page-bg dark:disabled:border-grey-700"
             />
             <button
-              type="submit" disabled={!choice || decided}
+              type="submit" disabled={!canSubmit}
               className={cn(
                 'h-10 w-full rounded-[6px] border-0 px-6 text-[13px] font-medium transition-opacity',
-                !choice || decided
+                !canSubmit
                   ? 'cursor-not-allowed bg-[var(--status-t0-bg)] text-[var(--status-t0-fg)] dark:bg-grey-700'
                   : 'cursor-pointer bg-[var(--color-secondary-700)] text-white hover:opacity-90 dark:bg-primary-50 dark:text-primary-950',
               )}
             >
-              {decided
-                ? `${STATUS[r.status as 'approved' | 'rejected'].label}${r.decidedAt ? ` · ${new Date(r.decidedAt).toLocaleDateString('en-US')}` : ''}`
-                : choice ? 'Sign and Submit' : 'Reject or approve first'}
+              {outcome
+                ? `${STATUS[outcome].label}${r.decidedByName ? ` by ${r.decidedByName}` : ''}${r.decidedAt ? ` · ${new Date(r.decidedAt).toLocaleDateString('en-US')}` : ''}`
+                : busy ? 'Submitting…' : choice ? 'Sign and Submit' : 'Reject or approve first'}
             </button>
-          </form>
+          </form>}
         </div>
 
         {/* ── Person + files ── */}
@@ -166,7 +196,7 @@ function Body({ request: r, vacationDaysUsed, onDecide }: { request: HrRequest; 
               )}
             </div>
             <dl className="m-0 grid grid-cols-2 gap-x-2 gap-y-8 sm:grid-cols-3">
-              <Stat label="Vacation days Used" value={`${vacationDaysUsed} Day${vacationDaysUsed === 1 ? '' : 's'} Used`} />
+              <Stat label={`Vacation used ${r.date.slice(0, 4)}`} value={`${vacationDaysUsed} Day${vacationDaysUsed === 1 ? '' : 's'} Used`} />
               <Stat label="Vacation days Left" value={NO_DATA} />
               <Stat label="Extra Work Hours" value={NO_DATA} />
               <Stat label="Joined Date" value={r.joinedAt ? new Date(r.joinedAt).toLocaleDateString('en-US') : NO_DATA} />

@@ -1,6 +1,6 @@
 'use client';
 
-// Branch board toolbar controls: date presets and range filters, the stages/accounts view toggle,
+// Branch board toolbar controls: the From / To + step filter, the stages/accounts view toggle,
 // the Gantt toggle, the regions/PM columns toggle, plus grouping cards into per-PM columns.
 
 import * as React from 'react';
@@ -12,18 +12,12 @@ import type { BoardCardItem, BoardColumn, BoardSection } from './BranchBoard';
 /** People-filter value for cards with nobody assigned. */
 export const NOBODY = '__nobody';
 
-export type Preset = '' | 'week' | 'month';
-export const PRESETS = [{ value: '', label: 'All dates' }, { value: 'week', label: 'This week' }, { value: 'month', label: 'This month' }];
-export const DATE_INPUT = 'h-9 w-[124px] rounded-[6px] border border-ui-divider bg-ui-input-bg py-0 pl-9 pr-2 text-[13px] font-medium text-ui-body outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring [&::-webkit-calendar-picker-indicator]:opacity-0';
-export const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-export function presetRange(p: Preset): [string, string] {
-  if (!p) return ['', ''];
-  const now = new Date();
-  if (p === 'month') return [iso(new Date(now.getFullYear(), now.getMonth(), 1)), iso(new Date(now.getFullYear(), now.getMonth() + 1, 0))];
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
-  return [iso(start), iso(new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6))];
+export const DATE_INPUT = 'h-9 w-[148px] cursor-pointer rounded-[6px] border border-ui-divider bg-ui-input-bg py-0 pl-9 pr-2 text-[13px] font-medium text-ui-body outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring [&::-webkit-calendar-picker-indicator]:opacity-0';
+/** The browser's own calendar button is hidden (DATE_INPUT): a click anywhere on the field opens it. */
+export function openPicker(e: React.MouseEvent<HTMLInputElement>) {
+  try { e.currentTarget.showPicker?.(); } catch { /* not allowed here (e.g. cross-origin frame) — typing still works */ }
 }
+export const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 // Figma "Page heading" (node 376:31511).
 export type BoardView = 'stages' | 'accounts';
@@ -125,10 +119,16 @@ export function pmColumns(columns: BoardColumn[], pmOf: (i: BoardCardItem) => st
   }));
 }
 
-/** The board's date filter (From / To / preset), shown in the filter bar above the columns. */
-export function DateFilters({ from, to, preset, onFrom, onTo, onPreset, stacked = false }: {
-  from: string; to: string; preset: Preset;
-  onFrom: (v: string) => void; onTo: (v: string) => void; onPreset: (p: Preset) => void;
+/**
+ * The board's From / To + step filter. No step: cards whose own date falls in the range. A step:
+ * only that step, with every card that was in it on some day of the range (daily stage history,
+ * lib/board/stageHistory) — a timeline of the step, not only today's cards.
+ */
+export function DateFilters({ from, to, stage, stageOptions, onFrom, onTo, onStage, stacked = false }: {
+  from: string; to: string; stage: string;
+  /** The board's steps ('' = All stages first). */
+  stageOptions: { value: string; label: string }[];
+  onFrom: (v: string) => void; onTo: (v: string) => void; onStage: (v: string) => void;
   /** Figma "Date range" (767:13865): the From / To labels sit above their fields. */
   stacked?: boolean;
 }) {
@@ -138,24 +138,26 @@ export function DateFilters({ from, to, preset, onFrom, onTo, onPreset, stacked 
   return (
     <div
       className={stacked ? 'flex flex-wrap items-end gap-3' : 'flex flex-wrap items-center gap-2.5'}
-      title="Project cards: delivery date. Opportunity cards: date it became an opportunity (ClickUp creation date). Cards with no date are hidden while a filter is set."
+      title={stage
+        ? 'Cards that were in this step on any day between From and To (recorded daily from 157 on; before that, the card’s own date).'
+        : 'Project cards: delivery date. Opportunity cards: date it became an opportunity (ClickUp creation date). Cards with no date are hidden while a filter is set.'}
     >
       <label className={labelCls}>
         From
         <span className="relative">
           <CalendarDays size={16} strokeWidth={1.5} aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-ui-body" />
-          <input type="date" value={from} onChange={e => onFrom(e.target.value)} className={DATE_INPUT} />
+          <input type="date" value={from} onChange={e => onFrom(e.target.value)} onClick={openPicker} className={DATE_INPUT} />
         </span>
       </label>
       <label className={labelCls}>
         To
         <span className="relative">
           <CalendarDays size={16} strokeWidth={1.5} aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-ui-body" />
-          <input type="date" value={to} onChange={e => onTo(e.target.value)} className={DATE_INPUT} />
+          <input type="date" value={to} onChange={e => onTo(e.target.value)} onClick={openPicker} className={DATE_INPUT} />
         </span>
       </label>
       <FilterSelect
-        aria-label="Date range" value={preset} options={PRESETS} onValueChange={v => onPreset((v ?? '') as Preset)}
+        aria-label="Step" value={stage} options={stageOptions} onValueChange={v => onStage(v ?? '')}
         className={`h-9 w-auto rounded-[6px] bg-ui-input-bg text-[13px] font-medium text-ui-body dark:rounded-[6px] dark:bg-ui-input-bg ${stacked ? 'border-ui-divider dark:border-ui-divider' : 'border-[var(--ui-input-border)] dark:border-[var(--ui-input-border)]'}`}
       />
     </div>

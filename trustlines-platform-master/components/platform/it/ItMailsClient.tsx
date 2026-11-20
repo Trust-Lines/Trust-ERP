@@ -7,6 +7,7 @@ import { PersonFace } from '@/components/ui/avatar-directory';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { TOOLBAR_SELECT, TOOLBAR_SORT_ICON } from './ticketStyles';
+import { PurelymailMailboxes } from './PurelymailMailboxes';
 import { CARD, CardHead, FIELD, MUTED, SORT_OPTIONS, SecretField, initials, tabClass } from './itCardParts';
 
 // Figma "IT / Mails" (879:12933): company mailboxes, one card each — owner photo, name, address,
@@ -50,8 +51,10 @@ function MailCard({ account, showInfo, onRevealPassword }: {
   );
 }
 
-export function ItMailsClient({ accounts, error = null, canCreate = false, onRevealPassword }: {
+export function ItMailsClient({ accounts, error = null, canCreate = false, canEditMailboxes = false, onRevealPassword }: {
   accounts: ItMailAccount[];
+  /** edit.it: open Purelymail mailboxes and change their passwords. */
+  canEditMailboxes?: boolean;
   error?: string | null;
   canCreate?: boolean;
   onRevealPassword?: (id: string) => Promise<string>;
@@ -61,6 +64,8 @@ export function ItMailsClient({ accounts, error = null, canCreate = false, onRev
   const [sort, setSort] = useState<Sort>('newest');
   const [owner, setOwner] = useState('');
   const [showInfo, setShowInfo] = useState(false);
+  // 'New Email' opens Purelymail's New mailbox (below) — bumping this asks it to.
+  const [newMailbox, setNewMailbox] = useState(0);
 
   const activeCount = useMemo(() => accounts.filter(a => a.active).length, [accounts]);
   const ownerOptions = useMemo(() => {
@@ -96,8 +101,12 @@ export function ItMailsClient({ accounts, error = null, canCreate = false, onRev
         actions={
           <button
             type="button"
-            disabled={!canCreate}
-            title={canCreate ? undefined : NOT_CONNECTED}
+            disabled={!canCreate && !canEditMailboxes}
+            onClick={() => {
+              setNewMailbox(n => n + 1);
+              document.getElementById('purelymail-heading')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            title={canCreate || canEditMailboxes ? undefined : 'Opening mailboxes needs IT edit rights'}
             className="flex h-9 items-center gap-2 rounded-md bg-accent-400 px-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:text-primary-950"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
@@ -181,6 +190,9 @@ export function ItMailsClient({ accounts, error = null, canCreate = false, onRev
           ))}
         </ul>
       )}
+
+      {/* Purelymail (step 1): the mail host's own mailbox list, live, beside the records above. */}
+      <PurelymailMailboxes canEdit={canEditMailboxes} openNew={newMailbox} />
     </div>
   );
 }

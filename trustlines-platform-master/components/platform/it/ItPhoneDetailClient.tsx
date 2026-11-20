@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState, type ComponentType, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { ArrowLeft, CalendarPlus, Copy, Lock, Mail, MapPin, Pencil, Phone, Smartphone, Trash2 } from 'lucide-react';
@@ -10,14 +11,17 @@ import { cn } from '@/lib/utils';
 import { formatTicketDate } from './ticketStyles';
 import { MUTED, OUTLINE_CHIP, SOLID_CHIP, STRONG } from './itemStyles';
 import { copyText, initials } from './itCardParts';
+import { ConfirmModal } from '@/components/ui/modal';
+import { roleLabel } from '@/components/platform/shell/Sidebar';
+import { ItPhoneFormDialog, type ItPhoneFormValues } from './ItPhoneFormDialog';
 
 // Figma "Phone Numbers detail" (966:40115): Back, the number as the title, Delete / Edit Info; Basic
 // Info (number, firm, mail, password, PIN, IMEI, start date, account number, location, added date, notes) on the
 // left; who holds the line and the device it runs on on the right.
 //
 // Secrets (password, PIN, account number) are never part of the line: they are fetched one at a
-// time through `onRevealSecret` (authorised and audited) when copied or shown. Until a data source
-// exists, those controls and Delete / Edit Info are disabled.
+// time from /api/it/phones/[id]/secret (edit.it, audited) when copied or shown. Delete / Edit Info
+// need edit.it too.
 
 export type ItPhoneSecret = 'password' | 'pin' | 'accountNumber';
 
@@ -41,7 +45,7 @@ export interface ItPhoneDetail {
 
 type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
 
-const NOT_CONNECTED = 'Not available yet: the phone numbers data source is not connected';
+const NOT_CONNECTED = 'Needs IT edit rights';
 const MASK = '••••••••';
 const PANEL = 'rounded-lg border border-solid border-primary-100 bg-primary-50 dark:border-primary-600 dark:bg-primary-700';
 const BOX = cn(
@@ -123,10 +127,25 @@ function SecretField({ label, icon, kind, lineId, onReveal }: {
   );
 }
 
-export function ItPhoneDetailClient({ line, onRevealSecret }: {
+async function revealSecret(id: string, kind: ItPhoneSecret): Promise<string> {
+  const res = await fetch(`/api/it/phones/${id}/secret?kind=${kind}`, { cache: 'no-store' });
+  const b = await res.json().catch(() => null) as { value?: string; error?: string } | null;
+  if (!res.ok || typeof b?.value !== 'string') throw new Error(b?.error ?? 'Could not load');
+  return b.value;
+}
+
+export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, people = [] }: {
   line: ItPhoneDetail | null;
-  onRevealSecret?: (id: string, kind: ItPhoneSecret) => Promise<string>;
+  /** edit.it: Edit Info, Delete, reveal secrets. */
+  canEdit?: boolean;
+  /** The line as the edit form needs it. */
+  editValues?: ItPhoneFormValues | null;
+  people?: { id: string; name: string }[];
 }) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const onRevealSecret = canEdit && line ? revealSecret : undefined;
   const holder = line?.holder ?? null;
   const device = line?.device ?? null;
 
@@ -148,8 +167,9 @@ export function ItPhoneDetailClient({ line, onRevealSecret }: {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              disabled
-              title={NOT_CONNECTED}
+              disabled={!canEdit || !line}
+              onClick={() => setDeleting(true)}
+              title={canEdit ? undefined : NOT_CONNECTED}
               className={cn('flex h-10 items-center gap-2 rounded-md border border-solid pl-3.5 pr-5 text-[13px] font-medium', DISABLED)}
               style={{ background: 'var(--status-t10-bg)', borderColor: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' }}
             >
@@ -158,8 +178,9 @@ export function ItPhoneDetailClient({ line, onRevealSecret }: {
             </button>
             <button
               type="button"
-              disabled
-              title={NOT_CONNECTED}
+              disabled={!canEdit || !editValues}
+              onClick={() => setEditing(true)}
+              title={canEdit ? undefined : NOT_CONNECTED}
               className={cn('flex h-10 items-center gap-2 rounded-md pl-3.5 pr-5 text-[13px] font-medium', SOLID_CHIP, DISABLED)}
             >
               <Pencil className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
@@ -206,7 +227,7 @@ export function ItPhoneDetailClient({ line, onRevealSecret }: {
             <div className="flex min-h-[78px] min-w-0 flex-1 flex-col justify-between gap-2 self-stretch p-1">
               <div className="flex flex-col">
                 <p className="m-0 truncate text-[24px] font-semibold leading-normal">{holder?.name ?? 'Not assigned'}</p>
-                <p className="m-0 text-[12px] font-medium leading-[1.35]">{holder?.role ?? (line ? 'Available' : '—')}</p>
+                <p className="m-0 text-[12px] font-medium leading-[1.35]">{holder ? (holder.role ? roleLabel(holder.role) : '—') : line ? 'Available' : '—'}</p>
               </div>
               {holder && (
                 <p className="m-0 text-[11px] leading-[1.35]">
@@ -237,6 +258,24 @@ export function ItPhoneDetailClient({ line, onRevealSecret }: {
           </div>
         </aside>
       </div>
+
+      {editing && editValues && (
+        <ItPhoneFormDialog initial={editValues} people={people} onClose={() => setEditing(false)}
+          onSaved={() => { setEditing(false); router.refresh(); }} />
+      )}
+      <ConfirmModal
+        open={deleting} onOpenChange={setDeleting} tone="destructive" confirmLabel="Delete number"
+        title={`Delete ${line?.number ?? 'this number'}?`}
+        warning="The line and its saved account details are removed from the IT list. To keep it on record, mark it Retired in Edit Info instead."
+        onConfirm={async () => {
+          if (!line) return;
+          const res = await fetch(`/api/it/phones/${line.id}`, { method: 'DELETE' });
+          if (!res.ok) { toast.error(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? 'Could not delete'); throw new Error('kept'); }
+          toast.success('Number deleted');
+          router.push('/it/phones');
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

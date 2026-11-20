@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { ownProjectsOnly } from '@/lib/permissions/ownProjects';
 import { ProjectFinanceClient } from '@/components/platform/projects/ProjectFinanceClient';
 import { PROJECT_FINANCE_READ_ROLES, buildProjectFinance } from '@/lib/finance/projectTotals';
 import type { UserRole } from '@/types/database';
@@ -20,7 +21,7 @@ export default async function ProjectFinancePage({ params }: { params: Promise<{
   const admin = createAdminClient() as any;
   const { data: project } = await admin.from('projects').select('id, code, name, current_stage, tlines_pm_id').eq('id', id).maybeSingle();
   if (!project) notFound();
-  if (role === 'tlines_pm' && project.tlines_pm_id !== user.id) redirect('/projects');
+  if (project.tlines_pm_id !== user.id && await ownProjectsOnly(role, user.id)) redirect('/projects');
 
   const [piRes, invRes, payRes, expRes] = await Promise.all([
     admin.from('production_items').select('pf_usd, pf_tl, invoice, invoice_tl, expenses_usd, expenses_tl').eq('project_id', id).is('deleted_at', null),

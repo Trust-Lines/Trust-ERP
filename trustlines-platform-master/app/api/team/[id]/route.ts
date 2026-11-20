@@ -25,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = await req.json() as {
     full_name?: string; role?: UserRole; is_active?: boolean;
-    pm_client_id?: string | null; is_pm_supervisor?: boolean; office?: string | null;
+    pm_client_id?: string | null; is_pm_supervisor?: boolean; sees_all_projects?: boolean; office?: string | null;
     company_side?: string | null; department?: string | null; skills?: unknown;
     manager_id?: string | null; region_ids?: unknown; service_line_ids?: unknown;
     assigned_regions?: unknown;
@@ -97,6 +97,26 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (body.is_pm_supervisor !== undefined) pmPatch.is_pm_supervisor = body.is_pm_supervisor;
     const { error: pmErr } = await admin.from('profiles').update(pmPatch).eq('id', id);
     if (pmErr && !/column|schema cache/i.test(pmErr.message ?? '')) console.error('[team.patch] pm scope:', pmErr.message);
+  }
+
+  // "Sees every T-Lines project" (migration 156): lifts a tlines_pm's own-projects-only rule.
+  if (typeof body.sees_all_projects === 'boolean') {
+    const { data: prev } = await admin.from('profiles').select('sees_all_projects').eq('id', id).maybeSingle();
+    const { error: seeErr } = await admin.from('profiles').update({ sees_all_projects: body.sees_all_projects }).eq('id', id);
+    if (seeErr) {
+      const missing = /column|schema cache/i.test(seeErr.message ?? '');
+      return NextResponse.json({
+        error: missing
+          ? 'Saved, except "Sees every T-Lines project" — run migration 156_tlines_pm_sees_all_projects.sql in Supabase first.'
+          : 'Saved, except "Sees every T-Lines project". Try again.',
+      }, { status: missing ? 503 : 500 });
+    }
+    if (prev && prev.sees_all_projects !== body.sees_all_projects) {
+      await logAudit({
+        actorId: guard.callerId, action: 'team.sees_all_projects', resource: `profile:${id}`,
+        oldValue: { sees_all_projects: prev.sees_all_projects }, newValue: { sees_all_projects: body.sees_all_projects },
+      });
+    }
   }
 
   return NextResponse.json({ success: true });

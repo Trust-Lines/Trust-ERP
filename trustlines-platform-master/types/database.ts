@@ -110,6 +110,8 @@ export interface Profile {
   department: Department | null;
   skills: Skill[];
   manager_id: string | null;
+  /** tlines_pm: sees every project, not only their own (migration 156). */
+  sees_all_projects?: boolean;
   region_ids: string[];
   service_line_ids: string[];
 }

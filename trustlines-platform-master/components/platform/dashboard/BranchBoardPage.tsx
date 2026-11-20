@@ -22,8 +22,6 @@ import { tableMissing } from '@/lib/installations/access';
 import type { InstallTeam, Installation } from '@/lib/installations/compute';
 import { DailyOverview, TopSummaryRow, type ApprovalSummaryItem, type KpiItem } from '@/components/platform/dashboard/TopSummaryRow';
 import { StatTile } from '@/components/platform/dashboard/StatTile';
-import { PaymentsTile } from '@/components/platform/dashboard/PaymentsTile';
-import { SUPPLIER_READ_ROLES } from '@/lib/suppliers/config';
 import { getRolePermissions } from '@/lib/permissions/server';
 import { pageAllowed } from '@/lib/permissions/catalog';
 import { defaultCompanySideForRole } from '@/lib/profile/metadata';
@@ -34,6 +32,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { isoDateToUS as fmtDate } from '@/lib/formatters';
+import { ownProjectsOnly, seesAllProjects } from '@/lib/permissions/ownProjects';
+import { isInstalling as installingOn, loadStageSpells } from '@/lib/board/stageHistory';
+import type { StageSpell } from '@/lib/board/stageSpell';
 
 // Shared by /tlines-pm (layout "board", the branch board as it always was) and /dashboard
 // (layout "dashboard", Figma TRUST-LINES ERP → "General Manager" node 767:13745): same data,
@@ -156,7 +157,8 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
     nextRedirect('/marketing');
   }
 
-  const assignedRegions = await getAssignedRegions(admin, user.id);
+  // A Coordinator (profiles.sees_all_projects) sees every region too, not only their assigned ones.
+  const assignedRegions = (await seesAllProjects(user.id)) ? [] : await getAssignedRegions(admin, user.id);
   const visibleRegions = REGIONS.filter(r => regionAllows(assignedRegions, r.code));
   const regionCodes = visibleRegions.map(r => r.code);
 
@@ -170,7 +172,9 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
     .is('deleted_at', null)
     .neq('is_archived', true)
     .eq('is_draft', false);
-  if (userRole === 'tlines_pm') projectQuery = projectQuery.eq('tlines_pm_id', user.id);
+  // "Sees every T-Lines project" (profiles.sees_all_projects, 156) lifts the own-only rule.
+  const ownOnly = await ownProjectsOnly(userRole, user.id);
+  if (ownOnly) projectQuery = projectQuery.eq('tlines_pm_id', user.id);
 
   // "Clients Opportunity" is not every deal: only the open Opportunities/Potentials of our key
   // clients (key_clients, migration 134 — lib/keyClients/server.ts). Trust follows those before
@@ -242,8 +246,13 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
   const [assignRows, { data: allUsers }] = await Promise.all([
     fetchInChunks(boardIds, chunk => admin.from('board_assignees').select('item_kind, item_id, stage, user_id').in('item_id', chunk))
       .catch(() => []),   // table not there yet (migration 137)
-    admin.from('profiles').select('id, full_name, role').eq('is_active', true).not('full_name', 'is', null).order('full_name', { ascending: true }),
-  ]) as [{ item_kind: string; item_id: string; stage: string; user_id: string }[], { data: { id: string; full_name: string; role: string | null }[] | null }];
+    admin.from('profiles').select('id, full_name, role, company_side').eq('is_active', true).not('full_name', 'is', null).order('full_name', { ascending: true }),
+  ]) as [{ item_kind: string; item_id: string; stage: string; user_id: string }[], { data: { id: string; full_name: string; role: string | null; company_side: string | null }[] | null }];
+  // Card task pick lists split by company side (Team → company side, else the role's default).
+  const boardUsers = (allUsers ?? []).map(u => ({
+    id: u.id, full_name: u.full_name, role: u.role,
+    side: ((u.company_side === 't_lines' || u.company_side === 'trust_lines') ? u.company_side : defaultCompanySideForRole(u.role)) as 't_lines' | 'trust_lines' | null,
+  }));
   const assigneeOf = new Map(assignRows.map(a => [`${a.item_kind}:${a.item_id}:${a.stage}`, a.user_id]));
   // The T-Lines PM looks after the card's account, not one stage: when the card has none set for
   // the stage it is in now, the one set in another stage stays, else our project's T-Lines PM
@@ -291,6 +300,12 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
     const c = p.service_line && SERVICE_LINE_VALUES.includes(p.service_line) ? p.service_line : serviceLineFromCode(p.code);
     if (no && c) companyByNo.set(no, c);
   }
+  // "Deal Closed" filter: the date our project's deal closed, for every card of that number.
+  const closedByNo = new Map<string, string>();
+  for (const pr of (projectRows ?? []) as { code: string; closed_deal_date: string | null }[]) {
+    const no = projectNumber(pr.code);
+    if (no && pr.closed_deal_date && !closedByNo.has(no)) closedByNo.set(no, pr.closed_deal_date.slice(0, 10));
+  }
   const trustToday = new Date().toISOString().slice(0, 10);
   const allTrustCards = trustProjects.map(p => {
     const e = classifyTrustProject(p, trustToday);
@@ -314,6 +329,7 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
       statuses: typeStatuses(p),
       projectNo: p.projectNo,
       trustItems: cardItems(p.items),
+      closedISO: closedByNo.get(projectNumber(p.projectNo) ?? '') ?? null,
     };
     return { region: p.bucket, stage: e.stage, item, createdAt: p.createdAt };
   });
@@ -333,7 +349,7 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
         canEdit={false}
         canCreateTask={false}
         trustError={trust.error}
-        users={allUsers ?? []}
+        users={boardUsers}
       meId={user.id}
         canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
         layout={layout}
@@ -392,9 +408,8 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
       if (a.stage.endsWith(':tlines_pm')) tlinesAnyStage.set(`${a.item_kind}:${a.item_id}`, a.user_id);
     }
   }
-  const INSTALLING = ['In Progress', 'Delayed', 'On Hold'];
-  const isInstalling = (i: InstallRow) => i.status !== 'Completed'
-    && (INSTALLING.includes(i.status ?? '') || (!!i.planned_start && i.planned_start <= trustToday));
+  // Same rule the daily stage history uses (lib/board/stageHistory).
+  const isInstalling = (i: InstallRow) => installingOn(i, trustToday);
   const COMPLETED_PER_COLUMN = 50;
 
   const pmIds = [...new Set([
@@ -451,6 +466,7 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
         statuses: o.stageLabel ? [o.stageLabel] : [],
         projectNo: o.projectNo,
         trustItems: o.projectNo ? trustByNo.get(o.projectNo) ?? null : null,
+        closedISO: closedByNo.get(projectNumber(o.projectNo) ?? '') ?? null,
       };
     };
     const opportunityItems = regionOpportunities.filter(o => o.isClient).map(toDealCard);
@@ -478,6 +494,7 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
         dateISO: date,
         dateLabel: fmtDate(date),
         href: `/projects/${p.id}`,
+        closedISO: p.closed_deal_date?.slice(0, 10) ?? null,
       };
     };
 
@@ -514,6 +531,7 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
         statuses: i.status ? [i.status] : [],
         projectNo: no,
         trustItems: trustByNo.get(no) ?? null,
+        closedISO: closedByNo.get(no) ?? null,
       };
     };
 
@@ -558,10 +576,19 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
 
   // A T-Lines PM sees only the cards they are the T-Lines PM of — every stage, installation and
   // completed included (they own the job end to end). Done here, on the server, not in the browser.
-  const columns = userRole !== 'tlines_pm' ? allColumns : allColumns.map(c => ({
+  const columns = !ownOnly ? allColumns : allColumns.map(c => ({
     ...c,
     sections: c.sections.map(s => ({ ...s, items: s.items.filter(i => (i.assign?.tlinesUserId ?? i.tlinesPmId ?? null) === user.id) })),
   }));
+
+  // Which step each card was in on past days (board_stage_spells, 157) — for the step + From / To
+  // filter. Only the cards on this viewer's board go to the browser.
+  const allSpells = await loadStageSpells(admin);
+  const stageSpells: Record<string, StageSpell[]> = {};
+  for (const c of columns) for (const sec of c.sections) for (const i of sec.items) {
+    const k = `${i.kind}:${i.id}`;
+    if (allSpells[k]) stageSpells[k] = allSpells[k];
+  }
 
   const { data: marketingAssignees } = await admin.from('profiles')
     .select('id, full_name')
@@ -639,13 +666,10 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
 
   // ── Dashboard layout: the project counts are counted in the board from the cards its filters
   // leave (BranchBoard COUNT_TILES). Only the one tile that isn't a card count comes from here:
-  // supplier payments for roles that may read vendor cost (SUPPLIER_READ_ROLES, as /api/suppliers),
-  // Pending Approvals for everyone else.
+  // Pending Approvals. No money on the dashboard, for anyone (payments live on /payments).
   let dashboardKpis: ReactNode;
   if (isDashboard) {
-    dashboardKpis = (SUPPLIER_READ_ROLES as readonly string[]).includes(userRole)
-      ? <PaymentsTile key="payments" compact {...TILE_TONES[4]} />
-      : <StatTile key="approvals" compact label="Pending Approvals" value={approvals.length} icon={<ClipboardPenLine strokeWidth={1.5} />} href="/approvals"
+    dashboardKpis = <StatTile key="approvals" compact label="Pending Approvals" value={approvals.length} icon={<ClipboardPenLine strokeWidth={1.5} />} href="/approvals"
           sub={isApprovalsAdmin ? 'Waiting for a decision' : 'Waiting for you'} {...TILE_TONES[4]} />;
   }
 
@@ -685,13 +709,15 @@ export async function BranchBoardPage({ viewParam, layout, ganttParam = false }:
       layout={layout}
       kpis={dashboardKpis}
       columns={columns}
+      stageSpells={stageSpells}
+      salesView={['sales_rep', 'sales_marketing_manager'].includes(userRole)}
       assignees={marketingAssignees ?? []}
       canEdit={canEditOpportunities}
-      // A card's company: managers can always set it; a T-Lines PM only when it has none.
-      companyEdit={['general_manager', 'ops_manager'].includes(userRole) ? 'any' : userRole === 'tlines_pm' ? 'empty' : 'none'}
+      // A card's company is set once from here (only while it has none); changing it is done on the project.
+      companyEdit={['general_manager', 'ops_manager', 'tlines_pm'].includes(userRole) ? 'empty' : 'none'}
       canCreateTask={SALES_INTAKE_ROLES.includes(userRole)}
       trustError={trust.error}
-      users={allUsers ?? []}
+      users={boardUsers}
       meId={user.id}
       canAssign={KEY_CLIENT_ADMIN_ROLES.includes(userRole)}
       // A server element passed as a prop into a client component is checked like a list child in

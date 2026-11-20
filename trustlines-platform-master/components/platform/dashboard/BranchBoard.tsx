@@ -19,8 +19,9 @@ import { BranchLogo } from './BranchLogo';
 import type { TrustItem } from '@/lib/trust/board';
 import { SERVICE_LINES } from '@/lib/regions';
 import { projectNumber } from '@/lib/keyClients/match';
+import { wasInStage, type StageSpell } from '@/lib/board/stageSpell';
 import {
-  type BoardGantt, type BoardView, COLUMNS_BY_KEY, type ColumnsBy, ColumnsByToggle, DateFilters, GanttToggle, type Preset, VIEW_KEY, ViewToggle, pmColumns, presetRange, NOBODY,
+  type BoardGantt, type BoardView, COLUMNS_BY_KEY, type ColumnsBy, ColumnsByToggle, DateFilters, GanttToggle, VIEW_KEY, ViewToggle, pmColumns, NOBODY,
 } from './BranchBoardControls';
 export type { BoardGantt } from './BranchBoardControls';
 
@@ -69,6 +70,8 @@ export interface BoardCardItem {
   account?: { key: string; name: string };
   /** Which of our companies it is (SERVICE_LINES value: store_maker / premium_store_fitout / design_build). */
   company?: string | null;
+  /** yyyy-mm-dd the deal closed (our project's closed_deal_date, by project number) — "Deal Closed" filter. */
+  closedISO?: string | null;
 }
 
 /** Who a card is assigned to: its Trust PM, or its T-Lines PM. */
@@ -84,18 +87,26 @@ const assignKey = (item: BoardCardItem, role: AssignRole) =>
 const AssignContext = React.createContext<{
   /** Every user, to name whoever is already assigned. */
   options: { value: string; label: string }[];
-  /** Who can be picked / filtered by: T-Lines PMs only. */
+  /** Who can be picked / filtered by as T-Lines PM: T-Lines PMs only. */
   pmOptions: { value: string; label: string }[];
+  /** …and as Trust PM: people with the Trust Lines PM role only. */
+  trustPmOptions: { value: string; label: string }[];
   canAssign: boolean;
   assigned: Record<string, string | null>;
   assign: (item: BoardCardItem, role: AssignRole, userId: string | null) => void;
-}>({ options: [], pmOptions: [], canAssign: false, assigned: {}, assign: () => {} });
+}>({ options: [], pmOptions: [], trustPmOptions: [], canAssign: false, assigned: {}, assign: () => {} });
+
+/** A role's pick list; says so when nobody has that role yet. */
+function rolePicks(list: { value: string; label: string }[], role: AssignRole) {
+  return list.length ? list : [{ value: '__none', label: role === 'trust_pm' ? 'No Trust PM yet' : 'No T-Lines PM yet', disabled: true }];
+}
 
 const UNASSIGNED = '';
 
 function AssignBox({ item, section, role }: { item: BoardCardItem; section: BoardSection; role: AssignRole }) {
-  const { options, pmOptions, canAssign, assigned, assign } = React.useContext(AssignContext);
+  const { options, pmOptions, trustPmOptions, canAssign, assigned, assign } = React.useContext(AssignContext);
   const key = assignKey(item, role);
+  const picks = role === 'trust_pm' ? trustPmOptions : pmOptions;
   const saved = role === 'tlines_pm' ? item.assign?.tlinesUserId ?? null : item.assign?.userId ?? null;
   const current = key in assigned ? assigned[key] : saved;
   const name = options.find(o => o.value === current)?.label ?? null;
@@ -112,9 +123,9 @@ function AssignBox({ item, section, role }: { item: BoardCardItem; section: Boar
       {canAssign ? (
         <FilterSelect
           aria-label={`${ROLE_LABEL[role]} for ${item.assign?.label ?? ''}`}
-          options={[{ value: UNASSIGNED, label: 'Unassigned' }, ...pmOptions,
-            // Someone assigned before who isn't a T-Lines PM: still shown, so the pick isn't lost.
-            ...(current && !pmOptions.some(o => o.value === current) ? options.filter(o => o.value === current) : [])]}
+          options={[{ value: UNASSIGNED, label: 'Unassigned' }, ...rolePicks(picks, role),
+            // Someone assigned before who no longer has the role: still shown, so the pick isn't lost.
+            ...(current && !picks.some(o => o.value === current) ? options.filter(o => o.value === current) : [])]}
           value={current ?? UNASSIGNED}
           onValueChange={v => assign(item, role, v || null)}
           className="h-auto min-h-0 gap-0.5 border-0 bg-transparent p-0 text-[13px] font-semibold leading-normal text-[inherit] hover:border-0 dark:border-0 dark:bg-transparent dark:p-0 dark:text-[inherit] [&_svg]:size-3.5"
@@ -501,19 +512,18 @@ function Column({ column, isOpen, onToggle, onOpen, accounts }: {
 const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg pl-3 pr-2 text-[13px] font-medium leading-normal text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg dark:text-ui-heading [&_svg]:size-3.5';
 // Columns picked in the Branches dropdown (none = every column), remembered per browser.
 const SHOWN_COLS_KEY = 'dashboard.shownColumns.v1';
+const AUDIENCE_KEY = 'dashboard.audience.v1';
+type Audience = 'clients' | 'leads' | 'both';
+/** Step-picker value: cards whose deal closed in the range, whatever step they're in now. */
+const DEAL_CLOSED = 'deal_closed';
 
 /** The board's date filter state — owned by BranchBoard so the dashboard layout can show it in
  *  the page heading while the board still filters by it. */
-function useDateRange() {
+function useDateRange(stageOptions: { value: string; label: string }[]) {
   const [from, setFrom] = React.useState('');
   const [to, setTo] = React.useState('');
-  const [preset, setPreset] = React.useState<Preset>('');
-  return {
-    from, to, preset,
-    onPreset: (p: Preset) => { const [f, t] = presetRange(p); setPreset(p); setFrom(f); setTo(t); },
-    onFrom: (v: string) => { setFrom(v); setPreset(''); },
-    onTo: (v: string) => { setTo(v); setPreset(''); },
-  };
+  const [stage, setStage] = React.useState('');
+  return { from, to, stage, stageOptions, onFrom: setFrom, onTo: setTo, onStage: setStage };
 }
 type DateRange = ReturnType<typeof useDateRange>;
 
@@ -526,8 +536,12 @@ const COUNT_TILES: { label: string; keys: string[]; icon: React.ReactNode; color
   { label: 'Completed', keys: ['completed'], icon: <CircleCheck strokeWidth={1.5} />, color: 'var(--color-success-normal)', onColor: 'var(--color-success-light)' },
 ];
 
-function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates, datesInBar, kpis, counts = false, pageScroll = false, gantt }: {
+function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates, datesInBar, kpis, counts = false, pageScroll = false, gantt, stageSpells, salesView = false }: {
   columns: BoardColumn[]; onOpen: OpenCard;
+  /** Sales roles: open on Clients + Leads, without the Trust PM / T-Lines PM filters. */
+  salesView?: boolean;
+  /** Daily stage history by card ("kind:id"), for the step filter. */
+  stageSpells: Record<string, StageSpell[]>;
   /** Dashboard: the "View as Gantt chart" toggle (absent = not offered). */
   gantt?: BoardGantt;
   /** Offer the "Accounts" view. */
@@ -565,20 +579,33 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
       return true;
     };
   }, [regionColumns, onOpen]);
-  const { from: dateFrom, to: dateTo } = dates;
+  const { from: dateFrom, to: dateTo, stage: pickedStage } = dates;
 
   // Which of our companies to show ('' = All Companies, the default).
   const [company, setCompany] = React.useState('');
-  // Leads (everyone else's open deals): their section stays hidden until this is on.
-  const [showLeads, setShowLeads] = React.useState(false);
+// Clients / Leads / both: Leads (everyone else's open deals) never mix into the client steps
+  // unless asked; "Leads" alone shows only the Leads rows. Remembered per browser.
+  const [audience, setAudience] = React.useState<Audience>(salesView ? 'both' : 'clients');
+  React.useEffect(() => {
+    try { const v = localStorage.getItem(AUDIENCE_KEY); if (v === 'clients' || v === 'leads' || v === 'both') setAudience(v); } catch { /* storage blocked */ }
+  }, []);
+  const changeAudience = (v: Audience) => {
+    setAudience(v);
+    try { localStorage.setItem(AUDIENCE_KEY, v); } catch { /* storage blocked */ }
+  };
   const leadCount = React.useMemo(() => regionColumns.reduce((n, c) => n + (c.sections.find(s => s.key === 'leads')?.items.length ?? 0), 0), [regionColumns]);
+  const audienceOptions = React.useMemo(() => [
+    { value: 'clients', label: 'Clients' },
+    { value: 'leads', label: `Leads (${leadCount})` },
+    { value: 'both', label: 'Clients + Leads' },
+  ], [leadCount]);
 
   // People filters: by the card's Trust PM and by its T-Lines PM ('' = everyone, NOBODY = unassigned).
-  const { options: people, pmOptions, assigned } = React.useContext(AssignContext);
+  const { options: people, pmOptions, trustPmOptions: trustPicks, assigned } = React.useContext(AssignContext);
   const [trustPm, setTrustPm] = React.useState('');
   const [tlinesPm, setTlinesPm] = React.useState('');
-  const trustPmOptions = React.useMemo(() => [{ value: '', label: 'All Trust PMs' }, { value: NOBODY, label: 'Unassigned' }, ...pmOptions], [pmOptions]);
-  const tlinesPmOptions = React.useMemo(() => [{ value: '', label: 'All T-Lines PMs' }, { value: NOBODY, label: 'Unassigned' }, ...pmOptions], [pmOptions]);
+  const trustPmOptions = React.useMemo(() => [{ value: '', label: 'All Trust PMs' }, { value: NOBODY, label: 'Unassigned' }, ...rolePicks(trustPicks, 'trust_pm')], [trustPicks]);
+  const tlinesPmOptions = React.useMemo(() => [{ value: '', label: 'All T-Lines PMs' }, { value: NOBODY, label: 'Unassigned' }, ...rolePicks(pmOptions, 'tlines_pm')], [pmOptions]);
   /** A card's person for a role, as shown on it now (including picks made on this page). A
    *  project card has no Trust PM; its T-Lines PM is the project's own PM. */
   const personOf = React.useCallback((i: BoardCardItem, role: AssignRole): string | null => {
@@ -656,11 +683,35 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
       inRange(i.dateISO) && (!company || (company === NO_COMPANY ? !i.company : i.company === company))
       && byPerson(i, 'trust_pm', trustPm) && byPerson(i, 'tlines_pm', tlinesPm);
     const shown = columns.filter(c => picked.has(c.regionCode));
+    const today = new Date().toISOString().slice(0, 10);
+    const rangeHasToday = (!dateFrom || dateFrom <= today) && (!dateTo || dateTo >= today);
+    // A step picked: that step only, as a timeline — its cards now (when the range reaches today,
+    // or their own date is in it) plus every card of the column that was in it during the range.
+    const stageItems = (column: BoardColumn, s: BoardSection) => {
+      const now = s.items.filter(i => rangeHasToday || inRange(i.dateISO) || wasInStage(stageSpells[`${i.kind}:${i.id}`], s.key, dateFrom, dateTo));
+      if (!dateFrom && !dateTo) return now;
+      const ids = new Set(now.map(i => `${i.kind}:${i.id}`));
+      const before = column.sections.filter(o => o.key !== s.key).flatMap(o => o.items)
+        .filter(i => { const k = `${i.kind}:${i.id}`; if (ids.has(k) || !wasInStage(stageSpells[k], s.key, dateFrom, dateTo)) return false; ids.add(k); return true; });
+      return [...now, ...before];
+    };
+    const keepPeople = (i: BoardCardItem) => (!company || (company === NO_COMPANY ? !i.company : i.company === company))
+      && byPerson(i, 'trust_pm', trustPm) && byPerson(i, 'tlines_pm', tlinesPm);
+    const forAudience = (sec: BoardSection) => (audience === 'leads' ? sec.key === 'leads' : audience === 'both' || sec.key !== 'leads');
+    // "Leads" alone: only the Leads rows, by their own date (the step picker is for client steps).
+    const stage = audience === 'leads' ? '' : pickedStage;
     return (shown.length ? shown : columns).map(column => ({
       ...column,
-      sections: column.sections.filter(s => showLeads || s.key !== 'leads').map(s => ({ ...s, items: s.items.filter(keep) })),
-    }));
-  }, [columns, picked, dateFrom, dateTo, company, showLeads, trustPm, tlinesPm, personOf]);
+      sections: stage === DEAL_CLOSED
+        // Every card whose deal closed in the range, under the step it's in today.
+        ? column.sections.filter(forAudience).map(s => ({ ...s, items: s.items.filter(i => !!i.closedISO && inRange(i.closedISO) && keepPeople(i)) }))
+        : stage
+          ? column.sections.filter(s => s.key === stage).map(s => ({ ...s, items: stageItems(column, s).filter(keepPeople) }))
+          : column.sections.filter(forAudience).map(s => ({ ...s, items: s.items.filter(keep) })),
+    }))
+      // The by-PM "Unassigned" column only shows while the filters leave it a card.
+      .filter(c => c.regionCode !== `pm:${NOBODY}` || c.sections.some(s => s.items.length > 0));
+  }, [columns, picked, dateFrom, dateTo, pickedStage, stageSpells, company, audience, trustPm, tlinesPm, personOf]);
 
   // Stages / Accounts, remembered per browser. Every account starts open; a click folds it.
   const [view, setView] = React.useState<BoardView>('stages');
@@ -704,14 +755,13 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
               {offerPm && <ColumnsByToggle by={columnsBy} onBy={changeColumnsBy} />}
               {accounts && <ViewToggle view={view} onView={changeView} />}
               <FilterSelect aria-label="Companies" value={company} options={COMPANY_OPTIONS} onValueChange={v => setCompany(v ?? '')} className={FILTER_CLS} />
-              {leadCount > 0 && (
-                <button type="button" aria-pressed={showLeads} onClick={() => setShowLeads(v => !v)}
-                  className={`${FILTER_CLS} pr-3 ${showLeads ? 'border-[var(--color-secondary-700)] bg-ui-selected-bg dark:border-ui-heading' : ''}`}>
-                  {showLeads ? 'Hide leads' : 'Show leads'} ({leadCount})
-                </button>
+              <FilterSelect aria-label="Clients or leads" value={audience} options={audienceOptions} onValueChange={v => changeAudience((v || 'clients') as Audience)} className={FILTER_CLS} />
+              {!salesView && (
+                <>
+                  <FilterSelect aria-label="Trust PM" value={trustPm} options={trustPmOptions} onValueChange={v => setTrustPm(v ?? '')} className={FILTER_CLS} />
+                  <FilterSelect aria-label="T-Lines PM" value={tlinesPm} options={tlinesPmOptions} onValueChange={v => setTlinesPm(v ?? '')} className={FILTER_CLS} />
+                </>
               )}
-              <FilterSelect aria-label="Trust PM" value={trustPm} options={trustPmOptions} onValueChange={v => setTrustPm(v ?? '')} className={FILTER_CLS} />
-              <FilterSelect aria-label="T-Lines PM" value={tlinesPm} options={tlinesPmOptions} onValueChange={v => setTlinesPm(v ?? '')} className={FILTER_CLS} />
             </>
           )}
           <MultiFilter label={!byPmNow ? 'Branches' : columnsBy === 'trust_pms' ? 'Trust Lines PM columns' : 'T-Lines PM columns'} options={columnOptions} selected={picked} onChange={changePicked} />
@@ -765,7 +815,7 @@ function Board({ columns: regionColumns, onOpen, accounts, byPm: offerPm, dates,
   );
 }
 
-export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false, byPm = false, layout = 'board', kpis, companyEdit = 'none', gantt, meId = null }: {
+export function BranchBoard({ columns, stageSpells = {}, salesView = false, assignees, canEdit, canCreateTask, top, trustError, users = [], canAssign = false, heading, subheading, accounts = false, byPm = false, layout = 'board', kpis, companyEdit = 'none', gantt, meId = null }: {
   /** /dashboard only: the "View as Gantt chart" toggle and, while it shows, its data. */
   gantt?: BoardGantt;
   /** 'dashboard' = Figma "General Manager" (767:13745) on /dashboard: General / Dashboard crumbs,
@@ -781,8 +831,12 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   heading?: string;
   subheading?: string;
   columns: BoardColumn[];
+  /** Daily stage history by card ("kind:id", migration 157) — the step + From / To filter. */
+  stageSpells?: Record<string, StageSpell[]>;
   /** Everyone who can be picked in a Trust card's "Assign to", and whether this viewer may. */
-  users?: { id: string; full_name: string; role?: string | null }[];
+  users?: { id: string; full_name: string; role?: string | null; side?: 't_lines' | 'trust_lines' | null }[];
+  /** Sales roles: Clients + Leads first, no PM filters. */
+  salesView?: boolean;
   canAssign?: boolean;
   /** Who may set a card's company in its popup: 'any' always, 'empty' only when it has none. */
   /** The viewer's id (task lists: an assignee may tick their own task done). */
@@ -803,9 +857,11 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
   const [assigned, setAssigned] = React.useState<Record<string, string | null>>({});
   const assignOptions = React.useMemo(() => users.map(u => ({ value: u.id, label: u.full_name })), [users]);
   const pmOptions = React.useMemo(() => users.filter(u => u.role === 'tlines_pm').map(u => ({ value: u.id, label: u.full_name })), [users]);
-  // Trust Lines tasks go to Trust Lines people (not the T-Lines PMs).
-  const trustStaff = React.useMemo(() => users.filter(u => u.role !== 'tlines_pm').map(u => ({ id: u.id, full_name: u.full_name })), [users]);
-  const everyone = React.useMemo(() => users.map(u => ({ id: u.id, full_name: u.full_name })), [users]);
+  const trustPmOptions = React.useMemo(() => users.filter(u => u.role === 'trustlines_pm').map(u => ({ value: u.id, label: u.full_name })), [users]);
+  // Card tasks: T Lines Tasks go to T-Lines people, Trust Lines Tasks to Trust Lines people
+  // (Team → company side, else the role's default side).
+  const trustStaff = React.useMemo(() => users.filter(u => u.side !== 't_lines').map(u => ({ id: u.id, full_name: u.full_name })), [users]);
+  const tlinesStaff = React.useMemo(() => users.filter(u => u.side === 't_lines').map(u => ({ id: u.id, full_name: u.full_name })), [users]);
   const assign = React.useCallback(async (item: BoardCardItem, role: AssignRole, userId: string | null) => {
     if (!item.assign) return;
     const key = assignKey(item, role);
@@ -824,9 +880,18 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
       toast.error(e instanceof Error ? e.message : 'Could not save the assignment');
     }
   }, [assigned]);
-  const assignCtx = React.useMemo(() => ({ options: assignOptions, pmOptions, canAssign, assigned, assign }), [assignOptions, pmOptions, canAssign, assigned, assign]);
+  const assignCtx = React.useMemo(() => ({ options: assignOptions, pmOptions, trustPmOptions, canAssign, assigned, assign }), [assignOptions, pmOptions, trustPmOptions, canAssign, assigned, assign]);
   const handleOpen: OpenCard = (item, section) => setOpen({ item, section });
-  const dates = useDateRange();
+  // The step filter offers the board's own steps, in board order.
+  // Leads aren't a step here (the Clients / Leads picker shows them); Deal Closed sits where the
+  // deal closes, after Clients Opportunity.
+  const stageOptions = React.useMemo(() => [
+    { value: '', label: 'All stages' },
+    ...(columns[0]?.sections ?? []).filter(s => s.key !== 'leads').flatMap(s => s.key === 'opportunity'
+      ? [{ value: s.key, label: s.label }, { value: DEAL_CLOSED, label: 'Deal Closed' }]
+      : [{ value: s.key, label: s.label }]),
+  ], [columns]);
+  const dates = useDateRange(stageOptions);
   const isDashboard = layout === 'dashboard';
 
   return (
@@ -853,10 +918,10 @@ export function BranchBoard({ columns, assignees, canEdit, canCreateTask, top, t
         />
         </>
       ) : (
-        <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} dates={dates} datesInBar={!isDashboard} kpis={kpis} counts={isDashboard} pageScroll={isDashboard} gantt={gantt} />
+        <Board columns={columns} onOpen={handleOpen} accounts={accounts} byPm={byPm} dates={dates} datesInBar={!isDashboard} kpis={kpis} counts={isDashboard} pageScroll={isDashboard} gantt={gantt} stageSpells={stageSpells} salesView={salesView} />
       )}
       {open && <BoardItemView item={open.item} section={open.section} assignees={assignees} canEdit={canEdit} companyEdit={companyEdit}
-        staff={trustStaff} everyone={everyone} meId={meId} canEditTrustTasks={canAssign} onClose={() => setOpen(null)} />}
+        staff={trustStaff} everyone={tlinesStaff} meId={meId} canEditTrustTasks={canAssign} onClose={() => setOpen(null)} />}
     </AssignContext.Provider>
   );
 }

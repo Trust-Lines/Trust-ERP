@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { ownProjectsOnly } from '@/lib/permissions/ownProjects';
 import { DeliveryClient } from '@/components/platform/projects/DeliveryClient';
 import { DELIVERY_READ_ROLES, DELIVERY_WRITE_ROLES } from '@/lib/delivery/config';
 
@@ -19,7 +20,7 @@ export default async function ProjectDeliveryPage({ params }: { params: Promise<
   const admin = createAdminClient() as any;
   const { data: project } = await admin.from('projects').select('id, code, name, current_stage, tlines_pm_id').eq('id', id).maybeSingle();
   if (!project) notFound();
-  if (role === 'tlines_pm' && project.tlines_pm_id !== user.id) redirect('/projects');
+  if (project.tlines_pm_id !== user.id && await ownProjectsOnly(role, user.id)) redirect('/projects');
 
   const dpRes = await admin.from('delivery_plans')
     .select('id, project_id, delivery_method, installation_date, build_by, build_schedule, site_confirmed, customer_accepted, accepted_by, accepted_at, status, notes')

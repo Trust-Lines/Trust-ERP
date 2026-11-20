@@ -248,6 +248,7 @@ export function EditModal({
   const [isActive, setIsActive]   = useState(profile.is_active);
   const [pmClientId, setPmClientId]       = useState<string>(profile.pm_client_id ?? '');
   const [isGeneralPm, setIsGeneralPm]     = useState<boolean>(!!profile.is_pm_supervisor);
+  const [seesAll, setSeesAll]             = useState<boolean>(!!profile.sees_all_projects);
   const [saving, setSaving]       = useState(false);
   const isClientPm = role === 'tlines_pm';
 
@@ -284,6 +285,7 @@ export function EditModal({
         full_name: fullName, role, is_active: isActive,
         pm_client_id:     isClientPm && !isGeneralPm ? (pmClientId || null) : null,
         is_pm_supervisor: isClientPm && isGeneralPm,
+        sees_all_projects: isClientPm && seesAll,
         ...meta,
       }),
     });
@@ -298,6 +300,7 @@ export function EditModal({
       full_name: fullName, role, is_active: isActive,
       pm_client_id: isClientPm && !isGeneralPm ? (pmClientId || null) : null,
       is_pm_supervisor: isClientPm && isGeneralPm,
+      sees_all_projects: isClientPm && seesAll,
       ...meta,
     });
     onClose();
@@ -439,6 +442,18 @@ export function EditModal({
                 <span className="text-[13px] text-ui-body">
                   <b className={HEADING}>General PM — Project Management Supervisor</b>
                   <span className="mt-0.5 block text-[12px] text-ui-text-secondary">Oversees all regions; signs the PO supervisor box.</span>
+                </span>
+              </label>
+              <label
+                className={cn(
+                  'flex cursor-pointer items-start gap-2 rounded-[8px] border border-solid px-3 py-2.5',
+                  seesAll ? 'border-[var(--color-secondary-500)] bg-ui-selected-bg' : 'border-ui-divider bg-ui-input-bg',
+                )}
+              >
+                <Checkbox className="mt-0.5" checked={seesAll} onCheckedChange={c => setSeesAll(!!c)} />
+                <span className="text-[13px] text-ui-body">
+                  <b className={HEADING}>Coordinator — sees every project, assigns tasks</b>
+                  <span className="mt-0.5 block text-[12px] text-ui-text-secondary">On: every project and region on the dashboard and in Projects, and can write dashboard card tasks for anyone. Off: only their own projects; tasks for themselves. PF, purchase prices and margin stay hidden.</span>
                 </span>
               </label>
               {!isGeneralPm && (

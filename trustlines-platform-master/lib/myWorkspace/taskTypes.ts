@@ -1,7 +1,7 @@
 // My Tasks rows and the client-safe helpers around them (lib/myWorkspace/tasks.ts loads them).
 
 export type MyTaskStatus = 'todo' | 'in_progress' | 'done';
-export type MyTaskSource = 'sales' | 'marketing' | 'customers';
+export type MyTaskSource = 'sales' | 'marketing' | 'customers' | 'dashboard';
 
 export interface MyTask {
   id: string;
@@ -16,13 +16,13 @@ export interface MyTask {
   project: { id: string; code: string } | null;
   /**
    * Where a status change is sent, or null when this person can't change it.
-   * 'lead' APIs take POST { status: todo | in_progress | done };
+   * 'lead' APIs (and the dashboard card task API) take POST { status: todo | in_progress | done };
    * 'follow_up' takes PATCH { status: open | done }.
    */
   statusApi: { kind: 'lead' | 'follow_up'; url: string } | null;
 }
 
-export const SOURCE_LABEL: Record<MyTaskSource, string> = { sales: 'Sales', marketing: 'Marketing', customers: 'Customers' };
+export const SOURCE_LABEL: Record<MyTaskSource, string> = { sales: 'Sales', marketing: 'Marketing', customers: 'Customers', dashboard: 'Dashboard' };
 
 /** Local day, YYYY-MM-DD. */
 export function todayKey(now = new Date()): string {
