@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Layers } from 'lucide-react';
+import { FileText, Hammer, LampCeiling, Layers, Palette, ShelvingUnit, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { STATUS_CHAIN } from '@/lib/production/board';
 import { Select } from '@/components/ui/select';
@@ -35,6 +35,16 @@ interface Props {
   /** Optional: tabs to hide. Finance guards itself (redirects roles without access). */
   hiddenTabs?: ProjectSubpage[];
   rows: Row[]; people: Person[]; vendors: Vendor[]; salesFiles: SalesFile[]; schemaError: string | null;
+}
+
+// Figma 1039:32304: each type card leads with its icon (other types fall back to Layers).
+const TYPE_ICON: Record<string, LucideIcon> = {
+  millwork: Hammer, shelving: ShelvingUnit, ceiling: LampCeiling, image: Palette,
+};
+function signLabel(po: string | null, pf: string | null): string {
+  if (!po && !pf) return '—';
+  if (po === pf) return statusLabel(po!);
+  return `PO: ${po ? statusLabel(po) : '—'} · PF: ${pf ? statusLabel(pf) : '—'}`;
 }
 
 const money = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -84,15 +94,21 @@ export function ProjectTypesClient({
         <div className="mb-4 rounded-[8px] border border-warning-normal bg-ui-page-bg p-3 text-[13px] text-ui-body">⚠️ {schemaError}</div>
       )}
 
-      <div className="flex flex-col gap-[18px]">
+      {/* Figma 1039:32304: type cards two to a row, Sales design files full width under them. */}
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
         {rows.length === 0 ? (
-          <div className={CARD}>
+          <div className={cn(CARD, 'xl:col-span-2')}>
             <EmptyState size="sm" className="justify-center px-4 py-8" icon={<Layers />} title="No types on this project yet." description="Types are seeded from the project's categories on the production board." />
           </div>
-        ) : rows.map(r => (
-          <section key={r.id} className={cn(CARD, 'gap-8')}>
+        ) : rows.map(r => {
+          const TypeIcon = TYPE_ICON[r.type.toLowerCase()] ?? Layers;
+          return (
+          <section key={r.id} className={cn(CARD, 'min-w-0 gap-8')}>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className={CARD_TITLE}>{r.type}</h2>
+              <h2 className={cn(CARD_TITLE, 'flex items-center gap-2')}>
+                <TypeIcon aria-hidden className="size-7 shrink-0" strokeWidth={1.5} />
+                {r.type}
+              </h2>
               <div className="flex flex-wrap items-center justify-end gap-2 tabular-nums">
                 <span className={CHIP}>Vendor: {vendorLabel(r.vendor_id)}</span>
                 <span className={cn(CHIP, 'font-mono')}>PF: {r.pf_code ?? '-'}</span>
@@ -101,7 +117,7 @@ export function ProjectTypesClient({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.06fr)_minmax(0,1.06fr)_minmax(0,0.58fr)_minmax(0,1fr)_minmax(0,1fr)_149px]">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Field variant="loose" label="Sub-Status">
                 {canEdit ? (
                   <Select aria-label="Sub-status" className={INPUT} options={statusOptions} value={r.status}
@@ -122,7 +138,9 @@ export function ProjectTypesClient({
                     disabled={busy === r.id + 'priority'} onValueChange={v => void patch(r.id, 'priority', v || null)} />
                 ) : <span className={cn(READ, 'capitalize', PRIORITY_TONE[r.priority ?? ''])}>{r.priority ?? '—'}</span>}
               </Field>
+            </div>
 
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_149px]">
               <Field variant="loose" label="Start Date">
                 {canEdit ? (
                   <DatePicker aria-label="Start date" placeholder="No date" className={DATE_INPUT}
@@ -138,20 +156,19 @@ export function ProjectTypesClient({
               </Field>
 
               <Field variant="loose" label="PO / PF sign">
-                {/* Figma 467:19723 / 470:21970: an input-filled box with no border (only visible in dark). */}
-                <span className={cn(READ, 'rounded-[6px] bg-ui-input-bg px-3')}>
-                  PO: {r.po_sign_status ? statusLabel(r.po_sign_status) : '—'} · PF: {r.pf_sign_status ? statusLabel(r.pf_sign_status) : '—'}
+                {/* Figma 1039:32571: plain value, no border, no left padding (lines up with the label).
+                    One value when PO and PF agree, both otherwise. */}
+                <span className={cn(READ, 'rounded-[6px] bg-ui-input-bg pr-3')}>
+                  {signLabel(r.po_sign_status, r.pf_sign_status)}
                 </span>
               </Field>
             </div>
           </section>
-        ))}
+          );
+        })}
 
-        <section className={cn(CARD, 'gap-4')}>
-          <div className="flex flex-col gap-1">
-            <h2 className={CARD_TITLE}>Sales design files</h2>
-            <p className="m-0 text-[12px] leading-[1.4] text-ui-text-secondary">Design output uploaded during Sales Design — the input for Supply detailing.</p>
-          </div>
+        <section className={cn(CARD, 'gap-4 xl:col-span-2')}>
+          <h2 className={CARD_TITLE}>Sales design files</h2>
           {salesFiles.length === 0 ? (
             <p className="m-0 text-[15px] font-medium leading-4 text-ui-body">No sales design files linked to this project.</p>
           ) : (
