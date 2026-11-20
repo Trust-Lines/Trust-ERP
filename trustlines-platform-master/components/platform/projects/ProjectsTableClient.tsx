@@ -4,24 +4,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Trash2, Loader2, FolderKanban, Plus, Search, UserRoundPen, SquareDashed, Eye,
-  ChevronDown, ChevronRight, ArrowDown, ArrowUp, Calendar, CalendarClock, MapPin, Pause,
+  ChevronDown, ArrowDown, ArrowUp, Calendar, CalendarClock, MapPin, Pause,
+  DraftingCompass, Cog, ArrowUpFromDot, Loader, Ship, CircleSlash2, Award, type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { StageBadge, STAGES_FULL } from '@/components/platform/shared/StageBadge';
+import { STAGES_FULL } from '@/components/platform/shared/StageBadge';
 import { PermissionShield } from '@/components/platform/shared/PermissionShield';
-import type { ProjectStage } from '@/types/database';
 import type { ProjectRow, ProjectViewNote } from '@/app/(platform)/projects/page';
 import { EmptyState } from '@/components/ui/empty-state';
 import { buttonVariants } from '@/components/ui/button';
 import Link from 'next/link';
-import { PersonFace } from '@/components/ui/avatar-directory';
 import { Select as FilterSelect } from '@/components/ui/select';
 import { Checkbox as UiCheckbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TRUST_STAGE_LABEL, TRUST_STAGE_ORDER } from '@/lib/projects/listInfo';
 import type { TrustStage } from '@/lib/trust/board';
-import { initialsOf } from '@/lib/formatters';
 
 interface Props {
   projects: ProjectRow[];
@@ -41,17 +39,29 @@ const COLUMN_LABEL: Record<OptionalColumn, string> = {
   region: 'Region', type: 'Types', owner: 'Owner', due: 'Due date', value: 'Value', margin: 'Margin',
 };
 
-// The dashboard's branch colours (its column headers) and stage colours (its sections).
-const REGION_COLOR: Record<string, string> = { TLINES_NE: '#465B6D', TLINES_SE: '#3B472B', TLINES_NW: '#2E5BA3', CVW: '#7A655E' };
-const REGION_SHORT: Record<string, string> = { TLINES_NE: 'NE', TLINES_SE: 'SE', TLINES_NW: 'NW', CVW: 'West' };
-const STAGE_TONE: Record<TrustStage, { fg: string; bg: string }> = {
-  finalization: { fg: 'var(--stage-finalization-fg)', bg: 'var(--stage-finalization-bg)' },
-  technical: { fg: 'var(--stage-technical-fg)', bg: 'var(--stage-technical-bg)' },
-  to_production: { fg: 'var(--stage-to-production-fg)', bg: 'var(--stage-to-production-bg)' },
-  in_production: { fg: 'var(--stage-production-fg)', bg: 'var(--stage-production-bg)' },
-  shipped: { fg: 'var(--stage-shipped-fg)', bg: 'var(--stage-shipped-bg)' },
+// Region chips (Figma "Projects · Desktop" 1025:13854: NE #4A7599, W #624D46; SE / NW from the
+// Gantt legend that shares the NE value).
+const REGION_COLOR: Record<string, string> = { TLINES_NE: '#4A7599', TLINES_SE: '#607D39', TLINES_NW: '#2C64BE', CVW: '#624D46' };
+const REGION_SHORT: Record<string, string> = { TLINES_NE: 'NE', TLINES_SE: 'SE', TLINES_NW: 'NW', CVW: 'W' };
+
+type Tone = { fg: string; bg: string };
+// Stage cards and row fills use the board's Process colours (fg = ink / chip, bg = fill).
+const STAGE_TONE: Record<TrustStage, Tone> = {
+  finalization: { fg: 'var(--board-finalization-fg)', bg: 'var(--board-finalization-bg)' },
+  technical: { fg: 'var(--board-technical-fg)', bg: 'var(--board-technical-bg)' },
+  to_production: { fg: 'var(--board-to-production-fg)', bg: 'var(--board-to-production-bg)' },
+  in_production: { fg: 'var(--board-production-fg)', bg: 'var(--board-production-bg)' },
+  shipped: { fg: 'var(--board-shipped-fg)', bg: 'var(--board-shipped-bg)' },
 };
-const ink = (c: string) => `color-mix(in srgb, ${c} 70%, black)`;
+const NOT_IN_TRUST_TONE: Tone = { fg: 'var(--process-a0-fg)', bg: 'var(--process-a0-bg)' };
+// Rows not (yet) in the Trust System: the design's green "Won" row.
+const WON_TONE: Tone = { fg: 'var(--process-a0w-fg)', bg: 'var(--process-a0w-bg)' };
+const STAGE_ICON: Record<TrustStage | 'none', LucideIcon> = {
+  finalization: DraftingCompass, technical: Cog, to_production: ArrowUpFromDot,
+  in_production: Loader, shipped: Ship, none: CircleSlash2,
+};
+// A project counts as "new" on its stage card for this many days after it was created.
+const NEW_DAYS = 7;
 
 // Unique stages for the "Add filter" stage picker (closed_deal / finalization share a label).
 const STAGE_OPTIONS = STAGES_FULL.filter(s => s.stage !== 'closed_deal');
@@ -68,7 +78,6 @@ function openChipSelect(e: React.MouseEvent<HTMLDivElement>) {
   e.currentTarget.querySelector<HTMLElement>('[data-slot=select-trigger]')?.click();
 }
 const TH_CLS = 'h-[46px] whitespace-nowrap px-2.5 text-left text-[12px] font-semibold leading-[1.4] text-ui-body';
-const TD_CLS = 'px-2.5 text-[13px] text-ui-body';
 const PAGE_BTN = 'inline-flex h-[34px] items-center justify-center rounded-[6px] border border-ui-input-border bg-ui-input-bg px-[14px] text-[13px] font-semibold text-[var(--color-secondary-700)] disabled:opacity-50 dark:text-ui-heading';
 
 function formatDate(iso: string): string {
@@ -132,11 +141,18 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
   }, [projects, view, viewNotes, ownerFilter, stageFilter, trustStage, regionFilter, query, sortDesc]);
 
   // The stage cards on top: how many projects are at each Trust System stage.
-  const stageCounts = useMemo(() => {
+  // "+N New" on each card: those created in the last NEW_DAYS days.
+  const { stageCounts, newCounts } = useMemo(() => {
     const c: Record<string, number> = { none: 0 };
-    for (const p of projects) { const k = p.trust?.stage ?? 'none'; c[k] = (c[k] ?? 0) + 1; }
-    return c;
-  }, [projects]);
+    const n: Record<string, number> = {};
+    const since = new Date(`${today}T00:00:00`).getTime() - NEW_DAYS * 86400000;
+    for (const p of projects) {
+      const k = p.trust?.stage ?? 'none';
+      c[k] = (c[k] ?? 0) + 1;
+      if (p.created_at && new Date(p.created_at).getTime() >= since) n[k] = (n[k] ?? 0) + 1;
+    }
+    return { stageCounts: c, newCounts: n };
+  }, [projects, today]);
   const regions = useMemo(() => [...new Set(projects.map(p => p.region).filter(Boolean) as string[])].sort(), [projects]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -222,21 +238,38 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
   return (
     <>
       {/* Stage cards: where every project is in the Trust System — click one to show only those. */}
-      <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-[18px] grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
         {([...TRUST_STAGE_ORDER, 'none'] as (TrustStage | 'none')[]).map(k => {
-          const tone = k === 'none' ? { fg: 'var(--ui-text-secondary)', bg: 'var(--ui-surface)' } : STAGE_TONE[k];
+          const tone = k === 'none' ? NOT_IN_TRUST_TONE : STAGE_TONE[k];
           const on = trustStage === k;
+          const Icon = STAGE_ICON[k];
+          const fresh = newCounts[k] ?? 0;
           return (
             <button
               key={k} type="button" aria-pressed={on} onClick={() => setTrustStage(on ? '' : k)}
-              className={cn('flex cursor-pointer flex-col gap-1 rounded-[10px] border border-solid px-4 py-3 text-left transition-[box-shadow]', on ? 'shadow-[0_0_0_2px_currentColor]' : 'hover:shadow-[0_1px_6px_rgba(0,0,0,0.08)]')}
-              style={{ background: tone.bg, borderColor: `color-mix(in srgb, ${tone.fg} 30%, transparent)`, color: ink(tone.fg) }}
+              className={cn(
+                'flex cursor-pointer flex-col gap-2 rounded-[8px] border-0 pb-4 pl-4 pr-4 pt-2.5 text-left transition-[box-shadow,filter] focus-visible:outline-2 focus-visible:outline-offset-2',
+                on ? 'shadow-[0_0_0_2px_currentColor]' : 'hover:brightness-[0.97]',
+              )}
+              style={{ background: tone.bg, color: tone.fg }}
             >
-              <span className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide">
-                <span aria-hidden className="size-2 rounded-full" style={{ background: tone.fg }} />
-                {k === 'none' ? 'Not in Trust' : TRUST_STAGE_LABEL[k]}
+              <span className="flex w-full items-start justify-between gap-2">
+                <span className="text-[12px] font-medium uppercase leading-[1.5] tracking-[-0.264px]">
+                  {k === 'none' ? 'Not in Trust' : TRUST_STAGE_LABEL[k]}
+                </span>
+                {fresh > 0 && (
+                  <span
+                    className="inline-flex h-[18px] shrink-0 items-center rounded-[4px] px-2 text-[10px] font-medium leading-[1.5] tracking-[0.4px]"
+                    style={{ background: tone.fg, color: tone.bg }}
+                  >
+                    +{fresh} New
+                  </span>
+                )}
               </span>
-              <span className="text-[28px] font-semibold leading-none">{stageCounts[k] ?? 0}</span>
+              <span className="flex items-center gap-1">
+                <span className="text-[32px] font-semibold leading-[26px] tracking-[0.64px]">{stageCounts[k] ?? 0}</span>
+                <Icon aria-hidden className="size-6" strokeWidth={1.75} />
+              </span>
             </button>
           );
         })}
@@ -367,29 +400,29 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
           <table className="w-full min-w-[1100px] border-collapse">
             <thead>
               <tr className="border-b border-ui-divider bg-ui-surface">
-                <th className={cn(TH_CLS, 'w-9 pl-[18px]')}>
-                  <Checkbox checked={allOnPageSelected} onChange={togglePage} label="Select all on this page" />
+                <th className={cn(TH_CLS, 'w-12 px-0 text-center')}>
+                  <span className="inline-flex align-middle">
+                    <Checkbox checked={allOnPageSelected} onChange={togglePage} label="Select all on this page" />
+                  </span>
                 </th>
-                <th className={cn(TH_CLS, 'min-w-[320px]')}>
+                <th className={cn(TH_CLS, 'w-[120px] pl-1')}>
                   <button
                     onClick={() => setSortDesc(d => !d)}
                     className="inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 font-[inherit] text-[inherit]"
                     aria-label={`Sort by project no, ${sortDesc ? 'descending' : 'ascending'}`}
                   >
-                    Project
+                    Project #
                     {sortDesc ? <ArrowDown aria-hidden className="size-3" /> : <ArrowUp aria-hidden className="size-3" />}
                   </button>
                 </th>
-                {show('region') && <th className={cn(TH_CLS, 'w-[90px]')}>Region</th>}
-                {show('type') && <th className={TH_CLS}>Types</th>}
-                <th className={cn(TH_CLS, 'w-[180px]')}>Stage</th>
-                {show('owner') && <th className={cn(TH_CLS, 'w-[180px]')}>Owner</th>}
-                {show('due') && <th className={cn(TH_CLS, 'w-[138px]')}>Due date</th>}
-                {show('value') && <th className={cn(TH_CLS, 'w-[130px] text-right')}>Value</th>}
+                <th className={cn(TH_CLS, 'min-w-[220px]')}>Project Name</th>
+                {show('region') && <th className={cn(TH_CLS, 'w-[124px]')}>Region</th>}
+                {show('type') && <th className={cn(TH_CLS, 'w-[266px]')}>Types</th>}
+                <th className={cn(TH_CLS, 'w-[157px]')}>Stage</th>
+                {show('owner') && <th className={cn(TH_CLS, 'w-[200px]')}>Owner</th>}
+                {show('due') && <th className={cn(TH_CLS, 'w-[180px]')}>Due date</th>}
+                {show('value') && <th className={cn(TH_CLS, 'w-[113px]')}>Value</th>}
                 {show('margin') && <th className={cn(TH_CLS, 'w-[90px] text-right')}>Margin</th>}
-                <th className={cn(TH_CLS, 'w-9 pr-[18px]')} aria-hidden>
-                  <ChevronRight className="size-3.5 text-ui-text-secondary" />
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -417,138 +450,143 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                 const due = p.est_delivery_date ?? p.trust?.etd ?? null;
                 const dueIsEtd = !p.est_delivery_date && !!p.trust?.etd;
                 const types = p.trust?.types.length ? p.trust.types : (p.categories ?? []).map(c => ({ type: c, status: null as string | null }));
+                // Row fill, ink and stage label follow the project's Trust stage; not in Trust = "Won" green.
+                const tone = p.trust ? STAGE_TONE[p.trust.stage] : WON_TONE;
+                const StageIcon = p.trust ? STAGE_ICON[p.trust.stage] : Award;
+                const stageLabel = p.trust
+                  ? TRUST_STAGE_LABEL[p.trust.stage]
+                  : STAGES_FULL.find(s => s.stage === p.current_stage)?.label ?? p.current_stage;
+                const isSelected = selected.has(p.id);
+                const muted = { color: `color-mix(in srgb, ${tone.fg} 65%, transparent)` };
 
                 return (
                   <tr
                     key={p.id}
                     onClick={() => router.push(`/projects/${p.id}`)}
                     className={cn(
-                      'h-16 cursor-pointer border-b border-ui-divider last:border-b-0 hover:bg-ui-surface',
-                      selected.has(p.id) && 'bg-ui-surface',
+                      'h-[49px] cursor-pointer border-b border-ui-divider last:border-b-0 hover:brightness-[0.97]',
+                      isSelected && 'shadow-[inset_3px_0_0_currentColor]',
                     )}
+                    style={{ background: tone.bg, color: tone.fg }}
                   >
-                    <td className={cn(TD_CLS, 'pl-[18px]')}>
-                      <Checkbox checked={selected.has(p.id)} onChange={() => toggleRow(p.id)} label={`Select ${p.name}`} />
+                    <td className="w-12 px-0 text-center">
+                      <span className="inline-flex align-middle">
+                        <Checkbox checked={isSelected} onChange={() => toggleRow(p.id)} label={`Select ${p.name}`} />
+                      </span>
                     </td>
-                    <td className={cn(TD_CLS, 'max-w-0 py-3')}>
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span
-                          className="inline-flex h-7 min-w-[84px] shrink-0 items-center justify-center rounded-[6px] px-2 text-[12px] font-semibold text-white"
-                          style={{ background: regionColor }}
-                        >
-                          {p.code}
-                        </span>
-                        <div className="flex min-w-0 flex-col gap-0.5">
-                          <span className="flex min-w-0 items-center gap-2">
-                            <span className="truncate text-[14px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">
-                              {p.client?.name ?? p.address}
+                    <td className="py-2 pr-2">
+                      <span
+                        className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-[4px] px-4 text-[16px] font-medium leading-4"
+                        style={{ background: tone.fg, color: tone.bg }}
+                      >
+                        {p.code}
+                      </span>
+                    </td>
+                    <td className="max-w-0 py-2 pr-2">
+                      <div className="flex min-w-0 flex-col leading-[1.4]">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-[13px] font-semibold">{p.client?.name ?? p.address}</span>
+                          {p.trust?.onHold && (
+                            <span className="inline-flex h-5 shrink-0 items-center gap-1 rounded-[4px] px-1.5 text-[11px] font-semibold" style={{ background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}>
+                              <Pause aria-hidden className="size-3" /> On Hold
                             </span>
-                            {p.trust?.onHold && (
-                              <span className="inline-flex h-5 shrink-0 items-center gap-1 rounded-[4px] px-1.5 text-[11px] font-semibold" style={{ background: 'var(--status-t0-bg)', color: 'var(--status-t0-fg)' }}>
-                                <Pause aria-hidden className="size-3" /> On Hold
-                              </span>
-                            )}
-                          </span>
-                          <span className="truncate text-[12px] text-ui-text-secondary">{p.client ? p.address : null}</span>
-                          {hint && <span className="truncate text-[11px] font-medium text-[var(--status-t7-fg)]">{hint}</span>}
-                        </div>
+                          )}
+                        </span>
+                        {p.client && <span className="truncate text-[10px]">{p.address}</span>}
+                        {hint && <span className="truncate text-[10px] font-medium text-[var(--status-t7-fg)]">{hint}</span>}
                       </div>
                     </td>
                     {show('region') && (
-                      <td className={TD_CLS}>
+                      <td className="px-2">
                         {p.region ? (
-                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] font-medium">
-                            <span aria-hidden className="size-2 rounded-full" style={{ background: regionColor }} />
+                          <span
+                            className="inline-flex h-[21px] min-w-[43px] items-center justify-center whitespace-nowrap rounded-[2px] px-2 text-[16px] font-medium leading-4 text-white"
+                            style={{ background: regionColor }}
+                          >
                             {REGION_SHORT[p.region] ?? p.region}
                           </span>
-                        ) : <span className="text-ui-text-secondary">—</span>}
+                        ) : <span style={muted}>—</span>}
                       </td>
                     )}
                     {show('type') && (
-                      <td className={cn(TD_CLS, 'py-3')}>
+                      <td className="px-2 py-2">
                         {types.length ? (
                           <span className="flex flex-wrap gap-1">
                             {types.slice(0, 3).map(t => (
-                              <span key={t.type} className="inline-flex h-[22px] items-center gap-1 whitespace-nowrap rounded-[4px] bg-ui-surface px-2 text-[11px] text-ui-body">
-                                <span className="font-semibold">{t.type}</span>
-                                {t.status && <span className="text-ui-text-secondary">· {t.status}</span>}
+                              <span
+                                key={t.type}
+                                title={t.status ? `${t.type} · ${t.status}` : t.type}
+                                className="inline-flex h-[21px] items-center whitespace-nowrap rounded-[2px] bg-ui-btn-primary px-2 text-[11px] font-medium leading-4 text-ui-btn-primary-fg"
+                              >
+                                {t.type}
                               </span>
                             ))}
-                            {types.length > 3 && <span className="self-center text-[11px] text-ui-text-secondary">+{types.length - 3}</span>}
+                            {types.length > 3 && <span className="self-center text-[11px] font-medium">+{types.length - 3}</span>}
                           </span>
-                        ) : <span className="text-ui-text-secondary">—</span>}
+                        ) : <span style={muted}>—</span>}
                       </td>
                     )}
-                    <td className={TD_CLS}>
-                      {p.trust ? (
-                        <span
-                          className="inline-flex h-[24px] items-center gap-1.5 whitespace-nowrap rounded-[4px] px-2.5 text-[12px] font-semibold"
-                          style={{ background: STAGE_TONE[p.trust.stage].bg, color: ink(STAGE_TONE[p.trust.stage].fg) }}
-                        >
-                          <span aria-hidden className="size-1.5 rounded-full" style={{ background: STAGE_TONE[p.trust.stage].fg }} />
-                          {TRUST_STAGE_LABEL[p.trust.stage]}
-                        </span>
-                      ) : (
-                        <StageBadge
-                          stage={p.current_stage as ProjectStage}
-                          className="h-[22px] gap-1 rounded-[4px] pl-2 pr-2.5 text-[12px] leading-4 [&_svg]:size-3.5"
-                        />
-                      )}
+                    <td className="pr-2">
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-medium leading-4">
+                        <StageIcon aria-hidden className="size-3.5 shrink-0" />
+                        {stageLabel}
+                      </span>
                     </td>
                     {show('owner') && (
-                      <td className={TD_CLS}>
+                      <td className="pr-2 text-[14px] font-medium">
                         {p.owner ? (
-                          <span className="flex items-center gap-2 whitespace-nowrap">
-                            <span aria-hidden className="grid size-[26px] shrink-0 place-items-center rounded-full bg-ui-surface text-[10px] font-semibold leading-[1.4] text-ui-body">
-                              <PersonFace name={p.owner.full_name} fallback={initialsOf(p.owner.full_name)} />
-                            </span>
-                            <span className="flex flex-col leading-tight">
-                              {p.owner.full_name}
-                              {p.ownerFromBoard && <span className="text-[10px] text-ui-text-secondary">Assigned on the dashboard</span>}
-                            </span>
+                          <span className="flex flex-col leading-tight">
+                            <span className="truncate whitespace-nowrap">{p.owner.full_name}</span>
+                            {p.ownerFromBoard && <span className="text-[10px] font-normal" style={muted}>Assigned on the dashboard</span>}
                           </span>
                         ) : (
-                          <span className="text-ui-text-secondary">—</span>
+                          <span style={muted}>—</span>
                         )}
                       </td>
                     )}
                     {show('due') && (
-                      <td className={TD_CLS}>
+                      <td className="px-2.5 py-1">
                         {due ? (
-                          <span
-                            className={cn('flex flex-col gap-[3px] text-[12px]', isOverdue ? 'text-[var(--status-t7-fg)]' : 'text-ui-body')}
-                          >
-                            <span className="flex items-center gap-[5px] whitespace-nowrap">
-                              {isOverdue
-                                ? <CalendarClock aria-hidden className="size-3.5 shrink-0" />
-                                : <Calendar aria-hidden className="size-3.5 shrink-0" />}
-                              {formatDate(due)}
-                            </span>
-                            {dueIsEtd && <span className="text-[10px] text-ui-text-secondary">ETD · Trust System</span>}
-                            {isOverdue && (
-                              <span className="text-[10px]">
-                                {daysLate} day{daysLate !== 1 ? 's' : ''} overdue
+                          isOverdue ? (
+                            <span
+                              className="inline-flex flex-col rounded-[4px] border border-solid p-1"
+                              style={{ background: 'var(--process-a0l-bg)', borderColor: 'var(--process-a0l-fg)', color: 'var(--process-a0l-fg)' }}
+                            >
+                              <span className="flex items-center gap-[5px] whitespace-nowrap text-[14px] font-medium">
+                                <CalendarClock aria-hidden className="size-3.5 shrink-0" />
+                                {formatDate(due)}
                               </span>
-                            )}
-                          </span>
+                              <span className="text-[10px]">{daysLate} day{daysLate !== 1 ? 's' : ''} overdue</span>
+                            </span>
+                          ) : (
+                            <span className="flex flex-col">
+                              <span className="flex items-center gap-[5px] whitespace-nowrap text-[14px] font-medium">
+                                <Calendar aria-hidden className="size-3.5 shrink-0" />
+                                {formatDate(due)}
+                              </span>
+                              {dueIsEtd && <span className="text-[10px]" style={muted}>ETD · Trust System</span>}
+                            </span>
+                          )
                         ) : (
-                          <span className="text-ui-text-secondary">—</span>
+                          <span style={muted}>—</span>
                         )}
                       </td>
                     )}
                     {show('value') && (
-                      <td className={cn(TD_CLS, 'whitespace-nowrap text-right font-medium')}>
+                      <td className="whitespace-nowrap px-2.5 text-[14px] font-medium">
                         {hideSensitive ? (
                           <PermissionShield label="Restricted" />
                         ) : p.deal_value != null ? (
-                          `${CURRENCY_SYMBOL[p.currency] ?? ''}${p.deal_value.toLocaleString('en-US')}${CURRENCY_SYMBOL[p.currency] ? '' : ` ${p.currency}`}`
+                          CURRENCY_SYMBOL[p.currency]
+                            ? `${CURRENCY_SYMBOL[p.currency]} ${p.deal_value.toLocaleString('en-US')}`
+                            : `${p.deal_value.toLocaleString('en-US')} ${p.currency}`
                         ) : (
-                          <span className="text-ui-text-secondary">—</span>
+                          <span style={muted}>—</span>
                         )}
                       </td>
                     )}
                     {show('margin') && (
-                      <td className={cn(TD_CLS, 'text-right')}>
+                      <td className="px-2.5 text-right text-[13px]">
                         {p.margin_target_pct != null ? (
                           <span className="pill" style={{
                             background: p.margin_target_pct >= 20 ? 'var(--status-success-bg)' : 'var(--status-warning-bg)',
@@ -556,12 +594,9 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                           }}>
                             {p.margin_target_pct}%
                           </span>
-                        ) : <span className="text-ui-text-secondary">—</span>}
+                        ) : <span style={muted}>—</span>}
                       </td>
                     )}
-                    <td className={cn(TD_CLS, 'pr-[18px]')}>
-                      <ChevronRight aria-hidden className="size-3.5 text-ui-text-secondary" />
-                    </td>
                   </tr>
                 );
               })}

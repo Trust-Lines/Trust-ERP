@@ -46,7 +46,7 @@ export default async function ProjectsPage() {
 
   const { data: rows, error: rowsError } = await supabase
     .from('projects')
-    .select('id, code, name, current_stage, categories, deal_value, currency, margin_target_pct, est_delivery_date, client_id, trustlines_pm_id, region, site_location, customer_id, dropbox_root_path')
+    .select('id, code, name, current_stage, categories, deal_value, currency, margin_target_pct, est_delivery_date, client_id, trustlines_pm_id, region, site_location, customer_id, dropbox_root_path, created_at')
     .neq('is_archived', true)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
@@ -59,6 +59,7 @@ export default async function ProjectsPage() {
     margin_target_pct: number | null; est_delivery_date: string | null;
     client_id: string | null; trustlines_pm_id: string | null;
     region: string | null; site_location: string | null; customer_id: string | null; dropbox_root_path: string | null;
+    created_at: string | null;
   }[];
 
   const today = new Date().toISOString().split('T')[0];
@@ -102,6 +103,7 @@ export default async function ProjectsPage() {
     currency:         r.currency,
     margin_target_pct: r.margin_target_pct,
     est_delivery_date: r.est_delivery_date,
+    created_at:       r.created_at,
     // The client: its customer record, else the brand folder its Dropbox folder sits in.
     client: (() => { const n = (r.customer_id && customerMap.get(r.customer_id)) || brandFromDropboxPath(r.dropbox_root_path); return n ? { name: n } : null; })(),
     owner: (() => { const id = r.trustlines_pm_id ?? assignedId(r.id); return id ? (ownerMap.get(id) ?? null) : null; })(),
@@ -172,6 +174,7 @@ export interface ProjectRow {
   currency: string;
   margin_target_pct: number | null;
   est_delivery_date: string | null;
+  created_at: string | null;
   client: { name: string } | null;
   owner: { full_name: string } | null;
   /** The owner is the dashboard card's "Assign to" (no PM set on the project). */
