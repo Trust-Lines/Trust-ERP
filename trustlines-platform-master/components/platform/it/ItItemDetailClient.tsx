@@ -2,9 +2,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { useState, type ComponentType, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import QRCode from 'qrcode';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -29,6 +28,7 @@ import { ConfirmModal } from '@/components/ui/modal';
 import { MonitorPcIcon } from './MonitorPcIcon';
 import { formatTicketDate } from './ticketStyles';
 import { ItItemFormDialog, type ItItemFormValues } from './ItItemFormDialog';
+import { printLabel, useItemQr } from './itemQr';
 import {
   CATEGORY_CHIP,
   CATEGORY_LABEL,
@@ -147,32 +147,6 @@ function GroupedCard({ item }: { item: ItItem }) {
   );
 }
 
-/** Opens a small window with just the QR label and prints it. */
-function printLabel(name: string, url: string, qr: string) {
-  const w = window.open('', '_blank', 'width=420,height=560');
-  if (!w) {
-    toast.error('Allow pop-ups for this site to print the label');
-    return;
-  }
-  const d = w.document;
-  d.title = `QR · ${name}`;
-  const style = d.createElement('style');
-  style.textContent = 'body{font-family:system-ui,sans-serif;text-align:center;margin:24px}h1{font-size:18px;margin:0 0 12px}img{width:260px;height:260px}p{font-size:12px;margin:12px 0 0;word-break:break-all}';
-  d.head.appendChild(style);
-  const h = d.createElement('h1');
-  h.textContent = name;
-  const img = d.createElement('img');
-  img.alt = '';
-  const p = d.createElement('p');
-  p.textContent = url;
-  d.body.append(h, img, p);
-  img.onload = () => {
-    w.focus();
-    w.print();
-  };
-  img.src = qr;
-}
-
 export function ItItemDetailClient({ item, canEdit = false, assignees = [], startEditing = false }: {
   item: ItItemDetailData | null;
   /** edit.it: Delete, Edit Info, Add to Set, Access Computer. */
@@ -182,8 +156,7 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
   startEditing?: boolean;
 }) {
   const router = useRouter();
-  const [itemUrl, setItemUrl] = useState<string | null>(null);
-  const [qr, setQr] = useState<string | null>(null);
+  const { url: itemUrl, qr } = useItemQr(item?.id ?? null);
   const [editing, setEditing] = useState(startEditing && canEdit && !!item);
   const [deleting, setDeleting] = useState(false);
 
@@ -205,18 +178,6 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
     router.push('/it/items');
     router.refresh();
   }
-
-  // The label points at this item's page; built in the browser from the current origin.
-  useEffect(() => {
-    if (!item) return;
-    const url = `${window.location.origin}/it/items/${encodeURIComponent(item.id)}`;
-    let alive = true;
-    setItemUrl(url);
-    QRCode.toDataURL(url, { margin: 1, width: 446, errorCorrectionLevel: 'M' })
-      .then(data => { if (alive) setQr(data); })
-      .catch(() => { if (alive) setQr(null); });
-    return () => { alive = false; };
-  }, [item]);
 
   function copyId() {
     if (!item) return;

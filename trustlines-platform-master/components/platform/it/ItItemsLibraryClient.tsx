@@ -265,7 +265,8 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false, a
           initial={EMPTY_ITEM}
           assignees={assignees}
           onClose={() => setAdding(false)}
-          onSaved={id => { setAdding(false); router.push(`/it/items/${id}`); router.refresh(); }}
+          onSaved={id => { setAdding(false); router.push(`/it/items/${id}`); }}
+          onCreated={() => router.refresh()}
         />
       )}
       <ConfirmModal
