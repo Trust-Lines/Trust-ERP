@@ -463,6 +463,9 @@ const PHASE_TONE: Record<'phase1' | 'phase2' | 'phase3' | 'delivery', Tone> = {
   phase3:   { fg: 'var(--board-opportunity-fg)', bg: 'var(--board-opportunity-bg)' },
   delivery: { fg: 'var(--process-c4-fg)', bg: 'var(--process-c4-bg)' },
 };
+// Ink / surface of a white steps card; StepsCard sets them per mode (see there).
+const INK = 'var(--wf-ink)';
+const SURFACE = 'var(--wf-surface)';
 const CAT_ICON: Record<CategoryGroup, LucideIcon> = {
   millwork: Hammer, shelving: ShelvingUnit, ceiling: LampCeiling, image: Palette,
 };
@@ -506,10 +509,10 @@ const fmtStepDate = (iso: string | null | undefined) =>
 // Horizontal stepper (Figma 1031:29703): 29px boxes on a 2px line, label + date under each.
 // Each box picks its step; the picked step's actions open underneath.
 function Stepper({
-  defs, records, selected, onSelect, tone,
+  defs, records, selected, onSelect,
 }: {
   defs: StepDef[]; records: (StepRecord | undefined)[];
-  selected: string | null; onSelect: (key: string) => void; tone: Tone;
+  selected: string | null; onSelect: (key: string) => void;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -519,7 +522,7 @@ function Stepper({
       >
         <span
           aria-hidden className="absolute top-[45px] h-0.5"
-          style={{ left: `calc(16px + (100% - 32px) / ${defs.length * 2})`, right: `calc(16px + (100% - 32px) / ${defs.length * 2})`, background: tone.fg }}
+          style={{ left: `calc(16px + (100% - 32px) / ${defs.length * 2})`, right: `calc(16px + (100% - 32px) / ${defs.length * 2})`, background: INK }}
         />
         {defs.map((d, i) => {
           const rec = records[i];
@@ -535,17 +538,18 @@ function Stepper({
                   on && 'ring-2 ring-offset-2',
                 )}
                 style={{
-                  borderColor: state === 'rejected' ? 'var(--status-t10-fg)' : tone.fg,
-                  background: state === 'done' ? tone.fg : 'var(--ui-page-bg)',
-                  color: state === 'done' ? 'var(--ui-page-bg)' : state === 'rejected' ? 'var(--status-t10-fg)' : tone.fg,
-                  ['--tw-ring-color' as string]: tone.fg,
+                  borderColor: state === 'rejected' ? 'var(--status-t10-fg)' : INK,
+                  background: state === 'done' ? INK : SURFACE,
+                  color: state === 'done' ? SURFACE : state === 'rejected' ? 'var(--status-t10-fg)' : INK,
+                  ['--tw-ring-color' as string]: INK,
+                  ['--tw-ring-offset-color' as string]: SURFACE,
                 }}
               >
                 {state === 'done' ? <Check size={21} aria-hidden />
                   : state === 'waiting' ? <Clock size={16} aria-hidden />
                     : state === 'rejected' ? <X size={16} aria-hidden /> : null}
               </button>
-              <span className="mt-[7px] flex w-full flex-col items-center gap-0.5 px-1 text-center" style={{ color: tone.fg }}>
+              <span className="mt-[7px] flex w-full flex-col items-center gap-0.5 px-1 text-center" style={{ color: INK }}>
                 <span className="text-[14px] font-semibold leading-tight">
                   {d.label}
                   {d.isOptional && <span className="block text-[10px] font-normal opacity-80">optional</span>}
@@ -604,7 +608,12 @@ function StepsCard({
   isOpen?: boolean; onToggle?: () => void; children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[8px] bg-ui-page-bg" style={{ color: tone.fg }}>
+    // Light: page-bg card, phase fg ink. Dark (Figma 1039:31823): a light card (white at 80% over the
+    // phase colour) inked in the phase bg, so the stepper reads like the light frame.
+    <div
+      className="rounded-[8px] [--wf-ink:var(--wf-fg)] [--wf-surface:var(--ui-page-bg)] dark:[--wf-ink:var(--wf-bg)] dark:[--wf-surface:color-mix(in_srgb,#fff_80%,var(--wf-bg))]"
+      style={{ ['--wf-fg' as string]: tone.fg, ['--wf-bg' as string]: tone.bg, background: SURFACE, color: INK }}
+    >
       {title && (
         <button
           type="button" onClick={onToggle} aria-expanded={isOpen}
@@ -708,7 +717,7 @@ export function ProjectWorkflow({
   // The stepper box picked in each card (key "phase:catGroup"); defaults to the first open step.
   const [picked, setPicked] = useState<Record<string, string>>({});
 
-  function renderStepper(defs: StepDef[], phase: StepPhase, catGroup: string | null, tone: Tone) {
+  function renderStepper(defs: StepDef[], phase: StepPhase, catGroup: string | null) {
     const records = defs.map(d => findStep(steps, phase, d.key, catGroup));
     const cardKey = `${phase}:${catGroup ?? ''}`;
     const selectedKey = picked[cardKey]
@@ -719,11 +728,12 @@ export function ProjectWorkflow({
     return (
       <>
         <Stepper
-          defs={defs} records={records} tone={tone}
+          defs={defs} records={records}
           selected={selectedKey} onSelect={key => setPicked(prev => ({ ...prev, [cardKey]: key }))}
         />
         {step && (
-          <div className="overflow-visible rounded-b-[8px] border-t border-ui-divider [&>div]:rounded-b-[8px]">
+          // Own page-bg well: in dark the card is light, but the step's actions keep dark-mode text.
+          <div className="overflow-visible rounded-b-[8px] border-t border-ui-divider bg-ui-page-bg [&>div]:rounded-b-[8px]">
             <StepRow
               num={idx + 1}
               stepDef={step}
@@ -762,7 +772,7 @@ export function ProjectWorkflow({
         isOpen={openSections.has(id)} onToggle={() => toggleSection(id)}
       >
         <StepsCard tone={tone} done={done} total={p.defs.length}>
-          {renderStepper(p.defs, id, null, tone)}
+          {renderStepper(p.defs, id, null)}
         </StepsCard>
       </PhaseBar>
     );
@@ -796,7 +806,7 @@ export function ProjectWorkflow({
               done={countDone(CATEGORY_STEPS, 'phase3', group)} total={CATEGORY_STEPS.length}
               isOpen={openCategories.has(group)} onToggle={() => toggleCategory(group)}
             >
-              {renderStepper(CATEGORY_STEPS, 'phase3', group, tone)}
+              {renderStepper(CATEGORY_STEPS, 'phase3', group)}
             </StepsCard>
           );
         })}

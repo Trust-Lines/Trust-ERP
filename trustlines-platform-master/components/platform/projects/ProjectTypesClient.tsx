@@ -62,7 +62,8 @@ const PRIORITY_TONE: Record<string, string> = {
 const CARD = 'flex flex-col rounded-[8px] border border-ui-divider bg-ui-page-bg p-5';
 const CARD_TITLE = 'm-0 text-[20px] font-semibold leading-[1.45] text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CHIP = 'inline-flex h-[29px] items-center rounded-[6px] border border-[var(--color-secondary-700)] px-4 text-[13px] font-medium whitespace-nowrap text-[var(--color-secondary-700)] dark:border-ui-heading dark:text-ui-heading';
-const INPUT = 'h-[42px] w-full rounded-[6px] border-ui-input-border bg-ui-input-bg px-3 text-[14px] tracking-[-0.308px] text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading';
+// Dark (Figma 1039:34247): input-bg #1F252D + input-border #4D6E98, so override fieldBase's dark well.
+const INPUT = 'h-[42px] w-full rounded-[6px] border-ui-input-border bg-ui-input-bg px-3 text-[14px] tracking-[-0.308px] text-[var(--color-secondary-700)] dark:rounded-[6px] dark:border-ui-input-border dark:bg-ui-input-bg dark:px-3 dark:text-ui-heading';
 const DATE_INPUT = cn(INPUT, 'flex-row-reverse justify-between [&_svg]:size-4');
 const READ = 'flex min-h-[42px] items-center text-[14px] leading-[1.4] text-[var(--color-secondary-700)] dark:text-ui-heading';
 
