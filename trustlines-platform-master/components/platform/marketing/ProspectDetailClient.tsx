@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Building2, Users, MapPin, Trash2, Archive, ArchiveRestore, Target, Clock, ArrowRightCircle, Activity, FileText, Loader2, History, Gem, BriefcaseBusiness, CloudSync, Pause, X } from 'lucide-react';
+import { ArrowLeft, Building2, Users, MapPin, Trash2, Archive, ArchiveRestore, Target, Clock, ArrowRightCircle, Activity, FileText, Loader2, History, Gem, BriefcaseBusiness, CloudSync, Pause, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { computeProspectCompleteness } from '@/lib/marketing/prospectCompleteness';
 import type { NeedClassification } from '@/types/database';
@@ -22,6 +22,7 @@ import { OpportunitiesTab } from './prospect-detail/OpportunitiesTab';
 import { ActivitiesTab } from './prospect-detail/ActivitiesTab';
 import { FilesTab } from './prospect-detail/FilesTab';
 import { HistoryTab } from './prospect-detail/HistoryTab';
+import { BeforeClosedView } from './prospect-detail/BeforeClosedView';
 import { feedback } from '@/components/ui/feedback-toast';
 import { errorText } from '@/lib/client/fetchJson';
 import { openLinkInNewTab } from '@/lib/client/openLink';
@@ -29,6 +30,47 @@ import { cn } from '@/lib/utils';
 
 const ADD_BUTTON = 'inline-flex h-9 items-center justify-center gap-2 rounded-[6px] border border-ui-divider bg-ui-surface-elevated pl-4 pr-[22px] text-[13px] font-semibold leading-[1.4] text-ui-body';
 const ACTION_BUTTON = 'inline-flex h-10 items-center justify-center gap-2 rounded-[6px] border pl-5 pr-6 text-[13px] font-medium';
+
+// Figma "Prospect detail" (1025:11136): three steps hanging from the top edge. Client Info and After
+// Closed show the tabbed contact view (After Closed has no frame of its own yet); Before Closed the
+// tasks + needs view. Steps before the open one read done (green), after it upcoming (grey, dashed).
+type Step = 'client' | 'before' | 'after';
+const STEPS: { key: Step; label: string }[] = [
+  { key: 'client', label: 'Client Info' },
+  { key: 'before', label: 'Before Closed' },
+  { key: 'after', label: 'After Closed' },
+];
+
+function StepStrip({ step, onStep, flush }: { step: Step; onStep: (s: Step) => void; flush?: boolean }) {
+  const at = STEPS.findIndex(s => s.key === step);
+  return (
+    // flush: in the pop-up the tabs hang from its top edge (it pads 32px).
+    <nav aria-label="Contact steps" className={cn('flex shrink-0 flex-wrap justify-center gap-4', flush && '-mt-8')}>
+      {STEPS.map((s, i) => {
+        const state = i < at ? 'done' : i === at ? 'current' : 'upcoming';
+        return (
+          <button
+            key={s.key} type="button" onClick={() => onStep(s.key)} aria-current={state === 'current' ? 'step' : undefined}
+            className={cn(
+              'flex w-[220px] cursor-pointer items-center justify-center gap-2.5 rounded-b-[10px] border-0 px-2 py-3 text-[16px]',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring',
+              state === 'done' && 'bg-[var(--status-t9-bg)] text-[var(--status-t9-fg)]',
+              state === 'current' && 'bg-ui-btn-primary font-semibold text-ui-btn-primary-fg',
+              state === 'upcoming' && 'bg-[var(--status-t0-bg)] text-ui-body',
+            )}
+          >
+            {state === 'done' && (
+              <span aria-hidden className="grid size-6 place-items-center rounded-full bg-[var(--status-t9-fg)] text-[var(--status-t9-bg)]"><Check size={16} /></span>
+            )}
+            {state === 'current' && <span aria-hidden className="size-6 rounded-full bg-ui-btn-primary-fg" />}
+            {state === 'upcoming' && <span aria-hidden className="size-6 rounded-full border-[1.5px] border-dashed border-current" />}
+            {s.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
 
 interface Props {
   initialProspect: Prospect;
@@ -59,6 +101,7 @@ export function ProspectDetailClient({
   const [opportunities, setOpportunities] = useState<OpportunityRow[]>(initialOpportunities);
   const [files, setFiles] = useState<ProspectFile[]>(initialFiles);
   const [backingUp, setBackingUp] = useState(false);
+  const [step, setStep] = useState<Step>('client');
   async function backUpThisContact() {
     setBackingUp(true);
     try {
@@ -325,12 +368,14 @@ export function ProspectDetailClient({
   const address = primaryLocation ? [primaryLocation.city, primaryLocation.address_line_1, primaryLocation.state].filter(Boolean).join(', ') : '';
 
   function openNeed(id: string) {
+    setStep('client');
     setTab('needs');
     requestAnimationFrame(() => document.getElementById(`need-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
   }
 
   return (
     <div className={cn('flex min-h-0 flex-col gap-6', onClose && 'h-full')}>
+      <StepStrip step={step} onStep={setStep} flush={!!onClose} />
       {!onClose && (
         <Link href="/marketing/prospects" className="btn btn-ghost btn-sm self-start">
           <ArrowLeft size={14} /> Contacts
@@ -385,13 +430,13 @@ export function ProspectDetailClient({
             <div className="flex flex-wrap items-center gap-2">
               {canEdit && (
                 <>
-                  <button type="button" className={ADD_BUTTON} title="Add Potential" onClick={() => { setTab('needs'); setAddingNeedIntent('potential'); setAddingNeed(true); }}>
+                  <button type="button" className={ADD_BUTTON} title="Add Potential" onClick={() => { setStep('client'); setTab('needs'); setAddingNeedIntent('potential'); setAddingNeed(true); }}>
                     <Clock size={16} aria-hidden /> Potential
                   </button>
-                  <button type="button" className={ADD_BUTTON} title="Add Opportunity" onClick={() => { setTab('needs'); setAddingNeedIntent('opportunity'); setAddingNeed(true); }}>
+                  <button type="button" className={ADD_BUTTON} title="Add Opportunity" onClick={() => { setStep('client'); setTab('needs'); setAddingNeedIntent('opportunity'); setAddingNeed(true); }}>
                     <Gem size={16} aria-hidden /> Opportunity
                   </button>
-                  <button type="button" className={ADD_BUTTON} title="Add Project" onClick={() => { setTab('history'); setAddingHistoricalProject(true); }}>
+                  <button type="button" className={ADD_BUTTON} title="Add Project" onClick={() => { setStep('client'); setTab('history'); setAddingHistoricalProject(true); }}>
                     <BriefcaseBusiness size={16} aria-hidden /> Project
                   </button>
                 </>
@@ -425,8 +470,16 @@ export function ProspectDetailClient({
         </div>
       </div>
 
-      {/* Figma 336:22028: tabs + content on the left, Activity (when given) as its own panel on the right.
-          Needs moved from a left rail into Overview's "Project Needs" card (still one click to each). */}
+      {step === 'before' ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <BeforeClosedView
+            needs={needs} opportunities={opportunities} potentials={potentials}
+            assignees={assignees} canEdit={!!canEdit} onOpenNeed={openNeed}
+          />
+        </div>
+      ) : (
+      /* Figma 336:22028: tabs + content on the left, Activity (when given) as its own panel on the right.
+          Needs moved from a left rail into Overview's "Project Needs" card (still one click to each). */
       <div className="flex min-h-0 flex-1 gap-4">
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="min-w-0 flex-1 overflow-y-auto">
@@ -571,6 +624,7 @@ export function ProspectDetailClient({
         </div>
         {aside}
       </div>
+      )}
     </div>
   );
 }
