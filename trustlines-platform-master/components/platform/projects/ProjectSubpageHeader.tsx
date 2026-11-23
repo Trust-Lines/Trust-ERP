@@ -45,8 +45,8 @@ export function ProjectSubpageHeader({ projectId, code, name, stage, active, hid
 
       <div className="flex flex-wrap items-end justify-between gap-4">
       <div className="flex min-w-0 flex-col gap-1.5">
-        {/* Purple in light; the dark frame (470:21970) uses the heading white. */}
-        <div className="flex items-center gap-2.5 text-[30px] leading-normal text-[var(--status-t4-fg)] dark:text-ui-heading">
+        {/* t4 foreground in both modes: purple in light, lilac #EDF in dark (Figma 1039:34194). */}
+        <div className="flex items-center gap-2.5 text-[30px] leading-normal text-[var(--status-t4-fg)]">
           <span># {code}</span>
           <button
             type="button" onClick={copyCode} aria-label="Copy project code"
@@ -55,7 +55,7 @@ export function ProjectSubpageHeader({ projectId, code, name, stage, active, hid
             <Copy size={26} aria-hidden />
           </button>
         </div>
-        <h1 className="m-0 text-[30px] font-semibold leading-normal text-[var(--status-t4-fg)] dark:text-ui-heading">{name}</h1>
+        <h1 className="m-0 text-[30px] font-semibold leading-normal text-[var(--status-t4-fg)]">{name}</h1>
         {stage && <div><StageBadge stage={stage} /></div>}
       </div>
       {actions && <div className="flex shrink-0 items-start justify-end gap-2.5">{actions}</div>}
