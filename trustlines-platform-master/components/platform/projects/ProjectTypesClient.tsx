@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Hammer, LampCeiling, Layers, Palette, ShelvingUnit, type LucideIcon } from 'lucide-react';
+import { FileText, Hammer, LampCeiling, Layers, Palette, ShelvingUnit, Trash, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { STATUS_CHAIN } from '@/lib/production/board';
 import { Select } from '@/components/ui/select';
@@ -30,6 +30,8 @@ interface SalesFile { id: string; file_name: string; dropbox_path: string; creat
 
 interface Props {
   projectId: string; projectCode: string; projectName: string; canEdit: boolean;
+  /** ops_manager / general_manager (`project:delete`): shows the header's trash action. */
+  canDelete?: boolean;
   /** Optional: the page doesn't load the stage, so the chip only shows when a caller passes it. */
   projectStage?: ProjectStage | null;
   /** Optional: tabs to hide. Finance guards itself (redirects roles without access). */
@@ -55,8 +57,8 @@ const PRIORITY_TONE: Record<string, string> = {
 };
 
 // Figma "Project production types" (467:19723): one card per type (title + Vendor / PF / Budget chips,
-// then a row of 42px fields), then "Sales design files". The frame's Delete / Reset to Draft / Export
-// buttons have no action on this page, so they're left out.
+// then a row of 42px fields), then "Sales design files". Of the header actions (1039:32426) only Delete
+// has an endpoint (DELETE /api/projects/[id]); Reset to Draft / Export File have none, so they're left out.
 const CARD = 'flex flex-col rounded-[8px] border border-ui-divider bg-ui-page-bg p-5';
 const CARD_TITLE = 'm-0 text-[20px] font-semibold leading-[1.45] text-[var(--color-secondary-700)] dark:text-ui-heading';
 const CHIP = 'inline-flex h-[29px] items-center rounded-[6px] border border-[var(--color-secondary-700)] px-4 text-[13px] font-medium whitespace-nowrap text-[var(--color-secondary-700)] dark:border-ui-heading dark:text-ui-heading';
@@ -65,10 +67,11 @@ const DATE_INPUT = cn(INPUT, 'flex-row-reverse justify-between [&_svg]:size-4');
 const READ = 'flex min-h-[42px] items-center text-[14px] leading-[1.4] text-[var(--color-secondary-700)] dark:text-ui-heading';
 
 export function ProjectTypesClient({
-  projectId, projectCode, projectName, projectStage = null, hiddenTabs = [], canEdit, rows, people, vendors, salesFiles, schemaError,
+  projectId, projectCode, projectName, projectStage = null, hiddenTabs = [], canEdit, canDelete = false, rows, people, vendors, salesFiles, schemaError,
 }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const personName = (uid: string | null) => people.find(p => p.id === uid)?.full_name ?? '—';
   const vendorLabel = (vid: string | null) => { const v = vendors.find(x => x.id === vid); return v ? (v.code ?? v.name) : '-'; };
 
@@ -82,13 +85,36 @@ export function ProjectTypesClient({
     router.refresh();
   }
 
+  // Same soft delete as the Overview page: the API re-checks the role and moves the project to trash.
+  async function handleDelete() {
+    if (!window.confirm(`Move "${projectName}" to trash? It will be permanently deleted after 30 days.`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => ({})) as { error?: string };
+      if (!res.ok) { toast.error(json.error ?? 'Failed'); return; }
+      toast.success('Project moved to trash');
+      router.push('/projects');
+    } finally { setDeleting(false); }
+  }
+
   const statusOptions = STATUSES.map(s => ({ value: s, label: s }));
   const ownerOptions = [{ value: '', label: '— unassigned —' }, ...people.map(p => ({ value: p.id, label: p.full_name }))];
   const priorityOptions = [{ value: '', label: '--' }, ...PRIORITIES.map(p => ({ value: p, label: p[0].toUpperCase() + p.slice(1) }))];
 
   return (
     <>
-      <ProjectSubpageHeader projectId={projectId} code={projectCode} name={projectName} stage={projectStage} active="types" hidden={hiddenTabs} />
+      <ProjectSubpageHeader projectId={projectId} code={projectCode} name={projectName} stage={projectStage} active="types" hidden={hiddenTabs}
+        actions={canDelete ? (
+          <button
+            type="button" onClick={handleDelete} disabled={deleting}
+            title="Move to trash" aria-label="Move to trash"
+            className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[6px] border border-solid border-[var(--status-t10-bg)] bg-[var(--status-t10-bg)] px-3.5 text-[var(--status-t10-fg)] transition-opacity hover:opacity-85 disabled:opacity-50"
+          >
+            {deleting ? '…' : <Trash size={16} aria-hidden />}
+          </button>
+        ) : undefined}
+      />
 
       {schemaError && (
         <div className="mb-4 rounded-[8px] border border-warning-normal bg-ui-page-bg p-3 text-[13px] text-ui-body">⚠️ {schemaError}</div>

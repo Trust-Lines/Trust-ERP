@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { ChevronRight, Copy } from 'lucide-react';
 import { toast } from 'sonner';
@@ -21,9 +22,11 @@ const TABS: { key: ProjectSubpage; label: string; path: string }[] = [
 // Figma "Project production types" (467:19723): breadcrumb, "# CODE" + copy, project name, stage chip,
 // then underline tabs that move between the project's own pages. Tabs the viewer can't open are hidden
 // (`hidden`), matching the buttons on the Overview page.
-export function ProjectSubpageHeader({ projectId, code, name, stage, active, hidden = [] }: {
+export function ProjectSubpageHeader({ projectId, code, name, stage, active, hidden = [], actions }: {
   projectId: string; code: string; name: string; stage: ProjectStage | null;
   active: ProjectSubpage; hidden?: ProjectSubpage[];
+  /** Figma 1039:32426: page actions, bottom-aligned to the right of the title block. */
+  actions?: ReactNode;
 }) {
   async function copyCode() {
     try { await navigator.clipboard.writeText(code); toast.success('Project code copied'); }
@@ -32,7 +35,7 @@ export function ProjectSubpageHeader({ projectId, code, name, stage, active, hid
 
   return (
     <div className="mb-4 flex flex-col gap-[18px]">
-      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[14px] leading-[1.4]">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[12px] leading-[1.4]">
         <Link href="/projects" className="text-ui-text-secondary no-underline hover:underline">Supply</Link>
         <ChevronRight aria-hidden className="size-3 text-ui-text-secondary" />
         <Link href="/projects" className="text-ui-body no-underline hover:underline">Projects</Link>
@@ -40,6 +43,7 @@ export function ProjectSubpageHeader({ projectId, code, name, stage, active, hid
         <Link href={`/projects/${projectId}`} className="text-ui-body no-underline hover:underline">#{code}</Link>
       </nav>
 
+      <div className="flex flex-wrap items-end justify-between gap-4">
       <div className="flex min-w-0 flex-col gap-1.5">
         {/* Purple in light; the dark frame (470:21970) uses the heading white. */}
         <div className="flex items-center gap-2.5 text-[30px] leading-normal text-[var(--status-t4-fg)] dark:text-ui-heading">
@@ -53,6 +57,8 @@ export function ProjectSubpageHeader({ projectId, code, name, stage, active, hid
         </div>
         <h1 className="m-0 text-[30px] font-semibold leading-normal text-[var(--status-t4-fg)] dark:text-ui-heading">{name}</h1>
         {stage && <div><StageBadge stage={stage} /></div>}
+      </div>
+      {actions && <div className="flex shrink-0 items-start justify-end gap-2.5">{actions}</div>}
       </div>
 
       <nav aria-label="Project sections" className="flex h-12 items-stretch gap-8 overflow-x-auto border-b border-ui-divider">
