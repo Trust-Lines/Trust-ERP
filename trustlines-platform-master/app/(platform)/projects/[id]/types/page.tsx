@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePage } from '@/lib/permissions/requirePage';
 import { roleCan } from '@/lib/permissions/server';
+import { can } from '@/lib/permissions/can';
 import { ProjectTypesClient } from '@/components/platform/projects/ProjectTypesClient';
 import { hiddenProjectTabs } from '@/lib/projects/subpageTabs';
 
@@ -53,6 +54,7 @@ export default async function ProjectTypesPage({ params }: { params: Promise<{ i
     <div className="main-inner">
       <ProjectTypesClient
         projectId={id} projectCode={project.code} projectName={project.name} canEdit={canEdit}
+        canDelete={!!role && can(role, 'project:delete')}
         projectStage={project.current_stage ?? null} hiddenTabs={hiddenTabs}
         rows={rows} people={people ?? []} vendors={vendors ?? []} salesFiles={salesFiles} schemaError={schemaError}
       />
