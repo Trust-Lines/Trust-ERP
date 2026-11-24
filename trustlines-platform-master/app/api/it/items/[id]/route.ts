@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { assigneeError, itApi, ITEM_COLS, type ItemRow } from '@/lib/it/server';
 import { cleanItemInput, isUuid } from '@/lib/it/validate';
+import { endAssignment, recordAssignment } from '@/lib/it/assignments';
 
 async function current(admin: unknown, id: string): Promise<ItemRow | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,6 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .update({ ...input.value, assigned_at: assignedAt, updated_at: now })
     .eq('id', id).is('deleted_at', null);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await recordAssignment(ctx.admin, { kind: 'item', assetId: id, personId: input.value.assignee_id, actorId: ctx.userId });
 
   await logAudit({
     actorId: ctx.userId, action: 'it.item_updated', resource: `it_item:${id}`,
@@ -52,6 +54,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const now = new Date().toISOString();
   const { error } = await ctx.admin.from('it_items').update({ deleted_at: now, updated_at: now }).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await endAssignment(ctx.admin, 'item', id);
   await logAudit({ actorId: ctx.userId, action: 'it.item_deleted', resource: `it_item:${id}`, oldValue: { name: before.name, category: before.category } });
   return NextResponse.json({ ok: true });
 }

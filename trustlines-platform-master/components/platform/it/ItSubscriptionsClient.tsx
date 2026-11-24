@@ -1,7 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ArrowDownUp, CreditCard, Eye, EyeOff, Plus, Search, UserRound } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { ArrowDownUp, CreditCard, Eye, EyeOff, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react';
+import { ConfirmModal } from '@/components/ui/modal';
+import { MenuItem } from '@/components/ui/menu';
+import { EMPTY_SUBSCRIPTION, ItSubscriptionFormDialog, type ItSubscriptionFormValues } from './ItSubscriptionFormDialog';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -12,9 +17,9 @@ import { CARD, CardHead, FIELD, MUTED, SORT_OPTIONS, STRONG, SecretField, initia
 // service logo and name (in its brand colour), the login address and password, seats, the payment
 // card's last four digits, and the start / due dates. Same page layout as IT / Mails.
 //
-// There is no subscriptions data source yet, so the page passes an empty list. Only the card's last
-// four digits are ever shown, and the login password is fetched on demand (`onRevealPassword`),
-// never sent with the list.
+// Data: it_subscriptions (migration 159) via lib/it/subscriptions. edit.it adds / edits / deletes and
+// reveals passwords (fetched one at a time, audited, never sent with the list). Only the card's
+// last four digits are stored.
 
 export interface ItSubscription {
   id: string;
@@ -32,12 +37,27 @@ export interface ItSubscription {
   active: boolean;
   /** ISO timestamp, used by the sort. */
   createdAt: string;
+  notes?: string | null;
+  hasPassword?: boolean;
 }
 
 type Tab = 'active' | 'history';
 type Sort = 'newest' | 'oldest' | 'name';
 
-const NOT_CONNECTED = 'Not available yet: the subscriptions data source is not connected';
+const NOT_CONNECTED = 'Needs IT edit rights';
+
+async function revealPassword(id: string): Promise<string> {
+  const res = await fetch(`/api/it/subscriptions/${id}/secret`, { cache: 'no-store' });
+  const b = await res.json().catch(() => null) as { value?: string; error?: string } | null;
+  if (!res.ok || typeof b?.value !== 'string') throw new Error(b?.error ?? 'Could not load');
+  return b.value;
+}
+
+const toForm = (s: ItSubscription): ItSubscriptionFormValues => ({
+  id: s.id, service: s.service, loginEmail: s.loginEmail, logoUrl: s.logoUrl ?? '', brandColor: s.brandColor ?? '',
+  seats: s.seats != null ? String(s.seats) : '', cardLast4: s.cardLast4 ?? '', startDate: s.startDate ?? '', dueDate: s.dueDate ?? '',
+  notes: s.notes ?? '', active: s.active, hasPassword: s.hasPassword,
+});
 const DUE_SOON_DAYS = 30;
 const CHIP = cn('inline-flex h-7 items-center gap-1 rounded-[4px] border border-secondary-700 pl-2 pr-3 text-[13px] font-semibold dark:border-secondary-50', STRONG);
 
@@ -63,10 +83,12 @@ function ServiceLogo({ sub }: { sub: ItSubscription }) {
   return <img src={sub.logoUrl} alt="" onError={() => setFailed(true)} className="max-h-full max-w-full object-contain" />;
 }
 
-function SubscriptionCard({ sub, showInfo, onRevealPassword }: {
+function SubscriptionCard({ sub, showInfo, onRevealPassword, onEdit, onDelete }: {
   sub: ItSubscription;
   showInfo: boolean;
   onRevealPassword?: (id: string) => Promise<string>;
+  onEdit?: (sub: ItSubscription) => void;
+  onDelete?: (sub: ItSubscription) => void;
 }) {
   const dueSoon = isDueSoon(sub.dueDate);
   return (
@@ -78,6 +100,10 @@ function SubscriptionCard({ sub, showInfo, onRevealPassword }: {
         // Figma 908:24358: white "elevated surface" logo tile, 4px radius and padding.
         pictureClassName="rounded-[4px] bg-white p-1 dark:bg-white dark:text-secondary-700"
         picture={<ServiceLogo sub={sub} />}
+        menu={onEdit && onDelete ? <>
+          <MenuItem onClick={() => onEdit(sub)}><Pencil aria-hidden /> Edit</MenuItem>
+          <MenuItem onClick={() => onDelete(sub)}><Trash2 aria-hidden /> Delete</MenuItem>
+        </> : undefined}
       />
       <SecretField id={sub.id} label={sub.service} showInfo={showInfo} onReveal={onRevealPassword} notConnectedTitle={NOT_CONNECTED} />
 
@@ -103,12 +129,16 @@ function SubscriptionCard({ sub, showInfo, onRevealPassword }: {
   );
 }
 
-export function ItSubscriptionsClient({ subscriptions, error = null, canCreate = false, onRevealPassword }: {
+export function ItSubscriptionsClient({ subscriptions, error = null, canCreate = false }: {
   subscriptions: ItSubscription[];
   error?: string | null;
+  /** edit.it: add, edit, delete and show passwords. */
   canCreate?: boolean;
-  onRevealPassword?: (id: string) => Promise<string>;
 }) {
+  const router = useRouter();
+  const onRevealPassword = canCreate ? revealPassword : undefined;
+  const [form, setForm] = useState<ItSubscriptionFormValues | null>(null);
+  const [deleting, setDeleting] = useState<ItSubscription | null>(null);
   const [tab, setTab] = useState<Tab>('active');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('newest');
@@ -150,11 +180,12 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
           <button
             type="button"
             disabled={!canCreate}
+            onClick={() => setForm(EMPTY_SUBSCRIPTION)}
             title={canCreate ? undefined : NOT_CONNECTED}
             className="flex h-9 items-center gap-2 rounded-md bg-accent-400 px-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:text-primary-950"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
-            New request
+            New subscription
           </button>
         }
       />
@@ -229,11 +260,29 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
         <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 md:grid-cols-2 xl:grid-cols-4">
           {visible.map(s => (
             <li key={s.id} className="min-w-0">
-              <SubscriptionCard sub={s} showInfo={showInfo} onRevealPassword={onRevealPassword} />
+              <SubscriptionCard sub={s} showInfo={showInfo} onRevealPassword={onRevealPassword}
+                onEdit={canCreate ? sub => setForm(toForm(sub)) : undefined} onDelete={canCreate ? setDeleting : undefined} />
             </li>
           ))}
         </ul>
       )}
+
+      {form && (
+        <ItSubscriptionFormDialog initial={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); router.refresh(); }} />
+      )}
+      <ConfirmModal
+        open={!!deleting} onOpenChange={o => { if (!o) setDeleting(null); }} tone="destructive" confirmLabel="Delete subscription"
+        title={`Delete ${deleting?.service ?? 'this subscription'}?`}
+        warning="It is removed from the IT list with its saved password. To keep it on record, mark it Cancelled in Edit instead."
+        onConfirm={async () => {
+          if (!deleting) return;
+          const res = await fetch(`/api/it/subscriptions/${deleting.id}`, { method: 'DELETE' });
+          if (!res.ok) { toast.error(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? 'Could not delete'); throw new Error('kept'); }
+          toast.success('Subscription deleted');
+          setDeleting(null);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

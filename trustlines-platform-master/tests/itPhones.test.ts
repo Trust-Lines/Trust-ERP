@@ -11,7 +11,9 @@ describe('cleanPhoneInput', () => {
     expect(cleanPhoneInput({ number: '' }, false)).toEqual({ error: 'Enter the phone number' });
     const r = cleanPhoneInput({ number: ' +1 555 0100 ', carrier: 'T-Mobile', holderId: 'nope', evil: 'x', startDate: '2026-11-20' }, false);
     if ('error' in r) throw new Error(r.error);
-    expect(r.value).toMatchObject({ number: '+1 555 0100', carrier: 'T-Mobile', holder_id: null, start_date: '2026-11-20', personal_device: false });
+    expect(r.value).toMatchObject({ number: '+1 555 0100', carrier: 'T-Mobile', holder_id: null, personal_device: false });
+    // Dates are never typed: the server stamps them.
+    expect(r.value).not.toHaveProperty('start_date');
     expect(r.value).not.toHaveProperty('evil');
   });
 

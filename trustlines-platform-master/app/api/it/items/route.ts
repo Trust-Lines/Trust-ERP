@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { assigneeError, itApi } from '@/lib/it/server';
 import { cleanItemInput } from '@/lib/it/validate';
+import { recordAssignment } from '@/lib/it/assignments';
 
 // Items Library → Add Item (edit.it).
 export async function POST(req: NextRequest) {
@@ -18,6 +19,7 @@ export async function POST(req: NextRequest) {
     .select('id').single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const id = (data as { id: string }).id;
+  await recordAssignment(ctx.admin, { kind: 'item', assetId: id, personId: input.value.assignee_id, actorId: ctx.userId });
 
   await logAudit({ actorId: ctx.userId, action: 'it.item_created', resource: `it_item:${id}`, newValue: input.value });
   return NextResponse.json({ item: { id } }, { status: 201 });

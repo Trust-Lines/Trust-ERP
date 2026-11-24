@@ -66,10 +66,8 @@ export async function loadPhoneLine(ctx: ItContext, id: string): Promise<PhoneLi
 }
 
 // ── Input ──
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const text = (v: unknown, max: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
-const date = (v: unknown) => (typeof v === 'string' && DATE.test(v) ? v : null);
 
 /**
  * Body → row fields. Secrets: a non-empty string sets it (encrypted), '' clears it, absent keeps it.
@@ -93,9 +91,7 @@ export function cleanPhoneInput(raw: unknown, partial: boolean): { value: Record
     if (e && !EMAIL.test(e)) return { error: 'The mail address isn’t valid' };
     out.email = e;
   }
-  for (const [k, col] of [['holderSince', 'holder_since'], ['startDate', 'start_date'], ['deviceAssignedAt', 'device_assigned_at']] as const) {
-    if (has(k)) out[col] = date(b[k]);
-  }
+  // holder_since / device_assigned_at / start_date are stamped by the routes (stampPhoneDates).
   if (has('holderId')) out.holder_id = typeof b.holderId === 'string' && /^[0-9a-f-]{36}$/i.test(b.holderId) ? b.holderId : null;
   if (has('personalDevice')) out.personal_device = b.personalDevice === true;
   if (partial && 'active' in b) out.retired_at = b.active === false ? new Date().toISOString() : null;
@@ -109,6 +105,25 @@ export function cleanPhoneInput(raw: unknown, partial: boolean): { value: Record
     }
   }
   return { value: out };
+}
+
+/** Today as YYYY-MM-DD (UTC). */
+export const today = (now = new Date()) => now.toISOString().slice(0, 10);
+
+/**
+ * Dates the server stamps: a new holder or company phone starts today; nobody / no phone clears it.
+ * `before` is the saved line (null when adding).
+ */
+export function stampPhoneDates(
+  value: Record<string, unknown>,
+  before: { holder_id: string | null; device_name: string | null } | null,
+  now = new Date(),
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (!before) out.start_date = today(now);
+  if ('holder_id' in value && (value.holder_id ?? null) !== (before?.holder_id ?? null)) out.holder_since = value.holder_id ? today(now) : null;
+  if ('device_name' in value && (value.device_name ?? null) !== (before?.device_name ?? null)) out.device_assigned_at = value.device_name ? today(now) : null;
+  return out;
 }
 
 /** The audit form of a change: field names only for secrets. */

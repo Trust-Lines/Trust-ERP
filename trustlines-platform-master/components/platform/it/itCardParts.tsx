@@ -41,7 +41,7 @@ export const tabClass = (on: boolean) =>
   );
 
 /** Card header: 45px picture, 20px title, address under it, and a "…" menu with "Copy email". */
-export function CardHead({ picture, pictureClassName, title, titleStyle, email }: {
+export function CardHead({ picture, pictureClassName, title, titleStyle, email, menu }: {
   picture: ReactNode;
   /** Overrides the picture frame (subscriptions: white logo tile). */
   pictureClassName?: string;
@@ -49,6 +49,8 @@ export function CardHead({ picture, pictureClassName, title, titleStyle, email }
   /** Brand colour for the title (subscriptions); defaults to the heading colour. */
   titleStyle?: React.CSSProperties;
   email: string;
+  /** More "…" menu items after Copy email (e.g. Edit / Delete). */
+  menu?: ReactNode;
 }) {
   return (
     <div className="flex min-w-0 items-center gap-2">
@@ -64,7 +66,8 @@ export function CardHead({ picture, pictureClassName, title, titleStyle, email }
           <Ellipsis aria-hidden />
         </MenuTrigger>
         <MenuContent>
-          <MenuItem onClick={() => void copyText(email, 'Email')}>Copy email</MenuItem>
+          {email && <MenuItem onClick={() => void copyText(email, 'Email')}>Copy email</MenuItem>}
+          {menu}
         </MenuContent>
       </Menu>
     </div>
