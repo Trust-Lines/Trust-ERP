@@ -33,6 +33,7 @@ import { useItemQr } from './itemQr';
 import { LabelSheetDialog } from './LabelSheetDialog';
 import { AddToSetDialog, GroupPasswordDialog, PendingGroupBanner, groupRequest, readPendingGroup } from './ItemGrouping';
 import type { PendingGroup } from '@/lib/it/groups';
+import { AssignmentHistory, type AssignmentSpellView } from './AssignmentHistory';
 import {
   CATEGORY_CHIP,
   CATEGORY_LABEL,
@@ -161,7 +162,7 @@ function GroupedCard({ item, onRemove }: { item: ItItem; onRemove?: (item: ItIte
   );
 }
 
-export function ItItemDetailClient({ item, canEdit = false, assignees = [], startEditing = false, groupUnlocked = false }: {
+export function ItItemDetailClient({ item, canEdit = false, assignees = [], startEditing = false, groupUnlocked = false, history = [] }: {
   item: ItItemDetailData | null;
   /** edit.it: Delete, Edit Info, Add to Set, Access Computer. */
   canEdit?: boolean;
@@ -170,6 +171,8 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
   startEditing?: boolean;
   /** The IT group password was entered in the last 30 minutes (server cookie). */
   groupUnlocked?: boolean;
+  /** Who held the item (newest first). */
+  history?: AssignmentSpellView[];
 }) {
   const router = useRouter();
   const { url: itemUrl, qr } = useItemQr(item?.id ?? null);
@@ -415,6 +418,8 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
               </p>
             )}
           </section>
+
+          <AssignmentHistory spells={history} />
         </div>
 
         {/* Right column: who holds it, QR label */}

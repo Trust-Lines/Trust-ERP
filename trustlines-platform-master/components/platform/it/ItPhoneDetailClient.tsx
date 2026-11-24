@@ -14,6 +14,7 @@ import { copyText, initials } from './itCardParts';
 import { ConfirmModal } from '@/components/ui/modal';
 import { roleLabel } from '@/components/platform/shell/Sidebar';
 import { ItPhoneFormDialog, type ItPhoneFormValues } from './ItPhoneFormDialog';
+import { AssignmentHistory, type AssignmentSpellView } from './AssignmentHistory';
 
 // Figma "Phone Numbers detail" (966:40115): Back, the number as the title, Delete / Edit Info; Basic
 // Info (number, firm, mail, password, PIN, IMEI, start date, account number, location, added date, notes) on the
@@ -33,8 +34,6 @@ export interface ItPhoneDetail {
   email: string | null;
   imei: string | null;
   location: string | null;
-  /** ISO date the line (contract) started. */
-  startDate: string | null;
   /** ISO date. */
   addedAt: string | null;
   notes: string | null;
@@ -134,13 +133,15 @@ async function revealSecret(id: string, kind: ItPhoneSecret): Promise<string> {
   return b.value;
 }
 
-export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, people = [] }: {
+export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, people = [], history = [] }: {
   line: ItPhoneDetail | null;
   /** edit.it: Edit Info, Delete, reveal secrets. */
   canEdit?: boolean;
   /** The line as the edit form needs it. */
   editValues?: ItPhoneFormValues | null;
   people?: { id: string; name: string }[];
+  /** Who held the line, and on which company phone (newest first). */
+  history?: AssignmentSpellView[];
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -191,6 +192,7 @@ export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, 
       </div>
 
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
         {/* Basic Info */}
         <section aria-labelledby="it-phone-basic" className={cn('flex min-w-0 flex-1 flex-col gap-4 px-5 pb-8 pt-4', PANEL)}>
           <h2 id="it-phone-basic" className={cn('m-0 text-[18px] font-semibold leading-normal', STRONG)}>Basic Info</h2>
@@ -202,10 +204,9 @@ export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, 
             </Field>
             <SecretField label="Password" icon={Lock} kind="password" lineId={line?.id ?? null} onReveal={onRevealSecret} />
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[213px_minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[213px_minmax(0,1fr)]">
             <SecretField label="PIN" kind="pin" lineId={line?.id ?? null} onReveal={onRevealSecret} />
             <Field label="IMEI" action={<CopyButton value={line?.imei} what="IMEI" />}>{line?.imei ?? <Placeholder>—</Placeholder>}</Field>
-            <Field label="Start Date" icon={CalendarPlus}>{formatTicketDate(line?.startDate ?? null)}</Field>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <SecretField label="Account Number" kind="accountNumber" lineId={line?.id ?? null} onReveal={onRevealSecret} />
@@ -214,6 +215,8 @@ export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, 
           </div>
           <Field label="Notes">{line?.notes || <Placeholder>No notes</Placeholder>}</Field>
         </section>
+        <AssignmentHistory spells={history} showDevice />
+        </div>
 
         {/* Right column: who holds the line, the device it runs on */}
         <aside className="flex w-full shrink-0 flex-col gap-4 xl:w-[366px]">

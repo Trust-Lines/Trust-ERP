@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useItemQr } from './itemQr';
+import { FORM_FIELD, FORM_PANEL, FORM_TEXTAREA, LABEL, PANEL_TITLE, PRIMARY_BTN, SECONDARY_BTN } from './itFormParts';
 import { LabelSheetDialog } from './LabelSheetDialog';
 
 // Items Library → Add Item and Item → Edit Info, laid out like the item page (Figma 845:42033):
@@ -53,16 +54,10 @@ export const EMPTY_ITEM: ItItemFormValues = {
   setLabel: '', notes: '', specs: {}, remoteAddress: '',
 };
 
-export const LABEL = 'mb-[7px] block text-[12px] font-medium leading-4 text-ui-body';
-export const PRIMARY_BTN =
-  'inline-flex h-10 items-center justify-center gap-2 rounded-md bg-secondary-700 px-6 text-[13px] font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-secondary-50 dark:text-primary-950';
-export const SECONDARY_BTN =
-  'inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[var(--ui-input-border)] bg-transparent px-6 text-[13px] font-medium text-ui-heading hover:bg-ui-hover-bg';
-
-// Figma panels: "main surfaces" grey with white ("elevated") inputs on it.
-const PANEL = 'flex flex-col gap-4 rounded-lg border border-solid border-primary-100 bg-primary-50 px-5 pb-6 pt-4 dark:border-primary-600 dark:bg-primary-700';
-const PANEL_TITLE = cn('m-0 text-[18px] font-semibold leading-normal', STRONG);
-const FIELD = 'h-[42px] w-full border-primary-100 bg-white text-[14px] dark:border-transparent dark:bg-secondary-800';
+// Panels, fields and buttons come from the shared IT form system (itFormParts).
+export { LABEL, PRIMARY_BTN, SECONDARY_BTN };
+const PANEL = FORM_PANEL;
+const FIELD = FORM_FIELD;
 
 const STATUS_LABEL: Record<ItemStatus, string> = { available: 'Available', repair: 'Repair', assigned: 'Assigned to a person' };
 const CATEGORY_OPTIONS = ITEM_CATEGORIES.map(c => ({ value: c, label: CATEGORY_LABEL[c] }));
@@ -248,7 +243,7 @@ export function ItItemFormDialog({ initial, assignees, onClose, onSaved, onCreat
                       </div>
                       <div className="sm:col-span-2 lg:col-span-4">
                         <label htmlFor="iti-notes" className={LABEL}>Notes</label>
-                        <Textarea id="iti-notes" maxLength={2000} rows={2} className="min-h-0 w-full border-primary-100 bg-white text-[14px] dark:border-transparent dark:bg-secondary-800" value={f.notes} onChange={e => set('notes', e.target.value)} />
+                        <Textarea id="iti-notes" maxLength={2000} rows={2} className={FORM_TEXTAREA} value={f.notes} onChange={e => set('notes', e.target.value)} />
                       </div>
                     </div>
                   </div>
