@@ -28,7 +28,7 @@ const DAY_MS = 86_400_000;
 // drawn as a mask so it takes the card's text colour in light and dark.
 const MAIL_CLOCK: CSSProperties = { mask: 'url(/icons/mail-clock.svg) center / contain no-repeat', WebkitMask: 'url(/icons/mail-clock.svg) center / contain no-repeat' };
 
-// Figma "Email Campaigns" (990:15405): heading, four tinted KPI cards, view tabs, then the tab.
+// Figma "Email Campaigns" (990:15405, dark 1019:27897): heading, four tinted KPI cards, view tabs, then the tab.
 export function EmailCampaignsClient({ canEdit, isManager, mailReady }: { canEdit: boolean; isManager: boolean; mailReady: boolean }) {
   const router = useRouter();
   const [tab, setTab] = useState<'campaigns' | 'sent' | 'suppressed'>('campaigns');

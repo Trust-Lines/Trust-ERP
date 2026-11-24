@@ -246,7 +246,7 @@
      Which status uses which tone: lib/status/tags.ts. Dark mode swaps bg/fg (see .dark).
      NOTE: T2 is labelled the other way round in the Figma export; values follow the design. */
   --status-t0-bg: #DDDDDD;
-  --status-t0-fg: #787881;
+  --status-t0-fg: #3D3D43;
   --status-t1-bg: #D2F7FF;
   --status-t1-fg: #1B7589; /* Figma #2398B2, darkened for 4.5:1 on the pale fill */
   --status-t2-bg: #D2E6FF;
@@ -539,7 +539,7 @@
   --ui-focus-ring: var(--color-accent-400);
 
   /* Status tones T0–T10 — Dark: strong colour as background, light colour as text. */
-  --status-t0-bg: #787881;
+  --status-t0-bg: #3D3D43;
   --status-t0-fg: #DDDDDD;
   --status-t1-bg: #1B7589; /* Figma #2398B2, darkened for 4.5:1 under the light text */
   --status-t1-fg: #D2F7FF;
