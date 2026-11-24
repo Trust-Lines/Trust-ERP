@@ -390,7 +390,7 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
             <button
               type="button"
               disabled={!item || !qr || !itemUrl}
-              onClick={() => item && qr && itemUrl && printLabel(item.name, itemUrl, qr)}
+              onClick={() => item && qr && itemUrl && printLabel(item.name, itemUrl, qr, [CATEGORY_LABEL[item.category], item.setLabel, item.location].filter(Boolean).join(' · '))}
               className={cn('flex items-center gap-[7px] rounded-md py-2.5 pl-6 pr-8 text-[13px] font-medium hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring', SOLID_CHIP, DISABLED)}
             >
               <Printer className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
