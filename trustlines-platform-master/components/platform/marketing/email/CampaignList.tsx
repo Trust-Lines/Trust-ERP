@@ -19,7 +19,7 @@ import { findStatusTag, STATUS_TAGS } from '@/lib/status/tags';
 import type { CampaignStats, EmailCampaignRow } from '@/lib/email/campaigns';
 import { fmtNumber, sendJson } from '../pr/shared';
 
-// Figma "Email Campaigns" (990:15405) — campaigns tab: search + status filter, then the
+// Figma "Email Campaigns" (990:15405, dark 1019:27897) — campaigns tab: search + status filter, then the
 // bordered table (grey heading row, 64px rows, row "…" menu, selection for bulk delete).
 
 const DAY = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -82,11 +82,11 @@ export function CampaignList({ campaigns, stats, error, canEdit, mounted, creati
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="relative w-full sm:w-[380px]">
             <Search size={16} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ui-text-secondary" aria-hidden />
-            <Input className="h-10 pl-8 text-[13px] dark:pl-8" placeholder="Search campaigns…" value={query}
+            <Input className="h-10 pl-8 text-[13px] dark:rounded-[6px] dark:border-secondary-500 dark:bg-primary-800 dark:pl-8" placeholder="Search campaigns…" value={query}
               onChange={e => setQuery(e.target.value)} aria-label="Search campaigns" />
           </div>
           <Select aria-label="Filter by status" value={status} onValueChange={v => setStatus(v ?? '')} options={STATUS_OPTIONS}
-            className="h-10 w-auto min-w-[130px] text-[11px]" />
+            className="h-10 w-auto min-w-[130px] text-[11px] dark:rounded-[4px] dark:border-primary-50 dark:bg-primary-800 dark:px-[11px] dark:text-primary-50" />
         </div>
         {canEdit && shownPicked.length > 0 && (
           <div className="flex items-center gap-2 text-[12px] text-ui-body">
