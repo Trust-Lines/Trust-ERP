@@ -14,14 +14,13 @@ const countBy = (list: DashProject[], keys: string[], date: (p: DashProject) => 
   list.filter(p => { const d = date(p); return !!d && keys.includes(monthKey(d)); }).length;
 
 /** Everything the dashboard derives from the loaded data and the current filters. */
-export function useDashboardStats({ projects, region, regionSeries, grouping, from, to, now, tasks, approvals, containers, installs }: {
+export function useDashboardStats({ projects, region, regionSeries, grouping, from, to, tasks, approvals, containers, installs }: {
   projects: DashProject[] | null;
   region: RegionKey | '';
   regionSeries: RegionKey | '';
   grouping: 'month' | 'quarter';
   from: Date;
   to: Date;
-  now: Date;
   tasks: Loaded<MyTask>;
   approvals: Loaded<MyApproval>;
   containers: Loaded<Container>;
@@ -51,9 +50,6 @@ export function useDashboardStats({ projects, region, regionSeries, grouping, fr
     values: months.map(m => countBy((projects ?? []).filter(p => regionOf(p.region) === r.key), [m.key], startOf)),
   }));
 
-  const last6 = useMemo(() => Array.from({ length: 6 }, (_, i) => { const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1); return `${d.getFullYear()}-${d.getMonth()}`; }), [now]);
-  const spark = (list: DashProject[], date: (p: DashProject) => string | null) => last6.map(k => countBy(list, [k], date));
-
   const openTasks = useMemo(() => (Array.isArray(tasks) ? tasks.filter(isOpen).sort(byUrgency) : []), [tasks]);
   const docs = Array.isArray(approvals) ? approvals : [];
   const po = docs.filter(a => a.docType === 'po_bo');
@@ -68,8 +64,6 @@ export function useDashboardStats({ projects, region, regionSeries, grouping, fr
   return {
     active, newInRange, closed, inProduction,
     months, buckets, barCounts, series,
-    activeSpark: spark(scoped, p => p.created_at),
-    closedSpark: spark(scoped, p => p.closed_deal_date),
     openTasks, po, pf, docState, upcoming, installRows,
   };
 }
