@@ -59,7 +59,8 @@ export const CodeChip = ({ t, children }: { t: string; children: ReactNode }) =>
   <span className="inline-flex h-[35px] shrink-0 items-center rounded-[6px] px-2.5 text-[14px] font-semibold tracking-[-0.308px]" style={{ background: `var(--status-${t}-bg)`, color: `var(--status-${t}-fg)` }}>{children}</span>
 );
 
+// Solid pill text is the page background (Figma 985:12437 / dark 1019:30442): white in light, near-black in dark.
 export const Pill = ({ solid, color, children }: { solid?: boolean; color: string; children: ReactNode }) => (
-  <span className={cn('inline-flex h-[22px] items-center rounded-[4px] px-2.5 text-[12px] leading-[1.4]', solid ? 'text-white' : 'border border-current')}
+  <span className={cn('inline-flex h-[22px] items-center rounded-[4px] px-2.5 text-[12px] leading-[1.4]', solid ? 'text-ui-page-bg' : 'border border-current')}
     style={solid ? { background: color } : { color }}>{children}</span>
 );
