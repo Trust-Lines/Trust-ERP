@@ -44,7 +44,7 @@ interface Props {
 }
 
 // Figma "Project Detail" (node 445:7500): Team / Time Line / Internal Notes / Integration as a
-// row of bordered cards under Finance.
+// row of bordered cards under Finance. Dark (Figma 1039:31712): secondary lines use the heading colour.
 const ROW = 'border-b border-ui-divider py-2.5 first:pt-0 last:border-b-0 last:pb-0';
 
 function RailCard({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
@@ -71,10 +71,10 @@ function TeamCard({ team }: { team: DerivedTeamPerson[] }) {
               <Avatar name={p.full_name} size="sm" colorIndex={i} />
               <div className="min-w-0 flex-1">
                 <p className={cn('m-0 truncate text-[14px] font-semibold leading-[1.3]', HEADING)}>{p.full_name}</p>
-                <p className="m-0 truncate text-[12px] text-ui-body">{p.role.replace(/_/g, ' ')}</p>
+                <p className="m-0 truncate text-[12px] text-ui-body dark:text-ui-heading">{p.role.replace(/_/g, ' ')}</p>
               </div>
               {p.reasons.length > 0 && (
-                <span className="max-w-[45%] truncate text-right text-[14px] text-ui-body" title={p.reasons.join(', ')}>{p.reasons.join(', ')}</span>
+                <span className="max-w-[45%] truncate text-right text-[14px] text-ui-body dark:text-ui-heading" title={p.reasons.join(', ')}>{p.reasons.join(', ')}</span>
               )}
             </div>
           ))}
@@ -156,7 +156,7 @@ function InternalNotesCard({ projectId, userId, initialNotes }: {
                 <span className={cn('truncate text-[14px] font-semibold', HEADING)}>{note.author?.full_name ?? 'Unknown'}</span>
                 <span className="shrink-0 text-[11px] text-ui-text-secondary">{fmtDate(note.created_at)}</span>
               </div>
-              <p className="m-0 text-[12px] leading-[1.4] text-ui-body">
+              <p className="m-0 text-[12px] leading-[1.4] text-ui-body dark:text-ui-heading">
                 {note.content.length > 120 ? `${note.content.slice(0, 120)}…` : note.content}
               </p>
             </div>
@@ -197,7 +197,7 @@ function StageTimelineCard({ stageHistory }: { stageHistory: StageTransitionRow[
                   <span className={cn('text-[14px] font-semibold', HEADING)}>{info.num}. {info.label}</span>
                   <span className="shrink-0 text-[10px] text-ui-text-secondary">{fmtDate(t.created_at)}</span>
                 </div>
-                {t.actor?.full_name && <p className="m-0 text-[12px] text-ui-body">{t.actor.full_name}</p>}
+                {t.actor?.full_name && <p className="m-0 text-[12px] text-ui-body dark:text-ui-heading">{t.actor.full_name}</p>}
               </li>
             );
           })}
@@ -212,7 +212,7 @@ export function IntegrationsCard({ project, userRole }: { project: FullProject; 
   const line = (label: string, value: React.ReactNode) => (
     <div className={cn('flex items-center justify-between gap-2', ROW)}>
       <span className={cn('text-[14px] font-semibold', HEADING)}>{label}</span>
-      <span className="min-w-0 truncate text-[14px] text-ui-body">{value}</span>
+      <span className="min-w-0 truncate text-[14px] text-ui-body dark:text-ui-heading">{value}</span>
     </div>
   );
 
