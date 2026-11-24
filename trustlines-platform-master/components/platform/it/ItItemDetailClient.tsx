@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -12,6 +12,7 @@ import {
   Copy,
   Cpu,
   Ellipsis,
+  Unlink,
   Gpu,
   HardDrive,
   Link2,
@@ -30,6 +31,8 @@ import { formatTicketDate } from './ticketStyles';
 import { ItItemFormDialog, type ItItemFormValues } from './ItItemFormDialog';
 import { useItemQr } from './itemQr';
 import { LabelSheetDialog } from './LabelSheetDialog';
+import { AddToSetDialog, GroupPasswordDialog, PendingGroupBanner, groupRequest, readPendingGroup } from './ItemGrouping';
+import type { PendingGroup } from '@/lib/it/groups';
 import {
   CATEGORY_CHIP,
   CATEGORY_LABEL,
@@ -43,7 +46,8 @@ import {
 
 // Figma "Item detail" (880:14431): Back, title with its set chip, Delete / Edit Info; Basic Info,
 // Specifications and the items it is grouped with on the left; who holds it and its QR label on the
-// right. The QR code and Print work in the browser; editing, deleting and grouping need an endpoint.
+// right. Grouping (Add to Set, scan QR to add, remove from set) is edit.it plus the IT group
+// password — see ItemGrouping.
 
 export type ItItemSpecKey = 'cpu' | 'gpu' | 'ram' | 'storage';
 
@@ -97,7 +101,7 @@ function ItemImage({ src, iconSize }: { src: string | null; iconSize: string }) 
   );
 }
 
-function GroupedCard({ item }: { item: ItItem }) {
+function GroupedCard({ item, onRemove }: { item: ItItem; onRemove?: (item: ItItem) => void }) {
   return (
     <article className="relative flex flex-col overflow-hidden rounded-lg border border-solid border-primary-100 bg-white focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ui-focus-ring dark:border-primary-600 dark:bg-primary-950">
       <div className="relative flex h-[151px] items-center justify-center bg-white">
@@ -114,7 +118,16 @@ function GroupedCard({ item }: { item: ItItem }) {
             </Link>
             <span className={cn('text-[13px] tracking-[0.39px]', MUTED)}>{formatItemDate(item.addedAt)}</span>
           </div>
-          <Ellipsis className={cn('h-[18px] w-[18px] shrink-0', STRONG)} strokeWidth={2} aria-hidden="true" />
+          {onRemove ? (
+            <button
+              type="button" onClick={() => onRemove(item)} aria-label={`Remove ${item.name} from the set`} title="Remove from set"
+              className={cn('relative z-10 grid h-6 w-6 shrink-0 place-items-center rounded hover:bg-primary-100 focus-visible:outline-2 focus-visible:outline-ui-focus-ring dark:hover:bg-primary-600', STRONG)}
+            >
+              <Unlink className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+            </button>
+          ) : (
+            <Ellipsis className={cn('h-[18px] w-[18px] shrink-0', STRONG)} strokeWidth={2} aria-hidden="true" />
+          )}
         </div>
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-1">
@@ -148,19 +161,67 @@ function GroupedCard({ item }: { item: ItItem }) {
   );
 }
 
-export function ItItemDetailClient({ item, canEdit = false, assignees = [], startEditing = false }: {
+export function ItItemDetailClient({ item, canEdit = false, assignees = [], startEditing = false, groupUnlocked = false }: {
   item: ItItemDetailData | null;
   /** edit.it: Delete, Edit Info, Add to Set, Access Computer. */
   canEdit?: boolean;
   assignees?: { id: string; name: string }[];
   /** Opened from a card's "Edit Info" (?edit=1). */
   startEditing?: boolean;
+  /** The IT group password was entered in the last 30 minutes (server cookie). */
+  groupUnlocked?: boolean;
 }) {
   const router = useRouter();
   const { url: itemUrl, qr } = useItemQr(item?.id ?? null);
   const [editing, setEditing] = useState(startEditing && canEdit && !!item);
   const [deleting, setDeleting] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [unlocked, setUnlocked] = useState(groupUnlocked);
+  const [afterUnlock, setAfterUnlock] = useState<(() => void) | null>(null);
+  const [addingSet, setAddingSet] = useState(false);
+
+  // Scanned while grouping: show the "Add to set" banner instead of popping the blank-item form.
+  useEffect(() => {
+    const p = readPendingGroup();
+    if (p && item && p.anchorId !== item.id) setEditing(false);
+  }, [item]);
+
+  /** Runs `then` now when grouping is unlocked, otherwise after the password. */
+  function withUnlock(then: () => void) {
+    if (unlocked) then();
+    else setAfterUnlock(() => then);
+  }
+  function relock(then: () => void) {
+    setUnlocked(false);
+    setAfterUnlock(() => then);
+  }
+
+  async function addPending(p: PendingGroup): Promise<boolean> {
+    if (!item) return false;
+    const run = async () => {
+      const r = await groupRequest('POST', { anchorId: p.anchorId, itemIds: [item.id], setLabel: p.setLabel });
+      if (!r.ok) {
+        if (r.locked) relock(() => void run());
+        else toast.error(r.error);
+        return false;
+      }
+      toast.success(`${item.name} added to ${p.setLabel}`);
+      router.refresh();
+      return true;
+    };
+    if (!unlocked) { withUnlock(() => void run()); return false; }
+    return run();
+  }
+
+  function removeFromSet(g: ItItem) {
+    const run = async () => {
+      const r = await groupRequest('DELETE', { itemId: g.id });
+      if (!r.ok) { if (r.locked) relock(() => void run()); else toast.error(r.error); return; }
+      toast.success(`${g.name} removed from ${g.setLabel ?? 'the set'}`);
+      router.refresh();
+    };
+    withUnlock(() => void run());
+  }
 
   const formValues: ItItemFormValues | null = item ? {
     id: item.id, name: item.name, model: item.model ?? '', category: item.category, location: item.location ?? '',
@@ -253,6 +314,10 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
         </div>
       </div>
 
+      {item && (
+        <PendingGroupBanner item={{ id: item.id, name: item.name, setLabel: item.setLabel }} canEdit={canEdit} onAdd={addPending} />
+      )}
+
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-6">
           {/* Basic Info */}
@@ -328,8 +393,8 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
               <button
                 type="button"
                 disabled={!canEdit || !item}
-                onClick={() => setEditing(true)}
-                title={canEdit ? 'Give this item a set name; items with the same set are grouped' : 'Your role cannot change IT items'}
+                onClick={() => withUnlock(() => setAddingSet(true))}
+                title={canEdit ? 'Group this item with others (password required)' : 'Your role cannot change IT items'}
                 className={cn('flex items-center gap-1 rounded-md bg-accent-400 py-1.5 pl-2.5 pr-3.5 text-[13px] font-semibold text-white dark:text-primary-950', DISABLED)}
               >
                 <Plus className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
@@ -340,7 +405,7 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
               <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 2xl:grid-cols-3">
                 {item.groupedWith.map(g => (
                   <li key={g.id}>
-                    <GroupedCard item={g} />
+                    <GroupedCard item={g} onRemove={canEdit ? removeFromSet : undefined} />
                   </li>
                 ))}
               </ul>
@@ -408,6 +473,20 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
           assignees={assignees}
           onClose={() => setEditing(false)}
           onSaved={() => { setEditing(false); router.replace(`/it/items/${item!.id}`); router.refresh(); }}
+        />
+      )}
+      {afterUnlock && (
+        <GroupPasswordDialog
+          onClose={() => setAfterUnlock(null)}
+          onUnlocked={() => { const next = afterUnlock; setUnlocked(true); setAfterUnlock(null); next(); }}
+        />
+      )}
+      {addingSet && item && (
+        <AddToSetDialog
+          item={{ id: item.id, name: item.name, setLabel: item.setLabel }}
+          onClose={() => setAddingSet(false)}
+          onDone={() => { setAddingSet(false); router.refresh(); }}
+          onLocked={() => { setAddingSet(false); relock(() => setAddingSet(true)); }}
         />
       )}
       {printing && item && (
