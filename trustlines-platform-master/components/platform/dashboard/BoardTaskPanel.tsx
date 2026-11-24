@@ -30,9 +30,10 @@ interface TaskRow {
 type Patch = Partial<Pick<TaskRow, 'title' | 'status' | 'assignee_id'>>;
 
 const HEADING = 'text-[var(--color-secondary-700)] dark:text-secondary-50';
-const DONE_INK = 'text-[var(--status-t6-fg)]';
+// Done row (Figma 1025:11950): process/a0/w — mint fill with green ink in light, the reverse in dark.
+const DONE_INK = 'text-[var(--process-a0w-fg)]';
 const CHECKBOX = 'size-4 rounded-[3px] border-[var(--ui-input-border)] bg-ui-input-bg dark:border-[var(--ui-input-border)] dark:bg-ui-input-bg [&>span]:size-full [&>span]:rounded-[2px]';
-const CHECKBOX_DONE = 'data-checked:border-[var(--status-t6-fg)] dark:data-checked:border-[var(--status-t6-fg)] [&>span]:bg-[var(--status-t6-fg)] [&>span]:text-[var(--status-t6-bg)] dark:[&>span]:bg-[var(--status-t6-fg)] dark:[&>span]:text-[var(--status-t6-bg)]';
+const CHECKBOX_DONE = 'data-checked:border-[var(--process-a0w-fg)] dark:data-checked:border-[var(--process-a0w-fg)] [&>span]:bg-[var(--process-a0w-fg)] [&>span]:text-[var(--process-a0w-bg)] dark:[&>span]:bg-[var(--process-a0w-fg)] dark:[&>span]:text-[var(--process-a0w-bg)]';
 const FIELD = 'h-8 rounded-[6px] border border-solid border-[var(--ui-input-border)] bg-ui-input-bg px-2 text-[13px] text-ui-body outline-none focus-visible:border-[var(--status-info-fg)]';
 // Row pickers: borderless until hovered, so a row reads as text but edits in one click.
 const ROW_PICK = 'h-7 rounded-[4px] border border-solid border-transparent bg-transparent px-1.5 text-[13px] hover:border-[var(--ui-input-border)] focus-visible:border-[var(--status-info-fg)]';
@@ -147,7 +148,7 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
         <div className="flex min-w-0 items-center gap-2">
           <h3 className={cn('m-0 truncate text-[20px] font-semibold leading-[1.35]', HEADING)}>{title}</h3>
           {ready && (
-            <span className={cn('rounded-[4px] bg-ui-surface px-2 py-[2px] text-[13px] font-semibold leading-[1.4]', HEADING)} title="Open tasks">
+            <span className={cn('rounded-[4px] bg-ui-surface px-[9px] py-[3px] text-[15px] font-semibold leading-[1.4]', HEADING)} title="Open tasks">
               {open.length}
             </span>
           )}
@@ -194,7 +195,7 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
           const canTick = rowEdit || (!!meId && t.assignee_id === meId);
           return (
             <div key={t.id}
-              className={cn('group flex min-h-10 items-center gap-2 rounded-[6px] pl-2 pr-1', isDone ? 'bg-[var(--status-t6-bg)]' : 'bg-ui-surface')}>
+              className={cn('group flex min-h-10 items-center gap-2 rounded-[6px] pl-2 pr-1', isDone ? 'bg-[var(--process-a0w-bg)]' : 'bg-ui-surface')}>
               <Checkbox
                 className={cn(CHECKBOX, 'shrink-0', isDone && CHECKBOX_DONE)}
                 checked={isDone} disabled={!canTick}
@@ -244,7 +245,7 @@ export function BoardTaskPanel({ title, apiBasePath, query = '', assignees, canE
               </div>
 
               {/* The day it was written */}
-              <span className={cn('w-[96px] shrink-0 text-right text-[12px] tabular-nums', isDone ? DONE_INK : 'text-ui-text-secondary')}
+              <span className={cn('w-[96px] shrink-0 text-right text-[13px] tabular-nums', isDone ? DONE_INK : HEADING)}
                 title={t.created_at ? `Written ${new Date(t.created_at).toLocaleString('en-GB')}` : undefined}>
                 {writtenOn(t.created_at)}
               </span>
