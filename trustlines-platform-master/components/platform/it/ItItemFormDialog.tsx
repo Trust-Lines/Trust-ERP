@@ -75,7 +75,7 @@ async function errorOf(res: Response) {
 }
 
 /** After adding: the new item's QR label — print it, open the item, or add another. */
-function CreatedLabel({ id, name, onOpen, onAnother, onClose }: { id: string; name: string; onOpen: () => void; onAnother: () => void; onClose: () => void }) {
+function CreatedLabel({ id, name, detail, onOpen, onAnother, onClose }: { id: string; name: string; detail: string; onOpen: () => void; onAnother: () => void; onClose: () => void }) {
   const { url, qr } = useItemQr(id);
   return (
     <div className="flex flex-col items-center gap-5 py-2 text-center">
@@ -86,7 +86,7 @@ function CreatedLabel({ id, name, onOpen, onAnother, onClose }: { id: string; na
       </div>
       {url && <p className="m-0 max-w-full break-all rounded-md bg-ui-surface px-3 py-2 text-[13px] text-ui-body">{url}</p>}
       <div className="flex flex-wrap justify-center gap-2">
-        <button type="button" className={PRIMARY_BTN} disabled={!qr || !url} onClick={() => qr && url && printLabel(name, url, qr)}><Printer size={16} aria-hidden /> Print</button>
+        <button type="button" className={PRIMARY_BTN} disabled={!qr || !url} onClick={() => qr && url && printLabel(name, url, qr, detail)}><Printer size={16} aria-hidden /> Print</button>
         <button type="button" className={SECONDARY_BTN} onClick={onOpen}><ExternalLink size={16} aria-hidden /> Open item</button>
         <button type="button" className={SECONDARY_BTN} onClick={onAnother}><Plus size={16} aria-hidden /> Add another</button>
         <button type="button" className={SECONDARY_BTN} onClick={onClose}>Done</button>
@@ -160,7 +160,7 @@ export function ItItemFormDialog({ initial, assignees, onClose, onSaved, onCreat
     <Modal open onOpenChange={o => { if (!o && !saving) onClose(); }}>
       <ModalContent size={created || quick ? 'lg' : 'xl'} title={title} description={created ? undefined : 'IT equipment in the Items Library.'}>
         {created ? (
-          <CreatedLabel id={created.id} name={created.name} onClose={onClose} onOpen={() => onSaved(created.id)}
+          <CreatedLabel id={created.id} name={created.name} detail={[CATEGORY_LABEL[f.category], f.location.trim()].filter(Boolean).join(' · ')} onClose={onClose} onOpen={() => onSaved(created.id)}
             onAnother={() => { setCreated(null); setF({ ...EMPTY_ITEM, category: f.category, location: f.location }); setPhoto(null); }} />
         ) : (
           <form onSubmit={submit} className="flex max-h-[72vh] flex-col gap-5 overflow-y-auto pr-1">

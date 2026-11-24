@@ -24,27 +24,68 @@ export function useItemQr(id: string | null): { url: string | null; qr: string |
   return state;
 }
 
-/** Opens a small window with just the QR label and prints it. */
-export function printLabel(name: string, url: string, qr: string) {
-  const w = window.open('', '_blank', 'width=420,height=560');
+// DYMO LabelWriter "Durable Labels" 1933084 — 2¼" × 1¼" (57 × 32 mm), landscape. The page size
+// below makes the browser print on the label with no margins; in the print dialog pick the DYMO
+// printer, paper "1933084 / 2-1/4 x 1-1/4" if the driver asks, Margins None, Scale 100%.
+export const LABEL_STOCK = { name: 'DYMO Durable 1933084', width: '2.25in', height: '1.25in' } as const;
+
+/** Short code printed on the label: "IT-" + the last 6 characters of the item id. */
+export function labelCode(url: string): string {
+  const id = decodeURIComponent(url.split('/').filter(Boolean).pop() ?? '');
+  return `IT-${id.replace(/-/g, '').slice(-6).toUpperCase()}`;
+}
+
+/**
+ * Opens a window holding one DYMO 1933084 label — QR on the left; item name, an optional detail
+ * line ("PC · PC 1 · Istanbul") and the short code on the right — and prints it.
+ */
+export function printLabel(name: string, url: string, qr: string, detail?: string | null) {
+  const w = window.open('', '_blank', 'width=520,height=360');
   if (!w) {
     toast.error('Allow pop-ups for this site to print the label');
     return;
   }
   const d = w.document;
-  d.title = `QR · ${name}`;
+  d.title = `Label · ${name}`;
   const style = d.createElement('style');
-  style.textContent = 'body{font-family:system-ui,sans-serif;text-align:center;margin:24px}h1{font-size:18px;margin:0 0 12px}img{width:260px;height:260px}p{font-size:12px;margin:12px 0 0;word-break:break-all}';
+  style.textContent = [
+    `@page{size:${LABEL_STOCK.width} ${LABEL_STOCK.height};margin:0}`,
+    '*{box-sizing:border-box}',
+    'html,body{margin:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}',
+    `.label{width:${LABEL_STOCK.width};height:${LABEL_STOCK.height};padding:0.07in 0.09in 0.07in 0.07in;display:flex;align-items:center;gap:0.08in;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#000;page-break-after:avoid;break-after:avoid}`,
+    '.qr{width:1.08in;height:1.08in;flex:none;image-rendering:pixelated}',
+    '.text{flex:1;min-width:0;height:1.08in;display:flex;flex-direction:column;justify-content:space-between}',
+    '.name{font-size:10pt;font-weight:700;line-height:1.15;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}',
+    '.detail{font-size:7pt;line-height:1.2;margin-top:0.03in;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.code{font-family:Consolas,Menlo,monospace;font-size:9pt;font-weight:700;letter-spacing:0.02em}',
+    '.brand{font-size:5.5pt;letter-spacing:0.08em;text-transform:uppercase}',
+    '@media screen{body{display:grid;place-items:center;min-height:100vh;background:#e9edf2}.label{background:#fff;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.2)}}',
+  ].join('');
   d.head.appendChild(style);
-  const h = d.createElement('h1');
-  h.textContent = name;
+
+  const el = (tag: string, cls: string, text?: string) => {
+    const n = d.createElement(tag);
+    if (cls) n.className = cls;
+    if (text) n.textContent = text;
+    return n;
+  };
+  const label = el('div', 'label');
   const img = d.createElement('img');
+  img.className = 'qr';
   img.alt = '';
-  const p = d.createElement('p');
-  p.textContent = url;
-  d.body.append(h, img, p);
+  const text = el('div', 'text');
+  const top = el('div', '');
+  top.append(el('div', 'name', name));
+  if (detail) top.append(el('div', 'detail', detail));
+  const bottom = el('div', '');
+  bottom.append(el('div', 'code', labelCode(url)), el('div', 'brand', 'Trust Lines · IT'));
+  text.append(top, bottom);
+  label.append(img, text);
+  d.body.append(label);
+
   img.onload = () => {
     w.focus();
+    w.addEventListener('afterprint', () => w.close());
     w.print();
   };
   img.src = qr;
