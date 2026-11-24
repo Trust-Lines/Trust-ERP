@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "layl",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:/Users/Trust-Lines/Desktop/Layl", "run", "dev", "--", "--port", "3100"],
+      "port": 3100
     }
   ]
 }
