@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { ItSubscriptionsClient } from '@/components/platform/it/ItSubscriptionsClient';
-import { itContext } from '@/lib/it/server';
+import { itContext, loadAssignees } from '@/lib/it/server';
 import { loadSubscriptions } from '@/lib/it/subscriptions';
 
 // IT → Subscriptions (Figma 908:22728). IT management (page.it) sees the list; edit.it adds / edits /
@@ -9,7 +9,10 @@ export default async function ItSubscriptionsPage() {
   const ctx = await itContext();
   if (!ctx) redirect('/login');
   if (!ctx.canManage) redirect('/dashboard');
-  const { subscriptions, error } = await loadSubscriptions(ctx);
+  const [{ subscriptions, error }, people] = await Promise.all([
+    loadSubscriptions(ctx),
+    ctx.canEdit ? loadAssignees(ctx) : Promise.resolve([]),
+  ]);
 
-  return <ItSubscriptionsClient subscriptions={subscriptions} error={error} canCreate={ctx.canEdit} />;
+  return <ItSubscriptionsClient subscriptions={subscriptions} error={error} canCreate={ctx.canEdit} people={people} />;
 }

@@ -3,10 +3,11 @@ import { ItStaffDetailClient, type ItStaffMailbox } from '@/components/platform/
 import { itContext, loadAssignees, loadPersonItems, loadPersonTickets } from '@/lib/it/server';
 import { loadPhoneLinesFor } from '@/lib/it/phones';
 import { listPurelymailMailboxes } from '@/lib/it/purelymail';
+import { loadPersonSubscriptions } from '@/lib/it/subscriptions';
 import { isUuid } from '@/lib/it/validate';
 
 // IT → Staff member: everything IT has on one person — the items they hold, their phone lines, their
-// Purelymail mailbox and the IT tickets they sent. IT management (page.it) only; the service-role
+// Purelymail mailbox, the subscriptions they're listed on and the IT tickets they sent. IT management (page.it) only; the service-role
 // reads run after that check (itContext).
 export default async function ItStaffDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await itContext();
@@ -20,12 +21,13 @@ export default async function ItStaffDetailPage({ params }: { params: Promise<{ 
   const person = profile as { id: string; full_name: string | null; email: string | null; role: string | null; is_active: boolean | null; created_at: string | null } | null;
   if (!person) notFound();
 
-  const [items, phones, tickets, assignees, mailbox] = await Promise.all([
+  const [items, phones, tickets, assignees, mailbox, subscriptions] = await Promise.all([
     loadPersonItems(ctx, id),
     loadPhoneLinesFor(ctx, id).catch(() => []),
     loadPersonTickets(ctx, id),
     ctx.canEdit ? loadAssignees(ctx) : Promise.resolve([]),
     findMailbox(person.email),
+    loadPersonSubscriptions(ctx, id),
   ]);
 
   return (
@@ -45,6 +47,9 @@ export default async function ItStaffDetailPage({ params }: { params: Promise<{ 
       }))}
       tickets={tickets}
       mailbox={mailbox}
+      subscriptions={subscriptions.map(s => ({
+        id: s.id, service: s.service, loginEmail: s.loginEmail, logoUrl: s.logoUrl, brandColor: s.brandColor, dueDate: s.dueDate, active: s.active,
+      }))}
       canEdit={ctx.canEdit}
       assignees={assignees}
     />

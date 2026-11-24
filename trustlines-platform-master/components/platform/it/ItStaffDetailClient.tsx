@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ChevronRight,
   Copy,
+  Layers,
   Mail,
   MapPin,
   MonitorSmartphone,
@@ -27,8 +28,8 @@ import { copyText, initials } from './itCardParts';
 import { CATEGORY_TONE, PRIORITY_LABEL, PRIORITY_TONE, formatTicketDate, type ItTicketPriority, type ItTicketTone } from './ticketStyles';
 
 // IT → Staff member: what one person holds, in the IT detail-page style (item / phone detail):
-// Back, the person card, four counts, then Items (Items Library cards), Phone Lines, Mailbox and
-// IT Tickets. Every row links to its own page. edit.it can assign a new item to the person here.
+// Back, the person card, five counts, then Items (Items Library cards), Phone Lines, Mailbox,
+// Subscriptions and IT Tickets. Every row links to its own page. edit.it can assign a new item to the person here.
 
 export interface ItStaffPerson {
   id: string;
@@ -57,6 +58,17 @@ export interface ItStaffTicket {
   categoryLabel: string;
   categoryTone: ItTicketTone;
   createdAt: string;
+}
+
+export interface ItStaffSubscription {
+  id: string;
+  service: string;
+  loginEmail: string;
+  logoUrl: string | null;
+  brandColor: string | null;
+  dueDate: string | null;
+  /** false = cancelled. */
+  active: boolean;
 }
 
 export type ItStaffMailbox =
@@ -110,12 +122,20 @@ const MAILBOX_NOTE: Record<Exclude<ItStaffMailbox['state'], 'found'>, string> = 
   unavailable: 'Purelymail could not be reached — try again in a moment.',
 };
 
-export function ItStaffDetailClient({ person, items, phones, tickets, mailbox, canEdit, assignees }: {
+function SubLogo({ sub }: { sub: ItStaffSubscription }) {
+  const [failed, setFailed] = useState(false);
+  if (!sub.logoUrl || failed) return <span className="text-[13px] font-semibold text-secondary-700">{initials(sub.service)}</span>;
+  // eslint-disable-next-line @next/next/no-img-element -- service logos come from arbitrary hosts
+  return <img src={sub.logoUrl} alt="" onError={() => setFailed(true)} className="max-h-full max-w-full object-contain" />;
+}
+
+export function ItStaffDetailClient({ person, items, phones, tickets, mailbox, subscriptions = [], canEdit, assignees }: {
   person: ItStaffPerson;
   items: ItItem[];
   phones: ItStaffPhone[];
   tickets: ItStaffTicket[];
   mailbox: ItStaffMailbox;
+  subscriptions?: ItStaffSubscription[];
   /** edit.it: Assign item. */
   canEdit: boolean;
   assignees: { id: string; name: string }[];
@@ -123,6 +143,7 @@ export function ItStaffDetailClient({ person, items, phones, tickets, mailbox, c
   const router = useRouter();
   const [assigning, setAssigning] = useState(false);
   const openTickets = tickets.filter(t => t.status === 'active').length;
+  const liveSubs = subscriptions.filter(s => s.active).length;
   const location = items.find(i => i.location)?.location ?? phones.find(p => p.location)?.location ?? null;
 
   return (
@@ -187,10 +208,11 @@ export function ItStaffDetailClient({ person, items, phones, tickets, mailbox, c
           </div>
         </div>
 
-        <div className="grid min-w-0 flex-1 grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid min-w-0 flex-1 grid-cols-2 gap-4 sm:grid-cols-3 2xl:grid-cols-5">
           <Stat label="Items" value={items.length} icon={MonitorSmartphone} href="#staff-items" />
           <Stat label="Phone Lines" value={phones.length} icon={Phone} href="#staff-phones" />
           <Stat label="Mailbox" value={mailbox.state === 'found' ? 'Yes' : mailbox.state === 'none' ? 'No' : '—'} icon={Mail} href="#staff-mailbox" />
+          <Stat label="Subscriptions" value={liveSubs} icon={Layers} href="#staff-subscriptions" />
           <Stat label="Open Tickets" value={openTickets} icon={Ticket} href="#staff-tickets" />
         </div>
       </div>
@@ -256,6 +278,36 @@ export function ItStaffDetailClient({ person, items, phones, tickets, mailbox, c
           )}
         </Section>
       </div>
+
+      {/* Subscriptions */}
+      <Section
+        id="staff-subscriptions" title="Subscriptions" count={subscriptions.length} icon={Layers}
+        action={<Link href="/it/subscriptions" className={cn('flex h-8 items-center rounded-md px-3 text-[12px] font-semibold no-underline hover:opacity-80', OUTLINE_CHIP)}>Manage</Link>}
+      >
+        {subscriptions.length === 0 ? (
+          <EmptyState size="sm" title="Not listed on any subscription." description={canEdit ? 'Add them as a user in IT → Subscriptions.' : undefined} />
+        ) : (
+          <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0 md:grid-cols-2 2xl:grid-cols-3">
+            {subscriptions.map(s => (
+              <li key={s.id} className="min-w-0">
+                <Link href="/it/subscriptions" className={ROW}>
+                  <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-[4px] bg-white p-1">
+                    <SubLogo sub={s} />
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-[15px] font-semibold" style={s.brandColor ? { color: s.brandColor } : undefined}>{s.service}</span>
+                    <span className={cn('truncate text-[12px]', MUTED)}>
+                      {[s.loginEmail, s.dueDate && `Due ${formatTicketDate(s.dueDate)}`].filter(Boolean).join(' · ') || '—'}
+                    </span>
+                  </span>
+                  {!s.active && <span className={cn(CHIP, OUTLINE_CHIP)}>Cancelled</span>}
+                  <ChevronRight className={cn('h-4 w-4 shrink-0', MUTED)} aria-hidden="true" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
 
       {/* Tickets */}
       <Section id="staff-tickets" title="IT Tickets" count={tickets.length} icon={Ticket}>

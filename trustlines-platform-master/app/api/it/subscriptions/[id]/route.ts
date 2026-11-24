@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { itApi } from '@/lib/it/server';
 import { isUuid } from '@/lib/it/validate';
-import { cleanSubscriptionInput, subscriptionAudit } from '@/lib/it/subscriptions';
+import { cleanSubscriptionInput, cleanSubscriptionUsers, saveSubscriptionUsers, subscriptionAudit } from '@/lib/it/subscriptions';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -13,15 +13,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (deny) return deny;
   const { id } = await params;
   if (!isUuid(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const input = cleanSubscriptionInput(await req.json().catch(() => null), true);
+  const body = await req.json().catch(() => null) as Record<string, unknown> | null;
+  const input = cleanSubscriptionInput(body, true);
   if ('error' in input) return NextResponse.json({ error: input.error }, { status: 400 });
-  if (!Object.keys(input.value).length) return NextResponse.json({ error: 'Nothing to change' }, { status: 400 });
+  const users = body && 'users' in body ? cleanSubscriptionUsers(body.users) : null;
+  if (users && 'error' in users) return NextResponse.json({ error: users.error }, { status: 400 });
+  if (!Object.keys(input.value).length && !users) return NextResponse.json({ error: 'Nothing to change' }, { status: 400 });
 
   const { data, error } = await ctx.admin.from('it_subscriptions')
     .update({ ...input.value, updated_at: new Date().toISOString() }).eq('id', id).is('deleted_at', null).select('id').maybeSingle();
   if (error) return NextResponse.json({ error: 'Could not save the subscription' }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  await logAudit({ actorId: ctx.userId, action: 'it.subscription_updated', resource: `it_subscription:${id}`, newValue: subscriptionAudit(input.value) });
+  if (users) {
+    const failed = await saveSubscriptionUsers(ctx, id, users.value);
+    if (failed) return NextResponse.json({ error: failed.error }, { status: failed.status });
+  }
+  await logAudit({ actorId: ctx.userId, action: 'it.subscription_updated', resource: `it_subscription:${id}`, newValue: { ...subscriptionAudit(input.value), ...(users ? { users: users.value } : {}) } });
   return NextResponse.json({ ok: true });
 }
 

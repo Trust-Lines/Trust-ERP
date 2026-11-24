@@ -3,6 +3,7 @@
 // of a list — revealed one at a time through /api/it/subscriptions/[id]/secret (audited).
 import { encryptToken } from '@/lib/crypto/secrets';
 import type { ItContext } from './server';
+import { isUuid } from './validate';
 
 export const SUB_COLS = 'id, service, login_email, logo_url, brand_color, seats, card_last4, start_date, due_date, notes, password_enc, cancelled_at, created_at';
 
@@ -16,12 +17,17 @@ export interface SubscriptionData {
   id: string; service: string; loginEmail: string; logoUrl: string | null; brandColor: string | null;
   seats: number | null; cardLast4: string | null; startDate: string | null; dueDate: string | null; notes: string | null;
   active: boolean; hasPassword: boolean; createdAt: string;
+  /** Who uses it (migration 160). Empty until someone is added. */
+  users: SubscriptionUser[];
 }
+
+/** A subscription's user: a person in the system, or just a name (no account / email yet). */
+export interface SubscriptionUser { personId: string | null; name: string }
 
 const toData = (r: Row): SubscriptionData => ({
   id: r.id, service: r.service, loginEmail: r.login_email ?? '', logoUrl: r.logo_url, brandColor: r.brand_color,
   seats: r.seats, cardLast4: r.card_last4, startDate: r.start_date, dueDate: r.due_date, notes: r.notes,
-  active: !r.cancelled_at, hasPassword: !!r.password_enc, createdAt: r.created_at,
+  active: !r.cancelled_at, hasPassword: !!r.password_enc, createdAt: r.created_at, users: [],
 });
 
 export async function loadSubscriptions(ctx: ItContext): Promise<{ subscriptions: SubscriptionData[]; error: string | null }> {
@@ -31,7 +37,91 @@ export async function loadSubscriptions(ctx: ItContext): Promise<{ subscriptions
     const missing = /relation|does not exist|schema cache/i.test(error.message ?? '');
     return { subscriptions: [], error: missing ? 'Subscriptions aren’t set up yet. Run migration 159_it_assignments_subscriptions.sql in Supabase.' : 'Subscriptions could not be loaded.' };
   }
-  return { subscriptions: ((data ?? []) as Row[]).map(toData), error: null };
+  const subscriptions = ((data ?? []) as Row[]).map(toData);
+  const users = await loadSubscriptionUsers(ctx, subscriptions.map(s => s.id));
+  for (const s of subscriptions) s.users = users.get(s.id) ?? [];
+  return { subscriptions, error: null };
+}
+
+const USERS_MISSING = 'Run migration 160_it_subscription_users.sql in Supabase first.';
+const isMissing = (e: { message?: string } | null) => /relation|does not exist|schema cache/i.test(e?.message ?? '');
+
+/** subscription id → its users, names resolved. One query for the rows, one for the names. Fails soft. */
+async function loadSubscriptionUsers(ctx: ItContext, ids: string[]): Promise<Map<string, SubscriptionUser[]>> {
+  const out = new Map<string, SubscriptionUser[]>();
+  if (!ids.length) return out;
+  const { data, error } = await ctx.admin.from('it_subscription_users')
+    .select('subscription_id, person_id, name, created_at').in('subscription_id', ids).order('created_at').limit(5000);
+  if (error) return out;
+  const rows = (data ?? []) as { subscription_id: string; person_id: string | null; name: string | null }[];
+  const names = await personNames(ctx, [...new Set(rows.map(r => r.person_id).filter((v): v is string => !!v))]);
+  for (const r of rows) {
+    const list = out.get(r.subscription_id) ?? [];
+    list.push({ personId: r.person_id, name: (r.person_id && names.get(r.person_id)) || r.name || 'Unknown' });
+    out.set(r.subscription_id, list);
+  }
+  return out;
+}
+
+async function personNames(ctx: ItContext, ids: string[]): Promise<Map<string, string>> {
+  if (!ids.length) return new Map();
+  const { data } = await ctx.admin.from('profiles').select('id, full_name, email').in('id', ids);
+  return new Map(((data ?? []) as { id: string; full_name: string | null; email: string | null }[])
+    .map(p => [p.id, p.full_name || p.email || 'Unknown']));
+}
+
+export const MAX_SUB_USERS = 200;
+
+/** Body `users` → a clean list: people by id (each once) and typed names (each once, 1–120 chars). */
+export function cleanSubscriptionUsers(raw: unknown): { value: { personId: string | null; name: string | null }[] } | { error: string } {
+  if (!Array.isArray(raw)) return { error: 'Users must be a list' };
+  if (raw.length > MAX_SUB_USERS) return { error: `A subscription can list up to ${MAX_SUB_USERS} users` };
+  const people = new Set<string>(); const typed = new Set<string>();
+  const value: { personId: string | null; name: string | null }[] = [];
+  for (const u of raw as Record<string, unknown>[]) {
+    if (u && isUuid(u.personId)) {
+      if (!people.has(u.personId)) { people.add(u.personId); value.push({ personId: u.personId, name: null }); }
+      continue;
+    }
+    const name = typeof u?.name === 'string' ? u.name.trim().replace(/\s+/g, ' ') : '';
+    if (!name) return { error: 'Each user needs a person or a name' };
+    if (name.length > 120) return { error: 'A user’s name is too long' };
+    if (!typed.has(name.toLowerCase())) { typed.add(name.toLowerCase()); value.push({ personId: null, name }); }
+  }
+  return { value };
+}
+
+/**
+ * Replace a subscription's users and keep its seat count in step. People must exist. Returns an
+ * error message (with a status) or null.
+ */
+export async function saveSubscriptionUsers(
+  ctx: ItContext, subscriptionId: string, users: { personId: string | null; name: string | null }[],
+): Promise<{ error: string; status: number } | null> {
+  const ids = users.map(u => u.personId).filter((v): v is string => !!v);
+  if (ids.length) {
+    const { data } = await ctx.admin.from('profiles').select('id').in('id', ids);
+    if ((data ?? []).length !== ids.length) return { error: 'One of the chosen people no longer exists', status: 400 };
+  }
+  const del = await ctx.admin.from('it_subscription_users').delete().eq('subscription_id', subscriptionId);
+  if (del.error) return isMissing(del.error) ? { error: USERS_MISSING, status: 503 } : { error: 'Could not save the users', status: 500 };
+  if (users.length) {
+    const ins = await ctx.admin.from('it_subscription_users')
+      .insert(users.map(u => ({ subscription_id: subscriptionId, person_id: u.personId, name: u.name })));
+    if (ins.error) return { error: 'Could not save the users', status: 500 };
+  }
+  await ctx.admin.from('it_subscriptions').update({ seats: users.length }).eq('id', subscriptionId);
+  return null;
+}
+
+/** The live subscriptions one person is listed on (staff page). Fails soft. */
+export async function loadPersonSubscriptions(ctx: ItContext, personId: string): Promise<SubscriptionData[]> {
+  const { data, error } = await ctx.admin.from('it_subscription_users').select('subscription_id').eq('person_id', personId).limit(500);
+  if (error || !data?.length) return [];
+  const ids = [...new Set((data as { subscription_id: string }[]).map(r => r.subscription_id))];
+  const subs = await ctx.admin.from('it_subscriptions').select(SUB_COLS).in('id', ids).is('deleted_at', null).order('service');
+  if (subs.error) return [];
+  return ((subs.data ?? []) as Row[]).map(toData);
 }
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
