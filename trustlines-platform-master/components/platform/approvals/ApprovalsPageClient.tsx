@@ -1148,17 +1148,19 @@ export function ApprovalsPageClient() {
                 const c = cardFields(row);
                 return (
                   <React.Fragment key={row.id}>
-                    {/* Figma 481:23066 request card: kicker + status chip + ref chip / big headline + code / waiting on + priority. */}
+                    {/* Figma 1025:1298 request card: name + stage chip / category + project code /
+                        waiting on + status and priority chips. The store badge and address in the design
+                        need fields the approvals API doesn't load yet, so they're left out. */}
                     <div
                       role="button" tabIndex={0} aria-expanded={isExpanded}
                       onClick={() => setExpandedId(isExpanded ? null : row.id)}
                       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedId(isExpanded ? null : row.id); } }}
-                      className={`flex min-h-[191px] cursor-pointer flex-col justify-between gap-4 rounded-[16px] border py-3.5 pl-3.5 pr-4 text-left outline-none transition-colors focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring ${
-                        isSelected ? 'border-[var(--color-secondary-200)] bg-[var(--ui-selected-bg)]' : isExpanded ? 'border-[var(--color-secondary-700)] bg-ui-surface dark:border-ui-heading' : 'border-ui-divider bg-ui-surface hover:border-ui-text-secondary'
+                      className={`flex cursor-pointer flex-col gap-2 rounded-[16px] border py-3.5 pl-3.5 pr-4 text-left outline-none transition-colors focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ui-focus-ring ${
+                        isSelected ? 'border-[var(--color-secondary-200)] bg-[var(--ui-selected-bg)]' : isExpanded ? 'border-[var(--color-secondary-700)] bg-ui-surface-elevated dark:border-ui-heading' : 'border-ui-divider bg-ui-surface-elevated hover:border-ui-text-secondary'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="flex min-w-0 items-center gap-4">
+                        <div className="flex min-w-0 items-center gap-2">
                           <Checkbox
                             checked={isSelected}
                             onClick={e => e.stopPropagation()}
@@ -1166,23 +1168,30 @@ export function ApprovalsPageClient() {
                             onCheckedChange={() => setSelectedIds(prev => ({ ...prev, [row.id]: !prev[row.id] }))}
                             aria-label={`Select request ${row.code}`}
                           />
-                          <span className="truncate text-[16px] font-medium tracking-[0.64px] text-[var(--color-secondary-700)] dark:text-ui-heading">{c.kicker}</span>
-                          <span className="shrink-0"><ApprovalStatusPill status={row.status} /></span>
+                          <span className="truncate text-[20px] font-medium leading-normal tracking-[0.8px] text-[var(--color-secondary-700)] dark:text-ui-heading">{c.kicker}</span>
                         </div>
-                        <span className="shrink-0 rounded-[4px] bg-ui-surface-elevated px-2.5 py-0.5 text-[14px] font-medium leading-[1.5] tracking-[0.56px] text-[var(--color-secondary-700)] dark:text-ui-heading">{c.ref}</span>
+                        <span
+                          aria-label={c.ref}
+                          className="shrink-0 rounded-[4px] border border-[var(--color-secondary-700)] px-2.5 py-0.5 text-[14px] font-medium leading-[1.5] tracking-[0.56px] text-[var(--color-secondary-700)] dark:border-ui-heading dark:text-ui-heading"
+                        >
+                          {c.ref.replace(/^Stage /, '')}
+                        </span>
                       </div>
 
-                      <div className="flex min-w-0 items-center justify-between gap-4 text-[clamp(22px,2.1vw,32px)] font-medium leading-normal tracking-[0.04em] text-[var(--color-secondary-700)] dark:text-ui-heading">
+                      <div className="flex min-h-[29px] min-w-0 items-center justify-between gap-4 text-[20px] font-medium leading-normal tracking-[0.8px] text-[var(--color-secondary-700)] dark:text-ui-heading">
                         <span className="min-w-0 truncate">{c.headline}</span>
                         {c.code && <span className="shrink-0">{c.code}</span>}
                       </div>
 
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex min-w-0 flex-col">
-                          <span className="text-[12px] tracking-[0.48px] text-ui-text-secondary">Waiting on:</span>
-                          <span className="truncate text-[16px] font-medium tracking-[0.64px] text-[var(--color-secondary-700)] dark:text-ui-heading">{row.ownerName}</span>
+                      <div className="flex items-end justify-between gap-3">
+                        <div className="flex min-w-0 flex-col py-0.5">
+                          <span className="text-[10px] leading-[14px] tracking-[0.4px] text-ui-text-secondary">Waiting on:</span>
+                          <span className="truncate text-[13px] font-medium leading-[14px] tracking-[0.52px] text-[var(--color-secondary-700)] dark:text-ui-heading">{row.ownerName}</span>
                         </div>
-                        <PriorityChip priority={row.priority} />
+                        <div className="flex shrink-0 items-center gap-1">
+                          <ApprovalStatusPill status={row.status} className="h-[25px] min-w-[86px] justify-center" />
+                          <PriorityChip priority={row.priority} small className="h-[25px] min-w-[86px] justify-center pr-2.5 pl-2" />
+                        </div>
                       </div>
                     </div>
                   </React.Fragment>
