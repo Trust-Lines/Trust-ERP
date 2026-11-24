@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { todayKey } from '@/lib/myWorkspace/taskTypes';
+import { SALES_INTAKE_ROLES } from '@/lib/sales/roles';
 import { presetRange, type DashProject, type DashboardAccess, type DesignDoc, type RegionKey } from './workspace-dashboard/dashboardData';
 import { useDashboardData } from './workspace-dashboard/useDashboardData';
 import { useDashboardStats } from './workspace-dashboard/useDashboardStats';
 import { DashboardHeading } from './workspace-dashboard/DashboardHeading';
-import { RegionTabs } from './workspace-dashboard/RegionTabs';
 import { GreetingCard } from './workspace-dashboard/GreetingCard';
 import { MyTasksCard } from './workspace-dashboard/MyTasksCard';
 import { KpiRow } from './workspace-dashboard/KpiRow';
@@ -16,7 +16,8 @@ import { OperationsCards } from './workspace-dashboard/OperationsCards';
 
 export type { DashProject, DesignDoc } from './workspace-dashboard/dashboardData';
 
-// My Workspace → Overview, Figma "General Manager_Dashboard" (node 714:35213).
+// My Workspace → Overview, Figma "General Manager_Dashboard" (node 714:35213, updated 985:12437:
+// region filter in the heading instead of the region strip, KPI tiles without sparklines).
 // Every number comes from data the person can already open; a panel whose source this role
 // can't read is left out instead of showing an empty or made-up list.
 //   projects, design docs   the page (the person's RLS client)
@@ -34,14 +35,13 @@ export function WorkspaceDashboard({ userName, role, projects, designDocs, acces
   const [today] = useState(() => todayKey());
 
   const { tasks, approvals, containers, installs, opportunities, toggleTask } = useDashboardData(access);
-  const s = useDashboardStats({ projects, region, regionSeries, grouping, from, to, now, tasks, approvals, containers, installs });
+  const s = useDashboardStats({ projects, region, regionSeries, grouping, from, to, tasks, approvals, containers, installs });
   const showProjects = access.projects && !!projects;
 
   return (
     <div className="flex flex-col gap-5">
-      <DashboardHeading from={from} to={to} preset={preset} onPresetChange={setPreset} onRangeChange={setRange} />
-
-      <RegionTabs region={region} onRegionChange={setRegion} />
+      <DashboardHeading from={from} to={to} preset={preset} region={region} canCreateTask={SALES_INTAKE_ROLES.includes(role)}
+        onPresetChange={setPreset} onRangeChange={setRange} onRegionChange={setRegion} />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,527fr)_minmax(0,1245fr)]">
         <GreetingCard userName={userName} role={role} now={now} />
@@ -53,9 +53,7 @@ export function WorkspaceDashboard({ userName, role, projects, designDocs, acces
           activeCount={s.active.length}
           inProductionCount={s.inProduction.length}
           newInRange={s.newInRange}
-          activeSpark={s.activeSpark}
           closedCount={s.closed.length}
-          closedSpark={s.closedSpark}
           showOpportunities={access.opportunities}
           opportunities={opportunities}
           approvals={approvals}
