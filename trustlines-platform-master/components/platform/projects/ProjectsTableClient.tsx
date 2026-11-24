@@ -419,8 +419,8 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                 {show('region') && <th className={cn(TH_CLS, 'w-[124px]')}>Region</th>}
                 {show('type') && <th className={cn(TH_CLS, 'w-[266px]')}>Types</th>}
                 <th className={cn(TH_CLS, 'w-[157px]')}>Stage</th>
-                {show('owner') && <th className={cn(TH_CLS, 'w-[200px]')}>Owner</th>}
-                {show('due') && <th className={cn(TH_CLS, 'w-[180px]')}>Due date</th>}
+                {show('owner') && <th className={cn(TH_CLS, 'w-[220px]')}>Owner</th>}
+                {show('due') && <th className={cn(TH_CLS, 'w-[240px]')}>Due date</th>}
                 {show('value') && <th className={cn(TH_CLS, 'w-[113px]')}>Value</th>}
                 {show('margin') && <th className={cn(TH_CLS, 'w-[90px] text-right')}>Margin</th>}
               </tr>
@@ -453,9 +453,9 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                 // Row fill, ink and stage label follow the project's Trust stage; not in Trust = "Won" green.
                 const tone = p.trust ? STAGE_TONE[p.trust.stage] : WON_TONE;
                 const StageIcon = p.trust ? STAGE_ICON[p.trust.stage] : Award;
-                const stageLabel = p.trust
-                  ? TRUST_STAGE_LABEL[p.trust.stage]
-                  : STAGES_FULL.find(s => s.stage === p.current_stage)?.label ?? p.current_stage;
+                // Not in Trust yet: Figma 1025:23295 labels the green row "Won"; the app stage stays in the tooltip.
+                const appStage = STAGES_FULL.find(s => s.stage === p.current_stage)?.label ?? p.current_stage;
+                const stageLabel = p.trust ? TRUST_STAGE_LABEL[p.trust.stage] : 'Won';
                 const isSelected = selected.has(p.id);
                 const muted = { color: `color-mix(in srgb, ${tone.fg} 65%, transparent)` };
 
@@ -527,7 +527,7 @@ export function ProjectsTableClient({ projects, userRole, today, viewNotes, canC
                       </td>
                     )}
                     <td className="pr-2">
-                      <span className="inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-medium leading-4">
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-medium leading-4" title={p.trust ? undefined : appStage}>
                         <StageIcon aria-hidden className="size-3.5 shrink-0" />
                         {stageLabel}
                       </span>
