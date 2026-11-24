@@ -14,11 +14,13 @@ import { copyText, initials } from './itCardParts';
 import { ConfirmModal } from '@/components/ui/modal';
 import { roleLabel } from '@/components/platform/shell/Sidebar';
 import { ItPhoneFormDialog, type ItPhoneFormValues } from './ItPhoneFormDialog';
+import type { PhoneAccount } from '@/lib/it/phones';
 import { AssignmentHistory, type AssignmentSpellView } from './AssignmentHistory';
 
 // Figma "Phone Numbers detail" (966:40115): Back, the number as the title, Delete / Edit Info; Basic
-// Info (number, firm, mail, password, PIN, IMEI, start date, account number, location, added date, notes) on the
-// left; who holds the line and the device it runs on on the right.
+// Info on the left in the order of the "Phones and sim cards info" sheet (number, mail, password,
+// PIN, IMEI, carrier, firm, account holder, account no, plan, location, added date, notes); who
+// holds the line and the device it runs on on the right.
 //
 // Secrets (password, PIN, account number) are never part of the line: they are fetched one at a
 // time from /api/it/phones/[id]/secret (edit.it, audited) when copied or shown. Delete / Edit Info
@@ -29,17 +31,25 @@ export type ItPhoneSecret = 'password' | 'pin' | 'accountNumber';
 export interface ItPhoneDetail {
   id: string;
   number: string;
-  /** Carrier ("Firm" in the design), e.g. "T Mobile". */
+  carrier: string | null;
+  /** e.g. "T LINES LLC". */
   firm: string | null;
+  /** Name on the carrier account. */
+  accountHolder: string | null;
+  /** USD per month. */
+  monthlyCost: number | null;
+  /** The line runs on the holder's own phone. */
+  personalDevice?: boolean;
   email: string | null;
   imei: string | null;
   location: string | null;
   /** ISO date. */
   addedAt: string | null;
   notes: string | null;
+  /** id null = a typed name (no account yet). */
   holder: { id: string | null; name: string; role: string | null; acquiredAt: string | null } | null;
   /** Company device the line runs on; null = personal phone or none. */
-  device: { name: string; imageUrl: string | null; assignedAt: string | null } | null;
+  device: { name: string; imageUrl: string | null; assignedAt: string | null; condition?: 'new' | 'used' | null } | null;
 }
 
 type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -133,7 +143,7 @@ async function revealSecret(id: string, kind: ItPhoneSecret): Promise<string> {
   return b.value;
 }
 
-export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, people = [], history = [] }: {
+export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, people = [], history = [], accounts = [] }: {
   line: ItPhoneDetail | null;
   /** edit.it: Edit Info, Delete, reveal secrets. */
   canEdit?: boolean;
@@ -142,6 +152,8 @@ export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, 
   people?: { id: string; name: string }[];
   /** Who held the line, and on which company phone (newest first). */
   history?: AssignmentSpellView[];
+  /** Carrier accounts in use, for the form's "Same account as". */
+  accounts?: PhoneAccount[];
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -196,20 +208,25 @@ export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, 
         {/* Basic Info */}
         <section aria-labelledby="it-phone-basic" className={cn('flex min-w-0 flex-1 flex-col gap-4 px-5 pb-8 pt-4', PANEL)}>
           <h2 id="it-phone-basic" className={cn('m-0 text-[18px] font-semibold leading-normal', STRONG)}>Basic Info</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-[209px_143px_minmax(0,1fr)_minmax(0,1fr)]">
-            <Field label="Number" icon={Phone}>{line?.number ?? <Placeholder>—</Placeholder>}</Field>
-            <Field label="Firm">{line?.firm ?? <Placeholder>—</Placeholder>}</Field>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+            <Field label="Number" icon={Phone} action={<CopyButton value={line?.number} what="Number" />}>{line?.number ?? <Placeholder>—</Placeholder>}</Field>
             <Field label="Mail" icon={Mail} action={<CopyButton value={line?.email} what="Email" />}>
               {line?.email ?? <Placeholder>—</Placeholder>}
             </Field>
             <SecretField label="Password" icon={Lock} kind="password" lineId={line?.id ?? null} onReveal={onRevealSecret} />
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[213px_minmax(0,1fr)]">
             <SecretField label="PIN" kind="pin" lineId={line?.id ?? null} onReveal={onRevealSecret} />
-            <Field label="IMEI" action={<CopyButton value={line?.imei} what="IMEI" />}>{line?.imei ?? <Placeholder>—</Placeholder>}</Field>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <SecretField label="Account Number" kind="accountNumber" lineId={line?.id ?? null} onReveal={onRevealSecret} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+            <Field label="Carrier">{line?.carrier ?? <Placeholder>—</Placeholder>}</Field>
+            <Field label="Firm Name">{line?.firm ?? <Placeholder>—</Placeholder>}</Field>
+            <Field label="Account Holder">{line?.accountHolder ?? <Placeholder>—</Placeholder>}</Field>
+            <SecretField label="Account No" kind="accountNumber" lineId={line?.id ?? null} onReveal={onRevealSecret} />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+            <Field label="IMEI" action={<CopyButton value={line?.imei} what="IMEI" />}>
+              {line?.imei ?? <Placeholder>{line?.personalDevice ? 'Personal phone' : '—'}</Placeholder>}
+            </Field>
+            <Field label="Plan / Month">{line?.monthlyCost != null ? `${line.monthlyCost.toFixed(2)}` : <Placeholder>—</Placeholder>}</Field>
             <Field label="Location" icon={MapPin}>{line?.location ?? <Placeholder>—</Placeholder>}</Field>
             <Field label="Added Date" icon={CalendarPlus}>{formatTicketDate(line?.addedAt ?? null)}</Field>
           </div>
@@ -230,7 +247,7 @@ export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, 
             <div className="flex min-h-[78px] min-w-0 flex-1 flex-col justify-between gap-2 self-stretch p-1">
               <div className="flex flex-col">
                 <p className="m-0 truncate text-[24px] font-semibold leading-normal">{holder?.name ?? 'Not assigned'}</p>
-                <p className="m-0 text-[12px] font-medium leading-[1.35]">{holder ? (holder.role ? roleLabel(holder.role) : '—') : line ? 'Available' : '—'}</p>
+                <p className="m-0 text-[12px] font-medium leading-[1.35]">{holder ? (holder.role ? roleLabel(holder.role) : holder.id ? '—' : 'No account yet') : line ? 'Available' : '—'}</p>
               </div>
               {holder && (
                 <p className="m-0 text-[11px] leading-[1.35]">
@@ -250,11 +267,12 @@ export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, 
             </span>
             <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 self-stretch p-1">
               <p className={cn('m-0 truncate text-[24px] font-semibold leading-normal', device ? STRONG : MUTED)}>
-                {device?.name ?? 'No company phone'}
+                {device?.name ?? (line?.personalDevice ? 'Personal phone' : 'No company phone')}
               </p>
               {device && (
                 <p className={cn('m-0 text-[11px] leading-[1.35]', STRONG)}>
                   Assigned at: <span className="font-medium">{formatTicketDate(device.assignedAt)}</span>
+                  {device.condition && <> · <span className="font-medium">{device.condition === 'used' ? 'Used' : 'New'}</span></>}
                 </p>
               )}
             </div>
@@ -263,7 +281,7 @@ export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, 
       </div>
 
       {editing && editValues && (
-        <ItPhoneFormDialog initial={editValues} people={people} onClose={() => setEditing(false)}
+        <ItPhoneFormDialog initial={editValues} people={people} accounts={accounts} onClose={() => setEditing(false)}
           onSaved={() => { setEditing(false); router.refresh(); }} />
       )}
       <ConfirmModal

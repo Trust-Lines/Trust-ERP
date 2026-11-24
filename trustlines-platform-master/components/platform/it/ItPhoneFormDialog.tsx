@@ -8,19 +8,28 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { IT_LOCATIONS } from '@/lib/it/constants';
-import { FORM_FIELD, FORM_TEXTAREA, FormActions, FormField, FormPanel, FormValue } from './itFormParts';
+import type { PhoneAccount } from '@/lib/it/phones';
+import { cn } from '@/lib/utils';
+import { FORM_FIELD, FORM_TEXTAREA, FormActions, FormField, FormPanel, FormValue, LABEL } from './itFormParts';
 import { formatTicketDate } from './ticketStyles';
 
-// IT → Phone Numbers → New Number and the line's Edit Info: one form, in the IT form system
-// (itFormParts). No dates to type: the server dates a new holder / company phone today and keeps
-// the line's assignment history. Password / PIN / account number are write-only here: left empty
-// when editing = unchanged (a saved one shows as "saved").
+// IT → Phone Numbers → New Number and the line's Edit Info, in the IT form system (itFormParts).
+// Laid out like the "Phones and sim cards info" sheet: User & Phone (staff member or a typed name;
+// company phone with model / condition / IMEI, personal phone, or none), Line (number, mail,
+// password, PIN, location) and Carrier Account (carrier, firm, account holder, account number,
+// plan per month). "Same account as" fills the account from a line already on it — its account
+// number is copied on the server. No dates to type: a new holder / company phone is dated today.
+// Password / PIN / account number are write-only: left empty when editing = unchanged.
 
 export interface ItPhoneFormValues {
   id?: string;
-  number: string; carrier: string; firm: string;
+  number: string; carrier: string; firm: string; accountHolder: string;
+  /** USD per month, as typed. */
+  monthlyCost: string;
   holderId: string;
-  deviceName: string; personalDevice: boolean;
+  /** A user with no account / email yet (holderId empty). */
+  holderName: string;
+  deviceName: string; personalDevice: boolean; deviceCondition: '' | 'new' | 'used';
   email: string; imei: string; location: string; notes: string;
   active: boolean;
   /** Edit only, read-only: dates the system set. */
@@ -31,41 +40,100 @@ export interface ItPhoneFormValues {
 }
 
 export const EMPTY_PHONE: ItPhoneFormValues = {
-  number: '', carrier: '', firm: '', holderId: '', deviceName: '', personalDevice: false,
-  email: '', imei: '', location: '', notes: '', active: true,
+  number: '', carrier: '', firm: '', accountHolder: '', monthlyCost: '', holderId: '', holderName: '',
+  deviceName: '', personalDevice: false, deviceCondition: '', email: '', imei: '', location: '', notes: '', active: true,
 };
 
-const LOCATION_OPTIONS = [{ value: '', label: '—' }, ...IT_LOCATIONS.map(l => ({ value: l, label: l }))];
-const SECRET_FIELDS = [['password', 'Password'], ['pin', 'PIN'], ['accountNumber', 'Account number']] as const;
+type HolderMode = 'staff' | 'name';
+type PhoneMode = 'company' | 'personal' | 'none';
 
-export function ItPhoneFormDialog({ initial, people, onClose, onSaved }: {
+const LOCATION_OPTIONS = [{ value: '', label: '—' }, ...IT_LOCATIONS.map(l => ({ value: l, label: l }))];
+const CONDITION_OPTIONS = [{ value: '', label: '—' }, { value: 'new', label: 'New' }, { value: 'used', label: 'Used' }];
+const accountLabel = (a: PhoneAccount) => [a.carrier, a.firm, a.accountHolder].filter(Boolean).join(' · ') || 'Account';
+
+/** A row of choice buttons (radio group) in the form style. */
+function Segmented<T extends string>({ id, label, value, options, onChange }: {
+  id: string; label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void;
+}) {
+  return (
+    <div className="min-w-0">
+      <span id={id} className={LABEL}>{label}</span>
+      <div role="radiogroup" aria-labelledby={id} className="flex h-[42px] gap-1 rounded-md border border-primary-100 bg-white p-1 dark:border-transparent dark:bg-secondary-800">
+        {options.map(o => (
+          <button
+            key={o.value} type="button" role="radio" aria-checked={value === o.value} onClick={() => onChange(o.value)}
+            className={cn(
+              'min-w-0 flex-1 truncate rounded px-2 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ui-focus-ring',
+              value === o.value
+                ? 'bg-secondary-700 text-white dark:bg-secondary-50 dark:text-primary-950'
+                : 'text-ui-body hover:bg-ui-hover-bg',
+            )}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function withAccount(v: ItPhoneFormValues, a: PhoneAccount | undefined): ItPhoneFormValues {
+  if (!a) return v;
+  return { ...v, carrier: a.carrier ?? '', firm: a.firm ?? '', accountHolder: a.accountHolder ?? '', location: v.location || a.location || '' };
+}
+
+export function ItPhoneFormDialog({ initial, people, accounts = [], onClose, onSaved }: {
   initial: ItPhoneFormValues;
   people: { id: string; name: string }[];
+  /** Accounts already in use, for "Same account as" (newest first). */
+  accounts?: PhoneAccount[];
   onClose: () => void;
   onSaved: (id: string) => void;
 }) {
-  const [f, setF] = useState<ItPhoneFormValues>(initial);
+  const editing = !!initial.id;
+  // A new line starts on the most recent account — most lines share one.
+  const [accountFrom, setAccountFrom] = useState(editing ? '' : accounts[0]?.lineId ?? '');
+  const [f, setF] = useState<ItPhoneFormValues>(() => (editing ? initial : withAccount(initial, accounts[0])));
+  const [holderMode, setHolderMode] = useState<HolderMode>(!initial.holderId && initial.holderName ? 'name' : 'staff');
+  const [phoneMode, setPhoneMode] = useState<PhoneMode>(initial.deviceName ? 'company' : initial.personalDevice ? 'personal' : 'none');
   const [secrets, setSecrets] = useState({ password: '', pin: '', accountNumber: '' });
   const [saving, setSaving] = useState(false);
-  const editing = !!initial.id;
   const set = <K extends keyof ItPhoneFormValues>(k: K, v: ItPhoneFormValues[K]) => setF(p => ({ ...p, [k]: v }));
+  const secret = (k: keyof typeof secrets) => (e: { target: { value: string } }) => setSecrets(s => ({ ...s, [k]: e.target.value }));
 
-  const holderChanged = f.holderId !== initial.holderId;
-  const deviceChanged = f.deviceName.trim() !== initial.deviceName.trim();
+  const holderKey = holderMode === 'staff' ? f.holderId : f.holderName.trim().toLowerCase();
+  const initialKey = initial.holderId || initial.holderName.trim().toLowerCase();
+  const holderChanged = holderKey !== initialKey;
+  const deviceName = phoneMode === 'company' ? f.deviceName.trim() : '';
+  const deviceChanged = deviceName !== initial.deviceName.trim();
+  const chosenAccount = accounts.find(a => a.lineId === accountFrom);
+
+  function pickAccount(lineId: string) {
+    setAccountFrom(lineId);
+    const a = accounts.find(x => x.lineId === lineId);
+    if (a) setF(p => withAccount(p, a));
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (phoneMode === 'company' && !deviceName) { toast.error('Enter the company phone’s model, e.g. iPhone 12'); return; }
     setSaving(true);
     try {
-      const { number, carrier, firm, holderId, deviceName, personalDevice, email, imei, location, notes, active } = f;
       // Secrets: sent only when typed, so an empty box never wipes a saved one.
       const typed = Object.fromEntries(Object.entries(secrets).filter(([, v]) => v.trim()));
       const res = await fetch(editing ? `/api/it/phones/${initial.id}` : '/api/it/phones', {
         method: editing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          number, carrier, firm, holderId, deviceName, personalDevice: !deviceName.trim() && personalDevice,
-          email, imei, location, notes, ...(editing ? { active } : {}), ...typed,
+          number: f.number, email: f.email, location: f.location, notes: f.notes,
+          holderId: holderMode === 'staff' ? f.holderId : '',
+          holderName: holderMode === 'name' ? f.holderName : '',
+          deviceName, personalDevice: phoneMode === 'personal',
+          deviceCondition: phoneMode === 'company' ? f.deviceCondition : '',
+          imei: phoneMode === 'none' ? '' : f.imei,
+          carrier: f.carrier, firm: f.firm, accountHolder: f.accountHolder, monthlyCost: f.monthlyCost,
+          ...(editing ? { active: f.active } : {}), ...typed,
+          ...(accountFrom && !secrets.accountNumber.trim() ? { copyAccountFrom: accountFrom } : {}),
         }),
       });
       const body = await res.json().catch(() => null) as { error?: string; line?: { id: string } } | null;
@@ -81,67 +149,114 @@ export function ItPhoneFormDialog({ initial, people, onClose, onSaved }: {
 
   const since = (iso: string | null | undefined, changed: boolean, has: boolean) =>
     !has ? '—' : changed || !editing ? 'Today, when you save' : formatTicketDate(iso ?? null);
+  const suggest = (k: 'carrier' | 'firm' | 'accountHolder') => [...new Set(accounts.map(a => a[k]).filter((v): v is string => !!v))];
+  const accountPlaceholder = chosenAccount?.hasAccountNumber
+    ? 'Same as the chosen account'
+    : editing && initial.hasSecret?.accountNumber ? 'Saved. Type to replace.' : '';
 
   return (
     <Modal open onOpenChange={o => { if (!o && !saving) onClose(); }}>
-      <ModalContent size="xl" title={editing ? 'Edit Number' : 'New Number'} description="A company phone line.">
+      <ModalContent size="xl" title={editing ? 'Edit Number' : 'New Number'} description="A company phone line and SIM.">
         <form onSubmit={submit} className="flex max-h-[72vh] flex-col gap-5 overflow-y-auto pr-1">
-          <FormPanel id="itp-line" title="Line">
+          <FormPanel id="itp-user-panel" title="User & Phone" aside="Dates are set automatically when you assign">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex min-w-0 flex-col gap-2">
+                <Segmented id="itp-user-mode" label="User" value={holderMode} onChange={setHolderMode}
+                  options={[{ value: 'staff', label: 'Staff member' }, { value: 'name', label: 'Type a name' }]} />
+                {holderMode === 'staff' ? (
+                  <Select id="itp-holder" aria-label="Staff member" className={FORM_FIELD} value={f.holderId} placeholder="Available (nobody)"
+                    options={[{ value: '', label: 'Available (nobody)' }, ...people.map(p => ({ value: p.id, label: p.name }))]}
+                    onValueChange={v => set('holderId', v ?? '')} />
+                ) : (
+                  <Input id="itp-holder-name" aria-label="User's name" maxLength={120} className={FORM_FIELD} value={f.holderName}
+                    onChange={e => set('holderName', e.target.value)} placeholder="Full name (no account or email yet)" />
+                )}
+              </div>
+              <FormField id="itp-since" label="Holder since">
+                <FormValue>{since(initial.holderSince, holderChanged, !!holderKey)}</FormValue>
+              </FormField>
+            </div>
+
+            <Segmented id="itp-phone-mode" label="Phone" value={phoneMode} onChange={setPhoneMode}
+              options={[{ value: 'company', label: 'Company phone' }, { value: 'personal', label: 'Personal phone' }, { value: 'none', label: 'No phone' }]} />
+            {phoneMode !== 'none' && (
+              <div className={cn('grid grid-cols-1 gap-4', phoneMode === 'company' ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-2')}>
+                {phoneMode === 'company' && <>
+                  <FormField id="itp-device" label="Model" required>
+                    <Input id="itp-device" maxLength={80} className={FORM_FIELD} value={f.deviceName} onChange={e => set('deviceName', e.target.value)} placeholder="iPhone 12" />
+                  </FormField>
+                  <FormField id="itp-cond" label="Condition">
+                    <Select id="itp-cond" className={FORM_FIELD} value={f.deviceCondition} options={CONDITION_OPTIONS}
+                      onValueChange={v => set('deviceCondition', (v ?? '') as ItPhoneFormValues['deviceCondition'])} />
+                  </FormField>
+                </>}
+                <FormField id="itp-imei" label="IMEI">
+                  <Input id="itp-imei" maxLength={40} inputMode="numeric" className={FORM_FIELD} value={f.imei} onChange={e => set('imei', e.target.value)} placeholder="357716584828487" />
+                </FormField>
+                {phoneMode === 'company' && (
+                  <FormField id="itp-dev-at" label="Phone assigned on">
+                    <FormValue>{since(initial.deviceAssignedAt, deviceChanged, !!deviceName)}</FormValue>
+                  </FormField>
+                )}
+              </div>
+            )}
+          </FormPanel>
+
+          <FormPanel id="itp-line" title="Line" aside="Password and PIN stored encrypted">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <FormField id="itp-number" label="Number" required>
-                <Input id="itp-number" required maxLength={40} autoFocus inputMode="tel" className={FORM_FIELD} value={f.number} onChange={e => set('number', e.target.value)} placeholder="+1 (555) 555 1234" />
+                <Input id="itp-number" required maxLength={40} autoFocus inputMode="tel" className={FORM_FIELD} value={f.number} onChange={e => set('number', e.target.value)} placeholder="+1 (475) 309-0034" />
               </FormField>
-              <FormField id="itp-carrier" label="Carrier">
-                <Input id="itp-carrier" maxLength={80} className={FORM_FIELD} value={f.carrier} onChange={e => set('carrier', e.target.value)} placeholder="T-Mobile" />
-              </FormField>
-              <FormField id="itp-firm" label="Firm">
-                <Input id="itp-firm" maxLength={80} className={FORM_FIELD} value={f.firm} onChange={e => set('firm', e.target.value)} placeholder="Trust Lines" />
+              <FormField id="itp-mail" label="Mail">
+                <Input id="itp-mail" type="email" maxLength={254} className={FORM_FIELD} value={f.email} onChange={e => set('email', e.target.value)} placeholder="name@tlines.us" />
               </FormField>
               <FormField id="itp-loc" label="Location">
                 <Select id="itp-loc" className={FORM_FIELD} value={f.location} options={LOCATION_OPTIONS} onValueChange={v => set('location', v ?? '')} />
               </FormField>
-              <FormField id="itp-mail" label="Mail">
-                <Input id="itp-mail" type="email" maxLength={254} className={FORM_FIELD} value={f.email} onChange={e => set('email', e.target.value)} placeholder="Carrier account login" />
+              <FormField id="itp-password" label="Password">
+                <Input id="itp-password" type="password" autoComplete="new-password" maxLength={200} className={FORM_FIELD} value={secrets.password}
+                  onChange={secret('password')} placeholder={editing && initial.hasSecret?.password ? 'Saved. Type to replace.' : ''} />
               </FormField>
-              <FormField id="itp-imei" label="IMEI">
-                <Input id="itp-imei" maxLength={40} inputMode="numeric" className={FORM_FIELD} value={f.imei} onChange={e => set('imei', e.target.value)} />
+              <FormField id="itp-pin" label="PIN">
+                <Input id="itp-pin" type="password" autoComplete="new-password" maxLength={200} inputMode="numeric" className={FORM_FIELD} value={secrets.pin}
+                  onChange={secret('pin')} placeholder={editing && initial.hasSecret?.pin ? 'Saved. Type to replace.' : ''} />
               </FormField>
             </div>
           </FormPanel>
 
-          <FormPanel id="itp-holder-panel" title="Holder & Device" aside="Dates are set automatically when you assign">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField id="itp-holder" label="Holder">
-                <Select id="itp-holder" className={FORM_FIELD} value={f.holderId} placeholder="Available (nobody)"
-                  options={[{ value: '', label: 'Available (nobody)' }, ...people.map(p => ({ value: p.id, label: p.name }))]}
-                  onValueChange={v => set('holderId', v ?? '')} />
+          <FormPanel id="itp-account" title="Carrier Account" aside="Account number stored encrypted">
+            {accounts.length > 0 && (
+              <FormField id="itp-same" label="Same account as" hint="Fills carrier, firm and account holder, and uses that account’s number">
+                <Select id="itp-same" className={FORM_FIELD} value={accountFrom}
+                  options={[{ value: '', label: editing ? 'Keep as is' : 'A new account' }, ...accounts.map(a => ({ value: a.lineId, label: accountLabel(a) }))]}
+                  onValueChange={v => pickAccount(v ?? '')} />
               </FormField>
-              <FormField id="itp-since" label="Holder since">
-                <FormValue>{since(initial.holderSince, holderChanged, !!f.holderId)}</FormValue>
+            )}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <FormField id="itp-carrier" label="Carrier">
+                <Input id="itp-carrier" list="itp-carrier-list" maxLength={80} className={FORM_FIELD} value={f.carrier} onChange={e => set('carrier', e.target.value)} placeholder="T-Mobile" />
               </FormField>
-              <FormField id="itp-device" label="Company phone" hint="Empty when the line has no company phone">
-                <Input id="itp-device" maxLength={80} className={FORM_FIELD} value={f.deviceName} onChange={e => set('deviceName', e.target.value)} placeholder="iPhone 17" />
+              <FormField id="itp-firm" label="Firm name">
+                <Input id="itp-firm" list="itp-firm-list" maxLength={80} className={FORM_FIELD} value={f.firm} onChange={e => set('firm', e.target.value)} placeholder="T LINES LLC" />
               </FormField>
-              <FormField id="itp-dev-at" label="Phone assigned on">
-                <FormValue>{since(initial.deviceAssignedAt, deviceChanged, !!f.deviceName.trim())}</FormValue>
+              <FormField id="itp-acc-holder" label="Account holder">
+                <Input id="itp-acc-holder" list="itp-acc-holder-list" maxLength={120} className={FORM_FIELD} value={f.accountHolder} onChange={e => set('accountHolder', e.target.value)} placeholder="Name on the carrier account" />
+              </FormField>
+              <FormField id="itp-accountNumber" label="Account no">
+                <Input id="itp-accountNumber" type="password" autoComplete="new-password" maxLength={200} className={FORM_FIELD} value={secrets.accountNumber}
+                  onChange={secret('accountNumber')} placeholder={accountPlaceholder} />
+              </FormField>
+              <FormField id="itp-cost" label="Plan / month (USD)">
+                <Input id="itp-cost" type="number" min={0} max={100000} step="0.01" inputMode="decimal" className={FORM_FIELD} value={f.monthlyCost}
+                  onChange={e => set('monthlyCost', e.target.value)} placeholder="58.10" />
               </FormField>
             </div>
-            <label className="flex items-center gap-2 text-[13px] text-ui-body">
-              <Checkbox checked={!f.deviceName.trim() && f.personalDevice} disabled={!!f.deviceName.trim()} onCheckedChange={v => set('personalDevice', !!v)} />
-              Runs on the holder&apos;s own phone
-            </label>
+            <datalist id="itp-carrier-list">{suggest('carrier').map(v => <option key={v} value={v} />)}</datalist>
+            <datalist id="itp-firm-list">{suggest('firm').map(v => <option key={v} value={v} />)}</datalist>
+            <datalist id="itp-acc-holder-list">{suggest('accountHolder').map(v => <option key={v} value={v} />)}</datalist>
           </FormPanel>
 
-          <FormPanel id="itp-account" title="Account Details" aside="Stored encrypted">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {SECRET_FIELDS.map(([k, label]) => (
-                <FormField key={k} id={`itp-${k}`} label={label}>
-                  <Input id={`itp-${k}`} type="password" autoComplete="new-password" maxLength={200} className={FORM_FIELD} value={secrets[k]}
-                    onChange={e => setSecrets(s => ({ ...s, [k]: e.target.value }))}
-                    placeholder={editing && initial.hasSecret?.[k] ? 'Saved. Type to replace.' : ''} />
-                </FormField>
-              ))}
-            </div>
+          <FormPanel id="itp-notes-panel" title="Notes">
             <FormField id="itp-notes" label="Notes">
               <Textarea id="itp-notes" maxLength={4000} rows={2} className={FORM_TEXTAREA} value={f.notes} onChange={e => set('notes', e.target.value)} />
             </FormField>

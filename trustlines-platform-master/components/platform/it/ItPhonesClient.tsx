@@ -13,6 +13,7 @@ import { SOLID_CHIP } from './itemStyles';
 import { FIELD, MUTED, SORT_OPTIONS, STRONG, copyText, initials, tabClass } from './itCardParts';
 import { roleLabel } from '@/components/platform/shell/Sidebar';
 import { EMPTY_PHONE, ItPhoneFormDialog } from './ItPhoneFormDialog';
+import type { PhoneAccount } from '@/lib/it/phones';
 
 // Figma "IT / Phone Numbers" (966:39447): company phone lines, one card each — holder photo, name
 // and role, the number with a copy button, the carrier, and the device it runs on (company phone,
@@ -97,7 +98,7 @@ function PhoneCard({ line }: { line: ItPhoneLine }) {
             </Link>
           </h3>
           <p className="m-0 truncate text-[12px] font-medium leading-4 tracking-[0.36px] text-ui-body dark:text-primary-50">
-            {free ? '-' : line.holderRole ? roleLabel(line.holderRole) : '-'}
+            {free ? '-' : line.holderRole ? roleLabel(line.holderRole) : line.holderId ? '-' : 'No account yet'}
           </p>
         </div>
       </div>
@@ -126,12 +127,14 @@ function PhoneCard({ line }: { line: ItPhoneLine }) {
   );
 }
 
-export function ItPhonesClient({ lines, error = null, canCreate = false, people = [] }: {
+export function ItPhonesClient({ lines, error = null, canCreate = false, people = [], accounts = [] }: {
   lines: ItPhoneLine[];
   error?: string | null;
   canCreate?: boolean;
   /** Who can hold a line (edit.it only). */
   people?: { id: string; name: string }[];
+  /** Carrier accounts in use, for the form's "Same account as". */
+  accounts?: PhoneAccount[];
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
@@ -159,7 +162,7 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
       .filter(l => !holder || l.holderName === holder)
       .filter(l => !assignment || (assignment === 'assigned') === !!l.holderName)
       .filter(l => !firm || l.firm === firm)
-      .filter(l => !q || `${l.holderName ?? ''} ${l.holderRole ?? ''} ${l.number} ${l.carrier ?? ''} ${l.deviceName ?? ''}`.toLowerCase().includes(q))
+      .filter(l => !q || `${l.holderName ?? ''} ${l.holderRole ?? ''} ${l.number} ${l.carrier ?? ''} ${l.firm ?? ''} ${l.deviceName ?? ''}`.toLowerCase().includes(q))
       .sort((a, b) => {
         if (sort === 'name') return (a.holderName ?? '￿').localeCompare(b.holderName ?? '￿');
         const diff = Date.parse(a.createdAt) - Date.parse(b.createdAt);
@@ -271,7 +274,7 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
       )}
 
       {adding && (
-        <ItPhoneFormDialog initial={EMPTY_PHONE} people={people} onClose={() => setAdding(false)}
+        <ItPhoneFormDialog initial={EMPTY_PHONE} people={people} accounts={accounts} onClose={() => setAdding(false)}
           onSaved={() => { setAdding(false); router.refresh(); }} />
       )}
     </div>
