@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { itApi } from '@/lib/it/server';
 import { isUuid } from '@/lib/it/validate';
-import { auditFields, cleanPhoneInput, stampPhoneDates } from '@/lib/it/phones';
+import { auditFields, cleanPhoneInput, copyAccountNumber, isMissingColumn, stampPhoneDates, withoutSheetFields } from '@/lib/it/phones';
 import { endAssignment, recordAssignment } from '@/lib/it/assignments';
 
 type Params = { params: Promise<{ id: string }> };
@@ -15,24 +15,36 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (deny) return deny;
   const { id } = await params;
   if (!isUuid(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const input = cleanPhoneInput(await req.json().catch(() => null), true);
+  const body = await req.json().catch(() => null);
+  const input = cleanPhoneInput(body, true);
   if ('error' in input) return NextResponse.json({ error: input.error }, { status: 400 });
+  const copyError = await copyAccountNumber(ctx, body, input.value);
+  if (copyError) return NextResponse.json({ error: copyError }, { status: 400 });
   if (!Object.keys(input.value).length) return NextResponse.json({ error: 'Nothing to change' }, { status: 400 });
 
-  const { data: prev } = await ctx.admin.from('it_phone_lines').select('holder_id, device_name').eq('id', id).is('deleted_at', null).maybeSingle();
-  const before = prev as { holder_id: string | null; device_name: string | null } | null;
+  let prev = await ctx.admin.from('it_phone_lines').select('holder_id, holder_name, device_name').eq('id', id).is('deleted_at', null).maybeSingle();
+  if (isMissingColumn(prev.error)) prev = await ctx.admin.from('it_phone_lines').select('holder_id, device_name').eq('id', id).is('deleted_at', null).maybeSingle();
+  const before = prev.data as { holder_id: string | null; holder_name?: string | null; device_name: string | null } | null;
   if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const row = { ...input.value, ...stampPhoneDates(input.value, before) };
 
-  const { error } = await ctx.admin.from('it_phone_lines')
-    .update({ ...row, updated_at: new Date().toISOString() }).eq('id', id).is('deleted_at', null);
-  if (error) return NextResponse.json({ error: 'Could not save the number' }, { status: 500 });
+  const save = (r: Record<string, unknown>) => ctx.admin.from('it_phone_lines')
+    .update({ ...r, updated_at: new Date().toISOString() }).eq('id', id).is('deleted_at', null);
+  let { error } = await save(row);
+  // Before migration 161: save the rest without the sheet fields — unless they hold the user.
+  if (isMissingColumn(error) && !row.holder_name) ({ error } = await save(withoutSheetFields(row)));
+  if (error) {
+    return isMissingColumn(error)
+      ? NextResponse.json({ error: 'Run migration 161_it_phone_sheet_fields.sql in Supabase first.' }, { status: 503 })
+      : NextResponse.json({ error: 'Could not save the number' }, { status: 500 });
+  }
 
   if (row.retired_at) await endAssignment(ctx.admin, 'phone_line', id);
   else {
     await recordAssignment(ctx.admin, {
       kind: 'phone_line', assetId: id,
       personId: ('holder_id' in row ? row.holder_id as string | null : before.holder_id) ?? null,
+      personName: ('holder_name' in row ? row.holder_name as string | null : before.holder_name) ?? null,
       deviceName: ('device_name' in row ? row.device_name as string | null : before.device_name) ?? null,
       actorId: ctx.userId,
     });
