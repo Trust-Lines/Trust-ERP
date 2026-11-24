@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { ArrowDownUp, CreditCard, Eye, EyeOff, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react';
 import { ConfirmModal } from '@/components/ui/modal';
 import { MenuItem } from '@/components/ui/menu';
-import { EMPTY_SUBSCRIPTION, ItSubscriptionFormDialog, type ItSubscriptionFormValues } from './ItSubscriptionFormDialog';
+import { EMPTY_SUBSCRIPTION, ItSubscriptionFormDialog, type ItSubscriptionFormValues, type SubscriptionUser } from './ItSubscriptionFormDialog';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -28,7 +28,10 @@ export interface ItSubscription {
   logoUrl: string | null;
   /** Brand colour for the service name, e.g. "#DA1F26". */
   brandColor: string | null;
+  /** Legacy count, used only when no users are listed. */
   seats: number | null;
+  /** Who uses it: people in the system, or typed names (personId null). */
+  users: SubscriptionUser[];
   cardLast4: string | null;
   /** ISO dates. */
   startDate: string | null;
@@ -55,7 +58,7 @@ async function revealPassword(id: string): Promise<string> {
 
 const toForm = (s: ItSubscription): ItSubscriptionFormValues => ({
   id: s.id, service: s.service, loginEmail: s.loginEmail, logoUrl: s.logoUrl ?? '', brandColor: s.brandColor ?? '',
-  seats: s.seats != null ? String(s.seats) : '', cardLast4: s.cardLast4 ?? '', startDate: s.startDate ?? '', dueDate: s.dueDate ?? '',
+  users: s.users, cardLast4: s.cardLast4 ?? '', startDate: s.startDate ?? '', dueDate: s.dueDate ?? '',
   notes: s.notes ?? '', active: s.active, hasPassword: s.hasPassword,
 });
 const DUE_SOON_DAYS = 30;
@@ -91,6 +94,8 @@ function SubscriptionCard({ sub, showInfo, onRevealPassword, onEdit, onDelete }:
   onDelete?: (sub: ItSubscription) => void;
 }) {
   const dueSoon = isDueSoon(sub.dueDate);
+  const count = sub.users.length || sub.seats;
+  const names = sub.users.map(u => u.name);
   return (
     <article className={CARD}>
       <CardHead
@@ -108,9 +113,9 @@ function SubscriptionCard({ sub, showInfo, onRevealPassword, onEdit, onDelete }:
       <SecretField id={sub.id} label={sub.service} showInfo={showInfo} onReveal={onRevealPassword} notConnectedTitle={NOT_CONNECTED} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className={CHIP}>
+        <span className={CHIP} title={names.join(', ') || undefined}>
           <UserRound size={16} aria-hidden />
-          {sub.seats != null ? `${sub.seats} User${sub.seats === 1 ? '' : 's'}` : '— Users'}
+          {count != null ? `${count} User${count === 1 ? '' : 's'}` : '— Users'}
         </span>
         {sub.cardLast4 && (
           <span className={CHIP}>
@@ -121,6 +126,12 @@ function SubscriptionCard({ sub, showInfo, onRevealPassword, onEdit, onDelete }:
         )}
       </div>
 
+      {names.length > 0 && (
+        <p className={cn('m-0 truncate text-[12px]', MUTED)} title={names.join(', ')}>
+          <span className="sr-only">Users: </span>{names.join(', ')}
+        </p>
+      )}
+
       <div className="flex flex-wrap items-start justify-between gap-2 text-[13px] font-semibold whitespace-nowrap">
         <p className={cn('m-0', STRONG)}><span className="font-normal">Start:</span> {formatDay(sub.startDate)}</p>
         <p className={cn('m-0', dueSoon ? 'text-error-normal' : STRONG)}><span className="font-normal">Due:</span> {formatDay(sub.dueDate)}</p>
@@ -129,8 +140,10 @@ function SubscriptionCard({ sub, showInfo, onRevealPassword, onEdit, onDelete }:
   );
 }
 
-export function ItSubscriptionsClient({ subscriptions, error = null, canCreate = false }: {
+export function ItSubscriptionsClient({ subscriptions, error = null, canCreate = false, people = [] }: {
   subscriptions: ItSubscription[];
+  /** Active staff for the form's user picker. */
+  people?: { id: string; name: string }[];
   error?: string | null;
   /** edit.it: add, edit, delete and show passwords. */
   canCreate?: boolean;
@@ -156,7 +169,7 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
     return subscriptions
       .filter(s => s.active === (tab === 'active'))
       .filter(s => !service || s.service === service)
-      .filter(s => !q || `${s.service} ${s.loginEmail}`.toLowerCase().includes(q))
+      .filter(s => !q || `${s.service} ${s.loginEmail} ${s.users.map(u => u.name).join(' ')}`.toLowerCase().includes(q))
       .sort((a, b) => {
         if (sort === 'name') return a.service.localeCompare(b.service);
         const diff = Date.parse(a.createdAt) - Date.parse(b.createdAt);
@@ -268,7 +281,7 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
       )}
 
       {form && (
-        <ItSubscriptionFormDialog initial={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); router.refresh(); }} />
+        <ItSubscriptionFormDialog initial={form} people={people} onClose={() => setForm(null)} onSaved={() => { setForm(null); router.refresh(); }} />
       )}
       <ConfirmModal
         open={!!deleting} onOpenChange={o => { if (!o) setDeleting(null); }} tone="destructive" confirmLabel="Delete subscription"
