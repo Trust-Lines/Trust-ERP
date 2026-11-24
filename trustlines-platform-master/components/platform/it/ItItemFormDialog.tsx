@@ -22,7 +22,8 @@ import { CATEGORY_LABEL, STRONG } from './itemStyles';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { printLabel, useItemQr } from './itemQr';
+import { useItemQr } from './itemQr';
+import { LabelSheetDialog } from './LabelSheetDialog';
 
 // Items Library → Add Item and Item → Edit Info, laid out like the item page (Figma 845:42033):
 // a Basic Info panel (photo + fields) and, for computers, Specifications cards.
@@ -77,6 +78,7 @@ async function errorOf(res: Response) {
 /** After adding: the new item's QR label — print it, open the item, or add another. */
 function CreatedLabel({ id, name, detail, onOpen, onAnother, onClose }: { id: string; name: string; detail: string; onOpen: () => void; onAnother: () => void; onClose: () => void }) {
   const { url, qr } = useItemQr(id);
+  const [printing, setPrinting] = useState(false);
   return (
     <div className="flex flex-col items-center gap-5 py-2 text-center">
       <p className="m-0 text-[14px] text-ui-body"><b className={STRONG}>{name}</b> is in the library. Print the label and stick it on the device — scanning it opens the item, ready to fill in from a phone.</p>
@@ -86,11 +88,12 @@ function CreatedLabel({ id, name, detail, onOpen, onAnother, onClose }: { id: st
       </div>
       {url && <p className="m-0 max-w-full break-all rounded-md bg-ui-surface px-3 py-2 text-[13px] text-ui-body">{url}</p>}
       <div className="flex flex-wrap justify-center gap-2">
-        <button type="button" className={PRIMARY_BTN} disabled={!qr || !url} onClick={() => qr && url && printLabel(name, url, qr, detail)}><Printer size={16} aria-hidden /> Print</button>
+        <button type="button" className={PRIMARY_BTN} disabled={!qr || !url} onClick={() => setPrinting(true)}><Printer size={16} aria-hidden /> Print</button>
         <button type="button" className={SECONDARY_BTN} onClick={onOpen}><ExternalLink size={16} aria-hidden /> Open item</button>
         <button type="button" className={SECONDARY_BTN} onClick={onAnother}><Plus size={16} aria-hidden /> Add another</button>
         <button type="button" className={SECONDARY_BTN} onClick={onClose}>Done</button>
       </div>
+      {printing && <LabelSheetDialog items={[{ id, name, detail }]} onClose={() => setPrinting(false)} />}
     </div>
   );
 }

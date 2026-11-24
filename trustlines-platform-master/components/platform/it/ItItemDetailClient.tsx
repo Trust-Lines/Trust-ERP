@@ -28,7 +28,8 @@ import { ConfirmModal } from '@/components/ui/modal';
 import { MonitorPcIcon } from './MonitorPcIcon';
 import { formatTicketDate } from './ticketStyles';
 import { ItItemFormDialog, type ItItemFormValues } from './ItItemFormDialog';
-import { printLabel, useItemQr } from './itemQr';
+import { useItemQr } from './itemQr';
+import { LabelSheetDialog } from './LabelSheetDialog';
 import {
   CATEGORY_CHIP,
   CATEGORY_LABEL,
@@ -159,6 +160,7 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
   const { url: itemUrl, qr } = useItemQr(item?.id ?? null);
   const [editing, setEditing] = useState(startEditing && canEdit && !!item);
   const [deleting, setDeleting] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   const formValues: ItItemFormValues | null = item ? {
     id: item.id, name: item.name, model: item.model ?? '', category: item.category, location: item.location ?? '',
@@ -390,7 +392,7 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
             <button
               type="button"
               disabled={!item || !qr || !itemUrl}
-              onClick={() => item && qr && itemUrl && printLabel(item.name, itemUrl, qr, [CATEGORY_LABEL[item.category], item.setLabel, item.location].filter(Boolean).join(' · '))}
+              onClick={() => setPrinting(true)}
               className={cn('flex items-center gap-[7px] rounded-md py-2.5 pl-6 pr-8 text-[13px] font-medium hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring', SOLID_CHIP, DISABLED)}
             >
               <Printer className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
@@ -406,6 +408,12 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
           assignees={assignees}
           onClose={() => setEditing(false)}
           onSaved={() => { setEditing(false); router.replace(`/it/items/${item!.id}`); router.refresh(); }}
+        />
+      )}
+      {printing && item && (
+        <LabelSheetDialog
+          items={[{ id: item.id, name: item.name, detail: [CATEGORY_LABEL[item.category], item.setLabel, item.location].filter(Boolean).join(' · ') }]}
+          onClose={() => setPrinting(false)}
         />
       )}
       <ConfirmModal
