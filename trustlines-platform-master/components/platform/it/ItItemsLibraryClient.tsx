@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowDownUp, Ellipsis, ExternalLink, Link2, MapPin, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowDownUp, Ellipsis, ExternalLink, Link2, MapPin, Pencil, Plus, Printer, Search, Trash2 } from 'lucide-react';
 import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
 import { ConfirmModal } from '@/components/ui/modal';
 import { Select } from '@/components/ui/select';
@@ -14,7 +14,8 @@ import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { MonitorPcIcon } from './MonitorPcIcon';
 import { TOOLBAR_SELECT, TOOLBAR_SORT_ICON } from './ticketStyles';
 import { EMPTY_ITEM, ItItemFormDialog } from './ItItemFormDialog';
-import { MUTED, OUTLINE_CHIP, SOLID_CHIP, STRONG, formatItemDate, type ItItem, type ItItemCategory } from './itemStyles';
+import { LabelSheetDialog } from './LabelSheetDialog';
+import { CATEGORY_LABEL, MUTED, OUTLINE_CHIP, SOLID_CHIP, STRONG, formatItemDate, type ItItem, type ItItemCategory } from './itemStyles';
 
 export type { ItItem, ItItemCategory, ItItemStatus } from './itemStyles';
 
@@ -146,6 +147,7 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false, a
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [deleting, setDeleting] = useState<ItItem | null>(null);
 
   async function remove(item: ItItem) {
@@ -207,6 +209,16 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false, a
             />
           </div>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          disabled={visible.length === 0}
+          onClick={() => setPrinting(true)}
+          className={cn('flex h-10 items-center gap-2 rounded-md pl-5 pr-6 text-[13px] font-semibold transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50', OUTLINE_CHIP)}
+        >
+          <Printer className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+          Print labels
+        </button>
         <button
           type="button"
           disabled={!canCreate}
@@ -217,6 +229,7 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false, a
           <Plus className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
           Add Item
         </button>
+        </div>
       </div>
 
       <div role="tablist" aria-label="Item categories" className="flex gap-2 overflow-x-auto border-b border-solid border-primary-100 pb-3 scrollbar-none dark:border-primary-600">
@@ -263,6 +276,13 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false, a
         </ul>
       )}
 
+      {printing && (
+        <LabelSheetDialog
+          selectable
+          items={visible.map(i => ({ id: i.id, name: i.name, detail: [CATEGORY_LABEL[i.category], i.setLabel, i.location].filter(Boolean).join(' · ') }))}
+          onClose={() => setPrinting(false)}
+        />
+      )}
       {adding && (
         <ItItemFormDialog
           initial={EMPTY_ITEM}
