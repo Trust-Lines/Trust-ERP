@@ -18,6 +18,8 @@ export interface ItItem {
   /** Person holding the item when `status` is `assigned`. */
   assigneeName: string | null;
   imageUrl: string | null;
+  /** Place in "My order" (null = never dragged); optional where the order isn't used. */
+  position?: number | null;
 }
 
 /** Singular label, as shown in the detail's Category field ("PC"). */

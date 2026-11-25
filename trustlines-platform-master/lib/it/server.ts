@@ -93,6 +93,8 @@ export interface ItemRow {
   assigned_at: string | null;
   /** Migration 164; undefined before it. */
   holder_name?: string | null;
+  /** Migration 165: the place in the Items Library's "My order". */
+  position?: number | null;
   set_label: string | null;
   notes: string | null;
   specs: Record<string, string> | null;
@@ -278,6 +280,8 @@ export interface ItemCard {
   status: ItemStatus;
   assigneeName: string | null;
   imageUrl: string | null;
+  /** Place in "My order" (null = never dragged). */
+  position: number | null;
 }
 
 export const itemImageUrl = (r: ItemRow) =>
@@ -289,12 +293,17 @@ function toCard(r: ItemRow, who: Map<string, Person>): ItemCard {
     setLabel: r.set_label, location: r.location, status: r.status,
     assigneeName: r.status === 'assigned' ? (r.assignee_id ? nameOf(who.get(r.assignee_id)) : r.holder_name ?? null) : null,
     imageUrl: itemImageUrl(r),
+    position: r.position ?? null,
   };
 }
 
 export async function loadItems(ctx: ItContext): Promise<{ items: ItemCard[]; error: string | null }> {
-  const { data, error } = await withHolderName(cols => ctx.admin.from('it_items').select(cols).is('deleted_at', null)
-    .order('created_at', { ascending: false }).limit(2000));
+  const list = (cols: string) => ctx.admin.from('it_items').select(cols).is('deleted_at', null)
+    .order('created_at', { ascending: false }).limit(2000);
+  // Before migration 165 (position) / 164 (holder_name): read without them.
+  let first = await list(`${ITEM_COLS_HOLDER}, position`);
+  if (first.error && /position/.test(first.error.message ?? '')) first = await withHolderName(list);
+  const { data, error } = first;
   if (error) return { items: [], error: /it_items/.test(error.message ?? '') ? 'IT items are not set up yet — run migration 155_it_tickets_items.sql.' : error.message ?? 'Could not load items' };
   const rows = (data ?? []) as ItemRow[];
   const who = await people(ctx.admin, rows.map(r => r.assignee_id));
