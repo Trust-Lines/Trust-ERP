@@ -47,11 +47,13 @@ export interface ItItemFormValues {
   notes: string;
   specs: Record<string, string>;
   remoteAddress: string;
+  /** Phones: the line's number — added to (or linked in) Phone Numbers. */
+  phoneNumber: string;
 }
 
 export const EMPTY_ITEM: ItItemFormValues = {
   name: '', model: '', category: 'pc', location: '', status: 'available', assigneeId: '',
-  setLabel: '', notes: '', specs: {}, remoteAddress: '',
+  setLabel: '', notes: '', specs: {}, remoteAddress: '', phoneNumber: '',
 };
 
 // Panels, fields and buttons come from the shared IT form system (itFormParts).
@@ -241,6 +243,13 @@ export function ItItemFormDialog({ initial, assignees, onClose, onSaved, onCreat
                         <label htmlFor="iti-set" className={LABEL}>Set</label>
                         <Input id="iti-set" maxLength={40} className={FIELD} value={f.setLabel} onChange={e => set('setLabel', e.target.value)} placeholder="PC 1" title="Items with the same set name are grouped together" />
                       </div>
+                      {f.category === 'phone' && (
+                        <div className="sm:col-span-2">
+                          <label htmlFor="iti-phone" className={LABEL}>Phone Number</label>
+                          <Input id="iti-phone" maxLength={40} inputMode="tel" className={FIELD} value={f.phoneNumber} onChange={e => set('phoneNumber', e.target.value)} placeholder="+1 (475) 309-0034" />
+                          <span className="mt-1 block text-[11px] text-ui-text-secondary">Added to Phone Numbers — fill in the carrier and SIM details there.</span>
+                        </div>
+                      )}
                       <div className="sm:col-span-2 lg:col-span-4">
                         <label htmlFor="iti-notes" className={LABEL}>Notes</label>
                         <Textarea id="iti-notes" maxLength={2000} rows={2} className={FORM_TEXTAREA} value={f.notes} onChange={e => set('notes', e.target.value)} />

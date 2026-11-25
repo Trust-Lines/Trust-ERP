@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { itApi } from '@/lib/it/server';
 import { isUuid } from '@/lib/it/validate';
-import { auditFields, cleanPhoneInput, copyAccountNumber, isMissingColumn, stampPhoneDates, withoutSheetFields } from '@/lib/it/phones';
+import { auditFields, cleanPhoneInput, copyAccountNumber, isMissingColumn, stampPhoneDates, writeLine } from '@/lib/it/phones';
+import { checkLineItem } from '@/lib/it/phoneItemLink';
 import { endAssignment, recordAssignment } from '@/lib/it/assignments';
 
 type Params = { params: Promise<{ id: string }> };
@@ -26,16 +27,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (isMissingColumn(prev.error)) prev = await ctx.admin.from('it_phone_lines').select('holder_id, device_name').eq('id', id).is('deleted_at', null).maybeSingle();
   const before = prev.data as { holder_id: string | null; holder_name?: string | null; device_name: string | null } | null;
   if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (input.value.item_id) {
+    const item = await checkLineItem(ctx, id, input.value.item_id as string);
+    if ('error' in item) return NextResponse.json({ error: item.error }, { status: item.status });
+    Object.assign(input.value, { device_name: item.name, personal_device: false });
+  }
   const row = { ...input.value, ...stampPhoneDates(input.value, before) };
 
   const save = (r: Record<string, unknown>) => ctx.admin.from('it_phone_lines')
     .update({ ...r, updated_at: new Date().toISOString() }).eq('id', id).is('deleted_at', null);
-  let { error } = await save(row);
-  // Before migration 161: save the rest without the sheet fields — unless they hold the user.
-  if (isMissingColumn(error) && !row.holder_name) ({ error } = await save(withoutSheetFields(row)));
+  // Before migrations 161 / 163: save the rest without their (empty) fields.
+  const { error, migration } = await writeLine(save, row);
   if (error) {
-    return isMissingColumn(error)
-      ? NextResponse.json({ error: 'Run migration 161_it_phone_sheet_fields.sql in Supabase first.' }, { status: 503 })
+    return migration
+      ? NextResponse.json({ error: `Run migration ${migration} in Supabase first.` }, { status: 503 })
       : NextResponse.json({ error: 'Could not save the number' }, { status: 500 });
   }
 

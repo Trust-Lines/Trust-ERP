@@ -2,11 +2,12 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useState, type ComponentType, type FormEvent, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
+  ArrowRight,
   CalendarClock,
   CalendarPlus,
   Copy,
@@ -15,20 +16,31 @@ import {
   Unlink,
   Gpu,
   HardDrive,
+  ImagePlus,
   Link2,
   MapPin,
   MemoryStick,
   Pencil,
+  Phone,
   Plus,
   Printer,
   QrCode,
   Trash2,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ConfirmModal } from '@/components/ui/modal';
 import { MonitorPcIcon } from './MonitorPcIcon';
 import { formatTicketDate } from './ticketStyles';
-import { ItItemFormDialog, type ItItemFormValues } from './ItItemFormDialog';
+import type { ItItemFormValues } from './ItItemFormDialog';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { FORM_FIELD, FORM_TEXTAREA, LABEL } from './itFormParts';
+import {
+  COMPUTER_CATEGORIES, ITEM_CATEGORIES, IT_FILE_MAX_BYTES, IT_IMAGE_TYPES, IT_LOCATIONS, SPEC_KEYS, SPEC_LABEL,
+  type ItemCategory, type ItemStatus, type SpecKey,
+} from '@/lib/it/constants';
 import { useItemQr } from './itemQr';
 import { LabelSheetDialog } from './LabelSheetDialog';
 import { AddToSetDialog, GroupPasswordDialog, PendingGroupBanner, groupRequest, readPendingGroup } from './ItemGrouping';
@@ -48,7 +60,8 @@ import {
 // Figma "Item detail" (880:14431): Back, title with its set chip, Delete / Edit Info; Basic Info,
 // Specifications and the items it is grouped with on the left; who holds it and its QR label on the
 // right. Grouping (Add to Set, scan QR to add, remove from set) is edit.it plus the IT group
-// password — see ItemGrouping.
+// password — see ItemGrouping. "Edit Info" edits Basic Info and Specifications in place (no pop-up);
+// a phone's number links its line in Phone Numbers, and each page links to the other.
 
 export type ItItemSpecKey = 'cpu' | 'gpu' | 'ram' | 'storage';
 
@@ -66,7 +79,16 @@ export interface ItItemDetailData extends ItItem {
 
 type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
 
-const SPEC_ICON: Record<ItItemSpecKey, IconType> = { cpu: Cpu, gpu: Gpu, ram: MemoryStick, storage: HardDrive };
+const SPEC_ICON: Record<ItItemSpecKey | SpecKey, IconType> = { cpu: Cpu, gpu: Gpu, ram: MemoryStick, storage: HardDrive };
+const STATUS_LABEL: Record<ItemStatus, string> = { available: 'Available', repair: 'Repair', assigned: 'Assigned to a person' };
+const CATEGORY_OPTIONS = ITEM_CATEGORIES.map(c => ({ value: c, label: CATEGORY_LABEL[c] }));
+const LOCATION_OPTIONS = [{ value: '', label: '—' }, ...IT_LOCATIONS.map(l => ({ value: l, label: l }))];
+const STATUS_OPTIONS = (Object.keys(STATUS_LABEL) as ItemStatus[]).map(s => ({ value: s, label: STATUS_LABEL[s] }));
+
+async function errorOf(res: Response) {
+  const j = await res.json().catch(() => null) as { error?: string } | null;
+  return j?.error ?? `Request failed (${res.status})`;
+}
 
 // Panels: primary-50 / primary-700 ("main surfaces"); value boxes white / secondary-800 ("elevated").
 const PANEL = 'rounded-lg border border-solid border-primary-100 bg-primary-50 dark:border-primary-600 dark:bg-primary-700';
@@ -90,6 +112,17 @@ function Field({ label, icon: Icon, children, action }: { label: string; icon?: 
         <span className="min-w-0 flex-1 truncate">{children}</span>
         {action}
       </div>
+    </div>
+  );
+}
+
+/** A field being edited in place: label + control (+ hint). */
+function EditField({ id, label, required, hint, children }: { id: string; label: string; required?: boolean; hint?: string; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col">
+      <label htmlFor={id} className={LABEL}>{label}{required && <span className="text-error-normal" aria-hidden>*</span>}</label>
+      {children}
+      {hint && <span className="mt-1 block text-[11px] text-ui-text-secondary">{hint}</span>}
     </div>
   );
 }
@@ -162,7 +195,7 @@ function GroupedCard({ item, onRemove }: { item: ItItem; onRemove?: (item: ItIte
   );
 }
 
-export function ItItemDetailClient({ item, canEdit = false, assignees = [], startEditing = false, groupUnlocked = false, history = [] }: {
+export function ItItemDetailClient({ item, canEdit = false, assignees = [], startEditing = false, groupUnlocked = false, history = [], phoneLine = null }: {
   item: ItItemDetailData | null;
   /** edit.it: Delete, Edit Info, Add to Set, Access Computer. */
   canEdit?: boolean;
@@ -173,6 +206,8 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
   groupUnlocked?: boolean;
   /** Who held the item (newest first). */
   history?: AssignmentSpellView[];
+  /** A phone's line in Phone Numbers (migration 163). */
+  phoneLine?: { id: string; number: string; carrier: string | null } | null;
 }) {
   const router = useRouter();
   const { url: itemUrl, qr } = useItemQr(item?.id ?? null);
@@ -229,8 +264,61 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
   const formValues: ItItemFormValues | null = item ? {
     id: item.id, name: item.name, model: item.model ?? '', category: item.category, location: item.location ?? '',
     status: item.status, assigneeId: item.form.assigneeId ?? '', setLabel: item.setLabel ?? '', notes: item.notes ?? '',
-    specs: item.form.specs, remoteAddress: item.form.remoteAddress ?? '',
+    specs: item.form.specs, remoteAddress: item.form.remoteAddress ?? '', phoneNumber: phoneLine?.number ?? '',
   } : null;
+  const [draft, setDraft] = useState<ItItemFormValues>(() => formValues ?? ({} as ItItemFormValues));
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const set = <K extends keyof ItItemFormValues>(k: K, v: ItItemFormValues[K]) => setDraft(p => ({ ...p, [k]: v }));
+
+  useEffect(() => {
+    if (!photo) { setPreview(null); return; }
+    const u = URL.createObjectURL(photo);
+    setPreview(u);
+    return () => URL.revokeObjectURL(u);
+  }, [photo]);
+
+  function startEdit() {
+    if (!formValues) return;
+    setDraft(formValues);
+    setPhoto(null);
+    setEditing(true);
+  }
+  function cancelEdit() {
+    setEditing(false);
+    setPhoto(null);
+    if (startEditing) router.replace(`/it/items/${item!.id}`);
+  }
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    if (!item || !editing) return;
+    if (draft.status === 'assigned' && !draft.assigneeId) { toast.error('Choose who holds this item'); return; }
+    if (photo && (!IT_IMAGE_TYPES[photo.type] || photo.size > IT_FILE_MAX_BYTES)) { toast.error('The photo must be a JPG, PNG or WebP under 4 MB'); return; }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/it/items/${item.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...draft, name: draft.name.trim(), assigneeId: draft.status === 'assigned' ? draft.assigneeId : null }),
+      });
+      if (!res.ok) throw new Error(await errorOf(res));
+      if (photo) {
+        const fd = new FormData();
+        fd.append('file', photo);
+        const up = await fetch(`/api/it/items/${item.id}/image`, { method: 'POST', body: fd });
+        if (!up.ok) toast.error(`Saved, but the photo failed: ${await errorOf(up)}`);
+      }
+      toast.success('Item updated');
+      setEditing(false);
+      router.replace(`/it/items/${item.id}`);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save the item');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function remove() {
     if (!item) return;
@@ -280,6 +368,24 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
               {item ? [item.model, formatItemDate(item.addedAt)].filter(Boolean).join(' · ') : '—'}
             </p>
           </div>
+          {editing ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button" onClick={cancelEdit} disabled={saving}
+              className={cn('flex h-10 items-center gap-2 rounded-md pl-3.5 pr-5 text-[13px] font-medium hover:opacity-80', OUTLINE_CHIP, DISABLED)}
+            >
+              <X className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+              Cancel
+            </button>
+            <button
+              type="submit" form="it-item-edit" disabled={saving}
+              className={cn('flex h-10 items-center gap-2 rounded-md pl-3.5 pr-5 text-[13px] font-medium', SOLID_CHIP, DISABLED)}
+            >
+              <Pencil className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+          ) : (
           <div className="flex flex-wrap items-center gap-2">
             {canEdit && item?.form.remoteAddress && (
               <a
@@ -306,7 +412,7 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
             <button
               type="button"
               disabled={!canEdit || !item}
-              onClick={() => setEditing(true)}
+              onClick={startEdit}
               title={canEdit ? undefined : 'Your role cannot change IT items'}
               className={cn('flex h-10 items-center gap-2 rounded-md pl-3.5 pr-5 text-[13px] font-medium', SOLID_CHIP, DISABLED)}
             >
@@ -314,6 +420,7 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
               Edit Info
             </button>
           </div>
+          )}
         </div>
       </div>
 
@@ -323,16 +430,39 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
 
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-6">
-          {/* Basic Info */}
+          {/* Basic Info + Specifications — read, or edited in place ("Edit Info") */}
+          <form id="it-item-edit" onSubmit={save} className="flex flex-col gap-6" aria-label={editing ? 'Edit item' : undefined}>
           <section aria-labelledby="it-item-basic" className={cn('flex flex-col gap-4 px-5 pb-8 pt-4', PANEL)}>
             <h2 id="it-item-basic" className={PANEL_TITLE}>Basic Info</h2>
             <div className="flex flex-col gap-4 md:flex-row">
-              <div className="relative flex h-[233px] w-full shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-solid border-primary-100 bg-white md:w-[233px] dark:border-primary-600">
-                <ItemImage src={item?.imageUrl ?? null} iconSize="h-14 w-14" />
-              </div>
+              {editing ? (
+                <label
+                  htmlFor="iti-photo"
+                  className="relative flex h-[233px] w-full shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[10px] border border-dashed border-primary-200 bg-white hover:bg-ui-hover-bg md:w-[233px] dark:border-primary-500 dark:bg-secondary-800"
+                >
+                  {preview || item?.imageUrl ? (
+                    <Image src={preview ?? item!.imageUrl!} alt="" fill unoptimized sizes="240px" className="object-contain p-3 opacity-60" />
+                  ) : null}
+                  <span className={cn('relative flex flex-col items-center gap-1.5 rounded-md bg-white/80 px-3 py-2 text-[12px] font-medium dark:bg-secondary-800/80', STRONG)}>
+                    <ImagePlus size={28} strokeWidth={1.5} aria-hidden />
+                    {photo ? 'Photo chosen' : item?.imageUrl ? 'Replace photo' : 'Add a photo'}
+                  </span>
+                  <input id="iti-photo" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={e => setPhoto(e.target.files?.[0] ?? null)} />
+                </label>
+              ) : (
+                <div className="relative flex h-[233px] w-full shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-solid border-primary-100 bg-white md:w-[233px] dark:border-primary-600">
+                  <ItemImage src={item?.imageUrl ?? null} iconSize="h-14 w-14" />
+                </div>
+              )}
               <div className="flex min-w-0 flex-1 flex-col gap-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-[182px_minmax(0,1fr)_86px_168px]">
-                  <Field label="Item Name">{item?.name ?? <Placeholder>—</Placeholder>}</Field>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-[182px_minmax(0,1fr)_minmax(120px,160px)_168px]">
+                  {editing ? (
+                    <EditField id="iti-name" label="Item Name" required>
+                      <Input id="iti-name" required maxLength={120} autoFocus className={FORM_FIELD} value={draft.name} onChange={e => set('name', e.target.value)} />
+                    </EditField>
+                  ) : (
+                    <Field label="Item Name">{item?.name ?? <Placeholder>—</Placeholder>}</Field>
+                  )}
                   <Field
                     label="Item ID"
                     action={
@@ -349,24 +479,107 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
                   >
                     {item?.id ?? <Placeholder>—</Placeholder>}
                   </Field>
-                  <Field label="Category">{item ? CATEGORY_LABEL[item.category] : <Placeholder>—</Placeholder>}</Field>
-                  <Field label="Type">{item?.model ?? <Placeholder>—</Placeholder>}</Field>
+                  {editing ? (
+                    <>
+                      <EditField id="iti-cat" label="Category" required>
+                        <Select id="iti-cat" className={FORM_FIELD} value={draft.category} options={CATEGORY_OPTIONS} onValueChange={v => { if (v) set('category', v as ItemCategory); }} />
+                      </EditField>
+                      <EditField id="iti-model" label="Type">
+                        <Input id="iti-model" maxLength={120} className={FORM_FIELD} value={draft.model} onChange={e => set('model', e.target.value)} placeholder="High Performance" />
+                      </EditField>
+                    </>
+                  ) : (
+                    <>
+                      <Field label="Category">{item ? CATEGORY_LABEL[item.category] : <Placeholder>—</Placeholder>}</Field>
+                      <Field label="Type">{item?.model ?? <Placeholder>—</Placeholder>}</Field>
+                    </>
+                  )}
                 </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <Field label="Location" icon={MapPin}>{item?.location ?? <Placeholder>—</Placeholder>}</Field>
-                  <Field label="Added Date" icon={CalendarPlus}>{formatTicketDate(item?.addedAt ?? null)}</Field>
-                  <Field label="Last Update" icon={CalendarClock}>{formatTicketDate(item?.updatedAt ?? null)}</Field>
-                </div>
-                {item?.form.remoteAddress && <Field label="Remote address" icon={MonitorPcIcon}>{item.form.remoteAddress}</Field>}
-                <Field label="Notes">{item?.notes || <Placeholder>No notes</Placeholder>}</Field>
+                {editing ? (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <EditField id="iti-loc" label="Location">
+                      <Select id="iti-loc" className={FORM_FIELD} value={draft.location} options={LOCATION_OPTIONS} onValueChange={v => set('location', v ?? '')} />
+                    </EditField>
+                    <EditField id="iti-status" label="Status">
+                      <Select id="iti-status" className={FORM_FIELD} value={draft.status} options={STATUS_OPTIONS} onValueChange={v => { if (v) set('status', v as ItemStatus); }} />
+                    </EditField>
+                    {draft.status === 'assigned' ? (
+                      <EditField id="iti-holder" label="Held by" required>
+                        <Select id="iti-holder" className={FORM_FIELD} value={draft.assigneeId} placeholder="Choose a person…"
+                          options={assignees.map(a => ({ value: a.id, label: a.name }))} onValueChange={v => set('assigneeId', v ?? '')} />
+                      </EditField>
+                    ) : <div className="hidden xl:block" />}
+                    <EditField id="iti-set" label="Set">
+                      <Input id="iti-set" maxLength={40} className={FORM_FIELD} value={draft.setLabel} onChange={e => set('setLabel', e.target.value)} placeholder="PC 1" title="Items with the same set name are grouped together" />
+                    </EditField>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <Field label="Location" icon={MapPin}>{item?.location ?? <Placeholder>—</Placeholder>}</Field>
+                    <Field label="Added Date" icon={CalendarPlus}>{formatTicketDate(item?.addedAt ?? null)}</Field>
+                    <Field label="Last Update" icon={CalendarClock}>{formatTicketDate(item?.updatedAt ?? null)}</Field>
+                  </div>
+                )}
+                {(editing ? draft.category === 'phone' : item?.category === 'phone') && (
+                  editing ? (
+                    <EditField id="iti-phone" label="Phone Number" hint={phoneLine ? 'The line in Phone Numbers. Clear it to take the line off this phone.' : 'Adds the line to Phone Numbers (or links the line with this number). Fill in its carrier and SIM details there.'}>
+                      <Input id="iti-phone" maxLength={40} inputMode="tel" className={FORM_FIELD} value={draft.phoneNumber} onChange={e => set('phoneNumber', e.target.value)} placeholder="+1 (475) 309-0034" />
+                    </EditField>
+                  ) : (
+                    <Field
+                      label="Phone Number" icon={Phone}
+                      action={phoneLine ? (
+                        <Link href={`/it/phones/${phoneLine.id}`} className={cn('inline-flex shrink-0 items-center gap-1 text-[12px] font-semibold no-underline hover:underline', STRONG)}>
+                          Open in Phone Numbers <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Link>
+                      ) : undefined}
+                    >
+                      {phoneLine ? [phoneLine.number, phoneLine.carrier].filter(Boolean).join(' · ') : <Placeholder>No number yet — add it with Edit Info</Placeholder>}
+                    </Field>
+                  )
+                )}
+                {editing ? (
+                  <EditField id="iti-notes" label="Notes">
+                    <Textarea id="iti-notes" maxLength={2000} rows={2} className={FORM_TEXTAREA} value={draft.notes} onChange={e => set('notes', e.target.value)} />
+                  </EditField>
+                ) : (
+                  <>
+                    {item?.form.remoteAddress && <Field label="Remote address" icon={MonitorPcIcon}>{item.form.remoteAddress}</Field>}
+                    <Field label="Notes">{item?.notes || <Placeholder>No notes</Placeholder>}</Field>
+                  </>
+                )}
               </div>
             </div>
           </section>
 
           {/* Specifications */}
+          {(!editing || COMPUTER_CATEGORIES.includes(draft.category)) && (
           <section aria-labelledby="it-item-specs" className={cn('flex flex-col gap-4 px-5 pb-8 pt-4', PANEL)}>
             <h2 id="it-item-specs" className={PANEL_TITLE}>Specifications</h2>
-            {item && item.specs.length > 0 ? (
+            {editing ? (
+              <>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {SPEC_KEYS.map(k => {
+                    const Icon = SPEC_ICON[k];
+                    return (
+                      <label key={k} htmlFor={`iti-${k}`} className="flex h-16 items-end gap-2.5 rounded-lg border border-solid border-primary-100 bg-white py-3 pl-3.5 pr-4 dark:border-transparent dark:bg-secondary-800">
+                        <Icon className="h-[31px] w-[31px] shrink-0 text-accent-400" strokeWidth={1.5} />
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className={cn('text-[12px] font-medium uppercase leading-4 tracking-[-0.26px]', MUTED)}>{SPEC_LABEL[k]}</span>
+                          <input id={`iti-${k}`} maxLength={120} value={draft.specs[k] ?? ''} onChange={e => set('specs', { ...draft.specs, [k]: e.target.value })}
+                            placeholder={k === 'cpu' ? 'i7-13700K' : k === 'gpu' ? 'RTX 4070 Ti' : k === 'ram' ? '64 GB' : '2 TB'}
+                            className={cn('w-full min-w-0 border-0 bg-transparent p-0 text-[18px] font-semibold leading-5 outline-none placeholder:font-normal placeholder:text-primary-300', STRONG)} />
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <EditField id="iti-remote" label="Remote address" hint="Computer name or IP for Remote Desktop: the LAN name in Istanbul, the Tailscale name / IP for the other offices.">
+                  <Input id="iti-remote" maxLength={253} className={FORM_FIELD} value={draft.remoteAddress} onChange={e => set('remoteAddress', e.target.value)}
+                    placeholder="pc-ahmet or 100.64.0.12" spellCheck={false} autoCapitalize="off" />
+                </EditField>
+              </>
+            ) : item && item.specs.length > 0 ? (
               <dl className="m-0 flex flex-wrap gap-4">
                 {item.specs.map(spec => {
                   const Icon = SPEC_ICON[spec.key as ItItemSpecKey] ?? Cpu;
@@ -388,6 +601,8 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
               <p className="m-0 text-[13px] text-ui-body">No specifications recorded.</p>
             )}
           </section>
+          )}
+          </form>
 
           {/* Grouped With */}
           <section aria-labelledby="it-item-group" className="flex flex-col gap-2">
@@ -472,14 +687,6 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
         </aside>
       </div>
 
-      {editing && formValues && (
-        <ItItemFormDialog
-          initial={formValues}
-          assignees={assignees}
-          onClose={() => setEditing(false)}
-          onSaved={() => { setEditing(false); router.replace(`/it/items/${item!.id}`); router.refresh(); }}
-        />
-      )}
       {afterUnlock && (
         <GroupPasswordDialog
           onClose={() => setAfterUnlock(null)}

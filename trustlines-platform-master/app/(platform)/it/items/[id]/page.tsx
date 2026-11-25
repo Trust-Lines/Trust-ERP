@@ -5,8 +5,9 @@ import { ItItemDetailClient } from '@/components/platform/it/ItItemDetailClient'
 import { itContext, loadAssignees, loadItemDetail } from '@/lib/it/server';
 import { isUuid } from '@/lib/it/validate';
 import { loadAssignmentHistory } from '@/lib/it/assignments';
+import { loadItemPhoneLine } from '@/lib/it/phoneItemLink';
 
-// IT item detail (Figma 880:14431). ?edit=1 (a card's "Edit Info") opens the edit form — and so
+// IT item detail (Figma 880:14431). ?edit=1 (a card's "Edit Info") opens it for editing in place — and so
 // does an item with no details yet (added with "Quick add + QR"), so scanning its label on a phone
 // goes straight to filling it in.
 export default async function ItItemDetailPage({ params, searchParams }: {
@@ -18,12 +19,12 @@ export default async function ItItemDetailPage({ params, searchParams }: {
   if (!ctx.canManage) redirect('/dashboard');
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   if (!isUuid(id)) notFound();
-  const [item, assignees, history] = await Promise.all([
-    loadItemDetail(ctx, id), ctx.canEdit ? loadAssignees(ctx) : [], loadAssignmentHistory(ctx.admin, 'item', id),
+  const [item, assignees, history, phoneLine] = await Promise.all([
+    loadItemDetail(ctx, id), ctx.canEdit ? loadAssignees(ctx) : [], loadAssignmentHistory(ctx.admin, 'item', id), loadItemPhoneLine(ctx, id),
   ]);
   if (!item) notFound();
   const groupUnlocked = ctx.canEdit && groupTokenOk((await cookies()).get(GROUP_COOKIE)?.value, ctx.userId);
   const blank = !item.model && !item.notes && !item.setLabel && !item.imageUrl && item.specs.length === 0 && item.status === 'available';
 
-  return <ItItemDetailClient key={`${item.id}-${item.updatedAt}`} item={item} canEdit={ctx.canEdit} assignees={assignees} startEditing={sp.edit === '1' || (ctx.canEdit && blank)} groupUnlocked={groupUnlocked} history={history} />;
+  return <ItItemDetailClient key={`${item.id}-${item.updatedAt}`} item={item} canEdit={ctx.canEdit} assignees={assignees} startEditing={sp.edit === '1' || (ctx.canEdit && blank)} groupUnlocked={groupUnlocked} history={history} phoneLine={phoneLine} />;
 }

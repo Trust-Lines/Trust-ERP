@@ -34,7 +34,7 @@ describe('phone sheet fields', () => {
   it('lists each carrier account once, preferring a line with the number saved', () => {
     const line = (id: string, saved: boolean): PhoneLineData => ({
       id, number: '1', carrier: 'T-Mobile', firm: 'T LINES LLC', holderId: null, holderName: null, holderRole: null, holderSince: null,
-      deviceName: null, personalDevice: true, deviceAssignedAt: null, deviceCondition: null, email: null, imei: null, location: 'Turkey',
+      deviceName: null, personalDevice: true, deviceAssignedAt: null, deviceCondition: null, itemId: null, email: null, imei: null, location: 'Turkey',
       startDate: null, notes: null, accountHolder: 'TAISSIER ALRAHWANJI', monthlyCost: 66, active: true, createdAt: '',
       hasSecret: { password: false, pin: false, accountNumber: saved },
     });
