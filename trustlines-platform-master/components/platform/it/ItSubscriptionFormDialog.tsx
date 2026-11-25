@@ -77,7 +77,7 @@ const SECTION_TITLE = cn('m-0 text-[16px] font-semibold leading-4 tracking-[0.48
 const LABEL = 'block text-[12px] font-medium leading-4 tracking-[0.36px] text-ui-body';
 /** Figma "Input": 40px, input border, 6px radius, 14px semibold. */
 const INPUT = cn(
-  'h-10 w-full min-w-0 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-surface pl-[10px] pr-1.5 text-[14px] font-semibold outline-none',
+  'h-10 w-full min-w-0 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-surface-elevated pl-[10px] pr-1.5 text-[14px] font-semibold outline-none',
   'placeholder:font-medium placeholder:text-primary-400 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ui-focus-ring dark:placeholder:text-primary-300',
   STRONG,
 );
@@ -100,7 +100,7 @@ function CopyInput({ onCopy, label, children }: { onCopy: () => void; label: str
       {children}
       <button
         type="button" onClick={onCopy} aria-label={label} title={label}
-        className={cn('absolute right-1.5 grid h-7 place-items-center rounded-[6px] bg-ui-surface px-2.5 hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-ui-focus-ring', STRONG)}
+        className={cn('absolute right-1.5 grid h-7 place-items-center rounded-[6px] bg-ui-surface-elevated px-2.5 hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-ui-focus-ring', STRONG)}
       >
         <Copy size={16} aria-hidden />
       </button>
@@ -125,7 +125,7 @@ function UserCard({ user, sizing, onSize, onSizing, onRemove }: {
     onSizing(false);
   };
   return (
-    <li className="flex min-w-0 items-center gap-2 rounded-[8px] border border-ui-divider bg-ui-surface p-2">
+    <li className="flex min-w-0 items-center gap-2 rounded-[8px] border border-ui-divider bg-ui-surface-elevated p-2">
       {team ? (
         <span className="size-[35px] shrink-0 rounded-[3px] bg-primary-300 dark:bg-primary-500" aria-hidden />
       ) : (
@@ -139,7 +139,7 @@ function UserCard({ user, sizing, onSize, onSizing, onRemove }: {
             <input
               type="number" min={1} max={100000} autoFocus value={size} onChange={e => setSize(e.target.value)}
               onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } if (e.key === 'Escape') { e.stopPropagation(); setSize(String(user.teamSize ?? 1)); onSizing(false); } }}
-              className={cn('h-5 w-16 rounded-[3px] border border-[var(--ui-input-border)] bg-ui-surface px-1 text-[11px] outline-none', STRONG)}
+              className={cn('h-5 w-16 rounded-[3px] border border-[var(--ui-input-border)] bg-ui-surface-elevated px-1 text-[11px] outline-none', STRONG)}
             />
             User
           </label>
@@ -259,7 +259,7 @@ export function ItSubscriptionFormDialog({ initial, people, onClose, onSaved, on
       <form
         onSubmit={submit}
         onClick={e => e.stopPropagation()}
-        className="mx-auto flex w-[min(769px,100%)] flex-col gap-4 rounded-[16px] border border-ui-divider bg-ui-surface px-4 pb-4 pt-[14px] font-ui shadow-[0_12px_48px_rgba(0,0,0,0.25)]"
+        className="mx-auto flex w-[min(769px,100%)] flex-col gap-4 rounded-[16px] border border-ui-divider bg-ui-surface-elevated px-4 pb-4 pt-[14px] font-ui shadow-[0_12px_48px_rgba(0,0,0,0.25)]"
       >
         <div className="flex items-center justify-between gap-3">
           <h2 className={cn('m-0 text-[24px] font-semibold leading-5', STRONG)}>{title}</h2>
@@ -382,7 +382,7 @@ export function ItSubscriptionFormDialog({ initial, people, onClose, onSaved, on
             ) : (
               <ul className="m-0 grid max-h-[178px] list-none grid-cols-1 gap-2 overflow-y-auto p-0 pr-1 sm:grid-cols-2" aria-label="Users">
                 {adding && (
-                  <li className="flex min-w-0 items-center rounded-[8px] border border-accent-400 bg-ui-surface p-2">
+                  <li className="flex min-w-0 items-center rounded-[8px] border border-accent-400 bg-ui-surface-elevated p-2">
                     <Combobox
                       id="its-add-user" aria-label="Select a person or type a name" options={options} value={null}
                       placeholder="Select or type.." emptyText="Type a name to add it"
