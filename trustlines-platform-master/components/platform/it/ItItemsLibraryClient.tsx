@@ -14,6 +14,7 @@ import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { MonitorPcIcon } from './MonitorPcIcon';
 import { TOOLBAR_SELECT, TOOLBAR_SORT_ICON } from './ticketStyles';
 import { MAX_DUPLICATES } from '@/lib/it/duplicateItem';
+import { byCustomOrder, moveId, positionChanges } from '@/lib/it/itemOrder';
 import { EMPTY_ITEM, ItItemFormDialog } from './ItItemFormDialog';
 import { LabelSheetDialog } from './LabelSheetDialog';
 import { CATEGORY_LABEL, MUTED, OUTLINE_CHIP, SOLID_CHIP, STRONG, formatItemDate, type ItItem, type ItItemCategory } from './itemStyles';
@@ -25,9 +26,10 @@ export type { ItItem, ItItemCategory, ItItemStatus } from './itemStyles';
 // (green border + solid green pill), Repair (red pill) or assigned (outlined pill with the person).
 
 type Tab = 'all' | ItItemCategory;
-type Sort = 'newest' | 'oldest';
+type Sort = 'custom' | 'newest' | 'oldest';
 
 const SORT_OPTIONS = [
+  { value: 'custom', label: 'My order' },
   { value: 'newest', label: 'Newest' },
   { value: 'oldest', label: 'Oldest' },
 ];
@@ -188,7 +190,37 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false, a
   }
   const [tab, setTab] = useState<Tab>('all');
   const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<Sort>('newest');
+  const [sort, setSort] = useState<Sort>('custom');
+  // "My order": drag a card onto another to take its place. Local places show at once, then save.
+  const [places, setPlaces] = useState<Map<string, number> | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const ordered = useMemo(
+    () => items.map(i => ({ ...i, addedAt: i.addedAt, position: places?.get(i.id) ?? i.position ?? null })).sort(byCustomOrder),
+    [items, places],
+  );
+  const canDrag = canCreate && sort === 'custom' && !query.trim();
+
+  async function dropOn(targetId: string) {
+    const id = dragId;
+    setDragId(null); setOverId(null);
+    if (!id || id === targetId) return;
+    const ids = moveId(ordered.map(i => i.id), id, targetId);
+    const changes = positionChanges(ordered, ids);
+    if (!changes.length) return;
+    const before = places;
+    setPlaces(new Map(ids.map((x, n) => [x, n])));
+    const res = await fetch('/api/it/items/order', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order: changes }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      const j = await res?.json().catch(() => null) as { error?: string } | null;
+      toast.error(j?.error ?? 'Could not save the order');
+      setPlaces(before);
+      return;
+    }
+    router.refresh();
+  }
 
   const counts = useMemo(() => {
     const byTab = new Map<Tab, number>([['all', items.length]]);
@@ -198,14 +230,15 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false, a
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return items
+    return (sort === 'custom' ? ordered : items)
       .filter(i => tab === 'all' || i.category === tab)
       .filter(i => !q || [i.name, i.model, i.setLabel, i.location, i.assigneeName].some(v => v?.toLowerCase().includes(q)))
       .sort((a, b) => {
+        if (sort === 'custom') return 0;
         const diff = new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime();
         return sort === 'newest' ? -diff : diff;
       });
-  }, [items, tab, query, sort]);
+  }, [items, ordered, tab, query, sort]);
 
   return (
     <div className="flex w-full flex-col gap-6 p-7 font-ui">
@@ -230,7 +263,7 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false, a
               aria-label="Sort items"
               className={cn(TOOLBAR_SELECT, 'h-9 pl-[34px] dark:pl-[34px]')}
               value={sort}
-              onValueChange={v => setSort((v ?? 'newest') as Sort)}
+              onValueChange={v => setSort((v ?? 'custom') as Sort)}
               options={SORT_OPTIONS}
             />
           </div>
@@ -295,7 +328,21 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false, a
       ) : (
         <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visible.map(i => (
-            <li key={i.id}>
+            <li
+              key={i.id}
+              draggable={canDrag}
+              onDragStart={e => { setDragId(i.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setDragImage(e.currentTarget, 40, 40); }}
+              onDragOver={e => { if (dragId) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (overId !== i.id) setOverId(i.id); } }}
+              onDragLeave={() => { if (overId === i.id) setOverId(null); }}
+              onDrop={e => { e.preventDefault(); void dropOn(i.id); }}
+              onDragEnd={() => { setDragId(null); setOverId(null); }}
+              className={cn(
+                'rounded-lg transition-opacity',
+                canDrag && 'cursor-grab active:cursor-grabbing',
+                dragId === i.id && 'opacity-40',
+                overId === i.id && dragId !== i.id && 'outline-2 outline-offset-4 outline-dashed outline-ui-focus-ring',
+              )}
+            >
               <ItemCard item={i} canEdit={canCreate} onDelete={setDeleting} onDuplicate={it => { setCopies('1'); setDuplicating(it); }} />
             </li>
           ))}
