@@ -1,90 +1,19 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { ArrowDownUp, Eye, EyeOff, Mail, Plus, Search } from 'lucide-react';
+import { useState } from 'react';
+import { Plus } from 'lucide-react';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
-import { PersonFace } from '@/components/ui/avatar-directory';
-import { Select } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
-import { TOOLBAR_SELECT, TOOLBAR_SORT_ICON } from './ticketStyles';
 import { PurelymailMailboxes } from './PurelymailMailboxes';
-import { CARD, CardHead, FIELD, MUTED, SORT_OPTIONS, SecretField, initials, tabClass } from './itCardParts';
 
-// Figma "IT / Mails" (879:12933): company mailboxes, one card each — owner photo, name, address,
-// and the mailbox password (masked, copy button). Active / History tabs, search, sort, user filter,
-// and "Show Info" to reveal passwords.
-//
-// There is no mailbox data source yet, so the page passes an empty list. Passwords are never part
-// of the list: when the backend exists, reveal / copy should fetch one password on demand
-// (authorised and audited) through `onRevealPassword`. Until then those controls are disabled.
+// IT → Mails: the company mailboxes, straight from the mail host (Purelymail) — list, open a new
+// mailbox, change passwords (edit.it, like the API). "New Email" opens Purelymail's New mailbox.
 
-export interface ItMailAccount {
-  id: string;
-  email: string;
-  ownerId: string | null;
-  ownerName: string;
-  /** false = closed mailbox, listed under History. */
-  active: boolean;
-  /** ISO timestamp, used by the sort. */
-  createdAt: string;
-}
-
-type Tab = 'active' | 'history';
-type Sort = 'newest' | 'oldest' | 'name';
-
-const NOT_CONNECTED = 'Not available yet: the mailbox data source is not connected';
-
-function MailCard({ account, showInfo, onRevealPassword }: {
-  account: ItMailAccount;
-  showInfo: boolean;
-  onRevealPassword?: (id: string) => Promise<string>;
-}) {
-  return (
-    <article className={CARD}>
-      <CardHead
-        title={account.ownerName}
-        email={account.email}
-        picture={<PersonFace name={account.ownerName} userId={account.ownerId} fallback={initials(account.ownerName) || <Mail size={18} aria-hidden />} />}
-      />
-      <SecretField id={account.id} label={account.email} showInfo={showInfo} onReveal={onRevealPassword} notConnectedTitle={NOT_CONNECTED} />
-    </article>
-  );
-}
-
-export function ItMailsClient({ accounts, error = null, canCreate = false, canEditMailboxes = false, onRevealPassword }: {
-  accounts: ItMailAccount[];
+export function ItMailsClient({ canEditMailboxes = false }: {
   /** edit.it: open Purelymail mailboxes and change their passwords. */
   canEditMailboxes?: boolean;
-  error?: string | null;
-  canCreate?: boolean;
-  onRevealPassword?: (id: string) => Promise<string>;
 }) {
-  const [tab, setTab] = useState<Tab>('active');
-  const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<Sort>('newest');
-  const [owner, setOwner] = useState('');
-  const [showInfo, setShowInfo] = useState(false);
   // 'New Email' opens Purelymail's New mailbox (below) — bumping this asks it to.
   const [newMailbox, setNewMailbox] = useState(0);
-
-  const activeCount = useMemo(() => accounts.filter(a => a.active).length, [accounts]);
-  const ownerOptions = useMemo(() => {
-    const names = [...new Set(accounts.map(a => a.ownerName).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-    return [{ value: '', label: 'All users' }, ...names.map(n => ({ value: n, label: n }))];
-  }, [accounts]);
-
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return accounts
-      .filter(a => a.active === (tab === 'active'))
-      .filter(a => !owner || a.ownerName === owner)
-      .filter(a => !q || `${a.ownerName} ${a.email}`.toLowerCase().includes(q))
-      .sort((a, b) => {
-        if (sort === 'name') return a.ownerName.localeCompare(b.ownerName);
-        const diff = Date.parse(a.createdAt) - Date.parse(b.createdAt);
-        return sort === 'newest' ? -diff : diff;
-      });
-  }, [accounts, tab, owner, query, sort]);
 
   return (
     <div className="flex w-full flex-col gap-[30px] p-7 font-ui">
@@ -93,20 +22,12 @@ export function ItMailsClient({ accounts, error = null, canCreate = false, canEd
         title="Mails"
         subtitle="Company mailboxes"
         bodyClassName="gap-2"
-        titleAdornment={
-          <span className="rounded-full bg-primary-50 px-[9px] py-[3px] text-[12px] font-semibold leading-[1.4] text-secondary-700 dark:bg-primary-700 dark:text-secondary-50">
-            <span className="sr-only">Active mailboxes: </span>{activeCount}
-          </span>
-        }
         actions={
           <button
             type="button"
-            disabled={!canCreate && !canEditMailboxes}
-            onClick={() => {
-              setNewMailbox(n => n + 1);
-              document.getElementById('purelymail-heading')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
-            title={canCreate || canEditMailboxes ? undefined : 'Opening mailboxes needs IT edit rights'}
+            disabled={!canEditMailboxes}
+            onClick={() => setNewMailbox(n => n + 1)}
+            title={canEditMailboxes ? undefined : 'Opening mailboxes needs IT edit rights'}
             className="flex h-9 items-center gap-2 rounded-md bg-accent-400 px-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:text-primary-950"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
@@ -115,83 +36,6 @@ export function ItMailsClient({ accounts, error = null, canCreate = false, canEd
         }
       />
 
-      <div role="tablist" aria-label="Mailbox views" className="flex h-12 items-stretch gap-8 border-b border-solid border-primary-100 dark:border-primary-600">
-        <button role="tab" type="button" aria-selected={tab === 'active'} onClick={() => setTab('active')} className={tabClass(tab === 'active')}>
-          Active Mails
-        </button>
-        <button role="tab" type="button" aria-selected={tab === 'history'} onClick={() => setTab('history')} className={tabClass(tab === 'history')}>
-          History
-        </button>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <label className="relative flex w-[380px] max-w-full items-center">
-            <Search className={cn('pointer-events-none absolute left-3 h-4 w-4', MUTED)} strokeWidth={1.5} aria-hidden="true" />
-            <span className="sr-only">Search mailboxes</span>
-            <input
-              type="search"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search mails…"
-              className={cn(FIELD, 'w-full pl-9 placeholder:text-primary-400 dark:placeholder:text-primary-200')}
-            />
-          </label>
-          <div className="relative">
-            <ArrowDownUp aria-hidden="true" className={TOOLBAR_SORT_ICON} />
-            <Select
-              aria-label="Sort mailboxes"
-              className={cn(TOOLBAR_SELECT, 'pl-[34px] dark:pl-[34px]')}
-              value={sort}
-              onValueChange={v => setSort((v ?? 'newest') as Sort)}
-              options={SORT_OPTIONS}
-            />
-          </div>
-          <Select
-            aria-label="Filter by user"
-            className={cn(TOOLBAR_SELECT, 'pl-3 dark:pl-3')}
-            value={owner}
-            onValueChange={v => setOwner(v ?? '')}
-            options={ownerOptions}
-          />
-        </div>
-        <button
-          type="button"
-          aria-pressed={showInfo}
-          onClick={() => setShowInfo(s => !s)}
-          disabled={!onRevealPassword}
-          title={onRevealPassword ? undefined : NOT_CONNECTED}
-          className={cn(FIELD, 'inline-flex items-center gap-2 font-medium transition-colors hover:bg-ui-hover-bg disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-ui-hover-bg')}
-        >
-          {showInfo ? 'Hide Info' : 'Show Info'}
-          {showInfo ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
-        </button>
-      </div>
-
-      {error ? (
-        <div role="alert" className="rounded-md border border-[var(--status-t10-fg)] bg-[var(--status-t10-bg)] px-4 py-3 text-[13px] text-[var(--status-t10-fg)]">
-          {error}
-        </div>
-      ) : visible.length === 0 ? (
-        <div className="flex flex-col items-center gap-1 rounded-[11px] border border-dashed border-primary-300 px-6 py-14 text-center dark:border-primary-600">
-          <p className="m-0 text-[15px] font-semibold text-secondary-700 dark:text-primary-50">
-            {tab === 'active' ? 'No active mailboxes' : 'No closed mailboxes'}
-          </p>
-          <p className="m-0 text-[13px] text-ui-body">
-            {accounts.length === 0 ? 'Company mailboxes will show up here.' : 'Nothing matches these filters.'}
-          </p>
-        </div>
-      ) : (
-        <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 md:grid-cols-2 xl:grid-cols-4">
-          {visible.map(a => (
-            <li key={a.id} className="min-w-0">
-              <MailCard account={a} showInfo={showInfo} onRevealPassword={onRevealPassword} />
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {/* Purelymail (step 1): the mail host's own mailbox list, live, beside the records above. */}
       <PurelymailMailboxes canEdit={canEditMailboxes} openNew={newMailbox} />
     </div>
   );
