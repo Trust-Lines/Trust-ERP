@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 import { labelCode, sheetSlots, LABEL_SHEET } from './labelSheet';
 
 // An IT item's QR label: it points at the item's page (/it/items/<id>). Scanning it on a phone
-// opens that page; while the item has no details yet the page opens its edit form, so a label
+// opens that page for IT; without an account the middleware sends it to /item/<id>, a public page
+// to see and fill in the item (lib/it/publicItem). In the ERP, an item with no details yet opens in edit mode, so a label
 // printed at "Quick add" is filled in later from the phone.
 
 export const itemUrl = (origin: string, id: string) => `${origin}/it/items/${encodeURIComponent(id)}`;
