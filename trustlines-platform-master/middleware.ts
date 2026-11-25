@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
   const { data: claimsData } = await supabase.auth.getClaims(bearer);
   const user = claimsData?.claims?.sub ? { id: claimsData.claims.sub } : null;
 
-  const publicPaths = ['/login', '/tlines-login', '/trustlines-login', '/auth/callback', '/auth/set-password', '/auth/forgot-password', '/api/auth/forgot-password', '/review', '/survey', '/unsubscribe', '/quote', '/contract', '/install/', '/video-upload/', '/api/public', '/api/cron', '/api/dropbox/webhook'];
+  const publicPaths = ['/login', '/tlines-login', '/trustlines-login', '/auth/callback', '/auth/set-password', '/auth/forgot-password', '/api/auth/forgot-password', '/review', '/survey', '/unsubscribe', '/quote', '/contract', '/install/', '/video-upload/', '/item/', '/api/public', '/api/cron', '/api/dropbox/webhook'];
   const isPublic = publicPaths.some(p => pathname.startsWith(p));
 
   // An expired / forged mobile token gets a 401 the app can act on, not the web login page.
@@ -50,6 +50,16 @@ export async function middleware(request: NextRequest) {
   // The Trust System proxy answers like an API (401), not with a login page redirect.
   if (!user && pathname.startsWith('/api/trust/')) {
     return NextResponse.json({ statusCode: 401, message: 'Sign in to T-ERP' }, { status: 401 });
+  }
+
+  // An IT item's QR label points at /it/items/<id>: without an account it opens the item's public
+  // page (/item/<id>) instead of the login screen.
+  const qrItem = !user && /^\/it\/items\/[0-9a-f-]{36}\/?$/i.test(pathname);
+  if (qrItem) {
+    const itemUrl = request.nextUrl.clone();
+    itemUrl.pathname = `/item/${pathname.split('/')[3]}`;
+    itemUrl.search = '';
+    return NextResponse.redirect(itemUrl);
   }
 
   if (!user && !isPublic) {
