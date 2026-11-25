@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowDownUp, Ellipsis, Eye, EyeOff, LayoutGrid, Pencil, Plus, Rows3, Search, Trash2, UserRound } from 'lucide-react';
+import { ArrowDownUp, CalendarClock, Ellipsis, Eye, EyeOff, LayoutGrid, Pencil, Plus, Rows3, Search, Trash2, UserRound, Wallet } from 'lucide-react';
 import { ConfirmModal } from '@/components/ui/modal';
+import { KpiCard } from '@/components/ui/kpi-card';
+import { formatMoney, subscriptionTotals } from '@/lib/it/subscriptionTotals';
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
 import {
   CURRENCY_OPTIONS, EMPTY_SUBSCRIPTION, ItSubscriptionFormDialog, formatDay,
@@ -20,7 +22,8 @@ import { FIELD, MUTED, STRONG, SecretField, copyText, initials, tabClass } from 
 // a grey band with the service logo and name, then its cards four across: logo, name, FULL / "N
 // Seats Available" against the maximum users, the login address, the price with Monthly / Yearly,
 // and Next renewal, Used Card, Used by. Toolbar: search, sort, service, card and seat filters, Grouped / Cards view, and
-// Show Info (reveals the passwords on the cards).
+// Show Info (reveals the passwords on the cards). Above them, four totals: due this month and the
+// monthly total, in USD and TL apart (lib/it/subscriptionTotals).
 //
 // Data: it_subscriptions (159, billing 162) and it_subscription_users (160, teams 162) via
 // lib/it/subscriptions. edit.it adds / edits / deletes and reveals passwords (fetched one at a
@@ -241,6 +244,14 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
   const changeView = (v: View) => { setView(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* storage blocked */ } };
 
   const activeCount = useMemo(() => subscriptions.filter(s => s.active).length, [subscriptions]);
+  // The month comes from the viewer's clock after mount, so server and browser render the same.
+  const [month, setMonth] = useState<string | null>(null);
+  useEffect(() => {
+    const d = new Date();
+    setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }, []);
+  const totals = useMemo(() => subscriptionTotals(subscriptions, month ?? ''), [subscriptions, month]);
+  const monthName = month ? new Date(`${month}-01T00:00:00`).toLocaleString('en-US', { month: 'long' }) : '';
   const serviceOptions = useMemo(() => {
     const names = [...new Set(subscriptions.map(s => s.service).filter(Boolean))].sort((a, b) => a.localeCompare(b));
     return [{ value: '', label: 'All Subscriptions' }, ...names.map(n => ({ value: n, label: n }))];
@@ -306,6 +317,27 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
           </button>
         }
       />
+
+      {!error && (
+        <section aria-label="Payment totals" className="grid grid-cols-1 gap-[22px] sm:grid-cols-2 xl:grid-cols-4">
+          {(['USD', 'TRY'] as const).map(c => (
+            <KpiCard
+              key={`due-${c}`} icon={<CalendarClock />} loading={!month}
+              label={`Due in ${monthName || 'this month'} (${c === 'USD' ? 'USD' : 'TL'})`}
+              value={formatMoney(totals[c].dueThisMonth, c)}
+              badge={{ label: `${totals[c].dueCount} payment${totals[c].dueCount === 1 ? '' : 's'}`, tone: 'neutral' }}
+            />
+          ))}
+          {(['USD', 'TRY'] as const).map(c => (
+            <KpiCard
+              key={`total-${c}`} icon={<Wallet />} tone="muted" loading={!month}
+              label={`Monthly total (${c === 'USD' ? 'USD' : 'TL'})`}
+              value={formatMoney(totals[c].monthlyTotal, c)}
+              badge={{ label: `${totals[c].count} subscription${totals[c].count === 1 ? '' : 's'}`, tone: 'neutral' }}
+            />
+          ))}
+        </section>
+      )}
 
       <div role="tablist" aria-label="Subscription views" className="flex h-12 items-stretch gap-8 border-b border-solid border-primary-100 dark:border-primary-600">
         <button role="tab" type="button" aria-selected={tab === 'active'} onClick={() => setTab('active')} className={tabClass(tab === 'active')}>
