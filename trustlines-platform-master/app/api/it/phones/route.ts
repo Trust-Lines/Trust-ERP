@@ -24,10 +24,10 @@ export async function POST(req: NextRequest) {
   const row = { ...input.value, ...stampPhoneDates(input.value, null) };
 
   // Before migrations 161 / 163: save without their (empty) fields rather than fail.
-  const { data, error, migration } = await writeLine(r => ctx.admin.from('it_phone_lines').insert({ ...r, created_by: ctx.userId }).select('id').single(), row);
+  const { data, error, missing: missingCol } = await writeLine(r => ctx.admin.from('it_phone_lines').insert({ ...r, created_by: ctx.userId }).select('id').single(), row);
   if (error) {
     const missing = /relation|does not exist|schema cache/i.test(error.message ?? '');
-    if (migration) return NextResponse.json({ error: `Run migration ${migration} in Supabase first.` }, { status: 503 });
+    if (missingCol) return NextResponse.json({ error: missingCol }, { status: 503 });
     return NextResponse.json({ error: missing ? 'Run migration 158_it_phone_lines.sql in Supabase first.' : 'Could not save the number' }, { status: missing ? 503 : 500 });
   }
   const id = (data as { id: string }).id;

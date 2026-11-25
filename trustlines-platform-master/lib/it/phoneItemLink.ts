@@ -4,10 +4,11 @@
 // device_name as the item's name. Service-role only, after the routes' itApi('edit') check.
 import type { ItContext } from './server';
 import { recordAssignment } from './assignments';
+import { missingColumnMessage } from './phones';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const LINK_MISSING = 'Run migration 163_it_phone_line_item.sql in Supabase first.';
+const LINK_MIGRATION = '163_it_phone_line_item.sql';
 const missingColumn = (e: { message?: string } | null | undefined) => !!e && /column|schema cache/i.test(e.message ?? '');
 
 const digits = (n: string) => n.replace(/\D/g, '');
@@ -33,17 +34,17 @@ export function cleanItemPhoneNumber(raw: unknown): { value: string | null | und
 
 interface LineRow { id: string; number: string; item_id: string | null; holder_id: string | null; holder_name?: string | null; location: string | null; device_name: string | null }
 
-async function liveLines(admin: any): Promise<{ rows: LineRow[]; missing: boolean }> {
+async function liveLines(admin: any): Promise<{ rows: LineRow[]; missing: string | null }> {
   const r = await admin.from('it_phone_lines').select('id, number, item_id, holder_id, location, device_name').is('deleted_at', null).limit(3000);
-  if (missingColumn(r.error)) return { rows: [], missing: true };
-  return { rows: (r.data ?? []) as LineRow[], missing: false };
+  if (missingColumn(r.error)) return { rows: [], missing: missingColumnMessage(r.error, LINK_MIGRATION) };
+  return { rows: (r.data ?? []) as LineRow[], missing: null };
 }
 
 /** Before saving the item: an error when the number is already another phone's line. */
 export async function itemPhoneError(ctx: ItContext, itemId: string | null, number: string | null | undefined): Promise<{ error: string; status: number } | null> {
   if (!number) return null;
   const { rows, missing } = await liveLines(ctx.admin);
-  if (missing) return { error: LINK_MISSING, status: 503 };
+  if (missing) return { error: missing, status: 503 };
   const hit = rows.find(r => sameNumber(r.number, number));
   if (hit?.item_id && hit.item_id !== itemId) {
     const { data } = await ctx.admin.from('it_items').select('name').eq('id', hit.item_id).is('deleted_at', null).maybeSingle();
@@ -135,7 +136,7 @@ export async function checkLineItem(ctx: ItContext, lineId: string | null, itemI
   if (!item) return { error: 'That phone is no longer in the Items Library', status: 400 };
   if (item.category !== 'phone') return { error: 'Pick an item in the Phone category', status: 400 };
   const other = await ctx.admin.from('it_phone_lines').select('id, number').eq('item_id', itemId).is('deleted_at', null).maybeSingle();
-  if (missingColumn(other.error)) return { error: LINK_MISSING, status: 503 };
+  if (missingColumn(other.error)) return { error: missingColumnMessage(other.error, LINK_MIGRATION), status: 503 };
   const o = other.data as { id: string; number: string } | null;
   if (o && o.id !== lineId) return { error: `${item.name} already runs ${o.number}`, status: 409 };
   return { name: item.name };
