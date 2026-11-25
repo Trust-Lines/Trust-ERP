@@ -348,10 +348,10 @@ export async function loadStaffItems(ctx: ItContext): Promise<Map<string, { loca
 }
 
 /** Active people IT can assign items to. */
-export async function loadAssignees(ctx: ItContext): Promise<{ id: string; name: string }[]> {
-  const { data } = await ctx.admin.from('profiles').select('id, full_name, email').eq('is_active', true).order('full_name').limit(1000);
-  return ((data ?? []) as { id: string; full_name: string | null; email: string | null }[])
-    .map(p => ({ id: p.id, name: p.full_name || p.email || 'Unknown' }));
+export async function loadAssignees(ctx: ItContext): Promise<{ id: string; name: string; role: string | null }[]> {
+  const { data } = await ctx.admin.from('profiles').select('id, full_name, email, role').eq('is_active', true).order('full_name').limit(1000);
+  return ((data ?? []) as { id: string; full_name: string | null; email: string | null; role: string | null }[])
+    .map(p => ({ id: p.id, name: p.full_name || p.email || 'Unknown', role: p.role }));
 }
 
 /** An assigned item's holder must be an active person. */
