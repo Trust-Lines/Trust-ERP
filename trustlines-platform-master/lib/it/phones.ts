@@ -204,13 +204,34 @@ export const withoutSheetFields = (row: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(row).filter(([k]) => !(SHEET_FIELDS as readonly string[]).includes(k)));
 export const isMissingColumn = missingColumn;
 
+/** Which migration adds each newer it_phone_lines column. */
+const COLUMN_MIGRATION: Record<string, string> = {
+  holder_name: '161_it_phone_sheet_fields.sql', account_holder: '161_it_phone_sheet_fields.sql',
+  monthly_cost: '161_it_phone_sheet_fields.sql', device_condition: '161_it_phone_sheet_fields.sql',
+  item_id: '163_it_phone_line_item.sql',
+};
+
+/** The column a "missing column" error names — PostgREST "Could not find the 'x' column …", Postgres 'column "x" … does not exist'. */
+export function missingColumnName(e: { message?: string } | null | undefined): string | null {
+  const msg = e?.message ?? '';
+  const m = /'([a-z_]+)' column/i.exec(msg) ?? /column "?(?:[a-z_]+\.)?([a-z_]+)"?(?: of relation "?[a-z_]+"?)? does not exist/i.exec(msg);
+  return m?.[1] ?? null;
+}
+
+/** What to tell IT when a column is missing: the column, its migration, and the schema-cache reload. */
+export function missingColumnMessage(e: { message?: string } | null | undefined, fallback: string): string {
+  const col = missingColumnName(e);
+  const migration = (col && COLUMN_MIGRATION[col]) || fallback;
+  return `Run migration ${migration} in Supabase first${col ? ` (the ${col} column is missing)` : ''}. Already ran it? Run NOTIFY pgrst, 'reload schema'; in the SQL editor and try again.`;
+}
+
 type Write = (row: Record<string, unknown>) => PromiseLike<{ data?: unknown; error: { message?: string } | null }>;
 /**
  * Insert / update a line, stepping back while migrations 163 / 161 haven't run: an empty item link
  * is dropped first, then the (empty) sheet fields — never a value that holds the user or the phone.
  * Returns the result and, on a missing column, which migration to run.
  */
-export async function writeLine(write: Write, row: Record<string, unknown>): Promise<{ data?: unknown; error: { message?: string } | null; migration: string | null }> {
+export async function writeLine(write: Write, row: Record<string, unknown>): Promise<{ data?: unknown; error: { message?: string } | null; missing: string | null }> {
   let r = await write(row);
   let next = row;
   if (missingColumn(r.error) && 'item_id' in next && next.item_id == null) {
@@ -218,8 +239,8 @@ export async function writeLine(write: Write, row: Record<string, unknown>): Pro
     r = await write(next);
   }
   if (missingColumn(r.error) && !next.holder_name && next.item_id == null) r = await write(withoutSheetFields(next));
-  const migration = missingColumn(r.error) ? (row.item_id ? '163_it_phone_line_item.sql' : '161_it_phone_sheet_fields.sql') : null;
-  return { ...r, migration };
+  const missing = missingColumn(r.error) ? missingColumnMessage(r.error, row.item_id ? '163_it_phone_line_item.sql' : '161_it_phone_sheet_fields.sql') : null;
+  return { ...r, missing };
 }
 
 /** Today as YYYY-MM-DD (UTC). */

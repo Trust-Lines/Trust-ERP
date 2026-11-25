@@ -26,3 +26,20 @@ describe('cleanItemPhoneNumber', () => {
     expect(cleanItemPhoneNumber('1'.repeat(41))).toHaveProperty('error');
   });
 });
+
+import { missingColumnMessage, missingColumnName } from '@/lib/it/phones';
+
+describe('missingColumnName / missingColumnMessage', () => {
+  it('reads the column from PostgREST and Postgres errors', () => {
+    expect(missingColumnName({ message: "Could not find the 'account_holder' column of 'it_phone_lines' in the schema cache" })).toBe('account_holder');
+    expect(missingColumnName({ message: 'column it_phone_lines.item_id does not exist' })).toBe('item_id');
+    expect(missingColumnName({ message: 'column "holder_name" of relation "it_phone_lines" does not exist' })).toBe('holder_name');
+    expect(missingColumnName({ message: 'something else' })).toBeNull();
+  });
+  it('names the migration that adds the column, not the fallback', () => {
+    const m = missingColumnMessage({ message: "Could not find the 'account_holder' column of 'it_phone_lines' in the schema cache" }, '163_it_phone_line_item.sql');
+    expect(m).toContain('161_it_phone_sheet_fields.sql');
+    expect(m).toContain('account_holder');
+    expect(m).toContain("reload schema");
+  });
+});

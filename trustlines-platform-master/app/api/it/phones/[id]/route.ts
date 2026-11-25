@@ -37,10 +37,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const save = (r: Record<string, unknown>) => ctx.admin.from('it_phone_lines')
     .update({ ...r, updated_at: new Date().toISOString() }).eq('id', id).is('deleted_at', null);
   // Before migrations 161 / 163: save the rest without their (empty) fields.
-  const { error, migration } = await writeLine(save, row);
+  const { error, missing } = await writeLine(save, row);
   if (error) {
-    return migration
-      ? NextResponse.json({ error: `Run migration ${migration} in Supabase first.` }, { status: 503 })
+    return missing
+      ? NextResponse.json({ error: missing }, { status: 503 })
       : NextResponse.json({ error: 'Could not save the number' }, { status: 500 });
   }
 
