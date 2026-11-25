@@ -113,15 +113,19 @@ export async function loadItemPhoneLine(ctx: ItContext, itemId: string): Promise
   return data as { id: string; number: string; carrier: string | null };
 }
 
-/** Library phones the line form can pick, with the line each is on. */
-export async function loadPhoneItems(ctx: ItContext): Promise<{ id: string; name: string; lineId: string | null }[]> {
+/** Library phones the line form can pick, with the line each is on and the item's photo. */
+export async function loadPhoneItems(ctx: ItContext): Promise<{ id: string; name: string; lineId: string | null; imageUrl: string | null }[]> {
   const [items, lines] = await Promise.all([
-    ctx.admin.from('it_items').select('id, name').eq('category', 'phone').is('deleted_at', null).order('name').limit(1000),
+    ctx.admin.from('it_items').select('id, name, image_path, image_updated_at, updated_at').eq('category', 'phone').is('deleted_at', null).order('name').limit(1000),
     ctx.admin.from('it_phone_lines').select('id, item_id').not('item_id', 'is', null).is('deleted_at', null).limit(3000),
   ]);
   if (lines.error) return [];
   const byItem = new Map(((lines.data ?? []) as { id: string; item_id: string }[]).map(l => [l.item_id, l.id]));
-  return ((items.data ?? []) as { id: string; name: string }[]).map(i => ({ id: i.id, name: i.name, lineId: byItem.get(i.id) ?? null }));
+  type Row = { id: string; name: string; image_path: string | null; image_updated_at: string | null; updated_at: string };
+  return ((items.data ?? []) as Row[]).map(i => ({
+    id: i.id, name: i.name, lineId: byItem.get(i.id) ?? null,
+    imageUrl: i.image_path ? `/api/it/items/${i.id}/image?v=${Date.parse(i.image_updated_at ?? i.updated_at) || 0}` : null,
+  }));
 }
 
 /** Body `itemId` on a line → the item (a live library phone not on another line), or an error. */

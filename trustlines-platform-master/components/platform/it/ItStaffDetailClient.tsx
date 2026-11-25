@@ -237,7 +237,7 @@ export function ItStaffDetailClient({ person, items, phones, tickets, mailbox, s
             <ul className="m-0 flex list-none flex-col gap-2 p-0">
               {phones.map(p => (
                 <li key={p.id}>
-                  <Link href={`/it/phones/${p.id}`} className={ROW}>
+                  <Link href={`/it/phones?line=${p.id}`} className={ROW}>
                     <span className="grid size-10 shrink-0 place-items-center rounded-md bg-primary-50 dark:bg-primary-700">
                       <Smartphone className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
                     </span>
