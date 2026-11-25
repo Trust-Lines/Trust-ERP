@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { ArrowRight, CalendarPlus, Copy, Lock, Mail, MapPin, Pencil, Phone, Smartphone, Trash2, X } from 'lucide-react';
+import { ArrowRight, CalendarPlus, Check, Copy, Lock, Mail, MapPin, Pencil, Phone, Smartphone, Trash2, X } from 'lucide-react';
 import { ModalPanel } from '@/components/ui/modal';
 import { PersonFace } from '@/components/ui/avatar-directory';
 import { cn } from '@/lib/utils';
@@ -13,7 +13,8 @@ import { formatTicketDate } from './ticketStyles';
 import { MUTED, SOLID_CHIP, STRONG } from './itemStyles';
 import { copyText, initials } from './itCardParts';
 import { roleLabel } from '@/components/platform/shell/Sidebar';
-import { ItPhoneForm, type ItPhoneFormValues } from './ItPhoneFormDialog';
+import type { ItPhoneFormValues } from './ItPhoneFormDialog';
+import { INLINE_FORM_ID, ItPhoneInlineEdit } from './ItPhoneInlineEdit';
 import type { PhoneAccount } from '@/lib/it/phones';
 import { AssignmentHistory, type AssignmentSpellView } from './AssignmentHistory';
 
@@ -21,7 +22,7 @@ import { AssignmentHistory, type AssignmentSpellView } from './AssignmentHistory
 // link (?line=<id>). Same content as the sheet: number, mail, password, PIN / carrier, firm,
 // account holder, account no / IMEI, plan, location, added date, notes; who holds it and the phone
 // it runs on (linked to the Items Library); and its assignment history, fetched when it opens.
-// Edit Info turns the same pop-up into the line's form (no second pop-up); Save / Cancel go back.
+// Edit Info turns the same boxes into inputs, in the same layout (ItPhoneInlineEdit); Save / Cancel go back.
 //
 // Secrets are never part of the line: fetched one at a time from /api/it/phones/[id]/secret
 // (edit.it, audited) when shown or copied.
@@ -181,6 +182,18 @@ export function ItPhoneQuickView({ line, item, canEdit, people, accounts, phoneI
                 </button>
               </>
             )}
+            {editing && (
+              <>
+                <button type="button" onClick={() => setEditing(false)} disabled={busy}
+                  className={cn('flex h-10 items-center gap-2 rounded-md border border-ui-divider pl-3.5 pr-5 text-[13px] font-medium hover:bg-ui-hover-bg disabled:opacity-60', STRONG)}>
+                  Cancel
+                </button>
+                <button type="submit" form={INLINE_FORM_ID} disabled={busy}
+                  className={cn('flex h-10 items-center gap-2 rounded-md pl-3.5 pr-5 text-[13px] font-medium hover:opacity-90 disabled:opacity-60', SOLID_CHIP)}>
+                  <Check className="h-4 w-4" strokeWidth={2} aria-hidden="true" /> {busy ? 'Saving…' : 'Save'}
+                </button>
+              </>
+            )}
             <button type="button" onClick={onClose} disabled={busy} aria-label="Close"
               className={cn('grid size-10 place-items-center rounded-md border border-ui-divider hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-ui-focus-ring', STRONG)}>
               <X className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
@@ -189,9 +202,9 @@ export function ItPhoneQuickView({ line, item, canEdit, people, accounts, phoneI
         </div>
 
         {editing ? (
-          <ItPhoneForm
-            initial={phoneFormValues(line)} people={people} accounts={accounts} phoneItems={phoneItems}
-            onBusy={setBusy} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); onSaved(); }}
+          <ItPhoneInlineEdit
+            initial={phoneFormValues(line)} addedAt={line.createdAt} people={people} accounts={accounts} phoneItems={phoneItems}
+            onBusy={setBusy} onSaved={() => { setEditing(false); onSaved(); }}
           />
         ) : (<>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start">

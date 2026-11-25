@@ -52,12 +52,12 @@ export const EMPTY_PHONE: ItPhoneFormValues = {
 type HolderMode = 'staff' | 'name';
 type PhoneMode = 'company' | 'personal' | 'none';
 
-const LOCATION_OPTIONS = [{ value: '', label: '—' }, ...IT_LOCATIONS.map(l => ({ value: l, label: l }))];
-const CONDITION_OPTIONS = [{ value: '', label: '—' }, { value: 'new', label: 'New' }, { value: 'used', label: 'Used' }];
-const accountLabel = (a: PhoneAccount) => [a.carrier, a.firm, a.accountHolder].filter(Boolean).join(' · ') || 'Account';
+export const LOCATION_OPTIONS = [{ value: '', label: '—' }, ...IT_LOCATIONS.map(l => ({ value: l, label: l }))];
+export const CONDITION_OPTIONS = [{ value: '', label: '—' }, { value: 'new', label: 'New' }, { value: 'used', label: 'Used' }];
+export const accountLabel = (a: PhoneAccount) => [a.carrier, a.firm, a.accountHolder].filter(Boolean).join(' · ') || 'Account';
 
 /** A row of choice buttons (radio group) in the form style. */
-function Segmented<T extends string>({ id, label, value, options, onChange }: {
+export function Segmented<T extends string>({ id, label, value, options, onChange }: {
   id: string; label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void;
 }) {
   return (
@@ -87,18 +87,15 @@ function withAccount(v: ItPhoneFormValues, a: PhoneAccount | undefined): ItPhone
   return { ...v, carrier: a.carrier ?? '', firm: a.firm ?? '', accountHolder: a.accountHolder ?? '', location: v.location || a.location || '' };
 }
 
-export function ItPhoneForm({ initial, people, accounts = [], phoneItems = [], onClose, onSaved, onBusy, className }: {
+/**
+ * The line form's state and save, shared by the New Number pop-up (ItPhoneForm) and the line pop-up's
+ * in-place edit (ItPhoneQuickView), which lays the same fields out like its details.
+ */
+export function usePhoneForm({ initial, accounts = [], phoneItems = [], onSaved }: {
   initial: ItPhoneFormValues;
-  people: { id: string; name: string }[];
-  /** Items Library phones and the line each runs (lineId null = free). */
-  phoneItems?: { id: string; name: string; lineId: string | null }[];
-  /** Accounts already in use, for "Same account as" (newest first). */
   accounts?: PhoneAccount[];
-  onClose: () => void;
+  phoneItems?: { id: string; name: string; lineId: string | null }[];
   onSaved: (id: string) => void;
-  /** Told while saving, so the surrounding pop-up doesn't close mid-save. */
-  onBusy?: (busy: boolean) => void;
-  className?: string;
 }) {
   const editing = !!initial.id;
   // A new line starts on the most recent account — most lines share one.
@@ -108,7 +105,6 @@ export function ItPhoneForm({ initial, people, accounts = [], phoneItems = [], o
   const [phoneMode, setPhoneMode] = useState<PhoneMode>(initial.deviceName ? 'company' : initial.personalDevice ? 'personal' : 'none');
   const [secrets, setSecrets] = useState({ password: '', pin: '', accountNumber: '' });
   const [saving, setSaving] = useState(false);
-  useEffect(() => { onBusy?.(saving); }, [saving, onBusy]);
   const set = <K extends keyof ItPhoneFormValues>(k: K, v: ItPhoneFormValues[K]) => setF(p => ({ ...p, [k]: v }));
   const secret = (k: keyof typeof secrets) => (e: { target: { value: string } }) => setSecrets(s => ({ ...s, [k]: e.target.value }));
 
@@ -130,8 +126,8 @@ export function ItPhoneForm({ initial, people, accounts = [], phoneItems = [], o
     if (a) setF(p => withAccount(p, a));
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
+  async function submit(e?: FormEvent) {
+    e?.preventDefault();
     if (phoneMode === 'company' && !deviceName) { toast.error('Enter the company phone’s model, e.g. iPhone 12'); return; }
     setSaving(true);
     try {
@@ -169,6 +165,32 @@ export function ItPhoneForm({ initial, people, accounts = [], phoneItems = [], o
   const accountPlaceholder = chosenAccount?.hasAccountNumber
     ? 'Same as the chosen account'
     : editing && initial.hasSecret?.accountNumber ? 'Saved. Type to replace.' : '';
+
+
+  return {
+    editing, f, set, setF, holderMode, setHolderMode, phoneMode, setPhoneMode, secrets, secret, saving, submit,
+    accountFrom, pickAccount, libraryOptions, holderChanged, holderKey, deviceName, deviceChanged, since, suggest, accountPlaceholder,
+  };
+}
+
+export function ItPhoneForm({ initial, people, accounts = [], phoneItems = [], onClose, onSaved, onBusy, className }: {
+  initial: ItPhoneFormValues;
+  people: { id: string; name: string }[];
+  /** Items Library phones and the line each runs (lineId null = free). */
+  phoneItems?: { id: string; name: string; lineId: string | null }[];
+  /** Accounts already in use, for "Same account as" (newest first). */
+  accounts?: PhoneAccount[];
+  onClose: () => void;
+  onSaved: (id: string) => void;
+  /** Told while saving, so the surrounding pop-up doesn't close mid-save. */
+  onBusy?: (busy: boolean) => void;
+  className?: string;
+}) {
+  const {
+    editing, f, set, setF, holderMode, setHolderMode, phoneMode, setPhoneMode, secrets, secret, saving, submit,
+    accountFrom, pickAccount, libraryOptions, holderChanged, holderKey, deviceName, deviceChanged, since, suggest, accountPlaceholder,
+  } = usePhoneForm({ initial, accounts, phoneItems, onSaved });
+  useEffect(() => { onBusy?.(saving); }, [saving, onBusy]);
 
   return (
         <form onSubmit={submit} className={cn('flex flex-col gap-5', className)}>
