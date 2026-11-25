@@ -529,7 +529,7 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
                     <Field
                       label="Phone Number" icon={Phone}
                       action={phoneLine ? (
-                        <Link href={`/it/phones/${phoneLine.id}`} className={cn('inline-flex shrink-0 items-center gap-1 text-[12px] font-semibold no-underline hover:underline', STRONG)}>
+                        <Link href={`/it/phones?line=${phoneLine.id}`} className={cn('inline-flex shrink-0 items-center gap-1 text-[12px] font-semibold no-underline hover:underline', STRONG)}>
                           Open in Phone Numbers <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                         </Link>
                       ) : undefined}

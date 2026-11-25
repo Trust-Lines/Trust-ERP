@@ -1,9 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { ArrowDownUp, Copy, Phone, Plus, Search, UserRound } from 'lucide-react';
+import { ConfirmModal } from '@/components/ui/modal';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { PersonFace } from '@/components/ui/avatar-directory';
 import { Select } from '@/components/ui/select';
@@ -13,33 +14,21 @@ import { SOLID_CHIP } from './itemStyles';
 import { FIELD, MUTED, SORT_OPTIONS, STRONG, copyText, initials, tabClass } from './itCardParts';
 import { roleLabel } from '@/components/platform/shell/Sidebar';
 import { EMPTY_PHONE, ItPhoneFormDialog } from './ItPhoneFormDialog';
-import type { PhoneAccount } from '@/lib/it/phones';
+import type { PhoneAccount, PhoneLineData } from '@/lib/it/phones';
+import { ItPhoneQuickView, phoneFormValues, type PhoneItemOption } from './ItPhoneQuickView';
+import { formatTicketDate } from './ticketStyles';
 
 // Figma "IT / Phone Numbers" (966:39447): company phone lines, one card each — holder photo, name
-// and role, the number with a copy button, the carrier, and the device it runs on (company phone,
-// personal phone, or none). Unassigned lines are "Available" and drawn in green. Active / History
-// tabs, search, sort, user / assignment / firm filters.
+// and role, the number with a copy button, then firm, plan, mail, office and since when, and the
+// carrier and the device it runs on (company phone, personal phone, or none). Unassigned lines are
+// "Available" and drawn in green. Active / History tabs, search, sort, user / assignment / firm
+// filters. A card opens the line in a pop-up (ItPhoneQuickView) — no separate page; ?line=<id>
+// opens it from a link (the old /it/phones/[id] address redirects here).
 //
-// Data: it_phone_lines (migration 158) via lib/it/phones. "New Number" (edit.it) opens the form.
+// Data: it_phone_lines (migrations 158, 161, 163) via lib/it/phones. "New Number" (edit.it) opens the form.
 
-export interface ItPhoneLine {
-  id: string;
-  number: string;
-  carrier: string | null;
-  /** Company device name (e.g. "iPhone 17"); null with `personalDevice` false = no phone. */
-  deviceName: string | null;
-  /** true = the line runs on the holder's own phone. */
-  personalDevice: boolean;
-  holderId: string | null;
-  /** null = unassigned (Available). */
-  holderName: string | null;
-  holderRole: string | null;
-  firm: string | null;
-  /** false = retired line, listed under History. */
-  active: boolean;
-  /** ISO timestamp, used by the sort. */
-  createdAt: string;
-}
+/** A line as the page loads it (no secrets — only whether each is saved). */
+export type ItPhoneLine = PhoneLineData;
 
 type Tab = 'active' | 'history';
 type Sort = 'newest' | 'oldest' | 'name';
@@ -63,12 +52,21 @@ function DeviceChip({ line }: { line: ItPhoneLine }) {
   return <span className={CHIP_FREE}>No Phone</span>;
 }
 
-function PhoneCard({ line }: { line: ItPhoneLine }) {
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-baseline justify-between gap-3">
+      <dt className={cn('shrink-0 text-[12px] font-medium', MUTED)}>{label}</dt>
+      <dd className={cn('m-0 min-w-0 truncate text-right text-[13px] font-semibold', STRONG)}>{children}</dd>
+    </div>
+  );
+}
+
+function PhoneCard({ line, onOpen }: { line: ItPhoneLine; onOpen: () => void }) {
   const free = !line.holderName;
   return (
     <article
       className={cn(
-        'relative flex min-w-0 flex-col gap-4 rounded-[8px] bg-ui-surface p-4 transition-colors hover:bg-ui-hover-bg focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ui-focus-ring',
+        'relative flex min-w-0 flex-col gap-3 rounded-[8px] bg-ui-surface p-4 transition-colors hover:bg-ui-hover-bg focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ui-focus-ring',
         free ? 'border-2 border-[var(--status-t9-fg)]' : 'border border-ui-divider',
       )}
     >
@@ -89,13 +87,14 @@ function PhoneCard({ line }: { line: ItPhoneLine }) {
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <h3 className={cn('m-0 truncate text-[16px] font-semibold leading-5', free ? 'text-[var(--status-t9-fg)]' : STRONG)}>
-            <Link
-              href={`/it/phones/${encodeURIComponent(line.id)}`}
-              aria-label={`${line.number}${free ? ', available' : `, ${line.holderName}`}`}
-              className="text-inherit no-underline outline-none after:absolute after:inset-0 after:rounded-[8px] after:content-['']"
+            <button
+              type="button"
+              onClick={onOpen}
+              aria-label={`${line.number}${free ? ', available' : `, ${line.holderName}`}. Open details`}
+              className="max-w-full truncate bg-transparent p-0 text-left text-inherit outline-none after:absolute after:inset-0 after:rounded-[8px] after:content-['']"
             >
               {free ? 'Available' : line.holderName}
-            </Link>
+            </button>
           </h3>
           <p className="m-0 truncate text-[12px] font-medium leading-4 tracking-[0.36px] text-ui-body dark:text-primary-50">
             {free ? '-' : line.holderRole ? roleLabel(line.holderRole) : line.holderId ? '-' : 'No account yet'}
@@ -119,6 +118,14 @@ function PhoneCard({ line }: { line: ItPhoneLine }) {
         </button>
       </div>
 
+      <dl className="m-0 flex flex-col gap-1.5 border-t border-dashed border-ui-divider pt-3">
+        <Row label="Firm">{line.firm ?? '—'}</Row>
+        <Row label="Plan">{line.monthlyCost != null ? `$${line.monthlyCost.toFixed(2)} / mo` : '—'}</Row>
+        <Row label="Mail">{line.email ?? '—'}</Row>
+        <Row label="Location">{line.location ?? '—'}</Row>
+        <Row label={free ? 'Added' : 'Since'}>{formatTicketDate(free ? line.createdAt : line.holderSince ?? line.createdAt)}</Row>
+      </dl>
+
       <div className="flex items-start justify-between gap-2">
         {line.carrier ? <span className={CHIP_FILLED}>{line.carrier}</span> : <span />}
         <DeviceChip line={line} />
@@ -135,11 +142,28 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
   people?: { id: string; name: string }[];
   /** Carrier accounts in use, for the form's "Same account as". */
   accounts?: PhoneAccount[];
-  /** Items Library phones for the form's "Phone from the Items Library". */
-  phoneItems?: { id: string; name: string; lineId: string | null }[];
+  /** Items Library phones for the form's "Phone from the Items Library" and the pop-up's photo. */
+  phoneItems?: PhoneItemOption[];
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<ItPhoneLine | null>(null);
+  const open = openId ? lines.find(l => l.id === openId) ?? null : null;
+  const editingLine = editingId ? lines.find(l => l.id === editingId) ?? null : null;
+
+  // ?line=<id> opens that line's pop-up (links from items, staff, the old detail address).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('line');
+    if (id) setOpenId(id);
+  }, []);
+  function show(id: string | null) {
+    setOpenId(id);
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set('line', id); else url.searchParams.delete('line');
+    window.history.replaceState(null, '', url);
+  }
   const [tab, setTab] = useState<Tab>('active');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('newest');
@@ -269,7 +293,7 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
         <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 md:grid-cols-2 xl:grid-cols-4">
           {visible.map(l => (
             <li key={l.id} className="min-w-0">
-              <PhoneCard line={l} />
+              <PhoneCard line={l} onOpen={() => show(l.id)} />
             </li>
           ))}
         </ul>
@@ -277,8 +301,40 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
 
       {adding && (
         <ItPhoneFormDialog initial={EMPTY_PHONE} people={people} accounts={accounts} phoneItems={phoneItems} onClose={() => setAdding(false)}
-          onSaved={() => { setAdding(false); router.refresh(); }} />
+          onSaved={id => { setAdding(false); router.refresh(); show(id); }} />
       )}
+      {open && !editingLine && (
+        <ItPhoneQuickView
+          line={open}
+          item={open.itemId ? phoneItems.find(i => i.id === open.itemId) ?? null : null}
+          canEdit={canCreate}
+          onClose={() => show(null)}
+          onEdit={() => setEditingId(open.id)}
+          onDelete={() => setDeleting(open)}
+        />
+      )}
+      {editingLine && (
+        <ItPhoneFormDialog
+          initial={phoneFormValues(editingLine)} people={people} phoneItems={phoneItems}
+          accounts={accounts.filter(a => a.lineId !== editingLine.id)}
+          onClose={() => setEditingId(null)}
+          onSaved={() => { setEditingId(null); router.refresh(); }}
+        />
+      )}
+      <ConfirmModal
+        open={!!deleting} onOpenChange={o => { if (!o) setDeleting(null); }} tone="destructive" confirmLabel="Delete number"
+        title={`Delete ${deleting?.number ?? 'this number'}?`}
+        warning="The line and its saved account details are removed from the IT list. To keep it on record, mark it Retired in Edit Info instead."
+        onConfirm={async () => {
+          if (!deleting) return;
+          const res = await fetch(`/api/it/phones/${deleting.id}`, { method: 'DELETE' });
+          if (!res.ok) { toast.error(((await res.json().catch(() => null)) as { error?: string } | null)?.error ?? 'Could not delete'); throw new Error('kept'); }
+          toast.success('Number deleted');
+          setDeleting(null);
+          show(null);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

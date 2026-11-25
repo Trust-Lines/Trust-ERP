@@ -11,7 +11,7 @@ export default async function ItPhonesPage() {
   if (!ctx) redirect('/login');
   if (!ctx.canManage) redirect('/dashboard');
   const [{ lines, error }, people, phoneItems] = await Promise.all([
-    loadPhoneLines(ctx), ctx.canEdit ? loadAssignees(ctx) : [], ctx.canEdit ? loadPhoneItems(ctx) : [],
+    loadPhoneLines(ctx), ctx.canEdit ? loadAssignees(ctx) : [], loadPhoneItems(ctx),
   ]);
 
   return (
@@ -21,10 +21,7 @@ export default async function ItPhonesPage() {
       people={people}
       phoneItems={phoneItems}
       accounts={ctx.canEdit ? phoneAccounts(lines.filter(l => l.active)) : []}
-      lines={lines.map(l => ({
-        id: l.id, number: l.number, carrier: l.carrier, deviceName: l.deviceName, personalDevice: l.personalDevice,
-        holderId: l.holderId, holderName: l.holderName, holderRole: l.holderRole, firm: l.firm, active: l.active, createdAt: l.createdAt,
-      }))}
+      lines={lines}
     />
   );
 }
