@@ -204,7 +204,7 @@ export function ItPhoneQuickView({ line, item, canEdit, people, accounts, phoneI
         {editing ? (
           <ItPhoneInlineEdit
             initial={phoneFormValues(line)} addedAt={line.createdAt} people={people} accounts={accounts} phoneItems={phoneItems}
-            onBusy={setBusy} onSaved={() => { setEditing(false); onSaved(); }}
+            onBusy={setBusy} onSaved={() => { setBusy(false); setEditing(false); onSaved(); }}
           />
         ) : (<>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start">

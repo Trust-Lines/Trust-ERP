@@ -44,6 +44,8 @@ export function ItPhoneInlineEdit({ initial, addedAt, people, accounts, phoneIte
   const h = usePhoneForm({ initial, accounts, phoneItems, onSaved });
   const { f, set, setF } = h;
   useEffect(() => { onBusy(h.saving); }, [h.saving, onBusy]);
+  // Unmounting mid-save (save closes the editor) must not leave the pop-up stuck as busy.
+  useEffect(() => () => onBusy(false), [onBusy]);
   const secretHint = (saved: boolean | undefined) => (saved ? 'Saved. Type to replace.' : '');
 
   return (

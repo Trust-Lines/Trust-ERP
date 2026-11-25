@@ -191,6 +191,7 @@ export function ItPhoneForm({ initial, people, accounts = [], phoneItems = [], o
     accountFrom, pickAccount, libraryOptions, holderChanged, holderKey, deviceName, deviceChanged, since, suggest, accountPlaceholder,
   } = usePhoneForm({ initial, accounts, phoneItems, onSaved });
   useEffect(() => { onBusy?.(saving); }, [saving, onBusy]);
+  useEffect(() => () => onBusy?.(false), [onBusy]);
 
   return (
         <form onSubmit={submit} className={cn('flex flex-col gap-5', className)}>
