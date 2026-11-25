@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { Modal, ModalContent } from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,8 @@ import { cn } from '@/lib/utils';
 import { FORM_FIELD, FORM_TEXTAREA, FormActions, FormField, FormPanel, FormValue, LABEL } from './itFormParts';
 import { formatTicketDate } from './ticketStyles';
 
-// IT → Phone Numbers → New Number and the line's Edit Info, in the IT form system (itFormParts).
+// IT → Phone Numbers → New Number (pop-up) and the line's Edit Info (inside the line's own pop-up),
+// in the IT form system (itFormParts). ItPhoneForm is the form; ItPhoneFormDialog puts it in a modal.
 // Laid out like the "Phones and sim cards info" sheet: User & Phone (staff member or a typed name;
 // company phone with model / condition / IMEI, personal phone, or none), Line (number, mail,
 // password, PIN, location) and Carrier Account (carrier, firm, account holder, account number,
@@ -86,7 +87,7 @@ function withAccount(v: ItPhoneFormValues, a: PhoneAccount | undefined): ItPhone
   return { ...v, carrier: a.carrier ?? '', firm: a.firm ?? '', accountHolder: a.accountHolder ?? '', location: v.location || a.location || '' };
 }
 
-export function ItPhoneFormDialog({ initial, people, accounts = [], phoneItems = [], onClose, onSaved }: {
+export function ItPhoneForm({ initial, people, accounts = [], phoneItems = [], onClose, onSaved, onBusy, className }: {
   initial: ItPhoneFormValues;
   people: { id: string; name: string }[];
   /** Items Library phones and the line each runs (lineId null = free). */
@@ -95,6 +96,9 @@ export function ItPhoneFormDialog({ initial, people, accounts = [], phoneItems =
   accounts?: PhoneAccount[];
   onClose: () => void;
   onSaved: (id: string) => void;
+  /** Told while saving, so the surrounding pop-up doesn't close mid-save. */
+  onBusy?: (busy: boolean) => void;
+  className?: string;
 }) {
   const editing = !!initial.id;
   // A new line starts on the most recent account — most lines share one.
@@ -104,6 +108,7 @@ export function ItPhoneFormDialog({ initial, people, accounts = [], phoneItems =
   const [phoneMode, setPhoneMode] = useState<PhoneMode>(initial.deviceName ? 'company' : initial.personalDevice ? 'personal' : 'none');
   const [secrets, setSecrets] = useState({ password: '', pin: '', accountNumber: '' });
   const [saving, setSaving] = useState(false);
+  useEffect(() => { onBusy?.(saving); }, [saving, onBusy]);
   const set = <K extends keyof ItPhoneFormValues>(k: K, v: ItPhoneFormValues[K]) => setF(p => ({ ...p, [k]: v }));
   const secret = (k: keyof typeof secrets) => (e: { target: { value: string } }) => setSecrets(s => ({ ...s, [k]: e.target.value }));
 
@@ -166,9 +171,7 @@ export function ItPhoneFormDialog({ initial, people, accounts = [], phoneItems =
     : editing && initial.hasSecret?.accountNumber ? 'Saved. Type to replace.' : '';
 
   return (
-    <Modal open onOpenChange={o => { if (!o && !saving) onClose(); }}>
-      <ModalContent size="xl" title={editing ? 'Edit Number' : 'New Number'} description="A company phone line and SIM.">
-        <form onSubmit={submit} className="flex max-h-[72vh] flex-col gap-5 overflow-y-auto pr-1">
+        <form onSubmit={submit} className={cn('flex flex-col gap-5', className)}>
           <FormPanel id="itp-user-panel" title="User & Phone" aside="Dates are set automatically when you assign">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex min-w-0 flex-col gap-2">
@@ -291,6 +294,16 @@ export function ItPhoneFormDialog({ initial, people, accounts = [], phoneItems =
 
           <FormActions saving={saving} onCancel={onClose} submitLabel={editing ? 'Save' : 'Add Number'} />
         </form>
+  );
+}
+
+/** New Number: the form in a modal. */
+export function ItPhoneFormDialog(props: Omit<Parameters<typeof ItPhoneForm>[0], 'onBusy' | 'className'>) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Modal open onOpenChange={o => { if (!o && !busy) props.onClose(); }}>
+      <ModalContent size="xl" title={props.initial.id ? 'Edit Number' : 'New Number'} description="A company phone line and SIM.">
+        <ItPhoneForm {...props} onBusy={setBusy} className="max-h-[72vh] overflow-y-auto pr-1" />
       </ModalContent>
     </Modal>
   );

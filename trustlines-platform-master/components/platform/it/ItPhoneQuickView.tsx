@@ -13,13 +13,15 @@ import { formatTicketDate } from './ticketStyles';
 import { MUTED, SOLID_CHIP, STRONG } from './itemStyles';
 import { copyText, initials } from './itCardParts';
 import { roleLabel } from '@/components/platform/shell/Sidebar';
-import type { ItPhoneFormValues } from './ItPhoneFormDialog';
+import { ItPhoneForm, type ItPhoneFormValues } from './ItPhoneFormDialog';
+import type { PhoneAccount } from '@/lib/it/phones';
 import { AssignmentHistory, type AssignmentSpellView } from './AssignmentHistory';
 
 // IT → Phone Numbers: one line in a pop-up (instead of its own page), opened from its card or a
 // link (?line=<id>). Same content as the sheet: number, mail, password, PIN / carrier, firm,
 // account holder, account no / IMEI, plan, location, added date, notes; who holds it and the phone
 // it runs on (linked to the Items Library); and its assignment history, fetched when it opens.
+// Edit Info turns the same pop-up into the line's form (no second pop-up); Save / Cancel go back.
 //
 // Secrets are never part of the line: fetched one at a time from /api/it/phones/[id]/secret
 // (edit.it, audited) when shown or copied.
@@ -119,16 +121,23 @@ export function phoneFormValues(l: PhoneLineData): ItPhoneFormValues {
   };
 }
 
-export function ItPhoneQuickView({ line, item, canEdit, onClose, onEdit, onDelete }: {
+export function ItPhoneQuickView({ line, item, canEdit, people, accounts, phoneItems, onClose, onSaved, onDelete }: {
   line: PhoneLineData;
   /** The Items Library phone it runs on, if linked. */
   item: PhoneItemOption | null;
   /** edit.it: Edit Info, Delete, reveal secrets. */
   canEdit: boolean;
+  /** For the form (edit.it). */
+  people: { id: string; name: string }[];
+  accounts: PhoneAccount[];
+  phoneItems: PhoneItemOption[];
   onClose: () => void;
-  onEdit: () => void;
+  /** Saved from the in-place form: refresh the list. */
+  onSaved: () => void;
   onDelete: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState<AssignmentSpellView[] | null>(null);
   useEffect(() => {
     let live = true;
@@ -143,7 +152,7 @@ export function ItPhoneQuickView({ line, item, canEdit, onClose, onEdit, onDelet
   const deviceName = item?.name ?? line.deviceName;
 
   return (
-    <ModalPanel onOpenChange={o => { if (!o) onClose(); }} aria-label={`Phone number ${line.number}`} containerClassName="items-start overflow-y-auto px-4 py-[4vh]">
+    <ModalPanel onOpenChange={o => { if (!o && !busy) onClose(); }} aria-label={`Phone number ${line.number}`} containerClassName="items-start overflow-y-auto px-4 py-[4vh]">
       <div
         onClick={e => e.stopPropagation()}
         className="mx-auto flex w-[min(1040px,100%)] flex-col gap-5 rounded-[16px] border border-ui-divider bg-ui-surface-elevated p-5 font-ui shadow-[0_12px_48px_rgba(0,0,0,0.25)]"
@@ -160,25 +169,31 @@ export function ItPhoneQuickView({ line, item, canEdit, onClose, onEdit, onDelet
             <p className="m-0 text-[13px] text-ui-body">{[line.carrier, line.firm].filter(Boolean).join(' · ') || 'No carrier yet'}</p>
           </div>
           <div className="flex items-center gap-2">
-            {canEdit && (
+            {canEdit && !editing && (
               <>
                 <button type="button" onClick={onDelete}
                   className="flex h-10 items-center gap-2 rounded-md pl-3.5 pr-5 text-[13px] font-medium hover:opacity-90"
                   style={{ background: 'var(--status-t10-bg)', color: 'var(--status-t10-fg)' }}>
                   <Trash2 className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Delete
                 </button>
-                <button type="button" onClick={onEdit} className={cn('flex h-10 items-center gap-2 rounded-md pl-3.5 pr-5 text-[13px] font-medium hover:opacity-90', SOLID_CHIP)}>
+                <button type="button" onClick={() => setEditing(true)} className={cn('flex h-10 items-center gap-2 rounded-md pl-3.5 pr-5 text-[13px] font-medium hover:opacity-90', SOLID_CHIP)}>
                   <Pencil className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Edit Info
                 </button>
               </>
             )}
-            <button type="button" onClick={onClose} aria-label="Close"
+            <button type="button" onClick={onClose} disabled={busy} aria-label="Close"
               className={cn('grid size-10 place-items-center rounded-md border border-ui-divider hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-ui-focus-ring', STRONG)}>
               <X className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
             </button>
           </div>
         </div>
 
+        {editing ? (
+          <ItPhoneForm
+            initial={phoneFormValues(line)} people={people} accounts={accounts} phoneItems={phoneItems}
+            onBusy={setBusy} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); onSaved(); }}
+          />
+        ) : (<>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
           {/* Line details in the sheet's order */}
           <section aria-label="Line details" className="flex min-w-0 flex-1 flex-col gap-4 rounded-lg border border-primary-100 bg-primary-50 p-4 dark:border-primary-600 dark:bg-primary-700">
@@ -260,6 +275,7 @@ export function ItPhoneQuickView({ line, item, canEdit, onClose, onEdit, onDelet
         ) : (
           <AssignmentHistory spells={history} showDevice />
         )}
+        </>)}
       </div>
     </ModalPanel>
   );

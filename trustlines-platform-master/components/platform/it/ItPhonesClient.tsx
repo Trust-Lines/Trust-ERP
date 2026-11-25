@@ -15,7 +15,7 @@ import { FIELD, MUTED, SORT_OPTIONS, STRONG, copyText, initials, tabClass } from
 import { roleLabel } from '@/components/platform/shell/Sidebar';
 import { EMPTY_PHONE, ItPhoneFormDialog } from './ItPhoneFormDialog';
 import type { PhoneAccount, PhoneLineData } from '@/lib/it/phones';
-import { ItPhoneQuickView, phoneFormValues, type PhoneItemOption } from './ItPhoneQuickView';
+import { ItPhoneQuickView, type PhoneItemOption } from './ItPhoneQuickView';
 import { formatTicketDate } from './ticketStyles';
 
 // Figma "IT / Phone Numbers" (966:39447): company phone lines, one card each — holder photo, name
@@ -148,10 +148,8 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<ItPhoneLine | null>(null);
   const open = openId ? lines.find(l => l.id === openId) ?? null : null;
-  const editingLine = editingId ? lines.find(l => l.id === editingId) ?? null : null;
 
   // ?line=<id> opens that line's pop-up (links from items, staff, the old detail address).
   useEffect(() => {
@@ -303,22 +301,15 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
         <ItPhoneFormDialog initial={EMPTY_PHONE} people={people} accounts={accounts} phoneItems={phoneItems} onClose={() => setAdding(false)}
           onSaved={id => { setAdding(false); router.refresh(); show(id); }} />
       )}
-      {open && !editingLine && (
+      {open && (
         <ItPhoneQuickView
           line={open}
           item={open.itemId ? phoneItems.find(i => i.id === open.itemId) ?? null : null}
           canEdit={canCreate}
+          people={people} phoneItems={phoneItems} accounts={accounts.filter(a => a.lineId !== open.id)}
           onClose={() => show(null)}
-          onEdit={() => setEditingId(open.id)}
+          onSaved={() => router.refresh()}
           onDelete={() => setDeleting(open)}
-        />
-      )}
-      {editingLine && (
-        <ItPhoneFormDialog
-          initial={phoneFormValues(editingLine)} people={people} phoneItems={phoneItems}
-          accounts={accounts.filter(a => a.lineId !== editingLine.id)}
-          onClose={() => setEditingId(null)}
-          onSaved={() => { setEditingId(null); router.refresh(); }}
         />
       )}
       <ConfirmModal
