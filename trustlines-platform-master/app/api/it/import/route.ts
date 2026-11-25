@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { itApi } from '@/lib/it/server';
 import { cleanItemInput } from '@/lib/it/validate';
+import { writeItem } from '@/lib/it/itemHolder';
 import { auditFields, cleanPhoneInput, copyAccountNumber, stampPhoneDates, writeLine } from '@/lib/it/phones';
 import { sameNumber } from '@/lib/it/phoneItemLink';
 import { recordAssignment } from '@/lib/it/assignments';
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
     q = input.value.notes ? q.eq('notes', input.value.notes) : q.is('notes', null);
     const { data: dup } = await q;
     if ((dup ?? []).length) { skipped.push(`${label} (already in the library)`); continue; }
-    const { data, error } = await ctx.admin.from('it_items').insert({ ...input.value, assigned_at: null, created_by: ctx.userId }).select('id').single();
+    const { data, error } = await writeItem(r => ctx.admin.from('it_items').insert(r).select('id').single(), { ...input.value, assigned_at: null, created_by: ctx.userId });
     if (error) { failed.push(`${label}: could not save`); continue; }
     created.items += 1;
     await logAudit({ actorId: ctx.userId, action: 'it.item_created', resource: `it_item:${(data as { id: string }).id}`, newValue: { ...input.value, via: 'import' } });

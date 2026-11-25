@@ -90,6 +90,8 @@ export interface ItemInput {
   location: string | null;
   status: ItemStatus;
   assignee_id: string | null;
+  /** Held by someone with no account yet (assignee_id null) — migration 164. */
+  holder_name: string | null;
   set_label: string | null;
   notes: string | null;
   specs: Record<string, string>;
@@ -112,9 +114,15 @@ export function cleanItemInput(body: unknown): Result<ItemInput> {
   const status = (b.status ?? 'available') as ItemStatus;
   if (!ITEM_STATUSES.includes(status)) return fail('Choose a status');
   let assignee: string | null = null;
+  let holderName: string | null = null;
   if (status === 'assigned') {
-    if (!isUuid(b.assigneeId)) return fail('Choose who holds the item');
-    assignee = b.assigneeId;
+    if (isUuid(b.assigneeId)) assignee = b.assigneeId;
+    else {
+      const typed = text(b.holderName, 120, 'Holder name');
+      if (typed.error) return fail(typed.error);
+      if (!typed.value) return fail('Choose who holds the item, or type their name');
+      holderName = typed.value;
+    }
   }
   const setLabel = text(b.setLabel, 40, 'Set');
   if (setLabel.error) return fail(setLabel.error);
@@ -139,7 +147,7 @@ export function cleanItemInput(body: unknown): Result<ItemInput> {
   }
   return ok({
     name: name.value, model: model.value, category, location: location.value, status,
-    assignee_id: assignee, set_label: setLabel.value, notes: notes.value, specs, remote_address: remote,
+    assignee_id: assignee, holder_name: holderName, set_label: setLabel.value, notes: notes.value, specs, remote_address: remote,
   });
 }
 

@@ -25,6 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useItemQr } from './itemQr';
 import { FORM_FIELD, FORM_PANEL, FORM_TEXTAREA, LABEL, PANEL_TITLE, PRIMARY_BTN, SECONDARY_BTN } from './itFormParts';
 import { LabelSheetDialog } from './LabelSheetDialog';
+import { HolderPicker, holderBody, TYPED_HOLDER } from './HolderPicker';
 
 // Items Library → Add Item and Item → Edit Info, laid out like the item page (Figma 845:42033):
 // a Basic Info panel (photo + fields) and, for computers, Specifications cards.
@@ -42,7 +43,9 @@ export interface ItItemFormValues {
   category: ItemCategory;
   location: string;
   status: ItemStatus;
+  /** An account id, or TYPED_HOLDER for a typed holderName. */
   assigneeId: string;
+  holderName: string;
   setLabel: string;
   notes: string;
   specs: Record<string, string>;
@@ -52,7 +55,7 @@ export interface ItItemFormValues {
 }
 
 export const EMPTY_ITEM: ItItemFormValues = {
-  name: '', model: '', category: 'pc', location: '', status: 'available', assigneeId: '',
+  name: '', model: '', category: 'pc', location: '', status: 'available', assigneeId: '', holderName: '',
   setLabel: '', notes: '', specs: {}, remoteAddress: '', phoneNumber: '',
 };
 
@@ -125,12 +128,13 @@ export function ItItemFormDialog({ initial, assignees, onClose, onSaved, onCreat
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!quick && f.status === 'assigned' && !f.assigneeId) { toast.error('Choose who holds this item'); return; }
+    if (!quick && f.status === 'assigned' && f.assigneeId === TYPED_HOLDER && !f.holderName.trim()) { toast.error('Type the holder’s name'); return; }
     if (photo && (!IT_IMAGE_TYPES[photo.type] || photo.size > IT_FILE_MAX_BYTES)) { toast.error('The photo must be a JPG, PNG or WebP under 4 MB'); return; }
     // Quick add: only what's needed to label the device; everything else is filled in later.
     const name = f.name.trim() || `New ${CATEGORY_LABEL[f.category]}`;
     const body = quick
       ? { ...EMPTY_ITEM, category: f.category, location: f.location, name }
-      : { ...f, name, assigneeId: f.status === 'assigned' ? f.assigneeId : null };
+      : { ...f, name, ...holderBody(f) };
     setSaving(true);
     try {
       const res = await fetch(editing ? `/api/it/items/${initial.id}` : '/api/it/items', {
@@ -235,8 +239,7 @@ export function ItItemFormDialog({ initial, assignees, onClose, onSaved, onCreat
                       {f.status === 'assigned' ? (
                         <div>
                           <label htmlFor="iti-holder" className={LABEL}>Held by<span className="text-error-normal" aria-hidden>*</span></label>
-                          <Select id="iti-holder" className={FIELD} value={f.assigneeId} placeholder="Choose a person…"
-                            options={assignees.map(a => ({ value: a.id, label: a.name }))} onValueChange={v => set('assigneeId', v ?? '')} />
+                          <HolderPicker id="iti-holder" className={FIELD} value={f} assignees={assignees} onChange={p => setF(prev => ({ ...prev, ...p }))} />
                         </div>
                       ) : <div className="hidden lg:block" />}
                       <div>

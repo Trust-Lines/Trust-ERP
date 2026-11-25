@@ -4,6 +4,7 @@ import { itApi } from '@/lib/it/server';
 import { isUuid } from '@/lib/it/validate';
 import { auditFields, cleanPhoneInput, copyAccountNumber, isMissingColumn, stampPhoneDates, writeLine } from '@/lib/it/phones';
 import { checkLineItem } from '@/lib/it/phoneItemLink';
+import { syncItemFromLine } from '@/lib/it/itemHolder';
 import { endAssignment, recordAssignment } from '@/lib/it/assignments';
 
 type Params = { params: Promise<{ id: string }> };
@@ -53,6 +54,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       deviceName: ('device_name' in row ? row.device_name as string | null : before.device_name) ?? null,
       actorId: ctx.userId,
     });
+    // The line's phone (a library item) gets the line's holder.
+    await syncItemFromLine(ctx, id, 'holder_id' in row || 'holder_name' in row);
   }
   await logAudit({ actorId: ctx.userId, action: 'it.phone_updated', resource: `it_phone:${id}`, newValue: auditFields(row) });
   return NextResponse.json({ ok: true });

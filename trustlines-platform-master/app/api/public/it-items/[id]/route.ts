@@ -36,8 +36,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const now = new Date().toISOString();
   const { error } = await admin.from('it_items').update({ ...input.value, updated_at: now }).eq('id', id).is('deleted_at', null);
   if (error) return NextResponse.json({ error: 'Could not save' }, { status: 500 });
-  const assigneeId = item.status === 'assigned' ? item.assignee_id : null;
-  await syncItemPhone(ctx, { id, name: input.value.name as string, location: (input.value.location as string | null) ?? null, assigneeId }, phone.value);
+  const holder = { id: item.status === 'assigned' ? item.assignee_id : null, name: null };
+  await syncItemPhone(ctx, { id, name: input.value.name as string, location: (input.value.location as string | null) ?? null, holder, holderChanged: false }, phone.value);
 
   await logAudit({
     actorId: null, action: 'it.item_public_updated', resource: `it_item:${id}`,

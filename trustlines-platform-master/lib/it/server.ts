@@ -91,6 +91,8 @@ export interface ItemRow {
   status: ItemStatus;
   assignee_id: string | null;
   assigned_at: string | null;
+  /** Migration 164; undefined before it. */
+  holder_name?: string | null;
   set_label: string | null;
   notes: string | null;
   specs: Record<string, string> | null;
@@ -102,6 +104,15 @@ export interface ItemRow {
 }
 
 export const ITEM_COLS = 'id, name, model, category, location, status, assignee_id, assigned_at, set_label, notes, specs, remote_address, image_path, image_updated_at, created_at, updated_at';
+/** ITEM_COLS plus the typed holder name (migration 164). */
+export const ITEM_COLS_HOLDER = `${ITEM_COLS}, holder_name`;
+
+/** Runs an it_items read with ITEM_COLS_HOLDER, and again with ITEM_COLS before migration 164. */
+type DbResult = { data: any; error: { message?: string } | null };
+export async function withHolderName(run: (cols: string) => PromiseLike<DbResult>): Promise<DbResult> {
+  const r = await run(ITEM_COLS_HOLDER);
+  return r.error && /holder_name/.test(r.error.message ?? '') ? run(ITEM_COLS) : r;
+}
 
 interface Person { id: string; full_name: string | null; email: string | null; role: string | null }
 
@@ -276,15 +287,15 @@ function toCard(r: ItemRow, who: Map<string, Person>): ItemCard {
   return {
     id: r.id, name: r.name, model: r.model, category: r.category, addedAt: r.created_at,
     setLabel: r.set_label, location: r.location, status: r.status,
-    assigneeName: r.status === 'assigned' ? nameOf(who.get(r.assignee_id ?? '')) : null,
+    assigneeName: r.status === 'assigned' ? (r.assignee_id ? nameOf(who.get(r.assignee_id)) : r.holder_name ?? null) : null,
     imageUrl: itemImageUrl(r),
   };
 }
 
 export async function loadItems(ctx: ItContext): Promise<{ items: ItemCard[]; error: string | null }> {
-  const { data, error } = await ctx.admin.from('it_items').select(ITEM_COLS).is('deleted_at', null)
-    .order('created_at', { ascending: false }).limit(2000);
-  if (error) return { items: [], error: /it_items/.test(error.message) ? 'IT items are not set up yet — run migration 155_it_tickets_items.sql.' : error.message };
+  const { data, error } = await withHolderName(cols => ctx.admin.from('it_items').select(cols).is('deleted_at', null)
+    .order('created_at', { ascending: false }).limit(2000));
+  if (error) return { items: [], error: /it_items/.test(error.message ?? '') ? 'IT items are not set up yet — run migration 155_it_tickets_items.sql.' : error.message ?? 'Could not load items' };
   const rows = (data ?? []) as ItemRow[];
   const who = await people(ctx.admin, rows.map(r => r.assignee_id));
   return { items: rows.map(r => toCard(r, who)), error: null };
@@ -299,32 +310,34 @@ export interface ItemDetail extends ItemCard {
   /** Raw values for the Edit form. */
   form: {
     assigneeId: string | null;
+    holderName: string | null;
     remoteAddress: string | null;
     specs: Record<string, string>;
   };
 }
 
 export async function loadItemDetail(ctx: ItContext, id: string): Promise<ItemDetail | null> {
-  const { data } = await ctx.admin.from('it_items').select(ITEM_COLS).eq('id', id).is('deleted_at', null).maybeSingle();
+  const { data } = await withHolderName(cols => ctx.admin.from('it_items').select(cols).eq('id', id).is('deleted_at', null).maybeSingle());
   const row = data as ItemRow | null;
   if (!row) return null;
   let group: ItemRow[] = [];
   if (row.set_label) {
-    const { data: g } = await ctx.admin.from('it_items').select(ITEM_COLS).eq('set_label', row.set_label)
-      .is('deleted_at', null).neq('id', row.id).limit(50);
+    const { data: g } = await withHolderName(cols => ctx.admin.from('it_items').select(cols).eq('set_label', row.set_label)
+      .is('deleted_at', null).neq('id', row.id).limit(50));
     group = (g ?? []) as ItemRow[];
   }
   const who = await people(ctx.admin, [row.assignee_id, ...group.map(g => g.assignee_id)]);
-  const holder = row.status === 'assigned' ? who.get(row.assignee_id ?? '') : undefined;
+  const holder = row.status === 'assigned' && row.assignee_id ? who.get(row.assignee_id) : undefined;
+  const holderName = row.assignee_id ? nameOf(holder) : row.holder_name ?? null;
   const specs = row.specs ?? {};
   return {
     ...toCard(row, who),
     updatedAt: row.updated_at,
     notes: row.notes,
     specs: SPEC_KEYS.filter(k => specs[k]).map(k => ({ key: k, label: SPEC_LABEL[k], value: specs[k] })),
-    assignee: row.status === 'assigned' ? { name: nameOf(holder), role: holder?.role ?? null, acquiredAt: row.assigned_at } : null,
+    assignee: row.status === 'assigned' && holderName ? { name: holderName, role: holder?.role ?? null, acquiredAt: row.assigned_at } : null,
     groupedWith: group.map(g => toCard(g, who)),
-    form: { assigneeId: row.assignee_id, remoteAddress: row.remote_address, specs },
+    form: { assigneeId: row.assignee_id, holderName: row.holder_name ?? null, remoteAddress: row.remote_address, specs },
   };
 }
 
