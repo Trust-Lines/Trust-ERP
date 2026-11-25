@@ -4,6 +4,7 @@ import { assigneeError, itApi } from '@/lib/it/server';
 import { cleanItemInput } from '@/lib/it/validate';
 import { recordAssignment } from '@/lib/it/assignments';
 import { cleanItemPhoneNumber, itemPhoneError, syncItemPhone } from '@/lib/it/phoneItemLink';
+import { holderOf, holds, writeItem } from '@/lib/it/itemHolder';
 
 // Items Library → Add Item (edit.it). A phone with a number gets its line in Phone Numbers
 // (created, or an existing line with that number linked).
@@ -21,13 +22,16 @@ export async function POST(req: NextRequest) {
   if (taken) return NextResponse.json({ error: taken.error }, { status: taken.status });
 
   const now = new Date().toISOString();
-  const { data, error } = await ctx.admin.from('it_items')
-    .insert({ ...input.value, assigned_at: input.value.assignee_id ? now : null, created_by: ctx.userId })
-    .select('id').single();
+  const holder = holderOf(input.value.assignee_id, input.value.holder_name);
+  const { data, error, missing } = await writeItem(
+    r => ctx.admin.from('it_items').insert(r).select('id').single(),
+    { ...input.value, assigned_at: holds(holder) ? now : null, created_by: ctx.userId },
+  );
+  if (missing) return NextResponse.json({ error: missing }, { status: 503 });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const id = (data as { id: string }).id;
-  await recordAssignment(ctx.admin, { kind: 'item', assetId: id, personId: input.value.assignee_id, actorId: ctx.userId });
-  if (phone.value) await syncItemPhone(ctx, { id, name: input.value.name, location: input.value.location, assigneeId: input.value.assignee_id }, phone.value);
+  await recordAssignment(ctx.admin, { kind: 'item', assetId: id, personId: holder.id, personName: holder.name, actorId: ctx.userId });
+  if (phone.value) await syncItemPhone(ctx, { id, name: input.value.name, location: input.value.location, holder, holderChanged: holds(holder) }, phone.value);
 
   await logAudit({ actorId: ctx.userId, action: 'it.item_created', resource: `it_item:${id}`, newValue: { ...input.value, ...(phone.value ? { phone_number: phone.value } : {}) } });
   return NextResponse.json({ item: { id } }, { status: 201 });

@@ -5,6 +5,7 @@
 import type { ItContext } from './server';
 import { recordAssignment } from './assignments';
 import { missingColumnMessage } from './phones';
+import { holderOf, holds, lineHolderPatch, syncItemFromLine, type Holder } from './itemHolder';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -35,7 +36,8 @@ export function cleanItemPhoneNumber(raw: unknown): { value: string | null | und
 interface LineRow { id: string; number: string; item_id: string | null; holder_id: string | null; holder_name?: string | null; location: string | null; device_name: string | null }
 
 async function liveLines(admin: any): Promise<{ rows: LineRow[]; missing: string | null }> {
-  const r = await admin.from('it_phone_lines').select('id, number, item_id, holder_id, location, device_name').is('deleted_at', null).limit(3000);
+  let r = await admin.from('it_phone_lines').select('id, number, item_id, holder_id, holder_name, location, device_name').is('deleted_at', null).limit(3000);
+  if (missingColumn(r.error) && /holder_name/.test(r.error?.message ?? '')) r = await admin.from('it_phone_lines').select('id, number, item_id, holder_id, location, device_name').is('deleted_at', null).limit(3000);
   if (missingColumn(r.error)) return { rows: [], missing: missingColumnMessage(r.error, LINK_MIGRATION) };
   return { rows: (r.data ?? []) as LineRow[], missing: null };
 }
@@ -56,18 +58,31 @@ export async function itemPhoneError(ctx: ItContext, itemId: string | null, numb
 /**
  * After saving the item. `number`: a number = link (or create) that line; null = unlink the current
  * line (it stays in Phone Numbers); undefined = keep the number, only refresh the line's phone name.
+ * The phone and its line share one holder: `holderChanged` (the save set a new holder) copies the
+ * item's holder to the line; linking a line that has a holder to a phone with none gives the phone
+ * the line's holder.
  */
 export async function syncItemPhone(ctx: ItContext, item: {
-  id: string; name: string; location: string | null; assigneeId: string | null;
+  id: string; name: string; location: string | null; holder: Holder; holderChanged: boolean;
 }, number: string | null | undefined): Promise<void> {
   const today = new Date().toISOString().slice(0, 10);
-  const linked = await ctx.admin.from('it_phone_lines').select('id, number, device_name').eq('item_id', item.id).is('deleted_at', null).maybeSingle();
+  const pick = (cols: string) => ctx.admin.from('it_phone_lines').select(cols).eq('item_id', item.id).is('deleted_at', null).maybeSingle();
+  let linked = await pick('id, number, device_name, holder_id, holder_name');
+  if (missingColumn(linked.error) && !/item_id/.test(linked.error?.message ?? '')) linked = await pick('id, number, device_name, holder_id');
   if (missingColumn(linked.error)) return;
-  const current = linked.data as { id: string; number: string; device_name: string | null } | null;
+  const current = linked.data as { id: string; number: string; device_name: string | null; holder_id: string | null; holder_name?: string | null } | null;
 
   if (number === undefined || (current && number && sameNumber(current.number, number))) {
-    if (current && current.device_name !== item.name) {
-      await ctx.admin.from('it_phone_lines').update({ device_name: item.name, updated_at: new Date().toISOString() }).eq('id', current.id);
+    if (!current) return;
+    const patch: Record<string, unknown> = current.device_name !== item.name ? { device_name: item.name } : {};
+    const holder = item.holderChanged ? lineHolderPatch(current, item.holder, today) : null;
+    if (holder) Object.assign(patch, holder);
+    if (!Object.keys(patch).length) return;
+    await ctx.admin.from('it_phone_lines').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', current.id);
+    if (holder) {
+      await recordAssignment(ctx.admin, {
+        kind: 'phone_line', assetId: current.id, personId: item.holder.id, personName: item.holder.name, deviceName: item.name, actorId: ctx.userId,
+      }).catch(() => undefined);
     }
     return;
   }
@@ -81,25 +96,30 @@ export async function syncItemPhone(ctx: ItContext, item: {
   const { rows } = await liveLines(ctx.admin);
   const hit = rows.find(r => sameNumber(r.number, number) && (!r.item_id || r.item_id === item.id));
   if (hit) {
+    const lineHolder = holderOf(hit.holder_id, hit.holder_name);
+    // The phone's holder goes on the line; a phone with nobody takes the line's holder instead.
+    const holder = holds(item.holder) ? lineHolderPatch(hit, item.holder, today) : null;
     const patch: Record<string, unknown> = {
       item_id: item.id, device_name: item.name, personal_device: false, updated_at: new Date().toISOString(),
       ...(hit.device_name !== item.name ? { device_assigned_at: today } : {}),
       ...(!hit.location && item.location ? { location: item.location } : {}),
-      ...(!hit.holder_id && item.assigneeId ? { holder_id: item.assigneeId, holder_since: today } : {}),
+      ...(holder ?? {}),
     };
     await ctx.admin.from('it_phone_lines').update(patch).eq('id', hit.id);
+    const now = holds(item.holder) ? item.holder : lineHolder;
     await recordAssignment(ctx.admin, {
-      kind: 'phone_line', assetId: hit.id, personId: hit.holder_id ?? item.assigneeId, deviceName: item.name, actorId: ctx.userId,
+      kind: 'phone_line', assetId: hit.id, personId: now.id, personName: now.name, deviceName: item.name, actorId: ctx.userId,
     }).catch(() => undefined);
+    if (!holds(item.holder) && holds(lineHolder)) await syncItemFromLine(ctx, hit.id, false);
     return;
   }
   const { data } = await ctx.admin.from('it_phone_lines').insert({
     number, item_id: item.id, device_name: item.name, personal_device: false, device_assigned_at: today,
-    location: item.location, holder_id: item.assigneeId, holder_since: item.assigneeId ? today : null,
-    start_date: today, created_by: ctx.userId,
+    location: item.location, holder_id: item.holder.id, ...(item.holder.name ? { holder_name: item.holder.name } : {}),
+    holder_since: holds(item.holder) ? today : null, start_date: today, created_by: ctx.userId,
   }).select('id').single();
   const id = (data as { id: string } | null)?.id;
-  if (id) await recordAssignment(ctx.admin, { kind: 'phone_line', assetId: id, personId: item.assigneeId, deviceName: item.name, actorId: ctx.userId }).catch(() => undefined);
+  if (id) await recordAssignment(ctx.admin, { kind: 'phone_line', assetId: id, personId: item.holder.id, personName: item.holder.name, deviceName: item.name, actorId: ctx.userId }).catch(() => undefined);
 }
 
 /** Item deleted: its line stays in Phone Numbers without a phone. */

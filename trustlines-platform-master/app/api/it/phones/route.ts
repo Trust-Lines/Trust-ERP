@@ -3,6 +3,7 @@ import { logAudit } from '@/lib/audit/log';
 import { itApi } from '@/lib/it/server';
 import { auditFields, cleanPhoneInput, copyAccountNumber, stampPhoneDates, writeLine } from '@/lib/it/phones';
 import { checkLineItem } from '@/lib/it/phoneItemLink';
+import { syncItemFromLine } from '@/lib/it/itemHolder';
 import { recordAssignment } from '@/lib/it/assignments';
 
 // IT → Phone Numbers → New Number (edit.it). Secrets are encrypted before they're stored; the
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
     kind: 'phone_line', assetId: id, personId: (row.holder_id as string | null) ?? null, personName: (row.holder_name as string | null) ?? null,
     deviceName: (row.device_name as string | null) ?? null, actorId: ctx.userId,
   });
+  if (row.item_id) await syncItemFromLine(ctx, id, true);
   await logAudit({ actorId: ctx.userId, action: 'it.phone_created', resource: `it_phone:${id}`, newValue: auditFields(row) });
   return NextResponse.json({ line: { id } }, { status: 201 });
 }

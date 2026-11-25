@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { HolderPicker, holderBody, holderInitial, TYPED_HOLDER } from './HolderPicker';
 import { useEffect, useState, type ComponentType, type FormEvent, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -74,7 +75,7 @@ export interface ItItemDetailData extends ItItem {
   /** Other items in the same set ("Grouped With"). */
   groupedWith: ItItem[];
   /** Raw values for the Edit form. */
-  form: { assigneeId: string | null; remoteAddress: string | null; specs: Record<string, string> };
+  form: { assigneeId: string | null; holderName: string | null; remoteAddress: string | null; specs: Record<string, string> };
 }
 
 type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -263,7 +264,7 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
 
   const formValues: ItItemFormValues | null = item ? {
     id: item.id, name: item.name, model: item.model ?? '', category: item.category, location: item.location ?? '',
-    status: item.status, assigneeId: item.form.assigneeId ?? '', setLabel: item.setLabel ?? '', notes: item.notes ?? '',
+    status: item.status, ...holderInitial(item.form.assigneeId, item.form.holderName), setLabel: item.setLabel ?? '', notes: item.notes ?? '',
     specs: item.form.specs, remoteAddress: item.form.remoteAddress ?? '', phoneNumber: phoneLine?.number ?? '',
   } : null;
   const [draft, setDraft] = useState<ItItemFormValues>(() => formValues ?? ({} as ItItemFormValues));
@@ -295,12 +296,13 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
     e.preventDefault();
     if (!item || !editing) return;
     if (draft.status === 'assigned' && !draft.assigneeId) { toast.error('Choose who holds this item'); return; }
+    if (draft.status === 'assigned' && draft.assigneeId === TYPED_HOLDER && !draft.holderName.trim()) { toast.error('Type the holder’s name'); return; }
     if (photo && (!IT_IMAGE_TYPES[photo.type] || photo.size > IT_FILE_MAX_BYTES)) { toast.error('The photo must be a JPG, PNG or WebP under 4 MB'); return; }
     setSaving(true);
     try {
       const res = await fetch(`/api/it/items/${item.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...draft, name: draft.name.trim(), assigneeId: draft.status === 'assigned' ? draft.assigneeId : null }),
+        body: JSON.stringify({ ...draft, name: draft.name.trim(), ...holderBody(draft) }),
       });
       if (!res.ok) throw new Error(await errorOf(res));
       if (photo) {
@@ -505,8 +507,7 @@ export function ItItemDetailClient({ item, canEdit = false, assignees = [], star
                     </EditField>
                     {draft.status === 'assigned' ? (
                       <EditField id="iti-holder" label="Held by" required>
-                        <Select id="iti-holder" className={FORM_FIELD} value={draft.assigneeId} placeholder="Choose a person…"
-                          options={assignees.map(a => ({ value: a.id, label: a.name }))} onValueChange={v => set('assigneeId', v ?? '')} />
+                        <HolderPicker id="iti-holder" className={FORM_FIELD} value={draft} assignees={assignees} onChange={p => setDraft(prev => ({ ...prev, ...p }))} />
                       </EditField>
                     ) : <div className="hidden xl:block" />}
                     <EditField id="iti-set" label="Set">
