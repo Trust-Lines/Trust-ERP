@@ -3,7 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { ArrowDownUp, Copy, Phone, Plus, Search, UserRound } from 'lucide-react';
+import { ArrowDownUp, Copy, FileUp, Phone, Plus, Search, UserRound } from 'lucide-react';
+import { ItImportDialog } from './ItImportDialog';
 import { ConfirmModal } from '@/components/ui/modal';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { PersonFace } from '@/components/ui/avatar-directory';
@@ -22,7 +23,8 @@ import { formatTicketDate } from './ticketStyles';
 // and role, the number with a copy button, then firm, plan, mail, office and since when, and the
 // carrier and the device it runs on (company phone, personal phone, or none). Unassigned lines are
 // "Available" and drawn in green. Active / History tabs, search, sort, user / assignment / firm
-// filters. A card opens the line in a pop-up (ItPhoneQuickView) — no separate page; ?line=<id>
+// filters, and T-Lines / Trust Lines (from the firm name). Import (edit.it) adds lines and items
+// from a JSON file. A card opens the line in a pop-up (ItPhoneQuickView) — no separate page; ?line=<id>
 // opens it from a link (the old /it/phones/[id] address redirects here).
 //
 // Data: it_phone_lines (migrations 158, 161, 163) via lib/it/phones. "New Number" (edit.it) opens the form.
@@ -33,6 +35,19 @@ export type ItPhoneLine = PhoneLineData;
 type Tab = 'active' | 'history';
 type Sort = 'newest' | 'oldest' | 'name';
 type Assignment = '' | 'assigned' | 'available';
+type Company = '' | 'tlines' | 'trustlines';
+
+/** Which company a line is for, from its firm: "TRUST LINES…" = Trust Lines, "T LINES…" = T-Lines. */
+export function lineCompany(firm: string | null): Company {
+  const f = (firm ?? '').trim().toLowerCase();
+  if (/^trust\s*-?\s*lines/.test(f)) return 'trustlines';
+  if (/^t\s*-?\s*lines/.test(f)) return 'tlines';
+  return '';
+}
+
+const COMPANIES: { value: Company; label: string }[] = [
+  { value: '', label: 'All' }, { value: 'tlines', label: 'T-Lines' }, { value: 'trustlines', label: 'Trust Lines' },
+];
 
 const NO_EDIT = 'Adding numbers needs IT edit rights';
 const CHIP = 'inline-flex items-center rounded-[4px] px-2 py-[3px] text-[13px] font-semibold leading-normal';
@@ -147,6 +162,8 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [company, setCompany] = useState<Company>('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<ItPhoneLine | null>(null);
   const open = openId ? lines.find(l => l.id === openId) ?? null : null;
@@ -186,13 +203,14 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
       .filter(l => !holder || l.holderName === holder)
       .filter(l => !assignment || (assignment === 'assigned') === !!l.holderName)
       .filter(l => !firm || l.firm === firm)
+      .filter(l => !company || lineCompany(l.firm) === company)
       .filter(l => !q || `${l.holderName ?? ''} ${l.holderRole ?? ''} ${l.number} ${l.carrier ?? ''} ${l.firm ?? ''} ${l.deviceName ?? ''}`.toLowerCase().includes(q))
       .sort((a, b) => {
         if (sort === 'name') return (a.holderName ?? '￿').localeCompare(b.holderName ?? '￿');
         const diff = Date.parse(a.createdAt) - Date.parse(b.createdAt);
         return sort === 'newest' ? -diff : diff;
       });
-  }, [lines, tab, holder, assignment, firm, query, sort]);
+  }, [lines, tab, holder, assignment, firm, company, query, sort]);
 
   return (
     <div className="flex w-full flex-col gap-[30px] p-7 font-ui">
@@ -207,6 +225,17 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
           </span>
         }
         actions={
+          <div className="flex items-center gap-2">
+          {canCreate && (
+            <button
+              type="button"
+              onClick={() => setImporting(true)}
+              className="flex h-9 items-center gap-2 rounded-md border border-ui-divider px-3 text-[13px] font-semibold text-secondary-700 transition-colors hover:bg-ui-hover-bg dark:text-secondary-50"
+            >
+              <FileUp className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+              Import
+            </button>
+          )}
           <button
             type="button"
             disabled={!canCreate}
@@ -217,6 +246,7 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
             <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
             New Number
           </button>
+          </div>
         }
       />
 
@@ -230,6 +260,16 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5">
+        <div role="group" aria-label="Company" className="flex h-10 items-center gap-1 rounded-md border border-[var(--ui-input-border)] bg-ui-input-bg p-1">
+          {COMPANIES.map(c => (
+            <button key={c.value || 'all'} type="button" aria-pressed={company === c.value} onClick={() => setCompany(c.value)}
+              className={cn('h-8 rounded-[4px] px-3 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-ui-focus-ring',
+                company === c.value ? 'bg-secondary-700 text-white dark:bg-secondary-50 dark:text-primary-950' : cn('hover:bg-ui-hover-bg', STRONG))}>
+              {c.label}
+              <span className="ml-1.5 text-[11px] opacity-70">{c.value ? lines.filter(l => l.active === (tab === 'active') && lineCompany(l.firm) === c.value).length : lines.filter(l => l.active === (tab === 'active')).length}</span>
+            </button>
+          ))}
+        </div>
         <label className="relative flex w-[380px] max-w-full items-center">
           <Search className={cn('pointer-events-none absolute left-3 h-4 w-4', MUTED)} strokeWidth={1.5} aria-hidden="true" />
           <span className="sr-only">Search phone numbers</span>
@@ -301,6 +341,7 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
         <ItPhoneFormDialog initial={EMPTY_PHONE} people={people} accounts={accounts} phoneItems={phoneItems} onClose={() => setAdding(false)}
           onSaved={id => { setAdding(false); router.refresh(); show(id); }} />
       )}
+      {importing && <ItImportDialog onClose={() => setImporting(false)} onDone={() => router.refresh()} />}
       {open && (
         <ItPhoneQuickView
           line={open}
