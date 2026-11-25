@@ -3,36 +3,42 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowDownUp, CreditCard, Eye, EyeOff, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react';
+import { ArrowDownUp, Ellipsis, Eye, EyeOff, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react';
 import { ConfirmModal } from '@/components/ui/modal';
-import { MenuItem } from '@/components/ui/menu';
-import { EMPTY_SUBSCRIPTION, ItSubscriptionFormDialog, type ItSubscriptionFormValues, type SubscriptionUser } from './ItSubscriptionFormDialog';
+import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
+import {
+  CURRENCY_OPTIONS, EMPTY_SUBSCRIPTION, ItSubscriptionFormDialog, formatDay,
+  type BillingCycle, type Currency, type ItSubscriptionFormValues, type SubscriptionUser,
+} from './ItSubscriptionFormDialog';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { TOOLBAR_SELECT, TOOLBAR_SORT_ICON } from './ticketStyles';
-import { CARD, CardHead, FIELD, MUTED, SORT_OPTIONS, STRONG, SecretField, initials, tabClass } from './itCardParts';
+import { FIELD, MUTED, STRONG, SecretField, copyText, initials, tabClass } from './itCardParts';
 
-// Figma "IT / Subscriptions" (908:22728): the company's software subscriptions, one card each —
-// service logo and name (in its brand colour), the login address and password, seats, the payment
-// card's last four digits, and the start / due dates. Same page layout as IT / Mails.
+// Figma "New Subscription" (1141:14764): the company's software subscriptions grouped by service —
+// a grey band with the service logo and name, then its cards four across: logo, name, FULL / "N
+// Seats Available" against the maximum users, the login address, the price with Monthly / Yearly,
+// and Next renewal, Used Card, Used by. Toolbar: search, sort, service, card and seat filters, and
+// Show Info (reveals the passwords on the cards).
 //
-// Data: it_subscriptions (migration 159) via lib/it/subscriptions. edit.it adds / edits / deletes and
-// reveals passwords (fetched one at a time, audited, never sent with the list). Only the card's
-// last four digits are stored.
+// Data: it_subscriptions (159, billing 162) and it_subscription_users (160, teams 162) via
+// lib/it/subscriptions. edit.it adds / edits / deletes and reveals passwords (fetched one at a
+// time, audited, never sent with the list). Only the card's last four digits are stored.
 
 export interface ItSubscription {
   id: string;
   service: string;
   loginEmail: string;
   logoUrl: string | null;
-  /** Brand colour for the service name, e.g. "#DA1F26". */
-  brandColor: string | null;
-  /** Legacy count, used only when no users are listed. */
+  /** Maximum users; null = no limit. */
   seats: number | null;
-  /** Who uses it: people in the system, or typed names (personId null). */
+  /** Who uses it: people in the system, typed names (personId null) or teams (teamSize). */
   users: SubscriptionUser[];
   cardLast4: string | null;
+  amount: number | null;
+  currency: Currency | null;
+  billingCycle: BillingCycle | null;
   /** ISO dates. */
   startDate: string | null;
   dueDate: string | null;
@@ -45,9 +51,25 @@ export interface ItSubscription {
 }
 
 type Tab = 'active' | 'history';
-type Sort = 'newest' | 'oldest' | 'name';
+type Sort = 'newest' | 'oldest' | 'name' | 'renewal';
+type Seats = '' | 'full' | 'available';
 
 const NOT_CONNECTED = 'Needs IT edit rights';
+const SORTS = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
+  { value: 'name', label: 'Name A–Z' },
+  { value: 'renewal', label: 'Next renewal' },
+];
+const SEAT_OPTIONS = [
+  { value: '', label: 'Seat Availability' },
+  { value: 'available', label: 'Seats available' },
+  { value: 'full', label: 'Full' },
+];
+const DUE_SOON_DAYS = 30;
+/** Figma "main surfaces + cards" grey. */
+const SURFACE = 'bg-primary-50 dark:bg-primary-700';
+const VALUE_CHIP = cn('inline-flex h-5 max-w-[60%] items-center gap-1 truncate rounded-[3px] px-2.5 text-[14px] font-semibold leading-[1.4]', SURFACE, STRONG);
 
 async function revealPassword(id: string): Promise<string> {
   const res = await fetch(`/api/it/subscriptions/${id}/secret`, { cache: 'no-store' });
@@ -57,33 +79,65 @@ async function revealPassword(id: string): Promise<string> {
 }
 
 const toForm = (s: ItSubscription): ItSubscriptionFormValues => ({
-  id: s.id, service: s.service, loginEmail: s.loginEmail, logoUrl: s.logoUrl ?? '', brandColor: s.brandColor ?? '',
-  users: s.users, cardLast4: s.cardLast4 ?? '', startDate: s.startDate ?? '', dueDate: s.dueDate ?? '',
-  notes: s.notes ?? '', active: s.active, hasPassword: s.hasPassword,
+  id: s.id, service: s.service, loginEmail: s.loginEmail, logoUrl: s.logoUrl ?? '',
+  amount: s.amount != null ? String(s.amount) : '', currency: s.currency ?? 'USD', billingCycle: s.billingCycle ?? 'monthly',
+  cardLast4: s.cardLast4 ?? '', startDate: s.startDate ?? '', dueDate: s.dueDate ?? '',
+  seats: s.seats != null ? String(s.seats) : '', notes: s.notes ?? '', users: s.users, active: s.active, hasPassword: s.hasPassword,
 });
-const DUE_SOON_DAYS = 30;
-const CHIP = cn('inline-flex h-7 items-center gap-1 rounded-[4px] border border-secondary-700 pl-2 pr-3 text-[13px] font-semibold dark:border-secondary-50', STRONG);
 
-/** "2026-01-05" → "5 JAN 2026". */
-function formatDay(iso: string | null) {
-  if (!iso) return '—';
-  const d = new Date(`${iso.slice(0, 10)}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return '—';
-  return `${d.getDate()} ${d.toLocaleString('en-US', { month: 'short' }).toUpperCase()} ${d.getFullYear()}`;
+/** Seats taken: one per person or name, a team counts its head count. */
+const usedSeats = (users: SubscriptionUser[]) => users.reduce((n, u) => n + (u.teamSize && u.teamSize > 0 ? u.teamSize : 1), 0);
+/** null = no limit set. */
+function seatState(sub: ItSubscription): { full: boolean; free: number } | null {
+  if (sub.seats == null) return null;
+  const free = sub.seats - usedSeats(sub.users);
+  return { full: free <= 0, free: Math.max(0, free) };
 }
 
+const day = (iso: string | null) => (iso ? formatDay(new Date(`${iso.slice(0, 10)}T00:00:00`)) : '—');
 /** Due date is red when it has passed or is within 30 days. */
 function isDueSoon(iso: string | null) {
   if (!iso) return false;
-  const due = new Date(`${iso.slice(0, 10)}T00:00:00`).getTime();
-  return due - Date.now() <= DUE_SOON_DAYS * 86_400_000;
+  return new Date(`${iso.slice(0, 10)}T00:00:00`).getTime() - Date.now() <= DUE_SOON_DAYS * 86_400_000;
+}
+/** "$ 100", "€ 12.50". */
+function price(sub: ItSubscription) {
+  if (sub.amount == null) return '—';
+  const symbol = CURRENCY_OPTIONS.find(c => c.value === (sub.currency ?? 'USD'))?.symbol ?? '$';
+  const n = Number.isInteger(sub.amount) ? String(sub.amount) : sub.amount.toFixed(2);
+  return `${symbol} ${n}`;
 }
 
-function ServiceLogo({ sub }: { sub: ItSubscription }) {
+function Logo({ name, url }: { name: string; url: string | null }) {
   const [failed, setFailed] = useState(false);
-  if (!sub.logoUrl || failed) return <>{initials(sub.service)}</>;
+  if (!url || failed) return <span className="text-[14px] font-semibold text-secondary-700">{initials(name)}</span>;
   // eslint-disable-next-line @next/next/no-img-element -- service logos come from arbitrary hosts
-  return <img src={sub.logoUrl} alt="" onError={() => setFailed(true)} className="max-h-full max-w-full object-contain" />;
+  return <img src={url} alt="" onError={() => setFailed(true)} className="max-h-full max-w-full object-contain" />;
+}
+
+function SeatBadge({ sub }: { sub: ItSubscription }) {
+  const s = seatState(sub);
+  if (!s) return null;
+  return s.full ? (
+    <span className="shrink-0 rounded-[3px] bg-[var(--status-t10-bg)] px-2 py-px text-[10px] font-semibold leading-[1.4] text-[var(--status-t10-fg)]">FULL</span>
+  ) : (
+    <span className="shrink-0 rounded-[3px] bg-[var(--status-t9-bg)] px-2 py-px text-[10px] font-semibold leading-[1.4] text-[var(--status-t9-fg)]">
+      {s.free} Seat{s.free === 1 ? '' : 's'} Available
+    </span>
+  );
+}
+
+/** "T Lines", "Team Syria", or "3 Users" when more than one is listed. */
+function UsedBy({ users }: { users: SubscriptionUser[] }) {
+  const names = users.map(u => (u.teamSize != null ? `${u.name} (${u.teamSize})` : u.name)).join(', ');
+  if (!users.length) return <span className={VALUE_CHIP}>—</span>;
+  if (users.length === 1) return <span className={VALUE_CHIP} title={names}><span className="truncate">{users[0].name}</span></span>;
+  const n = usedSeats(users);
+  return (
+    <span className={VALUE_CHIP} title={names}>
+      <UserRound size={14} aria-hidden />{n} Users<span className="sr-only">: {names}</span>
+    </span>
+  );
 }
 
 function SubscriptionCard({ sub, showInfo, onRevealPassword, onEdit, onDelete }: {
@@ -93,49 +147,64 @@ function SubscriptionCard({ sub, showInfo, onRevealPassword, onEdit, onDelete }:
   onEdit?: (sub: ItSubscription) => void;
   onDelete?: (sub: ItSubscription) => void;
 }) {
-  const dueSoon = isDueSoon(sub.dueDate);
-  const count = sub.users.length || sub.seats;
-  const names = sub.users.map(u => u.name);
+  const dueSoon = sub.active && isDueSoon(sub.dueDate);
   return (
-    <article className={CARD}>
-      <CardHead
-        title={sub.service}
-        titleStyle={sub.brandColor ? { color: sub.brandColor } : undefined}
-        email={sub.loginEmail}
-        // Figma 908:24358: white "elevated surface" logo tile, 4px radius and padding.
-        pictureClassName="rounded-[4px] bg-white p-1 dark:bg-white dark:text-secondary-700"
-        picture={<ServiceLogo sub={sub} />}
-        menu={onEdit && onDelete ? <>
-          <MenuItem onClick={() => onEdit(sub)}><Pencil aria-hidden /> Edit</MenuItem>
-          <MenuItem onClick={() => onDelete(sub)}><Trash2 aria-hidden /> Delete</MenuItem>
-        </> : undefined}
-      />
-      <SecretField id={sub.id} label={sub.service} showInfo={showInfo} onReveal={onRevealPassword} notConnectedTitle={NOT_CONNECTED} />
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className={CHIP} title={names.join(', ') || undefined}>
-          <UserRound size={16} aria-hidden />
-          {count != null ? `${count} User${count === 1 ? '' : 's'}` : '— Users'}
+    <article className="flex min-w-0 flex-col gap-4 rounded-[16px] border border-ui-divider bg-ui-surface px-4 pb-4 pt-[14px]">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="grid size-[45px] shrink-0 place-items-center overflow-hidden rounded-[8px] border border-ui-divider bg-white p-1">
+          <Logo name={sub.service} url={sub.logoUrl} />
         </span>
-        {sub.cardLast4 && (
-          <span className={CHIP}>
-            <CreditCard size={16} aria-hidden />
-            <span className="sr-only">Card ending in </span>
-            <span aria-hidden>**** **** **** </span>{sub.cardLast4}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex min-w-0 items-center gap-2">
+            <h3 className={cn('m-0 truncate text-[16px] font-semibold leading-5', STRONG)}>{sub.service}</h3>
+            <SeatBadge sub={sub} />
+          </div>
+          <p className="m-0 truncate text-[12px] font-medium leading-4 tracking-[0.36px] text-ui-body opacity-50 dark:opacity-80">{sub.loginEmail || '—'}</p>
+        </div>
+        <Menu>
+          <MenuTrigger render={
+            <button type="button" aria-label={`Actions for ${sub.service}`}
+              className={cn('grid size-[37px] shrink-0 place-items-center rounded-[8px] border border-ui-divider hover:bg-ui-hover-bg focus-visible:outline-2 focus-visible:outline-ui-focus-ring', STRONG)} />
+          }>
+            <Ellipsis size={23} aria-hidden />
+          </MenuTrigger>
+          <MenuContent>
+            {sub.loginEmail && <MenuItem onClick={() => void copyText(sub.loginEmail, 'Email')}>Copy email</MenuItem>}
+            {onEdit && <MenuItem onClick={() => onEdit(sub)}><Pencil aria-hidden /> Edit</MenuItem>}
+            {onDelete && <MenuItem onClick={() => onDelete(sub)}><Trash2 aria-hidden /> Delete</MenuItem>}
+          </MenuContent>
+        </Menu>
+      </div>
+
+      <div className={cn('flex items-center gap-1 rounded-[6px] py-1.5 pl-2.5 pr-1.5', SURFACE)}>
+        <span className={cn('min-w-0 flex-1 truncate text-[20px] font-semibold leading-[1.4]', STRONG)}>{price(sub)}</span>
+        {sub.billingCycle && (
+          <span className={cn('shrink-0 rounded-[6px] bg-ui-surface px-2.5 py-1.5 text-[11px] font-semibold leading-[1.4]', STRONG)}>
+            {sub.billingCycle === 'yearly' ? 'Yearly' : 'Monthly'}
           </span>
         )}
       </div>
 
-      {names.length > 0 && (
-        <p className={cn('m-0 truncate text-[12px]', MUTED)} title={names.join(', ')}>
-          <span className="sr-only">Users: </span>{names.join(', ')}
-        </p>
-      )}
+      {showInfo && <SecretField id={sub.id} label={sub.service} showInfo={showInfo} onReveal={onRevealPassword} notConnectedTitle={NOT_CONNECTED} />}
 
-      <div className="flex flex-wrap items-start justify-between gap-2 text-[13px] font-semibold whitespace-nowrap">
-        <p className={cn('m-0', STRONG)}><span className="font-normal">Start:</span> {formatDay(sub.startDate)}</p>
-        <p className={cn('m-0', dueSoon ? 'text-error-normal' : STRONG)}><span className="font-normal">Due:</span> {formatDay(sub.dueDate)}</p>
-      </div>
+      <div className="border-t border-dashed border-ui-divider" />
+
+      <dl className={cn('m-0 flex flex-col gap-2 text-[14px] leading-[1.4]', STRONG)}>
+        <div className="flex items-start justify-between gap-2">
+          <dt className="font-semibold">Next renewal</dt>
+          <dd className={cn('m-0 font-medium', dueSoon && 'text-error-normal')}>{day(sub.dueDate)}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <dt className="font-semibold">Used Card</dt>
+          <dd className="m-0 flex min-w-0 justify-end">
+            <span className={VALUE_CHIP}>{sub.cardLast4 ? <><span aria-hidden>**** </span><span className="sr-only">ending in </span>{sub.cardLast4}</> : '—'}</span>
+          </dd>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <dt className="font-semibold">Used by</dt>
+          <dd className="m-0 flex min-w-0 justify-end"><UsedBy users={sub.users} /></dd>
+        </div>
+      </dl>
     </article>
   );
 }
@@ -143,7 +212,7 @@ function SubscriptionCard({ sub, showInfo, onRevealPassword, onEdit, onDelete }:
 export function ItSubscriptionsClient({ subscriptions, error = null, canCreate = false, people = [] }: {
   subscriptions: ItSubscription[];
   /** Active staff for the form's user picker. */
-  people?: { id: string; name: string }[];
+  people?: { id: string; name: string; role?: string | null }[];
   error?: string | null;
   /** edit.it: add, edit, delete and show passwords. */
   canCreate?: boolean;
@@ -156,6 +225,8 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('newest');
   const [service, setService] = useState('');
+  const [card, setCard] = useState('');
+  const [seats, setSeats] = useState<Seats>('');
   const [showInfo, setShowInfo] = useState(false);
 
   const activeCount = useMemo(() => subscriptions.filter(s => s.active).length, [subscriptions]);
@@ -163,26 +234,47 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
     const names = [...new Set(subscriptions.map(s => s.service).filter(Boolean))].sort((a, b) => a.localeCompare(b));
     return [{ value: '', label: 'All Subscriptions' }, ...names.map(n => ({ value: n, label: n }))];
   }, [subscriptions]);
+  const cardOptions = useMemo(() => {
+    const cards = [...new Set(subscriptions.map(s => s.cardLast4).filter((v): v is string => !!v))].sort();
+    return [{ value: '', label: 'Card' }, ...cards.map(c => ({ value: c, label: `**** ${c}` }))];
+  }, [subscriptions]);
 
-  const visible = useMemo(() => {
+  const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return subscriptions
+    const list = subscriptions
       .filter(s => s.active === (tab === 'active'))
       .filter(s => !service || s.service === service)
-      .filter(s => !q || `${s.service} ${s.loginEmail} ${s.users.map(u => u.name).join(' ')}`.toLowerCase().includes(q))
+      .filter(s => !card || s.cardLast4 === card)
+      .filter(s => {
+        if (!seats) return true;
+        const st = seatState(s);
+        return seats === 'full' ? !!st?.full : !st?.full;
+      })
+      .filter(s => !q || `${s.service} ${s.loginEmail} ${s.cardLast4 ?? ''} ${s.users.map(u => u.name).join(' ')}`.toLowerCase().includes(q))
       .sort((a, b) => {
         if (sort === 'name') return a.service.localeCompare(b.service);
+        if (sort === 'renewal') return (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999');
         const diff = Date.parse(a.createdAt) - Date.parse(b.createdAt);
         return sort === 'newest' ? -diff : diff;
       });
-  }, [subscriptions, tab, service, query, sort]);
+    // One band per service, in the order its first card sorts.
+    const map = new Map<string, { name: string; logoUrl: string | null; subs: ItSubscription[] }>();
+    for (const s of list) {
+      const key = s.service.trim().toLowerCase();
+      const g = map.get(key) ?? { name: s.service, logoUrl: null, subs: [] };
+      g.subs.push(s);
+      g.logoUrl ??= s.logoUrl;
+      map.set(key, g);
+    }
+    return [...map.values()];
+  }, [subscriptions, tab, service, card, seats, query, sort]);
 
   return (
     <div className="flex w-full flex-col gap-[30px] p-7 font-ui">
       <PageHeading
         trail={[{ label: 'IT', href: '/it/tickets' }, { label: 'Subscriptions', href: '/it/subscriptions' }]}
         title="Subscriptions"
-        subtitle="Company software subscriptions"
+        subtitle="Subscription Management"
         bodyClassName="gap-2"
         titleAdornment={
           <span className="rounded-full bg-primary-50 px-[9px] py-[3px] text-[12px] font-semibold leading-[1.4] text-secondary-700 dark:bg-primary-700 dark:text-secondary-50">
@@ -198,7 +290,7 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
             className="flex h-9 items-center gap-2 rounded-md bg-accent-400 px-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:text-primary-950"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
-            New subscription
+            New Subscriptions
           </button>
         }
       />
@@ -227,28 +319,22 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
           </label>
           <div className="relative">
             <ArrowDownUp aria-hidden="true" className={TOOLBAR_SORT_ICON} />
-            <Select
-              aria-label="Sort subscriptions"
-              className={cn(TOOLBAR_SELECT, 'pl-[34px] dark:pl-[34px]')}
-              value={sort}
-              onValueChange={v => setSort((v ?? 'newest') as Sort)}
-              options={SORT_OPTIONS}
-            />
+            <Select aria-label="Sort subscriptions" className={cn(TOOLBAR_SELECT, 'pl-[34px] dark:pl-[34px]')}
+              value={sort} onValueChange={v => setSort((v ?? 'newest') as Sort)} options={SORTS} />
           </div>
-          <Select
-            aria-label="Filter by service"
-            className={cn(TOOLBAR_SELECT, 'pl-3 dark:pl-3')}
-            value={service}
-            onValueChange={v => setService(v ?? '')}
-            options={serviceOptions}
-          />
+          <Select aria-label="Filter by service" className={cn(TOOLBAR_SELECT, 'pl-3 dark:pl-3')}
+            value={service} onValueChange={v => setService(v ?? '')} options={serviceOptions} />
+          <Select aria-label="Filter by card" className={cn(TOOLBAR_SELECT, 'pl-3 dark:pl-3')}
+            value={card} onValueChange={v => setCard(v ?? '')} options={cardOptions} />
+          <Select aria-label="Filter by seat availability" className={cn(TOOLBAR_SELECT, 'pl-3 dark:pl-3')}
+            value={seats} onValueChange={v => setSeats((v ?? '') as Seats)} options={SEAT_OPTIONS} />
         </div>
         <button
           type="button"
           aria-pressed={showInfo}
           onClick={() => setShowInfo(s => !s)}
           disabled={!onRevealPassword}
-          title={onRevealPassword ? undefined : NOT_CONNECTED}
+          title={onRevealPassword ? 'Show the saved passwords on the cards' : NOT_CONNECTED}
           className={cn(FIELD, 'inline-flex items-center gap-2 font-medium transition-colors hover:bg-ui-hover-bg disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-ui-hover-bg')}
         >
           {showInfo ? 'Hide Info' : 'Show Info'}
@@ -260,7 +346,7 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
         <div role="alert" className="rounded-md border border-[var(--status-t10-fg)] bg-[var(--status-t10-bg)] px-4 py-3 text-[13px] text-[var(--status-t10-fg)]">
           {error}
         </div>
-      ) : visible.length === 0 ? (
+      ) : groups.length === 0 ? (
         <div className="flex flex-col items-center gap-1 rounded-[11px] border border-dashed border-primary-300 px-6 py-14 text-center dark:border-primary-600">
           <p className="m-0 text-[15px] font-semibold text-secondary-700 dark:text-primary-50">
             {tab === 'active' ? 'No active subscriptions' : 'No cancelled subscriptions'}
@@ -270,18 +356,37 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
           </p>
         </div>
       ) : (
-        <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 md:grid-cols-2 xl:grid-cols-4">
-          {visible.map(s => (
-            <li key={s.id} className="min-w-0">
-              <SubscriptionCard sub={s} showInfo={showInfo} onRevealPassword={onRevealPassword}
-                onEdit={canCreate ? sub => setForm(toForm(sub)) : undefined} onDelete={canCreate ? setDeleting : undefined} />
-            </li>
+        <div className="flex flex-col gap-8">
+          {groups.map(g => (
+            <section key={g.name.toLowerCase()} className="flex flex-col gap-2" aria-label={g.name}>
+              <div className={cn('flex items-center gap-[18px] rounded-[16px] px-4 pb-4 pt-[14px]', SURFACE)}>
+                <span className="grid size-[45px] shrink-0 place-items-center overflow-hidden rounded-[8px] bg-white p-1">
+                  <Logo name={g.name} url={g.logoUrl} />
+                </span>
+                <h2 className={cn('m-0 truncate text-[24px] font-semibold leading-5', STRONG)}>{g.name}</h2>
+              </div>
+              <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                {g.subs.map(s => (
+                  <li key={s.id} className="min-w-0">
+                    <SubscriptionCard sub={s} showInfo={showInfo} onRevealPassword={onRevealPassword}
+                      onEdit={canCreate ? sub => setForm(toForm(sub)) : undefined} onDelete={canCreate ? setDeleting : undefined} />
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       )}
 
       {form && (
-        <ItSubscriptionFormDialog initial={form} people={people} onClose={() => setForm(null)} onSaved={() => { setForm(null); router.refresh(); }} />
+        <ItSubscriptionFormDialog
+          initial={form} people={people} onClose={() => setForm(null)} onSaved={() => { setForm(null); router.refresh(); }}
+          onDelete={form.id ? () => {
+            const sub = subscriptions.find(s => s.id === form.id) ?? null;
+            setForm(null);
+            setDeleting(sub);
+          } : undefined}
+        />
       )}
       <ConfirmModal
         open={!!deleting} onOpenChange={o => { if (!o) setDeleting(null); }} tone="destructive" confirmLabel="Delete subscription"

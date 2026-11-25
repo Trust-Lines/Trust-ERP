@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { itApi } from '@/lib/it/server';
 import { isUuid } from '@/lib/it/validate';
-import { cleanSubscriptionInput, cleanSubscriptionUsers, saveSubscriptionUsers, subscriptionAudit } from '@/lib/it/subscriptions';
+import { cleanSubscriptionInput, cleanSubscriptionUsers, hasBilling, isMissingColumn, saveSubscriptionUsers, subscriptionAudit, withoutBilling } from '@/lib/it/subscriptions';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -20,9 +20,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (users && 'error' in users) return NextResponse.json({ error: users.error }, { status: 400 });
   if (!Object.keys(input.value).length && !users) return NextResponse.json({ error: 'Nothing to change' }, { status: 400 });
 
-  const { data, error } = await ctx.admin.from('it_subscriptions')
-    .update({ ...input.value, updated_at: new Date().toISOString() }).eq('id', id).is('deleted_at', null).select('id').maybeSingle();
-  if (error) return NextResponse.json({ error: 'Could not save the subscription' }, { status: 500 });
+  const save = (row: Record<string, unknown>) => ctx.admin.from('it_subscriptions')
+    .update({ ...row, updated_at: new Date().toISOString() }).eq('id', id).is('deleted_at', null).select('id').maybeSingle();
+  let { data, error } = await save(input.value);
+  // Before migration 162: save the rest without the (empty) billing fields.
+  if (isMissingColumn(error) && !hasBilling(input.value)) ({ data, error } = await save(withoutBilling(input.value)));
+  if (error) {
+    return isMissingColumn(error)
+      ? NextResponse.json({ error: 'Run migration 162_it_subscription_billing.sql in Supabase first.' }, { status: 503 })
+      : NextResponse.json({ error: 'Could not save the subscription' }, { status: 500 });
+  }
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (users) {
     const failed = await saveSubscriptionUsers(ctx, id, users.value);
