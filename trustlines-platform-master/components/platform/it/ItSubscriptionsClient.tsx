@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowDownUp, Ellipsis, Eye, EyeOff, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react';
+import { ArrowDownUp, Ellipsis, Eye, EyeOff, LayoutGrid, Pencil, Plus, Rows3, Search, Trash2, UserRound } from 'lucide-react';
 import { ConfirmModal } from '@/components/ui/modal';
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/menu';
 import {
@@ -19,7 +19,7 @@ import { FIELD, MUTED, STRONG, SecretField, copyText, initials, tabClass } from 
 // Figma "New Subscription" (1141:14764): the company's software subscriptions grouped by service —
 // a grey band with the service logo and name, then its cards four across: logo, name, FULL / "N
 // Seats Available" against the maximum users, the login address, the price with Monthly / Yearly,
-// and Next renewal, Used Card, Used by. Toolbar: search, sort, service, card and seat filters, and
+// and Next renewal, Used Card, Used by. Toolbar: search, sort, service, card and seat filters, Grouped / Cards view, and
 // Show Info (reveals the passwords on the cards).
 //
 // Data: it_subscriptions (159, billing 162) and it_subscription_users (160, teams 162) via
@@ -69,7 +69,12 @@ const SEAT_OPTIONS = [
 const DUE_SOON_DAYS = 30;
 /** Figma "main surfaces + cards" grey. */
 const SURFACE = 'bg-primary-50 dark:bg-primary-700';
-const VALUE_CHIP = cn('inline-flex h-5 max-w-[60%] items-center gap-1 truncate rounded-[3px] px-2.5 text-[14px] font-semibold leading-[1.4]', SURFACE, STRONG);
+const VALUE_CHIP = cn('inline-flex h-5 max-w-full shrink-0 items-center gap-1 overflow-hidden whitespace-nowrap rounded-[3px] px-2.5 text-[14px] font-semibold leading-[1.4]', SURFACE, STRONG);
+/** Value side of a row: up to two thirds of the card, so a long name truncates instead of the label. */
+const VALUE_CELL = 'm-0 flex min-w-0 max-w-[66%] justify-end';
+type View = 'grouped' | 'cards';
+const GRID = 'm-0 grid list-none grid-cols-1 gap-2 p-0 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4';
+const VIEW_KEY = 'it.subscriptions.view';
 
 async function revealPassword(id: string): Promise<string> {
   const res = await fetch(`/api/it/subscriptions/${id}/secret`, { cache: 'no-store' });
@@ -149,7 +154,7 @@ function SubscriptionCard({ sub, showInfo, onRevealPassword, onEdit, onDelete }:
 }) {
   const dueSoon = sub.active && isDueSoon(sub.dueDate);
   return (
-    <article className="flex min-w-0 flex-col gap-4 rounded-[16px] border border-ui-divider bg-ui-surface px-4 pb-4 pt-[14px]">
+    <article className="flex min-w-0 flex-col gap-4 rounded-[16px] border border-ui-divider bg-ui-surface-elevated px-4 pb-4 pt-[14px]">
       <div className="flex min-w-0 items-center gap-2">
         <span className="grid size-[45px] shrink-0 place-items-center overflow-hidden rounded-[8px] border border-ui-divider bg-white p-1">
           <Logo name={sub.service} url={sub.logoUrl} />
@@ -179,7 +184,7 @@ function SubscriptionCard({ sub, showInfo, onRevealPassword, onEdit, onDelete }:
       <div className={cn('flex items-center gap-1 rounded-[6px] py-1.5 pl-2.5 pr-1.5', SURFACE)}>
         <span className={cn('min-w-0 flex-1 truncate text-[20px] font-semibold leading-[1.4]', STRONG)}>{price(sub)}</span>
         {sub.billingCycle && (
-          <span className={cn('shrink-0 rounded-[6px] bg-ui-surface px-2.5 py-1.5 text-[11px] font-semibold leading-[1.4]', STRONG)}>
+          <span className={cn('shrink-0 rounded-[6px] bg-ui-surface-elevated px-2.5 py-1.5 text-[11px] font-semibold leading-[1.4]', STRONG)}>
             {sub.billingCycle === 'yearly' ? 'Yearly' : 'Monthly'}
           </span>
         )}
@@ -196,13 +201,13 @@ function SubscriptionCard({ sub, showInfo, onRevealPassword, onEdit, onDelete }:
         </div>
         <div className="flex items-center justify-between gap-2">
           <dt className="font-semibold">Used Card</dt>
-          <dd className="m-0 flex min-w-0 justify-end">
+          <dd className={VALUE_CELL}>
             <span className={VALUE_CHIP}>{sub.cardLast4 ? <><span aria-hidden>**** </span><span className="sr-only">ending in </span>{sub.cardLast4}</> : '—'}</span>
           </dd>
         </div>
         <div className="flex items-center justify-between gap-2">
           <dt className="font-semibold">Used by</dt>
-          <dd className="m-0 flex min-w-0 justify-end"><UsedBy users={sub.users} /></dd>
+          <dd className={VALUE_CELL}><UsedBy users={sub.users} /></dd>
         </div>
       </dl>
     </article>
@@ -228,6 +233,12 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
   const [card, setCard] = useState('');
   const [seats, setSeats] = useState<Seats>('');
   const [showInfo, setShowInfo] = useState(false);
+  // Grouped = a band per service; Cards = all cards side by side. Remembered per browser.
+  const [view, setView] = useState<View>('grouped');
+  useEffect(() => {
+    try { const v = localStorage.getItem(VIEW_KEY); if (v === 'grouped' || v === 'cards') setView(v); } catch { /* storage blocked */ }
+  }, []);
+  const changeView = (v: View) => { setView(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* storage blocked */ } };
 
   const activeCount = useMemo(() => subscriptions.filter(s => s.active).length, [subscriptions]);
   const serviceOptions = useMemo(() => {
@@ -239,7 +250,7 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
     return [{ value: '', label: 'Card' }, ...cards.map(c => ({ value: c, label: `**** ${c}` }))];
   }, [subscriptions]);
 
-  const groups = useMemo(() => {
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = subscriptions
       .filter(s => s.active === (tab === 'active'))
@@ -266,8 +277,9 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
       g.logoUrl ??= s.logoUrl;
       map.set(key, g);
     }
-    return [...map.values()];
+    return { list, groups: [...map.values()] };
   }, [subscriptions, tab, service, card, seats, query, sort]);
+  const { list: visible, groups } = filtered;
 
   return (
     <div className="flex w-full flex-col gap-[30px] p-7 font-ui">
@@ -329,6 +341,16 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
           <Select aria-label="Filter by seat availability" className={cn(TOOLBAR_SELECT, 'pl-3 dark:pl-3')}
             value={seats} onValueChange={v => setSeats((v ?? '') as Seats)} options={SEAT_OPTIONS} />
         </div>
+        <div className="flex items-center gap-2.5">
+        <div role="group" aria-label="View" className="flex h-10 items-center gap-1 rounded-md border border-primary-200 bg-white p-1 dark:border-secondary-500 dark:bg-primary-800">
+          {([['grouped', 'Grouped by service', Rows3], ['cards', 'Cards side by side', LayoutGrid]] as const).map(([v, label, Icon]) => (
+            <button key={v} type="button" aria-pressed={view === v} onClick={() => changeView(v)} title={label} aria-label={label}
+              className={cn('grid h-8 w-8 place-items-center rounded-[4px] transition-colors focus-visible:outline-2 focus-visible:outline-ui-focus-ring',
+                view === v ? 'bg-secondary-700 text-white dark:bg-secondary-50 dark:text-primary-950' : cn('hover:bg-ui-hover-bg', STRONG))}>
+              <Icon size={16} aria-hidden />
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           aria-pressed={showInfo}
@@ -340,13 +362,14 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
           {showInfo ? 'Hide Info' : 'Show Info'}
           {showInfo ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
         </button>
+        </div>
       </div>
 
       {error ? (
         <div role="alert" className="rounded-md border border-[var(--status-t10-fg)] bg-[var(--status-t10-bg)] px-4 py-3 text-[13px] text-[var(--status-t10-fg)]">
           {error}
         </div>
-      ) : groups.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div className="flex flex-col items-center gap-1 rounded-[11px] border border-dashed border-primary-300 px-6 py-14 text-center dark:border-primary-600">
           <p className="m-0 text-[15px] font-semibold text-secondary-700 dark:text-primary-50">
             {tab === 'active' ? 'No active subscriptions' : 'No cancelled subscriptions'}
@@ -355,6 +378,15 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
             {subscriptions.length === 0 ? 'Company software subscriptions will show up here.' : 'Nothing matches these filters.'}
           </p>
         </div>
+      ) : view === 'cards' ? (
+        <ul className={GRID}>
+          {visible.map(s => (
+            <li key={s.id} className="min-w-0">
+                <SubscriptionCard sub={s} showInfo={showInfo} onRevealPassword={onRevealPassword}
+                  onEdit={canCreate ? sub => setForm(toForm(sub)) : undefined} onDelete={canCreate ? setDeleting : undefined} />
+              </li>
+          ))}
+        </ul>
       ) : (
         <div className="flex flex-col gap-8">
           {groups.map(g => (
@@ -365,7 +397,7 @@ export function ItSubscriptionsClient({ subscriptions, error = null, canCreate =
                 </span>
                 <h2 className={cn('m-0 truncate text-[24px] font-semibold leading-5', STRONG)}>{g.name}</h2>
               </div>
-              <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              <ul className={GRID}>
                 {g.subs.map(s => (
                   <li key={s.id} className="min-w-0">
                     <SubscriptionCard sub={s} showInfo={showInfo} onRevealPassword={onRevealPassword}
