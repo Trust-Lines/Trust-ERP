@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type ComponentType, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { ArrowLeft, CalendarPlus, Copy, Lock, Mail, MapPin, Pencil, Phone, Smartphone, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarPlus, Copy, Lock, Mail, MapPin, Pencil, Phone, Smartphone, Trash2 } from 'lucide-react';
 import { PersonFace } from '@/components/ui/avatar-directory';
 import { cn } from '@/lib/utils';
 import { formatTicketDate } from './ticketStyles';
@@ -49,7 +49,7 @@ export interface ItPhoneDetail {
   /** id null = a typed name (no account yet). */
   holder: { id: string | null; name: string; role: string | null; acquiredAt: string | null } | null;
   /** Company device the line runs on; null = personal phone or none. */
-  device: { name: string; imageUrl: string | null; assignedAt: string | null; condition?: 'new' | 'used' | null } | null;
+  device: { name: string; imageUrl: string | null; assignedAt: string | null; condition?: 'new' | 'used' | null; itemId?: string | null } | null;
 }
 
 type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -143,7 +143,7 @@ async function revealSecret(id: string, kind: ItPhoneSecret): Promise<string> {
   return b.value;
 }
 
-export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, people = [], history = [], accounts = [] }: {
+export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, people = [], history = [], accounts = [], phoneItems = [] }: {
   line: ItPhoneDetail | null;
   /** edit.it: Edit Info, Delete, reveal secrets. */
   canEdit?: boolean;
@@ -154,6 +154,8 @@ export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, 
   history?: AssignmentSpellView[];
   /** Carrier accounts in use, for the form's "Same account as". */
   accounts?: PhoneAccount[];
+  /** Items Library phones for the form. */
+  phoneItems?: { id: string; name: string; lineId: string | null }[];
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -275,13 +277,18 @@ export function ItPhoneDetailClient({ line, canEdit = false, editValues = null, 
                   {device.condition && <> · <span className="font-medium">{device.condition === 'used' ? 'Used' : 'New'}</span></>}
                 </p>
               )}
+              {device?.itemId && (
+                <Link href={`/it/items/${device.itemId}`} className={cn('inline-flex items-center gap-1 self-start text-[12px] font-semibold underline-offset-2 hover:underline', STRONG)}>
+                  Open in Items Library <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </Link>
+              )}
             </div>
           </div>
         </aside>
       </div>
 
       {editing && editValues && (
-        <ItPhoneFormDialog initial={editValues} people={people} accounts={accounts} onClose={() => setEditing(false)}
+        <ItPhoneFormDialog initial={editValues} people={people} accounts={accounts} phoneItems={phoneItems} onClose={() => setEditing(false)}
           onSaved={() => { setEditing(false); router.refresh(); }} />
       )}
       <ConfirmModal

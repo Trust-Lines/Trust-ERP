@@ -3,6 +3,7 @@ import { logAudit } from '@/lib/audit/log';
 import { assigneeError, itApi, ITEM_COLS, type ItemRow } from '@/lib/it/server';
 import { cleanItemInput, isUuid } from '@/lib/it/validate';
 import { endAssignment, recordAssignment } from '@/lib/it/assignments';
+import { cleanItemPhoneNumber, itemPhoneError, syncItemPhone, unlinkItemPhone } from '@/lib/it/phoneItemLink';
 
 async function current(admin: unknown, id: string): Promise<ItemRow | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -11,19 +12,25 @@ async function current(admin: unknown, id: string): Promise<ItemRow | null> {
 }
 
 // Item → Edit Info (edit.it): the whole form is sent back. "Acquired at" restarts when the item
-// goes to a different person; the holder is cleared when it's no longer assigned.
+// goes to a different person; the holder is cleared when it's no longer assigned. A phone's
+// `phoneNumber` links / creates / unlinks its line in Phone Numbers (left out = unchanged).
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { ctx, deny } = await itApi('edit');
   if (deny) return deny;
   const { id } = await params;
   if (!isUuid(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const input = cleanItemInput(await req.json().catch(() => null));
+  const body = await req.json().catch(() => null) as Record<string, unknown> | null;
+  const input = cleanItemInput(body);
   if (input.value === null) return NextResponse.json({ error: input.error }, { status: 400 });
   const before = await current(ctx.admin, id);
   if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const bad = await assigneeError(ctx.admin, input.value);
   if (bad) return NextResponse.json({ error: bad }, { status: 400 });
+  const phone = input.value.category === 'phone' ? cleanItemPhoneNumber(body?.phoneNumber) : { value: undefined };
+  if ('error' in phone) return NextResponse.json({ error: phone.error }, { status: 400 });
+  const taken = await itemPhoneError(ctx, id, phone.value);
+  if (taken) return NextResponse.json({ error: taken.error }, { status: taken.status });
 
   const now = new Date().toISOString();
   const sameHolder = before.status === 'assigned' && before.assignee_id === input.value.assignee_id;
@@ -33,11 +40,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq('id', id).is('deleted_at', null);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   await recordAssignment(ctx.admin, { kind: 'item', assetId: id, personId: input.value.assignee_id, actorId: ctx.userId });
+  await syncItemPhone(ctx, { id, name: input.value.name, location: input.value.location, assigneeId: input.value.assignee_id }, phone.value);
 
   await logAudit({
     actorId: ctx.userId, action: 'it.item_updated', resource: `it_item:${id}`,
     oldValue: { name: before.name, category: before.category, location: before.location, status: before.status, assignee_id: before.assignee_id, set_label: before.set_label, remote_address: before.remote_address },
-    newValue: input.value,
+    newValue: { ...input.value, ...(phone.value !== undefined ? { phone_number: phone.value } : {}) },
   });
   return NextResponse.json({ ok: true });
 }
@@ -55,6 +63,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { error } = await ctx.admin.from('it_items').update({ deleted_at: now, updated_at: now }).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   await endAssignment(ctx.admin, 'item', id);
+  await unlinkItemPhone(ctx, id);
   await logAudit({ actorId: ctx.userId, action: 'it.item_deleted', resource: `it_item:${id}`, oldValue: { name: before.name, category: before.category } });
   return NextResponse.json({ ok: true });
 }

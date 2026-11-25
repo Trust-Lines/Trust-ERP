@@ -20,6 +20,8 @@ import { formatTicketDate } from './ticketStyles';
 // plan per month). "Same account as" fills the account from a line already on it — its account
 // number is copied on the server. No dates to type: a new holder / company phone is dated today.
 // Password / PIN / account number are write-only: left empty when editing = unchanged.
+// A company phone can be picked from the Items Library (migration 163): the line then runs on that
+// item, both pages link to each other, and the model is the item's name.
 
 export interface ItPhoneFormValues {
   id?: string;
@@ -30,6 +32,8 @@ export interface ItPhoneFormValues {
   /** A user with no account / email yet (holderId empty). */
   holderName: string;
   deviceName: string; personalDevice: boolean; deviceCondition: '' | 'new' | 'used';
+  /** The Items Library phone ('' = not in the library). */
+  itemId: string;
   email: string; imei: string; location: string; notes: string;
   active: boolean;
   /** Edit only, read-only: dates the system set. */
@@ -41,7 +45,7 @@ export interface ItPhoneFormValues {
 
 export const EMPTY_PHONE: ItPhoneFormValues = {
   number: '', carrier: '', firm: '', accountHolder: '', monthlyCost: '', holderId: '', holderName: '',
-  deviceName: '', personalDevice: false, deviceCondition: '', email: '', imei: '', location: '', notes: '', active: true,
+  deviceName: '', personalDevice: false, deviceCondition: '', itemId: '', email: '', imei: '', location: '', notes: '', active: true,
 };
 
 type HolderMode = 'staff' | 'name';
@@ -82,9 +86,11 @@ function withAccount(v: ItPhoneFormValues, a: PhoneAccount | undefined): ItPhone
   return { ...v, carrier: a.carrier ?? '', firm: a.firm ?? '', accountHolder: a.accountHolder ?? '', location: v.location || a.location || '' };
 }
 
-export function ItPhoneFormDialog({ initial, people, accounts = [], onClose, onSaved }: {
+export function ItPhoneFormDialog({ initial, people, accounts = [], phoneItems = [], onClose, onSaved }: {
   initial: ItPhoneFormValues;
   people: { id: string; name: string }[];
+  /** Items Library phones and the line each runs (lineId null = free). */
+  phoneItems?: { id: string; name: string; lineId: string | null }[];
   /** Accounts already in use, for "Same account as" (newest first). */
   accounts?: PhoneAccount[];
   onClose: () => void;
@@ -104,6 +110,11 @@ export function ItPhoneFormDialog({ initial, people, accounts = [], onClose, onS
   const holderKey = holderMode === 'staff' ? f.holderId : f.holderName.trim().toLowerCase();
   const initialKey = initial.holderId || initial.holderName.trim().toLowerCase();
   const holderChanged = holderKey !== initialKey;
+  const itemId = phoneMode === 'company' ? f.itemId : '';
+  const libraryOptions = [
+    { value: '', label: 'Not in the library (type the model)' },
+    ...phoneItems.filter(i => !i.lineId || i.lineId === initial.id || i.id === initial.itemId).map(i => ({ value: i.id, label: i.name })),
+  ];
   const deviceName = phoneMode === 'company' ? f.deviceName.trim() : '';
   const deviceChanged = deviceName !== initial.deviceName.trim();
   const chosenAccount = accounts.find(a => a.lineId === accountFrom);
@@ -128,7 +139,7 @@ export function ItPhoneFormDialog({ initial, people, accounts = [], onClose, onS
           number: f.number, email: f.email, location: f.location, notes: f.notes,
           holderId: holderMode === 'staff' ? f.holderId : '',
           holderName: holderMode === 'name' ? f.holderName : '',
-          deviceName, personalDevice: phoneMode === 'personal',
+          deviceName, personalDevice: phoneMode === 'personal', itemId,
           deviceCondition: phoneMode === 'company' ? f.deviceCondition : '',
           imei: phoneMode === 'none' ? '' : f.imei,
           carrier: f.carrier, firm: f.firm, accountHolder: f.accountHolder, monthlyCost: f.monthlyCost,
@@ -179,11 +190,21 @@ export function ItPhoneFormDialog({ initial, people, accounts = [], onClose, onS
 
             <Segmented id="itp-phone-mode" label="Phone" value={phoneMode} onChange={setPhoneMode}
               options={[{ value: 'company', label: 'Company phone' }, { value: 'personal', label: 'Personal phone' }, { value: 'none', label: 'No phone' }]} />
+            {phoneMode === 'company' && phoneItems.length > 0 && (
+              <FormField id="itp-item" label="Phone from the Items Library" hint="Links the line and the phone: each page shows the other">
+                <Select id="itp-item" className={FORM_FIELD} value={f.itemId} options={libraryOptions}
+                  onValueChange={v => {
+                    const item = phoneItems.find(i => i.id === v);
+                    setF(p => ({ ...p, itemId: v ?? '', deviceName: item ? item.name : p.itemId ? '' : p.deviceName }));
+                  }} />
+              </FormField>
+            )}
             {phoneMode !== 'none' && (
               <div className={cn('grid grid-cols-1 gap-4', phoneMode === 'company' ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-2')}>
                 {phoneMode === 'company' && <>
                   <FormField id="itp-device" label="Model" required>
-                    <Input id="itp-device" maxLength={80} className={FORM_FIELD} value={f.deviceName} onChange={e => set('deviceName', e.target.value)} placeholder="iPhone 12" />
+                    <Input id="itp-device" maxLength={80} className={FORM_FIELD} value={f.deviceName} onChange={e => set('deviceName', e.target.value)} placeholder="iPhone 12"
+                      readOnly={!!f.itemId} title={f.itemId ? 'The library item’s name' : undefined} />
                   </FormField>
                   <FormField id="itp-cond" label="Condition">
                     <Select id="itp-cond" className={FORM_FIELD} value={f.deviceCondition} options={CONDITION_OPTIONS}

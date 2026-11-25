@@ -127,7 +127,7 @@ function PhoneCard({ line }: { line: ItPhoneLine }) {
   );
 }
 
-export function ItPhonesClient({ lines, error = null, canCreate = false, people = [], accounts = [] }: {
+export function ItPhonesClient({ lines, error = null, canCreate = false, people = [], accounts = [], phoneItems = [] }: {
   lines: ItPhoneLine[];
   error?: string | null;
   canCreate?: boolean;
@@ -135,6 +135,8 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
   people?: { id: string; name: string }[];
   /** Carrier accounts in use, for the form's "Same account as". */
   accounts?: PhoneAccount[];
+  /** Items Library phones for the form's "Phone from the Items Library". */
+  phoneItems?: { id: string; name: string; lineId: string | null }[];
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
@@ -274,7 +276,7 @@ export function ItPhonesClient({ lines, error = null, canCreate = false, people 
       )}
 
       {adding && (
-        <ItPhoneFormDialog initial={EMPTY_PHONE} people={people} accounts={accounts} onClose={() => setAdding(false)}
+        <ItPhoneFormDialog initial={EMPTY_PHONE} people={people} accounts={accounts} phoneItems={phoneItems} onClose={() => setAdding(false)}
           onSaved={() => { setAdding(false); router.refresh(); }} />
       )}
     </div>

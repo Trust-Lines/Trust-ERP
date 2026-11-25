@@ -11,6 +11,8 @@ import { isUuid } from './validate';
 const BASE_COLS = 'id, number, carrier, firm, holder_id, holder_since, device_name, personal_device, device_assigned_at, email, imei, location, start_date, notes, retired_at, created_at, password_enc, pin_enc, account_number_enc';
 /** 161: the sheet's extra fields. */
 export const PHONE_COLS = `${BASE_COLS}, holder_name, account_holder, monthly_cost, device_condition`;
+/** 163: the library phone the line runs on. */
+const LINKED_COLS = `${PHONE_COLS}, item_id`;
 export type PhoneSecretKind = 'password' | 'pin' | 'accountNumber';
 export const SECRET_COLUMN: Record<PhoneSecretKind, string> = { password: 'password_enc', pin: 'pin_enc', accountNumber: 'account_number_enc' };
 export type DeviceCondition = 'new' | 'used';
@@ -21,6 +23,7 @@ interface Row {
   location: string | null; start_date: string | null; notes: string | null; retired_at: string | null; created_at: string;
   password_enc: string | null; pin_enc: string | null; account_number_enc: string | null;
   holder_name?: string | null; account_holder?: string | null; monthly_cost?: number | string | null; device_condition?: string | null;
+  item_id?: string | null;
 }
 
 /** A line for the editor and the pages — secrets reduced to "is one stored". */
@@ -32,6 +35,8 @@ export interface PhoneLineData {
   holderRole: string | null; holderSince: string | null;
   deviceName: string | null; personalDevice: boolean; deviceAssignedAt: string | null;
   deviceCondition: DeviceCondition | null;
+  /** The Items Library phone the line runs on (migration 163). */
+  itemId: string | null;
   email: string | null; imei: string | null; location: string | null; startDate: string | null; notes: string | null;
   accountHolder: string | null;
   /** USD per month. */
@@ -40,11 +45,13 @@ export interface PhoneLineData {
   hasSecret: Record<PhoneSecretKind, boolean>;
 }
 
-/** Selects with the 161 columns, or without them while the migration hasn't run. */
+/** Selects with the 163 / 161 columns, or without them while those migrations haven't run. */
 const missingColumn = (e: { message?: string } | null) => !!e && /column|schema cache/i.test(e.message ?? '');
 async function selectLines(build: (cols: string) => PromiseLike<{ data: unknown; error: { message?: string } | null }>) {
-  const r = await build(PHONE_COLS);
-  return missingColumn(r.error) ? build(BASE_COLS) : r;
+  const r = await build(LINKED_COLS);
+  if (!missingColumn(r.error)) return r;
+  const r2 = await build(PHONE_COLS);
+  return missingColumn(r2.error) ? build(BASE_COLS) : r2;
 }
 
 async function holders(admin: any, ids: (string | null)[]) {
@@ -64,6 +71,7 @@ function toData(r: Row, who: Awaited<ReturnType<typeof holders>>): PhoneLineData
     holderRole: h?.role ?? null, holderSince: r.holder_since,
     deviceName: r.device_name, personalDevice: r.personal_device, deviceAssignedAt: r.device_assigned_at,
     deviceCondition: r.device_condition === 'new' || r.device_condition === 'used' ? r.device_condition : null,
+    itemId: r.item_id ?? null,
     email: r.email, imei: r.imei, location: r.location, startDate: r.start_date, notes: r.notes,
     accountHolder: r.account_holder ?? null, monthlyCost: cost != null && Number.isFinite(cost) ? cost : null,
     active: !r.retired_at, createdAt: r.created_at,
@@ -146,6 +154,8 @@ export function cleanPhoneInput(raw: unknown, partial: boolean): { value: Record
     out.holder_name = out.holder_id ? null : text(b.holderName, 120);
   }
   if (has('personalDevice')) out.personal_device = b.personalDevice === true;
+  // The library phone (163); the route checks it and copies its name into device_name.
+  if ('itemId' in b) out.item_id = isUuid(b.itemId) ? b.itemId : null;
   if (has('deviceCondition')) {
     const c = b.deviceCondition;
     if (c !== undefined && c !== null && c !== '' && c !== 'new' && c !== 'used') return { error: 'Condition must be New or Used' };
@@ -193,6 +203,24 @@ export const SHEET_FIELDS = ['holder_name', 'account_holder', 'monthly_cost', 'd
 export const withoutSheetFields = (row: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(row).filter(([k]) => !(SHEET_FIELDS as readonly string[]).includes(k)));
 export const isMissingColumn = missingColumn;
+
+type Write = (row: Record<string, unknown>) => PromiseLike<{ data?: unknown; error: { message?: string } | null }>;
+/**
+ * Insert / update a line, stepping back while migrations 163 / 161 haven't run: an empty item link
+ * is dropped first, then the (empty) sheet fields — never a value that holds the user or the phone.
+ * Returns the result and, on a missing column, which migration to run.
+ */
+export async function writeLine(write: Write, row: Record<string, unknown>): Promise<{ data?: unknown; error: { message?: string } | null; migration: string | null }> {
+  let r = await write(row);
+  let next = row;
+  if (missingColumn(r.error) && 'item_id' in next && next.item_id == null) {
+    next = Object.fromEntries(Object.entries(next).filter(([k]) => k !== 'item_id'));
+    r = await write(next);
+  }
+  if (missingColumn(r.error) && !next.holder_name && next.item_id == null) r = await write(withoutSheetFields(next));
+  const migration = missingColumn(r.error) ? (row.item_id ? '163_it_phone_line_item.sql' : '161_it_phone_sheet_fields.sql') : null;
+  return { ...r, migration };
+}
 
 /** Today as YYYY-MM-DD (UTC). */
 export const today = (now = new Date()) => now.toISOString().slice(0, 10);
