@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowDownUp, Ellipsis, ExternalLink, Link2, MapPin, Pencil, Plus, Printer, Search, Trash2 } from 'lucide-react';
+import { ArrowDownUp, Copy, Ellipsis, ExternalLink, Link2, MapPin, Pencil, Plus, Printer, Search, Trash2 } from 'lucide-react';
 import { Menu, MenuContent, MenuItem, MenuLinkItem, MenuTrigger } from '@/components/ui/menu';
 import { ConfirmModal } from '@/components/ui/modal';
 import { Select } from '@/components/ui/select';
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { PageHeading } from '@/components/platform/shared/PageHeading';
 import { MonitorPcIcon } from './MonitorPcIcon';
 import { TOOLBAR_SELECT, TOOLBAR_SORT_ICON } from './ticketStyles';
+import { MAX_DUPLICATES } from '@/lib/it/duplicateItem';
 import { EMPTY_ITEM, ItItemFormDialog } from './ItItemFormDialog';
 import { LabelSheetDialog } from './LabelSheetDialog';
 import { CATEGORY_LABEL, MUTED, OUTLINE_CHIP, SOLID_CHIP, STRONG, formatItemDate, type ItItem, type ItItemCategory } from './itemStyles';
@@ -61,8 +62,8 @@ function StatusPill({ item }: { item: ItItem }) {
   );
 }
 
-/** One item card (also used on IT → Staff member). Delete shows only when `onDelete` is given. */
-export function ItemCard({ item, canEdit, onDelete }: { item: ItItem; canEdit: boolean; onDelete?: (item: ItItem) => void }) {
+/** One item card (also used on IT → Staff member). Duplicate / Delete show only when their handler is given. */
+export function ItemCard({ item, canEdit, onDelete, onDuplicate }: { item: ItItem; canEdit: boolean; onDelete?: (item: ItItem) => void; onDuplicate?: (item: ItItem) => void }) {
   const available = item.status === 'available';
   return (
     <article
@@ -107,6 +108,11 @@ export function ItemCard({ item, canEdit, onDelete }: { item: ItItem; canEdit: b
                 <MenuLinkItem render={<Link href={`/it/items/${encodeURIComponent(item.id)}?edit=1`} />}>
                   <Pencil aria-hidden /> Edit Info
                 </MenuLinkItem>
+                {onDuplicate && (
+                  <MenuItem onClick={() => onDuplicate(item)}>
+                    <Copy aria-hidden /> Duplicate
+                  </MenuItem>
+                )}
                 {onDelete && (
                   <MenuItem onClick={() => onDelete(item)}>
                     <Trash2 aria-hidden /> Delete
@@ -149,6 +155,26 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false, a
   const [adding, setAdding] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [deleting, setDeleting] = useState<ItItem | null>(null);
+  const [duplicating, setDuplicating] = useState<ItItem | null>(null);
+  const [copies, setCopies] = useState('1');
+
+  async function duplicate(item: ItItem) {
+    const count = Number(copies);
+    if (!Number.isInteger(count) || count < 1 || count > MAX_DUPLICATES) {
+      toast.error(`Choose between 1 and ${MAX_DUPLICATES} copies`);
+      throw new Error('bad count');
+    }
+    const res = await fetch(`/api/it/items/${item.id}/duplicate`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ count }),
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => null) as { error?: string } | null;
+      toast.error(j?.error ?? 'Could not duplicate the item');
+      throw new Error('duplicate failed');
+    }
+    toast.success(count === 1 ? `${item.name} duplicated` : `${count} copies of ${item.name} added`);
+    router.refresh();
+  }
 
   async function remove(item: ItItem) {
     const res = await fetch(`/api/it/items/${item.id}`, { method: 'DELETE' });
@@ -270,7 +296,7 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false, a
         <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visible.map(i => (
             <li key={i.id}>
-              <ItemCard item={i} canEdit={canCreate} onDelete={setDeleting} />
+              <ItemCard item={i} canEdit={canCreate} onDelete={setDeleting} onDuplicate={it => { setCopies('1'); setDuplicating(it); }} />
             </li>
           ))}
         </ul>
@@ -292,6 +318,22 @@ export function ItItemsLibraryClient({ items, error = null, canCreate = false, a
           onCreated={() => router.refresh()}
         />
       )}
+      <ConfirmModal
+        open={!!duplicating}
+        onOpenChange={o => { if (!o) setDuplicating(null); }}
+        title="Duplicate item?"
+        description={duplicating ? `Copies of ${duplicating.name} with the same photo, type, office, notes and specs. Each copy starts available — no one holds it.` : undefined}
+        confirmLabel="Duplicate"
+        onConfirm={async () => { if (duplicating) await duplicate(duplicating); setDuplicating(null); }}
+      >
+        <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ui-body">
+          How many copies?
+          <input
+            type="number" min={1} max={MAX_DUPLICATES} step={1} value={copies} onChange={e => setCopies(e.target.value)}
+            className="h-10 w-28 rounded-md border border-[var(--ui-input-border)] bg-ui-input-bg px-3 text-[14px] text-secondary-700 outline-none focus-visible:outline-2 focus-visible:outline-ui-focus-ring dark:text-secondary-50"
+          />
+        </label>
+      </ConfirmModal>
       <ConfirmModal
         open={!!deleting}
         onOpenChange={o => { if (!o) setDeleting(null); }}
