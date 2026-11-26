@@ -48,11 +48,13 @@ interface Props {
   canEdit?: boolean;
   onClose?: () => void;
   aside?: React.ReactNode;
+  /** Inside another pop-up that shows the steps itself (dashboard card → Client Info). */
+  hideSteps?: boolean;
 }
 
 export function ProspectDetailClient({
   initialProspect, initialContacts, initialLocations, initialNeeds, initialPotentials, initialOpportunities,
-  initialFiles = [], showsAttended = [], assignees = [], canEdit, onClose, aside,
+  initialFiles = [], showsAttended = [], assignees = [], canEdit, onClose, aside, hideSteps,
 }: Props) {
   const router = useRouter();
   const [prospect, setProspect] = useState<Prospect>(initialProspect);
@@ -335,7 +337,7 @@ export function ProspectDetailClient({
 
   return (
     <div className={cn('flex min-h-0 flex-col gap-6', onClose && 'h-full')}>
-      <StepStrip step={step} onStep={setStep} flush={!!onClose} />
+      {!hideSteps && <StepStrip step={step} onStep={setStep} flush={!!onClose} />}
       {!onClose && (
         <Link href="/marketing/prospects" className="btn btn-ghost btn-sm self-start">
           <ArrowLeft size={14} /> Contacts
