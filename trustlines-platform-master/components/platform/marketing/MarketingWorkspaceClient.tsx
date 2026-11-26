@@ -94,7 +94,7 @@ export function MarketingWorkspaceClient({ role, isManager, myDaySections, teamG
       {/* ── Page heading ─────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-[5px] leading-[1.35]">
         <PageCrumbs items={[{ label: 'Sales & Marketing', href: '/marketing' }, { label: 'Home', href: '/marketing' }]} />
-        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Marketing Home</h1>
+        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Home</h1>
         <p className="text-[13px] text-ui-body">
           {ROLE_LABEL[role] ?? role} · {isManager ? 'sees every Lead and Opportunity' : 'sees Leads and Opportunities in your region'}
           {` · ${myStats.weeklyActivityCount} action${myStats.weeklyActivityCount === 1 ? '' : 's'} this week`}

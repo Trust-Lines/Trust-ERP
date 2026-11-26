@@ -5,6 +5,7 @@ import { requirePage } from '@/lib/permissions/requirePage';
 import { ProspectsTrashClient, type ProspectTrashRow, type NeedTrashRow } from '@/components/platform/marketing/ProspectsTrashClient';
 import { MARKETING_READ_ROLES, MARKETING_MANAGE_ROLES } from '@/lib/marketing/roles';
 import type { UserRole } from '@/types/database';
+import { SectionTabs } from '@/components/platform/shared/SectionTabs';
 
 const PURGE_DAYS = 30;
 
@@ -120,6 +121,7 @@ export default async function ProspectsTrashPage() {
 
   return (
     <div className="main-inner">
+      <SectionTabs group="trash" current="/marketing/prospects/trash" />
       <ProspectsTrashClient rows={rows} needRows={needRowsOut} canPurge={MARKETING_MANAGE_ROLES.includes(userRole)} purgeDays={PURGE_DAYS} />
     </div>
   );

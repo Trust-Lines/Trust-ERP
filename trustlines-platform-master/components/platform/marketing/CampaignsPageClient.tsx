@@ -167,7 +167,7 @@ export function CampaignsPageClient({ initialCampaigns, canEdit, canSeeAll, load
     return (
       <div className="rounded-[8px] border border-ui-divider bg-ui-surface-elevated p-12 text-center text-[13px] text-ui-text-secondary">
         <AlertTriangle size={28} className="mx-auto mb-2" style={{ color: 'var(--status-t7-fg)' }} />
-        <div>Campaigns & Surveys isn&apos;t ready yet. Migration 086 needs to be applied.</div>
+        <div>Events & Campaigns isn&apos;t ready yet. Migration 086 needs to be applied.</div>
       </div>
     );
   }
@@ -175,8 +175,8 @@ export function CampaignsPageClient({ initialCampaigns, canEdit, canSeeAll, load
   return (
     <div className="w-full pb-12">
       <div className="mb-[18px] flex flex-col gap-[5px] leading-[1.35]">
-        <PageCrumbs items={[{ label: 'Sales & Marketing', href: '/marketing' }, { label: 'Campaigns & Surveys', href: '/marketing/campaigns' }]} />
-        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Campaigns &amp; Surveys</h1>
+        <PageCrumbs items={[{ label: 'Sales & Marketing', href: '/marketing' }, { label: 'Events & Campaigns', href: '/marketing/campaigns' }]} />
+        <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Events &amp; Campaigns</h1>
         <p className="m-0 text-[13px] text-ui-body">
           {campaigns.length} campaign{campaigns.length !== 1 ? 's' : ''}{canSeeAll ? '' : ' — yours'} · each one has its own public survey link and QR code.
         </p>

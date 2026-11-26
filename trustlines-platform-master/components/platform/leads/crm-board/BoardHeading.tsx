@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Palette, Plus } from 'lucide-react';
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { HEADING } from '@/components/platform/shared/panelStyles';
 import { cn } from '@/lib/utils';
@@ -17,7 +17,15 @@ export function BoardHeading({ total }: { total: number }) {
         </p>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
+        {/* Designs the designer sent to Sales ("Send to Sales") — was its own sidebar link. */}
+        <Link
+          href="/design?scope=review"
+          className="inline-flex h-9 items-center gap-2 rounded-[6px] px-3 text-[13px] font-medium leading-[1.35] text-[var(--color-secondary-700)] no-underline transition-colors hover:bg-ui-hover-bg dark:text-ui-heading [&_svg]:size-4"
+        >
+          <Palette aria-hidden />
+          Design Reviews
+        </Link>
         <Link
           href="/leads/new"
           className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-[var(--color-secondary-700)] pl-3 pr-5 text-[13px] font-medium leading-[1.35] text-[var(--color-secondary-700)] no-underline transition-colors hover:bg-ui-hover-bg dark:border-ui-heading dark:text-ui-heading [&_svg]:size-4"

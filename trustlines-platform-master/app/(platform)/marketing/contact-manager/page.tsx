@@ -3,6 +3,7 @@ import { requirePage } from '@/lib/permissions/requirePage';
 import { MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
 import { ContactManagerClient } from '@/components/platform/marketing/ContactManagerClient';
 import type { UserRole } from '@/types/database';
+import { SectionTabs } from '@/components/platform/shared/SectionTabs';
 
 export default async function ContactManagerPage() {
   // Same gate as Contacts — this is a second, simpler front door onto the same table.
@@ -16,6 +17,7 @@ export default async function ContactManagerPage() {
 
   return (
     <div style={{ padding: '24px 32px' }}>
+      <SectionTabs group="contacts" current="/marketing/contact-manager" />
       <ContactManagerClient canEdit={canEdit} />
     </div>
   );

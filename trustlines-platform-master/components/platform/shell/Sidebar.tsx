@@ -9,6 +9,7 @@ import {
   HardDrive,
   HardHat,
   LayoutDashboard,
+  House,
   FolderKanban,
   Columns3,
   CheckSquare,
@@ -30,12 +31,10 @@ import {
   ShieldCheck,
   Globe,
   Target,
-  FilePlus,
   BarChart3,
   ListChecks,
   Package,
   Receipt,
-  Megaphone,
   Inbox,
   QrCode,
   Mail,
@@ -77,6 +76,10 @@ interface NavItem {
   icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
   perm: string;
   exact?: boolean;
+  /** Other pages this one link stands for: the first the user may open becomes the link. */
+  alts?: { href: string; perm: string }[];
+  /** More paths that light this link up (its sub-pages / tabs). */
+  also?: string[];
 }
 
 export const ROLE_LABELS: Record<string, string> = {
@@ -202,7 +205,6 @@ const ADMIN_NAV: NavItem[] = [
   { label: 'Trash',               href: '/projects/trash', icon: Trash2,       perm: 'page.trash' },
   { label: 'Dropbox Wizard',      href: '/dropbox-wizard', icon: FolderSearch, perm: 'page.dropbox_wizard' },
   { label: 'Dropbox Matching',    href: '/dropbox-matching', icon: FolderSync, perm: 'page.dropbox_wizard' },
-  { label: 'ClickUp Review',      href: '/clickup-review', icon: ListRestart, perm: 'page.clickup_review' },
   { label: 'Audit Log',           href: '/audit',          icon: ScrollText,   perm: 'page.audit' },
   { label: 'Settings',            href: '/settings',       icon: Settings,     perm: 'page.settings' },
 ];
@@ -217,37 +219,33 @@ const HR_NAV: NavItem[] = [
   { label: 'Reports',   href: '/hr/reports',  icon: ChartNoAxesCombined, perm: 'page.team' },
 ];
 
-const CRM_BOARD_NAV: NavItem[] = [
-  { label: 'CRM Board', href: '/leads', icon: Target, perm: 'page.leads', exact: true },
-];
-const SALES_NAV: NavItem[] = [
-  { label: 'Quick Deals',        href: '/leads/new',      icon: FilePlus,   perm: 'page.leads' },
-  { label: 'Tasks',              href: '/sales-tasks',    icon: ListChecks, perm: 'page.sales_tasks' },
-  { label: 'Handoffs',           href: '/sales-projects', icon: Inbox,      perm: 'page.sales_handoffs' },
-];
-// Marketing Home (`/marketing`) comes first on purpose — it's the actual landing page for the
-// whole module (MarketingWorkspaceClient), and it was previously reachable from NOWHERE in the
-// sidebar.
-//
-// 🔴 2026-09-23: "Potentials" direct nav link removed — that free-browsing list (122+ rows,
-// no query required) is exactly what the Contacts query-builder restriction was just added to
-// close off. Its data is still reachable, just query-first now: Contacts' "project status:
-// none/active" quick-query buttons cover the same ground. Route itself
-// (/marketing/opportunities) is untouched in case something still links to it directly.
-const MARKETING_NAV: NavItem[] = [
-  { label: 'Marketing Home',      href: '/marketing',               icon: Megaphone,    perm: 'page.marketing' },
-  { label: 'Contacts',            href: '/marketing/prospects',     icon: FolderSearch, perm: 'page.marketing_contacts' },
-  // 2026-09-28: query-builder Contacts still requires a criterion — this is the one deliberate
-  // exception, "type a name, see everyone" for whoever just needs to look a person up.
-  { label: 'Contact Manager',     href: '/marketing/contact-manager', icon: UserSearch,  perm: 'page.marketing_contact_manager' },
-  { label: 'Email Campaigns',     href: '/marketing/email',         icon: MailOpen,     perm: 'page.marketing_email' },
-  { label: 'Mail Templates',      href: '/marketing/mail-templates', icon: Mail,        perm: 'page.marketing_mail_templates' },
-  { label: 'Campaigns & Surveys', href: '/marketing/campaigns',     icon: QrCode,       perm: 'page.marketing_campaigns' },
-  // Marketing & PR workspace (migration 127): social media tracking + the team calendar.
-  { label: 'Social Media',        href: '/marketing/social',        icon: Share2,       perm: 'page.marketing_social' },
-  { label: 'Calendar',            href: '/marketing/calendar',      icon: CalendarDays, perm: 'page.marketing_calendar' },
-  { label: 'Website (Store Maker)', href: '/marketing/website',     icon: Globe,        perm: 'page.marketing_website' },
-  { label: 'Contacts Trash',      href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing_trash' },
+// 2026-11-26: one Sales & Marketing group, tidied — daily work first, then the pipeline, contacts,
+// marketing tools and the manager pages. Pages that did the same job are one link now: the link
+// opens the first of them the user may open, and the others are tabs on that page (SectionTabs).
+// Quick Deal and Design Reviews are buttons on the CRM Board instead of their own links.
+const SALES_MARKETING_NAV: NavItem[] = [
+  { label: 'Home',                href: '/marketing',          icon: House,       perm: 'page.marketing', exact: true },
+  { label: 'Inbox',               href: '/sales-inbox',        icon: Globe,       perm: 'page.sales_web_leads' },
+  { label: 'Tasks',               href: '/sales-tasks',        icon: ListChecks,  perm: 'page.sales_tasks' },
+  { label: 'CRM Board',           href: '/leads',              icon: Target,      perm: 'page.leads', exact: true, also: ['/leads/new'] },
+  { label: 'Handoffs',            href: '/sales-projects',     icon: Inbox,       perm: 'page.sales_handoffs' },
+  // Customers = the real end customer, after a project is won (addresses, meetings, handover).
+  CUSTOMERS_ITEM,
+  { label: 'Contacts', href: '/marketing/contact-manager', icon: UserSearch, perm: 'page.marketing_contact_manager',
+    alts: [{ href: '/marketing/prospects', perm: 'page.marketing_contacts' }, { href: '/sales-contacts', perm: 'page.sales_contacts' }],
+    also: ['/marketing/import'] },
+  { label: 'Events & Campaigns',  href: '/marketing/campaigns', icon: QrCode,     perm: 'page.marketing_campaigns' },
+  { label: 'Email', href: '/marketing/email', icon: MailOpen, perm: 'page.marketing_email',
+    alts: [{ href: '/marketing/mail-templates', perm: 'page.marketing_mail_templates' }] },
+  { label: 'Social Media',        href: '/marketing/social',   icon: Share2,      perm: 'page.marketing_social' },
+  { label: 'Calendar',            href: '/marketing/calendar', icon: CalendarDays, perm: 'page.marketing_calendar' },
+  { label: 'Website',             href: '/marketing/website',  icon: Globe,       perm: 'page.marketing_website' },
+  // Manager pages — each follows its own Roles & Permissions key.
+  { label: 'Reports',             href: '/sales-dashboard',    icon: BarChart3,   perm: 'page.sales_dashboard' },
+  { label: 'Sales Team',          href: '/sales-team',         icon: Users,       perm: 'page.sales_team' },
+  { label: 'ClickUp Review',      href: '/clickup-review',     icon: ListRestart, perm: 'page.clickup_review' },
+  { label: 'Trash', href: '/leads/trash', icon: Trash2, perm: 'page.leads_trash',
+    alts: [{ href: '/marketing/prospects/trash', perm: 'page.marketing_trash' }] },
 ];
 
 export function roleLabel(role: string) {
@@ -278,16 +276,24 @@ const RAIL_IDLE = 'h-[30px] text-[#787881] hover:bg-primary-50 hover:text-second
 const RAIL_ACTIVE = 'h-12 bg-secondary-700 text-white dark:bg-secondary-50 dark:text-primary-950';
 const DIVIDER = 'h-px w-full bg-primary-100 dark:bg-primary-600';
 
-function isOn(pathname: string, item: NavItem) {
-  return pathname === item.href || (!item.exact && !!pathname?.startsWith(`${item.href}/`));
+const onPath = (pathname: string, href: string, exact?: boolean) =>
+  pathname === href || (!exact && !!pathname?.startsWith(`${href}/`));
+
+/** How closely the page matches a link (the longest of its paths that matches; 0 = not at all). */
+function matchLength(pathname: string, item: NavItem) {
+  const own = onPath(pathname, item.href, item.exact) ? item.href.length : 0;
+  return Math.max(own, ...(item.also ?? []).map(h => (onPath(pathname, h) ? h.length : 0)));
 }
 
 /** Longest matching href in a section (so /leads/new beats /leads), or the override. */
 function activeHrefIn(section: NavSection, pathname: string) {
   if (section.activeOverride && section.items.some(i => i.href === section.activeOverride)) return section.activeOverride;
-  return section.items
-    .filter(i => isOn(pathname, i))
-    .reduce((best, i) => (i.href.length > best.length ? i.href : best), '');
+  let best = ''; let bestLen = 0;
+  for (const i of section.items) {
+    const len = matchLength(pathname, i);
+    if (len > bestLen) { best = i.href; bestLen = len; }
+  }
+  return best;
 }
 
 /** Groups and pages this user may open — shared by the sidebar and the top-bar page search. */
@@ -296,49 +302,21 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
   // Every link checks its own page key (Roles & Permissions); a page a role hasn't set yet
   // follows its old default — see pageAllowed in lib/permissions/catalog.ts.
   const allowed = (items: NavItem[]) => items.filter(i => pageAllowed(userRole, userPerms, i.perm));
-  const marketingNav = allowed(MARKETING_NAV);
-
-  // 2026-11-26: Sales and Marketing are one team again — one "Sales & Marketing" group, Sales pages
-  // first, then Marketing's. Pages both sides had are listed once (see below); who sees which page
-  // is set per page in Roles & Permissions.
-  const salesNav: NavItem[] = [
-    // 2026-11-05: Store Maker website submissions first — new inbound people are Sales' first job.
-    { label: 'Store Maker Inbox', href: '/sales-inbox', icon: Globe, perm: 'page.sales_web_leads' },
-    ...CRM_BOARD_NAV,
-    { label: 'Contacts', href: '/sales-contacts', icon: UserSearch, perm: 'page.sales_contacts' },
-    // 2026-11-06: designs the designer sent to Sales ("Send to Sales") — the Design workspace's
-    // "In Sales Review" view, so Sales finds proposals without leaving its own menu.
-    { label: 'Design Reviews', href: '/design?scope=review', icon: Palette, perm: 'page.design' },
-    ...SALES_NAV,
-    { label: 'Dashboard', href: '/sales-dashboard', icon: BarChart3, perm: 'page.sales_dashboard' },
-    { label: 'Sales Team', href: '/sales-team', icon: Users, perm: 'page.sales_team' },
-    // Customers = the real end-customer record, used AFTER a project is won/delivered
-    // (addresses, contacts, meetings, follow-ups, handover). That's a Sales/T-Lines
-    // relationship concern, not something Trust Lines' internal ops/production side needs —
-    // it used to be its own standalone sidebar item between Projects and Operations, visible
-    // to everyone including roles that never touch a customer relationship. Living inside
-    // this group means it only shows for Sales-side roles (showSales below), same as the rest
-    // of the Sales nav.
-    CUSTOMERS_ITEM,
-    { label: 'Deals Trash', href: '/leads/trash', icon: Trash2, perm: 'page.leads_trash' },
-  ];
-
-  // The Sales group shows when the person can open a Sales page; Customers alone (which
-  // internal roles also have) doesn't make it a Sales group.
-  const salesItems = allowed(salesNav);
-  const showSales = salesItems.some(i => i !== CUSTOMERS_ITEM) || marketingNav.length > 0;
-  // Sales → Contacts is the read-only Contact Manager: whoever can open Marketing's (editable)
-  // Contact Manager gets only that one.
-  const hasContactManager = marketingNav.some(i => i.href === '/marketing/contact-manager');
-  const salesMarketingItems = [
-    ...salesItems.filter(i => !(hasContactManager && i.href === '/sales-contacts')),
-    ...marketingNav,
-  ];
+  // A link standing for several pages opens the first one this user may open.
+  const resolve = (items: NavItem[]) => items.flatMap(i => {
+    const options = [{ href: i.href, perm: i.perm }, ...(i.alts ?? [])];
+    const pick = options.find(o => pageAllowed(userRole, userPerms, o.perm));
+    if (!pick) return [];
+    return [{ ...i, href: pick.href, perm: pick.perm, also: [...(i.also ?? []), ...options.map(o => o.href).filter(h => h !== pick.href)] }];
+  });
+  const salesMarketingItems = resolve(SALES_MARKETING_NAV);
+  // Customers alone (which internal roles also have) doesn't make it a Sales & Marketing group.
+  const showSales = salesMarketingItems.some(i => i.href !== CUSTOMERS_ITEM.href);
   const sections: NavSection[] = [
     { key: 'dashboard', title: 'Dashboard', icon: LayoutDashboard, items: allowed(DASHBOARD_NAV) },
     { key: 'my-workspace', title: 'My Workspace', icon: UserRound, items: allowed(MY_WORKSPACE_NAV) },
     { key: 'tlines-pm', title: 'T-Lines PM', icon: HardHat, items: allowed(TLINES_PM_NAV) },
-    ...(showSales ? [{ key: 'sales', title: 'Sales & Marketing', icon: Target, items: salesMarketingItems, activeOverride: quickDealActive ? '/leads/new' : undefined }] : []),
+    ...(showSales ? [{ key: 'sales', title: 'Sales & Marketing', icon: Target, items: salesMarketingItems, activeOverride: quickDealActive ? '/leads' : undefined }] : []),
     { key: 'design', title: 'Design', icon: DraftingCompass, items: allowed(DESIGN_NAV) },
     { key: 'it', title: 'IT', icon: MonitorPcIcon, items: allowed(IT_NAV) },
     { key: 'operations', title: 'Operations', icon: Factory, items: allowed(OPERATIONS_NAV.filter(i => isInternal || !i.internal)) },
