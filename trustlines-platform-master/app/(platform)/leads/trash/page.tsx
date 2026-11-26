@@ -7,6 +7,7 @@ import { LeadsTrashClient, type TrashRow } from '@/components/platform/leads/Lea
 import { SALES_INTAKE_ROLES } from '@/lib/sales/roles';
 import { composeProjectCode } from '@/lib/regions';
 import { buttonVariants } from '@/components/ui/button';
+import { SectionTabs } from '@/components/platform/shared/SectionTabs';
 
 const PURGE_DAYS = 30;
 const PURGE_ROLES = ['sales_marketing_manager', 'ops_manager', 'general_manager'];
@@ -47,6 +48,7 @@ export default async function LeadsTrashPage() {
 
   return (
     <div className="main-inner">
+      <SectionTabs group="trash" current="/leads/trash" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
         <Link href="/leads" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>← Leads</Link>
         <div>

@@ -15,7 +15,7 @@ export default async function SalesInboxPage() {
 
   return (
     <div style={{ padding: '24px 32px' }}>
-      <h1 className="mb-1 text-[22px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">Store Maker Inbox</h1>
+      <h1 className="mb-1 text-[22px] font-semibold text-[var(--color-secondary-700)] dark:text-ui-heading">Inbox</h1>
       <p className="mb-5 text-[13px] text-ui-body">People who wrote in through the Store Maker website. Newest first.</p>
       <WebLeadsClient
         initial={(data ?? []) as WebLeadRow[]}

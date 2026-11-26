@@ -331,7 +331,7 @@ export function SalesDesk({ data }: { data: SalesDashboardData }) {
       <div className="flex flex-col gap-[22px]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-col gap-[5px]">
-            <PageCrumbs className="uppercase" items={[{ label: 'Sales & Marketing', href: '/leads' }, { label: 'Insights', href: '/sales-dashboard' }]} />
+            <PageCrumbs className="uppercase" items={[{ label: 'Sales & Marketing', href: '/leads' }, { label: 'Reports', href: '/sales-dashboard' }]} />
             <h1 className="m-0 text-[28px] font-semibold leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">Sales insights</h1>
             <p className="m-0 text-[13px] leading-[1.4] text-ui-body">See where the pipeline stands, what needs a follow-up, and how deals close.</p>
           </div>

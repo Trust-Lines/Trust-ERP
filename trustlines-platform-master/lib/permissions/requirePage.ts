@@ -23,3 +23,13 @@ export async function requirePage(permKey: string): Promise<void> {
   // pageAllowed: a page a role hasn't set yet follows its parent / old default (catalog.ts).
   if (!pageAllowed(role, perms, permKey)) redirect('/dashboard');
 }
+
+/** Which of these page keys the signed-in user may open (empty when signed out). */
+export async function allowedPages(permKeys: string[]): Promise<Set<string>> {
+  const user = await getVerifiedUser();
+  if (!user) return new Set();
+  const role = await roleOf(user.id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const perms = await getRolePermissions(createAdminClient() as any, role);
+  return new Set(permKeys.filter(k => pageAllowed(role, perms, k)));
+}

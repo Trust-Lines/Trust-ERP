@@ -11,6 +11,7 @@ import { ProspectsPageClient, type ProspectRow } from '@/components/platform/mar
 import { listCampaigns } from '@/lib/marketing/campaigns';
 import { MARKETING_SEE_ALL_ROLES } from '@/lib/marketing/roles';
 import type { UserRole } from '@/types/database';
+import { SectionTabs } from '@/components/platform/shared/SectionTabs';
 
 // 2026-09-23 decision: nobody browses the full Contacts table anymore, no role exception —
 // everyone (marketing_pr/marketing_manager included, and general_manager/ops_manager too)
@@ -91,6 +92,7 @@ export default async function ProspectsListPage() {
 
   return (
     <div style={{ padding: '24px 32px' }}>
+      <SectionTabs group="contacts" current="/marketing/prospects" />
       <ProspectsPageClient
         initialProspects={prospects} initialTotal={total} pageSize={PAGE_SIZE}
         canEdit={canEdit} canImport={canEdit} loadError={loadError}

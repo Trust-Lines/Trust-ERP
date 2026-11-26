@@ -3,6 +3,7 @@ import { requirePage } from '@/lib/permissions/requirePage';
 import { MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
 import { MailTemplatesClient, type MailTemplateRow } from '@/components/platform/marketing/MailTemplatesClient';
 import type { UserRole } from '@/types/database';
+import { SectionTabs } from '@/components/platform/shared/SectionTabs';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -25,6 +26,7 @@ export default async function MailTemplatesPage() {
 
   return (
     <div style={{ padding: '24px 32px' }}>
+      <SectionTabs group="email" current="/marketing/mail-templates" />
       <MailTemplatesClient initialTemplates={(error ? [] : (data ?? [])) as MailTemplateRow[]} loadError={!!error} canEdit={canEdit} />
     </div>
   );

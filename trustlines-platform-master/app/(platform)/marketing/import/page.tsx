@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { requirePage } from '@/lib/permissions/requirePage';
 import { MARKETING_WRITE_ROLES } from '@/lib/marketing/roles';
 import { ContactImportClient } from '@/components/platform/marketing/ContactImportClient';
+import { SectionTabs } from '@/components/platform/shared/SectionTabs';
 
 export default async function ContactImportPage() {
   await requirePage('page.marketing_import');
@@ -12,6 +13,7 @@ export default async function ContactImportPage() {
 
   return (
     <div style={{ padding: '24px 32px' }}>
+      <SectionTabs group="contacts" current="/marketing/import" />
       {MARKETING_WRITE_ROLES.includes(role) ? (
         <ContactImportClient />
       ) : (

@@ -47,13 +47,14 @@ describe('page access', () => {
 
 describe('sidebar follows the same rule', () => {
   it('nobody loses a link on day one: marketing and sales roles keep their pages', () => {
+    // Pages that share one link (Contacts, Email, Trash) are tabs on it; Quick Deal is a CRM Board button.
     const mk = links('marketing_pr', DEFAULT_PERMISSIONS.marketing_pr);
-    for (const href of ['/marketing', '/marketing/prospects', '/marketing/contact-manager', '/marketing/email', '/marketing/mail-templates',
+    for (const href of ['/marketing', '/marketing/contact-manager', '/marketing/email',
       '/marketing/campaigns', '/marketing/social', '/marketing/calendar', '/marketing/website', '/marketing/prospects/trash']) {
       expect(mk, href).toContain(href);
     }
     const rep = links('sales_rep', DEFAULT_PERMISSIONS.sales_rep);
-    for (const href of ['/leads', '/leads/new', '/sales-tasks', '/sales-projects', '/leads/trash']) expect(rep, href).toContain(href);
+    for (const href of ['/leads', '/sales-tasks', '/sales-projects', '/leads/trash']) expect(rep, href).toContain(href);
     expect(rep).not.toContain('/sales-team');
     expect(links('sales_marketing_manager', DEFAULT_PERMISSIONS.sales_marketing_manager)).toContain('/sales-team');
   });
