@@ -364,8 +364,6 @@ export function ProspectDetailClient({
   }
 
   const onHold = opportunities.some(o => o.stage === 'on_hold');
-  const subtitle = [...(prospect.business_types ?? []), prospect.brand_name, prospect.entity_type === 'person' ? prospect.organization_name : null, prospect.entity_type === 'person' ? 'Person' : 'Organization'].filter(Boolean).join(' · ');
-  const address = primaryLocation ? [primaryLocation.city, primaryLocation.address_line_1, primaryLocation.state].filter(Boolean).join(', ') : '';
 
   function openNeed(id: string) {
     setStep('client');
@@ -392,7 +390,6 @@ export function ProspectDetailClient({
                 </span>
               )}
             </div>
-            {subtitle && <p className="m-0 text-[13px] leading-[1.35] text-ui-body">{subtitle}</p>}
           </div>
           {/* Figma 336:22102 entity chip (T2) + "Clients Opportunity" when it has opportunities. */}
           <div className="flex flex-wrap items-center gap-2">
@@ -405,7 +402,6 @@ export function ProspectDetailClient({
               </span>
             )}
           </div>
-          {address && <p className="m-0 text-[13px] leading-[1.35] text-ui-text-secondary">{address}</p>}
           {/* Figma 336:22103: "Profile Completeness  5/10 · 50%" over a 9px bar (500px). */}
           <div className="flex w-full max-w-[500px] flex-col gap-1" title={completeness.checks.filter(c => !c.done).map(c => c.label).join(', ') || 'All fields filled'}>
             <div className="flex justify-between gap-3 text-[14px] font-medium leading-[1.35] text-[var(--color-secondary-700)] dark:text-ui-heading">
@@ -483,7 +479,7 @@ export function ProspectDetailClient({
       <div className="flex min-h-0 flex-1 gap-4">
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="min-w-0 flex-1 overflow-y-auto">
-            <div role="tablist" aria-label="Lead sections" className="mb-4 flex h-12 items-stretch gap-8 overflow-x-auto border-b border-ui-divider">
+            <div role="tablist" aria-label="Contact sections" className="mb-4 flex h-12 items-stretch gap-8 overflow-x-auto border-b border-ui-divider">
               {([
                 { key: 'overview', label: 'Overview', icon: Building2 },
                 { key: 'contacts', label: `Contacts (${contacts.length})`, icon: Users },
