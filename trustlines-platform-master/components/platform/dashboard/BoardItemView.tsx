@@ -12,6 +12,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ModalPanel } from '@/components/ui/modal';
 import { ToneChip } from '@/components/ui/tone-chip';
 import { OpportunityQuickView } from '@/components/platform/marketing/OpportunityQuickView';
+import { ProspectQuickView } from '@/components/platform/marketing/ProspectQuickView';
+import { StepStrip, type ContactStep } from '@/components/platform/marketing/prospect-detail/StepStrip';
 import { BoardTaskPanel } from './BoardTaskPanel';
 import { projectNumber } from '@/lib/keyClients/match';
 import {
@@ -31,6 +33,8 @@ import { isoDateToUS as fmtDate } from '@/lib/formatters';
 // popup a dashboard card opens. Under the heading: T Lines Tasks and Trust Lines Tasks. Left: one tab
 // per stage the project has reached (lib/dashboard/cardTabs); middle: that stage's details.
 // Potential / Opportunity / Project jump to that part of the list.
+// On top, the Contact pop-up's three steps: Before Closed = the Potential / Opportunity stages, After
+// Closed = the project's (Finalization, PO + PF, Production…); Client Info opens the Contact itself.
 
 const PHASES: { value: CardPhase; label: string; icon: LucideIcon }[] = [
   { value: 'potential', label: 'Potential', icon: Clock },
@@ -43,7 +47,7 @@ const TONE_ICON: Record<ChipTone, LucideIcon | 'in-review'> = { t0: CircleDashed
 
 const notYet = () => toast.info('Not connected yet');
 
-interface CardData { project: CardProject | null; deals: CardDeal[]; details: CardDetails | null; allowed: string[] }
+interface CardData { project: CardProject | null; deals: CardDeal[]; details: CardDetails | null; allowed: string[]; prospectId?: string | null }
 
 export function BoardItemView({ item, section, assignees, canEdit, companyEdit = 'none', staff = [], everyone = [], meId = null, canEditTrustTasks = false, onClose }: {
   item: BoardCardItem;
@@ -66,6 +70,8 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
   const [error, setError] = React.useState<string | null>(null);
   const [selected, setSelected] = React.useState<string | null>(null);
   const [openDeal, setOpenDeal] = React.useState<CardDeal | null>(null);
+  const [step, setStep] = React.useState<Exclude<ContactStep, 'client'> | null>(null);
+  const [profileOpen, setProfileOpen] = React.useState(false);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -85,11 +91,16 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
   );
   // Opens on the Opportunity: the card's own deal, else the latest Opportunity (then Potential),
   // else the furthest stage reached.
-  const active = tabs.find(t => t.key === selected)
-    ?? tabs.find(t => t.view === 'deal' && t.deal.id === item.id)
+  const opening = tabs.find(t => t.view === 'deal' && t.deal.id === item.id)
     ?? tabs.filter(t => t.phase === 'opportunity').at(-1)
     ?? tabs.filter(t => t.phase === 'potential').at(-1)
     ?? tabs.at(-1) ?? null;
+  // Before Closed until the project has started, then After Closed — unless a step was picked.
+  const shownStep = step ?? (opening?.phase === 'project' ? 'after' : 'before');
+  const stepTabs = tabs.filter(t => (shownStep === 'after' ? t.phase === 'project' : t.phase !== 'project'));
+  const active = stepTabs.find(t => t.key === selected)
+    ?? (opening && stepTabs.includes(opening) ? opening : null)
+    ?? (shownStep === 'after' ? stepTabs[0] : stepTabs.at(-1)) ?? null;
 
   // The card's company (Store Maker / Premium / Design Build).
   const [company, setCompany] = React.useState<string | null>(item.company ?? null);
@@ -123,7 +134,7 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
 
   const pick = (phase: CardPhase) => {
     const t = phase === 'project' ? tabs.find(x => x.phase === 'project') : tabs.filter(x => x.phase === phase).at(-1);
-    if (t) setSelected(t.key);
+    if (t) { setStep(phase === 'project' ? 'after' : 'before'); setSelected(t.key); }
   };
 
   // The card's own stage tone: its tint, with the accent darkened for the text.
@@ -132,7 +143,7 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
   return (
     // While a deal is open on top, Escape / clicks belong to that deal, not this panel.
     <ModalPanel
-      onOpenChange={o => { if (!o && !openDeal) onClose(); }}
+      onOpenChange={o => { if (!o && !openDeal && !profileOpen) onClose(); }}
       aria-label={item.title}
       layerClassName="z-[10000]"
       containerClassName="px-4 py-[3vh]"
@@ -140,6 +151,10 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
       <div
         className="flex h-[94vh] w-[96vw] max-w-[1616px] flex-col gap-6 overflow-hidden rounded-[11px] bg-ui-page-bg p-8 shadow-04"
       >
+        <StepStrip
+          flush step={shownStep} disabled={data?.prospectId ? [] : ['client']}
+          onStep={s => { if (s === 'client') setProfileOpen(true); else { setStep(s); setSelected(null); } }}
+        />
         {/* ── Page heading ─────────────────────────────────────────── */}
         <div className="flex shrink-0 items-end justify-between gap-6">
           <div className="flex min-w-0 flex-col gap-4">
@@ -224,8 +239,12 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
         <div className="flex min-h-0 flex-1 gap-4">
           <div role="tablist" aria-orientation="vertical" className="flex w-[262px] shrink-0 flex-col gap-2 overflow-y-auto rounded-[10px] bg-ui-surface p-2">
             {!data && !error && <p className="m-0 flex items-center gap-2 p-3 text-[13px] text-ui-text-secondary"><Loader2 size={14} className="animate-spin" aria-hidden /> Loading…</p>}
-            {data && tabs.length === 0 && <p className="m-0 p-3 text-[13px] text-ui-text-secondary">Nothing recorded for this project yet.</p>}
-            {tabs.map(t => {
+            {data && stepTabs.length === 0 && (
+              <p className="m-0 p-3 text-[13px] text-ui-text-secondary">
+                {tabs.length === 0 ? 'Nothing recorded for this project yet.' : shownStep === 'after' ? 'Not closed yet — the project stages show up here once it is won.' : 'No Potential or Opportunity on this project.'}
+              </p>
+            )}
+            {stepTabs.map(t => {
               const on = t.key === active?.key;
               return (
                 <button
@@ -248,6 +267,9 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
           </div>
         </div>
       </div>
+      {profileOpen && data?.prospectId && (
+        <ProspectQuickView prospectId={data.prospectId} canEdit={canEdit} onClose={() => setProfileOpen(false)} />
+      )}
       {openDeal && (
         <OpportunityQuickView opportunityId={openDeal.id} kind={openDeal.kind} assignees={assignees} canEdit={canEdit} onClose={() => setOpenDeal(null)} />
       )}

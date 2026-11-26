@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Building2, Users, MapPin, Trash2, Archive, ArchiveRestore, Target, Clock, ArrowRightCircle, Activity, FileText, Loader2, History, Gem, BriefcaseBusiness, CloudSync, Pause, X, Check } from 'lucide-react';
+import { ArrowLeft, Building2, Users, MapPin, Trash2, Archive, ArchiveRestore, Target, Clock, ArrowRightCircle, Activity, FileText, Loader2, History, Gem, BriefcaseBusiness, CloudSync, Pause, X } from 'lucide-react';
+import { StepStrip, type ContactStep as Step } from './prospect-detail/StepStrip';
 import { toast } from 'sonner';
 import { computeProspectCompleteness } from '@/lib/marketing/prospectCompleteness';
 import type { NeedClassification } from '@/types/database';
@@ -31,46 +32,7 @@ import { cn } from '@/lib/utils';
 const ADD_BUTTON = 'inline-flex h-9 items-center justify-center gap-2 rounded-[6px] border border-ui-divider bg-ui-surface-elevated pl-4 pr-[22px] text-[13px] font-semibold leading-[1.4] text-ui-body';
 const ACTION_BUTTON = 'inline-flex h-10 items-center justify-center gap-2 rounded-[6px] border pl-5 pr-6 text-[13px] font-medium';
 
-// Figma "Prospect detail" (1025:11136): three steps hanging from the top edge. Client Info and After
-// Closed show the tabbed contact view (After Closed has no frame of its own yet); Before Closed the
-// tasks + needs view. Steps before the open one read done (green), after it upcoming (grey, dashed).
-type Step = 'client' | 'before' | 'after';
-const STEPS: { key: Step; label: string }[] = [
-  { key: 'client', label: 'Client Info' },
-  { key: 'before', label: 'Before Closed' },
-  { key: 'after', label: 'After Closed' },
-];
-
-function StepStrip({ step, onStep, flush }: { step: Step; onStep: (s: Step) => void; flush?: boolean }) {
-  const at = STEPS.findIndex(s => s.key === step);
-  return (
-    // flush: in the pop-up the tabs hang from its top edge (it pads 32px).
-    <nav aria-label="Contact steps" className={cn('flex shrink-0 flex-wrap justify-center gap-4', flush && '-mt-8')}>
-      {STEPS.map((s, i) => {
-        const state = i < at ? 'done' : i === at ? 'current' : 'upcoming';
-        return (
-          <button
-            key={s.key} type="button" onClick={() => onStep(s.key)} aria-current={state === 'current' ? 'step' : undefined}
-            className={cn(
-              'flex w-[220px] cursor-pointer items-center justify-center gap-2.5 rounded-b-[10px] border-0 px-2 py-3 text-[16px]',
-              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus-ring',
-              state === 'done' && 'bg-[var(--status-t9-bg)] text-[var(--status-t9-fg)]',
-              state === 'current' && 'bg-ui-btn-primary font-semibold text-ui-btn-primary-fg',
-              state === 'upcoming' && 'bg-[var(--status-t0-bg)] text-ui-body',
-            )}
-          >
-            {state === 'done' && (
-              <span aria-hidden className="grid size-6 place-items-center rounded-full bg-[var(--status-t9-fg)] text-[var(--status-t9-bg)]"><Check size={16} /></span>
-            )}
-            {state === 'current' && <span aria-hidden className="size-6 rounded-full bg-ui-btn-primary-fg" />}
-            {state === 'upcoming' && <span aria-hidden className="size-6 rounded-full border-[1.5px] border-dashed border-current" />}
-            {s.label}
-          </button>
-        );
-      })}
-    </nav>
-  );
-}
+// The three steps (Client Info / Before Closed / After Closed) live in ./prospect-detail/StepStrip.
 
 interface Props {
   initialProspect: Prospect;
