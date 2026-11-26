@@ -1,10 +1,11 @@
 'use client';
 
-import Link from 'next/link';
+import { useState } from 'react';
 import { CircleCheck, CircleDashed, Hash, Loader2, SendHorizontal, SquareArrowOutUpRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ToneChip } from '@/components/ui/tone-chip';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
+import { ProspectQuickView } from '../ProspectQuickView';
 import { HEADING } from '@/components/platform/shared/panelStyles';
 import { hashColor } from '@/lib/marketing/pillColor';
 import { TagMultiSelect } from '../TagMultiSelect';
@@ -12,7 +13,7 @@ import { readableOn } from './parts';
 import type { Deal, ProjectInfo, Tag } from './types';
 import type { DealKind } from './useDealRecord';
 
-/** Title, project code / status / tag chips, saving spinner, Convert, Lead Profile and Close. */
+/** Title ("Deal" over it), project code / status / tag chips, saving spinner, Convert, Contact Profile and Close. */
 export function QuickViewHeader({ title, kind, opp, project, statusLabel, tags, tagOptions, canEdit, saving, converting, onTagsChange, onConvert, onClose }: {
   title: string;
   kind: DealKind;
@@ -29,9 +30,14 @@ export function QuickViewHeader({ title, kind, opp, project, statusLabel, tags, 
   onClose: () => void;
 }) {
   const canConvert = kind === 'potential' && canEdit && opp && !opp.converted_opportunity_id && !['lost', 'cancelled'].includes(String(opp.status));
+  // The Contact (company / person) this deal belongs to, opened over this pop-up.
+  const [profileOpen, setProfileOpen] = useState(false);
+  const prospectId = typeof opp?.prospect_id === 'string' ? opp.prospect_id : null;
   return (
     <div className="flex shrink-0 items-center justify-between gap-6">
       <div className="flex min-w-0 flex-col gap-[5px]">
+        {/* One job for one customer — Opportunity or Potential underneath, a deal to the user. */}
+        <span className="text-[11px] font-semibold uppercase leading-none tracking-[0.08em] text-ui-text-secondary">Deal</span>
         <h2 className={cn('m-0 truncate text-[28px] font-semibold leading-[1.35]', HEADING)}>{title}</h2>
         <div className="flex flex-wrap items-center gap-[5px]">
           {project?.code && <ToneChip tone="t0" icon={Hash}>{project.code}</ToneChip>}
@@ -61,16 +67,15 @@ export function QuickViewHeader({ title, kind, opp, project, statusLabel, tags, 
           </Button>
         )}
         {kind === 'potential' && !!opp?.converted_opportunity_id && <ToneChip tone="t9" icon={CircleCheck}>Converted — with Sales</ToneChip>}
-        {opp?.prospect_id ? (
-          <Link
-            href={`/marketing/prospects/${opp.prospect_id}`}
-            title="Contacts, locations & other Needs for this Lead"
-            className={cn(buttonVariants({ variant: 'outline', size: 'md' }), 'no-underline')}
-          >
+        {prospectId ? (
+          <Button variant="outline" size="md" onClick={() => setProfileOpen(true)} title="The company / person: contacts, locations and all their deals">
             <SquareArrowOutUpRight className="size-4" aria-hidden />
-            Lead Profile
-          </Link>
+            Contact Profile
+          </Button>
         ) : null}
+        {profileOpen && prospectId && (
+          <ProspectQuickView prospectId={prospectId} canEdit={canEdit} onClose={() => setProfileOpen(false)} />
+        )}
         <Button variant="outline" size="icon-md" onClick={onClose} aria-label="Close">
           <X />
         </Button>
