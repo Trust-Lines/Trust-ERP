@@ -3,8 +3,14 @@
 import { PageCrumbs } from '@/components/platform/shared/PageCrumbs';
 import { useMemo, useState } from 'react';
 import {
-  Search, AlertTriangle, ArrowDown, ArrowUp, Ban, ChevronDown, ChevronUp, ChevronsUp, FolderInput,
+  Search, AlertTriangle, Ban, ChevronDown, ChevronUp, ChevronsUp, FolderInput,
 } from 'lucide-react';
+import { SortHeader } from '@/components/platform/shared/SortHeader';
+import { ariaSort, compareDates, compareText, daysSince, type SortState } from '@/lib/ui/sort';
+
+// Name / Created / Due sort by clicking the header; newest first by default. Created = the ClickUp
+// creation date for imported rows (the page maps it into created_at), else when it was added here.
+type PotSortKey = 'name' | 'created' | 'due';
 import { cn } from '@/lib/utils';
 import { OpportunityQuickView } from './OpportunityQuickView';
 import type { QuickViewTarget } from '@/lib/marketing/quickViewLink';
@@ -107,7 +113,7 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
   const [query, setQuery] = useState('');
   const [regionFilter, setRegionFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState('');
-  const [nameSort, setNameSort] = useState<'asc' | 'desc' | null>(null);
+  const [sort, setSort] = useState<SortState<PotSortKey>>({ key: 'created', dir: 'desc' });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<{ id: string; kind: 'opportunity' | 'potential'; focus?: string[] } | null>(initialOpen);
   const [savingAssignee, setSavingAssignee] = useState<string | null>(null);
@@ -146,10 +152,11 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
         || (d.title || '').toLowerCase().includes(q)
         || (d.lead_display_name || '').toLowerCase().includes(q)
         || (d.brand || '').toLowerCase().includes(q));
-    if (!nameSort) return rows;
-    const dir = nameSort === 'asc' ? 1 : -1;
-    return [...rows].sort((a, b) => dir * (a.title || a.lead_display_name || '').localeCompare(b.title || b.lead_display_name || ''));
-  }, [deals, regionFilter, sourceFilter, query, nameSort]);
+    return [...rows].sort((a, b) =>
+      sort.key === 'name' ? compareText(a.title || a.lead_display_name, b.title || b.lead_display_name, sort.dir)
+        : sort.key === 'due' ? compareDates(a.due_date || a.deadline, b.due_date || b.deadline, sort.dir)
+          : compareDates(a.created_at, b.created_at, sort.dir));
+  }, [deals, regionFilter, sourceFilter, query, sort]);
 
   const selectedRows = filteredDeals.filter(d => selected.has(d.id));
   const allSelected = filteredDeals.length > 0 && selectedRows.length === filteredDeals.length;
@@ -165,11 +172,11 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
   // Client-side CSV of the columns shown on screen — selected rows if any, else the filtered list.
   function exportFile() {
     const rows = selectedRows.length > 0 ? selectedRows : filteredDeals;
-    const header = ['Name', 'Brand', 'Project no.', 'Priority', 'Assignee', 'Request', 'Location', 'Source', 'Date'];
+    const header = ['Name', 'Brand', 'Project no.', 'Priority', 'Assignee', 'Request', 'Location', 'Source', 'Created', 'Days waiting', 'Due'];
     const lines = [header.join(',')].concat(rows.map(d => [
       d.title || d.lead_display_name, d.brand, d.external_project_code, PRIORITY[d.priority]?.label,
       d.owner_name ?? 'Not Assigned', d.request_raw, d.formatted_address || d.state, d.source_raw_label,
-      formatDate(d.due_date || d.created_at),
+      formatDate(d.created_at), daysSince(d.created_at) ?? '', formatDate(d.due_date || d.deadline),
     ].map(csvCell).join(',')));
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -258,24 +265,15 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
                     onCheckedChange={() => setSelected(allSelected ? new Set() : new Set(filteredDeals.map(d => d.id)))}
                   />
                 </th>
-                <th className={TH_CLS}>
-                  <button
-                    type="button"
-                    onClick={() => setNameSort(s => (s === 'asc' ? 'desc' : s === 'desc' ? null : 'asc'))}
-                    className="inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 font-[inherit] text-[inherit]"
-                    aria-label="Sort by name"
-                  >
-                    Name
-                    {nameSort === 'asc' ? <ArrowUp size={12} aria-hidden /> : nameSort === 'desc' ? <ArrowDown size={12} aria-hidden /> : null}
-                  </button>
-                </th>
+                <th className={TH_CLS} aria-sort={ariaSort(sort, 'name')}><SortHeader label="Name" sortKey="name" sort={sort} onSort={setSort} firstDir="asc" /></th>
                 <th className={TH_CLS}>Brand</th>
                 <th className={TH_CLS}>Project no.</th>
                 <th className={TH_CLS}>Priority</th>
                 <th className={TH_CLS}>Assignee</th>
                 <th className={TH_CLS}>Request</th>
                 <th className={TH_CLS}>Location</th>
-                <th className={TH_CLS}>Date</th>
+                <th className={TH_CLS} aria-sort={ariaSort(sort, 'created')}><SortHeader label="Created" sortKey="created" sort={sort} onSort={setSort} /></th>
+                <th className={TH_CLS} aria-sort={ariaSort(sort, 'due')}><SortHeader label="Due" sortKey="due" sort={sort} onSort={setSort} firstDir="asc" /></th>
               </tr>
             </thead>
             <tbody>
@@ -338,7 +336,11 @@ export function OpportunitiesPageClient({ initialDeals, canEdit, loadError, pros
                     </td>
                     <td className={cn(TD_CLS, 'max-w-[160px] truncate')}>{d.request_raw || '—'}</td>
                     <td className={cn(TD_CLS, 'max-w-[220px] truncate')}>{d.formatted_address || d.state || '—'}</td>
-                    <td className={cn(TD_CLS, 'whitespace-nowrap')}>{formatDate(d.due_date || d.created_at)}</td>
+                    <td className={cn(TD_CLS, 'whitespace-nowrap')}>
+                      {formatDate(d.created_at)}
+                      {daysSince(d.created_at) !== null && <span className="block text-[11px] text-ui-text-secondary">{daysSince(d.created_at)} days ago</span>}
+                    </td>
+                    <td className={cn(TD_CLS, 'whitespace-nowrap')}>{formatDate(d.due_date || d.deadline)}</td>
                   </tr>
                 );
               })}
