@@ -22,6 +22,8 @@ import { PersonFace } from '@/components/ui/avatar-directory';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { TaskQuickFilter } from '@/lib/sales/taskFilters';
 import { HEADING } from '@/components/platform/shared/panelStyles';
+import { SortHeader } from '@/components/platform/shared/SortHeader';
+import { ariaSort, compareDates, type SortState } from '@/lib/ui/sort';
 
 export interface TaskRow {
   id: string;
@@ -50,6 +52,14 @@ const STATUS_META: Record<TaskRow['status'], { label: string; tone: string }> = 
   done:        { label: 'Done',        tone: 't9' },
 };
 const STATUS_ORDER: TaskRow['status'][] = ['todo', 'in_progress', 'done'];
+
+// Date columns you can sort by (click the header). Default: newest deal first, like the CRM board.
+type TaskSortKey = 'deal' | 'due' | 'created' | 'completed';
+const DEFAULT_SORT: SortState<TaskSortKey> = { key: 'deal', dir: 'desc' };
+const SORT_STORE = 'sales.tasks.sort';
+const SORT_FIELD: Record<TaskSortKey, (t: TaskRow) => string | null> = {
+  deal: t => t.deal_date, due: t => t.due_date, created: t => t.created_at, completed: t => t.completed_at,
+};
 
 const FILTER_CLS = 'inline-flex h-9 w-auto shrink-0 cursor-pointer items-center gap-1 rounded-[6px] border border-[var(--ui-input-border)] bg-ui-input-bg pl-3 pr-2 text-[13px] font-medium leading-normal text-[var(--color-secondary-700)] dark:rounded-[6px] dark:text-ui-heading [&_svg]:size-3.5';
 const TH = 'px-2.5 text-left text-[12px] font-semibold leading-[1.4] whitespace-nowrap text-ui-body';
@@ -134,6 +144,16 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
     setBusy(null);
   }
 
+  const [sort, setSortState] = useState<SortState<TaskSortKey>>(DEFAULT_SORT);
+  // The chosen column is remembered on this browser.
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(SORT_STORE) ?? 'null') as SortState<TaskSortKey> | null;
+      if (saved && saved.key in SORT_FIELD && (saved.dir === 'asc' || saved.dir === 'desc')) setSortState(saved);
+    } catch { /* default order */ }
+  }, []);
+  const setSort = (s: SortState<TaskSortKey>) => { setSortState(s); try { localStorage.setItem(SORT_STORE, JSON.stringify(s)); } catch { /* not kept */ } };
+
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tasks.filter(t => {
@@ -146,15 +166,15 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
       if (q && !`${t.title} ${t.lead_name} ${t.deal_stage ?? ''}`.toLowerCase().includes(q)) return false;
       return true;
     }).sort((a, b) => {
-      // Same order as the CRM board: newest deal first — never the oldest project on top.
-      const ta = Date.parse(a.deal_date ?? '') || 0, tb = Date.parse(b.deal_date ?? '') || 0;
-      if (ta !== tb) return tb - ta;
+      // The chosen date column (no date = last); by deal date the order matches the CRM board.
+      const byDate = compareDates(SORT_FIELD[sort.key](a), SORT_FIELD[sort.key](b), sort.dir);
+      if (byDate) return byDate;
       if (a.lead_id !== b.lead_id) return a.lead_id.localeCompare(b.lead_id);   // keep one deal's tasks together
       const ad = a.status === 'done' ? 1 : 0, bd = b.status === 'done' ? 1 : 0;
       if (ad !== bd) return ad - bd;                                             // within a deal: open first
       return (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999');
     });
-  }, [tasks, mine, fStatus, fAssignee, fOverdue, fToday, search, currentUserId, today]);
+  }, [tasks, mine, fStatus, fAssignee, fOverdue, fToday, search, currentUserId, today, sort]);
 
   const open = tasks.filter(t => t.status !== 'done').length;
   const overdue = tasks.filter(t => t.status !== 'done' && t.due_date && t.due_date < today).length;
@@ -278,12 +298,12 @@ export function TasksClient({ tasks: initial, assignees, currentUserId, openDeal
                   <th className={cn(TH, 'w-[44px] pl-[18px]')}><span className="sr-only">Done</span></th>
                   <th className={TH}>Task</th>
                   <th className={cn(TH, 'w-[300px]')}>Deal/Lead</th>
-                  <th className={cn(TH, 'w-[110px]')}>Deal Date</th>
+                  <th className={cn(TH, 'w-[110px]')} aria-sort={ariaSort(sort, 'deal')}><SortHeader label="Deal Date" sortKey="deal" sort={sort} onSort={setSort} /></th>
                   <th className={cn(TH, 'w-[16%]')}>Assignee</th>
                   <th className={cn(TH, 'w-[150px]')}>Status</th>
-                  <th className={cn(TH, 'w-[160px]')}>Due</th>
-                  <th className={cn(TH, 'w-[120px]')}>Created</th>
-                  <th className={cn(TH, 'w-[120px]')}>Completed</th>
+                  <th className={cn(TH, 'w-[160px]')} aria-sort={ariaSort(sort, 'due')}><SortHeader label="Due" sortKey="due" sort={sort} onSort={setSort} firstDir="asc" /></th>
+                  <th className={cn(TH, 'w-[120px]')} aria-sort={ariaSort(sort, 'created')}><SortHeader label="Created" sortKey="created" sort={sort} onSort={setSort} /></th>
+                  <th className={cn(TH, 'w-[120px]')} aria-sort={ariaSort(sort, 'completed')}><SortHeader label="Completed" sortKey="completed" sort={sort} onSort={setSort} /></th>
                   <th className="w-[48px]"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
