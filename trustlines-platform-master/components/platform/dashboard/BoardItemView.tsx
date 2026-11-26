@@ -70,8 +70,7 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
   const [error, setError] = React.useState<string | null>(null);
   const [selected, setSelected] = React.useState<string | null>(null);
   const [openDeal, setOpenDeal] = React.useState<CardDeal | null>(null);
-  const [step, setStep] = React.useState<Exclude<ContactStep, 'client'> | null>(null);
-  const [profileOpen, setProfileOpen] = React.useState(false);
+  const [step, setStep] = React.useState<ContactStep | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -96,7 +95,7 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
     ?? tabs.filter(t => t.phase === 'potential').at(-1)
     ?? tabs.at(-1) ?? null;
   // Before Closed until the project has started, then After Closed — unless a step was picked.
-  const shownStep = step ?? (opening?.phase === 'project' ? 'after' : 'before');
+  const shownStep: ContactStep = step ?? (opening?.phase === 'project' ? 'after' : 'before');
   const stepTabs = tabs.filter(t => (shownStep === 'after' ? t.phase === 'project' : t.phase !== 'project'));
   const active = stepTabs.find(t => t.key === selected)
     ?? (opening && stepTabs.includes(opening) ? opening : null)
@@ -143,7 +142,7 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
   return (
     // While a deal is open on top, Escape / clicks belong to that deal, not this panel.
     <ModalPanel
-      onOpenChange={o => { if (!o && !openDeal && !profileOpen) onClose(); }}
+      onOpenChange={o => { if (!o && !openDeal) onClose(); }}
       aria-label={item.title}
       layerClassName="z-[10000]"
       containerClassName="px-4 py-[3vh]"
@@ -153,8 +152,14 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
       >
         <StepStrip
           flush step={shownStep} disabled={data?.prospectId ? [] : ['client']}
-          onStep={s => { if (s === 'client') setProfileOpen(true); else { setStep(s); setSelected(null); } }}
+          onStep={s => { setStep(s); setSelected(null); }}
         />
+        {/* Client Info: the card's Contact, in this same pop-up (its own header, tabs and Activity). */}
+        {shownStep === 'client' && data?.prospectId ? (
+          <div className="min-h-0 flex-1">
+            <ProspectQuickView embedded prospectId={data.prospectId} canEdit={canEdit} onClose={onClose} />
+          </div>
+        ) : (<>
         {/* ── Page heading ─────────────────────────────────────────── */}
         <div className="flex shrink-0 items-end justify-between gap-6">
           <div className="flex min-w-0 flex-col gap-4">
@@ -266,10 +271,8 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
               : data && <EmptyState size="sm" icon={<CircleDashed />} title="No stages yet" description="Its Potential, Opportunity and project stages show up here as it moves along." />}
           </div>
         </div>
+        </>)}
       </div>
-      {profileOpen && data?.prospectId && (
-        <ProspectQuickView prospectId={data.prospectId} canEdit={canEdit} onClose={() => setProfileOpen(false)} />
-      )}
       {openDeal && (
         <OpportunityQuickView opportunityId={openDeal.id} kind={openDeal.kind} assignees={assignees} canEdit={canEdit} onClose={() => setOpenDeal(null)} />
       )}

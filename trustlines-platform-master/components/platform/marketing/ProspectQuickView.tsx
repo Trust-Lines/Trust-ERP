@@ -15,10 +15,12 @@ interface ContactNote {
 }
 interface ContactLite { id: string; name: string; is_primary: boolean; }
 
-export function ProspectQuickView({ prospectId, onClose, canEdit }: {
+export function ProspectQuickView({ prospectId, onClose, canEdit, embedded = false }: {
   prospectId: string;
   onClose: () => void;
   canEdit?: boolean;
+  /** Render in place (no pop-up of its own, no step strip) — the dashboard card's Client Info step. */
+  embedded?: boolean;
 }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
@@ -130,22 +132,18 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
   }
 
 
-  return (
-    // Escape / dimmed-area click: an open image closes first, then the panel.
-    <ModalPanel
-      onOpenChange={o => { if (o) return; if (lightbox) { setLightbox(null); return; } onClose(); }}
-      aria-label={data?.prospect?.display_name ?? 'Contact'}
-      layerClassName="z-[10000]"
-      containerClassName="px-4 py-[3vh]"
-    >
+  const body = (
+    <>
       <div
         onClick={e => e.stopPropagation()}
-        style={{
-          background: 'var(--ui-page-bg)', borderRadius: 12, width: '96vw', maxWidth: 1616, height: '92vh', maxHeight: 1206,
-          boxShadow: '0 12px 48px rgba(0,0,0,.3)', display: 'flex', overflow: 'hidden',
-        }}
+        style={embedded
+          ? { display: 'flex', overflow: 'hidden', width: '100%', height: '100%', minHeight: 0 }
+          : {
+            background: 'var(--ui-page-bg)', borderRadius: 12, width: '96vw', maxWidth: 1616, height: '92vh', maxHeight: 1206,
+            boxShadow: '0 12px 48px rgba(0,0,0,.3)', display: 'flex', overflow: 'hidden',
+          }}
       >
-        <div style={{ flex: 1, minWidth: 0, padding: 32 }}>
+        <div style={{ flex: 1, minWidth: 0, padding: embedded ? 0 : 32 }}>
           {loading && <div style={{ padding: 60, textAlign: 'center', color: 'var(--fg-subtle)' }}>Loading…</div>}
           {!loading && notFound && <div style={{ padding: 60, textAlign: 'center', color: 'var(--fg-subtle)' }}>Could not load this lead.</div>}
           {!loading && data && (
@@ -162,6 +160,7 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
               assignees={data.people}
               canEdit={canEdit}
               onClose={onClose}
+              hideSteps={embedded}
               aside={(
                 // Figma 336:22028 Activity panel: own bordered card, "• Activity" header, slate body, composer.
                 <div className="flex w-[320px] shrink-0 flex-col overflow-hidden rounded-[8px] border border-ui-divider bg-ui-page-bg">
@@ -299,6 +298,17 @@ export function ProspectQuickView({ prospectId, onClose, canEdit }: {
         </div>
       )}
       <style>{`.qv-spin{animation:qv-spin 1s linear infinite}@keyframes qv-spin{to{transform:rotate(360deg)}}`}</style>
+    </>
+  );
+  if (embedded) return body;
+  return (
+    <ModalPanel
+      onOpenChange={o => { if (o) return; if (lightbox) { setLightbox(null); return; } onClose(); }}
+      aria-label={data?.prospect?.display_name ?? 'Contact'}
+      layerClassName="z-[10000]"
+      containerClassName="px-4 py-[3vh]"
+    >
+      {body}
     </ModalPanel>
   );
 }
