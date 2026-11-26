@@ -60,17 +60,22 @@ export async function GET(req: Request) {
 
   // Deals: same number, linked to the project, or the card itself.
   let deals: CardDeal[] = [];
+  // The Contact (company / person) behind the card — its Client Info step.
+  let prospectId: string | null = null;
   if (allowed.includes('deal')) {
     const oppOr = [no && `external_project_code.ilike.%${no}%`, project && `project_id.eq.${project.id}`, kind === 'opportunity' && id && `id.eq.${id}`].filter(Boolean).join(',');
     const potOr = [no && `external_project_code.ilike.%${no}%`, kind === 'potential' && id && `id.eq.${id}`].filter(Boolean).join(',');
-    type OppRow = { id: string; title: string | null; brand: string | null; stage: string | null; external_project_code: string | null; external_stage_label: string | null; project_id: string | null; sales_owner_id: string | null; marketing_owner_id: string | null; next_action: string | null; next_action_date: string | null; deadline: string | null; external_created_at: string | null; created_at: string };
-    type PotRow = { id: string; title: string | null; brand: string | null; status: string | null; external_project_code: string | null; external_stage_label: string | null; assigned_to: string | null; to_do_raw: string | null; target_contact_date: string | null; due_date: string | null; external_created_at: string | null; created_at: string };
+    type OppRow = { id: string; prospect_id: string | null; title: string | null; brand: string | null; stage: string | null; external_project_code: string | null; external_stage_label: string | null; project_id: string | null; sales_owner_id: string | null; marketing_owner_id: string | null; next_action: string | null; next_action_date: string | null; deadline: string | null; external_created_at: string | null; created_at: string };
+    type PotRow = { id: string; prospect_id: string | null; title: string | null; brand: string | null; status: string | null; external_project_code: string | null; external_stage_label: string | null; assigned_to: string | null; to_do_raw: string | null; target_contact_date: string | null; due_date: string | null; external_created_at: string | null; created_at: string };
     const [oppRes, potRes] = await Promise.all([
-      oppOr ? admin.from('opportunities').select('id, title, brand, stage, external_project_code, external_stage_label, project_id, sales_owner_id, marketing_owner_id, next_action, next_action_date, deadline, external_created_at, created_at').or(oppOr).is('deleted_at', null).limit(20) : { data: [] },
-      potOr ? admin.from('prospect_potentials').select('id, title, brand, status, external_project_code, external_stage_label, assigned_to, to_do_raw, target_contact_date, due_date, external_created_at, created_at').or(potOr).is('deleted_at', null).limit(20) : { data: [] },
+      oppOr ? admin.from('opportunities').select('id, prospect_id, title, brand, stage, external_project_code, external_stage_label, project_id, sales_owner_id, marketing_owner_id, next_action, next_action_date, deadline, external_created_at, created_at').or(oppOr).is('deleted_at', null).limit(20) : { data: [] },
+      potOr ? admin.from('prospect_potentials').select('id, prospect_id, title, brand, status, external_project_code, external_stage_label, assigned_to, to_do_raw, target_contact_date, due_date, external_created_at, created_at').or(potOr).is('deleted_at', null).limit(20) : { data: [] },
     ]);
     const opps = ((oppRes.data ?? []) as OppRow[]).filter(o => o.id === id || (!!project && o.project_id === project.id) || sameNo(o.external_project_code));
     const pots = ((potRes.data ?? []) as PotRow[]).filter(p => p.id === id || sameNo(p.external_project_code));
+
+    prospectId = [...opps, ...pots].find(d => d.id === id)?.prospect_id
+      ?? opps.find(o => o.prospect_id)?.prospect_id ?? pots.find(p => p.prospect_id)?.prospect_id ?? null;
 
     const ownerIds = [...new Set([...opps.map(o => o.sales_owner_id ?? o.marketing_owner_id), ...pots.map(p => p.assigned_to)].filter((v): v is string => !!v))];
     const { data: owners } = ownerIds.length ? await admin.from('profiles').select('id, full_name').in('id', ownerIds) : { data: [] };
@@ -97,5 +102,5 @@ export async function GET(req: Request) {
   if (!allowed.includes('installation')) details.installs = [];
   if (!allowed.includes('finance')) details.finance = null;
 
-  return NextResponse.json({ project, deals, details, allowed });
+  return NextResponse.json({ project, deals, details, allowed, prospectId });
 }
