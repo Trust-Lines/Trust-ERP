@@ -156,8 +156,23 @@ export function BoardItemView({ item, section, assignees, canEdit, companyEdit =
         />
         {/* Client Info: the card's Contact, in this same pop-up (its own header, tabs and Activity). */}
         {shownStep === 'client' && data?.prospectId ? (
-          <div className="min-h-0 flex-1">
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
+            {/* Which project this is — the Contact below is the company / person behind it. */}
+            <div className="flex shrink-0 flex-wrap items-center gap-3 rounded-[8px] border border-ui-divider bg-ui-surface px-4 py-2.5">
+              {headBadge && (
+                <span className="flex h-7 shrink-0 items-center rounded-[6px] px-2 text-[15px] font-semibold leading-none" style={{ background: section.bg, color: stageInk }}>{headBadge}</span>
+              )}
+              <span className={`min-w-0 truncate text-[16px] font-semibold ${HEADING}`}>{item.title}</span>
+              {item.category && <span className="text-[13px] text-ui-body">{item.category}</span>}
+              <span className="inline-flex h-[22px] items-center gap-2 rounded-[4px] px-2.5 text-[12px] font-medium leading-4" style={{ background: section.bg, color: stageInk }}>
+                <span className="size-1.5 shrink-0 rounded-full" style={{ background: stageInk }} aria-hidden />
+                {section.label}
+              </span>
+              {item.subtitle && <span className="min-w-0 truncate text-[13px] text-ui-text-secondary">{item.subtitle}</span>}
+            </div>
+            <div className="min-h-0 flex-1">
             <ProspectQuickView embedded prospectId={data.prospectId} canEdit={canEdit} onClose={onClose} />
+            </div>
           </div>
         ) : (<>
         {/* ── Page heading ─────────────────────────────────────────── */}
