@@ -10,7 +10,7 @@ export function BoardHeading({ total }: { total: number }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <PageCrumbs items={[{ label: 'Sales', href: '/leads' }, { label: 'CRM Board', href: '/leads' }]} />
+        <PageCrumbs items={[{ label: 'Sales & Marketing', href: '/leads' }, { label: 'CRM Board', href: '/leads' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>CRM Board</h1>
         <p className="text-[13px] text-ui-body">
           {total} records

@@ -152,7 +152,7 @@ export function ContactManagerClient({ canEdit, initialOpenId = null }: { canEdi
     <>
       <div className="mb-[18px] flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-[5px] leading-[1.35]">
-          <PageCrumbs items={[{ label: 'Marketing', href: '/marketing' }, { label: 'Contact Manager', href: '/marketing/contact-manager' }]} />
+          <PageCrumbs items={[{ label: 'Sales & Marketing', href: '/marketing' }, { label: 'Contact Manager', href: '/marketing/contact-manager' }]} />
           <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Contact Manager</h1>
           <p className="m-0 text-[13px] text-ui-body">
             {total.toLocaleString('en-US')} contact{total !== 1 ? 's' : ''} — newest added first.
