@@ -150,7 +150,7 @@ export function ProspectsTrashClient({ rows, needRows, canPurge, purgeDays }: { 
   return (
     <div className="flex flex-col gap-[30px]">
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <PageCrumbs items={[{ label: 'Marketing', href: '/marketing' }, { label: 'Trash', href: '/marketing/prospects/trash' }]} />
+        <PageCrumbs items={[{ label: 'Sales & Marketing', href: '/marketing' }, { label: 'Trash', href: '/marketing/prospects/trash' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING_TEXT)}>Marketing Trash</h1>
         <p className="m-0 text-[13px] text-ui-body">
           Deleted Contacts and Needs (Potentials/Opportunities) are kept for {purgeDays} days, then permanently removed. Restoring a Contact brings back its Needs and Potentials too.

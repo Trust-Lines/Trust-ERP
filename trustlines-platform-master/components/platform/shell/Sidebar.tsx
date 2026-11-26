@@ -247,7 +247,7 @@ const MARKETING_NAV: NavItem[] = [
   { label: 'Social Media',        href: '/marketing/social',        icon: Share2,       perm: 'page.marketing_social' },
   { label: 'Calendar',            href: '/marketing/calendar',      icon: CalendarDays, perm: 'page.marketing_calendar' },
   { label: 'Website (Store Maker)', href: '/marketing/website',     icon: Globe,        perm: 'page.marketing_website' },
-  { label: 'Trash',               href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing_trash' },
+  { label: 'Contacts Trash',      href: '/marketing/prospects/trash', icon: Trash2,     perm: 'page.marketing_trash' },
 ];
 
 export function roleLabel(role: string) {
@@ -298,10 +298,9 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
   const allowed = (items: NavItem[]) => items.filter(i => pageAllowed(userRole, userPerms, i.perm));
   const marketingNav = allowed(MARKETING_NAV);
 
-  // Sales and Marketing are two different teams working two different jobs (Sales works deals
-  // through to a Trust project; Marketing works leads through to a qualified Opportunity) — they
-  // used to share one "CRM" nav group, which is exactly what made the sidebar hard to read. Split
-  // into two groups so each team sees only its own destinations under its own name.
+  // 2026-11-26: Sales and Marketing are one team again — one "Sales & Marketing" group, Sales pages
+  // first, then Marketing's. Pages both sides had are listed once (see below); who sees which page
+  // is set per page in Roles & Permissions.
   const salesNav: NavItem[] = [
     // 2026-11-05: Store Maker website submissions first — new inbound people are Sales' first job.
     { label: 'Store Maker Inbox', href: '/sales-inbox', icon: Globe, perm: 'page.sales_web_leads' },
@@ -321,19 +320,25 @@ export function buildNavSections(userRole: UserRole, userPerms: Record<string, b
     // this group means it only shows for Sales-side roles (showSales below), same as the rest
     // of the Sales nav.
     CUSTOMERS_ITEM,
-    { label: 'Trash', href: '/leads/trash', icon: Trash2, perm: 'page.leads_trash' },
+    { label: 'Deals Trash', href: '/leads/trash', icon: Trash2, perm: 'page.leads_trash' },
   ];
 
   // The Sales group shows when the person can open a Sales page; Customers alone (which
   // internal roles also have) doesn't make it a Sales group.
   const salesItems = allowed(salesNav);
-  const showSales = salesItems.some(i => i !== CUSTOMERS_ITEM);
+  const showSales = salesItems.some(i => i !== CUSTOMERS_ITEM) || marketingNav.length > 0;
+  // Sales → Contacts is the read-only Contact Manager: whoever can open Marketing's (editable)
+  // Contact Manager gets only that one.
+  const hasContactManager = marketingNav.some(i => i.href === '/marketing/contact-manager');
+  const salesMarketingItems = [
+    ...salesItems.filter(i => !(hasContactManager && i.href === '/sales-contacts')),
+    ...marketingNav,
+  ];
   const sections: NavSection[] = [
     { key: 'dashboard', title: 'Dashboard', icon: LayoutDashboard, items: allowed(DASHBOARD_NAV) },
     { key: 'my-workspace', title: 'My Workspace', icon: UserRound, items: allowed(MY_WORKSPACE_NAV) },
     { key: 'tlines-pm', title: 'T-Lines PM', icon: HardHat, items: allowed(TLINES_PM_NAV) },
-    { key: 'marketing', title: 'Marketing', icon: Megaphone, items: marketingNav },
-    ...(showSales ? [{ key: 'sales', title: 'Sales', icon: Target, items: salesItems, activeOverride: quickDealActive ? '/leads/new' : undefined }] : []),
+    ...(showSales ? [{ key: 'sales', title: 'Sales & Marketing', icon: Target, items: salesMarketingItems, activeOverride: quickDealActive ? '/leads/new' : undefined }] : []),
     { key: 'design', title: 'Design', icon: DraftingCompass, items: allowed(DESIGN_NAV) },
     { key: 'it', title: 'IT', icon: MonitorPcIcon, items: allowed(IT_NAV) },
     { key: 'operations', title: 'Operations', icon: Factory, items: allowed(OPERATIONS_NAV.filter(i => isInternal || !i.internal)) },

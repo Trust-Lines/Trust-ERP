@@ -196,7 +196,7 @@ export function SalesOpportunitiesClient({ initialOpportunities, loadError, assi
       {/* ── Page heading ── */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-[5px] leading-[1.35]">
-          <PageCrumbs items={[{ label: 'Sales', href: '/leads' }, { label: 'Handoffs', href: '/sales-projects' }]} />
+          <PageCrumbs items={[{ label: 'Sales & Marketing', href: '/leads' }, { label: 'Handoffs', href: '/sales-projects' }]} />
           <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Opportunity Handoffs</h1>
           <p className="m-0 text-[13px] text-ui-body">
             {opportunities.length} opportunit{opportunities.length !== 1 ? 'ies' : 'y'} handed off from Marketing or already yours

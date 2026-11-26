@@ -80,7 +80,7 @@ export function EmailCampaignsClient({ canEdit, isManager, mailReady }: { canEdi
   return (
     <div className="flex flex-col gap-[18px]">
       <PageHeading
-        trail={[{ label: 'Marketing', href: '/marketing' }, { label: 'Email Campaigns', href: '/marketing/email' }]}
+        trail={[{ label: 'Sales & Marketing', href: '/marketing' }, { label: 'Email Campaigns', href: '/marketing/email' }]}
         title="Email Campaigns"
         subtitle="Used from Contacts to download or send a query’s results as one merged mailing."
         actions={canEdit && <Button variant="accent" loading={creating} onClick={create}><Plus /> New Campaign</Button>}

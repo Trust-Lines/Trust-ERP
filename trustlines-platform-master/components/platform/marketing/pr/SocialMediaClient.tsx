@@ -37,7 +37,7 @@ interface Props {
   flash?: { connected?: string; accounts?: string; synced?: string; connectError?: string; tab?: string };
 }
 
-const TRAIL = [{ label: 'Marketing', href: '/marketing' }, { label: 'Social Media', href: '/marketing/social' }];
+const TRAIL = [{ label: 'Sales & Marketing', href: '/marketing' }, { label: 'Social Media', href: '/marketing/social' }];
 
 /** Marketing → Social Media: posts (plan, schedule, publish, results) and accounts (connections, followers). */
 export function SocialMediaClient({ initial, campaigns, providers, canEdit, isManager, userId, loadError, openPostId, flash }: Props) {

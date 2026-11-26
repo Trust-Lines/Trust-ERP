@@ -91,7 +91,7 @@ export function CustomersPageClient({ initialCustomers, canEdit }: Props) {
     <div className="flex flex-col gap-[30px]">
       {/* ── Page heading ── */}
       <div className="flex flex-col gap-[5px] leading-[1.35]">
-        <PageCrumbs items={[{ label: 'Sales', href: '/leads' }, { label: 'Customers', href: '/customers' }]} />
+        <PageCrumbs items={[{ label: 'Sales & Marketing', href: '/leads' }, { label: 'Customers', href: '/customers' }]} />
         <h1 className={cn('m-0 text-[28px] font-semibold leading-[1.35]', HEADING)}>Customers</h1>
         <p className="m-0 text-[13px] text-ui-body">{customers.length} end customer{customers.length !== 1 ? 's' : ''}</p>
       </div>

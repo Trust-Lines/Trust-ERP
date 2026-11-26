@@ -135,7 +135,7 @@ export function MailTemplatesClient({ initialTemplates, loadError, canEdit }: Pr
         <div className="flex flex-col gap-[5px] leading-[1.35]">
           <PageCrumbs
             items={[
-              { label: 'Marketing', href: '/marketing' },
+              { label: 'Sales & Marketing', href: '/marketing' },
               { label: 'Mail Templates', href: '/marketing/mail-templates', onClick: () => setEditing(null) },
               ...(editing ? [{ label: editing.id ? 'Edit' : 'New' }] : []),
             ]}
